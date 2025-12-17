@@ -1,0 +1,32 @@
+/* Basic reset and premium feel variables */
+:root {
+    --bg-primary: #0f172a; /* Slate 900 */
+    --bg-secondary: #1e293b; /* Slate 800 */
+    --accent: #3b82f6; /* Blue 500 */
+    --text-primary: #f8fafc; /* Slate 50 */
+    --text-secondary: #94a3b8; /* Slate 400 */
+}
+
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Utilities usually provided by Tailwind, added here for specific custom needs if Tailwind fails to load or for overrides */
+.glass {
+    background: rgba(30, 41, 59, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.gradient-text {
+    background: linear-gradient(to right, #60a5fa, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
