@@ -73,6 +73,56 @@ async def read_root(request: Request):
         "user": user
     })
 
+# --- Flow Logic ---
+def get_sector_from_cc(cost_center):
+    cc = (cost_center or "").upper()
+    if any(x in cc for x in ["RECEBIMENTO", "DESC", "CONF"]): return "Recebimento"
+    if any(x in cc for x in ["CAMARA", "FRIO", "RESFRIADO"]): return "Câmara Fria"
+    if any(x in cc for x in ["SELECAO", "CLASSIFICACAO"]): return "Seleção"
+    if any(x in cc for x in ["BLOCADO", "QUEBRA"]): return "Blocado"
+    if any(x in cc for x in ["EMBANDEJAMENTO", "EMB"]): return "Embandejamento"
+    if any(x in cc for x in ["ESTOQUE", "CONTROLE", "INV"]): return "Estoque"
+    if any(x in cc for x in ["EXPEDICAO", "EXP", "CARGA"]): return "Expedição"
+    return "Outros" # Fallback or maybe pool
+
+@app.get("/flow", response_class=HTMLResponse)
+async def flow_dashboard(request: Request, session: Session = Depends(get_session)):
+    user = require_login(request)
+    employees = session.exec(select(models.Employee).where(models.Employee.status == "active")).all()
+    
+    # Init Sector Data
+    sectors = {
+        "Recebimento": {"count": 0, "people": [], "status": "ok", "target": 10},
+        "Câmara Fria": {"count": 0, "people": [], "status": "warning", "target": 5},
+        "Seleção": {"count": 0, "people": [], "status": "ok", "target": 15},
+        "Blocado": {"count": 0, "people": [], "status": "critical", "target": 8},
+        "Embandejamento": {"count": 0, "people": [], "status": "ok", "target": 12},
+        "Estoque": {"count": 0, "people": [], "status": "ok", "target": 4},
+        "Expedição": {"count": 0, "people": [], "status": "ok", "target": 20},
+    }
+    
+    # Populate Sectors
+    for emp in employees:
+        sec = get_sector_from_cc(emp.cost_center)
+        if sec in sectors:
+            sectors[sec]["count"] += 1
+            sectors[sec]["people"].append(emp)
+    
+    # Simple Status Logic (Mock for now)
+    for name, data in sectors.items():
+        if data["count"] < data["target"] * 0.8:
+            data["status"] = "critical"
+        elif data["count"] < data["target"]:
+            data["status"] = "warning"
+        else:
+            data["status"] = "ok"
+
+    return templates.TemplateResponse("flow.html", {
+        "request": request,
+        "user": user,
+        "sectors": sectors
+    })
+
 # --- Employee Routes ---
 from sqlmodel import select
 
@@ -106,15 +156,74 @@ async def employees_page(request: Request, session: Session = Depends(get_sessio
     # Shift Stats
     shifts = ["Manhã", "Tarde", "Noite"]
     shift_stats = []
+    
+    # Init counters for each shift
+    shift_data = {
+        "Manhã": {"active": 0, "vacation": 0, "away": 0},
+        "Tarde": {"active": 0, "vacation": 0, "away": 0},
+        "Noite": {"active": 0, "vacation": 0, "away": 0}
+    }
+
+    # Helper to determine shift from cost center
+    def get_shift_from_cc(cost_center):
+        cc = (cost_center or "").upper()
+        if "NOITE" in cc: return "Noite"
+        if "TARDE" in cc: return "Tarde"
+        return "Manhã" # Default
+
+    total_real_active = 0
+
+    for e in employees:
+        if e.status == "fired":
+            continue
+            
+        # Count towards total if not fired
+        total_real_active += 1
+        
+        # Determine shift
+        s_name = get_shift_from_cc(e.cost_center)
+        
+        # Increment specific status counter for that shift
+        if e.status == "active":
+            shift_data[s_name]["active"] += 1
+        elif e.status == "vacation":
+            shift_data[s_name]["vacation"] += 1
+        elif e.status == "away":
+            shift_data[s_name]["away"] += 1
+        # If there are other statuses (unlikely per current logic), they are counted in total but not specifically in shift 'active'
+
     for s in shifts:
-        count = sum(1 for e in employees if e.status == "active" and e.work_shift == s)
+        data = shift_data.get(s, {"active":0, "vacation":0, "away":0})
+        active_count = data["active"]
+        
         target = target_map.get(s, 0)
         shift_stats.append({
             "name": s,
-            "count": count,
+            "count": active_count,
+            "vacation": data["vacation"],
+            "away": data["away"],
             "target": target,
-            "vacancies": target - count
+            "vacancies": target - active_count
         })
+        
+    # Status Stats (Global)
+    status_stats = {
+        "vacation": sum(1 for e in employees if e.status == "vacation"),
+        "away": sum(1 for e in employees if e.status == "away"),
+        "fired": sum(1 for e in employees if e.status == "fired")
+    }
+
+    return templates.TemplateResponse("employees.html", {
+        "request": request,
+        "employees": employees,
+        "stats": {
+            "total_active": total_real_active,
+            "total_target": total_target,
+            "vacancies": total_target - total_real_active,
+            "shifts": shift_stats,
+            "statuses": status_stats
+        }
+    })
 
     return templates.TemplateResponse("employees.html", {
         "request": request,
@@ -124,7 +233,8 @@ async def employees_page(request: Request, session: Session = Depends(get_sessio
             "total_active": total_active,
             "total_target": total_target,
             "vacancies": total_target - total_active,
-            "shifts": shift_stats
+            "shifts": shift_stats,
+            "statuses": status_stats
         }
     })
 
@@ -238,6 +348,9 @@ async def update_employee_status(
             elif status_action == "away":
                 event_type = "afastamento"
                 text_desc = "Colaborador Afastado"
+            elif status_action == "active":
+                event_type = "retorno"
+                text_desc = "Colaborador Reativado (Retorno)"
             
             new_event = models.Event(
                 text=text_desc,
@@ -251,6 +364,21 @@ async def update_employee_status(
             emp.status = status_action
             session.add(emp)
         session.commit()
+    return RedirectResponse(url="/employees", status_code=status.HTTP_303_SEE_OTHER)
+
+@app.post("/events/{event_id}/delete")
+async def delete_event(
+    event_id: int,
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    require_login(request)
+    event = session.get(models.Event, event_id)
+    if event:
+        emp_id = event.employee_id
+        session.delete(event)
+        session.commit()
+        return RedirectResponse(url=f"/employees/{emp_id}", status_code=status.HTTP_303_SEE_OTHER)
     return RedirectResponse(url="/employees", status_code=status.HTTP_303_SEE_OTHER)
 
 @app.post("/employees/{emp_id}/update")
@@ -269,6 +397,33 @@ async def update_employee(
     require_login(request)
     emp = session.get(models.Employee, emp_id)
     if emp:
+        # Log Shift Change
+        if emp.work_shift != work_shift:
+            session.add(models.Event(
+                text=f"Troca de Turno: {emp.work_shift} para {work_shift}",
+                type="alteracao_cadastro",
+                category="pessoas",
+                employee_id=emp.id
+            ))
+            
+        # Log Role Change
+        if emp.role != role:
+            session.add(models.Event(
+                text=f"Alteração de Cargo: {emp.role} para {role}",
+                type="alteracao_cadastro",
+                category="pessoas",
+                employee_id=emp.id
+            ))
+            
+        # Log Cost Center Change
+        if emp.cost_center != cost_center:
+             session.add(models.Event(
+                text=f"Alteração de Centro de Custo: {emp.cost_center} -> {cost_center}",
+                type="alteracao_cadastro",
+                category="pessoas",
+                employee_id=emp.id
+            ))
+
         emp.name = name
         emp.registration_id = registration_id
         emp.role = role

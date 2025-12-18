@@ -4,47 +4,105 @@
 <div class="p-6 space-y-6">
 
     <!-- Dashboard Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
         <!-- Total Card -->
-        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg relative overflow-hidden">
+        <div
+            class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm relative overflow-hidden group hover:border-blue-500/50 transition-all">
             <div class="z-10 relative">
-                <h3 class="text-slate-400 text-sm font-medium mb-1">Total Geral</h3>
-                <div class="flex items-baseline gap-2">
-                    <span class="text-3xl font-bold text-white">{{ stats.total_active }}</span>
-                    <span class="text-slate-500 text-sm">/ {{ stats.total_target }}</span>
+                <h3 class="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Total</h3>
+                <div class="flex items-baseline gap-1.5">
+                    <span class="text-2xl font-bold text-white">{{ stats.total_active }}</span>
+                    <span class="text-slate-600 text-xs font-medium">/ {{ stats.total_target }}</span>
                 </div>
-                <div class="mt-4 flex items-center gap-2">
-                    <span
-                        class="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-xs font-semibold border border-emerald-500/20">
-                        {{ "+" if stats.vacancies > 0 else "" }}{{ stats.vacancies }} Vagas
+                <div class="mt-2 flex items-center justify-between">
+                    <span class="text-emerald-400 text-xs font-medium bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                        {{ "+" if stats.vacancies > 0 else "" }}{{ stats.vacancies }}
                     </span>
-                    <button class="text-slate-500 hover:text-white text-xs underline">Alterar Meta</button>
+                    <button onclick="document.getElementById('targetModal').classList.remove('hidden')"
+                        class="text-slate-500 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                            </path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                    </button>
                 </div>
             </div>
-            <!-- Decorator -->
-            <div class="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/10 rounded-full blur-xl"></div>
         </div>
 
         <!-- Shift Cards -->
         {% for shift in stats.shifts %}
-        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg">
-            <h3 class="text-slate-400 text-sm font-medium mb-1">Turno {{ shift.name }}</h3>
-            <div class="flex items-baseline gap-2">
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm cursor-pointer hover:border-blue-500 hover:shadow-md transition-all group"
+            onclick="setFilter('{{ shift.name }}')">
+            <h3 class="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">{{ shift.name }}</h3>
+            <div class="flex items-baseline gap-1.5">
                 <span class="text-2xl font-bold text-white">{{ shift.count }}</span>
-                <span class="text-slate-500 text-sm">/ {{ shift.target }}</span>
+                <span class="text-slate-600 text-xs font-medium">/ {{ shift.target }}</span>
             </div>
-            <div class="mt-4">
+
+            <!-- Vacancy/Excess Status -->
+            <div class="mt-2 flex flex-col gap-1">
                 {% if shift.vacancies > 0 %}
-                <span class="text-emerald-400 text-xs flex items-center gap-1">
+                <span class="text-emerald-400 text-xs font-medium flex items-center gap-1.5">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                    {{ shift.vacancies }} Vagas abertas
+                    +{{ shift.vacancies }}
                 </span>
-                {% else %}
-                <span class="text-slate-500 text-xs">Completo</span>
-                {% endif %}
+                {% elif shift.vacancies < 0 %} <span class="text-red-400 text-xs font-medium flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                    {{ shift.vacancies }}
+                    </span>
+                    {% else %}
+                    <span class="text-slate-500 text-xs flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+                        OK
+                    </span>
+                    {% endif %}
+
+                    <!-- Detailed Observations -->
+                    {% if shift.vacation > 0 or shift.away > 0 %}
+                    <div
+                        class="text-[10px] text-slate-500 font-medium flex gap-2 border-t border-slate-700/50 pt-1 mt-1">
+                        {% if shift.vacation > 0 %}
+                        <span class="text-blue-400/80">{{ shift.vacation }} Férias</span>
+                        {% endif %}
+                        {% if shift.away > 0 %}
+                        <span class="text-orange-400/80">{{ shift.away }} Afast.</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
             </div>
         </div>
         {% endfor %}
+
+        <!-- Status Cards -->
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm cursor-pointer hover:border-blue-500 hover:shadow-md transition-all group"
+            onclick="setFilter('vacation')">
+            <h3 class="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Férias</h3>
+            <div class="text-2xl font-bold text-blue-400">{{ stats.statuses.vacation }}</div>
+            <div class="mt-2 h-4 w-full bg-slate-700/50 rounded-full overflow-hidden">
+                <div class="h-full bg-blue-500/20 w-3/4"></div>
+            </div>
+        </div>
+
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm cursor-pointer hover:border-orange-500 hover:shadow-md transition-all group"
+            onclick="setFilter('away')">
+            <h3 class="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Afastados</h3>
+            <div class="text-2xl font-bold text-orange-400">{{ stats.statuses.away }}</div>
+            <div class="mt-2 h-4 w-full bg-slate-700/50 rounded-full overflow-hidden">
+                <div class="h-full bg-orange-500/20 w-1/2"></div>
+            </div>
+        </div>
+
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm cursor-pointer hover:border-red-500 hover:shadow-md transition-all group"
+            onclick="setFilter('fired')">
+            <h3 class="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Demitidos</h3>
+            <div class="text-2xl font-bold text-red-400">{{ stats.statuses.fired }}</div>
+            <div class="mt-2 h-4 w-full bg-slate-700/50 rounded-full overflow-hidden">
+                <div class="h-full bg-red-500/20 w-1/4"></div>
+            </div>
+        </div>
     </div>
 
     <!-- Actions Bar -->
@@ -73,24 +131,59 @@
         </div>
     </div>
 
+    <!-- Search & Filters -->
+    <div
+        class="flex flex-col md:flex-row gap-4 justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700">
+        <div class="relative w-full md:w-96">
+            <input type="text" id="searchInput" placeholder="Pesquisar por nome ou matrícula..."
+                class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                onkeyup="filterTable()">
+            <svg class="w-5 h-5 text-slate-500 absolute left-3 top-2.5" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="setFilter('all')"
+                class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white hover:bg-slate-600 transition-colors active"
+                data-filter="all">Todos</button>
+            <button onclick="setFilter('Manhã')"
+                class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-900 text-slate-400 hover:text-white transition-colors"
+                data-filter="Manhã">Manhã</button>
+            <button onclick="setFilter('Tarde')"
+                class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-900 text-slate-400 hover:text-white transition-colors"
+                data-filter="Tarde">Tarde</button>
+            <button onclick="setFilter('Noite')"
+                class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-900 text-slate-400 hover:text-white transition-colors"
+                data-filter="Noite">Noite</button>
+        </div>
+    </div>
+
     <!-- Table -->
     <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
-        <table class="w-full text-left text-sm text-slate-400">
+        <table class="w-full text-left text-sm text-slate-400" id="employeesTable">
             <thead class="bg-slate-900/50 text-slate-200 font-medium border-b border-slate-700">
                 <tr>
                     <th class="p-4 pl-6">Colaborador</th>
                     <th class="p-4">Matrícula</th>
                     <th class="p-4">Cargo</th>
                     <th class="p-4">Centro de Custo</th>
-                    <th class="p-4">Admissão</th>
-                    <th class="p-4">Aniversário</th>
                     <th class="p-4">Status</th>
                     <th class="p-4">Ações</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-700">
+            <tbody class="divide-y divide-slate-700 hidden" id="tableBody">
                 {% for emp in employees %}
-                <tr class="hover:bg-white/5 transition-colors group">
+                {% set row_shift = 'Manhã' %}
+                {% if 'TARDE' in emp.cost_center|upper %}
+                {% set row_shift = 'Tarde' %}
+                {% elif 'NOITE' in emp.cost_center|upper %}
+                {% set row_shift = 'Noite' %}
+                {% endif %}
+
+                <tr class="hover:bg-white/5 transition-colors group employee-row" data-name="{{ emp.name|lower }}"
+                    data-reg="{{ emp.registration_id }}" data-shift="{{ row_shift }}" data-status="{{ emp.status }}">
                     <td class="p-4 pl-6">
                         <div class="flex items-center gap-3">
                             <div
@@ -105,9 +198,9 @@
                     </td>
                     <td class="p-4">{{ emp.registration_id }}</td>
                     <td class="p-4">{{ emp.role }}</td>
-                    <td class="p-4">{{ emp.cost_center }}</td>
-                    <td class="p-4">{{ emp.admission_date.strftime('%d/%m/%Y') if emp.admission_date else '-' }}</td>
-                    <td class="p-4">{{ emp.birthday.strftime('%d/%m') if emp.birthday else '-' }}</td>
+                    <td class="p-4">{{ emp.cost_center.replace('Expedição', '').replace('EXPEDIÇÃO',
+                        '').replace('expedição', '').replace('EXPEDICAO', '').replace('Expedicao',
+                        '').replace('expedicao', '').strip() }}</td>
                     <td class="p-4">
                         {% if emp.status == 'active' %}
                         <span
@@ -128,32 +221,54 @@
                         {% endif %}
                     </td>
                     <td class="p-4">
-                        <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div class="flex items-center gap-1">
                             <!-- Editar -->
                             <button type="button" onclick='openEditModal({{ emp.model_dump_json() }})'
-                                class="p-1 hover:bg-slate-700 rounded text-yellow-400" title="Editar">
+                                class="p-1.5 hover:bg-slate-700 rounded text-yellow-400 transition-colors"
+                                title="Editar">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
                                     </path>
                                 </svg>
                             </button>
-                            <!-- Férias -->
-                            <form action="/employees/{{ emp.id }}/status" method="POST" class="inline">
-                                <input type="hidden" name="status_action" value="vacation">
-                                <button type="submit" class="p-1 hover:bg-slate-700 rounded text-blue-400"
-                                    title="Férias">
+
+                            {% if emp.status != 'active' %}
+                            <!-- Reativar / Retornar -->
+                            <form action="/employees/{{ emp.id }}/status" method="POST" class="inline"
+                                onsubmit="return confirm('Confirmar o retorno de {{ emp.name }}?');">
+                                <input type="hidden" name="status_action" value="active">
+                                <button type="submit"
+                                    class="p-1.5 hover:bg-emerald-500/20 rounded text-emerald-400 transition-colors"
+                                    title="Reativar / Retornar">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z">
+                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
                                         </path>
                                     </svg>
                                 </button>
                             </form>
+                            {% endif %}
+
+                            <!-- Férias -->
+                            <form action="/employees/{{ emp.id }}/status" method="POST" class="inline">
+                                <input type="hidden" name="status_action" value="vacation">
+                                <button type="submit"
+                                    class="p-1.5 hover:bg-slate-700 rounded text-blue-400 transition-colors"
+                                    title="Férias">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z">
+                                        </path>
+                                    </svg>
+                                </button>
+                            </form>
+
                             <!-- Afastar -->
                             <form action="/employees/{{ emp.id }}/status" method="POST" class="inline">
                                 <input type="hidden" name="status_action" value="away">
-                                <button type="submit" class="p-1 hover:bg-slate-700 rounded text-orange-400"
+                                <button type="submit"
+                                    class="p-1.5 hover:bg-slate-700 rounded text-orange-400 transition-colors"
                                     title="Afastar">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -162,10 +277,13 @@
                                     </svg>
                                 </button>
                             </form>
+
                             <!-- Demitir -->
-                            <form action="/employees/{{ emp.id }}/status" method="POST" class="inline">
+                            <form action="/employees/{{ emp.id }}/status" method="POST" class="inline"
+                                onsubmit="return confirm('Confirmar demissão de {{ emp.name }}?');">
                                 <input type="hidden" name="status_action" value="fired">
-                                <button type="submit" class="p-1 hover:bg-slate-700 rounded text-red-400"
+                                <button type="submit"
+                                    class="p-1.5 hover:bg-slate-700 rounded text-red-500 transition-colors"
                                     title="Demitir">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -174,11 +292,13 @@
                                     </svg>
                                 </button>
                             </form>
+
                             <!-- Excluir -->
                             <form action="/employees/{{ emp.id }}/status" method="POST" class="inline"
-                                onsubmit="return confirm('Tem certeza que deseja excluir?');">
+                                onsubmit="return confirm('ATENÇÃO: Isso excluirá permanentemente {{ emp.name }}. Continuar?');">
                                 <input type="hidden" name="status_action" value="delete">
-                                <button type="submit" class="p-1 hover:bg-slate-700 rounded text-slate-400"
+                                <button type="submit"
+                                    class="p-1.5 hover:bg-slate-700 rounded text-slate-500 hover:text-red-400 transition-colors"
                                     title="Excluir">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -366,8 +486,12 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-400 mb-1">Centro de Custo</label>
-                    <input type="text" name="cost_center" id="editCost" required
+                    <select name="cost_center" id="editCost" required
                         class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+                        <option value="EXPEDIÇÃO MANHÃ">EXPEDIÇÃO MANHÃ</option>
+                        <option value="EXPEDIÇÃO TARDE">EXPEDIÇÃO TARDE</option>
+                        <option value="EXPEDIÇÃO NOITE">EXPEDIÇÃO NOITE</option>
+                    </select>
                 </div>
             </div>
             <div class="grid grid-cols-3 gap-4">
@@ -420,6 +544,112 @@
         }
 
         document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    let currentFilter = 'all';
+
+    function setFilter(filter) {
+        currentFilter = filter;
+
+        // Update Buttons
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            if (btn.dataset.filter === filter) {
+                btn.classList.add('bg-slate-700', 'text-white', 'active');
+                btn.classList.remove('bg-slate-900', 'text-slate-400');
+            } else {
+                btn.classList.remove('bg-slate-700', 'text-white', 'active');
+                btn.classList.add('bg-slate-900', 'text-slate-400');
+            }
+        });
+
+        filterTable();
+    }
+
+    function filterTable() {
+        const input = document.getElementById('searchInput');
+        const searchVal = input.value.toLowerCase();
+        const rows = document.querySelectorAll('.employee-row');
+        const tbody = document.getElementById('tableBody');
+
+        // Logic: 
+        // If search is empty AND filter is 'all' -> Hide List (as per request "Não aparecer lista")
+        // But maybe "Todos" should show all?
+        // User said: "Não aparecer lista de colaboradores... Ter a opção de marcar e selecionar para exibir todos os colaboradores"
+        // So: If search is empty AND filter is 'all' AND user hasn't explicitly clicked 'Todos' maybe?
+        // Let's assume if they click "Todos" btn they want to see all. 
+        // If they just landed, we hide.
+        // We can track if a filter/search interaction happened?
+
+        // Simplification: Always show based on filter logic, but verify "default hidden".
+        // Use a class or just check values.
+
+        let hasVisible = false;
+
+        rows.forEach(row => {
+            const name = row.dataset.name;
+            const reg = row.dataset.reg;
+            const shift = row.dataset.shift;
+            const status = row.dataset.status;
+
+            let matchesSearch = !searchVal || name.includes(searchVal) || reg.includes(searchVal);
+            let matchesFilter = false;
+
+            if (currentFilter === 'all') {
+                // Show all active employees used to be default, but maybe users want to see everyone including vacation? 
+                // Usually "Todos" means "Todos Ativos" in shifts contexts, let's keep it simple: Show all.
+                matchesFilter = true;
+            } else if (['Manhã', 'Tarde', 'Noite'].includes(currentFilter)) {
+                // If shift filter, strictly that shift. Using derived shift.
+                matchesFilter = (shift === currentFilter);
+            } else {
+                // If status filter (vacation, away, fired)
+                matchesFilter = status === currentFilter;
+            }
+
+            if (matchesSearch && matchesFilter) {
+                row.classList.remove('hidden');
+                hasVisible = true;
+            } else {
+                row.classList.add('hidden');
+            }
+        });
+
+        // Toggle tbody visibility based on whether we should show anything or if search/filter is present
+        // User wants: Default hidden.
+        // If "Todos" is active but search is empty, maybe hidden? 
+        // Use flag: 
+        if (searchVal.length > 0 || currentFilter !== 'all' || document.querySelector('.filter-btn[data-filter="all"]').classList.contains('active')) {
+            tbody.classList.remove('hidden');
+        }
+    }
+    function sortTable(criteria) {
+        const tbody = document.getElementById('tableBody');
+        const rows = Array.from(document.querySelectorAll('.employee-row'));
+
+        // Highlight active sort button
+        // (Simplified: just sorting logic first)
+
+        rows.sort((a, b) => {
+            let valA, valB;
+
+            if (criteria === 'name') {
+                valA = a.dataset.name;
+                valB = b.dataset.name;
+            } else if (criteria === 'reg') {
+                valA = parseInt(a.dataset.reg) || 0;
+                valB = parseInt(b.dataset.reg) || 0;
+            } else if (criteria === 'date') {
+                valA = a.dataset.admission || '';
+                valB = b.dataset.admission || '';
+            }
+
+            if (valA < valB) return -1;
+            if (valA > valB) return 1;
+            return 0;
+        });
+
+        // Re-append
+        rows.forEach(row => tbody.appendChild(row));
     }
 </script>
 {% endblock %}

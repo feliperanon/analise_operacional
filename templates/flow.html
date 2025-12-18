@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="h-full flex flex-col p-8 overflow-hidden">
+    <!-- Header -->
+    <div class="mb-8 flex justify-between items-end">
+        <div>
+            <h1 class="text-3xl font-bold text-white mb-2">Simulador Operacional</h1>
+            <p class="text-slate-400">Visão sistêmica do fluxo: Recebimento &rarr; Expedição</p>
+        </div>
+        <div class="flex gap-4">
+            <span class="flex items-center gap-2 text-xs text-slate-400">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Operando
+            </span>
+            <span class="flex items-center gap-2 text-xs text-slate-400">
+                <span class="w-2 h-2 rounded-full bg-yellow-500"></span> Atenção
+            </span>
+            <span class="flex items-center gap-2 text-xs text-slate-400">
+                <span class="w-2 h-2 rounded-full bg-red-500"></span> Crítico
+            </span>
+        </div>
+    </div>
+
+    <!-- Macro Flow Container -->
+    <div class="flex-1 flex items-center justify-center relative">
+        <!-- Connecting Line (Background) -->
+        <div class="absolute top-1/2 left-10 right-10 h-1 bg-slate-800 -z-10 rounded-full"></div>
+
+        <!-- Sectors Grid -->
+        <div class="flex gap-8 overflow-x-auto pb-8 pt-4 px-4 w-full justify-between items-center mask-linear">
+            {% for name, data in sectors.items() %}
+            <div class="relative group cursor-pointer" onclick="openSectorDetails('{{ name }}')">
+
+                <!-- Connection Dot -->
+                <div class="absolute top-1/2 -left-4 w-2 h-2 bg-slate-700 rounded-full -translate-y-1/2"></div>
+
+                <!-- Card -->
+                <div class="w-48 bg-slate-800/80 backdrop-blur-sm border 
+                            {% if data.status == 'critical' %}border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.3)]{% elif data.status == 'warning' %}border-yellow-500/50{% else %}border-emerald-500/50{% endif %} 
+                            p-5 rounded-2xl hover:-translate-y-2 transition-all duration-300 relative overflow-hidden">
+
+                    <!-- Glow Effect -->
+                    <div
+                        class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-white/5 to-transparent rounded-full -mr-8 -mt-8 blur-lg">
+                    </div>
+
+                    <!-- Icon / Title -->
+                    <h3 class="text-white font-bold text-lg mb-4 truncate" title="{{ name }}">{{ name }}</h3>
+
+                    <!-- Metrics -->
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-slate-400 uppercase tracking-wider">Peso</span>
+                            <span class="text-sm font-semibold text-white">-- Ton</span> <!-- Placeholder -->
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-slate-400 uppercase tracking-wider">Staff</span>
+                            <div class="flex items-baseline gap-1">
+                                <span
+                                    class="text-xl font-bold {% if data.status == 'critical' %}text-red-400{% elif data.status == 'warning' %}text-yellow-400{% else %}text-emerald-400{% endif %}">{{
+                                    data.count }}</span>
+                                <span class="text-xs text-slate-600">/ {{ data.target }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status Bar -->
+                    <div class="mt-4 h-1.5 w-full bg-slate-900 rounded-full overflow-hidden">
+                        <div class="h-full rounded-full {% if data.status == 'critical' %}bg-red-500{% elif data.status == 'warning' %}bg-yellow-500{% else %}bg-emerald-500{% endif %}"
+                            style="width: {{ (data.count / data.target * 100)|round }}%"></div>
+                    </div>
+                </div>
+
+                <!-- Connect Dot Right -->
+                <div class="absolute top-1/2 -right-4 w-2 h-2 bg-slate-700 rounded-full -translate-y-1/2"></div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Details Modal Interface (Placeholder) -->
+<div id="sectorModal"
+    class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-8">
+    <div class="bg-slate-900 w-full h-full rounded-3xl border border-slate-700 flex flex-col relative overflow-hidden">
+        <!-- Close -->
+        <button onclick="document.getElementById('sectorModal').classList.add('hidden')"
+            class="absolute top-6 right-6 p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white z-10">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+
+        <div class="flex-1 flex" id="modalContent">
+            <!-- Content Injected via JS -->
+            <div class="m-auto text-slate-500">Carregando setor...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openSectorDetails(sectorName) {
+        document.getElementById('sectorModal').classList.remove('hidden');
+        // Future: Fetch specifically formatted sector data including Micro-flows
+        // For now, static placeholder
+        document.getElementById('modalContent').innerHTML = `
+            <div class="w-full h-full flex items-center justify-center flex-col">
+                <h2 class="text-4xl font-bold text-white mb-4">${sectorName}</h2>
+                <p class="text-xl text-slate-400">Implementação da Camada de Detalhes (Pessoas & Micro-fluxos) na próxima etapa.</p>
+            </div>
+        `;
+    }
+</script>
+{% endblock %}

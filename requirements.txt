@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+sqlmodel
+pandas
+python-multipart
+openpyxl
+jinja2
+itsdangerous
+psycopg2-binary
+python-dotenv
