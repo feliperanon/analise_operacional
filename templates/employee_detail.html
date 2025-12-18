@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center gap-6 bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg">
+        <div
+            class="w-24 h-24 rounded-full bg-slate-700 flex items-center justify-center text-3xl font-bold text-white uppercase border-4 border-slate-600">
+            {{ emp.name[:2] }}
+        </div>
+        <div>
+            <h1 class="text-3xl font-bold text-white mb-2">{{ emp.name }}</h1>
+            <div class="flex flex-wrap gap-3 text-sm text-slate-400">
+                <span class="flex items-center gap-1 bg-slate-900/50 px-3 py-1 rounded-full border border-slate-700">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0c0 .667.333 1 1 1v1m2-2c0 .667-.333 1-1 1v1">
+                        </path>
+                    </svg>
+                    {{ emp.role }}
+                </span>
+                <span class="flex items-center gap-1 bg-slate-900/50 px-3 py-1 rounded-full border border-slate-700">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
+                        </path>
+                    </svg>
+                    {{ emp.cost_center }}
+                </span>
+                <span class="flex items-center gap-1 bg-slate-900/50 px-3 py-1 rounded-full border border-slate-700">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Turno {{ emp.work_shift }}
+                </span>
+                <span class="flex items-center gap-1 bg-slate-900/50 px-3 py-1 rounded-full border border-slate-700">
+                    #{{ emp.registration_id }}
+                </span>
+                {% if emp.status == 'active' %}
+                <span
+                    class="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Ativo</span>
+                {% elif emp.status == 'vacation' %}
+                <span
+                    class="px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">Férias</span>
+                {% elif emp.status == 'away' %}
+                <span
+                    class="px-3 py-1 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20">Afastado</span>
+                {% elif emp.status == 'fired' %}
+                <span class="px-3 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">Demitido</span>
+                {% endif %}
+            </div>
+            <div class="mt-4 flex gap-4 text-xs text-slate-500">
+                <div>Admissão: <span class="text-slate-300">{{ emp.admission_date.strftime('%d/%m/%Y') if
+                        emp.admission_date else '-' }}</span></div>
+                <div>Aniversário: <span class="text-slate-300">{{ emp.birthday.strftime('%d/%m') if emp.birthday else
+                        '-' }}</span></div>
+            </div>
+        </div>
+        <div class="ml-auto">
+            <a href="/employees"
+                class="text-slate-400 hover:text-white flex items-center gap-1 text-sm bg-slate-700/50 px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Voltar
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-4 gap-4">
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+            <div class="text-slate-400 text-sm mb-1">Advertências</div>
+            <div class="text-2xl font-bold text-white">{{ stats.advertencias }}</div>
+        </div>
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+            <div class="text-slate-400 text-sm mb-1">Faltas</div>
+            <div class="text-2xl font-bold text-white">{{ stats.faltas }}</div>
+        </div>
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+            <div class="text-slate-400 text-sm mb-1">Atestados</div>
+            <div class="text-2xl font-bold text-white">{{ stats.atestados }}</div>
+        </div>
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+            <div class="text-slate-400 text-sm mb-1">Histórico Férias</div>
+            <div class="text-2xl font-bold text-white">{{ stats.ferias }}</div>
+        </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
+        <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+            <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Linha do Tempo (Prontuário)
+        </h3>
+
+        <div class="relative pl-8 border-l-2 border-slate-700 space-y-8">
+            {% for event in events %}
+            <div class="relative">
+                <!-- Dot -->
+                <div class="absolute -left-[41px] bg-slate-800 p-1">
+                    {% if event.type == 'advertencia' %}
+                    <div
+                        class="w-4 h-4 rounded-full bg-red-500 border-2 border-slate-800 shadow-[0_0_0_2px_rgba(239,68,68,0.2)]">
+                    </div>
+                    {% elif event.type == 'atestado' %}
+                    <div
+                        class="w-4 h-4 rounded-full bg-yellow-500 border-2 border-slate-800 shadow-[0_0_0_2px_rgba(234,179,8,0.2)]">
+                    </div>
+                    {% elif event.type == 'ferias_hist' %}
+                    <div
+                        class="w-4 h-4 rounded-full bg-blue-500 border-2 border-slate-800 shadow-[0_0_0_2px_rgba(59,130,246,0.2)]">
+                    </div>
+                    {% else %}
+                    <div class="w-4 h-4 rounded-full bg-slate-500 border-2 border-slate-800"></div>
+                    {% endif %}
+                </div>
+
+                <!-- Content -->
+                <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+                    <div class="flex justify-between items-start mb-2">
+                        <span
+                            class="text-xs font-semibold uppercase tracking-wider 
+                        {% if event.type == 'advertencia' %}text-red-400{% elif event.type == 'atestado' %}text-yellow-400{% else %}text-slate-400{% endif %}">
+                            {{ event.type }}
+                        </span>
+                        <span class="text-xs text-slate-500">{{ event.timestamp.strftime('%d/%m/%Y %H:%M') }}</span>
+                    </div>
+                    <p class="text-slate-300">{{ event.text }}</p>
+                    {% if event.shift %}
+                    <div class="mt-2 text-xs text-slate-500">Turno: {{ event.shift.date.strftime('%d/%m') }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div class="text-slate-500 text-sm italic">Nenhum evento registrado.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

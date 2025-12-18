@@ -1,0 +1,425 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-6 space-y-6">
+
+    <!-- Dashboard Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <!-- Total Card -->
+        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg relative overflow-hidden">
+            <div class="z-10 relative">
+                <h3 class="text-slate-400 text-sm font-medium mb-1">Total Geral</h3>
+                <div class="flex items-baseline gap-2">
+                    <span class="text-3xl font-bold text-white">{{ stats.total_active }}</span>
+                    <span class="text-slate-500 text-sm">/ {{ stats.total_target }}</span>
+                </div>
+                <div class="mt-4 flex items-center gap-2">
+                    <span
+                        class="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-xs font-semibold border border-emerald-500/20">
+                        {{ "+" if stats.vacancies > 0 else "" }}{{ stats.vacancies }} Vagas
+                    </span>
+                    <button class="text-slate-500 hover:text-white text-xs underline">Alterar Meta</button>
+                </div>
+            </div>
+            <!-- Decorator -->
+            <div class="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/10 rounded-full blur-xl"></div>
+        </div>
+
+        <!-- Shift Cards -->
+        {% for shift in stats.shifts %}
+        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg">
+            <h3 class="text-slate-400 text-sm font-medium mb-1">Turno {{ shift.name }}</h3>
+            <div class="flex items-baseline gap-2">
+                <span class="text-2xl font-bold text-white">{{ shift.count }}</span>
+                <span class="text-slate-500 text-sm">/ {{ shift.target }}</span>
+            </div>
+            <div class="mt-4">
+                {% if shift.vacancies > 0 %}
+                <span class="text-emerald-400 text-xs flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                    {{ shift.vacancies }} Vagas abertas
+                </span>
+                {% else %}
+                <span class="text-slate-500 text-xs">Completo</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Actions Bar -->
+    <div class="flex justify-between items-center">
+        <h2 class="text-xl font-semibold text-white">Banco de Dados: Colaboradores</h2>
+        <div class="flex gap-3">
+            <button onclick="document.getElementById('targetModal').classList.remove('hidden')"
+                class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors border border-slate-600">
+                Definir Metas
+            </button>
+            <button onclick="document.getElementById('importModal').classList.remove('hidden')"
+                class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors border border-slate-600 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                </svg>
+                Importar Excel
+            </button>
+            <button onclick="document.getElementById('addModal').classList.remove('hidden')"
+                class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Novo
+            </button>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
+        <table class="w-full text-left text-sm text-slate-400">
+            <thead class="bg-slate-900/50 text-slate-200 font-medium border-b border-slate-700">
+                <tr>
+                    <th class="p-4 pl-6">Colaborador</th>
+                    <th class="p-4">Matrícula</th>
+                    <th class="p-4">Cargo</th>
+                    <th class="p-4">Centro de Custo</th>
+                    <th class="p-4">Admissão</th>
+                    <th class="p-4">Aniversário</th>
+                    <th class="p-4">Status</th>
+                    <th class="p-4">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-700">
+                {% for emp in employees %}
+                <tr class="hover:bg-white/5 transition-colors group">
+                    <td class="p-4 pl-6">
+                        <div class="flex items-center gap-3">
+                            <div
+                                class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white uppercase">
+                                {{ emp.name[:2] }}
+                            </div>
+                            <div class="font-medium text-white">
+                                <a href="/employees/{{ emp.id }}"
+                                    class="hover:text-blue-400 hover:underline transition-colors">{{ emp.name }}</a>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-4">{{ emp.registration_id }}</td>
+                    <td class="p-4">{{ emp.role }}</td>
+                    <td class="p-4">{{ emp.cost_center }}</td>
+                    <td class="p-4">{{ emp.admission_date.strftime('%d/%m/%Y') if emp.admission_date else '-' }}</td>
+                    <td class="p-4">{{ emp.birthday.strftime('%d/%m') if emp.birthday else '-' }}</td>
+                    <td class="p-4">
+                        {% if emp.status == 'active' %}
+                        <span
+                            class="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-xs border border-emerald-500/20">Ativo</span>
+                        {% elif emp.status == 'vacation' %}
+                        <span
+                            class="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 text-xs border border-blue-500/20">Férias</span>
+                        {% elif emp.status == 'away' %}
+                        <span
+                            class="px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400 text-xs border border-orange-500/20">Afastado</span>
+                        {% elif emp.status == 'fired' %}
+                        <span
+                            class="px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 text-xs border border-red-500/20">Demitido</span>
+                        {% else %}
+                        <span
+                            class="px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 text-xs border border-yellow-500/20">{{
+                            emp.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="p-4">
+                        <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <!-- Editar -->
+                            <button type="button" onclick='openEditModal({{ emp.model_dump_json() }})'
+                                class="p-1 hover:bg-slate-700 rounded text-yellow-400" title="Editar">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                                    </path>
+                                </svg>
+                            </button>
+                            <!-- Férias -->
+                            <form action="/employees/{{ emp.id }}/status" method="POST" class="inline">
+                                <input type="hidden" name="status_action" value="vacation">
+                                <button type="submit" class="p-1 hover:bg-slate-700 rounded text-blue-400"
+                                    title="Férias">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z">
+                                        </path>
+                                    </svg>
+                                </button>
+                            </form>
+                            <!-- Afastar -->
+                            <form action="/employees/{{ emp.id }}/status" method="POST" class="inline">
+                                <input type="hidden" name="status_action" value="away">
+                                <button type="submit" class="p-1 hover:bg-slate-700 rounded text-orange-400"
+                                    title="Afastar">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636">
+                                        </path>
+                                    </svg>
+                                </button>
+                            </form>
+                            <!-- Demitir -->
+                            <form action="/employees/{{ emp.id }}/status" method="POST" class="inline">
+                                <input type="hidden" name="status_action" value="fired">
+                                <button type="submit" class="p-1 hover:bg-slate-700 rounded text-red-400"
+                                    title="Demitir">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6">
+                                        </path>
+                                    </svg>
+                                </button>
+                            </form>
+                            <!-- Excluir -->
+                            <form action="/employees/{{ emp.id }}/status" method="POST" class="inline"
+                                onsubmit="return confirm('Tem certeza que deseja excluir?');">
+                                <input type="hidden" name="status_action" value="delete">
+                                <button type="submit" class="p-1 hover:bg-slate-700 rounded text-slate-400"
+                                    title="Excluir">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                        </path>
+                                    </svg>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<!-- Target Modal -->
+<div id="targetModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="bg-slate-800 rounded-2xl w-full max-w-sm border border-slate-700 shadow-2xl p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-bold text-white">Alterar Metas</h3>
+            <button onclick="document.getElementById('targetModal').classList.add('hidden')"
+                class="text-slate-400 hover:text-white">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                    </path>
+                </svg>
+            </button>
+        </div>
+        <form action="/settings/targets" method="POST" class="space-y-4">
+            {% for shift in stats.shifts %}
+            <div>
+                <label class="block text-sm font-medium text-slate-400 mb-1">Meta Turno {{ shift.name }}</label>
+                <input type="number" name="target_{{ shift.name }}" value="{{ shift.target }}" required
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+            </div>
+            {% endfor %}
+            <div class="pt-4 flex justify-end gap-3">
+                <button type="button" onclick="document.getElementById('targetModal').classList.add('hidden')"
+                    class="px-4 py-2 text-slate-300 hover:text-white">Cancelar</button>
+                <button type="submit"
+                    class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">Salvar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Import Modal -->
+<div id="importModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="bg-slate-800 rounded-2xl w-full max-w-md border border-slate-700 shadow-2xl p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-bold text-white">Importar Colaboradores</h3>
+            <button onclick="document.getElementById('importModal').classList.add('hidden')"
+                class="text-slate-400 hover:text-white">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                    </path>
+                </svg>
+            </button>
+        </div>
+        <form action="/employees/import" method="POST" enctype="multipart/form-data" class="space-y-4">
+            <div
+                class="p-4 border-2 border-dashed border-slate-700 rounded-lg text-center hover:bg-slate-700/50 transition-colors">
+                <div class="text-slate-400 mb-2">Selecione o arquivo Excel (.xlsx)</div>
+                <input type="file" name="file" accept=".xlsx" required
+                    class="text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700">
+            </div>
+            <div class="text-xs text-slate-500">
+                <p>Colunas esperadas (cabeçalho da primeira aba):</p>
+                <code class="bg-slate-900 p-1 rounded">Name, Registration, Role, Shift, CostCenter</code>
+                <p class="mt-1">* Registration (Matrícula) deve ser única.</p>
+            </div>
+            <div class="pt-4 flex justify-end gap-3">
+                <button type="button" onclick="document.getElementById('importModal').classList.add('hidden')"
+                    class="px-4 py-2 text-slate-300 hover:text-white">Cancelar</button>
+                <button type="submit"
+                    class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">Importar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Added -->
+<div id="addModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 shadow-2xl p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-bold text-white">Novo Colaborador</h3>
+            <button onclick="document.getElementById('addModal').classList.add('hidden')"
+                class="text-slate-400 hover:text-white">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                    </path>
+                </svg>
+            </button>
+        </div>
+        <form action="/employees/add" method="POST" class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Nome Completo</label>
+                    <input type="text" name="name" required
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Matrícula</label>
+                    <input type="text" name="registration_id" required
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Cargo</label>
+                    <input type="text" name="role" required
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Centro de Custo</label>
+                    <input type="text" name="cost_center" required
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Turno</label>
+                    <select name="work_shift"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+                        <option value="Manhã">Manhã</option>
+                        <option value="Tarde">Tarde</option>
+                        <option value="Noite">Noite</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Data Admissão</label>
+                    <input type="date" name="admission_date"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Aniversário</label>
+                    <input type="date" name="birthday"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+            <div class="pt-4 flex justify-end gap-3">
+                <button type="button" onclick="document.getElementById('addModal').classList.add('hidden')"
+                    class="px-4 py-2 text-slate-300 hover:text-white">Cancelar</button>
+                <button type="submit"
+                    class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">Salvar</button>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- Edit Modal -->
+<div id="editModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 shadow-2xl p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-bold text-white">Editar Colaborador</h3>
+            <button onclick="document.getElementById('editModal').classList.add('hidden')"
+                class="text-slate-400 hover:text-white">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                    </path>
+                </svg>
+            </button>
+        </div>
+        <form id="editForm" method="POST" class="space-y-4">
+            <!-- Action will be set dynamically -->
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Nome Completo</label>
+                    <input type="text" name="name" id="editName" required
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Matrícula</label>
+                    <input type="text" name="registration_id" id="editReg" required
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Cargo</label>
+                    <input type="text" name="role" id="editRole" required
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Centro de Custo</label>
+                    <input type="text" name="cost_center" id="editCost" required
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Turno</label>
+                    <select name="work_shift" id="editShift"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+                        <option value="Manhã">Manhã</option>
+                        <option value="Tarde">Tarde</option>
+                        <option value="Noite">Noite</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Data Admissão</label>
+                    <input type="date" name="admission_date" id="editAdmission"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Aniversário</label>
+                    <input type="date" name="birthday" id="editBirthday"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+            <div class="pt-4 flex justify-end gap-3">
+                <button type="button" onclick="document.getElementById('editModal').classList.add('hidden')"
+                    class="px-4 py-2 text-slate-300 hover:text-white">Cancelar</button>
+                <button type="submit"
+                    class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">Salvar
+                    Alterações</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEditModal(emp) {
+        document.getElementById('editForm').action = '/employees/' + emp.id + '/update';
+        document.getElementById('editName').value = emp.name;
+        document.getElementById('editReg').value = emp.registration_id;
+        document.getElementById('editRole').value = emp.role;
+        document.getElementById('editCost').value = emp.cost_center;
+        document.getElementById('editShift').value = emp.work_shift;
+
+        // Dates need to be YYYY-MM-DD
+        if (emp.admission_date) {
+            document.getElementById('editAdmission').value = emp.admission_date.split('T')[0];
+        }
+        if (emp.birthday) {
+            document.getElementById('editBirthday').value = emp.birthday.split('T')[0];
+        }
+
+        document.getElementById('editModal').classList.remove('hidden');
+    }
+</script>
+{% endblock %}
