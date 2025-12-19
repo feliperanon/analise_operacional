@@ -19,14 +19,19 @@
                     </svg>
                     {{ emp.role }}
                 </span>
-                <span class="flex items-center gap-1 bg-slate-900/50 px-3 py-1 rounded-full border border-slate-700">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
-                        </path>
-                    </svg>
-                    {{ emp.cost_center }}
-                </span>
+                {% set shift_lower = (emp.work_shift or '')|lower %}
+                {% if shift_lower == 'manhã' or shift_lower == 'manha' %}
+                <span
+                    class="text-xs font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20">MANHÃ</span>
+                {% elif shift_lower == 'tarde' %}
+                <span
+                    class="text-xs font-bold text-orange-400 bg-orange-500/10 px-2 py-1 rounded border border-orange-500/20">TARDE</span>
+                {% elif shift_lower == 'noite' %}
+                <span
+                    class="text-xs font-bold text-purple-400 bg-purple-500/10 px-2 py-1 rounded border border-purple-500/20">NOITE</span>
+                {% else %}
+                <span class="text-xs text-slate-400">{{ emp.work_shift or '-' }}</span>
+                {% endif %}
 
                 <span class="flex items-center gap-1 bg-slate-900/50 px-3 py-1 rounded-full border border-slate-700">
                     #{{ emp.registration_id }}
@@ -65,23 +70,269 @@
 
     <!-- Stats Grid -->
     <div class="grid grid-cols-4 gap-4">
-        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
-            <div class="text-slate-400 text-sm mb-1">Advertências</div>
-            <div class="text-2xl font-bold text-white">{{ stats.advertencias }}</div>
+        <div onclick="openHistory('advertencia', 'Advertências')"
+            class="bg-slate-800 p-4 rounded-xl border border-slate-700 cursor-pointer hover:bg-slate-750 hover:border-blue-500/50 transition group relative overflow-hidden">
+            <div class="absolute right-2 top-2 opacity-10 group-hover:opacity-20 text-blue-500 transition">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+            </div>
+            <div class="text-slate-400 text-sm mb-1 font-bold uppercase tracking-wider">Advertências</div>
+            <div class="text-2xl font-bold text-white group-hover:text-blue-400 transition">{{ stats.advertencias }}
+            </div>
         </div>
-        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
-            <div class="text-slate-400 text-sm mb-1">Faltas</div>
-            <div class="text-2xl font-bold text-white">{{ stats.faltas }}</div>
+        <div onclick="openHistory('falta', 'Histórico de Faltas')"
+            class="bg-slate-800 p-4 rounded-xl border border-slate-700 cursor-pointer hover:bg-slate-750 hover:border-red-500/50 transition group relative overflow-hidden">
+            <div class="absolute right-2 top-2 opacity-10 group-hover:opacity-20 text-red-500 transition">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+            </div>
+            <div class="text-slate-400 text-sm mb-1 font-bold uppercase tracking-wider">Faltas</div>
+            <div class="text-2xl font-bold text-white group-hover:text-red-400 transition">{{ stats.faltas }}</div>
         </div>
-        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
-            <div class="text-slate-400 text-sm mb-1">Atestados</div>
-            <div class="text-2xl font-bold text-white">{{ stats.atestados }}</div>
+        <div onclick="openHistory('atestado', 'Histórico de Atestados')"
+            class="bg-slate-800 p-4 rounded-xl border border-slate-700 cursor-pointer hover:bg-slate-750 hover:border-cyan-500/50 transition group relative overflow-hidden">
+            <div class="absolute right-2 top-2 opacity-10 group-hover:opacity-20 text-cyan-500 transition">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                </svg>
+            </div>
+            <div class="text-slate-400 text-sm mb-1 font-bold uppercase tracking-wider">Atestados</div>
+            <div class="text-2xl font-bold text-white group-hover:text-cyan-400 transition">{{ stats.atestados }}</div>
         </div>
-        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
-            <div class="text-slate-400 text-sm mb-1">Histórico Férias</div>
-            <div class="text-2xl font-bold text-white">{{ stats.ferias }}</div>
+        <div onclick="openHistory('ferias', 'Histórico de Férias')"
+            class="bg-slate-800 p-4 rounded-xl border border-slate-700 cursor-pointer hover:bg-slate-750 hover:border-orange-500/50 transition group relative overflow-hidden">
+            <div class="absolute right-2 top-2 opacity-10 group-hover:opacity-20 text-orange-500 transition">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M2 12h20" />
+                    <path d="M12 2v20" />
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z" />
+                </svg>
+            </div>
+            <div class="text-slate-400 text-sm mb-1 font-bold uppercase tracking-wider">Histórico Férias</div>
+            <div class="text-2xl font-bold text-white group-hover:text-orange-400 transition">{{ stats.ferias }}</div>
         </div>
     </div>
+
+    <!-- Hidden Lists for Modal -->
+    <div class="hidden">
+        <!-- Faltas -->
+        <div id="list-falta">
+            {% if stats.faltas == 0 %}
+            <div class="text-center py-8 text-slate-500">Nenhuma falta registrada.</div>
+            {% else %}
+            <div class="space-y-2">
+                {% for e in events if e.type == 'falta' %}
+                <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700 flex flex-col gap-2">
+                    <div class="flex justify-between items-start">
+                        <span
+                            class="text-xs font-semibold uppercase tracking-wider text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">Falta</span>
+                        <span class="text-xs text-slate-500 font-mono">{{ e.timestamp.strftime('%d/%m/%Y %H:%M')
+                            }}</span>
+                    </div>
+                    <div class="flex justify-between items-center gap-4">
+                        <p class="text-slate-300 text-sm flex-1">{{ e.text }}</p>
+                        <form action="/events/{{ e.id }}/delete" method="POST"
+                            onsubmit="return confirm('Excluir este evento de Falta?');">
+                            <button type="submit"
+                                class="text-slate-600 hover:text-red-400 transition-colors p-1.5 hover:bg-slate-800 rounded"
+                                title="Excluir evento">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                    </path>
+                                </svg>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Atestados -->
+        <div id="list-atestado">
+            {% if stats.atestados == 0 %}
+            <div class="text-center py-8 text-slate-500">Nenhum atestado registrado.</div>
+            {% else %}
+            <div class="space-y-2">
+                {% for e in events if e.type == 'atestado' %}
+                <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700 flex flex-col gap-2">
+                    <div class="flex justify-between items-start">
+                        <span
+                            class="text-xs font-semibold uppercase tracking-wider text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">Atestado</span>
+                        <span class="text-xs text-slate-500 font-mono">{{ e.timestamp.strftime('%d/%m/%Y %H:%M')
+                            }}</span>
+                    </div>
+                    <div class="flex justify-between items-center gap-4">
+                        <p class="text-slate-300 text-sm flex-1">{{ e.text }}</p>
+                        <form action="/events/{{ e.id }}/delete" method="POST"
+                            onsubmit="return confirm('Excluir este Atestado?');">
+                            <button type="submit"
+                                class="text-slate-600 hover:text-red-400 transition-colors p-1.5 hover:bg-slate-800 rounded"
+                                title="Excluir evento">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                    </path>
+                                </svg>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Férias -->
+        <div id="list-ferias">
+            {% if stats.ferias == 0 %}
+            <div class="text-center py-8 text-slate-500">Nenhuma férias registrada.</div>
+            {% else %}
+            <div class="space-y-2">
+                {% for e in events if e.type == 'ferias_hist' %}
+                <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700 flex flex-col gap-2">
+                    <div class="flex justify-between items-start">
+                        <span
+                            class="text-xs font-semibold uppercase tracking-wider text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">Férias</span>
+                        <span class="text-xs text-slate-500 font-mono">{{ e.timestamp.strftime('%d/%m/%Y %H:%M')
+                            }}</span>
+                    </div>
+                    <div class="flex justify-between items-center gap-4">
+                        <p class="text-slate-300 text-sm flex-1">{{ e.text }}</p>
+                        <form action="/events/{{ e.id }}/delete" method="POST"
+                            onsubmit="return confirm('Excluir registro de Férias?');">
+                            <button type="submit"
+                                class="text-slate-600 hover:text-red-400 transition-colors p-1.5 hover:bg-slate-800 rounded"
+                                title="Excluir evento">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                    </path>
+                                </svg>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Advertencias (Placeholder Logic) -->
+        <div id="list-advertencia">
+            {% if stats.advertencias == 0 %}
+            <div class="text-center py-8 text-slate-500">Nenhuma advertência registrada.</div>
+            {% else %}
+            <div class="space-y-2">
+                {% for e in events if e.type == 'advertencia' %}
+                <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700 flex flex-col gap-2">
+                    <div class="flex justify-between items-start">
+                        <span
+                            class="text-xs font-semibold uppercase tracking-wider text-slate-400 bg-slate-500/10 px-2 py-0.5 rounded border border-slate-500/20">Advertência</span>
+                        <span class="text-xs text-slate-500 font-mono">{{ e.timestamp.strftime('%d/%m/%Y %H:%M')
+                            }}</span>
+                    </div>
+                    <div class="flex justify-between items-center gap-4">
+                        <p class="text-slate-300 text-sm flex-1">{{ e.text }}</p>
+                        <form action="/events/{{ e.id }}/delete" method="POST"
+                            onsubmit="return confirm('Excluir Advertência?');">
+                            <button type="submit"
+                                class="text-slate-600 hover:text-red-400 transition-colors p-1.5 hover:bg-slate-800 rounded"
+                                title="Excluir evento">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                    </path>
+                                </svg>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div id="history-modal" class="fixed inset-0 z-50 hidden" role="dialog" aria-modal="true">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity opacity-0" id="history-backdrop"
+            onclick="closeHistory()"></div>
+
+        <!-- Modal Panel -->
+        <div class="fixed inset-0 flex items-center justify-center p-4">
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-lg transform scale-95 opacity-0 transition-all"
+                id="history-panel">
+                <div class="p-6 border-b border-slate-700 flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-white flex items-center gap-2" id="history-title">
+                        Histórico
+                    </h3>
+                    <button onclick="closeHistory()"
+                        class="text-slate-400 hover:text-white transition rounded-full p-1 hover:bg-slate-700">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="p-6 max-h-[60vh] overflow-y-auto" id="history-content">
+                    <!-- Content injected via JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openHistory(type, title) {
+            const modal = document.getElementById('history-modal');
+            const backdrop = document.getElementById('history-backdrop');
+            const panel = document.getElementById('history-panel');
+            const contentConfig = document.getElementById('list-' + type);
+            const contentContainer = document.getElementById('history-content');
+            const titleEl = document.getElementById('history-title');
+
+            if (contentConfig && contentContainer) {
+                contentContainer.innerHTML = contentConfig.innerHTML;
+                titleEl.textContent = title;
+
+                modal.classList.remove('hidden');
+                // Animation frame for transition
+                requestAnimationFrame(() => {
+                    backdrop.classList.remove('opacity-0');
+                    panel.classList.remove('scale-95', 'opacity-0');
+                    panel.classList.add('scale-100', 'opacity-100');
+                });
+            }
+        }
+
+        function closeHistory() {
+            const modal = document.getElementById('history-modal');
+            const backdrop = document.getElementById('history-backdrop');
+            const panel = document.getElementById('history-panel');
+
+            backdrop.classList.add('opacity-0');
+            panel.classList.remove('scale-100', 'opacity-100');
+            panel.classList.add('scale-95', 'opacity-0');
+
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300); // Match transition duration
+        }
+
+        // Close on escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeHistory();
+        });
+    </script>
 
     <!-- Timeline -->
     <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">

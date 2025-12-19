@@ -168,19 +168,14 @@
                     <th class="p-4 pl-6">Colaborador</th>
                     <th class="p-4">Matrícula</th>
                     <th class="p-4">Cargo</th>
-                    <th class="p-4">Centro de Custo</th>
+                    <th class="p-4">Turno</th>
                     <th class="p-4">Status</th>
                     <th class="p-4">Ações</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-700 hidden" id="tableBody">
                 {% for emp in employees %}
-                {% set row_shift = 'Manhã' %}
-                {% if 'TARDE' in emp.cost_center|upper %}
-                {% set row_shift = 'Tarde' %}
-                {% elif 'NOITE' in emp.cost_center|upper %}
-                {% set row_shift = 'Noite' %}
-                {% endif %}
+                {% set row_shift = emp.work_shift %}
 
                 <tr class="hover:bg-white/5 transition-colors group employee-row" data-name="{{ emp.name|lower }}"
                     data-reg="{{ emp.registration_id }}" data-shift="{{ row_shift }}" data-status="{{ emp.status }}">
@@ -198,9 +193,21 @@
                     </td>
                     <td class="p-4">{{ emp.registration_id }}</td>
                     <td class="p-4">{{ emp.role }}</td>
-                    <td class="p-4">{{ emp.cost_center.replace('Expedição', '').replace('EXPEDIÇÃO',
-                        '').replace('expedição', '').replace('EXPEDICAO', '').replace('Expedicao',
-                        '').replace('expedicao', '').strip() }}</td>
+                    <td class="p-4">
+                        {% set shift_lower = (row_shift or '')|lower %}
+                        {% if shift_lower == 'manhã' or shift_lower == 'manha' %}
+                        <span
+                            class="text-xs font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20">MANHÃ</span>
+                        {% elif shift_lower == 'tarde' %}
+                        <span
+                            class="text-xs font-bold text-orange-400 bg-orange-500/10 px-2 py-1 rounded border border-orange-500/20">TARDE</span>
+                        {% elif shift_lower == 'noite' %}
+                        <span
+                            class="text-xs font-bold text-purple-400 bg-purple-500/10 px-2 py-1 rounded border border-purple-500/20">NOITE</span>
+                        {% else %}
+                        <span class="text-xs text-slate-400">{{ row_shift or '-' }}</span>
+                        {% endif %}
+                    </td>
                     <td class="p-4">
                         {% if emp.status == 'active' %}
                         <span
@@ -416,13 +423,6 @@
                         class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Centro de Custo</label>
-                    <input type="text" name="cost_center" required
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
-                </div>
-            </div>
-            <div class="grid grid-cols-3 gap-4">
-                <div>
                     <label class="block text-sm font-medium text-slate-400 mb-1">Turno</label>
                     <select name="work_shift"
                         class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
@@ -431,6 +431,11 @@
                         <option value="Noite">Noite</option>
                     </select>
                 </div>
+                <!-- Hidden Cost Center (Default to Geral) if backend requires it, or just remove if we modify backend too. 
+                     For now, let's keep a hidden input to avoid breaking backend if it expects it. -->
+                <input type="hidden" name="cost_center" value="Geral">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-slate-400 mb-1">Data Admissão</label>
                     <input type="date" name="admission_date"
@@ -485,17 +490,6 @@
                         class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Centro de Custo</label>
-                    <select name="cost_center" id="editCost" required
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
-                        <option value="EXPEDIÇÃO MANHÃ">EXPEDIÇÃO MANHÃ</option>
-                        <option value="EXPEDIÇÃO TARDE">EXPEDIÇÃO TARDE</option>
-                        <option value="EXPEDIÇÃO NOITE">EXPEDIÇÃO NOITE</option>
-                    </select>
-                </div>
-            </div>
-            <div class="grid grid-cols-3 gap-4">
-                <div>
                     <label class="block text-sm font-medium text-slate-400 mb-1">Turno</label>
                     <select name="work_shift" id="editShift"
                         class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
@@ -504,6 +498,9 @@
                         <option value="Noite">Noite</option>
                     </select>
                 </div>
+                <input type="hidden" name="cost_center" id="editCost" value="Geral">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-slate-400 mb-1">Data Admissão</label>
                     <input type="date" name="admission_date" id="editAdmission"

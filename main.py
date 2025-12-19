@@ -206,32 +206,108 @@ async def update_routine(
             for emp_id, entry in new_log.items():
                 status = entry.get("status")
                 target_status = None
-                if status == 'vacation': target_status = 'vacation' # Férias
-                elif status == 'sick': target_status = 'sick'       # Atestado
-                elif status == 'away': target_status = 'away'       # Afastado
+                
+                # Retrieve Employee
+                employee = session.exec(select(models.Employee).where(models.Employee.registration_id == emp_id)).first()
+                if not employee: continue
+
+                # Event generation for DAILY statuses (Persistent or Not)
+                # 'absent' (Falta) is usually a daily thing, might not change GLOBAL employee status?
+                # 'sick' (Atestado) might be short term.
+                
+                # Check if this precise daily entry is NEW or CHANGED from old logs to avoid duplicates on every save?
+                # Ideally we check against the DB or simple logic: if status is provided and different?
+                # For simplicity, we trust the 'status' field.
+                
+                # Event Logic for STATS
+                if status == 'absent':
+                     # Check if we already logged a 'falta' for this employee TODAY to avoid duplicates
+                     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+                     existing_falta = session.exec(
+                         select(models.Event)
+                         .where(models.Event.employee_id == employee.id)
+                         .where(models.Event.type == 'falta')
+                         .where(models.Event.timestamp >= today_start)
+                     ).first()
+                     
+                     if not existing_falta:
+                         evt = models.Event(
+                            employee_id=employee.id,
+                            type="falta",
+                            text=f"Falta registrada em {data.date}",
+                            timestamp=datetime.now(),
+                            category="pessoas",
+                            sector="RH"
+                         )
+                         session.add(evt)
+                     
+                target_status = None
+                if status == 'vacation': target_status = 'vacation' 
+                elif status == 'sick': target_status = 'sick'       
+                elif status == 'away': target_status = 'away'
                 
                 if target_status:
                     employee = session.exec(select(models.Employee).where(models.Employee.registration_id == emp_id)).first()
                     if employee and employee.status != target_status:
+                        # Log Event for Status Change
+                        event_type = None
+                        event_text = None
+                        
+                        if target_status == 'sick':
+                            event_type = "atestado"
+                            event_text = f"Atestado registrado em {data.date}"
+                        elif target_status == 'vacation':
+                            event_type = "ferias_hist"
+                            event_text = f"Início de férias em {data.date}"
+                        elif target_status == 'away':
+                            event_type = "advertencia" # Using 'away' button as Advertencia placeholder for now based on user context, or just 'afastado'
+                            event_text = f"Afastamento registrado em {data.date}"
+                            
+                        # If 'absent' is not a persistent status on Employee model usually (it resets daily), 
+                        # we might need to handle it differently, BUT if we are updating the employee status to 'absent' (which doesn't exist in the model enum usually? let's check),
+                        # Wait, the Employee model status enum is: active, vacation, away, fired. 
+                        # 'absent' and 'sick' might be daily statuses not persistent? 
+                        # Let's check model.
+                        
                         employee.status = target_status
                         session.add(employee)
+                        
+                        if event_type:
+                            evt = models.Event(
+                                employee_id=employee.id,
+                                type=event_type,
+                                text=event_text,
+                                timestamp=datetime.now(),
+                                category="pessoas",
+                                sector="RH"
+                            )
+                            session.add(evt)
             
             # Detect Changes
             all_ids = set(old_log.keys()) | set(new_log.keys())
             
-            for emp_id in all_ids:
-                old_entry = old_log.get(emp_id)
-                new_entry = new_log.get(emp_id)
+            for reg_id in all_ids:
+                old_entry = old_log.get(reg_id)
+                new_entry = new_log.get(reg_id)
                 
+                # Fetch Employee PK
+                emp_obj = session.exec(select(models.Employee).where(models.Employee.registration_id == reg_id)).first()
+                if not emp_obj:
+                    continue # Should not happen if data is consistent
+                
+                real_emp_id = emp_obj.id
+
                 # Case 1: New Allocation (Was not in log, now is)
                 if not old_entry and new_entry:
                     sector = new_entry.get('sector')
                     sub = new_entry.get('subsector', 'Geral')
-                    event = models.EmployeeEvent(
-                        employee_id=emp_id,
-                        event_type="allocacao",
-                        description=f"Alocado em {sector} ({sub}) - {data.shift}",
-                        date=datetime.now()
+                    event = models.Event(
+                        employee_id=real_emp_id,
+                        type="allocacao",
+                        text=f"Alocado em {sector} ({sub}) - {data.shift}",
+                        timestamp=datetime.now(),
+                        category="processo",
+                        sector=sector
                     )
                     session.add(event)
                     
@@ -243,21 +319,25 @@ async def update_routine(
                     new_sub = new_entry.get('subsector', 'Geral')
                     
                     if old_sec != new_sec or old_sub != new_sub:
-                        event = models.EmployeeEvent(
-                            employee_id=emp_id,
-                            event_type="movimentacao",
-                            description=f"Movido de {old_sec} ({old_sub}) para {new_sec} ({new_sub})",
-                            date=datetime.now()
+                        event = models.Event(
+                            employee_id=real_emp_id,
+                            type="movimentacao",
+                            text=f"Movido de {old_sec} ({old_sub}) para {new_sec} ({new_sub})",
+                            timestamp=datetime.now(),
+                            category="processo",
+                            sector=new_sec
                         )
                         session.add(event)
                         
-                # Case 3: Removed (Optional, maybe not needed for timeline, but good for tracking)
+                # Case 3: Removed
                 elif old_entry and not new_entry:
-                    event = models.EmployeeEvent(
-                        employee_id=emp_id,
-                        event_type="remocao",
-                        description=f"Removido do fluxo operacional ({data.shift})",
-                        date=datetime.now()
+                    event = models.Event(
+                        employee_id=real_emp_id,
+                        type="remocao",
+                        text=f"Removido do fluxo operacional ({data.shift})",
+                        timestamp=datetime.now(),
+                        category="processo",
+                        sector="Geral"
                     )
                     session.add(event)
 
@@ -320,12 +400,13 @@ async def employees_page(request: Request, session: Session = Depends(get_sessio
         "Noite": {"active": 0, "vacation": 0, "away": 0}
     }
 
-    # Helper to determine shift from cost center
-    def get_shift_from_cc(cost_center):
-        cc = (cost_center or "").upper()
-        if "NOITE" in cc: return "Noite"
-        if "TARDE" in cc: return "Tarde"
-        return "Manhã" # Default
+    # Helper to determine shift from work_shift
+    def get_shift_name(shift_val):
+        s = (shift_val or "").strip().lower()
+        if "noite" in s: return "Noite"
+        if "tarde" in s: return "Tarde"
+        # Default to Manhã only if explicitly Manhã or fallback
+        return "Manhã"
 
     total_real_active = 0
 
@@ -337,7 +418,7 @@ async def employees_page(request: Request, session: Session = Depends(get_sessio
         total_real_active += 1
         
         # Determine shift
-        s_name = get_shift_from_cc(e.cost_center)
+        s_name = get_shift_name(e.work_shift)
         
         # Increment specific status counter for that shift
         if e.status == "active":
@@ -647,22 +728,36 @@ async def import_employees(
     
     content = await file.read()
     try:
-        # Use header=1 because the first row (0) is a title "QUADRO DE EXPEDIÇÃO NL"
-        df = pd.read_excel(io.BytesIO(content), header=1)
+        # Check if first row is title or header
+        # Try reading a few lines to inspect
+        df_temp = pd.read_excel(io.BytesIO(content), header=None, nrows=5)
         
-        # Map Portuguese headers
+        header_row = 0
+        # Look for "Matrícula" or "Colaborador" in the first few rows
+        for idx, row in df_temp.iterrows():
+            row_vals = [str(x).strip() for x in row.values if pd.notna(x)]
+            if any(h in row_vals for h in ["Matrícula", "Matricula", "Colaborador", "Turno"]):
+                header_row = idx
+                break
+        
+        # Reload with correct header
+        df = pd.read_excel(io.BytesIO(content), header=header_row)
+        
+        # Clean column names (strip whitespace and title case for better matching)
+        # We will create a map of normalized_col -> original_col to rename correctly below
+        # Actually simplest is just to add more keys to the map.
+        
+        df.columns = df.columns.astype(str).str.strip()
+        
+        # Map Portuguese headers (Robust mapping)
         column_map = {
-            "Matrícula": "registration_id",
-            "Colaborador": "name", 
-            "Nome": "name",
-            "Data Admissão": "admission_date",
-            "Admissão": "admission_date",
-            "Data Nascimento": "birthday",
-            "Nascimento": "birthday",
-            "Centro de Custo": "cost_center",
-            "Cargo": "role",
-            "Função": "role",
-            "Turno": "work_shift"
+            "Matrícula": "registration_id", "Matricula": "registration_id", "MATRICULA": "registration_id", "MATRÍCULA": "registration_id",
+            "Colaborador": "name", "Nome": "name", "COLABORADOR": "name", "NOME": "name",
+            "Data Admissão": "admission_date", "Admissão": "admission_date", "DATA ADMISSÃO": "admission_date", "ADMISSÃO": "admission_date",
+            "Data Nascimento": "birthday", "Nascimento": "birthday", "DATA NASCIMENTO": "birthday", "NASCIMENTO": "birthday",
+            "Centro de Custo": "cost_center", "CENTRO DE CUSTO": "cost_center",
+            "Cargo": "role", "Função": "role", "CARGO": "role", "FUNÇÃO": "role", "FUNCAO": "role",
+            "Turno": "work_shift", "TURNO": "work_shift"
         }
         df = df.rename(columns=column_map)
         
@@ -670,7 +765,7 @@ async def import_employees(
         for _, row in df.iterrows():
             # Validation
             reg_id = str(row.get("registration_id", ""))
-            if not reg_id or reg_id.lower() == "nan":
+            if not reg_id or reg_id.lower() == "nan" or reg_id.strip() == "":
                 continue
                 
             # Check exist
@@ -692,15 +787,28 @@ async def import_employees(
                         pass
                 
                 # Shift
-                shift_val = row.get("work_shift", "Manhã")
-                if pd.isna(shift_val): shift_val = "Manhã"
+                shift_raw = str(row.get("work_shift", "Manhã"))
+                if pd.isna(shift_raw) or shift_raw.strip() == "" or shift_raw.lower() == "nan":
+                     shift_raw = "Manhã"
+                
+                # Normalize specific cases to match System options (Manhã, Tarde, Noite)
+                shift_clean = shift_raw.strip().title() # Converts NOITE -> Noite
+                
+                if "Manha" in shift_clean or "Manhã" in shift_clean:
+                    shift_val = "Manhã"
+                elif "Tarde" in shift_clean:
+                    shift_val = "Tarde"
+                elif "Noite" in shift_clean:
+                    shift_val = "Noite"
+                else:
+                    shift_val = shift_clean # Fallback (e.g. ADM)
 
                 emp = models.Employee(
-                    name=str(row.get("name", "Sem Nome")),
-                    registration_id=reg_id,
-                    role=str(row.get("role", "Operador")),
-                    work_shift=str(shift_val),
-                    cost_center=str(row.get("cost_center", "Geral")),
+                    name=str(row.get("name", "Sem Nome")).strip(),
+                    registration_id=reg_id.strip(),
+                    role=str(row.get("role", "Operador")).strip(),
+                    work_shift=str(shift_val).strip(),
+                    cost_center=str(row.get("cost_center", "Geral")).strip(),
                     admission_date=admission,
                     birthday=bday,
                     status="active"

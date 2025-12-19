@@ -1,124 +1,42 @@
 {% extends "base.html" %}
 
 {% block content %}
+
+
 <style>
-    .flow-container {
-        display: flex;
-        gap: 1rem;
-        padding: 2rem 1rem;
-        align-items: stretch;
-        min-height: 400px;
-        width: 100%;
+    @keyframes slideUp {
+        from {
+            transform: translateY(100%);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
     }
 
-    .flow-step {
-        flex: 1;
-        min-width: 0;
-        position: relative;
-        display: flex;
-        flex-direction: column;
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
     }
 
-    /* Connector Lines - Dark Theme Color */
-    .flow-step:not(:last-child)::after {
-        content: '';
-        position: absolute;
-        top: 50px;
-        right: -1rem;
-        /* Adjusted for smaller gap */
-        width: 1rem;
-        height: 2px;
-        background: #475569;
-        /* slate-600 */
-        z-index: 0;
+    .animate-slide-up {
+        animation: slideUp 0.3s ease-out forwards;
     }
 
-    .flow-step:not(:last-child)::before {
-        content: '';
-        position: absolute;
-        top: 46px;
-        right: -1rem;
-        width: 8px;
-        height: 8px;
-        border-top: 2px solid #475569;
-        /* slate-600 */
-        border-right: 2px solid #475569;
-        /* slate-600 */
-        transform: rotate(45deg);
-        z-index: 1;
+    .animate-fade-in {
+        animation: fadeIn 0.3s ease-out forwards;
     }
 
-    .sector-card {
-        background: #1e293b;
-        /* slate-800 */
-        border: 1px solid #334155;
-        /* slate-700 */
-        border-radius: 12px;
-        padding: 1rem;
-        transition: all 0.2s;
-        cursor: pointer;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-        position: relative;
-    }
-
-    .sector-card:hover {
-        border-color: #3b82f6;
-        transform: translateY(-2px);
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
-    }
-
-    .sector-card.critical {
-        border-left: 4px solid #ef4444;
-    }
-
-    .sector-card.ok {
-        border-left: 4px solid #22c55e;
-    }
-
-    .modal-overlay {
-        background-color: rgba(0, 0, 0, 0.7);
-        transition: opacity 0.3s ease;
-    }
-
-    .subsector-dropzone {
-        min-height: 100px;
-        background: #0f172a;
-        /* slate-900 */
-        border: 2px dashed #334155;
-        /* slate-700 */
-        border-radius: 8px;
-        margin-bottom: 1rem;
-        padding: 0.5rem;
-        transition: border-color 0.2s;
-    }
-
-    .subsector-dropzone:hover {
-        border-color: #94a3b8;
-    }
-
+    /* Sector Card - Delete Btn transition */
     .delete-btn {
-        position: absolute;
-        top: -8px;
-        right: -8px;
-        background: #ef4444;
-        color: white;
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 14px;
-        opacity: 0;
-        transition: opacity 0.2s;
-        z-index: 10;
-    }
-
-    .sector-card:hover .delete-btn {
-        opacity: 1;
+        transition: opacity 0.2s, background-color 0.2s;
     }
 </style>
 
@@ -228,7 +146,9 @@
     </div>
 
     <!-- Main Flow -->
-    <div class="flow-container flex-1" id="flow-grid">
+    <!-- Main Flow -->
+    <div class="p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 auto-rows-min content-start flex-1 overflow-y-auto"
+        id="flow-grid">
         <!-- Rendered by JS -->
     </div>
 </div>
@@ -266,6 +186,68 @@
                         <line x1="6" y1="6" x2="18" y2="18"></line>
                     </svg>
                 </button>
+            </div>
+
+            <!-- KPI Grid -->
+            <div class="px-6 py-4 bg-slate-900/30 border-b border-slate-700 grid grid-cols-4 gap-4">
+                <div
+                    class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col relative overflow-hidden group hover:border-blue-500/30 transition">
+                    <div class="absolute right-2 top-2 opacity-10 group-hover:opacity-20 transition text-slate-400">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                        </svg>
+                    </div>
+                    <div class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Advertências</div>
+                    <div class="text-2xl font-bold text-white flex items-end gap-1">
+                        <span id="modal-warnings">0</span>
+                    </div>
+                </div>
+                <div
+                    class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col relative overflow-hidden group hover:border-red-500/30 transition">
+                    <div class="absolute right-2 top-2 opacity-10 group-hover:opacity-20 transition text-red-500">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </div>
+                    <div class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Faltas</div>
+                    <div class="text-2xl font-bold text-red-400 flex items-end gap-1">
+                        <span id="modal-absent">0</span>
+                    </div>
+                </div>
+                <div
+                    class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col relative overflow-hidden group hover:border-cyan-500/30 transition">
+                    <div class="absolute right-2 top-2 opacity-10 group-hover:opacity-20 transition text-cyan-500">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                        </svg>
+                    </div>
+                    <div class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Atestados</div>
+                    <div class="text-2xl font-bold text-cyan-400 flex items-end gap-1">
+                        <span id="modal-sick">0</span>
+                    </div>
+                </div>
+                <div
+                    class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col relative overflow-hidden group hover:border-orange-500/30 transition">
+                    <div class="absolute right-2 top-2 opacity-10 group-hover:opacity-20 transition text-orange-500">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M2 12h20" />
+                            <path d="M12 2v20" />
+                            <path
+                                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                        </svg>
+                    </div>
+                    <div class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Férias</div>
+                    <div class="text-2xl font-bold text-orange-400 flex items-end gap-1">
+                        <span id="modal-vacation">0</span>
+                    </div>
+                </div>
             </div>
 
             <!-- Modal Body -->
@@ -392,45 +374,49 @@
 
         SECTORS.forEach((sec, idx) => {
             const sectorData = getSectorStats(sec.key);
-            const statusClass = sectorData.deficit > 0 ? 'critical' : 'ok';
-            // Dark theme classes embedded in JS
+            const isDeficit = sectorData.deficit > 0;
+
             const card = document.createElement('div');
-            card.className = 'flow-step';
+            // Using Tailwind classes entirely
             card.innerHTML = `
-                <div class="sector-card ${statusClass}" onclick="openModal('${sec.key}')" role="button" tabindex="0" title="Gerenciar ${sec.label}">
-                    <button onclick="event.stopPropagation(); deleteSector(${idx})" class="delete-btn" title="Excluir Setor" aria-label="Excluir Setor">✕</button>
-                    
-                    <div class="flex justify-between items-start mb-4">
-                        <div>
-                            <h3 class="font-bold text-white">${sec.label}</h3>
-                            <div class="flex items-center gap-1 text-xs text-slate-400 group">
-                                <span>Meta: ${sec.target || 0}</span>
-                            </div>
+                <div class="bg-slate-800 border-slate-700 border rounded-xl p-3 flex flex-col justify-between h-32 relative group hover:border-blue-500 hover:shadow-lg transition-all shadow-md cursor-pointer ${isDeficit ? 'border-l-4 border-l-red-500' : 'border-l-4 border-l-emerald-500'}" onclick="openModal('${sec.key}')">
+                    <!-- Delete Btn -->
+                    <button onclick="event.stopPropagation(); deleteSector(${idx})" class="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-sm z-10 hover:bg-red-600" title="Excluir">✕</button>
+
+                    <!-- Header -->
+                    <div class="flex justify-between items-start">
+                        <div class="overflow-hidden">
+                            <h3 class="font-bold text-slate-200 text-sm leading-tight truncate" title="${sec.label}">${sec.label}</h3>
+                            <span class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Meta: ${sec.target || 0}</span>
                         </div>
-                        <span onclick="event.stopPropagation(); editMeta(${idx})" class="text-xs font-bold px-2 py-1 rounded bg-slate-700 text-slate-300 border border-slate-600 cursor-pointer hover:bg-slate-600 transition" title="Editar Meta">${sectorData.count}/${sec.target || 0}</span>
+                        <button onclick="event.stopPropagation(); editMeta(${idx})" class="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded border border-slate-600 hover:bg-slate-600 hover:text-white transition shrink-0 ml-1">${sectorData.count}/${sec.target || 0}</button>
                     </div>
-                    
-                    <div class="mt-auto">
-                        <div class="w-full bg-slate-700 rounded-full h-2 mb-2 overflow-hidden">
-                            <div class="bg-blue-500 h-2 rounded-full" style="width: ${Math.min(100, (sectorData.count / (sec.target || 1)) * 100)}%"></div>
-                        </div>
-                        ${sectorData.deficit > 0
-                    ? `<p class="text-xs font-bold text-red-400 flex items-center gap-1">⚠️ Faltam ${sectorData.deficit}</p>`
-                    : `<p class="text-xs font-bold text-emerald-400 flex items-center gap-1">✨ Completo</p>`
+
+                    <!-- Progress -->
+                    <div class="mt-1">
+                        <div class="flex justify-between items-end mb-1">
+                             ${isDeficit
+                    ? `<span class="text-[10px] font-bold text-red-400 flex items-center gap-1">⚠️ -${sectorData.deficit}</span>`
+                    : `<span class="text-[10px] font-bold text-emerald-400 flex items-center gap-1">✨ OK</span>`
                 }
+                        </div>
+                        <div class="w-full bg-slate-700/50 rounded-full h-1.5 overflow-hidden">
+                            <div class="bg-blue-500 h-1.5 rounded-full transition-all duration-500" style="width: ${Math.min(100, (sectorData.count / (sec.target || 1)) * 100)}%"></div>
+                        </div>
                     </div>
-                    
-                    <div class="flex -space-x-2 mt-4 overflow-hidden py-1">
-                         ${sectorData.people.slice(0, 5).map(p => `
-                            <div class="w-6 h-6 rounded-full bg-blue-500/20 border-2 border-slate-800 flex items-center justify-center text-[10px] font-bold text-blue-400" title="${p.name}">
+
+                    <!-- People Preview (limit 5) -->
+                    <div class="flex -space-x-1.5 overflow-hidden pt-1">
+                            ${sectorData.people.slice(0, 5).map(p => `
+                            <div class="w-5 h-5 rounded-full bg-slate-700 border border-slate-800 flex items-center justify-center text-[9px] font-bold text-slate-300 shrink-0 select-none shadow-sm" title="${p.name}">
                                 ${p.name.charAt(0)}
                             </div>
-                         `).join('')}
-                         ${sectorData.people.length > 5 ? `<div class="w-6 h-6 rounded-full bg-slate-700 border-2 border-slate-800 flex items-center justify-center text-[10px] text-slate-400">+${sectorData.people.length - 5}</div>` : ''}
+                            `).join('')}
+                            ${sectorData.people.length > 5 ? `<div class="w-5 h-5 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[9px] text-slate-500 shrink-0 shadow-sm">+${sectorData.people.length - 5}</div>` : ''}
                     </div>
                 </div>
             `;
-            container.appendChild(card);
+            container.appendChild(card.firstElementChild); // Append the inner div directly to simple grid
         });
     }
 
@@ -481,6 +467,7 @@
 
         renderAvailableList();
         renderActiveList();
+        updateModalStats();
     }
 
     function closeModal() {
@@ -494,58 +481,73 @@
         list.innerHTML = '';
 
         const showAll = document.getElementById('show-all-toggle').checked;
-
-        // Normalize current shift once
         const curShiftNorm = normalizeStr(currentShift);
 
         const candidates = ALL_EMPLOYEES.filter(emp => {
             const isAllocated = employees.log[emp.id];
             const matchesFilter = emp.name.toLowerCase().includes(filter.toLowerCase()) || emp.id.includes(filter);
             const empShiftNorm = normalizeStr(emp.shift || "");
-
-            // Flexible matching: exact match OR showAll
-            const matchesShift = showAll || (empShiftNorm === curShiftNorm);
-
+            const matchesShift = showAll || (empShiftNorm === curShiftNorm) || empShiftNorm.includes(curShiftNorm);
             return !isAllocated && matchesFilter && matchesShift;
         }).slice(0, 50);
 
         candidates.forEach(emp => {
             const empShift = (emp.shift || "N/A").trim();
             const curShift = (currentShift || "").trim();
+            const empShiftNorm = normalizeStr(empShift);
+            const curShiftNorm = normalizeStr(curShift);
+            const isWrongShift = !empShiftNorm.includes(curShiftNorm);
 
-            // Warning logic uses same robust check
-            const isWrongShift = normalizeStr(empShift) !== normalizeStr(curShift);
+            // Shift Badge Logic - Compact
+            const shiftLower = empShift.toLowerCase();
+            let shiftColor = "text-slate-400 bg-slate-700/50 border-slate-600";
+            let shiftShort = empShift.substring(0, 3).toUpperCase();
 
-            // Extra warning logic
-            const warningHtml = isWrongShift
-                ? `<span class="bg-amber-500/20 text-amber-400 text-[10px] px-1.5 py-0.5 rounded font-bold ml-2 border border-amber-500/30" title="Turno original: ${empShift}">⚠️ ${empShift}</span>`
-                : '';
-
-            // Show Cost Center for context (Dark)
-            const ccBadges = emp.cost_center ? `<span class="text-[9px] bg-slate-700 rounded px-1 ml-1 text-slate-400 border border-slate-600">${emp.cost_center}</span>` : '';
+            if (shiftLower.includes("manhã") || shiftLower.includes("manha")) {
+                shiftColor = "text-blue-400 bg-blue-500/10 border-blue-500/20";
+                shiftShort = "MAN";
+            } else if (shiftLower.includes("tarde")) {
+                shiftColor = "text-orange-400 bg-orange-500/10 border-orange-500/20";
+                shiftShort = "TAR";
+            } else if (shiftLower.includes("noite")) {
+                shiftColor = "text-purple-400 bg-purple-500/10 border-purple-500/20";
+                shiftShort = "NOI";
+            }
 
             const el = document.createElement('div');
-            el.className = "bg-slate-800 p-3 rounded-lg border border-slate-700 shadow-sm flex justify-between items-center group hover:border-blue-500/50 transition mb-2";
+            // Draggable Card Style
+            el.className = "group relative bg-slate-800/80 hover:bg-slate-700 p-2 rounded-lg border border-slate-700 hover:border-blue-500/50 transition-all cursor-grab active:cursor-grabbing flex items-center justify-between shadow-sm hover:shadow-md mb-2 select-none";
+            el.draggable = true;
+            el.ondragstart = (e) => drag(e, emp.id);
+
             el.innerHTML = `
-                <div class="flex-1 overflow-hidden">
-                    <div class="flex items-center flex-wrap gap-1">
-                         <p class="text-sm font-semibold text-slate-200 truncate">${emp.name}</p>
-                         ${warningHtml}
+                <div class="flex items-center gap-3 overflow-hidden ml-1">
+                    <div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-600 flex items-center justify-center text-xs font-bold text-slate-400 shrink-0 shadow-inner">
+                        ${emp.name.charAt(0)}
                     </div>
-                    <div class="flex items-center mt-1">
-                        <p class="text-xs text-slate-500 truncate">Mat: ${emp.id}</p>
-                        ${ccBadges}
+                    <div class="overflow-hidden flex flex-col justify-center">
+                        <p class="text-xs font-semibold text-slate-200 truncate leading-tight group-hover:text-white transition">${emp.name}</p>
+                        <div class="flex items-center gap-1.5 mt-0.5">
+                            <span class="text-[9px] font-mono text-slate-500">#${emp.id}</span>
+                            <span class="text-[8px] font-bold px-1 rounded border ${shiftColor} uppercase tracking-wider">${shiftShort}</span>
+                            ${isWrongShift ? `<span class="text-[8px] text-amber-500 bg-amber-500/10 px-1 rounded border border-amber-500/20" title="Turno original: ${empShift}">⚠️</span>` : ''}
+                        </div>
                     </div>
                 </div>
-                <button onclick="addToSector('${emp.id}', '${emp.name}')" class="bg-slate-700 text-blue-400 p-1.5 rounded-md hover:bg-slate-600 hover:text-white transition shrink-0 ml-2" aria-label="Adicionar ${emp.name}">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                
+                <button onclick="addToSector('${emp.id}', '${emp.name}')" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-500 border border-slate-700 hover:border-blue-500 flex items-center justify-center transition shadow-sm" aria-label="Adicionar" title="Adicionar ao setor">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
                 </button>
             `;
             list.appendChild(el);
         });
 
         if (candidates.length === 0) {
-            list.innerHTML = `<div class="text-center p-4 text-xs text-slate-500">Nenhum colaborador encontrado. ${!showAll ? '<br>Tente "Mostrar Todos".' : ''}</div>`;
+            list.innerHTML = `<div class="flex flex-col items-center justify-center py-8 text-slate-500 gap-2 opacity-60">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <p class="text-xs">Nenhum colaborador disponível</p>
+                ${!showAll ? '<p class="text-[10px] text-blue-400 cursor-pointer hover:underline" onclick="document.getElementById(\'show-all-toggle\').click()">Mostrar outros turnos</p>' : ''}
+            </div>`;
         }
     }
 
@@ -563,13 +565,11 @@
             sector.subsectors.forEach(s => usedSubsectors.add(s));
         }
 
-        // Collect groups
         const grouped = {};
         usedSubsectors.forEach(sub => grouped[sub] = []);
-
         activeInSector.forEach(p => {
             const sub = p.subsector || 'Geral';
-            if (!grouped[sub]) grouped[sub] = []; // Just in case
+            if (!grouped[sub]) grouped[sub] = [];
             grouped[sub].push(p);
         });
 
@@ -577,49 +577,109 @@
 
         Object.entries(grouped).forEach(([subName, people]) => {
             const groupEl = document.createElement('div');
-            groupEl.className = 'mb-6';
+            groupEl.className = 'mb-6 animate-fade-in';
             groupEl.innerHTML = `
-                <div class="flex items-center gap-2 mb-3 group">
-                    <h4 class="text-xs font-bold text-slate-400 uppercase flex items-center gap-2">
+                <div class="flex items-center gap-2 mb-3 group pl-1">
+                    <h4 class="text-xs font-bold text-slate-400 uppercase flex items-center gap-2 tracking-wider">
                         ${subName} 
-                        <span class="bg-slate-700 text-slate-300 px-1.5 rounded text-[10px]">${people.length}</span>
+                        <span class="bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded text-[10px] min-w-[20px] text-center">${people.length}</span>
                     </h4>
-                    <div class="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition">
-                        <button onclick="renameSubsector('${subName}')" class="text-slate-500 hover:text-blue-400 text-xs p-1" title="Renomear">✎</button>
-                        ${subName !== 'Geral' ? `<button onclick="deleteSubsector('${subName}')" class="text-slate-500 hover:text-red-400 text-xs p-1" title="Excluir Sub-setor" aria-label="Excluir">🗑️</button>` : ''}
+                    <div class="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition ml-auto">
+                        <button onclick="renameSubsector('${subName}')" class="text-slate-500 hover:text-blue-400 p-1.5 rounded hover:bg-slate-700 transition" title="Renomear">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                        </button>
+                        ${subName !== 'Geral' ? `<button onclick="deleteSubsector('${subName}')" class="text-slate-500 hover:text-red-400 p-1.5 rounded hover:bg-slate-700 transition" title="Excluir"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>` : ''}
                     </div>
                 </div>
                 
-                <div class="subsector-dropzone" ondragover="allowDrop(event)" ondrop="drop(event, '${subName}')">
-                    ${people.length === 0 ? '<p class="text-xs text-slate-500 text-center py-4">Arraste ou adicione aqui</p>' : ''}
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                         ${people.map(p => `
-                            <div class="bg-slate-800 border border-slate-700 rounded-lg p-2 flex items-center justify-between shadow-sm cursor-grab" draggable="true" ondragstart="drag(event, '${p.id}')">
-                                <div class="flex items-center gap-2 overflow-hidden">
-                                    <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-400 shrink-0 border border-slate-600">${p.name.charAt(0)}</div>
-                                    <div class="overflow-hidden">
-                                        <p class="text-sm font-medium text-slate-200 leading-tight truncate">${p.name}</p>
-                                        <div class="flex gap-1 mt-1">
-                                            ${renderStatusBadge(p.status)}
+                <div class="subsector-dropzone min-h-[120px] bg-slate-900/50 border-2 border-dashed border-slate-700 supports-backdrop-blur:bg-slate-900/50 rounded-xl p-3 transition-all hover:border-slate-600" ondragover="this.classList.add('border-blue-500', 'bg-blue-500/5'); allowDrop(event)" ondragleave="this.classList.remove('border-blue-500', 'bg-blue-500/5')" ondrop="this.classList.remove('border-blue-500', 'bg-blue-500/5'); drop(event, '${subName}')">
+                    ${people.length === 0 ? '<div class="h-full flex flex-col items-center justify-center text-slate-600 gap-2"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="opacity-50"><path d="M12 5v14M5 12h14"/></svg><p class="text-[10px] font-medium">Arraste colaboradores aqui</p></div>' : ''}
+                     <div class="grid grid-cols-1 xl:grid-cols-2 gap-2">
+                         ${people.map(p => {
+                const empData = ALL_EMPLOYEES.find(e => e.id === p.id);
+                const empShift = empData ? (empData.shift || "N/A").trim() : "N/A";
+                const curShift = (currentShift || "").trim();
+                const isWrongShift = !normalizeStr(empShift).includes(normalizeStr(curShift));
+
+                // Interactive Status Buttons
+                const isPresent = p.status === 'present';
+                const isAbsent = p.status === 'absent';
+                const isSick = p.status === 'sick';
+                const isVacation = p.status === 'vacation';
+                const isAway = p.status === 'away';
+
+                return `
+                            <div class="group bg-slate-800 border border-slate-700 rounded-lg p-3 shadow-sm hover:shadow-md hover:border-blue-500/30 transition-all relative" draggable="true" ondragstart="drag(event, '${p.id}')">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div class="flex items-center gap-2 overflow-hidden">
+                                        <div class="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-300 relative shrink-0 border border-slate-600">
+                                            ${p.name.charAt(0)}
+                                            ${isWrongShift ? '<div class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-slate-800" title="Turno Diferente"></div>' : ''}
+                                        </div>
+                                        <div class="overflow-hidden">
+                                            <p class="text-xs font-semibold text-slate-200 truncate leading-tight w-full" title="${p.name}">${p.name}</p>
                                         </div>
                                     </div>
+                                    <button onclick="removeFromSector('${p.id}')" class="text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition p-0.5 rounded hover:bg-slate-700" title="Remover"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
                                 </div>
                                 
-                                <div class="flex gap-1 shrink-0">
-                                     <button onclick="setStatus('${p.id}', 'present')" class="p-1 rounded hover:bg-emerald-500/20 text-slate-500 hover:text-emerald-400 ${p.status === 'present' ? 'text-emerald-400 bg-emerald-500/10' : ''}" title="Presente">P</button>
-                                     <button onclick="setStatus('${p.id}', 'absent')" class="p-1 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400 ${p.status === 'absent' ? 'text-red-400 bg-red-500/10' : ''}" title="Falta">F</button>
-                                     <button onclick="setStatus('${p.id}', 'sick')" class="p-1 rounded hover:bg-cyan-500/20 text-slate-500 hover:text-cyan-400 ${p.status === 'sick' ? 'text-cyan-400 bg-cyan-500/10' : ''}" title="Atestado">A</button>
-                                     <button onclick="setStatus('${p.id}', 'vacation')" class="p-1 rounded hover:bg-orange-500/20 text-slate-500 hover:text-orange-400 ${p.status === 'vacation' ? 'text-orange-400 bg-orange-500/10' : ''}" title="Férias">Fé</button>
-                                     <button onclick="setStatus('${p.id}', 'away')" class="p-1 rounded hover:bg-purple-500/20 text-slate-500 hover:text-purple-400 ${p.status === 'away' ? 'text-purple-400 bg-purple-500/10' : ''}" title="Afastado">Af</button>
-                                     <button onclick="removeFromSector('${p.id}')" class="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-red-400 ml-1" title="Remover">✕</button>
+                                <div class="flex items-center justify-between gap-1 bg-slate-900/50 p-1 rounded-lg">
+                                    <button onclick="setStatus('${p.id}', 'present')" class="flex-1 py-1 rounded text-[10px] font-bold transition flex items-center justify-center gap-1 ${isPresent ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-700 hover:text-emerald-400'}" title="Presente">
+                                        P
+                                    </button>
+                                    <button onclick="setStatus('${p.id}', 'absent')" class="flex-1 py-1 rounded text-[10px] font-bold transition flex items-center justify-center gap-1 ${isAbsent ? 'bg-red-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-700 hover:text-red-400'}" title="Falta">
+                                        F
+                                    </button>
+                                    <button onclick="setStatus('${p.id}', 'sick')" class="flex-1 py-1 rounded text-[10px] font-bold transition flex items-center justify-center gap-1 ${isSick ? 'bg-cyan-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-700 hover:text-cyan-400'}" title="Atestado">
+                                        A
+                                    </button>
+                                    <button onclick="setStatus('${p.id}', 'vacation')" class="flex-1 py-1 rounded text-[10px] font-bold transition flex items-center justify-center gap-1 ${isVacation ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-700 hover:text-orange-400'}" title="Férias">
+                                        Fé
+                                    </button>
+                                    <button onclick="setStatus('${p.id}', 'away')" class="flex-1 py-1 rounded text-[10px] font-bold transition flex items-center justify-center gap-1 ${isAway ? 'bg-purple-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-700 hover:text-purple-400'}" title="Afastado">
+                                        Af
+                                    </button>
                                 </div>
                             </div>
-                         `).join('')}
-                    </div>
+                         `}).join('')}
+                     </div>
                 </div>
             `;
             container.appendChild(groupEl);
         });
+
+        updateModalStats(); // Update stats whenever list is rendered (e.g. after status change)
+    }
+
+    function updateModalStats() {
+        if (!currentSectorKey) return;
+
+        const activeInSector = Object.entries(employees.log)
+            .filter(([_, entry]) => entry.sector === currentSectorKey)
+            .map(([_, entry]) => entry);
+
+        let warnings = 0; // Placeholder for now
+        let absent = 0;
+        let sick = 0;
+        let vacation = 0;
+
+        activeInSector.forEach(p => {
+            if (p.status === 'absent') absent++;
+            if (p.status === 'sick') sick++;
+            if (p.status === 'vacation') vacation++;
+            // if (p.status === 'warning') warnings++; 
+        });
+
+        // Update DOM elements safely
+        const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = val;
+        };
+
+        setVal('modal-warnings', warnings);
+        setVal('modal-absent', absent);
+        setVal('modal-sick', sick);
+        setVal('modal-vacation', vacation);
     }
 
     // --- Configuration Editing ---
