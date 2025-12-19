@@ -33,8 +33,36 @@ class Employee(SQLModel, table=True):
     # active, vacation, away, fired
     status: str = Field(default="active")
     work_shift: str = Field(default="Manhã") # Manhã, Tarde, Noite
+    
+
+
 
     events: List["Event"] = Relationship(back_populates="employee")
+
+from sqlalchemy import Column, JSON
+from datetime import datetime
+
+class DailyOperation(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    date: str = Field(index=True) # YYYY-MM-DD
+    shift: str = Field(index=True) # Manhã, Tarde, Noite
+    
+    # Metrics
+    tonnage: int = Field(default=0)
+    attendance_log: Optional[dict] = Field(default={}, sa_column=Column(JSON))
+    
+    # Logistics
+    arrival_time: Optional[str] = Field(default=None)
+    exit_time: Optional[str] = Field(default=None)
+    
+    # Closing
+    report: Optional[str] = Field(default=None)
+    rating: int = Field(default=0)
+    status: str = Field(default="open") # open, closed
+    
+    # Meta
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
 
 class Event(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -55,3 +83,9 @@ class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     username: str = Field(index=True)
     password_hash: str # In simplistic version we will just store plain/hashed, but for now hardcoded in auth logic
+
+class SectorConfiguration(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    shift_name: str = Field(index=True) # Manhã, Tarde, Noite
+    config_json: dict = Field(default={}, sa_column=Column(JSON))
+    updated_at: datetime = Field(default_factory=datetime.now)

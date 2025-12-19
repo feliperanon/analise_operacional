@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from datetime import datetime
 from starlette.middleware.sessions import SessionMiddleware
@@ -13,6 +13,25 @@ import models
 SECRET_KEY = "your-secret-key-change-in-production"
 ALLOWED_USER = "feliperanon"
 ALLOWED_PASS = "571232ce"
+
+
+
+# API Models
+from pydantic import BaseModel
+from typing import Optional
+
+class DailyRoutineUpdate(BaseModel):
+    date: str
+    shift: str
+    attendance_log: Optional[dict] = {}
+    tonnage: Optional[int] = None
+    arrival_time: Optional[str] = None
+    exit_time: Optional[str] = None
+    report: Optional[str] = None
+    rating: Optional[int] = 0
+    rating: Optional[int] = 0
+    status: Optional[str] = None
+    sector_config: Optional[dict] = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -73,55 +92,192 @@ async def read_root(request: Request):
         "user": user
     })
 
-# --- Flow Logic ---
-def get_sector_from_cc(cost_center):
-    cc = (cost_center or "").upper()
-    if any(x in cc for x in ["RECEBIMENTO", "DESC", "CONF"]): return "Recebimento"
-    if any(x in cc for x in ["CAMARA", "FRIO", "RESFRIADO"]): return "Câmara Fria"
-    if any(x in cc for x in ["SELECAO", "CLASSIFICACAO"]): return "Seleção"
-    if any(x in cc for x in ["BLOCADO", "QUEBRA"]): return "Blocado"
-    if any(x in cc for x in ["EMBANDEJAMENTO", "EMB"]): return "Embandejamento"
-    if any(x in cc for x in ["ESTOQUE", "CONTROLE", "INV"]): return "Estoque"
-    if any(x in cc for x in ["EXPEDICAO", "EXP", "CARGA"]): return "Expedição"
-    return "Outros" # Fallback or maybe pool
 
-@app.get("/flow", response_class=HTMLResponse)
-async def flow_dashboard(request: Request, session: Session = Depends(get_session)):
+
+# --- Smart Flow Routes ---
+
+@app.get("/smart-flow", response_class=HTMLResponse)
+async def smart_flow_page(request: Request, shift: str = "Manhã", session: Session = Depends(get_session)):
     user = require_login(request)
+    
+    # Get Daily Op
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    daily_op = session.exec(
+        select(models.DailyOperation)
+        .where(models.DailyOperation.date == today_str)
+        .where(models.DailyOperation.shift == shift)
+    ).first()
+    
+    if not daily_op:
+        daily_op = models.DailyOperation(date=today_str, shift=shift) # Transient
+        
+    # Get Employees for "Available Pool"
     employees = session.exec(select(models.Employee).where(models.Employee.status == "active")).all()
     
-    # Init Sector Data
-    sectors = {
-        "Recebimento": {"count": 0, "people": [], "status": "ok", "target": 10},
-        "Câmara Fria": {"count": 0, "people": [], "status": "warning", "target": 5},
-        "Seleção": {"count": 0, "people": [], "status": "ok", "target": 15},
-        "Blocado": {"count": 0, "people": [], "status": "critical", "target": 8},
-        "Embandejamento": {"count": 0, "people": [], "status": "ok", "target": 12},
-        "Estoque": {"count": 0, "people": [], "status": "ok", "target": 4},
-        "Expedição": {"count": 0, "people": [], "status": "ok", "target": 20},
-    }
+    # Get Targets (Headcount) - Official HR Target
+    targets_db = session.exec(select(models.HeadcountTarget).where(models.HeadcountTarget.shift_name == shift)).first()
+    shift_target_hr = targets_db.target_value if targets_db else 0
     
-    # Populate Sectors
-    for emp in employees:
-        sec = get_sector_from_cc(emp.cost_center)
-        if sec in sectors:
-            sectors[sec]["count"] += 1
-            sectors[sec]["people"].append(emp)
+    # Get Sector Configuration
+    sector_config_db = session.exec(select(models.SectorConfiguration).where(models.SectorConfiguration.shift_name == shift)).first()
     
-    # Simple Status Logic (Mock for now)
-    for name, data in sectors.items():
-        if data["count"] < data["target"] * 0.8:
-            data["status"] = "critical"
-        elif data["count"] < data["target"]:
-            data["status"] = "warning"
-        else:
-            data["status"] = "ok"
+    if sector_config_db and sector_config_db.config_json:
+        sector_config = sector_config_db.config_json
+    else:
+        # Default Seed (Targets initialized to 0 to avoid confusion with HR Target)
+        sector_config = {
+            "sectors": [
+                { "key": "recebimento", "label": "Recebimento", "target": 0, "subsectors": ["Doca 1", "Doca 2", "Paletização"] },
+                { "key": "camara_fria", "label": "Câmara Fria", "target": 0, "subsectors": ["Armazenagem", "Abastecimento"] },
+                { "key": "selecao", "label": "Seleção", "target": 0, "subsectors": ["Linha 1", "Linha 2"] },
+                { "key": "expedicao", "label": "Expedição", "target": 0, "subsectors": ["Separação", "Carregamento"] }
+            ]
+        }
+    
+    # Calculate Total Target from Config (Operational Demand)
+    sectors_total_demand = sum(s.get("target", 0) for s in sector_config.get("sectors", []))
 
-    return templates.TemplateResponse("flow.html", {
+    return templates.TemplateResponse("smart_flow.html", {
         "request": request,
         "user": user,
-        "sectors": sectors
+        "daily_op": daily_op,
+        "employees_list": employees,
+        "current_shift": shift,
+        "total_target": sectors_total_demand, 
+        "shift_target_hr": shift_target_hr, # Passed for KPI
+        "sector_config": sector_config 
     })
+
+    return templates.TemplateResponse("smart_flow.html", {
+        "request": request,
+        "user": user,
+        "daily_op": daily_op,
+        "employees_list": employees,
+        "current_shift": shift,
+        "total_target": total_target,
+        "sector_targets": sector_targets 
+    })
+
+
+@app.post("/routine/update", response_class=JSONResponse)
+async def update_routine(
+    request: Request,
+    data: DailyRoutineUpdate,
+    session: Session = Depends(get_session)
+):
+    require_login(request)
+    try:
+        # Find or Create
+        daily = session.exec(
+            select(models.DailyOperation)
+            .where(models.DailyOperation.date == data.date)
+            .where(models.DailyOperation.shift == data.shift)
+        ).first()
+        
+        old_log = {}
+        if not daily:
+            daily = models.DailyOperation(date=data.date, shift=data.shift)
+        else:
+            old_log = daily.attendance_log or {}
+            
+        # Update fields
+        if data.attendance_log is not None:
+            daily.attendance_log = data.attendance_log
+        if data.tonnage is not None:
+            daily.tonnage = data.tonnage
+        if data.arrival_time is not None:
+            daily.arrival_time = data.arrival_time
+        if data.exit_time is not None:
+            daily.exit_time = data.exit_time
+        if data.report is not None:
+            daily.report = data.report
+        if data.rating is not None:
+            daily.rating = data.rating
+        if data.status is not None:
+            daily.status = data.status
+            
+        daily.updated_at = datetime.now()
+        
+        # --- Timeline Logic ---
+        if data.attendance_log:
+            new_log = data.attendance_log
+            
+            # SYNC: Update Employee Status based on attendance log
+            for emp_id, entry in new_log.items():
+                status = entry.get("status")
+                target_status = None
+                if status == 'vacation': target_status = 'vacation' # Férias
+                elif status == 'sick': target_status = 'sick'       # Atestado
+                elif status == 'away': target_status = 'away'       # Afastado
+                
+                if target_status:
+                    employee = session.exec(select(models.Employee).where(models.Employee.registration_id == emp_id)).first()
+                    if employee and employee.status != target_status:
+                        employee.status = target_status
+                        session.add(employee)
+            
+            # Detect Changes
+            all_ids = set(old_log.keys()) | set(new_log.keys())
+            
+            for emp_id in all_ids:
+                old_entry = old_log.get(emp_id)
+                new_entry = new_log.get(emp_id)
+                
+                # Case 1: New Allocation (Was not in log, now is)
+                if not old_entry and new_entry:
+                    sector = new_entry.get('sector')
+                    sub = new_entry.get('subsector', 'Geral')
+                    event = models.EmployeeEvent(
+                        employee_id=emp_id,
+                        event_type="allocacao",
+                        description=f"Alocado em {sector} ({sub}) - {data.shift}",
+                        date=datetime.now()
+                    )
+                    session.add(event)
+                    
+                # Case 2: Changed Allocation (Moved Sector/Subsector)
+                elif old_entry and new_entry:
+                    old_sec = old_entry.get('sector')
+                    old_sub = old_entry.get('subsector', 'Geral')
+                    new_sec = new_entry.get('sector')
+                    new_sub = new_entry.get('subsector', 'Geral')
+                    
+                    if old_sec != new_sec or old_sub != new_sub:
+                        event = models.EmployeeEvent(
+                            employee_id=emp_id,
+                            event_type="movimentacao",
+                            description=f"Movido de {old_sec} ({old_sub}) para {new_sec} ({new_sub})",
+                            date=datetime.now()
+                        )
+                        session.add(event)
+                        
+                # Case 3: Removed (Optional, maybe not needed for timeline, but good for tracking)
+                elif old_entry and not new_entry:
+                    event = models.EmployeeEvent(
+                        employee_id=emp_id,
+                        event_type="remocao",
+                        description=f"Removido do fluxo operacional ({data.shift})",
+                        date=datetime.now()
+                    )
+                    session.add(event)
+
+        if data.sector_config:
+            # Save Sector Config
+            config_entry = session.exec(select(models.SectorConfiguration).where(models.SectorConfiguration.shift_name == data.shift)).first()
+            if not config_entry:
+                config_entry = models.SectorConfiguration(shift_name=data.shift, config_json=data.sector_config)
+            else:
+                config_entry.config_json = data.sector_config
+                config_entry.updated_at = datetime.now()
+            session.add(config_entry)
+            
+        session.add(daily)
+        session.commit()
+        
+        return {"status": "success", "id": daily.id}
+    except Exception as e:
+        print(f"Update error: {e}")
+        return JSONResponse(content={"status": "error", "msg": str(e)}, status_code=500)
 
 # --- Employee Routes ---
 from sqlmodel import select

@@ -15,7 +15,8 @@ if sqlite_url and sqlite_url.startswith("postgres://"):
 
 connect_args = {}
 if "sqlite" in sqlite_url:
-    connect_args = {"check_same_thread": False}
+    # connect_args = {"check_same_thread": False}
+    pass
 
 engine = create_engine(sqlite_url, echo=True, connect_args=connect_args)
 
