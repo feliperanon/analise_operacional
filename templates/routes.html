@@ -1,0 +1,499 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-8">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-white mb-2">Separação de Mercadorias</h1>
+                <p class="text-slate-400">Controle de produtividade e cargas por colaborador.</p>
+            </div>
+
+            <!-- Filters -->
+            <div class="bg-slate-800 p-2 rounded-xl flex items-center gap-3 border border-slate-700">
+                <!-- Date -->
+                <input type="date" id="route-date" value="{{ selected_date }}" onchange="applyFilters()"
+                    class="bg-transparent text-white text-sm font-bold border-none focus:ring-0 cursor-pointer outline-none">
+
+                <div class="w-px h-6 bg-slate-600"></div>
+
+                <!-- Shift -->
+                <select id="route-shift" onchange="applyFilters()"
+                    class="bg-transparent text-white text-sm font-bold border-none focus:ring-0 cursor-pointer outline-none [&>option]:bg-slate-800">
+                    <option value="Manhã" {% if selected_shift=='Manhã' %}selected{% endif %}>Manhã</option>
+                    <option value="Tarde" {% if selected_shift=='Tarde' %}selected{% endif %}>Tarde</option>
+                    <option value="Noite" {% if selected_shift=='Noite' %}selected{% endif %}>Noite</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Form Card -->
+            <div class="lg:col-span-1">
+                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg sticky top-6">
+                    <h2 class="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Nova Separação
+                    </h2>
+
+                    <form action="/separacao/add" method="post" class="space-y-4" autocomplete="off">
+                        <input type="hidden" name="date" value="{{ selected_date }}">
+                        <input type="hidden" name="shift" value="{{ selected_shift }}">
+
+                        <!-- Employee Searchable -->
+                        <div class="relative group">
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Colaborador (Expedição)</label>
+                            <input type="hidden" name="employee_id" id="form-employee-id" required>
+
+                            {% if employees %}
+                            <div class="relative">
+                                <input type="text" id="employee-search" placeholder="Digite para buscar..."
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                    onfocus="showDropdown('employee-dropdown')"
+                                    oninput="filterDropdown('employee-dropdown', this.value)">
+                                <div id="employee-dropdown"
+                                    class="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden">
+                                    {% for emp in employees %}
+                                    <div class="px-4 py-2 hover:bg-slate-700 cursor-pointer text-slate-300 text-sm transition-colors"
+                                        onclick="selectItem('employee', '{{ emp.id }}', '{{ emp.name }}')">
+                                        {{ emp.name }}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <div class="absolute right-3 top-3 text-slate-500 pointer-events-none">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div
+                                class="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-yellow-400 text-xs">
+                                Nenhum colaborador alocado na Expedição neste dia/turno.
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Client Searchable -->
+                        <div class="relative group">
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Cliente</label>
+                            <input type="hidden" name="client_id" id="form-client-id" required>
+
+                            <div class="relative">
+                                <input type="text" id="client-search" placeholder="Digite para buscar..."
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                    onfocus="showDropdown('client-dropdown')"
+                                    oninput="filterDropdown('client-dropdown', this.value)">
+                                <div id="client-dropdown"
+                                    class="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden">
+                                    {% for client in clients %}
+                                    <div class="px-4 py-2 hover:bg-slate-700 cursor-pointer text-slate-300 text-sm transition-colors"
+                                        onclick="selectItem('client', '{{ client.id }}', '{{ client.name }}')">
+                                        {{ client.name }}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <div class="absolute right-3 top-3 text-slate-500 pointer-events-none">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Times -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Início</label>
+                                <input type="time" name="start_time" required id="form-start-time"
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Fim (Opcional)</label>
+                                <input type="time" name="end_time"
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none placeholder-slate-600">
+                            </div>
+                        </div>
+
+                        <button type="submit" {% if not employees %}disabled{% endif %}
+                            class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-lg font-bold shadow-lg shadow-indigo-900/20 transition-all active:scale-[0.98] mt-2">
+                            <span class="flex items-center justify-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z">
+                                    </path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                Iniciar Separação
+                            </span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- List Card -->
+            <div class="lg:col-span-2">
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden min-h-[500px]">
+                    <div class="px-6 py-4 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center">
+                        <h3 class="text-slate-300 font-medium">Registros de {{ selected_date_fmt }} - {{ selected_shift
+                            }}</h3>
+                        <div class="flex gap-2">
+                            <span class="bg-indigo-500/20 text-indigo-300 px-3 py-1 rounded-full text-xs font-bold">{{
+                                routes|length }} Total</span>
+                        </div>
+                    </div>
+
+                    {% if routes %}
+                    <div class="divide-y divide-slate-700">
+                        {% for route in routes %}
+                        <div
+                            class="p-4 hover:bg-slate-700/30 transition-colors group flex items-start gap-4 {% if not route.end_time %}bg-indigo-900/10 border-l-2 border-indigo-500{% else %}border-l-2 border-transparent{% endif %}">
+
+                            <!-- Timer / Time Badge -->
+                            <div class="flex flex-col items-center min-w-[80px] pt-1">
+                                <span class="text-sm font-bold text-white">{{ route.start_time }}</span>
+                                <div class="w-px h-3 bg-slate-600 my-0.5"></div>
+                                {% if route.end_time %}
+                                <span class="text-xs text-slate-400">{{ route.end_time }}</span>
+                                {% else %}
+                                <!-- Live Timer Badge -->
+                                <span class="text-xs font-mono font-bold text-indigo-400 live-timer"
+                                    data-start="{{ route.start_time }}">
+                                    --:--:--
+                                </span>
+                                {% endif %}
+                            </div>
+
+                            <!-- Content -->
+                            <div class="flex-1">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div>
+                                        <h4 class="font-bold text-white text-md">{{ route.employee_name }}</h4>
+                                        <div class="flex items-center gap-2 text-xs text-slate-400 mt-1">
+                                            <span class="flex items-center gap-1 bg-slate-700/50 px-2 py-0.5 rounded">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
+                                                    </path>
+                                                </svg>
+                                                {{ route.client_name }}
+                                            </span>
+                                            {% if not route.end_time %}
+                                            <span class="text-indigo-400 font-semibold animate-pulse">Em
+                                                Andamento</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center gap-2">
+                                        {% if not route.end_time %}
+                                        <button
+                                            onclick="openFinishModal({{ route.id }}, {{ route.employee_id }}, {{ route.client_id }}, '{{ route.start_time }}')"
+                                            class="bg-green-600 hover:bg-green-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-lg shadow-green-900/20 transition-all flex items-center gap-1">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M5 13l4 4L19 7"></path>
+                                            </svg>
+                                            Encerrar
+                                        </button>
+                                        {% endif %}
+
+                                        <!-- Actions Menu -->
+                                        <div
+                                            class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                                            <button
+                                                onclick="editRoute({{ route.id }}, {{ route.employee_id }}, {{ route.client_id }}, '{{ route.start_time }}', '{{ route.end_time or '' }}', {{ route.tonnage }})"
+                                                class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition"
+                                                title="Editar">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                                                    </path>
+                                                </svg>
+                                            </button>
+                                            <form action="/separacao/delete/{{ route.id }}" method="post"
+                                                onsubmit="return confirm('Excluir registro?')">
+                                                <button type="submit"
+                                                    class="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded transition"
+                                                    title="Excluir">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                                        </path>
+                                                    </svg>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Completed Metrics -->
+                                {% if route.end_time %}
+                                <div class="flex items-center gap-3">
+                                    <span
+                                        class="text-xs font-mono bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-600">
+                                        Peso: <span class="text-white">{{ route.tonnage_fmt }} Kg</span>
+                                    </span>
+
+                                    {% if route.productivity > 0 %}
+                                    <span
+                                        class="text-xs font-mono bg-emerald-500/10 text-emerald-300 px-2 py-1 rounded border border-emerald-500/20 flex items-center gap-1">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                        </svg>
+                                        {{ route.productivity_fmt }} Kg/h
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="flex flex-col items-center justify-center py-20 text-slate-500 opacity-60">
+                        <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7">
+                            </path>
+                        </svg>
+                        <p class="text-lg">Nenhum registro encontrado para este turno.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Finish Modal -->
+<div id="finishModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm">
+    <div
+        class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-sm mx-4 transform transition-all scale-100">
+        <h3 class="text-lg font-bold text-white mb-1">Encerrar Separação</h3>
+        <p class="text-slate-400 text-sm mb-4" id="finish-modal-desc">Finalizar tarefa...</p>
+
+        <form action="/separacao/update" method="post" class="space-y-4">
+            <input type="hidden" name="route_id" id="finish-route-id">
+            <input type="hidden" name="employee_id" id="finish-employee-id">
+            <input type="hidden" name="client_id" id="finish-client-id">
+            <input type="hidden" name="start_time" id="finish-start-time">
+
+            <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Horário de Término</label>
+                <input type="time" name="end_time" id="finish-end-time" required
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-green-500 outline-none text-lg font-mono">
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Peso Total (Kg)</label>
+                <input type="number" step="0.01" name="tonnage" id="finish-tonnage" placeholder="0,00" required
+                    autofocus
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-green-500 outline-none text-lg font-bold">
+            </div>
+
+            <div class="flex justify-end gap-2 mt-6">
+                <button type="button" onclick="closeFinishModal()"
+                    class="px-4 py-2 text-slate-400 hover:text-white transition">Cancelar</button>
+                <button type="submit"
+                    class="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold shadow-lg shadow-green-900/20">Confirmar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm">
+    <div
+        class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md mx-4 transform transition-all scale-100">
+        <h3 class="text-lg font-bold text-white mb-4">Editar Separação</h3>
+        <form action="/separacao/update" method="post" class="space-y-4">
+            <input type="hidden" name="route_id" id="edit-route-id">
+
+            <!-- Employee -->
+            <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Colaborador</label>
+                <select name="employee_id" id="edit-employee-id" required
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                    {% for emp in employees %}
+                    <option value="{{ emp.id }}">{{ emp.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Client -->
+            <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Cliente</label>
+                <select name="client_id" id="edit-client-id" required
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                    {% for client in clients %}
+                    <option value="{{ client.id }}">{{ client.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Início</label>
+                    <input type="time" name="start_time" id="edit-start-time" required
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Fim</label>
+                    <input type="time" name="end_time" id="edit-end-time"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Peso Total (Kg)</label>
+                <input type="number" step="0.01" name="tonnage" id="edit-tonnage"
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+
+            <div class="flex justify-end gap-2 mt-6">
+                <button type="button" onclick="closeEditModal()"
+                    class="px-4 py-2 text-slate-400 hover:text-white transition">Cancelar</button>
+                <button type="submit"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold">Salvar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function applyFilters() {
+        const date = document.getElementById('route-date').value;
+        const shift = document.getElementById('route-shift').value;
+        window.location.href = `/separacao?date=${date}&shift=${shift}`;
+    }
+
+    // --- Searchable Dropdown Logic ---
+    function showDropdown(id) {
+        document.getElementById(id).classList.remove('hidden');
+    }
+
+    function filterDropdown(dropdownId, searchText) {
+        const dropdown = document.getElementById(dropdownId);
+        const items = dropdown.children;
+        const term = searchText.toLowerCase();
+
+        let hasVisible = false;
+        for (let item of items) {
+            if (item.innerText.toLowerCase().includes(term)) {
+                item.classList.remove('hidden');
+                hasVisible = true;
+            } else {
+                item.classList.add('hidden');
+            }
+        }
+    }
+
+    function selectItem(type, id, name) {
+        document.getElementById(`form-${type}-id`).value = id;
+        document.getElementById(`${type}-search`).value = name;
+        document.getElementById(`${type}-dropdown`).classList.add('hidden');
+    }
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.relative')) {
+            document.querySelectorAll('[id$="-dropdown"]').forEach(el => el.classList.add('hidden'));
+        }
+    });
+
+    // Auto-set Start Time
+    document.addEventListener('DOMContentLoaded', () => {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        if (document.getElementById('form-start-time') && !document.getElementById('form-start-time').value) {
+            document.getElementById('form-start-time').value = `${hours}:${minutes}`;
+        }
+        startLiveTimers();
+    });
+
+    // --- Active Timer Logic ---
+    function startLiveTimers() {
+        setInterval(() => {
+            document.querySelectorAll('.live-timer').forEach(el => {
+                const startStr = el.dataset.start;
+                if (!startStr) return;
+
+                const now = new Date();
+                const [startH, startM] = startStr.split(':').map(Number);
+                const startDate = new Date();
+                startDate.setHours(startH, startM, 0, 0);
+                if (startDate > now) startDate.setDate(startDate.getDate() - 1);
+
+                const diff = now - startDate;
+                if (diff < 0) return;
+
+                const diffHrs = Math.floor(diff / 3600000);
+                const diffMins = Math.floor((diff % 3600000) / 60000);
+                const diffSecs = Math.floor((diff % 60000) / 1000);
+
+                el.innerText = `${String(diffHrs).padStart(2, '0')}:${String(diffMins).padStart(2, '0')}:${String(diffSecs).padStart(2, '0')}`;
+            });
+        }, 1000);
+    }
+
+    // --- Modal Logic ---
+    function openFinishModal(id, empId, cliId, start) {
+        document.getElementById('finish-route-id').value = id;
+        document.getElementById('finish-employee-id').value = empId;
+        document.getElementById('finish-client-id').value = cliId;
+        document.getElementById('finish-start-time').value = start;
+
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        document.getElementById('finish-end-time').value = `${hours}:${minutes}`;
+        document.getElementById('finish-tonnage').value = '';
+
+        document.getElementById('finishModal').classList.remove('hidden');
+        document.getElementById('finishModal').classList.add('flex');
+    }
+
+    function closeFinishModal() {
+        document.getElementById('finishModal').classList.add('hidden');
+        document.getElementById('finishModal').classList.remove('flex');
+    }
+
+    function editRoute(id, empId, clientId, start, end, tonnage) {
+        document.getElementById('edit-route-id').value = id;
+        document.getElementById('edit-employee-id').value = empId;
+        document.getElementById('edit-client-id').value = clientId;
+        document.getElementById('edit-start-time').value = start;
+        document.getElementById('edit-end-time').value = end;
+        document.getElementById('edit-tonnage').value = tonnage;
+
+        document.getElementById('editModal').classList.remove('hidden');
+        document.getElementById('editModal').classList.add('flex');
+    }
+
+    function closeEditModal() {
+        document.getElementById('editModal').classList.add('hidden');
+        document.getElementById('editModal').classList.remove('flex');
+    }
+
+    // Close modal on click outside
+    document.getElementById('editModal').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('editModal')) closeEditModal();
+    });
+</script>
+{% endblock %}

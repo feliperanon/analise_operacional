@@ -89,3 +89,20 @@ class SectorConfiguration(SQLModel, table=True):
     shift_name: str = Field(index=True) # Manhã, Tarde, Noite
     config_json: dict = Field(default={}, sa_column=Column(JSON))
     updated_at: datetime = Field(default_factory=datetime.now)
+
+class Client(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+class Route(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    date: str = Field(index=True) # YYYY-MM-DD
+    shift: str = Field(default="Manhã", index=True) # Manhã, Tarde, Noite
+    employee_id: int = Field(foreign_key="employee.id")
+    client_id: int = Field(foreign_key="client.id")
+    start_time: str # HH:MM
+    end_time: Optional[str] = None # HH:MM
+    tonnage: float = 0.0
+    status: str = "pending" # pending, completed
+    created_at: datetime = Field(default_factory=datetime.now)
