@@ -121,6 +121,13 @@
                             </div>
                         </div>
 
+                        <!-- Tonnage at Start -->
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Peso (Kg)</label>
+                            <input type="number" step="0.01" name="tonnage" required placeholder="0,00"
+                                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none font-bold">
+                        </div>
+
                         <button type="submit" {% if not employees %}disabled{% endif %}
                             class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-lg font-bold shadow-lg shadow-indigo-900/20 transition-all active:scale-[0.98] mt-2">
                             <span class="flex items-center justify-center gap-2">
@@ -162,6 +169,10 @@
                                 <div class="w-px h-3 bg-slate-600 my-0.5"></div>
                                 {% if route.end_time %}
                                 <span class="text-xs text-slate-400">{{ route.end_time }}</span>
+                                {% if route.duration_fmt %}
+                                <span class="text-[10px] font-mono text-slate-500 mt-1" title="Duração total">{{
+                                    route.duration_fmt }}</span>
+                                {% endif %}
                                 {% else %}
                                 <!-- Live Timer Badge -->
                                 <span class="text-xs font-mono font-bold text-indigo-400 live-timer"
@@ -240,14 +251,14 @@
                                     </div>
                                 </div>
 
-                                <!-- Completed Metrics -->
-                                {% if route.end_time %}
+                                <!-- Completed Metrics & Status -->
                                 <div class="flex items-center gap-3">
                                     <span
                                         class="text-xs font-mono bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-600">
                                         Peso: <span class="text-white">{{ route.tonnage_fmt }} Kg</span>
                                     </span>
 
+                                    {% if route.end_time %}
                                     {% if route.productivity > 0 %}
                                     <span
                                         class="text-xs font-mono bg-emerald-500/10 text-emerald-300 px-2 py-1 rounded border border-emerald-500/20 flex items-center gap-1">
@@ -258,8 +269,8 @@
                                         {{ route.productivity_fmt }} Kg/h
                                     </span>
                                     {% endif %}
+                                    {% endif %}
                                 </div>
-                                {% endif %}
                             </div>
                         </div>
                         {% endfor %}
@@ -297,13 +308,6 @@
                 <label class="block text-xs font-medium text-slate-400 mb-1">Horário de Término</label>
                 <input type="time" name="end_time" id="finish-end-time" required
                     class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-green-500 outline-none text-lg font-mono">
-            </div>
-
-            <div>
-                <label class="block text-xs font-medium text-slate-400 mb-1">Peso Total (Kg)</label>
-                <input type="number" step="0.01" name="tonnage" id="finish-tonnage" placeholder="0,00" required
-                    autofocus
-                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-green-500 outline-none text-lg font-bold">
             </div>
 
             <div class="flex justify-end gap-2 mt-6">
@@ -463,7 +467,7 @@
         const hours = String(now.getHours()).padStart(2, '0');
         const minutes = String(now.getMinutes()).padStart(2, '0');
         document.getElementById('finish-end-time').value = `${hours}:${minutes}`;
-        document.getElementById('finish-tonnage').value = '';
+        document.getElementById('finish-end-time').value = `${hours}:${minutes}`;
 
         document.getElementById('finishModal').classList.remove('hidden');
         document.getElementById('finishModal').classList.add('flex');

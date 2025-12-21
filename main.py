@@ -182,6 +182,20 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
         def fmt_num(n):
             val = n if n is not None else 0.0
             return f"{val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            
+        def calc_duration_str(start, end):
+            if not start or not end: return None
+            try:
+                s = datetime.strptime(start, "%H:%M")
+                e = datetime.strptime(end, "%H:%M")
+                diff = (e - s).total_seconds()
+                if diff < 0: return None # Ignore negative/overflow for now
+                
+                hours = int(diff // 3600)
+                mins = int((diff % 3600) // 60)
+                return f"{hours:02d}h {mins:02d}m"
+            except:
+                return None
 
         routes_view.append({
             "id": r.id,
@@ -191,6 +205,7 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
             "tonnage_fmt": fmt_num(r.tonnage),
             "productivity": prod,
             "productivity_fmt": fmt_num(prod),
+            "duration_fmt": calc_duration_str(r.start_time, r.end_time),
             "employee_name": emp_map_id.get(r.employee_id, models.Employee(name="Desconhecido")).name,
             "client_name": cli_map.get(r.client_id, "Desconhecido"),
             "employee_id": r.employee_id,
@@ -259,21 +274,22 @@ async def delete_separacao(
 async def update_separacao(
     request: Request,
     route_id: int = Form(...),
-    employee_id: int = Form(...),
-    client_id: int = Form(...),
-    start_time: str = Form(...),
+    employee_id: int = Form(None), # Made optional as finish modal doesn't send it? Wait, finish modal sends hidden inputs. Edit modal sends all.
+    client_id: int = Form(None),
+    start_time: str = Form(None),
     end_time: str = Form(None),
-    tonnage: float = Form(0.0),
+    tonnage: Optional[float] = Form(None),
     session: Session = Depends(get_session)
 ):
     require_login(request)
     route = session.get(models.Route, route_id)
     if route:
-        route.employee_id = employee_id
-        route.client_id = client_id
-        route.start_time = start_time
-        route.end_time = end_time
-        route.tonnage = tonnage
+        if employee_id is not None: route.employee_id = employee_id
+        if client_id is not None: route.client_id = client_id
+        if start_time is not None: route.start_time = start_time
+        if end_time is not None: route.end_time = end_time
+        if tonnage is not None: route.tonnage = tonnage
+        
         session.add(route)
         session.commit()
         return RedirectResponse(url=f"/separacao?date={route.date}&shift={route.shift}", status_code=status.HTTP_303_SEE_OTHER)
@@ -358,6 +374,19 @@ async def smart_flow_page(request: Request, shift: str = "Manhã", date: Optiona
     # Calculate Total Target from Config (Operational Demand)
     sectors_total_demand = sum(s.get("target", 0) for s in sector_config.get("sectors", []))
 
+    # Calculate Real Tonnage from Routes
+    routes_in_shift = session.exec(
+        select(models.Route)
+        .where(models.Route.date == date)
+        .where(models.Route.shift == shift)
+    ).all()
+    total_tonnage_real = sum(r.tonnage for r in routes_in_shift if r.tonnage)
+
+    # Format Tonnage
+    def fmt_num(n):
+        val = n if n is not None else 0.0
+        return f"{val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
     return templates.TemplateResponse("smart_flow.html", {
         "request": request,
         "user": user,
@@ -367,7 +396,8 @@ async def smart_flow_page(request: Request, shift: str = "Manhã", date: Optiona
         "current_date": date,
         "total_target": sectors_total_demand, 
         "shift_target_hr": shift_target_hr, # Passed for KPI
-        "sector_config": sector_config 
+        "sector_config": sector_config,
+        "total_tonnage_fmt": fmt_num(total_tonnage_real)
     })
 
     return templates.TemplateResponse("smart_flow.html", {
