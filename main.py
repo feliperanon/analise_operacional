@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from datetime import datetime
 from starlette.middleware.sessions import SessionMiddleware
-from sqlmodel import Session
+from sqlmodel import Session, select
 from database import create_db_and_tables, get_session
 import models
 
@@ -36,6 +36,40 @@ class VacationSchedule(BaseModel):
     registration_id: str
     start_date: str
     end_date: str
+
+def update_vacation_statuses(session: Session, target_date: datetime):
+    """
+    Updates employee status based on vacation schedule vs target date.
+    """
+    check_start = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    check_end = target_date.replace(hour=23, minute=59, second=59, microsecond=999)
+    
+    employees = session.exec(select(models.Employee).where(models.Employee.status != "fired")).all()
+    
+    for emp in employees:
+        if emp.vacation_start and emp.vacation_end:
+            # Basic validation of dates
+            v_start = emp.vacation_start
+            v_end = emp.vacation_end
+            
+            # Normalize for comparison
+            v_s = v_start.replace(hour=0, minute=0, second=0, microsecond=0)
+            v_e = v_end.replace(hour=23, minute=59, second=59, microsecond=999)
+            
+            should_be_vacation = v_s <= check_start <= v_e
+            
+            if should_be_vacation:
+                if emp.status != 'vacation':
+                    emp.status = 'vacation'
+                    session.add(emp)
+            else:
+                # If currently marked as vacation but NOT in vacation period anymore (or yet)
+                # revert to active.
+                if emp.status == 'vacation':
+                    emp.status = 'active'
+                    session.add(emp)
+    
+    session.commit()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -327,24 +361,11 @@ async def smart_flow_page(request: Request, shift: str = "Manhã", date: Optiona
     # Get Employees for "Available Pool" (Active, Sick, Vacation, Away - Everyone except Fired)
     
     # Auto-Update Vacation Status Check
+    
+    # Auto-Update Vacation Status Check
     if date:
         try:
-            current_dt = datetime.strptime(date, "%Y-%m-%d")
-            all_emps_chk = session.exec(select(models.Employee).where(models.Employee.status != "fired")).all()
-            for emp in all_emps_chk:
-                if emp.vacation_start and emp.vacation_end:
-                     v_start = emp.vacation_start.replace(hour=0, minute=0, second=0, microsecond=0)
-                     v_end = emp.vacation_end.replace(hour=23, minute=59, second=59, microsecond=999)
-                     
-                     if v_start <= current_dt <= v_end:
-                         if emp.status != 'vacation':
-                             emp.status = 'vacation'
-                             session.add(emp)
-                     else:
-                         if emp.status == 'vacation':
-                             emp.status = 'active'
-                             session.add(emp)
-            session.commit()
+            update_vacation_statuses(session, datetime.strptime(date, "%Y-%m-%d"))
         except Exception as e:
             print(f"Error checking vacation dates: {e}")
             
@@ -471,6 +492,17 @@ async def schedule_vacation(
             if emp.status == 'vacation':
                 emp.status = 'active'
         
+        # Create History Event
+        hist_event = models.Event(
+            employee_id=emp.id,
+            type="ferias_hist",
+            text=f"Férias Agendadas: {data.start_date} a {data.end_date}",
+            category="pessoas",
+            sector=emp.cost_center or "Geral",
+            timestamp=datetime.now()
+        )
+        session.add(hist_event)
+        
         session.add(emp)
         session.commit()
         return JSONResponse({"message": "Vacation scheduled and status updated."})
@@ -520,6 +552,17 @@ async def bulk_schedule_vacation(
             else:
                  if emp.status == 'vacation':
                      emp.status = 'active'
+            
+            # Create History Event
+            hist_event = models.Event(
+                employee_id=emp.id,
+                type="ferias_hist",
+                text=f"Férias Agendadas: {item.start_date} a {item.end_date}",
+                category="pessoas",
+                sector=emp.cost_center or "Geral",
+                timestamp=datetime.now()
+            )
+            session.add(hist_event)
             
             session.add(emp)
             updated_count += 1
@@ -757,6 +800,9 @@ async def employees_page(request: Request, session: Session = Depends(get_sessio
         return HTMLResponse(content=f"<h1>Debug 500</h1><pre>{traceback.format_exc()}</pre>", status_code=500)
 
 async def _employees_page_impl(request: Request, session: Session):
+    # Auto-update statuses based on today's date
+    update_vacation_statuses(session, datetime.now())
+
     # user = require_login(request)
     user = "debug_admin"
     

@@ -656,177 +656,9 @@
         rows.forEach(row => tbody.appendChild(row));
     }
 
-    // --- Vacation Logic ---
-    function openVacationModal(id, name) {
-        document.getElementById('vacation-emp-id').value = id;
-        document.getElementById('vacation-modal-title').innerText = `Programar Férias: ${name}`;
-        document.getElementById('vacation-start').value = '';
-        document.getElementById('vacation-end').value = '';
-        document.getElementById('vacation-schedule-modal').classList.remove('hidden');
-    }
-
-    function closeVacationModal() {
-        document.getElementById('vacation-schedule-modal').classList.add('hidden');
-    }
-
-    function closeBulkVacationModal() {
-        document.getElementById('bulk-vacation-modal').classList.add('hidden');
-    }
-
-    async function saveBulkVacation() {
-        const text = document.getElementById('bulk-vacation-text').value;
-        if (!text.trim()) return alert("Cole os dados do Excel.");
-
-        const lines = text.trim().split('\n');
-        const items = [];
-        let errors = [];
-
-        lines.forEach(line => {
-            // Handle both Tab (Excel/TSV) and potential other separators? Excel uses Tab.
-            const parts = line.split('\t');
-            if (parts.length < 4) return; // Skip invalid lines
-
-            // Expected: ID | Name | Start | End
-            // Basic Validations
-            const regId = parts[0].trim();
-            let startRaw = parts[2].trim();
-            let endRaw = parts[3].trim();
-
-            // Convert DD/MM/YYYY to YYYY-MM-DD
-            const toIso = (d) => {
-                if (d.includes('/')) {
-                    const [day, month, year] = d.split('/');
-                    return `${year}-${month}-${day}`;
-                }
-                return d;
-            };
-
-            if (regId && startRaw && endRaw) {
-                items.push({
-                    registration_id: regId,
-                    start_date: toIso(startRaw),
-                    end_date: toIso(endRaw)
-                });
-            }
-        });
-
-        if (items.length === 0) return alert("Nenhuma linha válida encontrada (Use formato: Matrícula | Nome | Início | Fim).");
-
-        if (!confirm(`Confirmar importação de ${items.length} ferias?`)) return;
-
-        try {
-            const res = await fetch('/employees/vacation/bulk', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(items)
-            });
-
-            const data = await res.json();
-
-            if (res.ok) {
-                let msg = data.message;
-                if (data.errors && data.errors.length > 0) {
-                    msg += '\n\nErros:\n' + data.errors.join('\n');
-                }
-                alert(msg);
-                window.location.reload();
-            } else {
-                alert("Erro: " + data.error);
-            }
-        } catch (e) {
-            console.error(e);
-            alert("Erro de conexão.");
-        }
-    }
-
-    async function saveVacationSchedule() {
-        const id = document.getElementById('vacation-emp-id').value;
-        const start = document.getElementById('vacation-start').value;
-        const end = document.getElementById('vacation-end').value;
-
-        if (!start || !end) return alert("Preencha as datas.");
-
-        try {
-            const res = await fetch('/employees/vacation', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    registration_id: null, // Endpoint expects ID lookup if not Reg ID, wait... 
-                    // Main.py uses Registration ID for VacationSchedule model. 
-                    // BUT employees page usually works with IDs.
-                    // Let's check main.py again. 
-                    // Actually main.py "schedule_vacation" takes "VacationSchedule" which has "registration_id".
-                    // Code viewer showed: emp = session.exec(select(models.Employee).where(models.Employee.registration_id == data.registration_id)).first()
-                    // So I must pass REGISTRATION_ID, not DB ID.
-                    // I will fix openVacationModal to take Reg ID too.
-                })
-            });
-
-            // To be safe, I need to pass Reg ID to the modal.
-            // I'll update the JS function above to take Reg ID.
-        } catch (e) {
-            console.error(e);
-        }
-    }
-
-    // Corrected saveVacationSchedule to handle finding the employee's Reg ID or passing it.
-    // The previous implementation in smart_flow.html used the ID to Look up the employee in ALL_EMPLOYEES and then get the Reg ID?
-    // In smart_flow.html: "const emp = ALL_EMPLOYEES.find(e => e.id == id);" -> then what?
-    // Wait, existing schedule_vacation in main.py takes data.registration_id.
-    // In smart_flow.html it was:
-
-
+    // Vacation logic consolidated in the script block at the end of file
 </script>
 
-<script>
-    // --- UPDATED LOGIC FOR EMPLOYEES PAGE ---
-
-    async function saveVacationSchedule() {
-        const regId = document.getElementById('vacation-emp-reg').value;
-        const start = document.getElementById('vacation-start').value;
-        const end = document.getElementById('vacation-end').value;
-
-        if (!start || !end) return alert("Preencha as datas.");
-
-        // Basic validation
-        if (!regId) return alert("Erro: Matrícula não encontrada.");
-
-        try {
-            const res = await fetch('/employees/vacation', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    registration_id: regId,
-                    start_date: start,
-                    end_date: end
-                })
-            });
-
-            if (res.ok) {
-                alert('Férias programadas com sucesso!');
-                closeVacationModal();
-                window.location.reload();
-            } else {
-                const err = await res.json();
-                alert('Erro: ' + (err.error || 'Falha ao salvar'));
-            }
-        } catch (e) {
-            console.error(e);
-            alert('Erro de conexão');
-        }
-    }
-
-    // Override openVacationModal to accept Reg ID
-    function openVacationModal(id, name, regId) {
-        document.getElementById('vacation-emp-reg').value = regId;
-        document.getElementById('vacation-modal-title').innerText = `Programar Férias: ${name}`;
-        document.getElementById('vacation-start').value = '';
-        document.getElementById('vacation-end').value = '';
-        document.getElementById('vacation-schedule-modal').classList.remove('hidden');
-    }
-</script>
-<script>
-    // Valid JS Logic
 
 
 
@@ -885,7 +717,7 @@
     </div>
 </div>
 
-<!--Bulk Vacation Modal-- >
+<!-- Bulk Vacation Modal -->
 <div id="bulk-vacation-modal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog"
     aria-modal="true">
     <div class="absolute inset-0 bg-slate-900/90 backdrop-blur-sm transition-opacity"></div>
@@ -1038,4 +870,4 @@
         }
     }
 </script>
-    {% endblock %}
+{% endblock %}
