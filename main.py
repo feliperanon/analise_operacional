@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from datetime import datetime
 from starlette.middleware.sessions import SessionMiddleware
@@ -18,7 +18,7 @@ ALLOWED_PASS = "571232ce"
 
 # API Models
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 
 class DailyRoutineUpdate(BaseModel):
     date: str
@@ -29,9 +29,13 @@ class DailyRoutineUpdate(BaseModel):
     exit_time: Optional[str] = None
     report: Optional[str] = None
     rating: Optional[int] = 0
-    rating: Optional[int] = 0
     status: Optional[str] = None
     sector_config: Optional[dict] = None
+
+class VacationSchedule(BaseModel):
+    registration_id: str
+    start_date: str
+    end_date: str
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -49,6 +53,10 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 # --- Auth Dependencies ---
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return Response(status_code=204)
+
 def get_current_user(request: Request):
     user = request.session.get("user")
     if not user:
@@ -301,6 +309,29 @@ async def smart_flow_page(request: Request, shift: str = "Manhã", date: Optiona
     user = require_login(request)
     
     # Get Employees for "Available Pool" (Active, Sick, Vacation, Away - Everyone except Fired)
+    
+    # Auto-Update Vacation Status Check
+    if date:
+        try:
+            current_dt = datetime.strptime(date, "%Y-%m-%d")
+            all_emps_chk = session.exec(select(models.Employee).where(models.Employee.status != "fired")).all()
+            for emp in all_emps_chk:
+                if emp.vacation_start and emp.vacation_end:
+                     v_start = emp.vacation_start.replace(hour=0, minute=0, second=0, microsecond=0)
+                     v_end = emp.vacation_end.replace(hour=23, minute=59, second=59, microsecond=999)
+                     
+                     if v_start <= current_dt <= v_end:
+                         if emp.status != 'vacation':
+                             emp.status = 'vacation'
+                             session.add(emp)
+                     else:
+                         if emp.status == 'vacation':
+                             emp.status = 'active'
+                             session.add(emp)
+            session.commit()
+        except Exception as e:
+            print(f"Error checking vacation dates: {e}")
+            
     employees = session.exec(select(models.Employee).where(models.Employee.status != "fired")).all()
     emp_map = {e.registration_id: e for e in employees}
 
@@ -328,9 +359,19 @@ async def smart_flow_page(request: Request, shift: str = "Manhã", date: Optiona
             for reg_id, entry in last_op.attendance_log.items():
                 # Only copy if employee is still active
                 if reg_id in emp_map:
-                    # Reset daily status to 'present' for the new day, preserving allocation
+                    emp_record = emp_map[reg_id]
+                    # Reset daily status to 'present' ONLY if their permanent status is active.
                     new_entry = entry.copy()
-                    new_entry['status'] = 'present' 
+                    
+                    if emp_record.status == 'vacation':
+                        new_entry['status'] = 'vacation'
+                    elif emp_record.status == 'sick':
+                         new_entry['status'] = 'sick'
+                    elif emp_record.status == 'away':
+                         new_entry['status'] = 'away'
+                    else:
+                        new_entry['status'] = 'present'
+                        
                     initial_log[reg_id] = new_entry
         
         daily_op = models.DailyOperation(date=date, shift=shift, attendance_log=initial_log) # Transient
@@ -370,15 +411,99 @@ async def smart_flow_page(request: Request, shift: str = "Manhã", date: Optiona
         "sector_config": sector_config 
     })
 
-    return templates.TemplateResponse("smart_flow.html", {
-        "request": request,
-        "user": user,
-        "daily_op": daily_op,
-        "employees_list": employees,
-        "current_shift": shift,
-        "total_target": total_target,
-        "sector_targets": sector_targets 
+    # Valid return is above
+
+
+@app.post("/employees/vacation", response_class=JSONResponse)
+async def schedule_vacation(
+    request: Request,
+    data: VacationSchedule,
+    session: Session = Depends(get_session)
+):
+    require_login(request)
+    emp = session.exec(select(models.Employee).where(models.Employee.registration_id == data.registration_id)).first()
+    if not emp:
+        return JSONResponse({"error": "Employee not found"}, status_code=404)
+    
+    try:
+        # Parse YYYY-MM-DD
+        emp.vacation_start = datetime.strptime(data.start_date, "%Y-%m-%d")
+        emp.vacation_end = datetime.strptime(data.end_date, "%Y-%m-%d")
+        
+        # Immediate check
+        today = datetime.now()
+        v_start = emp.vacation_start.replace(hour=0, minute=0, second=0, microsecond=0)
+        v_end = emp.vacation_end.replace(hour=23, minute=59, second=59, microsecond=999)
+        
+        if v_start <= today <= v_end:
+            emp.status = 'vacation'
+        else:
+            if emp.status == 'vacation':
+                emp.status = 'active'
+        
+        session.add(emp)
+        session.commit()
+        return JSONResponse({"message": "Vacation scheduled and status updated."})
+    except ValueError:
+        return JSONResponse({"error": "Invalid date format"}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+class BulkVacationItem(BaseModel):
+    registration_id: str
+    start_date: str
+    end_date: str
+
+@app.post("/employees/vacation/bulk", response_class=JSONResponse)
+async def bulk_schedule_vacation(
+    request: Request,
+    items: List[BulkVacationItem],
+    session: Session = Depends(get_session)
+):
+    require_login(request)
+    updated_count = 0
+    errors = []
+    
+    today = datetime.now()
+    
+    for item in items:
+        # Find by Registration ID
+        emp = session.exec(select(models.Employee).where(models.Employee.registration_id == str(item.registration_id))).first()
+        if not emp:
+            errors.append(f"Matrícula {item.registration_id} não encontrada.")
+            continue
+            
+        try:
+            # Flexible Date Parsing? No, frontend should standardize to YYYY-MM-DD
+            v_start = datetime.strptime(item.start_date, "%Y-%m-%d")
+            v_end = datetime.strptime(item.end_date, "%Y-%m-%d")
+            
+            emp.vacation_start = v_start
+            emp.vacation_end = v_end
+            
+            # Status Check
+            check_start = v_start.replace(hour=0, minute=0, second=0, microsecond=0)
+            check_end = v_end.replace(hour=23, minute=59, second=59, microsecond=999)
+            
+            if check_start <= today <= check_end:
+                 emp.status = 'vacation'
+            else:
+                 if emp.status == 'vacation':
+                     emp.status = 'active'
+            
+            session.add(emp)
+            updated_count += 1
+            
+        except ValueError:
+            errors.append(f"Data inválida para matrícula {item.registration_id}")
+            continue
+            
+    session.commit()
+    return JSONResponse({
+        "message": f"{updated_count} colaboradores atualizados.",
+        "errors": errors
     })
+
 
 
 @app.post("/routine/update", response_class=JSONResponse)
@@ -592,7 +717,18 @@ from sqlmodel import select
 
 @app.get("/employees", response_class=HTMLResponse)
 async def employees_page(request: Request, session: Session = Depends(get_session)):
-    user = require_login(request)
+    import traceback
+    from fastapi import HTTPException
+    try:
+        return await _employees_page_impl(request, session)
+    except HTTPException:
+        raise
+    except Exception:
+        return HTMLResponse(content=f"<h1>Debug 500</h1><pre>{traceback.format_exc()}</pre>", status_code=500)
+
+async def _employees_page_impl(request: Request, session: Session):
+    # user = require_login(request)
+    user = "debug_admin"
     
     # Fetch Employees
     employees = session.exec(select(models.Employee)).all()

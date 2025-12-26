@@ -121,6 +121,14 @@
                 </svg>
                 Importar Excel
             </button>
+            <button onclick="document.getElementById('bulk-vacation-modal').classList.remove('hidden')"
+                class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors border border-slate-600 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                Importar Férias
+            </button>
             <button onclick="document.getElementById('addModal').classList.remove('hidden')"
                 class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -240,6 +248,17 @@
                                 </svg>
                             </button>
 
+                            <!-- Programar Férias -->
+                            <button type="button"
+                                onclick="openVacationModal('{{ emp.id }}', '{{ emp.name }}', '{{ emp.registration_id }}')"
+                                class="p-1.5 hover:bg-slate-700 rounded text-yellow-400 transition-colors"
+                                title="Programar Férias">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                            </button>
+
                             {% if emp.status != 'active' %}
                             <!-- Reativar / Retornar -->
                             <form action="/employees/{{ emp.id }}/status" method="POST" class="inline"
@@ -257,19 +276,7 @@
                             </form>
                             {% endif %}
 
-                            <!-- Férias -->
-                            <form action="/employees/{{ emp.id }}/status" method="POST" class="inline">
-                                <input type="hidden" name="status_action" value="vacation">
-                                <button type="submit"
-                                    class="p-1.5 hover:bg-slate-700 rounded text-blue-400 transition-colors"
-                                    title="Férias">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z">
-                                        </path>
-                                    </svg>
-                                </button>
-                            </form>
+
 
                             <!-- Afastar -->
                             <form action="/employees/{{ emp.id }}/status" method="POST" class="inline">
@@ -648,5 +655,387 @@
         // Re-append
         rows.forEach(row => tbody.appendChild(row));
     }
+
+    // --- Vacation Logic ---
+    function openVacationModal(id, name) {
+        document.getElementById('vacation-emp-id').value = id;
+        document.getElementById('vacation-modal-title').innerText = `Programar Férias: ${name}`;
+        document.getElementById('vacation-start').value = '';
+        document.getElementById('vacation-end').value = '';
+        document.getElementById('vacation-schedule-modal').classList.remove('hidden');
+    }
+
+    function closeVacationModal() {
+        document.getElementById('vacation-schedule-modal').classList.add('hidden');
+    }
+
+    function closeBulkVacationModal() {
+        document.getElementById('bulk-vacation-modal').classList.add('hidden');
+    }
+
+    async function saveBulkVacation() {
+        const text = document.getElementById('bulk-vacation-text').value;
+        if (!text.trim()) return alert("Cole os dados do Excel.");
+
+        const lines = text.trim().split('\n');
+        const items = [];
+        let errors = [];
+
+        lines.forEach(line => {
+            // Handle both Tab (Excel/TSV) and potential other separators? Excel uses Tab.
+            const parts = line.split('\t');
+            if (parts.length < 4) return; // Skip invalid lines
+
+            // Expected: ID | Name | Start | End
+            // Basic Validations
+            const regId = parts[0].trim();
+            let startRaw = parts[2].trim();
+            let endRaw = parts[3].trim();
+
+            // Convert DD/MM/YYYY to YYYY-MM-DD
+            const toIso = (d) => {
+                if (d.includes('/')) {
+                    const [day, month, year] = d.split('/');
+                    return `${year}-${month}-${day}`;
+                }
+                return d;
+            };
+
+            if (regId && startRaw && endRaw) {
+                items.push({
+                    registration_id: regId,
+                    start_date: toIso(startRaw),
+                    end_date: toIso(endRaw)
+                });
+            }
+        });
+
+        if (items.length === 0) return alert("Nenhuma linha válida encontrada (Use formato: Matrícula | Nome | Início | Fim).");
+
+        if (!confirm(`Confirmar importação de ${items.length} ferias?`)) return;
+
+        try {
+            const res = await fetch('/employees/vacation/bulk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(items)
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                let msg = data.message;
+                if (data.errors && data.errors.length > 0) {
+                    msg += '\n\nErros:\n' + data.errors.join('\n');
+                }
+                alert(msg);
+                window.location.reload();
+            } else {
+                alert("Erro: " + data.error);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Erro de conexão.");
+        }
+    }
+
+    async function saveVacationSchedule() {
+        const id = document.getElementById('vacation-emp-id').value;
+        const start = document.getElementById('vacation-start').value;
+        const end = document.getElementById('vacation-end').value;
+
+        if (!start || !end) return alert("Preencha as datas.");
+
+        try {
+            const res = await fetch('/employees/vacation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    registration_id: null, // Endpoint expects ID lookup if not Reg ID, wait... 
+                    // Main.py uses Registration ID for VacationSchedule model. 
+                    // BUT employees page usually works with IDs.
+                    // Let's check main.py again. 
+                    // Actually main.py "schedule_vacation" takes "VacationSchedule" which has "registration_id".
+                    // Code viewer showed: emp = session.exec(select(models.Employee).where(models.Employee.registration_id == data.registration_id)).first()
+                    // So I must pass REGISTRATION_ID, not DB ID.
+                    // I will fix openVacationModal to take Reg ID too.
+                })
+            });
+
+            // To be safe, I need to pass Reg ID to the modal.
+            // I'll update the JS function above to take Reg ID.
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    // Corrected saveVacationSchedule to handle finding the employee's Reg ID or passing it.
+    // The previous implementation in smart_flow.html used the ID to Look up the employee in ALL_EMPLOYEES and then get the Reg ID?
+    // In smart_flow.html: "const emp = ALL_EMPLOYEES.find(e => e.id == id);" -> then what?
+    // Wait, existing schedule_vacation in main.py takes data.registration_id.
+    // In smart_flow.html it was:
+
+
 </script>
-{% endblock %}
+
+<script>
+    // --- UPDATED LOGIC FOR EMPLOYEES PAGE ---
+
+    async function saveVacationSchedule() {
+        const regId = document.getElementById('vacation-emp-reg').value;
+        const start = document.getElementById('vacation-start').value;
+        const end = document.getElementById('vacation-end').value;
+
+        if (!start || !end) return alert("Preencha as datas.");
+
+        // Basic validation
+        if (!regId) return alert("Erro: Matrícula não encontrada.");
+
+        try {
+            const res = await fetch('/employees/vacation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    registration_id: regId,
+                    start_date: start,
+                    end_date: end
+                })
+            });
+
+            if (res.ok) {
+                alert('Férias programadas com sucesso!');
+                closeVacationModal();
+                window.location.reload();
+            } else {
+                const err = await res.json();
+                alert('Erro: ' + (err.error || 'Falha ao salvar'));
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Erro de conexão');
+        }
+    }
+
+    // Override openVacationModal to accept Reg ID
+    function openVacationModal(id, name, regId) {
+        document.getElementById('vacation-emp-reg').value = regId;
+        document.getElementById('vacation-modal-title').innerText = `Programar Férias: ${name}`;
+        document.getElementById('vacation-start').value = '';
+        document.getElementById('vacation-end').value = '';
+        document.getElementById('vacation-schedule-modal').classList.remove('hidden');
+    }
+</script>
+<script>
+    // Valid JS Logic
+
+
+
+<!-- Vacation Modal -->
+<div id="vacation-schedule-modal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog"
+    aria-modal="true">
+    <div class="absolute inset-0 bg-slate-900/90 backdrop-blur-sm transition-opacity"></div>
+    <div class="fixed inset-0 z-10 overflow-y-auto">
+        <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+            <div
+                class="relative transform overflow-hidden rounded-2xl bg-slate-800 text-left shadow-2xl shadow-black/50 transition-all sm:my-8 sm:w-full sm:max-w-lg border border-slate-700">
+                <div class="px-6 py-6">
+                    <div class="flex items-center gap-4 mb-6">
+                        <div
+                            class="w-12 h-12 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-400 border border-orange-500/20">
+                            <svg width="24" height="24" fill="none" class="w-6 h-6" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-100" id="vacation-modal-title">Programar Férias</h3>
+                            <p class="text-sm text-slate-400">Defina o período de férias do colaborador.</p>
+                        </div>
+                    </div>
+
+                    <form id="vacation-form" onsubmit="event.preventDefault(); saveVacationSchedule();">
+                        <input type="hidden" id="vacation-emp-reg">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="vacation-start"
+                                    class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5 ml-1">Início</label>
+                                <input type="date" id="vacation-start" required
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-slate-100 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition text-sm text-white-scheme">
+                            </div>
+                            <div>
+                                <label for="vacation-end"
+                                    class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5 ml-1">Fim</label>
+                                <input type="date" id="vacation-end" required
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-slate-100 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition text-sm text-white-scheme">
+                            </div>
+                        </div>
+
+                        <div class="mt-8 flex justify-end gap-3">
+                            <button type="button" onclick="closeVacationModal()"
+                                class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm font-semibold transition border border-slate-600">Cancelar</button>
+                            <button type="submit"
+                                class="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-semibold transition shadow-lg shadow-blue-900/20">Salvar
+                                Programação</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--Bulk Vacation Modal-- >
+<div id="bulk-vacation-modal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog"
+    aria-modal="true">
+    <div class="absolute inset-0 bg-slate-900/90 backdrop-blur-sm transition-opacity"></div>
+    <div class="fixed inset-0 z-10 overflow-y-auto">
+        <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+            <div
+                class="relative transform overflow-hidden rounded-2xl bg-slate-800 text-left shadow-2xl shadow-black/50 transition-all sm:my-8 sm:w-full sm:max-w-2xl border border-slate-700">
+                <div class="px-6 py-6">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div
+                            class="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 border border-blue-500/20">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-100">Importar Férias em Lote</h3>
+                            <p class="text-xs text-slate-400">Cole os dados do Excel abaixo (Matrícula | Nome | Início |
+                                Fim)</p>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <textarea id="bulk-vacation-text"
+                            class="w-full h-64 bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs font-mono text-slate-300 focus:ring-2 focus:ring-blue-500/50 outline-none leading-relaxed whitespace-pre"
+                            placeholder="Exemplo:
+1234	JOAO SILVA	01/01/2024	30/01/2024
+1235	MARIA SOUZA	15/02/2024	25/02/2024"></textarea>
+                    </div>
+
+                    <div class="flex justify-end gap-3">
+                        <button type="button" onclick="closeBulkVacationModal()"
+                            class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm font-semibold transition border border-slate-600">Cancelar</button>
+                        <button type="button" onclick="saveBulkVacation()"
+                            class="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-semibold transition shadow-lg shadow-blue-900/20">Processar
+                            Importação</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- Vacation Logic ---
+    function openVacationModal(id, name, regId) {
+        document.getElementById('vacation-emp-reg').value = regId;
+        document.getElementById('vacation-modal-title').innerText = `Programar Férias: ${name}`;
+        document.getElementById('vacation-start').value = '';
+        document.getElementById('vacation-end').value = '';
+        document.getElementById('vacation-schedule-modal').classList.remove('hidden');
+    }
+
+    function closeVacationModal() {
+        document.getElementById('vacation-schedule-modal').classList.add('hidden');
+    }
+
+    function closeBulkVacationModal() {
+        document.getElementById('bulk-vacation-modal').classList.add('hidden');
+    }
+
+    async function saveVacationSchedule() {
+        const regId = document.getElementById('vacation-emp-reg').value;
+        const start = document.getElementById('vacation-start').value;
+        const end = document.getElementById('vacation-end').value;
+
+        if (!start || !end) return alert("Preencha as datas.");
+        if (!regId) return alert("Erro interno: Matrícula inválida.");
+
+        try {
+            const res = await fetch('/employees/vacation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    registration_id: regId,
+                    start_date: start,
+                    end_date: end
+                })
+            });
+
+            if (res.ok) {
+                alert('Férias programadas com sucesso!');
+                closeVacationModal();
+                window.location.reload();
+            } else {
+                const err = await res.json();
+                alert('Erro: ' + (err.error || 'Falha ao salvar'));
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Erro de conexão');
+        }
+    }
+
+    async function saveBulkVacation() {
+        const text = document.getElementById('bulk-vacation-text').value;
+        if (!text.trim()) return alert("Cole os dados do Excel.");
+
+        const lines = text.trim().split('\n');
+        const items = [];
+
+        lines.forEach(line => {
+            const parts = line.split('\t');
+            if (parts.length < 4) return;
+
+            const regId = parts[0].trim();
+            const startRaw = parts[2].trim();
+            const endRaw = parts[3].trim();
+
+            const toIso = (d) => {
+                if (d.includes('/')) {
+                    const [day, month, year] = d.split('/');
+                    return `${year}-${month}-${day}`;
+                }
+                return d;
+            };
+
+            if (regId && startRaw && endRaw) {
+                items.push({
+                    registration_id: regId,
+                    start_date: toIso(startRaw),
+                    end_date: toIso(endRaw)
+                });
+            }
+        });
+
+        if (items.length === 0) return alert("Nenhuma linha válida encontrada (Use formato: Matrícula | Nome | Início | Fim).");
+        if (!confirm(`Confirmar importação de ${items.length} ferias?`)) return;
+
+        try {
+            const res = await fetch('/employees/vacation/bulk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(items)
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                let msg = data.message;
+                if (data.errors && data.errors.length > 0) msg += '\n\nErros:\n' + data.errors.join('\n');
+                alert(msg);
+                window.location.reload();
+            } else {
+                alert("Erro: " + data.error);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Erro de conexão.");
+        }
+    }
+</script>
+    {% endblock %}

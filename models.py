@@ -34,6 +34,10 @@ class Employee(SQLModel, table=True):
     status: str = Field(default="active")
     work_shift: str = Field(default="Manhã") # Manhã, Tarde, Noite
     
+    # Vacation Scheduling
+    vacation_start: Optional[datetime] = None
+    vacation_end: Optional[datetime] = None
+    
 
 
 

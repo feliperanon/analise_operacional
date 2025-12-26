@@ -122,68 +122,157 @@
     </header>
 
     <!-- KPI Bar -->
-    <div class="px-6 py-4 grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
-        <!-- Headcount -->
-        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex justify-between items-center">
-            <div>
-                <p class="text-xs font-bold text-slate-400 uppercase">Headcount Total</p>
-                <p class="text-2xl font-bold text-white" id="total-present">0</p>
+    <!-- KPI Bar: People & Status -->
+    <div class="px-6 py-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 shrink-0">
+        <!-- 1. Headcount & Presence -->
+        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-blue-500/50 group h-24"
+            onclick="openDashboardDetail('headcount')">
+            <div class="flex justify-between items-start">
+                <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-blue-400 transition">Headcount
+                </p>
+                <div class="bg-blue-500/10 p-1.5 rounded-lg text-blue-400">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                </div>
             </div>
-            <div class="bg-blue-500/10 p-2 rounded-lg text-blue-400">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="9" cy="7" r="4"></circle>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                </svg>
+            <div>
+                <!-- Format: Real / Ideal -->
+                <p class="text-xl font-bold text-white leading-none"><span id="total-present">0</span> <span
+                        class="text-slate-500 text-sm font-normal">/</span> <span id="total-target-kpi"
+                        class="text-slate-400 text-base">0</span></p>
+                <p class="text-[10px] text-slate-500 mt-1">Presença: <span class="text-emerald-400 font-bold"
+                        id="present-percent">0%</span></p>
             </div>
         </div>
 
-        <!-- Gap -->
-        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex justify-between items-center">
-            <div>
-                <p class="text-xs font-bold text-slate-400 uppercase">Vagas em Aberto</p>
-                <p class="text-2xl font-bold text-red-400" id="total-gap">0</p>
+        <!-- 2. Gap (Vagas) -->
+        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-red-500/50 group h-24"
+            onclick="openDashboardDetail('gap')">
+            <div class="flex justify-between items-start">
+                <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-red-400 transition">Vagas</p>
+                <div class="bg-red-500/10 p-1.5 rounded-lg text-red-400">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="8.5" cy="7" r="4" />
+                        <line x1="18" y1="8" x2="23" y2="13" />
+                        <line x1="23" y1="8" x2="18" y2="13" />
+                    </svg>
+                </div>
             </div>
-            <div class="bg-red-500/10 p-2 rounded-lg text-red-400">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="8.5" cy="7" r="4"></circle>
-                    <line x1="18" y1="8" x2="23" y2="13"></line>
-                    <line x1="23" y1="8" x2="18" y2="13"></line>
-                </svg>
+            <div>
+                <p class="text-xl font-bold text-red-400 leading-none" id="total-gap">0</p>
+                <p class="text-[10px] text-slate-500 mt-1">Em aberto</p>
             </div>
         </div>
 
-        <!-- Absenteeism -->
-        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex justify-between items-center">
-            <div>
-                <p class="text-xs font-bold text-slate-400 uppercase">Absenteísmo</p>
-                <p class="text-2xl font-bold text-orange-400" id="total-absent">0%</p>
+        <!-- 3. Absenteísmo (Sick/Faltas) -->
+        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-amber-500/50 group h-24"
+            onclick="openDashboardDetail('sick')">
+            <div class="flex justify-between items-start">
+                <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-amber-400 transition"
+                    title="Atestados e Faltas">Absenteísmo</p>
+                <div class="bg-amber-500/10 p-1.5 rounded-lg text-amber-400">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                </div>
             </div>
-            <div class="bg-orange-500/10 p-2 rounded-lg text-orange-400">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="12" y1="8" x2="12" y2="12"></line>
-                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                </svg>
+            <div>
+                <p class="text-xl font-bold text-amber-400 leading-none" id="total-sick">0</p>
+                <p class="text-[10px] text-slate-500 mt-1">Atestados/Faltas</p>
             </div>
         </div>
 
-        <!-- Tonnage -->
-        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex justify-between items-center">
-            <div>
-                <p class="text-xs font-bold text-slate-400 uppercase">Produção (Kg)</p>
-                <p class="text-2xl font-bold text-emerald-400" id="total-tonnage">{{ daily_op.tonnage }} kg</p>
+        <!-- 4. Afastados (Away) -->
+        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-purple-500/50 group h-24"
+            onclick="openDashboardDetail('away')">
+            <div class="flex justify-between items-start">
+                <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-purple-400 transition">
+                    Afastados</p>
+                <div class="bg-purple-500/10 p-1.5 rounded-lg text-purple-400">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10 10l-6 6v-6h6z" />
+                        <path d="M14 14l6-6v6h-6z" />
+                        <path d="M4 20h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" />
+                    </svg>
+                </div>
             </div>
-            <div class="bg-emerald-500/10 p-2 rounded-lg text-emerald-400">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path
-                        d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
-                    </path>
-                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                </svg>
+            <div>
+                <p class="text-xl font-bold text-purple-400 leading-none" id="total-away">0</p>
+                <p class="text-[10px] text-slate-500 mt-1">INSS/Licenças</p>
+            </div>
+        </div>
+
+        <!-- 5. Férias -->
+        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-orange-500/50 group h-24"
+            onclick="openDashboardDetail('vacation')">
+            <div class="flex justify-between items-start">
+                <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-orange-400 transition">Férias
+                </p>
+                <div class="bg-orange-500/10 p-1.5 rounded-lg text-orange-400">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M2 12h20" />
+                        <path d="M7 16v4" />
+                        <path d="M17 16v4" />
+                        <path d="M12 2v20" />
+                        <path d="M5 8h14" />
+                    </svg>
+                </div>
+            </div>
+            <div>
+                <p class="text-xl font-bold text-orange-400 leading-none" id="total-vacation">0</p>
+                <p class="text-[10px] text-slate-500 mt-1">Programadas</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Bar: Production -->
+    <div class="px-6 pb-4 pt-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
+        <!-- 6. Produção Total -->
+        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-emerald-500/50 group h-24"
+            onclick="openDashboardDetail('tonnage')">
+            <div class="flex justify-between items-start">
+                <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-emerald-400 transition">
+                    Produção Total</p>
+                <div class="bg-emerald-500/10 p-1.5 rounded-lg text-emerald-400">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                        <line x1="12" y1="22.08" x2="12" y2="12" />
+                    </svg>
+                </div>
+            </div>
+            <div>
+                <p class="text-xl font-bold text-emerald-400 leading-none" id="total-tonnage">{{ daily_op.tonnage }} kg
+                </p>
+                <p class="text-[10px] text-slate-500 mt-1">Movimentação Bruta</p>
+            </div>
+        </div>
+
+        <!-- 7. Produção/Colaborador (New) -->
+        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-emerald-500/50 group h-24"
+            title="Produção média por pessoa presente">
+            <div class="flex justify-between items-start">
+                <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-emerald-400 transition">
+                    Produção / Pessoa</p>
+                <div class="bg-emerald-500/10 p-1.5 rounded-lg text-emerald-400">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    </svg>
+                </div>
+            </div>
+            <div>
+                <p class="text-xl font-bold text-emerald-400 leading-none" id="production-per-person">0 kg/p</p>
+                <p class="text-[10px] text-slate-500 mt-1">Produtividade Média</p>
             </div>
         </div>
     </div>
@@ -300,8 +389,8 @@
                 <div class="w-1/3 bg-slate-900 flex flex-col">
                     <div class="p-4 border-b border-slate-700 flex flex-col gap-2">
                         <div class="flex justify-between items-center">
-                            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Banco de Talentos
-                            </h3>
+                            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Banco de Talentos</h3>
+
                             <label class="flex items-center gap-2 cursor-pointer"
                                 title="Mostrar funcionários de outros turnos">
                                 <input type="checkbox" id="show-all-toggle" onchange="filterEmployees()"
@@ -371,6 +460,38 @@
 </div>
 
 
+<!-- Dashboard Detail Modal -->
+<div id="dashboard-detail-modal" class="fixed inset-0 z-[70] hidden">
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeDashboardDetail()">
+    </div>
+    <div class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center pointer-events-none">
+        <!-- Panel -->
+        <div
+            class="bg-slate-800 w-full md:w-[500px] md:rounded-2xl shadow-2xl border-t md:border border-slate-700 transform transition-all duration-300 translate-y-full opacity-0 pointer-events-auto flex flex-col max-h-[80vh]">
+
+            <!-- Header -->
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800 md:rounded-t-2xl">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <span class="w-1 h-5 bg-blue-500 rounded-full"></span>
+                    <span id="dashboard-detail-title">Detalhes</span>
+                </h3>
+                <button onclick="closeDashboardDetail()"
+                    class="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-700 transition">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Content -->
+            <div class="p-4 overflow-y-auto flex-1 bg-slate-900/50" id="dashboard-detail-content">
+                <!-- Dynamic Content -->
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     // --- State ---
     let currentShift = "{{ current_shift }}";
@@ -392,7 +513,8 @@
             name: "{{ emp.name }}",
                 role: "{{ emp.role }}",
                     shift: "{{ emp.work_shift }}",
-                        cost_center: "{{ emp.cost_center }}"
+                        cost_center: "{{ emp.cost_center }}",
+                            status: "{{ emp.status }}"
     },
     {% endfor %}
     ];
@@ -490,25 +612,74 @@
     }
 
     function updateKPIs() {
-        let present = 0;
-        let absent = 0;
-        const logEntries = Object.values(employees.log);
+        // Calculate stats
+        let totalPresent = 0;
+        let dailyAbsences = 0; // Explicit daily "absent" markings
 
-        logEntries.forEach(e => {
-            if (e.status === 'present') present++;
-            if (e.status === 'absent') absent++;
+        // Count Present & Daily Absences from daily log
+        Object.values(employees.log).forEach(e => {
+            if (e.status === 'present') totalPresent++;
+            if (e.status === 'absent') dailyAbsences++;
         });
 
-        // Calculate Operational Gap based on Headcount Target (User Request)
-        const totalSectorTarget = SECTORS.reduce((acc, s) => acc + (s.target || 0), 0);
-        const finalTarget = shiftTargetHr > 0 ? shiftTargetHr : totalSectorTarget;
+        // Permanent Status Counts from ALL_EMPLOYEES (source of truth)
+        const vacationCount = ALL_EMPLOYEES.filter(e => e.status === 'vacation').length;
+        const awayCount = ALL_EMPLOYEES.filter(e => e.status === 'away').length;
 
-        document.getElementById('total-present').innerText = present;
-        document.getElementById('total-gap').innerText = Math.max(0, finalTarget - present);
+        // Sick Logic: Permanent 'sick' + Daily 'absent' counts (as per user request to group "Absenteísmo")
+        // We take the permanent sick count + daily absences.
+        const permanentSick = ALL_EMPLOYEES.filter(e => e.status === 'sick').length;
+        const totalSickAbsence = permanentSick + dailyAbsences;
 
-        const totalMarked = logEntries.length;
-        const absRate = totalMarked > 0 ? ((absent / totalMarked) * 100).toFixed(1) : 0;
-        document.getElementById('total-absent').innerText = absRate + '%';
+        // Gap Calculation & Total Target
+        let totalGap = 0;
+        let totalTarget = 0;
+
+        SECTORS.forEach(sec => {
+            const demand = sec.target || 0;
+            totalTarget += demand;
+
+            // Count present people in this sector
+            const allocated = Object.values(employees.log).filter(e => e.sector === sec.key && e.status === 'present').length;
+            const gap = Math.max(0, demand - allocated);
+            totalGap += gap;
+        });
+
+        // Presence Percent Logic: (Total Present / Total Target) * 100
+        const presencePercent = totalTarget > 0 ? Math.round((totalPresent / totalTarget) * 100) : 0;
+
+        // Production / Person
+        let tonnage = 0;
+        const tonnageEl = document.getElementById('total-tonnage');
+        if (tonnageEl) {
+            tonnage = parseInt(tonnageEl.innerText.replace(/\D/g, '')) || 0;
+        }
+
+        const prodPerPerson = totalPresent > 0 ? Math.round(tonnage / totalPresent) : 0;
+
+        // Update DOM
+        const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = val;
+        };
+
+        setVal('total-present', totalPresent);
+        setVal('total-target-kpi', totalTarget);
+        setVal('present-percent', presencePercent + '%');
+
+        setVal('total-gap', totalGap);
+
+        setVal('total-sick', totalSickAbsence);
+        setVal('total-away', awayCount);
+        setVal('total-vacation', vacationCount);
+
+        setVal('production-per-person', prodPerPerson + ' kg/p');
+
+        // Modal warnings/stats update if needed
+        setVal('modal-warnings', 0);
+        setVal('modal-absent', awayCount);
+        setVal('modal-sick', totalSickAbsence);
+        setVal('modal-vacation', vacationCount);
     }
 
     // --- Modal & Listings ---
@@ -567,9 +738,23 @@
                 shiftShort = "NOI";
             }
 
+            // Status Badge Logic
+            let statusBadge = "";
+            if (emp.status === 'vacation') {
+                statusBadge = '<span class="text-[8px] font-bold px-1 rounded border text-orange-400 bg-orange-500/10 border-orange-500/20 uppercase tracking-wider">FÉRIAS</span>';
+            } else if (emp.status === 'sick') {
+                statusBadge = '<span class="text-[8px] font-bold px-1 rounded border text-cyan-400 bg-cyan-500/10 border-cyan-500/20 uppercase tracking-wider">ATESTADO</span>';
+            } else if (emp.status === 'away') {
+                statusBadge = '<span class="text-[8px] font-bold px-1 rounded border text-purple-400 bg-purple-500/10 border-purple-500/20 uppercase tracking-wider">AFASTADO</span>';
+            }
+
             const el = document.createElement('div');
             // Draggable Card Style
-            el.className = "group relative bg-slate-800/80 hover:bg-slate-700 p-2 rounded-lg border border-slate-700 hover:border-blue-500/50 transition-all cursor-grab active:cursor-grabbing flex items-center justify-between shadow-sm hover:shadow-md mb-2 select-none";
+            // Add visual cue for unavailable employees
+            const isUnavailable = ['vacation', 'sick', 'away'].includes(emp.status);
+            const opacityClass = isUnavailable ? "opacity-75" : "";
+
+            el.className = `group relative bg-slate-800/80 hover:bg-slate-700 p-2 rounded-lg border border-slate-700 hover:border-blue-500/50 transition-all cursor-grab active:cursor-grabbing flex items-center justify-between shadow-sm hover:shadow-md mb-2 select-none ${opacityClass}`;
             el.draggable = true;
             el.ondragstart = (e) => drag(e, emp.id);
 
@@ -583,14 +768,20 @@
                         <div class="flex items-center gap-1.5 mt-0.5">
                             <span class="text-[9px] font-mono text-slate-500">#${emp.id}</span>
                             <span class="text-[8px] font-bold px-1 rounded border ${shiftColor} uppercase tracking-wider">${shiftShort}</span>
+                            ${statusBadge}
                             ${isWrongShift ? `<span class="text-[8px] text-amber-500 bg-amber-500/10 px-1 rounded border border-amber-500/20" title="Turno original: ${empShift}">⚠️</span>` : ''}
                         </div>
                     </div>
                 </div>
                 
-                <button onclick="addToSector('${emp.id}', '${emp.name}')" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-500 border border-slate-700 hover:border-blue-500 flex items-center justify-center transition shadow-sm" aria-label="Adicionar" title="Adicionar ao setor">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-                </button>
+                <div class="flex items-center gap-1">
+                    <button onclick="openVacationModal('${emp.id}')" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-orange-600 hover:text-white text-orange-400 border border-slate-700 hover:border-orange-500 flex items-center justify-center transition shadow-sm" title="Programar Férias">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                    </button>
+                    <button onclick="addToSector('${emp.id}', '${emp.name}')" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-500 border border-slate-700 hover:border-blue-500 flex items-center justify-center transition shadow-sm" aria-label="Adicionar" title="Adicionar ao setor">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                    </button>
+                </div>
             `;
             list.appendChild(el);
         });
@@ -865,9 +1056,19 @@
             }
         }
 
+        // Determine initial status based on employee record
+        const empRecord = ALL_EMPLOYEES.find(e => e.id === id);
+        let initialStatus = 'present';
+
+        if (empRecord) {
+            if (empRecord.status === 'vacation') initialStatus = 'vacation';
+            else if (empRecord.status === 'sick') initialStatus = 'sick';
+            else if (empRecord.status === 'away') initialStatus = 'away';
+        }
+
         // Proceed to allocate
         employees.log[id] = {
-            status: 'present',
+            status: initialStatus,
             sector: currentSectorKey,
             subsector: subsector,
             name: name
@@ -999,5 +1200,199 @@
 
 
 
-</script>
-{% endblock %}
+    function openDashboardDetail(type) {
+        const modal = document.getElementById('dashboard-detail-modal');
+        const titleEl = document.getElementById('dashboard-detail-title');
+        const contentEl = document.getElementById('dashboard-detail-content');
+
+        modal.classList.remove('hidden');
+        contentEl.innerHTML = '';
+
+        // Animation Frame
+        requestAnimationFrame(() => {
+            const panel = modal.querySelector('div.bg-slate-800');
+            if (panel) panel.classList.remove('translate-y-full', 'opacity-0');
+        });
+
+        // Helpers
+        const createEmpList = (list, badgeLabel, badgeColorClass) => {
+            if (list.length === 0) {
+                return '<div class="flex flex-col items-center justify-center py-8 text-slate-500"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="opacity-50 mb-2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><p class="text-sm">Nenhum registro encontrado.</p></div>';
+            }
+            let html = '<div class="grid grid-cols-1 gap-2">';
+            list.forEach(emp => {
+                html += `
+                    <div class="flex items-center justify-between p-3 bg-slate-800 border border-slate-700 rounded-xl hover:bg-slate-700/30 transition shadow-sm">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-xs font-bold text-slate-300 shadow-inner">
+                                ${emp.name.charAt(0)}
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-slate-200 leading-tight">${emp.name}</p>
+                                <div class="flex items-center gap-1.5 mt-0.5">
+                                    <span class="text-[10px] text-slate-400 font-mono bg-slate-900/50 px-1 rounded">#${emp.id || '?'}</span>
+                                    ${emp.status === 'present' ? `<span class="text-[10px] text-blue-400">${emp.sector} ${emp.subsector && emp.subsector !== 'Geral' ? '• ' + emp.subsector : ''}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <span class="text-[10px] font-bold ${badgeColorClass} px-2 py-1 rounded-md border border-current opacity-80">${badgeLabel}</span>
+                    </div>
+                 `;
+            });
+            html += '</div>';
+            return html;
+        };
+
+        if (type === 'headcount') {
+            titleEl.textContent = 'Colaboradores Presentes';
+            const present = Object.values(employees.log).filter(e => e.status === 'present');
+
+            if (present.length === 0) {
+                contentEl.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-slate-500"><p class="text-sm">Nenhum colaborador presente.</p></div>';
+            } else {
+                contentEl.innerHTML = createEmpList(present, 'PRESENTE', 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20');
+            }
+
+        } else if (type === 'gap') {
+            titleEl.textContent = 'Vagas em Aberto por Setor';
+            let hasGap = false;
+            let html = '<div class="grid grid-cols-1 gap-2">';
+
+            SECTORS.forEach(sec => {
+                const allocated = Object.values(employees.log).filter(e => e.sector === sec.key && e.status === 'present').length;
+                const deficit = Math.max(0, (sec.target || 0) - allocated);
+
+                if (deficit > 0) {
+                    hasGap = true;
+                    html += `
+                        <div class="flex items-center justify-between p-3 bg-slate-800 border border-red-500/30 rounded-xl shadow-sm relative overflow-hidden">
+                            <div class="absolute left-0 top-0 bottom-0 w-1 bg-red-500"></div>
+                            <div class="pl-2">
+                                <h4 class="text-sm font-bold text-slate-100">${sec.label}</h4>
+                                <div class="flex items-center gap-3 mt-1.5">
+                                    <div class="flex flex-col">
+                                        <span class="text-[10px] text-slate-500 uppercase font-bold">Meta</span>
+                                        <span class="text-xs font-mono text-slate-300">${sec.target || 0}</span>
+                                    </div>
+                                    <div class="w-px h-6 bg-slate-700"></div>
+                                    <div class="flex flex-col">
+                                        <span class="text-[10px] text-slate-500 uppercase font-bold">Real</span>
+                                        <span class="text-xs font-mono text-slate-300">${allocated}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex flex-col items-center bg-red-500/10 p-2 rounded-lg border border-red-500/20 min-w-[60px]">
+                                <span class="text-xl font-black text-red-500 leading-none">-${deficit}</span>
+                                <span class="text-[9px] text-red-400 uppercase font-bold mt-0.5">Vagas</span>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+            html += '</div>';
+
+            if (!hasGap) {
+                contentEl.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-slate-500"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" class="text-emerald-500 mb-2 opacity-80"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" stroke-width="2"/><polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" stroke-width="2"/></svg><p class="text-sm font-medium text-slate-300">Meta atingida em todos os setores!</p></div>';
+            } else {
+                contentEl.innerHTML = html;
+            }
+
+        } else if (type === 'sick') {
+            titleEl.textContent = 'Absenteísmo (Atestados / Faltas)';
+
+            // 1. Permanent Sick (from ALL_EMPLOYEES)
+            const permanentSick = ALL_EMPLOYEES.filter(e => e.status === 'sick');
+
+            // 2. Daily Absent (from employees.log), excluding those who might already be permanent sick to avoid dupes?
+            // Actually, if they are permanent sick, they might NOT be in employees.log at all if not allocated.
+            // If they are in employees.log, they are allocated.
+            // Let's just grab everyone marked 'absent' in the log.
+            const dailyAbsent = Object.entries(employees.log)
+                .filter(([_, e]) => e.status === 'absent')
+                .map(([id, e]) => ({ ...e, id }));
+
+            // Merge lists. We need to be careful of duplicates if someone is both (unlikely but possible).
+            // Let's us a Map by ID.
+            const combinedMap = new Map();
+
+            permanentSick.forEach(e => combinedMap.set(e.id, { ...e, badge: 'DOENTE', badgeClass: 'text-amber-400 bg-amber-500/10 border-amber-500/20' }));
+            dailyAbsent.forEach(e => combinedMap.set(e.id, { ...e, badge: 'FALTA', badgeClass: 'text-red-400 bg-red-500/10 border-red-500/20' }));
+
+            const list = Array.from(combinedMap.values());
+
+            // Custom createEmpList call isn't quite right because we have dynamic badges now.
+            // Let's reuse createEmpList but we need to handle the custom badge logic.
+            // We can modify createEmpList or just pass the list and let it handle generic badges, OR pass a visual list.
+
+            // Modified approach: The helper createEmpList takes a static badge.
+            // Let's render manually or update helper?
+            // Easier: Update helper or just render this one specific block manually?
+            // Actually, let's update createEmpList to accept an optional 'statusOverride' or just map the list to have a 'badgeLabel' property?
+
+            // Let's just create a quick custom render for this mixed list.
+            if (list.length === 0) {
+                contentEl.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-slate-500"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="opacity-50 mb-2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><p class="text-sm">Nenhum registro encontrado.</p></div>';
+            } else {
+                let html = '<div class="grid grid-cols-1 gap-2">';
+                list.forEach(emp => {
+                    // Determine badge based on source
+                    const badgeLabel = emp.badge || 'ATESTADO';
+                    const badgeClass = emp.badgeClass || 'text-amber-400 bg-amber-500/10 border-amber-500/20';
+
+                    html += `
+                        <div class="flex items-center justify-between p-3 bg-slate-800 border border-slate-700 rounded-xl hover:bg-slate-700/30 transition shadow-sm">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-xs font-bold text-slate-300 shadow-inner">
+                                    ${emp.name.charAt(0)}
+                                </div>
+                                <div>
+                                    <p class="text-sm font-semibold text-slate-200 leading-tight">${emp.name}</p>
+                                    <div class="flex items-center gap-1.5 mt-0.5">
+                                        <span class="text-[10px] text-slate-400 font-mono bg-slate-900/50 px-1 rounded">#${emp.id || '?'}</span>
+                                        ${emp.status === 'present' ? `<span class="text-[10px] text-blue-400">${emp.sector}</span>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                            <span class="text-[10px] font-bold ${badgeClass} px-2 py-1 rounded-md border border-current opacity-80">${badgeLabel}</span>
+                        </div>
+                     `;
+                });
+                html += '</div>';
+                contentEl.innerHTML = html;
+            }
+
+        } else if (type === 'vacation') {
+            titleEl.textContent = 'Colaboradores em Férias';
+            const list = ALL_EMPLOYEES.filter(e => e.status === 'vacation');
+            contentEl.innerHTML = createEmpList(list, 'FÉRIAS', 'text-orange-400 bg-orange-500/10 border-orange-500/20');
+
+        } else if (type === 'away') {
+            titleEl.textContent = 'Colaboradores Afastados';
+            const list = ALL_EMPLOYEES.filter(e => e.status === 'away');
+            contentEl.innerHTML = createEmpList(list, 'AFASTADO', 'text-purple-400 bg-purple-500/10 border-purple-500/20');
+
+        } else if (type === 'tonnage') {
+            titleEl.textContent = 'Detalhamento de Produção';
+            contentEl.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-slate-500"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="opacity-50 mb-2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><p class="text-sm">Produção: ' + document.getElementById('total-tonnage').innerText + '</p></div>';
+        }
+    }
+
+    function closeDashboardDetail() {
+        const modal = document.getElementById('dashboard-detail-modal');
+        if (!modal) return;
+
+        const panel = modal.querySelector('div.bg-slate-800');
+
+        // Anim out
+        if (panel) panel.classList.add('translate-y-full', 'opacity-0');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 300);
+    }
+
+
+
+
+
+
+    {% endblock %}
