@@ -49,27 +49,23 @@
                 {% else %}
                 {% for p in people_data.contracts %}
                 <div
-                    class="flex items-center gap-3 p-3 rounded-lg {{ 'bg-red-500/10 border border-red-500/30' if p.is_today or p.days_left < 3 else 'bg-slate-900/50 border border-slate-700/50' }}">
-                    <!-- Shift Badge -->
-                    <div class="flex flex-col items-center gap-1">
-                        <div
-                            class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
-                            {{ p.name[:2]|upper }}
-                        </div>
+                    class="flex flex-col gap-0.5 p-3 rounded-lg {{ 'bg-red-500/10 border border-red-500/30' if p.is_today or p.days_left < 3 else 'bg-slate-900/50 border border-slate-700/50' }}">
+                    <div class="flex items-start gap-2">
                         <span
-                            class="text-[10px] font-bold px-1.5 rounded bg-{{ p.shift.color }}-500/20 text-{{ p.shift.color }}-400 border border-{{ p.shift.color }}-500/30">
+                            class="mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-{{ p.shift.color }}-500/20 text-{{ p.shift.color }}-400 border border-{{ p.shift.color }}-500/30 shrink-0">
                             {{ p.shift.label }}
                         </span>
-                    </div>
-
-                    <div class="flex-1 min-w-0">
-                        <a href="/employees/{{ p.id }}"
-                            class="text-sm font-medium text-white truncate hover:text-blue-400 hover:underline transition-colors block">{{
-                            p.name }}</a>
-                        <div class="flex justify-between items-center mt-1">
-                            <span
-                                class="text-[10px] font-bold uppercase tracking-wide px-1.5 rounded bg-slate-700 text-slate-300">{{
-                                p.type }}</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex flex-wrap items-center gap-2 mb-0.5">
+                                <a href="/employees/{{ p.id }}"
+                                    class="text-sm font-medium text-white hover:text-blue-400 hover:underline transition-colors leading-tight">
+                                    {{ p.name }}
+                                </a>
+                                <span
+                                    class="text-[10px] font-bold uppercase tracking-wide px-1.5 rounded bg-slate-700 text-slate-300 whitespace-nowrap">
+                                    {{ p.type }}
+                                </span>
+                            </div>
                             <span
                                 class="text-xs {{ 'text-red-400 font-bold animate-pulse' if p.is_today else ('text-red-300' if p.days_left < 7 else 'text-slate-500') }}">
                                 {{ 'VENCE HOJE!' if p.is_today else p.days_left ~ ' dias' }}
@@ -106,40 +102,36 @@
                 {% else %}
                 {% for p in people_data.vacation %}
                 <div
-                    class="flex items-center gap-3 p-3 rounded-lg border {{ 'bg-slate-900/50 border-slate-700/50' if p.is_active else 'bg-slate-800/30 border-slate-700/30 opacity-80' }}">
-                    <div class="flex flex-col items-center gap-1">
-                        <div class="relative">
-                            <div
-                                class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
-                                {{ p.name[:2]|upper }}
-                            </div>
-                            {% if p.is_active %}
-                            <div
-                                class="absolute -bottom-1 -right-1 bg-orange-500 text-white text-[10px] px-1 rounded-full border border-slate-900">
-                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z">
-                                    </path>
-                                </svg>
-                            </div>
-                            {% endif %}
-                        </div>
+                    class="flex flex-col gap-0.5 p-3 rounded-lg border {{ 'bg-slate-900/50 border-slate-700/50' if p.is_active else 'bg-slate-800/30 border-slate-700/30 opacity-80' }}">
+                    <div class="flex items-start gap-2">
                         <span
-                            class="text-[10px] font-bold px-1.5 rounded bg-{{ p.shift.color }}-500/20 text-{{ p.shift.color }}-400 border border-{{ p.shift.color }}-500/30">
+                            class="mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-{{ p.shift.color }}-500/20 text-{{ p.shift.color }}-400 border border-{{ p.shift.color }}-500/30 shrink-0">
                             {{ p.shift.label }}
                         </span>
-                    </div>
-
-                    <div class="flex-1 min-w-0">
-                        <a href="/employees/{{ p.id }}"
-                            class="text-sm font-medium text-white truncate hover:text-blue-400 hover:underline transition-colors block">{{
-                            p.name }}</a>
-                        <div class="flex justify-between items-center mt-1">
-                            <span
-                                class="text-[10px] font-bold uppercase tracking-wide px-1.5 rounded {{ 'bg-orange-500/20 text-orange-400' if p.is_active else 'bg-slate-700 text-slate-400' }}">
-                                {{ p.status }}
-                            </span>
-                            <span class="text-xs text-slate-400">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex flex-wrap items-center gap-2 mb-0.5">
+                                <a href="/employees/{{ p.id }}"
+                                    class="text-sm font-medium text-white hover:text-blue-400 hover:underline transition-colors leading-tight">
+                                    {{ p.name }}
+                                </a>
+                                {% if p.is_active %}
+                                <div
+                                    class="flex items-center gap-1 bg-orange-500/20 text-orange-400 text-[10px] px-1.5 py-0.5 rounded border border-orange-500/30 whitespace-nowrap">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z">
+                                        </path>
+                                    </svg>
+                                    <span>{{ p.status }}</span>
+                                </div>
+                                {% else %}
+                                <span
+                                    class="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-slate-700 text-slate-400 whitespace-nowrap">
+                                    {{ p.status }}
+                                </span>
+                                {% endif %}
+                            </div>
+                            <span class="text-xs text-slate-500 block">
                                 {{ p.date_info }}
                             </span>
                         </div>
@@ -173,26 +165,23 @@
                 {% else %}
                 {% for p in people_data.birthdays %}
                 <div
-                    class="flex items-center gap-3 p-3 rounded-lg {{ 'bg-pink-500/10 border border-pink-500/30' if p.is_today else 'bg-slate-900/50 border border-slate-700/50' }}">
-                    <!-- Shift Badge -->
-                    <div class="flex flex-col items-center gap-1">
-                        <div
-                            class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
-                            {{ p.name[:2]|upper }}
-                        </div>
+                    class="flex flex-col gap-0.5 p-3 rounded-lg {{ 'bg-pink-500/10 border border-pink-500/30' if p.is_today else 'bg-slate-900/50 border border-slate-700/50' }}">
+                    <div class="flex items-start gap-2">
                         <span
-                            class="text-[10px] font-bold px-1.5 rounded bg-{{ p.shift.color }}-500/20 text-{{ p.shift.color }}-400 border border-{{ p.shift.color }}-500/30">
+                            class="mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-{{ p.shift.color }}-500/20 text-{{ p.shift.color }}-400 border border-{{ p.shift.color }}-500/30 shrink-0">
                             {{ p.shift.label }}
                         </span>
-                    </div>
-
-                    <div class="flex-1 min-w-0">
-                        <a href="/employees/{{ p.id }}"
-                            class="text-sm font-medium text-white truncate hover:text-blue-400 hover:underline transition-colors block">{{
-                            p.name }}</a>
-                        <p class="text-xs {{ 'text-pink-400 font-bold' if p.is_today else 'text-slate-500' }}">
-                            {{ 'HOJE!' if p.is_today else 'Dia ' ~ p.day }}
-                        </p>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex flex-wrap items-center gap-2 mb-0.5">
+                                <a href="/employees/{{ p.id }}"
+                                    class="text-sm font-medium text-white hover:text-blue-400 hover:underline transition-colors leading-tight">
+                                    {{ p.name }}
+                                </a>
+                            </div>
+                            <p class="text-xs {{ 'text-pink-400 font-bold' if p.is_today else 'text-slate-500' }}">
+                                {{ 'HOJE!' if p.is_today else 'Dia ' ~ p.day }}
+                            </p>
+                        </div>
                     </div>
                 </div>
                 {% endfor %}
@@ -223,26 +212,22 @@
                 {% else %}
                 {% for p in people_data.anniversaries %}
                 <div
-                    class="flex items-center gap-3 p-3 rounded-lg {{ 'bg-blue-500/10 border border-blue-500/30' if p.is_today else 'bg-slate-900/50 border border-slate-700/50' }}">
-                    <!-- Shift Badge -->
-                    <div class="flex flex-col items-center gap-1">
-                        <div
-                            class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
-                            {{ p.name[:2]|upper }}
-                        </div>
+                    class="flex flex-col gap-0.5 p-3 rounded-lg {{ 'bg-blue-500/10 border border-blue-500/30' if p.is_today else 'bg-slate-900/50 border border-slate-700/50' }}">
+                    <div class="flex items-start gap-2">
                         <span
-                            class="text-[10px] font-bold px-1.5 rounded bg-{{ p.shift.color }}-500/20 text-{{ p.shift.color }}-400 border border-{{ p.shift.color }}-500/30">
+                            class="mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-{{ p.shift.color }}-500/20 text-{{ p.shift.color }}-400 border border-{{ p.shift.color }}-500/30 shrink-0">
                             {{ p.shift.label }}
                         </span>
-                    </div>
-
-                    <div class="flex-1 min-w-0">
-                        <a href="/employees/{{ p.id }}"
-                            class="text-sm font-medium text-white truncate hover:text-blue-400 hover:underline transition-colors block">{{
-                            p.name }}</a>
-                        <div class="flex justify-between items-center">
-                            <span class="text-xs text-blue-400 font-bold bg-blue-500/10 px-1.5 py-0.5 rounded">{{
-                                p.years }} Anos</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex flex-wrap items-center gap-2 mb-0.5">
+                                <a href="/employees/{{ p.id }}"
+                                    class="text-sm font-medium text-white hover:text-blue-400 hover:underline transition-colors leading-tight">
+                                    {{ p.name }}
+                                </a>
+                                <span
+                                    class="text-xs text-blue-400 font-bold bg-blue-500/10 px-1.5 py-0.5 rounded whitespace-nowrap">{{
+                                    p.years }} Anos</span>
+                            </div>
                             <span class="text-xs {{ 'text-blue-400 font-bold' if p.is_today else 'text-slate-500' }}">
                                 {{ 'HOJE!' if p.is_today else 'Dia ' ~ p.day }}
                             </span>

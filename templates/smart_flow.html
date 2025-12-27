@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block content %}
 
@@ -121,17 +121,16 @@
         </div>
     </header>
 
-    <!-- KPI Bar -->
-    <!-- KPI Bar: People & Status -->
-    <div class="px-6 py-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 shrink-0">
+    <!-- KPI Bar: People & Status & Production Combined -->
+    <div class="px-6 py-4 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3 shrink-0">
         <!-- 1. Headcount & Presence -->
-        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-blue-500/50 group h-24"
+        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-blue-500/50 group h-20"
             onclick="openDashboardDetail('headcount')">
             <div class="flex justify-between items-start">
                 <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-blue-400 transition">Headcount
                 </p>
-                <div class="bg-blue-500/10 p-1.5 rounded-lg text-blue-400">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <div class="bg-blue-500/10 p-1 rounded-lg text-blue-400">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                         <circle cx="9" cy="7" r="4" />
                         <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -140,22 +139,21 @@
                 </div>
             </div>
             <div>
-                <!-- Format: Real / Ideal -->
-                <p class="text-xl font-bold text-white leading-none"><span id="total-present">0</span> <span
-                        class="text-slate-500 text-sm font-normal">/</span> <span id="total-target-kpi"
-                        class="text-slate-400 text-base">0</span></p>
-                <p class="text-[10px] text-slate-500 mt-1">Presença: <span class="text-emerald-400 font-bold"
+                <p class="text-lg font-bold text-white leading-none"><span id="total-present">0</span> <span
+                        class="text-slate-500 text-xs font-normal">/</span> <span id="total-target-kpi"
+                        class="text-slate-400 text-sm">0</span></p>
+                <p class="text-[9px] text-slate-500 mt-0.5">Presença: <span class="text-emerald-400 font-bold"
                         id="present-percent">0%</span></p>
             </div>
         </div>
 
         <!-- 2. Gap (Vagas) -->
-        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-red-500/50 group h-24"
+        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-red-500/50 group h-20"
             onclick="openDashboardDetail('gap')">
             <div class="flex justify-between items-start">
                 <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-red-400 transition">Vagas</p>
-                <div class="bg-red-500/10 p-1.5 rounded-lg text-red-400">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <div class="bg-red-500/10 p-1 rounded-lg text-red-400">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                         <circle cx="8.5" cy="7" r="4" />
                         <line x1="18" y1="8" x2="23" y2="13" />
@@ -164,19 +162,19 @@
                 </div>
             </div>
             <div>
-                <p class="text-xl font-bold text-red-400 leading-none" id="total-gap">0</p>
-                <p class="text-[10px] text-slate-500 mt-1">Em aberto</p>
+                <p class="text-lg font-bold text-red-400 leading-none" id="total-gap">0</p>
+                <p class="text-[9px] text-slate-500 mt-0.5">Em aberto</p>
             </div>
         </div>
 
         <!-- 3. Absenteísmo (Sick/Faltas) -->
-        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-amber-500/50 group h-24"
+        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-amber-500/50 group h-20"
             onclick="openDashboardDetail('sick')">
             <div class="flex justify-between items-start">
                 <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-amber-400 transition"
                     title="Atestados e Faltas">Absenteísmo</p>
-                <div class="bg-amber-500/10 p-1.5 rounded-lg text-amber-400">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <div class="bg-amber-500/10 p-1 rounded-lg text-amber-400">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="10" />
                         <line x1="12" y1="8" x2="12" y2="12" />
                         <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -184,19 +182,19 @@
                 </div>
             </div>
             <div>
-                <p class="text-xl font-bold text-amber-400 leading-none" id="total-sick">0</p>
-                <p class="text-[10px] text-slate-500 mt-1">Atestados/Faltas</p>
+                <p class="text-lg font-bold text-amber-400 leading-none" id="total-sick">0</p>
+                <p class="text-[9px] text-slate-500 mt-0.5">Atestados/Faltas</p>
             </div>
         </div>
 
         <!-- 4. Afastados (Away) -->
-        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-purple-500/50 group h-24"
+        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-purple-500/50 group h-20"
             onclick="openDashboardDetail('away')">
             <div class="flex justify-between items-start">
                 <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-purple-400 transition">
                     Afastados</p>
-                <div class="bg-purple-500/10 p-1.5 rounded-lg text-purple-400">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <div class="bg-purple-500/10 p-1 rounded-lg text-purple-400">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M10 10l-6 6v-6h6z" />
                         <path d="M14 14l6-6v6h-6z" />
                         <path d="M4 20h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" />
@@ -204,19 +202,19 @@
                 </div>
             </div>
             <div>
-                <p class="text-xl font-bold text-purple-400 leading-none" id="total-away">0</p>
-                <p class="text-[10px] text-slate-500 mt-1">INSS/Licenças</p>
+                <p class="text-lg font-bold text-purple-400 leading-none" id="total-away">0</p>
+                <p class="text-[9px] text-slate-500 mt-0.5">INSS/Licenças</p>
             </div>
         </div>
 
         <!-- 5. Férias -->
-        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-orange-500/50 group h-24"
+        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-orange-500/50 group h-20"
             onclick="openDashboardDetail('vacation')">
             <div class="flex justify-between items-start">
                 <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-orange-400 transition">Férias
                 </p>
-                <div class="bg-orange-500/10 p-1.5 rounded-lg text-orange-400">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <div class="bg-orange-500/10 p-1 rounded-lg text-orange-400">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M2 12h20" />
                         <path d="M7 16v4" />
                         <path d="M17 16v4" />
@@ -226,22 +224,19 @@
                 </div>
             </div>
             <div>
-                <p class="text-xl font-bold text-orange-400 leading-none" id="total-vacation">0</p>
-                <p class="text-[10px] text-slate-500 mt-1">Programadas</p>
+                <p class="text-lg font-bold text-orange-400 leading-none" id="total-vacation">0</p>
+                <p class="text-[9px] text-slate-500 mt-0.5">Programadas</p>
             </div>
         </div>
-    </div>
 
-    <!-- KPI Bar: Production -->
-    <div class="px-6 pb-4 pt-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
         <!-- 6. Produção Total -->
-        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-emerald-500/50 group h-24"
+        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-emerald-500/50 group h-20"
             onclick="openDashboardDetail('tonnage')">
             <div class="flex justify-between items-start">
                 <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-emerald-400 transition">
                     Produção Total</p>
-                <div class="bg-emerald-500/10 p-1.5 rounded-lg text-emerald-400">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <div class="bg-emerald-500/10 p-1 rounded-lg text-emerald-400">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path
                             d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
                         <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
@@ -250,20 +245,20 @@
                 </div>
             </div>
             <div>
-                <p class="text-xl font-bold text-emerald-400 leading-none" id="total-tonnage">{{ daily_op.tonnage }} kg
+                <p class="text-lg font-bold text-emerald-400 leading-none" id="total-tonnage">{{ daily_op.tonnage }} kg
                 </p>
-                <p class="text-[10px] text-slate-500 mt-1">Movimentação Bruta</p>
+                <p class="text-[9px] text-slate-500 mt-0.5">Movimentação Bruta</p>
             </div>
         </div>
 
-        <!-- 7. Produção/Colaborador (New) -->
-        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-emerald-500/50 group h-24"
+        <!-- 7. Produção/Colaborador -->
+        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-emerald-500/50 group h-20"
             title="Produção média por pessoa presente">
             <div class="flex justify-between items-start">
                 <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-emerald-400 transition">
                     Produção / Pessoa</p>
-                <div class="bg-emerald-500/10 p-1.5 rounded-lg text-emerald-400">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <div class="bg-emerald-500/10 p-1 rounded-lg text-emerald-400">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                         <circle cx="9" cy="7" r="4" />
                         <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -271,8 +266,8 @@
                 </div>
             </div>
             <div>
-                <p class="text-xl font-bold text-emerald-400 leading-none" id="production-per-person">0 kg/p</p>
-                <p class="text-[10px] text-slate-500 mt-1">Produtividade Média</p>
+                <p class="text-lg font-bold text-emerald-400 leading-none" id="production-per-person">0 kg/p</p>
+                <p class="text-[9px] text-slate-500 mt-0.5">Produtividade Média</p>
             </div>
         </div>
     </div>
@@ -556,7 +551,7 @@
             card.innerHTML = `
                 <div class="bg-slate-800 border-slate-700 border rounded-xl p-3 flex flex-col justify-between h-32 relative group hover:border-blue-500 hover:shadow-lg transition-all shadow-md cursor-pointer ${isDeficit ? 'border-l-4 border-l-red-500' : 'border-l-4 border-l-emerald-500'}" onclick="openModal('${sec.key}')">
                     <!-- Delete Btn -->
-                    <button onclick="event.stopPropagation(); deleteSector(${idx})" class="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-sm z-10 hover:bg-red-600" title="Excluir">✕</button>
+                    <button onclick="event.stopPropagation(); deleteSector(${idx})" class="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-sm z-10 hover:bg-red-600" title="Excluir">âœ•</button>
 
                     <!-- Header -->
                     <div class="flex justify-between items-start">
@@ -571,8 +566,8 @@
                     <div class="mt-1">
                         <div class="flex justify-between items-end mb-1">
                              ${isDeficit
-                    ? `<span class="text-[10px] font-bold text-red-400 flex items-center gap-1">⚠️ -${sectorData.deficit}</span>`
-                    : `<span class="text-[10px] font-bold text-emerald-400 flex items-center gap-1">✨ OK</span>`
+                    ? `<span class="text-[10px] font-bold text-red-400 flex items-center gap-1">âš ï¸ -${sectorData.deficit}</span>`
+                    : `<span class="text-[10px] font-bold text-emerald-400 flex items-center gap-1">âœ¨ OK</span>`
                 }
                         </div>
                         <div class="w-full bg-slate-700/50 rounded-full h-1.5 overflow-hidden">
@@ -626,7 +621,7 @@
         const vacationCount = ALL_EMPLOYEES.filter(e => e.status === 'vacation').length;
         const awayCount = ALL_EMPLOYEES.filter(e => e.status === 'away').length;
 
-        // Sick Logic: Permanent 'sick' + Daily 'absent' counts (as per user request to group "Absenteísmo")
+        // Sick Logic: Permanent 'sick' + Daily 'absent' counts (as per user request to group "AbsenteÃ­smo")
         // We take the permanent sick count + daily absences.
         const permanentSick = ALL_EMPLOYEES.filter(e => e.status === 'sick').length;
         const totalSickAbsence = permanentSick + dailyAbsences;
@@ -727,7 +722,7 @@
             let shiftColor = "text-slate-400 bg-slate-700/50 border-slate-600";
             let shiftShort = empShift.substring(0, 3).toUpperCase();
 
-            if (shiftLower.includes("manhã") || shiftLower.includes("manha")) {
+            if (shiftLower.includes("manhÃ£") || shiftLower.includes("manha")) {
                 shiftColor = "text-blue-400 bg-blue-500/10 border-blue-500/20";
                 shiftShort = "MAN";
             } else if (shiftLower.includes("tarde")) {
@@ -741,7 +736,7 @@
             // Status Badge Logic
             let statusBadge = "";
             if (emp.status === 'vacation') {
-                statusBadge = '<span class="text-[8px] font-bold px-1 rounded border text-orange-400 bg-orange-500/10 border-orange-500/20 uppercase tracking-wider">FÉRIAS</span>';
+                statusBadge = '<span class="text-[8px] font-bold px-1 rounded border text-orange-400 bg-orange-500/10 border-orange-500/20 uppercase tracking-wider">FÃ‰RIAS</span>';
             } else if (emp.status === 'sick') {
                 statusBadge = '<span class="text-[8px] font-bold px-1 rounded border text-cyan-400 bg-cyan-500/10 border-cyan-500/20 uppercase tracking-wider">ATESTADO</span>';
             } else if (emp.status === 'away') {
@@ -769,13 +764,13 @@
                             <span class="text-[9px] font-mono text-slate-500">#${emp.id}</span>
                             <span class="text-[8px] font-bold px-1 rounded border ${shiftColor} uppercase tracking-wider">${shiftShort}</span>
                             ${statusBadge}
-                            ${isWrongShift ? `<span class="text-[8px] text-amber-500 bg-amber-500/10 px-1 rounded border border-amber-500/20" title="Turno original: ${empShift}">⚠️</span>` : ''}
+                            ${isWrongShift ? `<span class="text-[8px] text-amber-500 bg-amber-500/10 px-1 rounded border border-amber-500/20" title="Turno original: ${empShift}">âš ï¸</span>` : ''}
                         </div>
                     </div>
                 </div>
                 
                 <div class="flex items-center gap-1">
-                    <button onclick="openVacationModal('${emp.id}')" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-orange-600 hover:text-white text-orange-400 border border-slate-700 hover:border-orange-500 flex items-center justify-center transition shadow-sm" title="Programar Férias">
+                    <button onclick="openVacationModal('${emp.id}')" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-orange-600 hover:text-white text-orange-400 border border-slate-700 hover:border-orange-500 flex items-center justify-center transition shadow-sm" title="Programar FÃ©rias">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
                     </button>
                     <button onclick="addToSector('${emp.id}', '${emp.name}')" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-500 border border-slate-700 hover:border-blue-500 flex items-center justify-center transition shadow-sm" aria-label="Adicionar" title="Adicionar ao setor">
@@ -789,7 +784,7 @@
         if (candidates.length === 0) {
             list.innerHTML = `<div class="flex flex-col items-center justify-center py-8 text-slate-500 gap-2 opacity-60">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <p class="text-xs">Nenhum colaborador disponível</p>
+                <p class="text-xs">Nenhum colaborador disponÃ­vel</p>
                 ${!showAll ? '<p class="text-[10px] text-blue-400 cursor-pointer hover:underline" onclick="document.getElementById(\'show-all-toggle\').click()">Mostrar outros turnos</p>' : ''}
             </div>`;
         }
@@ -877,8 +872,8 @@
                                     <button onclick="setStatus('${p.id}', 'sick')" class="flex-1 py-1 rounded text-[10px] font-bold transition flex items-center justify-center gap-1 ${isSick ? 'bg-cyan-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-700 hover:text-cyan-400'}" title="Atestado">
                                         A
                                     </button>
-                                    <button onclick="setStatus('${p.id}', 'vacation')" class="flex-1 py-1 rounded text-[10px] font-bold transition flex items-center justify-center gap-1 ${isVacation ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-700 hover:text-orange-400'}" title="Férias">
-                                        Fé
+                                    <button onclick="setStatus('${p.id}', 'vacation')" class="flex-1 py-1 rounded text-[10px] font-bold transition flex items-center justify-center gap-1 ${isVacation ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-700 hover:text-orange-400'}" title="FÃ©rias">
+                                        FÃ©
                                     </button>
                                     <button onclick="setStatus('${p.id}', 'away')" class="flex-1 py-1 rounded text-[10px] font-bold transition flex items-center justify-center gap-1 ${isAway ? 'bg-purple-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-700 hover:text-purple-400'}" title="Afastado">
                                         Af
@@ -930,7 +925,7 @@
 
     function deleteSubsector(subName) {
         if (subName === 'Geral') return; // Cannot delete default
-        if (!confirm(`Tem certeza que deseja excluir a equipe "${subName}"?\nOs colaboradores voltarão para "Geral".`)) return;
+        if (!confirm(`Tem certeza que deseja excluir a equipe "${subName}"?\nOs colaboradores voltarÃ£o para "Geral".`)) return;
 
         const sector = SECTORS.find(s => s.key === currentSectorKey);
         if (sector && sector.subsectors) {
@@ -1149,7 +1144,7 @@
         if (status === 'present') return '<span class="text-[10px] text-emerald-400">Presente</span>';
         if (status === 'absent') return '<span class="text-[10px] text-red-400">Falta</span>';
         if (status === 'sick') return '<span class="text-[10px] text-cyan-400">Atestado</span>';
-        if (status === 'vacation') return '<span class="text-[10px] text-orange-400">Férias</span>';
+        if (status === 'vacation') return '<span class="text-[10px] text-orange-400">FÃ©rias</span>';
         if (status === 'away') return '<span class="text-[10px] text-purple-400">Afastado</span>';
         return '<span class="text-[10px] text-slate-500">Desconhecido</span>';
     }
@@ -1179,7 +1174,7 @@
 
             if (res.ok) {
                 if (statusOverride === 'closed') {
-                    alert('Operação Encerrada com Sucesso!');
+                    alert('OperaÃ§Ã£o Encerrada com Sucesso!');
                     window.location.reload();
                 } else {
                     alert('Salvo e Sincronizado com Sucesso!');
@@ -1188,12 +1183,12 @@
             else alert('Erro ao salvar');
         } catch (e) {
             console.error(e);
-            alert('Erro de conexão');
+            alert('Erro de conexÃ£o');
         }
     }
 
     function closeOperation() {
-        if (confirm("ATENÇÃO: Deseja realmente ENCERRAR a operação deste turno?\n\nIsso irá consolidar os números e marcar o status como fechado.")) {
+        if (confirm("ATENÃ‡ÃƒO: Deseja realmente ENCERRAR a operaÃ§Ã£o deste turno?\n\nIsso irÃ¡ consolidar os nÃºmeros e marcar o status como fechado.")) {
             saveRoutine('closed');
         }
     }
@@ -1231,7 +1226,7 @@
                                 <p class="text-sm font-semibold text-slate-200 leading-tight">${emp.name}</p>
                                 <div class="flex items-center gap-1.5 mt-0.5">
                                     <span class="text-[10px] text-slate-400 font-mono bg-slate-900/50 px-1 rounded">#${emp.id || '?'}</span>
-                                    ${emp.status === 'present' ? `<span class="text-[10px] text-blue-400">${emp.sector} ${emp.subsector && emp.subsector !== 'Geral' ? '• ' + emp.subsector : ''}</span>` : ''}
+                                    ${emp.status === 'present' ? `<span class="text-[10px] text-blue-400">${emp.sector} ${emp.subsector && emp.subsector !== 'Geral' ? 'â€¢ ' + emp.subsector : ''}</span>` : ''}
                                 </div>
                             </div>
                         </div>
@@ -1298,7 +1293,7 @@
             }
 
         } else if (type === 'sick') {
-            titleEl.textContent = 'Absenteísmo (Atestados / Faltas)';
+            titleEl.textContent = 'AbsenteÃ­smo (Atestados / Faltas)';
 
             // 1. Permanent Sick (from ALL_EMPLOYEES)
             const permanentSick = ALL_EMPLOYEES.filter(e => e.status === 'sick');
@@ -1362,9 +1357,9 @@
             }
 
         } else if (type === 'vacation') {
-            titleEl.textContent = 'Colaboradores em Férias';
+            titleEl.textContent = 'Colaboradores em FÃ©rias';
             const list = ALL_EMPLOYEES.filter(e => e.status === 'vacation');
-            contentEl.innerHTML = createEmpList(list, 'FÉRIAS', 'text-orange-400 bg-orange-500/10 border-orange-500/20');
+            contentEl.innerHTML = createEmpList(list, 'FÃ‰RIAS', 'text-orange-400 bg-orange-500/10 border-orange-500/20');
 
         } else if (type === 'away') {
             titleEl.textContent = 'Colaboradores Afastados';
@@ -1372,8 +1367,8 @@
             contentEl.innerHTML = createEmpList(list, 'AFASTADO', 'text-purple-400 bg-purple-500/10 border-purple-500/20');
 
         } else if (type === 'tonnage') {
-            titleEl.textContent = 'Detalhamento de Produção';
-            contentEl.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-slate-500"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="opacity-50 mb-2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><p class="text-sm">Produção: ' + document.getElementById('total-tonnage').innerText + '</p></div>';
+            titleEl.textContent = 'Detalhamento de ProduÃ§Ã£o';
+            contentEl.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-slate-500"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="opacity-50 mb-2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><p class="text-sm">ProduÃ§Ã£o: ' + document.getElementById('total-tonnage').innerText + '</p></div>';
         }
     }
 
@@ -1418,8 +1413,9 @@
                             </svg>
                         </div>
                         <div>
-                            <h3 class="text-lg font-bold text-slate-100" id="vacation-modal-title">Programar Férias</h3>
-                            <p class="text-sm text-slate-400">Defina o período de férias do colaborador.</p>
+                            <h3 class="text-lg font-bold text-slate-100" id="vacation-modal-title">Programar FÃ©rias
+                            </h3>
+                            <p class="text-sm text-slate-400">Defina o perÃ­odo de fÃ©rias do colaborador.</p>
                         </div>
                     </div>
 
@@ -1428,7 +1424,7 @@
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label for="vacation-start"
-                                    class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5 ml-1">Início</label>
+                                    class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5 ml-1">InÃ­cio</label>
                                 <input type="date" id="vacation-start" required
                                     class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-slate-100 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition text-sm text-white-scheme">
                             </div>
@@ -1445,7 +1441,7 @@
                                 class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm font-semibold transition border border-slate-600">Cancelar</button>
                             <button type="submit"
                                 class="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-semibold transition shadow-lg shadow-blue-900/20">Salvar
-                                Programação</button>
+                                ProgramaÃ§Ã£o</button>
                         </div>
                     </form>
                 </div>
@@ -1459,10 +1455,10 @@
         // Find employee in ALL_EMPLOYEES (Smart Flow context)
         // Note: In Smart Flow, ALL_EMPLOYEES items have 'id' which IS the registration id.
         const emp = ALL_EMPLOYEES.find(e => e.id === id);
-        if (!emp) return alert("Colaborador não encontrado.");
+        if (!emp) return alert("Colaborador nÃ£o encontrado.");
 
         document.getElementById('vacation-emp-reg').value = emp.id; // Reg ID
-        document.getElementById('vacation-modal-title').innerText = `Programar Férias: ${emp.name}`;
+        document.getElementById('vacation-modal-title').innerText = `Programar FÃ©rias: ${emp.name}`;
         document.getElementById('vacation-start').value = '';
         document.getElementById('vacation-end').value = '';
         document.getElementById('vacation-schedule-modal').classList.remove('hidden');
@@ -1478,7 +1474,7 @@
         const end = document.getElementById('vacation-end').value;
 
         if (!start || !end) return alert("Preencha as datas.");
-        if (!regId) return alert("Erro interno: Matrícula inválida.");
+        if (!regId) return alert("Erro interno: MatrÃ­cula invÃ¡lida.");
 
         try {
             const res = await fetch('/employees/vacation', {
@@ -1492,7 +1488,7 @@
             });
 
             if (res.ok) {
-                alert('Férias programadas com sucesso!');
+                alert('FÃ©rias programadas com sucesso!');
                 closeVacationModal();
                 window.location.reload();
             } else {
@@ -1501,7 +1497,7 @@
             }
         } catch (e) {
             console.error(e);
-            alert('Erro de conexão');
+            alert('Erro de conexÃ£o');
         }
     }
 
