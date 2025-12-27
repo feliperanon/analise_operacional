@@ -509,12 +509,12 @@
     const ALL_EMPLOYEES = [
         {% for emp in employees_list %}
     {
-        id: "{{ emp.registration_id }}",
-            name: "{{ emp.name }}",
-                role: "{{ emp.role }}",
-                    shift: "{{ emp.work_shift }}",
-                        cost_center: "{{ emp.cost_center }}",
-                            status: "{{ emp.status }}"
+        id: { { emp.registration_id | tojson } },
+        name: { { emp.name | tojson } },
+        role: { { emp.role | tojson } },
+        shift: { { emp.work_shift | tojson } },
+        cost_center: { { emp.cost_center | tojson } },
+        status: { { emp.status | tojson } }
     },
     {% endfor %}
     ];
@@ -1395,4 +1395,5 @@
 
 
 
-    {% endblock %}
+</script>
+{% endblock %}

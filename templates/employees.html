@@ -18,16 +18,7 @@
                     <span class="text-emerald-400 text-xs font-medium bg-emerald-500/10 px-1.5 py-0.5 rounded">
                         {{ "+" if stats.vacancies > 0 else "" }}{{ stats.vacancies }}
                     </span>
-                    <button onclick="document.getElementById('targetModal').classList.remove('hidden')"
-                        class="text-slate-500 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
-                            </path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                        </svg>
-                    </button>
+                    <!-- Removido botão de editar Target pois o modal não existe nesta página -->
                 </div>
             </div>
         </div>
@@ -109,10 +100,7 @@
     <div class="flex justify-between items-center">
         <h2 class="text-xl font-semibold text-white">Banco de Dados: Colaboradores</h2>
         <div class="flex gap-3">
-            <button onclick="document.getElementById('targetModal').classList.remove('hidden')"
-                class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors border border-slate-600">
-                Definir Metas
-            </button>
+            <!-- Removed 'Definir Metas' button as it belongs to Smart Flow -->
             <button onclick="document.getElementById('importModal').classList.remove('hidden')"
                 class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors border border-slate-600 flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -238,7 +226,8 @@
                     <td class="p-4">
                         <div class="flex items-center gap-1">
                             <!-- Editar -->
-                            <button type="button" onclick='openEditModal({{ emp.model_dump_json() }})'
+                            <button type="button" data-emp='{{ emp.model_dump_json()|safe }}'
+                                onclick='openEditModal(JSON.parse(this.dataset.emp))'
                                 class="p-1.5 hover:bg-slate-700 rounded text-yellow-400 transition-colors"
                                 title="Editar">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -329,37 +318,6 @@
         </table>
     </div>
 
-</div>
-
-<!-- Target Modal -->
-<div id="targetModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-    <div class="bg-slate-800 rounded-2xl w-full max-w-sm border border-slate-700 shadow-2xl p-6">
-        <div class="flex justify-between items-center mb-6">
-            <h3 class="text-xl font-bold text-white">Alterar Metas</h3>
-            <button onclick="document.getElementById('targetModal').classList.add('hidden')"
-                class="text-slate-400 hover:text-white">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
-                    </path>
-                </svg>
-            </button>
-        </div>
-        <form action="/settings/targets" method="POST" class="space-y-4">
-            {% for shift in stats.shifts %}
-            <div>
-                <label class="block text-sm font-medium text-slate-400 mb-1">Meta Turno {{ shift.name }}</label>
-                <input type="number" name="target_{{ shift.name }}" value="{{ shift.target }}" required
-                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
-            </div>
-            {% endfor %}
-            <div class="pt-4 flex justify-end gap-3">
-                <button type="button" onclick="document.getElementById('targetModal').classList.add('hidden')"
-                    class="px-4 py-2 text-slate-300 hover:text-white">Cancelar</button>
-                <button type="submit"
-                    class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">Salvar</button>
-            </div>
-        </form>
-    </div>
 </div>
 
 <!-- Import Modal -->
@@ -530,307 +488,7 @@
     </div>
 </div>
 
-<script>
-    function openEditModal(emp) {
-        document.getElementById('editForm').action = '/employees/' + emp.id + '/update';
-        document.getElementById('editName').value = emp.name;
-        document.getElementById('editReg').value = emp.registration_id;
-        document.getElementById('editRole').value = emp.role;
-        document.getElementById('editCost').value = emp.cost_center;
-        document.getElementById('editShift').value = emp.work_shift;
-
-        // Dates need to be YYYY-MM-DD
-        if (emp.admission_date) {
-            document.getElementById('editAdmission').value = emp.admission_date.split('T')[0];
-        }
-        if (emp.birthday) {
-            document.getElementById('editBirthday').value = emp.birthday.split('T')[0];
-        }
-
-        document.getElementById('editModal').classList.remove('hidden');
-    }
-
-    let currentFilter = 'all';
-
-    function setFilter(filter) {
-        currentFilter = filter;
-
-        // Update Buttons
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-            if (btn.dataset.filter === filter) {
-                btn.classList.add('bg-slate-700', 'text-white', 'active');
-                btn.classList.remove('bg-slate-900', 'text-slate-400');
-            } else {
-                btn.classList.remove('bg-slate-700', 'text-white', 'active');
-                btn.classList.add('bg-slate-900', 'text-slate-400');
-            }
-        });
-
-        filterTable();
-    }
-
-    function filterTable() {
-        const input = document.getElementById('searchInput');
-        const searchVal = input.value.toLowerCase();
-        const rows = document.querySelectorAll('.employee-row');
-        const tbody = document.getElementById('tableBody');
-
-        // Logic: 
-        // If search is empty AND filter is 'all' -> Hide List (as per request "Não aparecer lista")
-        // But maybe "Todos" should show all?
-        // User said: "Não aparecer lista de colaboradores... Ter a opção de marcar e selecionar para exibir todos os colaboradores"
-        // So: If search is empty AND filter is 'all' AND user hasn't explicitly clicked 'Todos' maybe?
-        // Let's assume if they click "Todos" btn they want to see all. 
-        // If they just landed, we hide.
-        // We can track if a filter/search interaction happened?
-
-        // Simplification: Always show based on filter logic, but verify "default hidden".
-        // Use a class or just check values.
-
-        let hasVisible = false;
-
-        rows.forEach(row => {
-            const name = row.dataset.name;
-            const reg = row.dataset.reg;
-            const shift = row.dataset.shift;
-            const status = row.dataset.status;
-
-            let matchesSearch = !searchVal || name.includes(searchVal) || reg.includes(searchVal);
-            let matchesFilter = false;
-
-            if (currentFilter === 'all') {
-                // Show all active employees used to be default, but maybe users want to see everyone including vacation? 
-                // Usually "Todos" means "Todos Ativos" in shifts contexts, let's keep it simple: Show all.
-                matchesFilter = true;
-            } else if (['Manhã', 'Tarde', 'Noite'].includes(currentFilter)) {
-                // If shift filter, strictly that shift. Using derived shift.
-                matchesFilter = (shift === currentFilter);
-            } else {
-                // If status filter (vacation, away, fired)
-                matchesFilter = status === currentFilter;
-            }
-
-            if (matchesSearch && matchesFilter) {
-                row.classList.remove('hidden');
-                hasVisible = true;
-            } else {
-                row.classList.add('hidden');
-            }
-        });
-
-        // Toggle tbody visibility based on whether we should show anything or if search/filter is present
-        // User wants: Default hidden.
-        // If "Todos" is active but search is empty, maybe hidden? 
-        // Use flag: 
-        if (searchVal.length > 0 || currentFilter !== 'all' || document.querySelector('.filter-btn[data-filter="all"]').classList.contains('active')) {
-            tbody.classList.remove('hidden');
-        }
-    }
-    function sortTable(criteria) {
-        const tbody = document.getElementById('tableBody');
-        const rows = Array.from(document.querySelectorAll('.employee-row'));
-
-        // Highlight active sort button
-        // (Simplified: just sorting logic first)
-
-        rows.sort((a, b) => {
-            let valA, valB;
-
-            if (criteria === 'name') {
-                valA = a.dataset.name;
-                valB = b.dataset.name;
-            } else if (criteria === 'reg') {
-                valA = parseInt(a.dataset.reg) || 0;
-                valB = parseInt(b.dataset.reg) || 0;
-            } else if (criteria === 'date') {
-                valA = a.dataset.admission || '';
-                valB = b.dataset.admission || '';
-            }
-
-            if (valA < valB) return -1;
-            if (valA > valB) return 1;
-            return 0;
-        });
-
-        // Re-append
-        rows.forEach(row => tbody.appendChild(row));
-    }
-
-    // --- Vacation Logic ---
-    function openVacationModal(id, name) {
-        document.getElementById('vacation-emp-id').value = id;
-        document.getElementById('vacation-modal-title').innerText = `Programar Férias: ${name}`;
-        document.getElementById('vacation-start').value = '';
-        document.getElementById('vacation-end').value = '';
-        document.getElementById('vacation-schedule-modal').classList.remove('hidden');
-    }
-
-    function closeVacationModal() {
-        document.getElementById('vacation-schedule-modal').classList.add('hidden');
-    }
-
-    function closeBulkVacationModal() {
-        document.getElementById('bulk-vacation-modal').classList.add('hidden');
-    }
-
-    async function saveBulkVacation() {
-        const text = document.getElementById('bulk-vacation-text').value;
-        if (!text.trim()) return alert("Cole os dados do Excel.");
-
-        const lines = text.trim().split('\n');
-        const items = [];
-        let errors = [];
-
-        lines.forEach(line => {
-            // Handle both Tab (Excel/TSV) and potential other separators? Excel uses Tab.
-            const parts = line.split('\t');
-            if (parts.length < 4) return; // Skip invalid lines
-
-            // Expected: ID | Name | Start | End
-            // Basic Validations
-            const regId = parts[0].trim();
-            let startRaw = parts[2].trim();
-            let endRaw = parts[3].trim();
-
-            // Convert DD/MM/YYYY to YYYY-MM-DD
-            const toIso = (d) => {
-                if (d.includes('/')) {
-                    const [day, month, year] = d.split('/');
-                    return `${year}-${month}-${day}`;
-                }
-                return d;
-            };
-
-            if (regId && startRaw && endRaw) {
-                items.push({
-                    registration_id: regId,
-                    start_date: toIso(startRaw),
-                    end_date: toIso(endRaw)
-                });
-            }
-        });
-
-        if (items.length === 0) return alert("Nenhuma linha válida encontrada (Use formato: Matrícula | Nome | Início | Fim).");
-
-        if (!confirm(`Confirmar importação de ${items.length} ferias?`)) return;
-
-        try {
-            const res = await fetch('/employees/vacation/bulk', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(items)
-            });
-
-            const data = await res.json();
-
-            if (res.ok) {
-                let msg = data.message;
-                if (data.errors && data.errors.length > 0) {
-                    msg += '\n\nErros:\n' + data.errors.join('\n');
-                }
-                alert(msg);
-                window.location.reload();
-            } else {
-                alert("Erro: " + data.error);
-            }
-        } catch (e) {
-            console.error(e);
-            alert("Erro de conexão.");
-        }
-    }
-
-    async function saveVacationSchedule() {
-        const id = document.getElementById('vacation-emp-id').value;
-        const start = document.getElementById('vacation-start').value;
-        const end = document.getElementById('vacation-end').value;
-
-        if (!start || !end) return alert("Preencha as datas.");
-
-        try {
-            const res = await fetch('/employees/vacation', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    registration_id: null, // Endpoint expects ID lookup if not Reg ID, wait... 
-                    // Main.py uses Registration ID for VacationSchedule model. 
-                    // BUT employees page usually works with IDs.
-                    // Let's check main.py again. 
-                    // Actually main.py "schedule_vacation" takes "VacationSchedule" which has "registration_id".
-                    // Code viewer showed: emp = session.exec(select(models.Employee).where(models.Employee.registration_id == data.registration_id)).first()
-                    // So I must pass REGISTRATION_ID, not DB ID.
-                    // I will fix openVacationModal to take Reg ID too.
-                })
-            });
-
-            // To be safe, I need to pass Reg ID to the modal.
-            // I'll update the JS function above to take Reg ID.
-        } catch (e) {
-            console.error(e);
-        }
-    }
-
-    // Corrected saveVacationSchedule to handle finding the employee's Reg ID or passing it.
-    // The previous implementation in smart_flow.html used the ID to Look up the employee in ALL_EMPLOYEES and then get the Reg ID?
-    // In smart_flow.html: "const emp = ALL_EMPLOYEES.find(e => e.id == id);" -> then what?
-    // Wait, existing schedule_vacation in main.py takes data.registration_id.
-    // In smart_flow.html it was:
-
-
-</script>
-
-<script>
-    // --- UPDATED LOGIC FOR EMPLOYEES PAGE ---
-
-    async function saveVacationSchedule() {
-        const regId = document.getElementById('vacation-emp-reg').value;
-        const start = document.getElementById('vacation-start').value;
-        const end = document.getElementById('vacation-end').value;
-
-        if (!start || !end) return alert("Preencha as datas.");
-
-        // Basic validation
-        if (!regId) return alert("Erro: Matrícula não encontrada.");
-
-        try {
-            const res = await fetch('/employees/vacation', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    registration_id: regId,
-                    start_date: start,
-                    end_date: end
-                })
-            });
-
-            if (res.ok) {
-                alert('Férias programadas com sucesso!');
-                closeVacationModal();
-                window.location.reload();
-            } else {
-                const err = await res.json();
-                alert('Erro: ' + (err.error || 'Falha ao salvar'));
-            }
-        } catch (e) {
-            console.error(e);
-            alert('Erro de conexão');
-        }
-    }
-
-    // Override openVacationModal to accept Reg ID
-    function openVacationModal(id, name, regId) {
-        document.getElementById('vacation-emp-reg').value = regId;
-        document.getElementById('vacation-modal-title').innerText = `Programar Férias: ${name}`;
-        document.getElementById('vacation-start').value = '';
-        document.getElementById('vacation-end').value = '';
-        document.getElementById('vacation-schedule-modal').classList.remove('hidden');
-    }
-</script>
-<script>
-    // Valid JS Logic
-
-
-
-<!-- Vacation Modal -->
+<!-- Vacation Schedule Modal -->
 <div id="vacation-schedule-modal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog"
     aria-modal="true">
     <div class="absolute inset-0 bg-slate-900/90 backdrop-blur-sm transition-opacity"></div>
@@ -885,7 +543,7 @@
     </div>
 </div>
 
-<!--Bulk Vacation Modal-- >
+<!-- Bulk Vacation Modal -->
 <div id="bulk-vacation-modal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog"
     aria-modal="true">
     <div class="absolute inset-0 bg-slate-900/90 backdrop-blur-sm transition-opacity"></div>
@@ -931,21 +589,129 @@
 </div>
 
 <script>
-    // --- Vacation Logic ---
+    // --- Edit Modal Logic ---
+    function openEditModal(emp) {
+        document.getElementById('editForm').action = '/employees/' + emp.id + '/update';
+        document.getElementById('editName').value = emp.name;
+        document.getElementById('editReg').value = emp.registration_id;
+        document.getElementById('editRole').value = emp.role;
+        document.getElementById('editCost').value = emp.cost_center;
+        document.getElementById('editShift').value = emp.work_shift;
+
+        if (emp.admission_date) {
+            document.getElementById('editAdmission').value = emp.admission_date.split('T')[0];
+        }
+        if (emp.birthday) {
+            document.getElementById('editBirthday').value = emp.birthday.split('T')[0];
+        }
+
+        document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    // --- Filter Logic ---
+    let currentFilter = 'all';
+
+    function setFilter(filter) {
+        currentFilter = filter;
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            if (btn.dataset.filter === filter) {
+                btn.classList.add('bg-slate-700', 'text-white', 'active');
+                btn.classList.remove('bg-slate-900', 'text-slate-400');
+            } else {
+                btn.classList.remove('bg-slate-700', 'text-white', 'active');
+                btn.classList.add('bg-slate-900', 'text-slate-400');
+            }
+        });
+        filterTable();
+    }
+
+    function filterTable() {
+        const input = document.getElementById('searchInput');
+        const searchVal = input.value.toLowerCase();
+        const rows = document.querySelectorAll('.employee-row');
+        const tbody = document.getElementById('tableBody');
+        let hasVisible = false;
+
+        rows.forEach(row => {
+            const name = row.dataset.name;
+            const reg = row.dataset.reg;
+            const shift = row.dataset.shift;
+            const status = row.dataset.status;
+
+            let matchesSearch = !searchVal || name.includes(searchVal) || reg.includes(searchVal);
+            let matchesFilter = false;
+
+            if (currentFilter === 'all') {
+                matchesFilter = true;
+            } else if (['Manhã', 'Tarde', 'Noite'].includes(currentFilter)) {
+                matchesFilter = (shift === currentFilter);
+            } else {
+                matchesFilter = status === currentFilter;
+            }
+
+            if (matchesSearch && matchesFilter) {
+                row.classList.remove('hidden');
+                hasVisible = true;
+            } else {
+                row.classList.add('hidden');
+            }
+        });
+
+        if (searchVal.length > 0 || currentFilter !== 'all' || document.querySelector('.filter-btn[data-filter="all"]').classList.contains('active')) {
+            tbody.classList.remove('hidden');
+        }
+    }
+
+    function sortTable(criteria) {
+        const tbody = document.getElementById('tableBody');
+        const rows = Array.from(document.querySelectorAll('.employee-row'));
+
+        rows.sort((a, b) => {
+            let valA, valB;
+            if (criteria === 'name') {
+                valA = a.dataset.name;
+                valB = b.dataset.name;
+            } else if (criteria === 'reg') {
+                valA = parseInt(a.dataset.reg) || 0;
+                valB = parseInt(b.dataset.reg) || 0;
+            } else if (criteria === 'date') {
+                valA = a.dataset.admission || '';
+                valB = b.dataset.admission || '';
+            }
+            if (valA < valB) return -1;
+            if (valA > valB) return 1;
+            return 0;
+        });
+
+        rows.forEach(row => tbody.appendChild(row));
+    }
+
+    // --- VACATION MODAL Logic ---
     function openVacationModal(id, name, regId) {
-        document.getElementById('vacation-emp-reg').value = regId;
-        document.getElementById('vacation-modal-title').innerText = `Programar Férias: ${name}`;
-        document.getElementById('vacation-start').value = '';
-        document.getElementById('vacation-end').value = '';
-        document.getElementById('vacation-schedule-modal').classList.remove('hidden');
+        // Ensure elements exist before accessing
+        const elReg = document.getElementById('vacation-emp-reg');
+        const elTitle = document.getElementById('vacation-modal-title');
+        const elModal = document.getElementById('vacation-schedule-modal');
+
+        if (elReg) elReg.value = regId || '';
+        if (elTitle) elTitle.innerText = `Programar Férias: ${name}`;
+
+        const elStart = document.getElementById('vacation-start');
+        const elEnd = document.getElementById('vacation-end');
+        if (elStart) elStart.value = '';
+        if (elEnd) elEnd.value = '';
+
+        if (elModal) elModal.classList.remove('hidden');
     }
 
     function closeVacationModal() {
-        document.getElementById('vacation-schedule-modal').classList.add('hidden');
+        const el = document.getElementById('vacation-schedule-modal');
+        if (el) el.classList.add('hidden');
     }
 
     function closeBulkVacationModal() {
-        document.getElementById('bulk-vacation-modal').classList.add('hidden');
+        const el = document.getElementById('bulk-vacation-modal');
+        if (el) el.classList.add('hidden');
     }
 
     async function saveVacationSchedule() {
@@ -1038,4 +804,5 @@
         }
     }
 </script>
-    {% endblock %}
+{% endblock %}
+```

@@ -3,9 +3,9 @@ from fastapi import FastAPI, Request, Form, Depends, HTTPException, status
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from datetime import datetime
+from datetime import datetime, timedelta
 from starlette.middleware.sessions import SessionMiddleware
-from sqlmodel import Session
+from sqlmodel import Session, select
 from database import create_db_and_tables, get_session
 import models
 
@@ -305,16 +305,176 @@ async def update_separacao(
 
 
 @app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
-    user = get_current_user(request)
-    if not user:
-        return RedirectResponse(url="/login")
-    
-    return templates.TemplateResponse("index.html", {
-        "request": request, 
-        "message": "Operação Inteligente - Sistema Iniciado",
-        "user": user
-    })
+async def read_root(request: Request, shift: Optional[str] = None, session: Session = Depends(get_session)):
+    try:
+        user = get_current_user(request)
+        if not user:
+            return RedirectResponse(url="/login")
+        
+        # --- People Management Logic ---
+        today = datetime.now().date()
+        
+        # Base Query
+        query = select(models.Employee).where(models.Employee.status == 'active')
+        
+        # Apply Shift Filter (if specific shift selected)
+        # Note: 'Todos' or None means no filter
+        if shift and shift not in ['Todos', 'all']:
+            query = query.where(models.Employee.work_shift == shift)
+            
+        employees = session.exec(query).all()
+        
+        # Also fetch people ON VACATION, filtering by shift if needed
+        vac_query = select(models.Employee).where(models.Employee.status == 'vacation')
+        if shift and shift not in ['Todos', 'all']:
+            vac_query = vac_query.where(models.Employee.work_shift == shift)
+        
+        vacation_active_employees = session.exec(vac_query).all()
+        
+        # Helper to get shift badge color/label
+        def get_shift_meta(s):
+            s = (s or '').lower()
+            if s == 'manhã': return {'label': 'M', 'color': 'blue'}
+            if s == 'tarde': return {'label': 'T', 'color': 'orange'}
+            if s == 'noite': return {'label': 'N', 'color': 'purple'}
+            return {'label': '-', 'color': 'slate'}
+
+        # 1. Birthdays (Current Month)
+        birthdays = []
+        for emp in employees:
+            if emp.birthday:
+                b_date = emp.birthday.date()
+                if b_date.month == today.month:
+                    is_today = (b_date.day == today.day)
+                    birthdays.append({
+                        "id": emp.id,
+                        "name": emp.name,
+                        "day": b_date.day,
+                        "is_today": is_today,
+                        "date": b_date,
+                        "shift": get_shift_meta(emp.work_shift)
+                    })
+        birthdays.sort(key=lambda x: x['day'])
+
+        # 2. Company Anniversaries (Current Month)
+        anniversaries = []
+        for emp in employees:
+            if emp.admission_date:
+                a_date = emp.admission_date.date()
+                if a_date.month == today.month and a_date.year != today.year:
+                    years = today.year - a_date.year
+                    is_today = (a_date.day == today.day)
+                    anniversaries.append({
+                        "id": emp.id,
+                        "name": emp.name,
+                        "years": years,
+                        "day": a_date.day,
+                        "is_today": is_today,
+                        "shift": get_shift_meta(emp.work_shift)
+                    })
+        anniversaries.sort(key=lambda x: x['day'])
+
+        # 3. Vacations (Active + Upcoming 20 days)
+        # We need to scan ACTIVE employees for UPCOMING vacations, 
+        # and VACATION employees for CURRENT status.
+        vacation_list = []
+        
+        # A) Currently on Vacation
+        for emp in vacation_active_employees:
+            end_str = "-"
+            if emp.vacation_end:
+                end_str = emp.vacation_end.strftime('%d/%m')
+            vacation_list.append({
+                "id": emp.id,
+                "name": emp.name,
+                "status": "Em Férias",
+                "date_info": f"Volta: {end_str}",
+                "is_active": True, # Blue/Orange status
+                "shift": get_shift_meta(emp.work_shift)
+            })
+
+        # B) Upcoming (Next 20 days) - Scan Active Employees
+        limit_date = today + timedelta(days=20)
+        for emp in employees:
+            if emp.vacation_start:
+                v_start = emp.vacation_start.date()
+                # If starts between tomorrow and limit_date
+                if today < v_start <= limit_date:
+                    vacation_list.append({
+                        "id": emp.id,
+                        "name": emp.name,
+                        "status": "Vai sair",
+                        "date_info": f"Sai: {v_start.strftime('%d/%m')}",
+                        "is_active": False, # Future
+                        "shift": get_shift_meta(emp.work_shift),
+                        "sort_date": v_start
+                    })
+        
+        # Sort: Current first, then upcoming by date
+        # We can use a sort key tuple: (0 for current/1 for future, date)
+        # Active vacations don't have a sort_date easily, give them today
+        # Fix: Using v_start directly in lambda can be tricky if not captured, but x['sort_date'] works.
+        vacation_list.sort(key=lambda x: (1 if x['status'] == 'Vai sair' else 0, x.get('sort_date', today)))
+
+        # 4. Contract Expiry (45 and 90 days)
+        contracts = []
+        for emp in employees:
+            if emp.admission_date:
+                adm = emp.admission_date.date()
+                
+                # 45 Days
+                d45 = adm + timedelta(days=45)
+                days_to_45 = (d45 - today).days
+                
+                # 90 Days
+                d90 = adm + timedelta(days=90)
+                days_to_90 = (d90 - today).days
+
+                if 0 <= days_to_45 <= 30:
+                    contracts.append({
+                        "id": emp.id,
+                        "name": emp.name,
+                        "type": "45 Dias",
+                        "date": d45,
+                        "days_left": days_to_45,
+                        "is_today": (days_to_45 == 0),
+                        "shift": get_shift_meta(emp.work_shift)
+                    })
+                
+                if 0 <= days_to_90 <= 30:
+                    contracts.append({
+                        "id": emp.id,
+                        "name": emp.name,
+                        "type": "90 Dias",
+                        "date": d90,
+                        "days_left": days_to_90,
+                        "is_today": (days_to_90 == 0),
+                        "shift": get_shift_meta(emp.work_shift)
+                    })
+        contracts.sort(key=lambda x: x['days_left'])
+
+        months_pt = {
+            1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril', 5: 'Maio', 6: 'Junho',
+            7: 'Julho', 8: 'Agosto', 9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
+        }
+        
+        return templates.TemplateResponse("index.html", {
+            "request": request, 
+            "message": "Operação Inteligente - Sistema Iniciado",
+            "user": user,
+            "current_shift": shift or 'Todos',
+            "people_data": {
+                "birthdays": birthdays,
+                "anniversaries": anniversaries,
+                "vacation": vacation_list,
+                "contracts": contracts,
+                "month_name": months_pt.get(today.month, today.strftime('%B'))
+            }
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return HTMLResponse(content=f"<h1>Erro Interno (500)</h1><pre>{traceback.format_exc()}</pre>", status_code=500)
 
 
 
@@ -470,6 +630,22 @@ async def schedule_vacation(
         else:
             if emp.status == 'vacation':
                 emp.status = 'active'
+        
+        # LOG EVENT (New)
+        # Format dates to BR
+        fmt_start = datetime.strptime(data.start_date, "%Y-%m-%d").strftime("%d/%m/%Y")
+        fmt_end = datetime.strptime(data.end_date, "%Y-%m-%d").strftime("%d/%m/%Y")
+        
+        evt_text = f"Férias Agendadas: {fmt_start} a {fmt_end}"
+        new_event = models.Event(
+            employee_id=emp.id,
+            type="ferias_hist",
+            text=evt_text,
+            timestamp=datetime.now(),
+            category="pessoas",
+            sector="RH"
+        )
+        session.add(new_event)
         
         session.add(emp)
         session.commit()
@@ -1011,6 +1187,56 @@ async def delete_event(
         session.commit()
         return RedirectResponse(url=f"/employees/{emp_id}", status_code=status.HTTP_303_SEE_OTHER)
     return RedirectResponse(url="/employees", status_code=status.HTTP_303_SEE_OTHER)
+
+@app.post("/events/{event_id}/update_vacation")
+async def update_vacation_event(
+    event_id: int,
+    request: Request,
+    start_date: str = Form(...),
+    end_date: str = Form(...),
+    session: Session = Depends(get_session)
+):
+    require_login(request)
+    event = session.get(models.Event, event_id)
+    if not event or event.type != 'ferias_hist':
+        raise HTTPException(status_code=404, detail="Evento de férias não encontrado")
+    
+    emp = session.get(models.Employee, event.employee_id)
+    if not emp:
+         raise HTTPException(status_code=404, detail="Colaborador não encontrado")
+
+    try:
+        # Update Employee Dates
+        v_start = datetime.strptime(start_date, "%Y-%m-%d")
+        v_end = datetime.strptime(end_date, "%Y-%m-%d")
+        
+        # Update Event Text (BR Format)
+        fmt_start = v_start.strftime("%d/%m/%Y")
+        fmt_end = v_end.strftime("%d/%m/%Y")
+        event.text = f"Férias Agendadas: {fmt_start} a {fmt_end}"
+        session.add(event)
+        
+        emp.vacation_start = v_start
+        emp.vacation_end = v_end
+        
+        # Re-eval Status
+        today = datetime.now()
+        check_start = v_start.replace(hour=0, minute=0, second=0, microsecond=0)
+        check_end = v_end.replace(hour=23, minute=59, second=59, microsecond=999)
+        
+        if check_start <= today <= check_end:
+             emp.status = 'vacation'
+        else:
+             if emp.status == 'vacation':
+                 emp.status = 'active'
+        
+        session.add(emp)
+        session.commit()
+
+    except ValueError:
+         raise HTTPException(status_code=400, detail="Data inválida")
+
+    return RedirectResponse(url=f"/employees/{emp.id}", status_code=status.HTTP_303_SEE_OTHER)
 
 @app.post("/employees/{emp_id}/update")
 async def update_employee(

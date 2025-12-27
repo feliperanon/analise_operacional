@@ -205,19 +205,34 @@
                             }}</span>
                     </div>
                     <div class="flex justify-between items-center gap-4">
-                        <p class="text-slate-300 text-sm flex-1">{{ e.text }}</p>
-                        <form action="/events/{{ e.id }}/delete" method="POST"
-                            onsubmit="return confirm('Excluir registro de Férias?');">
-                            <button type="submit"
-                                class="text-slate-600 hover:text-red-400 transition-colors p-1.5 hover:bg-slate-800 rounded"
-                                title="Excluir evento">
+                        <div class="flex-1">
+                            <p class="text-slate-300 text-sm">{{ e.text }}</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <!-- Edit Button -->
+                            <button onclick="openEditVacation('{{ e.id }}', '{{ e.text }}')"
+                                class="text-slate-600 hover:text-blue-400 transition-colors p-1.5 hover:bg-slate-800 rounded"
+                                title="Editar datas">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
                                     </path>
                                 </svg>
                             </button>
-                        </form>
+                            <!-- Delete Button -->
+                            <form action="/events/{{ e.id }}/delete" method="POST"
+                                onsubmit="return confirm('Excluir registro de Férias? (Isso não alterará o status atual do colaborador, apenas o histórico)');">
+                                <button type="submit"
+                                    class="text-slate-600 hover:text-red-400 transition-colors p-1.5 hover:bg-slate-800 rounded"
+                                    title="Excluir evento">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                        </path>
+                                    </svg>
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
                 {% endfor %}
@@ -261,6 +276,41 @@
         </div>
     </div>
 
+    <!-- UPDATE VACATION MODAL -->
+    <div id="edit-vacation-modal" class="fixed inset-0 z-[60] hidden" role="dialog" aria-modal="true">
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity opacity-0"
+            id="edit-vacation-backdrop" onclick="closeEditVacation()"></div>
+        <div class="fixed inset-0 flex items-center justify-center p-4">
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-sm transform scale-95 opacity-0 transition-all"
+                id="edit-vacation-panel">
+                <div class="p-6">
+                    <h3 class="text-lg font-bold text-white mb-4">Editar Férias</h3>
+                    <form id="edit-vacation-form" method="POST">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Início</label>
+                                <input type="date" name="start_date" id="edit-start-date" required
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Fim</label>
+                                <input type="date" name="end_date" id="edit-end-date" required
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 outline-none">
+                            </div>
+                        </div>
+                        <div class="mt-6 flex justify-end gap-3">
+                            <button type="button" onclick="closeEditVacation()"
+                                class="px-3 py-2 text-sm text-slate-400 hover:text-white transition">Cancelar</button>
+                            <button type="submit"
+                                class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition shadow-lg shadow-blue-500/20">Salvar
+                                Alterações</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- History Modal -->
     <div id="history-modal" class="fixed inset-0 z-50 hidden" role="dialog" aria-modal="true">
         <!-- Backdrop -->
@@ -292,6 +342,64 @@
     </div>
 
     <script>
+        // --- EDIT VACATION LOGIC ---
+        function openEditVacation(eventId, eventText) {
+            // Must reside within the history modal, but we need to open a secondary modal?
+            // Or replace current modal? Better to stack on top (z-60).
+            const modal = document.getElementById('edit-vacation-modal');
+            const backdrop = document.getElementById('edit-vacation-backdrop');
+            const panel = document.getElementById('edit-vacation-panel');
+            const form = document.getElementById('edit-vacation-form');
+            const startInput = document.getElementById('edit-start-date');
+            const endInput = document.getElementById('edit-end-date');
+
+            form.action = `/events/${eventId}/update_vacation`;
+
+            // Try to extract dates from text "Férias Agendadas: DD/MM/YYYY a DD/MM/YYYY"
+            // Regex match for DD/MM/YYYY
+            const regex = /(\d{2})\/(\d{2})\/(\d{4}) a (\d{2})\/(\d{2})\/(\d{4})/;
+            const match = eventText.match(regex);
+
+            if (match) {
+                // Convert DD/MM/YYYY -> YYYY-MM-DD for input[type="date"]
+                // match[1]=DD, match[2]=MM, match[3]=YYYY
+                startInput.value = `${match[3]}-${match[2]}-${match[1]}`;
+                endInput.value = `${match[6]}-${match[5]}-${match[4]}`;
+            } else {
+                // Fallback: try YYYY-MM-DD just in case of old events
+                const oldRegex = /(\d{4}-\d{2}-\d{2}) a (\d{4}-\d{2}-\d{2})/;
+                const oldMatch = eventText.match(oldRegex);
+                if (oldMatch) {
+                    startInput.value = oldMatch[1];
+                    endInput.value = oldMatch[2];
+                } else {
+                    startInput.value = '';
+                    endInput.value = '';
+                }
+            }
+
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                backdrop.classList.remove('opacity-0');
+                panel.classList.remove('scale-95', 'opacity-0');
+                panel.classList.add('scale-100', 'opacity-100');
+            });
+        }
+
+        function closeEditVacation() {
+            const modal = document.getElementById('edit-vacation-modal');
+            const backdrop = document.getElementById('edit-vacation-backdrop');
+            const panel = document.getElementById('edit-vacation-panel');
+
+            backdrop.classList.add('opacity-0');
+            panel.classList.remove('scale-100', 'opacity-100');
+            panel.classList.add('scale-95', 'opacity-0');
+
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
         function openHistory(type, title) {
             const modal = document.getElementById('history-modal');
             const backdrop = document.getElementById('history-backdrop');
@@ -330,7 +438,14 @@
 
         // Close on escape
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closeHistory();
+            if (e.key === 'Escape') {
+                // Close top-most modal
+                if (!document.getElementById('edit-vacation-modal').classList.contains('hidden')) {
+                    closeEditVacation();
+                } else if (!document.getElementById('history-modal').classList.contains('hidden')) {
+                    closeHistory();
+                }
+            }
         });
     </script>
 
@@ -372,7 +487,16 @@
                         <span
                             class="text-xs font-semibold uppercase tracking-wider 
                         {% if event.type == 'advertencia' %}text-red-400{% elif event.type == 'atestado' %}text-yellow-400{% else %}text-slate-400{% endif %}">
-                            {{ event.type }}
+                            {% if event.type == 'allocacao' %}ALOCAÇÃO
+                            {% elif event.type == 'falta' %}FALTA
+                            {% elif event.type == 'atestado' %}ATESTADO
+                            {% elif event.type == 'ferias_hist' %}FÉRIAS
+                            {% elif event.type == 'demissao' %}DEMISSÃO
+                            {% elif event.type == 'movimentacao' %}MOVIMENTAÇÃO
+                            {% elif event.type == 'advertencia' %}ADVERTÊNCIA
+                            {% elif event.type == 'remocao' %}REMOÇÃO
+                            {% elif event.type == 'retorno' %}RETORNO
+                            {% else %}{{ event.type }}{% endif %}
                         </span>
                         <span class="text-xs text-slate-500">{{ event.timestamp.strftime('%d/%m/%Y %H:%M') }}</span>
                     </div>
@@ -396,7 +520,7 @@
                 </div>
             </div>
             {% else %}
-            <div class="text-slate-500 text-sm italic">Nenhum evento registrado.</div>
+            <div class="text-slate-500 text-sm italic">Nenhum evento registrado no prontuário.</div>
             {% endfor %}
         </div>
     </div>

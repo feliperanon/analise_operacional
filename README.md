@@ -16,10 +16,13 @@ O coração da operação. Uma interface visual interativa para gestão em tempo
 - **Status Sincronizados**: Controle de Férias, Atestados e Afastamentos que sincronizam automaticamente com o banco de dados.
 - **Layout Responsivo**: Adaptado para visualização em telas únicas ou monitores de gestão.
 
-### 2. 👥 Gestão de Colaboradores
-- Cadastro completo de funcionários (Matrícula, Nome, Função, Turno, Centro de Custo).
-- Histórico de alocação e status.
-- Filtros avançados por turno e setor.
+### 2. 👥 Gestão de Colaboradores e Férias
+- **Cadastro Completo**: Matrícula, Nome, Função, Turno e Centro de Custo.
+- **Módulo de Férias Global**:
+    - Agendamento individual de férias com feedback visual.
+    - **Importação em Massa**: Ferramenta para colagem direta do Excel (Matrícula, Início, Fim) para atualizar múltiplos colaboradores de uma vez.
+- **Histórico Automático**: Mudanças de status (Férias, Afastado, Ativo) geram eventos automáticos na timeline do colaborador.
+- **Filtros Inteligentes**: Busca rápida por nome, matrícula e visualização segmentada por turno.
 
 ### 3. 📈 Dashboard e Analytics
 - Visão gerencial dos resultados operacionais.

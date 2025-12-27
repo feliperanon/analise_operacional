@@ -8,82 +8,249 @@
         <p class="text-slate-400">Visão geral da operação hoje.</p>
     </div>
 
-    <!-- Quick Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <!-- Card 1 -->
-        <div
-            class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg group hover:border-blue-500/50 transition-all">
-            <div class="flex items-center gap-4 mb-4">
-                <div
-                    class="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z">
-                        </path>
-                    </svg>
-                </div>
-                <div>
-                    <h3 class="text-slate-400 text-sm font-medium">Colaboradores</h3>
-                    <p class="text-2xl font-bold text-white">Gerenciar</p>
-                </div>
-            </div>
-            <a href="/employees" class="text-blue-400 text-sm font-medium hover:text-blue-300 flex items-center gap-1">
-                Acessar Banco de Dados
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                </svg>
-            </a>
-        </div>
-
-        <!-- Card 2: Clientes -->
-        <div
-            class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg group hover:border-pink-500/50 transition-all">
-            <div class="flex items-center gap-4 mb-4">
-                <div
-                    class="w-12 h-12 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 group-hover:scale-110 transition-transform">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
-                        </path>
-                    </svg>
-                </div>
-                <div>
-                    <h3 class="text-slate-400 text-sm font-medium">Clientes</h3>
-                    <p class="text-2xl font-bold text-white">Carteira</p>
-                </div>
-            </div>
-            <a href="/clients" class="text-pink-400 text-sm font-medium hover:text-pink-300 flex items-center gap-1">
-                Acessar Base
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                </svg>
-            </a>
-        </div>
-
-        <!-- Card 3 (Placeholder) -->
-        <div
-            class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg group hover:border-purple-500/50 transition-all">
-            <div class="flex items-center gap-4 mb-4">
-                <div
-                    class="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
-                        </path>
-                    </svg>
-                </div>
-                <div>
-                    <h3 class="text-slate-400 text-sm font-medium">Turno</h3>
-                    <p class="text-2xl font-bold text-white">Configurar</p>
-                </div>
-            </div>
-            <a href="#" class="text-purple-400 text-sm font-medium hover:text-purple-300 flex items-center gap-1">
-                Acessar Escala
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                </svg>
-            </a>
+    <!-- Filter Bar -->
+    <div class="flex items-center gap-4 mb-6 overflow-x-auto pb-2">
+        <span class="text-slate-400 text-sm font-medium">Filtrar Turno:</span>
+        <div class="flex bg-slate-800 p-1 rounded-lg border border-slate-700">
+            <a href="?shift=Todos"
+                class="px-4 py-1.5 rounded-md text-sm font-medium transition-colors {{ 'bg-slate-600 text-white shadow-sm' if current_shift == 'Todos' else 'text-slate-400 hover:text-white hover:bg-slate-700' }}">Todos</a>
+            <a href="?shift=Manhã"
+                class="px-4 py-1.5 rounded-md text-sm font-medium transition-colors {{ 'bg-blue-600 text-white shadow-sm' if current_shift == 'Manhã' else 'text-slate-400 hover:text-white hover:bg-slate-700' }}">Manhã</a>
+            <a href="?shift=Tarde"
+                class="px-4 py-1.5 rounded-md text-sm font-medium transition-colors {{ 'bg-orange-600 text-white shadow-sm' if current_shift == 'Tarde' else 'text-slate-400 hover:text-white hover:bg-slate-700' }}">Tarde</a>
+            <a href="?shift=Noite"
+                class="px-4 py-1.5 rounded-md text-sm font-medium transition-colors {{ 'bg-purple-600 text-white shadow-sm' if current_shift == 'Noite' else 'text-slate-400 hover:text-white hover:bg-slate-700' }}">Noite</a>
         </div>
     </div>
-</div>
-{% endblock %}
+
+    <!-- People Management Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+
+        <!-- Card 1: Contratos Vencendo (Moved to 1st) -->
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden flex flex-col h-96">
+            <div class="p-6 border-b border-slate-700 bg-slate-800/50">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-slate-400 text-xs font-bold uppercase tracking-wider">Contratos</h3>
+                        <p class="text-xl font-bold text-white">Vencendo (Exp)</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 overflow-y-auto flex-1 space-y-3 custom-scrollbar">
+                {% if people_data.contracts|length == 0 %}
+                <p class="text-slate-500 text-sm text-center py-8">Nenhum contrato vencendo (30d).</p>
+                {% else %}
+                {% for p in people_data.contracts %}
+                <div
+                    class="flex items-center gap-3 p-3 rounded-lg {{ 'bg-red-500/10 border border-red-500/30' if p.is_today or p.days_left < 3 else 'bg-slate-900/50 border border-slate-700/50' }}">
+                    <!-- Shift Badge -->
+                    <div class="flex flex-col items-center gap-1">
+                        <div
+                            class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
+                            {{ p.name[:2]|upper }}
+                        </div>
+                        <span
+                            class="text-[10px] font-bold px-1.5 rounded bg-{{ p.shift.color }}-500/20 text-{{ p.shift.color }}-400 border border-{{ p.shift.color }}-500/30">
+                            {{ p.shift.label }}
+                        </span>
+                    </div>
+
+                    <div class="flex-1 min-w-0">
+                        <a href="/employees/{{ p.id }}"
+                            class="text-sm font-medium text-white truncate hover:text-blue-400 hover:underline transition-colors block">{{
+                            p.name }}</a>
+                        <div class="flex justify-between items-center mt-1">
+                            <span
+                                class="text-[10px] font-bold uppercase tracking-wide px-1.5 rounded bg-slate-700 text-slate-300">{{
+                                p.type }}</span>
+                            <span
+                                class="text-xs {{ 'text-red-400 font-bold animate-pulse' if p.is_today else ('text-red-300' if p.days_left < 7 else 'text-slate-500') }}">
+                                {{ 'VENCE HOJE!' if p.is_today else p.days_left ~ ' dias' }}
+                                <span class="text-[10px] opacity-70">({{ p.date.strftime('%d/%m') }})</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Card 2: Ausências/Férias (Moved to 2nd & Updated) -->
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden flex flex-col h-96">
+            <div class="p-6 border-b border-slate-700 bg-slate-800/50">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-slate-400 text-xs font-bold uppercase tracking-wider">Ausências</h3>
+                        <p class="text-xl font-bold text-white">Férias</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-400">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z">
+                            </path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 overflow-y-auto flex-1 space-y-3 custom-scrollbar">
+                {% if people_data.vacation|length == 0 %}
+                <p class="text-slate-500 text-sm text-center py-8">Ninguém de férias (atual/prox).</p>
+                {% else %}
+                {% for p in people_data.vacation %}
+                <div
+                    class="flex items-center gap-3 p-3 rounded-lg border {{ 'bg-slate-900/50 border-slate-700/50' if p.is_active else 'bg-slate-800/30 border-slate-700/30 opacity-80' }}">
+                    <div class="flex flex-col items-center gap-1">
+                        <div class="relative">
+                            <div
+                                class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
+                                {{ p.name[:2]|upper }}
+                            </div>
+                            {% if p.is_active %}
+                            <div
+                                class="absolute -bottom-1 -right-1 bg-orange-500 text-white text-[10px] px-1 rounded-full border border-slate-900">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z">
+                                    </path>
+                                </svg>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <span
+                            class="text-[10px] font-bold px-1.5 rounded bg-{{ p.shift.color }}-500/20 text-{{ p.shift.color }}-400 border border-{{ p.shift.color }}-500/30">
+                            {{ p.shift.label }}
+                        </span>
+                    </div>
+
+                    <div class="flex-1 min-w-0">
+                        <a href="/employees/{{ p.id }}"
+                            class="text-sm font-medium text-white truncate hover:text-blue-400 hover:underline transition-colors block">{{
+                            p.name }}</a>
+                        <div class="flex justify-between items-center mt-1">
+                            <span
+                                class="text-[10px] font-bold uppercase tracking-wide px-1.5 rounded {{ 'bg-orange-500/20 text-orange-400' if p.is_active else 'bg-slate-700 text-slate-400' }}">
+                                {{ p.status }}
+                            </span>
+                            <span class="text-xs text-slate-400">
+                                {{ p.date_info }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Card 3: Aniversariantes (Moved to 3rd) -->
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden flex flex-col h-96">
+            <div class="p-6 border-b border-slate-700 bg-slate-800/50">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-slate-400 text-xs font-bold uppercase tracking-wider">Aniversariantes</h3>
+                        <p class="text-xl font-bold text-white">{{ people_data.month_name }}</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-lg bg-pink-500/10 flex items-center justify-center text-pink-400">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 15.546c-.523 0-1.046.151-1.5.454a2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0 2.701 2.701 0 00-1.5-.454M9 6v2m3-2v2m3-2v2M9 3h.01M12 3h.01M15 3h.01M21 21v-7a2 2 0 00-2-2H5a2 2 0 00-2 2v7h18zm-3-9v-2a2 2 0 00-2-2H8a2 2 0 00-2 2v2h12z">
+                            </path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 overflow-y-auto flex-1 space-y-3 custom-scrollbar">
+                {% if people_data.birthdays|length == 0 %}
+                <p class="text-slate-500 text-sm text-center py-8">Nenhum aniversariante.</p>
+                {% else %}
+                {% for p in people_data.birthdays %}
+                <div
+                    class="flex items-center gap-3 p-3 rounded-lg {{ 'bg-pink-500/10 border border-pink-500/30' if p.is_today else 'bg-slate-900/50 border border-slate-700/50' }}">
+                    <!-- Shift Badge -->
+                    <div class="flex flex-col items-center gap-1">
+                        <div
+                            class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
+                            {{ p.name[:2]|upper }}
+                        </div>
+                        <span
+                            class="text-[10px] font-bold px-1.5 rounded bg-{{ p.shift.color }}-500/20 text-{{ p.shift.color }}-400 border border-{{ p.shift.color }}-500/30">
+                            {{ p.shift.label }}
+                        </span>
+                    </div>
+
+                    <div class="flex-1 min-w-0">
+                        <a href="/employees/{{ p.id }}"
+                            class="text-sm font-medium text-white truncate hover:text-blue-400 hover:underline transition-colors block">{{
+                            p.name }}</a>
+                        <p class="text-xs {{ 'text-pink-400 font-bold' if p.is_today else 'text-slate-500' }}">
+                            {{ 'HOJE!' if p.is_today else 'Dia ' ~ p.day }}
+                        </p>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Card 4: Tempo de Casa (Moved to 4th) -->
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden flex flex-col h-96">
+            <div class="p-6 border-b border-slate-700 bg-slate-800/50">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-slate-400 text-xs font-bold uppercase tracking-wider">Tempo de Casa</h3>
+                        <p class="text-xl font-bold text-white">Aniversário de Empresa</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7">
+                            </path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 overflow-y-auto flex-1 space-y-3 custom-scrollbar">
+                {% if people_data.anniversaries|length == 0 %}
+                <p class="text-slate-500 text-sm text-center py-8">Nenhum aniversário de casa.</p>
+                {% else %}
+                {% for p in people_data.anniversaries %}
+                <div
+                    class="flex items-center gap-3 p-3 rounded-lg {{ 'bg-blue-500/10 border border-blue-500/30' if p.is_today else 'bg-slate-900/50 border border-slate-700/50' }}">
+                    <!-- Shift Badge -->
+                    <div class="flex flex-col items-center gap-1">
+                        <div
+                            class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
+                            {{ p.name[:2]|upper }}
+                        </div>
+                        <span
+                            class="text-[10px] font-bold px-1.5 rounded bg-{{ p.shift.color }}-500/20 text-{{ p.shift.color }}-400 border border-{{ p.shift.color }}-500/30">
+                            {{ p.shift.label }}
+                        </span>
+                    </div>
+
+                    <div class="flex-1 min-w-0">
+                        <a href="/employees/{{ p.id }}"
+                            class="text-sm font-medium text-white truncate hover:text-blue-400 hover:underline transition-colors block">{{
+                            p.name }}</a>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-blue-400 font-bold bg-blue-500/10 px-1.5 py-0.5 rounded">{{
+                                p.years }} Anos</span>
+                            <span class="text-xs {{ 'text-blue-400 font-bold' if p.is_today else 'text-slate-500' }}">
+                                {{ 'HOJE!' if p.is_today else 'Dia ' ~ p.day }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endblock %}
