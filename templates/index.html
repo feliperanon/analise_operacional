@@ -8,82 +8,314 @@
         <p class="text-slate-400">Visão geral da operação hoje.</p>
     </div>
 
-    <!-- Quick Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <!-- Card 1 -->
+    <!-- Filter Section -->
+    <div class="mb-6 flex justify-end">
+        <div class="bg-slate-800 p-1 rounded-lg border border-slate-700 inline-flex shadow-sm">
+            <button onclick="filterDashboard('all')"
+                class="filter-btn active px-3 py-1.5 text-xs font-medium rounded-md transition-all text-white bg-slate-700 shadow-sm border border-slate-600"
+                data-filter="all">Todos</button>
+            <button onclick="filterDashboard('Manhã')"
+                class="filter-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-white border border-transparent"
+                data-filter="Manhã">Manhã</button>
+            <button onclick="filterDashboard('Tarde')"
+                class="filter-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-white border border-transparent"
+                data-filter="Tarde">Tarde</button>
+            <button onclick="filterDashboard('Noite')"
+                class="filter-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-white border border-transparent"
+                data-filter="Noite">Noite</button>
+        </div>
+    </div>
+
+    <!-- Custom Dashboard Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+
+        <!-- Card 1: Upcoming Vacations -->
         <div
-            class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg group hover:border-blue-500/50 transition-all">
-            <div class="flex items-center gap-4 mb-4">
-                <div
-                    class="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            class="bg-slate-800 rounded-xl border border-slate-700/50 shadow-sm flex flex-col h-[420px] overflow-hidden">
+            <!-- Clean Header -->
+            <div class="px-6 py-5 border-b border-slate-700/50 flex justify-between items-center bg-slate-800">
+                <div class="flex items-center gap-2.5">
+                    <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z">
-                        </path>
+                            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                     </svg>
+                    <h3 class="text-slate-200 font-medium text-sm">Próximas Férias</h3>
                 </div>
-                <div>
-                    <h3 class="text-slate-400 text-sm font-medium">Colaboradores</h3>
-                    <p class="text-2xl font-bold text-white">Gerenciar</p>
+                <span
+                    class="text-[10px] text-slate-500 bg-slate-700/30 px-2 py-0.5 rounded-full border border-slate-700/30">30
+                    dias</span>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-2" id="list-vacations">
+                {% if vacations_soon %}
+                {% for v in vacations_soon %}
+                <div class="dashboard-item flex items-center justify-between p-2.5 rounded-lg hover:bg-slate-700/30 transition border border-transparent hover:border-slate-700/50 group"
+                    data-shift="{{ v.shift }}">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-xs font-bold text-slate-500 border border-slate-700/50 group-hover:border-blue-500/30 group-hover:text-blue-400 transition">
+                            {{ v.name[:2] }}
+                        </div>
+                        <div>
+                            <a href="/employees/{{ v.id }}"
+                                class="text-slate-300 text-sm font-medium hover:text-white transition block">
+                                {{ v.name }}
+                            </a>
+                            <div class="text-[10px] text-slate-500 uppercase tracking-wide">{{ v.shift }}</div>
+                        </div>
+                    </div>
+                    <div
+                        class="text-[10px] font-medium text-blue-400 bg-blue-500/5 px-2 py-0.5 rounded border border-blue-500/10 whitespace-nowrap">
+                        {{ v.start }} - {{ v.end }}
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="h-full flex flex-col items-center justify-center text-slate-500 gap-2">
+                    <span class="text-xs">Sem férias próximas.</span>
+                </div>
+                {% endif %}
+                <div class="hidden text-center py-10 text-slate-500 text-xs no-results">
+                    Nenhum registro neste turno.
                 </div>
             </div>
-            <a href="/employees" class="text-blue-400 text-sm font-medium hover:text-blue-300 flex items-center gap-1">
-                Acessar Banco de Dados
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                </svg>
-            </a>
         </div>
 
-        <!-- Card 2: Clientes -->
+        <!-- Card 2: Birthdays -->
         <div
-            class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg group hover:border-pink-500/50 transition-all">
-            <div class="flex items-center gap-4 mb-4">
-                <div
-                    class="w-12 h-12 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 group-hover:scale-110 transition-transform">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            class="bg-slate-800 rounded-xl border border-slate-700/50 shadow-sm flex flex-col h-[420px] overflow-hidden">
+            <!-- Clean Header -->
+            <div class="px-6 py-5 border-b border-slate-700/50 flex justify-between items-center bg-slate-800">
+                <div class="flex items-center gap-2.5">
+                    <svg class="w-4 h-4 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
+                            d="M21 15.546c-.523 0-1.046.151-1.5.454a2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0 2.701 2.701 0 00-1.5-.454M9 6v2m3-2v2m3-2v2M9 3h.01M12 3h.01M15 3h.01M21 21v-7a2 2 0 00-2-2H5a2 2 0 00-2 2v7h18zm-3-9v-2a2 2 0 00-2-2H8a2 2 0 00-2 2v2h12z">
                         </path>
                     </svg>
+                    <h3 class="text-slate-200 font-medium text-sm">Aniversariantes</h3>
                 </div>
-                <div>
-                    <h3 class="text-slate-400 text-sm font-medium">Clientes</h3>
-                    <p class="text-2xl font-bold text-white">Carteira</p>
+                <span
+                    class="text-[10px] text-slate-500 bg-slate-700/30 px-2 py-0.5 rounded-full border border-slate-700/30">Mês
+                    atual</span>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-2" id="list-birthdays">
+                {% if birthdays_month %}
+                {% for b in birthdays_month %}
+                <div class="dashboard-item flex items-center justify-between p-2.5 rounded-lg hover:bg-slate-700/30 transition border border-transparent hover:border-slate-700/50 group"
+                    data-shift="{{ b.shift }}">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-xs font-bold text-slate-500 border border-slate-700/50 group-hover:border-pink-500/30 group-hover:text-pink-400 transition">
+                            {{ b.name[:2] }}
+                        </div>
+                        <div>
+                            <a href="/employees/{{ b.id }}"
+                                class="text-slate-300 text-sm font-medium hover:text-white transition block">
+                                {{ b.name }}
+                            </a>
+                            <div class="text-[10px] text-slate-500 uppercase tracking-wide">{{ b.shift }}</div>
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-end">
+                        <span
+                            class="text-[10px] font-bold text-pink-400 bg-pink-500/5 px-2 py-0.5 rounded border border-pink-500/10">{{
+                            b.date_str }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="h-full flex flex-col items-center justify-center text-slate-500 gap-2">
+                    <span class="text-xs">Nenhum aniversariante.</span>
+                </div>
+                {% endif %}
+                <div class="hidden text-center py-10 text-slate-500 text-xs no-results">
+                    Nenhum registro neste turno.
                 </div>
             </div>
-            <a href="/clients" class="text-pink-400 text-sm font-medium hover:text-pink-300 flex items-center gap-1">
-                Acessar Base
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                </svg>
-            </a>
         </div>
 
-        <!-- Card 3 (Placeholder) -->
+        <!-- Card 3: Work Anniversary (NEW) -->
         <div
-            class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg group hover:border-purple-500/50 transition-all">
-            <div class="flex items-center gap-4 mb-4">
-                <div
-                    class="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            class="bg-slate-800 rounded-xl border border-slate-700/50 shadow-sm flex flex-col h-[420px] overflow-hidden">
+            <!-- Clean Header -->
+            <div class="px-6 py-5 border-b border-slate-700/50 flex justify-between items-center bg-slate-800">
+                <div class="flex items-center gap-2.5">
+                    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
-                        </path>
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
+                    <h3 class="text-slate-200 font-medium text-sm">Tempo de Casa</h3>
                 </div>
-                <div>
-                    <h3 class="text-slate-400 text-sm font-medium">Turno</h3>
-                    <p class="text-2xl font-bold text-white">Configurar</p>
+                <span
+                    class="text-[10px] text-slate-500 bg-slate-700/30 px-2 py-0.5 rounded-full border border-slate-700/30">Mês
+                    atual</span>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-2" id="list-anniversary">
+                {% if work_anniversaries %}
+                {% for w in work_anniversaries %}
+                <div class="dashboard-item flex items-center justify-between p-2.5 rounded-lg hover:bg-slate-700/30 transition border border-transparent hover:border-slate-700/50 group"
+                    data-shift="{{ w.shift }}">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-xs font-bold text-slate-500 border border-slate-700/50 group-hover:border-emerald-500/30 group-hover:text-emerald-400 transition">
+                            {{ w.name[:2] }}
+                        </div>
+                        <div>
+                            <a href="/employees/{{ w.id }}"
+                                class="text-slate-300 text-sm font-medium hover:text-white transition block">
+                                {{ w.name }}
+                            </a>
+                            <div class="text-[10px] text-slate-500 uppercase tracking-wide">{{ w.shift }}</div>
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-end">
+                        <span
+                            class="text-[10px] font-bold text-emerald-400 bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/10">{{
+                            w.years }} Ano(s)</span>
+                        <span class="text-[10px] text-slate-500 mt-0.5">{{ w.date_str }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="h-full flex flex-col items-center justify-center text-slate-500 gap-2">
+                    <span class="text-xs">Nenhum aniversário de casa.</span>
+                </div>
+                {% endif %}
+                <div class="hidden text-center py-10 text-slate-500 text-xs no-results">
+                    Nenhum registro neste turno.
                 </div>
             </div>
-            <a href="#" class="text-purple-400 text-sm font-medium hover:text-purple-300 flex items-center gap-1">
-                Acessar Escala
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                </svg>
-            </a>
+        </div>
+
+        <!-- Card 4: Probation Expiration -->
+        <div
+            class="bg-slate-800 rounded-xl border border-slate-700/50 shadow-sm flex flex-col h-[420px] overflow-hidden">
+            <!-- Clean Header -->
+            <div class="px-6 py-5 border-b border-slate-700/50 flex justify-between items-center bg-slate-800">
+                <div class="flex items-center gap-2.5">
+                    <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <h3 class="text-slate-200 font-medium text-sm">Experiência</h3>
+                </div>
+                <span
+                    class="text-[10px] text-slate-500 bg-slate-700/30 px-2 py-0.5 rounded-full border border-slate-700/30">Vencimento</span>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-2" id="list-probation">
+                {% if probation_risks %}
+                {% for p in probation_risks %}
+                <div class="dashboard-item flex items-center justify-between p-2.5 rounded-lg hover:bg-slate-700/30 transition border border-transparent hover:border-slate-700/50 group"
+                    data-shift="{{ p.shift }}">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-xs font-bold text-slate-500 border border-slate-700/50 group-hover:border-purple-500/30 group-hover:text-purple-400 transition">
+                            {{ p.name[:2] }}
+                        </div>
+                        <div>
+                            <a href="/employees/{{ p.id }}"
+                                class="text-slate-300 text-sm font-medium hover:text-white transition block">
+                                {{ p.name }}
+                            </a>
+                            <div class="text-[10px] text-slate-500 uppercase tracking-wide">{{ p.shift }}</div>
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-end">
+                        <div
+                            class="text-[10px] font-bold text-purple-400 bg-purple-500/5 px-2 py-0.5 rounded border border-purple-500/10">
+                            {{ p.date }}
+                        </div>
+                        <span class="text-[10px] text-slate-500 mt-0.5">{{ p.type }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="h-full flex flex-col items-center justify-center text-slate-500 gap-2">
+                    <span class="text-xs">Nenhum vencimento.</span>
+                </div>
+                {% endif %}
+                <div class="hidden text-center py-10 text-slate-500 text-xs no-results">
+                    Nenhum registro neste turno.
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+<script>
+    function filterDashboard(shift) {
+        // Update Buttons
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            if (btn.dataset.filter === shift) {
+                // Active Style
+                btn.classList.add('bg-slate-700', 'text-white', 'shadow-sm', 'border-slate-600');
+                btn.classList.remove('text-slate-400', 'hover:text-white', 'border-transparent');
+                btn.classList.add('active');
+            } else {
+                // Inactive Style
+                btn.classList.remove('bg-slate-700', 'text-white', 'shadow-sm', 'border-slate-600', 'active');
+                btn.classList.add('text-slate-400', 'hover:text-white', 'border-transparent');
+            }
+        });
+
+        // Filter Items
+        const lists = ['list-vacations', 'list-birthdays', 'list-probation'];
+
+        lists.forEach(listId => {
+            const container = document.getElementById(listId);
+            if (!container) return;
+
+            const items = container.querySelectorAll('.dashboard-item');
+            const noResultsMsg = container.querySelector('.no-results');
+            let visibleCount = 0;
+
+            items.forEach(item => {
+                const itemShift = item.dataset.shift;
+                // normalize comparison
+                const match = (shift === 'all') || (itemShift && itemShift.toLowerCase() === shift.toLowerCase());
+
+                if (match) {
+                    item.classList.remove('hidden');
+                    item.classList.add('flex');
+                    visibleCount++;
+                } else {
+                    item.classList.add('hidden');
+                    item.classList.remove('flex');
+                }
+            });
+
+            // Toggle No Results Message
+            if (items.length > 0) {
+                if (visibleCount === 0) {
+                    noResultsMsg.classList.remove('hidden');
+                } else {
+                    noResultsMsg.classList.add('hidden');
+                }
+            }
+        });
+    }
+</script>
+
+<style>
+    /* Custom Scrollbar */
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(71, 85, 105, 0.4);
+        border-radius: 4px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(148, 163, 184, 0.6);
+    }
+</style>
 {% endblock %}

@@ -3,7 +3,7 @@ from fastapi import FastAPI, Request, Form, Depends, HTTPException, status
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from datetime import datetime
+from datetime import datetime, timedelta
 from starlette.middleware.sessions import SessionMiddleware
 from sqlmodel import Session, select
 from database import create_db_and_tables, get_session
@@ -339,15 +339,100 @@ async def update_separacao(
 
 
 @app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
+async def read_root(request: Request, session: Session = Depends(get_session)):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login")
     
+    # --- Dashboard Data Logic ---
+    today = datetime.now()
+    next_30 = today + timedelta(days=30)
+    
+    employees = session.exec(select(models.Employee).where(models.Employee.status != "fired")).all()
+    
+    vacations_soon = []
+    birthdays_month = []
+    probation_risks = []
+    work_anniversaries = []
+    
+    current_month = today.month
+    
+    for emp in employees:
+        # 1. Upcoming Vacations (Next 30 days)
+        if emp.vacation_start:
+             # Check if starts in [today, next_30]
+             if today <= emp.vacation_start <= next_30:
+                 vacations_soon.append({
+                     "id": emp.id,
+                     "name": emp.name,
+                     "shift": emp.work_shift,
+                     "start": emp.vacation_start.strftime("%d/%m"),
+                     "end": emp.vacation_end.strftime("%d/%m") if emp.vacation_end else "?"
+                 })
+    
+        # 2. Birthdays (Current Month)
+        if emp.birthday:
+            if emp.birthday.month == current_month:
+                birthdays_month.append({
+                    "id": emp.id,
+                    "name": emp.name,
+                    "shift": emp.work_shift,
+                    "day": emp.birthday.day,
+                    "date_str": emp.birthday.strftime("%d/%m")
+                })
+        
+        # 3. Probation Expiration (45 or 90 days)
+        if emp.admission_date:
+            d45 = emp.admission_date + timedelta(days=45)
+            d90 = emp.admission_date + timedelta(days=90)
+            
+            # Check if d45 is in next 30 days
+            if today <= d45 <= next_30:
+                probation_risks.append({
+                    "id": emp.id,
+                    "name": emp.name,
+                    "shift": emp.work_shift,
+                    "type": "45 dias",
+                    "date": d45.strftime("%d/%m")
+                })
+            
+            # Check if d90 is in next 30 days
+            if today <= d90 <= next_30:
+                probation_risks.append({
+                    "id": emp.id,
+                    "name": emp.name,
+                    "shift": emp.work_shift,
+                    "type": "90 dias",
+                    "date": d90.strftime("%d/%m")
+                })
+                
+            # 4. Work Anniversary (Current Month)
+            # Only if not admitted this year (must have at least 1 year)
+            if emp.admission_date.month == current_month and emp.admission_date.year < today.year:
+                years = today.year - emp.admission_date.year
+                work_anniversaries.append({
+                    "id": emp.id,
+                    "name": emp.name,
+                    "shift": emp.work_shift,
+                    "years": years,
+                    "date_str": emp.admission_date.strftime("%d/%m"),
+                    "day": emp.admission_date.day
+                })
+
+    # Sort lists
+    vacations_soon.sort(key=lambda x: datetime.strptime(x['start'], "%d/%m").replace(year=today.year))
+    birthdays_month.sort(key=lambda x: x['day'])
+    probation_risks.sort(key=lambda x: datetime.strptime(x['date'], "%d/%m").replace(year=today.year))
+    work_anniversaries.sort(key=lambda x: x['day'])
+
     return templates.TemplateResponse("index.html", {
         "request": request, 
         "message": "Operação Inteligente - Sistema Iniciado",
-        "user": user
+        "user": user,
+        "vacations_soon": vacations_soon,
+        "birthdays_month": birthdays_month,
+        "probation_risks": probation_risks,
+        "work_anniversaries": work_anniversaries
     })
 
 
@@ -962,36 +1047,50 @@ async def add_employee(
     
     return RedirectResponse(url="/employees", status_code=status.HTTP_303_SEE_OTHER)
 
-@app.get("/employees/{emp_id}", response_class=HTMLResponse)
-async def get_employee_details(request: Request, emp_id: int, session: Session = Depends(get_session)):
-    try:
-        require_login(request)
-        emp = session.get(models.Employee, emp_id)
-        if not emp:
-            raise HTTPException(status_code=404, detail="Colaborador não encontrado")
+@app.get("/employees/{employee_id}", response_class=HTMLResponse)
+async def read_employee(request: Request, employee_id: int, session: Session = Depends(get_session)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
         
-        # Fetch events sorted by date desc
-        stmt = select(models.Event).where(models.Event.employee_id == emp_id).order_by(models.Event.timestamp.desc())
-        events = session.exec(stmt).all()
+    employee = session.get(models.Employee, employee_id)
+    if not employee:
+        # Handle 404
+        return RedirectResponse(url="/employees")
         
-        # Calculate stats
-        stats = {
-            "faltas": sum(1 for e in events if e.type == "falta"),
-            "atestados": sum(1 for e in events if e.type == "atestado"),
-            "advertencias": sum(1 for e in events if e.type == "advertencia"),
-            "ferias": sum(1 for e in events if e.type == "ferias_hist"), 
-        }
-        
-        return templates.TemplateResponse("employee_detail.html", {
-            "request": request,
-            "emp": emp,
-            "events": events,
-            "stats": stats
-        })
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return HTMLResponse(content=f"<h1>Erro no Servidor</h1><pre>{traceback.format_exc()}</pre>", status_code=500)
+    # Stats
+    today_date = datetime.now()
+    
+    # Calculate Tenure
+    tenure_str = "-"
+    if employee.admission_date:
+        delta = today_date.date() - employee.admission_date
+        years = delta.days // 365
+        months = (delta.days % 365) // 30
+        tenure_str = f"{years} anos, {months} meses"
+
+    # Count events
+    events = session.exec(select(models.Event).where(models.Event.employee_id == employee_id).order_by(models.Event.timestamp.desc())).all()
+    
+    warnings = len([e for e in events if e.type == 'advertencia'])
+    medicals = len([e for e in events if e.type == 'atestado'])
+    absences = len([e for e in events if e.type == 'falta'])
+    
+    stats = {
+        "advertencias": warnings,
+        "atestados": medicals,
+        "faltas": absences
+    }
+
+    return templates.TemplateResponse("employee_detail.html", {
+        "request": request, 
+        "emp": employee, 
+        "events": events, 
+        "user": user,
+        "stats": stats,
+        "tenure": tenure_str
+    })
+
 
 @app.post("/employees/{emp_id}/status")
 async def update_employee_status(

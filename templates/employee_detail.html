@@ -52,8 +52,7 @@
             <div class="mt-4 flex gap-4 text-xs text-slate-500">
                 <div>Admissão: <span class="text-slate-300">{{ emp.admission_date.strftime('%d/%m/%Y') if
                         emp.admission_date else '-' }}</span></div>
-                <div>Aniversário: <span class="text-slate-300">{{ emp.birthday.strftime('%d/%m/%Y') if emp.birthday else
-                        '-' }}</span></div>
+                <div>Tempo de Casa: <span class="font-bold text-emerald-400">{{ tenure }}</span></div>
             </div>
         </div>
         <div class="ml-auto flex flex-col gap-2 items-end">
@@ -371,8 +370,13 @@
                     <div class="flex justify-between items-start mb-2">
                         <span
                             class="text-xs font-semibold uppercase tracking-wider 
-                        {% if event.type == 'advertencia' %}text-red-400{% elif event.type == 'atestado' %}text-yellow-400{% else %}text-slate-400{% endif %}">
-                            {{ event.type }}
+                        {% if event.type == 'advertencia' %}text-red-400{% elif event.type == 'atestado' %}text-yellow-400{% elif event.type == 'ferias_hist' %}text-blue-400{% elif event.type == 'allocacao' %}text-slate-300{% else %}text-slate-400{% endif %}">
+                            {% if event.type == 'advertencia' %}ADVERTÊNCIA
+                            {% elif event.type == 'atestado' %}ATESTADO
+                            {% elif event.type == 'ferias_hist' %}FÉRIAS
+                            {% elif event.type == 'falta' %}FALTA
+                            {% elif event.type == 'allocacao' %}ALOCAÇÃO
+                            {% else %}{{ event.type }}{% endif %}
                         </span>
                         <span class="text-xs text-slate-500">{{ event.timestamp.strftime('%d/%m/%Y %H:%M') }}</span>
                     </div>
