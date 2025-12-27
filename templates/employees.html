@@ -488,7 +488,143 @@
     </div>
 </div>
 
+<<<<<<< HEAD
 <!-- Vacation Schedule Modal -->
+=======
+<script>
+    function openEditModal(emp) {
+        document.getElementById('editForm').action = '/employees/' + emp.id + '/update';
+        document.getElementById('editName').value = emp.name;
+        document.getElementById('editReg').value = emp.registration_id;
+        document.getElementById('editRole').value = emp.role;
+        document.getElementById('editCost').value = emp.cost_center;
+        document.getElementById('editShift').value = emp.work_shift;
+
+        // Dates need to be YYYY-MM-DD
+        if (emp.admission_date) {
+            document.getElementById('editAdmission').value = emp.admission_date.split('T')[0];
+        }
+        if (emp.birthday) {
+            document.getElementById('editBirthday').value = emp.birthday.split('T')[0];
+        }
+
+        document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    let currentFilter = 'all';
+
+    function setFilter(filter) {
+        currentFilter = filter;
+
+        // Update Buttons
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            if (btn.dataset.filter === filter) {
+                btn.classList.add('bg-slate-700', 'text-white', 'active');
+                btn.classList.remove('bg-slate-900', 'text-slate-400');
+            } else {
+                btn.classList.remove('bg-slate-700', 'text-white', 'active');
+                btn.classList.add('bg-slate-900', 'text-slate-400');
+            }
+        });
+
+        filterTable();
+    }
+
+    function filterTable() {
+        const input = document.getElementById('searchInput');
+        const searchVal = input.value.toLowerCase();
+        const rows = document.querySelectorAll('.employee-row');
+        const tbody = document.getElementById('tableBody');
+
+        // Logic: 
+        // If search is empty AND filter is 'all' -> Hide List (as per request "Não aparecer lista")
+        // But maybe "Todos" should show all?
+        // User said: "Não aparecer lista de colaboradores... Ter a opção de marcar e selecionar para exibir todos os colaboradores"
+        // So: If search is empty AND filter is 'all' AND user hasn't explicitly clicked 'Todos' maybe?
+        // Let's assume if they click "Todos" btn they want to see all. 
+        // If they just landed, we hide.
+        // We can track if a filter/search interaction happened?
+
+        // Simplification: Always show based on filter logic, but verify "default hidden".
+        // Use a class or just check values.
+
+        let hasVisible = false;
+
+        rows.forEach(row => {
+            const name = row.dataset.name;
+            const reg = row.dataset.reg;
+            const shift = row.dataset.shift;
+            const status = row.dataset.status;
+
+            let matchesSearch = !searchVal || name.includes(searchVal) || reg.includes(searchVal);
+            let matchesFilter = false;
+
+            if (currentFilter === 'all') {
+                // Show all active employees used to be default, but maybe users want to see everyone including vacation? 
+                // Usually "Todos" means "Todos Ativos" in shifts contexts, let's keep it simple: Show all.
+                matchesFilter = true;
+            } else if (['Manhã', 'Tarde', 'Noite'].includes(currentFilter)) {
+                // If shift filter, strictly that shift. Using derived shift.
+                matchesFilter = (shift === currentFilter);
+            } else {
+                // If status filter (vacation, away, fired)
+                matchesFilter = status === currentFilter;
+            }
+
+            if (matchesSearch && matchesFilter) {
+                row.classList.remove('hidden');
+                hasVisible = true;
+            } else {
+                row.classList.add('hidden');
+            }
+        });
+
+        // Toggle tbody visibility based on whether we should show anything or if search/filter is present
+        // User wants: Default hidden.
+        // If "Todos" is active but search is empty, maybe hidden? 
+        // Use flag: 
+        if (searchVal.length > 0 || currentFilter !== 'all' || document.querySelector('.filter-btn[data-filter="all"]').classList.contains('active')) {
+            tbody.classList.remove('hidden');
+        }
+    }
+    function sortTable(criteria) {
+        const tbody = document.getElementById('tableBody');
+        const rows = Array.from(document.querySelectorAll('.employee-row'));
+
+        // Highlight active sort button
+        // (Simplified: just sorting logic first)
+
+        rows.sort((a, b) => {
+            let valA, valB;
+
+            if (criteria === 'name') {
+                valA = a.dataset.name;
+                valB = b.dataset.name;
+            } else if (criteria === 'reg') {
+                valA = parseInt(a.dataset.reg) || 0;
+                valB = parseInt(b.dataset.reg) || 0;
+            } else if (criteria === 'date') {
+                valA = a.dataset.admission || '';
+                valB = b.dataset.admission || '';
+            }
+
+            if (valA < valB) return -1;
+            if (valA > valB) return 1;
+            return 0;
+        });
+
+        // Re-append
+        rows.forEach(row => tbody.appendChild(row));
+    }
+
+    // Vacation logic consolidated in the script block at the end of file
+</script>
+
+
+
+
+<!-- Vacation Modal -->
+>>>>>>> 5c5d69a3c49a04aff106ba90af32869e4540d976
 <div id="vacation-schedule-modal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog"
     aria-modal="true">
     <div class="absolute inset-0 bg-slate-900/90 backdrop-blur-sm transition-opacity"></div>
@@ -804,5 +940,9 @@
         }
     }
 </script>
+<<<<<<< HEAD
 {% endblock %}
 ```
+=======
+{% endblock %}
+>>>>>>> 5c5d69a3c49a04aff106ba90af32869e4540d976
