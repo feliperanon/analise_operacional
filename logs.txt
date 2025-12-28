@@ -1774,3 +1774,1146 @@ FROM route
 WHERE route.date = %(date_1)s AND route.shift = %(shift_1)s
 2025-12-28 12:04:16,586 INFO [cached since 2097s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
 2025-12-28 12:04:16,830 INFO ROLLBACK
+2025-12-28 16:40:17,578 INFO select pg_catalog.version()
+2025-12-28 16:40:17,579 INFO [raw sql] {}
+2025-12-28 16:40:17,877 INFO select current_schema()
+2025-12-28 16:40:17,877 INFO [raw sql] {}
+2025-12-28 16:40:18,172 INFO show standard_conforming_strings
+2025-12-28 16:40:18,172 INFO [raw sql] {}
+2025-12-28 16:40:18,463 INFO BEGIN (implicit)
+2025-12-28 16:40:18,466 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:40:18,466 INFO [generated in 0.00030s] {'table_name': 'shift', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:40:18,761 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:40:18,762 INFO [cached since 0.2955s ago] {'table_name': 'headcounttarget', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:40:18,907 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:40:18,908 INFO [cached since 0.4414s ago] {'table_name': 'employee', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:40:19,053 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:40:19,053 INFO [cached since 0.5871s ago] {'table_name': 'dailyoperation', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:40:19,204 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:40:19,204 INFO [cached since 0.7382s ago] {'table_name': 'event', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:40:19,353 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:40:19,354 INFO [cached since 0.8875s ago] {'table_name': 'user', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:40:19,501 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:40:19,501 INFO [cached since 1.035s ago] {'table_name': 'sectorconfiguration', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:40:19,647 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:40:19,647 INFO [cached since 1.181s ago] {'table_name': 'client', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:40:19,794 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:40:19,794 INFO [cached since 1.328s ago] {'table_name': 'route', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:40:19,939 INFO COMMIT
+2025-12-28 16:40:32,240 INFO BEGIN (implicit)
+2025-12-28 16:40:32,249 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status = %(status_1)s
+2025-12-28 16:40:32,249 INFO [generated in 0.00040s] {'status_1': 'active'}
+2025-12-28 16:40:32,696 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status = %(status_1)s
+2025-12-28 16:40:32,697 INFO [cached since 0.4478s ago] {'status_1': 'vacation'}
+2025-12-28 16:40:32,876 INFO ROLLBACK
+2025-12-28 16:40:37,308 INFO BEGIN (implicit)
+2025-12-28 16:40:37,309 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 16:40:37,309 INFO [generated in 0.00024s] {'status_1': 'fired'}
+2025-12-28 16:40:37,782 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 16:40:37,782 INFO [generated in 0.00034s] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 16:40:37,934 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.shift = %(shift_1)s AND dailyoperation.date < %(date_1)s ORDER BY dailyoperation.date DESC
+2025-12-28 16:40:37,935 INFO [generated in 0.00035s] {'shift_1': 'Manhã', 'date_1': '2025-12-28'}
+2025-12-28 16:40:38,085 INFO SELECT headcounttarget.id, headcounttarget.shift_name, headcounttarget.target_value 
+FROM headcounttarget 
+WHERE headcounttarget.shift_name = %(shift_name_1)s
+2025-12-28 16:40:38,086 INFO [generated in 0.00038s] {'shift_name_1': 'Manhã'}
+2025-12-28 16:40:38,304 INFO SELECT sectorconfiguration.id, sectorconfiguration.shift_name, sectorconfiguration.config_json, sectorconfiguration.updated_at 
+FROM sectorconfiguration 
+WHERE sectorconfiguration.shift_name = %(shift_name_1)s
+2025-12-28 16:40:38,304 INFO [generated in 0.00030s] {'shift_name_1': 'Manhã'}
+2025-12-28 16:40:38,468 INFO SELECT route.id, route.date, route.shift, route.employee_id, route.client_id, route.start_time, route.end_time, route.tonnage, route.status, route.created_at 
+FROM route 
+WHERE route.date = %(date_1)s AND route.shift = %(shift_1)s
+2025-12-28 16:40:38,469 INFO [generated in 0.00037s] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 16:40:38,638 INFO ROLLBACK
+2025-12-28 16:43:49,059 INFO select pg_catalog.version()
+2025-12-28 16:43:49,060 INFO [raw sql] {}
+2025-12-28 16:43:49,351 INFO select current_schema()
+2025-12-28 16:43:49,351 INFO [raw sql] {}
+2025-12-28 16:43:49,645 INFO show standard_conforming_strings
+2025-12-28 16:43:49,645 INFO [raw sql] {}
+2025-12-28 16:43:49,943 INFO BEGIN (implicit)
+2025-12-28 16:43:49,947 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:43:49,947 INFO [generated in 0.00033s] {'table_name': 'shift', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:43:50,244 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:43:50,245 INFO [cached since 0.2983s ago] {'table_name': 'headcounttarget', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:43:50,391 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:43:50,391 INFO [cached since 0.4448s ago] {'table_name': 'employee', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:43:50,547 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:43:50,547 INFO [cached since 0.6005s ago] {'table_name': 'dailyoperation', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:43:50,696 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:43:50,696 INFO [cached since 0.75s ago] {'table_name': 'event', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:43:50,843 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:43:50,843 INFO [cached since 0.8965s ago] {'table_name': 'user', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:43:50,993 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:43:50,993 INFO [cached since 1.047s ago] {'table_name': 'sectorconfiguration', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:43:51,140 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:43:51,140 INFO [cached since 1.194s ago] {'table_name': 'client', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:43:51,286 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:43:51,286 INFO [cached since 1.339s ago] {'table_name': 'route', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:43:51,432 INFO COMMIT
+2025-12-28 16:49:49,022 INFO BEGIN (implicit)
+2025-12-28 16:49:49,034 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 16:49:49,034 INFO [generated in 0.00044s] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 16:49:49,330 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee
+2025-12-28 16:49:49,330 INFO [generated in 0.00031s] {}
+2025-12-28 16:49:49,626 INFO SELECT sectorconfiguration.id, sectorconfiguration.shift_name, sectorconfiguration.config_json, sectorconfiguration.updated_at 
+FROM sectorconfiguration 
+WHERE sectorconfiguration.shift_name = %(shift_name_1)s
+2025-12-28 16:49:49,626 INFO [generated in 0.00040s] {'shift_name_1': 'Manhã'}
+2025-12-28 16:49:49,792 INFO ROLLBACK
+2025-12-28 16:50:16,855 INFO BEGIN (implicit)
+2025-12-28 16:50:16,856 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 16:50:16,856 INFO [cached since 27.82s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 16:50:17,167 INFO INSERT INTO dailyoperation (date, shift, tonnage, attendance_log, logs, arrival_time, exit_time, report, rating, status, created_at, updated_at) VALUES (%(date)s, %(shift)s, %(tonnage)s, %(attendance_log)s::JSON, %(logs)s::JSON, %(arrival_time)s, %(exit_time)s, %(report)s, %(rating)s, %(status)s, %(created_at)s, %(updated_at)s) RETURNING dailyoperation.id
+2025-12-28 16:50:17,168 INFO [generated in 0.00501s] {'date': '2025-12-28', 'shift': 'Manhã', 'tonnage': 0, 'attendance_log': '{"383": {"name": "MARCOS DA SILVA", "sector": "ceasa", "status": "present", "subsector": "Geral"}, "399": {"name": "JOSE ALBERTO DOS SANTOS", "sector ... (4270 characters truncated) ... present", "subsector": "Geral"}, "3294": {"name": "LEILIANE FERNANDES DOS SANTOS", "sector": "selecao", "status": "present", "subsector": "Legumes"}}', 'logs': '[{"context": {"date": "2025-12-28", "shift": "Manh\\u00e3", "shift_target_hr": 40, "saved_at": "2025-12-28T19:50:15.900Z"}, "sectors": [{"key": "rece ... (48449 characters truncated) ... 00", "admission": "2013-03-12T00:00:00", "status_daily": "present", "sector_daily": "selecao", "subsector_daily": "Legumes", "is_allocated": true}]}]', 'arrival_time': None, 'exit_time': None, 'report': None, 'rating': 0, 'status': 'open', 'created_at': datetime.datetime(2025, 12, 28, 16, 50, 17, 161277), 'updated_at': datetime.datetime(2025, 12, 28, 16, 50, 17, 161620)}
+2025-12-28 16:50:17,478 INFO SELECT sectorconfiguration.id, sectorconfiguration.shift_name, sectorconfiguration.config_json, sectorconfiguration.updated_at 
+FROM sectorconfiguration 
+WHERE sectorconfiguration.shift_name = %(shift_name_1)s
+2025-12-28 16:50:17,478 INFO [cached since 27.85s ago] {'shift_name_1': 'Manhã'}
+2025-12-28 16:50:17,637 INFO UPDATE sectorconfiguration SET updated_at=%(updated_at)s WHERE sectorconfiguration.id = %(sectorconfiguration_id)s
+2025-12-28 16:50:17,637 INFO [generated in 0.00028s] {'updated_at': datetime.datetime(2025, 12, 28, 16, 50, 17, 636125), 'sectorconfiguration_id': 2}
+2025-12-28 16:50:17,787 INFO COMMIT
+2025-12-28 16:50:17,937 INFO BEGIN (implicit)
+2025-12-28 16:50:17,938 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.id = %(pk_1)s
+2025-12-28 16:50:17,938 INFO [generated in 0.00023s] {'pk_1': 8}
+2025-12-28 16:50:18,536 INFO ROLLBACK
+2025-12-28 16:50:23,046 INFO BEGIN (implicit)
+2025-12-28 16:50:23,046 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 16:50:23,047 INFO [cached since 34.01s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 16:50:23,630 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee
+2025-12-28 16:50:23,631 INFO [cached since 34.3s ago] {}
+2025-12-28 16:50:23,778 INFO SELECT sectorconfiguration.id, sectorconfiguration.shift_name, sectorconfiguration.config_json, sectorconfiguration.updated_at 
+FROM sectorconfiguration 
+WHERE sectorconfiguration.shift_name = %(shift_name_1)s
+2025-12-28 16:50:23,778 INFO [cached since 34.15s ago] {'shift_name_1': 'Manhã'}
+2025-12-28 16:50:23,929 INFO ROLLBACK
+2025-12-28 16:52:41,156 INFO select pg_catalog.version()
+2025-12-28 16:52:41,157 INFO [raw sql] {}
+2025-12-28 16:52:41,452 INFO select current_schema()
+2025-12-28 16:52:41,452 INFO [raw sql] {}
+2025-12-28 16:52:41,751 INFO show standard_conforming_strings
+2025-12-28 16:52:41,751 INFO [raw sql] {}
+2025-12-28 16:52:42,046 INFO BEGIN (implicit)
+2025-12-28 16:52:42,050 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:52:42,050 INFO [generated in 0.00035s] {'table_name': 'shift', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:52:42,346 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:52:42,346 INFO [cached since 0.2962s ago] {'table_name': 'headcounttarget', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:52:42,494 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:52:42,494 INFO [cached since 0.4444s ago] {'table_name': 'employee', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:52:42,643 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:52:42,643 INFO [cached since 0.5934s ago] {'table_name': 'dailyoperation', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:52:42,792 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:52:42,792 INFO [cached since 0.7424s ago] {'table_name': 'event', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:52:42,943 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:52:42,943 INFO [cached since 0.8933s ago] {'table_name': 'user', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:52:43,091 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:52:43,091 INFO [cached since 1.042s ago] {'table_name': 'sectorconfiguration', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:52:43,243 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:52:43,243 INFO [cached since 1.194s ago] {'table_name': 'client', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:52:43,392 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:52:43,392 INFO [cached since 1.342s ago] {'table_name': 'route', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:52:43,546 INFO COMMIT
+2025-12-28 16:53:03,013 INFO select pg_catalog.version()
+2025-12-28 16:53:03,014 INFO [raw sql] {}
+2025-12-28 16:53:03,310 INFO select current_schema()
+2025-12-28 16:53:03,310 INFO [raw sql] {}
+2025-12-28 16:53:03,608 INFO show standard_conforming_strings
+2025-12-28 16:53:03,608 INFO [raw sql] {}
+2025-12-28 16:53:03,902 INFO BEGIN (implicit)
+2025-12-28 16:53:03,906 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:53:03,906 INFO [generated in 0.00039s] {'table_name': 'shift', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:53:04,199 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:53:04,199 INFO [cached since 0.2936s ago] {'table_name': 'headcounttarget', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:53:04,348 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:53:04,348 INFO [cached since 0.4424s ago] {'table_name': 'employee', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:53:04,494 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:53:04,494 INFO [cached since 0.5888s ago] {'table_name': 'dailyoperation', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:53:04,641 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:53:04,641 INFO [cached since 0.7357s ago] {'table_name': 'event', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:53:04,790 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:53:04,791 INFO [cached since 0.8851s ago] {'table_name': 'user', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:53:04,938 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:53:04,939 INFO [cached since 1.033s ago] {'table_name': 'sectorconfiguration', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:53:05,086 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:53:05,086 INFO [cached since 1.181s ago] {'table_name': 'client', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:53:05,233 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:53:05,233 INFO [cached since 1.328s ago] {'table_name': 'route', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:53:05,380 INFO COMMIT
+2025-12-28 16:53:45,459 INFO BEGIN (implicit)
+2025-12-28 16:53:45,469 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 16:53:45,470 INFO [generated in 0.00032s] {'status_1': 'fired'}
+2025-12-28 16:53:45,923 INFO COMMIT
+2025-12-28 16:53:46,070 INFO BEGIN (implicit)
+2025-12-28 16:53:46,070 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 16:53:46,071 INFO [cached since 0.6012s ago] {'status_1': 'fired'}
+2025-12-28 16:53:46,371 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 16:53:46,372 INFO [generated in 0.00033s] {'date_1': '2025-12-26', 'shift_1': 'Manhã'}
+2025-12-28 16:53:46,525 INFO SELECT headcounttarget.id, headcounttarget.shift_name, headcounttarget.target_value 
+FROM headcounttarget 
+WHERE headcounttarget.shift_name = %(shift_name_1)s
+2025-12-28 16:53:46,525 INFO [generated in 0.00034s] {'shift_name_1': 'Manhã'}
+2025-12-28 16:53:46,673 INFO SELECT sectorconfiguration.id, sectorconfiguration.shift_name, sectorconfiguration.config_json, sectorconfiguration.updated_at 
+FROM sectorconfiguration 
+WHERE sectorconfiguration.shift_name = %(shift_name_1)s
+2025-12-28 16:53:46,674 INFO [generated in 0.00033s] {'shift_name_1': 'Manhã'}
+2025-12-28 16:53:46,822 INFO SELECT route.id, route.date, route.shift, route.employee_id, route.client_id, route.start_time, route.end_time, route.tonnage, route.status, route.created_at 
+FROM route 
+WHERE route.date = %(date_1)s AND route.shift = %(shift_1)s
+2025-12-28 16:53:46,823 INFO [generated in 0.00037s] {'date_1': '2025-12-26', 'shift_1': 'Manhã'}
+2025-12-28 16:53:47,006 INFO ROLLBACK
+2025-12-28 16:53:50,116 INFO BEGIN (implicit)
+2025-12-28 16:53:50,117 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 16:53:50,117 INFO [cached since 3.745s ago] {'date_1': '2025-12-26', 'shift_1': 'Manhã'}
+2025-12-28 16:53:50,420 INFO UPDATE dailyoperation SET logs=%(logs)s::JSON, updated_at=%(updated_at)s WHERE dailyoperation.id = %(dailyoperation_id)s
+2025-12-28 16:53:50,421 INFO [generated in 0.00065s] {'logs': '[{"context": {"date": "2025-12-26", "shift": "Manh\\u00e3", "shift_target_hr": 40, "saved_at": "2025-12-28T19:53:50.112Z"}, "sectors": [{"key": "rece ... (48447 characters truncated) ... 00", "admission": "2013-03-12T00:00:00", "status_daily": "present", "sector_daily": "selecao", "subsector_daily": "Legumes", "is_allocated": true}]}]', 'updated_at': datetime.datetime(2025, 12, 28, 16, 53, 50, 419410), 'dailyoperation_id': 5}
+2025-12-28 16:53:50,734 INFO SELECT sectorconfiguration.id, sectorconfiguration.shift_name, sectorconfiguration.config_json, sectorconfiguration.updated_at 
+FROM sectorconfiguration 
+WHERE sectorconfiguration.shift_name = %(shift_name_1)s
+2025-12-28 16:53:50,735 INFO [cached since 4.061s ago] {'shift_name_1': 'Manhã'}
+2025-12-28 16:53:50,883 INFO UPDATE sectorconfiguration SET updated_at=%(updated_at)s WHERE sectorconfiguration.id = %(sectorconfiguration_id)s
+2025-12-28 16:53:50,884 INFO [generated in 0.00031s] {'updated_at': datetime.datetime(2025, 12, 28, 16, 53, 50, 882933), 'sectorconfiguration_id': 2}
+2025-12-28 16:53:51,033 INFO COMMIT
+2025-12-28 16:53:51,181 INFO BEGIN (implicit)
+2025-12-28 16:53:51,182 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.id = %(pk_1)s
+2025-12-28 16:53:51,182 INFO [generated in 0.00026s] {'pk_1': 5}
+2025-12-28 16:54:13,180 INFO ROLLBACK
+2025-12-28 16:54:14,111 INFO BEGIN (implicit)
+2025-12-28 16:54:14,112 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 16:54:14,112 INFO [cached since 27.74s ago] {'date_1': '2025-12-26', 'shift_1': 'Manhã'}
+2025-12-28 16:54:14,750 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee
+2025-12-28 16:54:14,750 INFO [generated in 0.00027s] {}
+2025-12-28 16:54:14,937 INFO SELECT sectorconfiguration.id, sectorconfiguration.shift_name, sectorconfiguration.config_json, sectorconfiguration.updated_at 
+FROM sectorconfiguration 
+WHERE sectorconfiguration.shift_name = %(shift_name_1)s
+2025-12-28 16:54:14,937 INFO [cached since 28.26s ago] {'shift_name_1': 'Manhã'}
+2025-12-28 16:54:15,123 INFO ROLLBACK
+2025-12-28 16:55:56,006 INFO select pg_catalog.version()
+2025-12-28 16:55:56,007 INFO [raw sql] {}
+2025-12-28 16:55:56,315 INFO select current_schema()
+2025-12-28 16:55:56,315 INFO [raw sql] {}
+2025-12-28 16:55:56,612 INFO show standard_conforming_strings
+2025-12-28 16:55:56,613 INFO [raw sql] {}
+2025-12-28 16:55:56,907 INFO BEGIN (implicit)
+2025-12-28 16:55:56,910 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:55:56,911 INFO [generated in 0.00037s] {'table_name': 'shift', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:55:57,214 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:55:57,214 INFO [cached since 0.3037s ago] {'table_name': 'headcounttarget', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:55:57,361 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:55:57,361 INFO [cached since 0.4506s ago] {'table_name': 'employee', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:55:57,509 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:55:57,509 INFO [cached since 0.5987s ago] {'table_name': 'dailyoperation', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:55:57,657 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:55:57,657 INFO [cached since 0.7468s ago] {'table_name': 'event', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:55:57,806 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:55:57,806 INFO [cached since 0.8958s ago] {'table_name': 'user', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:55:57,953 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:55:57,953 INFO [cached since 1.043s ago] {'table_name': 'sectorconfiguration', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:55:58,101 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:55:58,101 INFO [cached since 1.191s ago] {'table_name': 'client', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:55:58,262 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:55:58,262 INFO [cached since 1.352s ago] {'table_name': 'route', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:55:58,432 INFO COMMIT
+2025-12-28 16:56:01,315 INFO BEGIN (implicit)
+2025-12-28 16:56:01,327 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 16:56:01,327 INFO [generated in 0.00044s] {'date_1': '2025-12-26', 'shift_1': 'Manhã'}
+2025-12-28 16:56:01,921 INFO UPDATE dailyoperation SET logs=%(logs)s::JSON, status=%(status)s, updated_at=%(updated_at)s WHERE dailyoperation.id = %(dailyoperation_id)s
+2025-12-28 16:56:01,921 INFO [generated in 0.00078s] {'logs': '[{"context": {"date": "2025-12-26", "shift": "Manh\\u00e3", "shift_target_hr": 40, "saved_at": "2025-12-28T19:56:01.298Z"}, "sectors": [{"key": "rece ... (48447 characters truncated) ... 00", "admission": "2013-03-12T00:00:00", "status_daily": "present", "sector_daily": "selecao", "subsector_daily": "Legumes", "is_allocated": true}]}]', 'status': 'closed', 'updated_at': datetime.datetime(2025, 12, 28, 16, 56, 1, 919750), 'dailyoperation_id': 5}
+2025-12-28 16:56:02,223 INFO SELECT sectorconfiguration.id, sectorconfiguration.shift_name, sectorconfiguration.config_json, sectorconfiguration.updated_at 
+FROM sectorconfiguration 
+WHERE sectorconfiguration.shift_name = %(shift_name_1)s
+2025-12-28 16:56:02,223 INFO [generated in 0.00036s] {'shift_name_1': 'Manhã'}
+2025-12-28 16:56:02,371 INFO UPDATE sectorconfiguration SET updated_at=%(updated_at)s WHERE sectorconfiguration.id = %(sectorconfiguration_id)s
+2025-12-28 16:56:02,371 INFO [generated in 0.00030s] {'updated_at': datetime.datetime(2025, 12, 28, 16, 56, 2, 370644), 'sectorconfiguration_id': 2}
+2025-12-28 16:56:02,519 INFO COMMIT
+2025-12-28 16:56:02,667 INFO BEGIN (implicit)
+2025-12-28 16:56:02,669 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.id = %(pk_1)s
+2025-12-28 16:56:02,669 INFO [generated in 0.00026s] {'pk_1': 5}
+2025-12-28 16:56:02,972 INFO ROLLBACK
+2025-12-28 16:56:04,312 INFO BEGIN (implicit)
+2025-12-28 16:56:04,314 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 16:56:04,314 INFO [generated in 0.00028s] {'status_1': 'fired'}
+2025-12-28 16:56:04,755 INFO COMMIT
+2025-12-28 16:56:04,902 INFO BEGIN (implicit)
+2025-12-28 16:56:04,903 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 16:56:04,903 INFO [cached since 0.5894s ago] {'status_1': 'fired'}
+2025-12-28 16:56:05,197 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 16:56:05,197 INFO [cached since 3.87s ago] {'date_1': '2025-12-26', 'shift_1': 'Manhã'}
+2025-12-28 16:56:05,348 INFO SELECT headcounttarget.id, headcounttarget.shift_name, headcounttarget.target_value 
+FROM headcounttarget 
+WHERE headcounttarget.shift_name = %(shift_name_1)s
+2025-12-28 16:56:05,348 INFO [generated in 0.00030s] {'shift_name_1': 'Manhã'}
+2025-12-28 16:56:05,493 INFO SELECT sectorconfiguration.id, sectorconfiguration.shift_name, sectorconfiguration.config_json, sectorconfiguration.updated_at 
+FROM sectorconfiguration 
+WHERE sectorconfiguration.shift_name = %(shift_name_1)s
+2025-12-28 16:56:05,494 INFO [cached since 3.271s ago] {'shift_name_1': 'Manhã'}
+2025-12-28 16:56:05,640 INFO SELECT route.id, route.date, route.shift, route.employee_id, route.client_id, route.start_time, route.end_time, route.tonnage, route.status, route.created_at 
+FROM route 
+WHERE route.date = %(date_1)s AND route.shift = %(shift_1)s
+2025-12-28 16:56:05,640 INFO [generated in 0.00031s] {'date_1': '2025-12-26', 'shift_1': 'Manhã'}
+2025-12-28 16:56:05,812 INFO ROLLBACK
+2025-12-28 16:56:30,960 INFO BEGIN (implicit)
+2025-12-28 16:56:30,961 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 16:56:30,962 INFO [cached since 29.64s ago] {'date_1': '2025-12-26', 'shift_1': 'Manhã'}
+2025-12-28 16:56:31,544 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee
+2025-12-28 16:56:31,544 INFO [generated in 0.00034s] {}
+2025-12-28 16:56:31,702 INFO SELECT sectorconfiguration.id, sectorconfiguration.shift_name, sectorconfiguration.config_json, sectorconfiguration.updated_at 
+FROM sectorconfiguration 
+WHERE sectorconfiguration.shift_name = %(shift_name_1)s
+2025-12-28 16:56:31,703 INFO [cached since 29.48s ago] {'shift_name_1': 'Manhã'}
+2025-12-28 16:56:31,860 INFO ROLLBACK
+2025-12-28 16:58:11,702 INFO select pg_catalog.version()
+2025-12-28 16:58:11,702 INFO [raw sql] {}
+2025-12-28 16:58:11,997 INFO select current_schema()
+2025-12-28 16:58:11,998 INFO [raw sql] {}
+2025-12-28 16:58:12,299 INFO show standard_conforming_strings
+2025-12-28 16:58:12,299 INFO [raw sql] {}
+2025-12-28 16:58:12,594 INFO BEGIN (implicit)
+2025-12-28 16:58:12,598 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:58:12,598 INFO [generated in 0.00030s] {'table_name': 'shift', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:58:12,892 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:58:12,892 INFO [cached since 0.2946s ago] {'table_name': 'headcounttarget', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:58:13,039 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:58:13,040 INFO [cached since 0.4419s ago] {'table_name': 'employee', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:58:13,187 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:58:13,187 INFO [cached since 0.5894s ago] {'table_name': 'dailyoperation', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:58:13,335 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:58:13,335 INFO [cached since 0.7372s ago] {'table_name': 'event', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:58:13,484 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:58:13,485 INFO [cached since 0.8869s ago] {'table_name': 'user', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:58:13,634 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:58:13,634 INFO [cached since 1.036s ago] {'table_name': 'sectorconfiguration', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:58:13,792 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:58:13,792 INFO [cached since 1.194s ago] {'table_name': 'client', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:58:13,941 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 16:58:13,941 INFO [cached since 1.344s ago] {'table_name': 'route', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 16:58:14,087 INFO COMMIT
+2025-12-28 16:58:26,820 INFO BEGIN (implicit)
+2025-12-28 16:58:26,830 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status = %(status_1)s
+2025-12-28 16:58:26,830 INFO [generated in 0.00043s] {'status_1': 'active'}
+2025-12-28 16:58:27,273 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status = %(status_1)s
+2025-12-28 16:58:27,274 INFO [cached since 0.4438s ago] {'status_1': 'vacation'}
+2025-12-28 16:58:27,439 INFO ROLLBACK
+2025-12-28 16:58:40,557 INFO BEGIN (implicit)
+2025-12-28 16:58:40,558 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 16:58:40,559 INFO [generated in 0.00024s] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 16:58:41,142 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 16:58:41,142 INFO [generated in 0.00033s] {'status_1': 'fired'}
+2025-12-28 16:58:41,292 INFO SELECT client.id, client.name, client.created_at 
+FROM client
+2025-12-28 16:58:41,293 INFO [generated in 0.00030s] {}
+2025-12-28 16:58:41,442 INFO SELECT route.id, route.date, route.shift, route.employee_id, route.client_id, route.start_time, route.end_time, route.tonnage, route.status, route.created_at 
+FROM route 
+WHERE route.date = %(date_1)s AND route.shift = %(shift_1)s ORDER BY route.start_time
+2025-12-28 16:58:41,442 INFO [generated in 0.00033s] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 16:58:41,609 INFO ROLLBACK
+2025-12-28 16:59:58,931 INFO BEGIN (implicit)
+2025-12-28 16:59:58,932 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 16:59:58,932 INFO [cached since 77.79s ago] {'status_1': 'fired'}
+2025-12-28 16:59:59,374 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 16:59:59,374 INFO [cached since 78.82s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 16:59:59,680 INFO SELECT headcounttarget.id, headcounttarget.shift_name, headcounttarget.target_value 
+FROM headcounttarget 
+WHERE headcounttarget.shift_name = %(shift_name_1)s
+2025-12-28 16:59:59,680 INFO [generated in 0.00030s] {'shift_name_1': 'Manhã'}
+2025-12-28 16:59:59,825 INFO SELECT sectorconfiguration.id, sectorconfiguration.shift_name, sectorconfiguration.config_json, sectorconfiguration.updated_at 
+FROM sectorconfiguration 
+WHERE sectorconfiguration.shift_name = %(shift_name_1)s
+2025-12-28 16:59:59,825 INFO [generated in 0.00035s] {'shift_name_1': 'Manhã'}
+2025-12-28 16:59:59,973 INFO SELECT route.id, route.date, route.shift, route.employee_id, route.client_id, route.start_time, route.end_time, route.tonnage, route.status, route.created_at 
+FROM route 
+WHERE route.date = %(date_1)s AND route.shift = %(shift_1)s
+2025-12-28 16:59:59,973 INFO [generated in 0.00033s] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 17:00:00,137 INFO ROLLBACK
+2025-12-28 17:00:13,837 INFO select pg_catalog.version()
+2025-12-28 17:00:13,838 INFO [raw sql] {}
+2025-12-28 17:00:14,130 INFO select current_schema()
+2025-12-28 17:00:14,130 INFO [raw sql] {}
+2025-12-28 17:00:14,424 INFO show standard_conforming_strings
+2025-12-28 17:00:14,424 INFO [raw sql] {}
+2025-12-28 17:00:14,714 INFO BEGIN (implicit)
+2025-12-28 17:00:14,718 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:14,718 INFO [generated in 0.00034s] {'table_name': 'shift', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:15,015 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:15,016 INFO [cached since 0.2979s ago] {'table_name': 'headcounttarget', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:15,161 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:15,161 INFO [cached since 0.4433s ago] {'table_name': 'employee', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:15,308 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:15,309 INFO [cached since 0.5909s ago] {'table_name': 'dailyoperation', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:15,457 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:15,458 INFO [cached since 0.7398s ago] {'table_name': 'event', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:15,604 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:15,604 INFO [cached since 0.886s ago] {'table_name': 'user', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:15,752 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:15,752 INFO [cached since 1.034s ago] {'table_name': 'sectorconfiguration', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:15,962 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:15,962 INFO [cached since 1.244s ago] {'table_name': 'client', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:16,109 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:16,109 INFO [cached since 1.392s ago] {'table_name': 'route', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:16,260 INFO COMMIT
+2025-12-28 17:00:16,420 INFO BEGIN (implicit)
+2025-12-28 17:00:16,431 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 17:00:16,431 INFO [generated in 0.00029s] {'status_1': 'fired'}
+2025-12-28 17:00:16,888 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 17:00:16,888 INFO [generated in 0.00040s] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 17:00:17,192 INFO SELECT headcounttarget.id, headcounttarget.shift_name, headcounttarget.target_value 
+FROM headcounttarget 
+WHERE headcounttarget.shift_name = %(shift_name_1)s
+2025-12-28 17:00:17,192 INFO [generated in 0.00031s] {'shift_name_1': 'Manhã'}
+2025-12-28 17:00:17,337 INFO SELECT sectorconfiguration.id, sectorconfiguration.shift_name, sectorconfiguration.config_json, sectorconfiguration.updated_at 
+FROM sectorconfiguration 
+WHERE sectorconfiguration.shift_name = %(shift_name_1)s
+2025-12-28 17:00:17,337 INFO [generated in 0.00036s] {'shift_name_1': 'Manhã'}
+2025-12-28 17:00:17,489 INFO SELECT route.id, route.date, route.shift, route.employee_id, route.client_id, route.start_time, route.end_time, route.tonnage, route.status, route.created_at 
+FROM route 
+WHERE route.date = %(date_1)s AND route.shift = %(shift_1)s
+2025-12-28 17:00:17,489 INFO [generated in 0.00038s] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 17:00:17,657 INFO ROLLBACK
+2025-12-28 17:00:21,226 INFO select pg_catalog.version()
+2025-12-28 17:00:21,226 INFO [raw sql] {}
+2025-12-28 17:00:21,678 INFO select current_schema()
+2025-12-28 17:00:21,678 INFO [raw sql] {}
+2025-12-28 17:00:21,967 INFO show standard_conforming_strings
+2025-12-28 17:00:21,967 INFO [raw sql] {}
+2025-12-28 17:00:22,257 INFO BEGIN (implicit)
+2025-12-28 17:00:22,261 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:22,261 INFO [generated in 0.00031s] {'table_name': 'shift', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:22,558 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:22,558 INFO [cached since 0.2975s ago] {'table_name': 'headcounttarget', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:22,704 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:22,704 INFO [cached since 0.4436s ago] {'table_name': 'employee', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:22,865 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:22,865 INFO [cached since 0.6044s ago] {'table_name': 'dailyoperation', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:23,009 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:23,010 INFO [cached since 0.7492s ago] {'table_name': 'event', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:23,155 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:23,155 INFO [cached since 0.8947s ago] {'table_name': 'user', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:23,302 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:23,302 INFO [cached since 1.042s ago] {'table_name': 'sectorconfiguration', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:23,449 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:23,449 INFO [cached since 1.189s ago] {'table_name': 'client', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:23,596 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:23,596 INFO [cached since 1.336s ago] {'table_name': 'route', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:23,743 INFO COMMIT
+2025-12-28 17:00:41,356 INFO select pg_catalog.version()
+2025-12-28 17:00:41,356 INFO [raw sql] {}
+2025-12-28 17:00:41,659 INFO select current_schema()
+2025-12-28 17:00:41,660 INFO [raw sql] {}
+2025-12-28 17:00:41,962 INFO show standard_conforming_strings
+2025-12-28 17:00:41,963 INFO [raw sql] {}
+2025-12-28 17:00:42,263 INFO BEGIN (implicit)
+2025-12-28 17:00:42,266 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:42,266 INFO [generated in 0.00032s] {'table_name': 'shift', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:42,571 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:42,571 INFO [cached since 0.3053s ago] {'table_name': 'headcounttarget', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:42,725 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:42,725 INFO [cached since 0.4592s ago] {'table_name': 'employee', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:42,873 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:42,873 INFO [cached since 0.6075s ago] {'table_name': 'dailyoperation', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:43,022 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:43,023 INFO [cached since 0.7567s ago] {'table_name': 'event', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:43,172 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:43,172 INFO [cached since 0.9063s ago] {'table_name': 'user', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:43,335 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:43,335 INFO [cached since 1.069s ago] {'table_name': 'sectorconfiguration', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:43,485 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:43,485 INFO [cached since 1.22s ago] {'table_name': 'client', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:43,635 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:00:43,635 INFO [cached since 1.369s ago] {'table_name': 'route', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:00:43,783 INFO COMMIT
+2025-12-28 17:00:43,943 INFO BEGIN (implicit)
+2025-12-28 17:00:43,955 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 17:00:43,955 INFO [generated in 0.00035s] {'status_1': 'fired'}
+2025-12-28 17:00:44,412 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 17:00:44,412 INFO [generated in 0.00034s] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 17:00:45,147 INFO SELECT headcounttarget.id, headcounttarget.shift_name, headcounttarget.target_value 
+FROM headcounttarget 
+WHERE headcounttarget.shift_name = %(shift_name_1)s
+2025-12-28 17:00:45,148 INFO [generated in 0.00029s] {'shift_name_1': 'Manhã'}
+2025-12-28 17:00:45,420 INFO SELECT sectorconfiguration.id, sectorconfiguration.shift_name, sectorconfiguration.config_json, sectorconfiguration.updated_at 
+FROM sectorconfiguration 
+WHERE sectorconfiguration.shift_name = %(shift_name_1)s
+2025-12-28 17:00:45,421 INFO [generated in 0.00030s] {'shift_name_1': 'Manhã'}
+2025-12-28 17:00:45,674 INFO SELECT route.id, route.date, route.shift, route.employee_id, route.client_id, route.start_time, route.end_time, route.tonnage, route.status, route.created_at 
+FROM route 
+WHERE route.date = %(date_1)s AND route.shift = %(shift_1)s
+2025-12-28 17:00:45,675 INFO [generated in 0.00038s] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 17:00:45,907 INFO ROLLBACK
+2025-12-28 17:01:04,829 INFO BEGIN (implicit)
+2025-12-28 17:01:04,830 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 17:01:04,830 INFO [cached since 20.88s ago] {'status_1': 'fired'}
+2025-12-28 17:01:05,287 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 17:01:05,288 INFO [cached since 20.88s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 17:01:05,781 INFO SELECT headcounttarget.id, headcounttarget.shift_name, headcounttarget.target_value 
+FROM headcounttarget 
+WHERE headcounttarget.shift_name = %(shift_name_1)s
+2025-12-28 17:01:05,781 INFO [cached since 20.63s ago] {'shift_name_1': 'Manhã'}
+2025-12-28 17:01:06,030 INFO SELECT sectorconfiguration.id, sectorconfiguration.shift_name, sectorconfiguration.config_json, sectorconfiguration.updated_at 
+FROM sectorconfiguration 
+WHERE sectorconfiguration.shift_name = %(shift_name_1)s
+2025-12-28 17:01:06,030 INFO [cached since 20.61s ago] {'shift_name_1': 'Manhã'}
+2025-12-28 17:01:06,181 INFO SELECT route.id, route.date, route.shift, route.employee_id, route.client_id, route.start_time, route.end_time, route.tonnage, route.status, route.created_at 
+FROM route 
+WHERE route.date = %(date_1)s AND route.shift = %(shift_1)s
+2025-12-28 17:01:06,182 INFO [cached since 20.51s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 17:01:06,336 INFO ROLLBACK
+2025-12-28 17:01:43,831 INFO select pg_catalog.version()
+2025-12-28 17:01:43,831 INFO [raw sql] {}
+2025-12-28 17:01:44,125 INFO select current_schema()
+2025-12-28 17:01:44,125 INFO [raw sql] {}
+2025-12-28 17:01:44,420 INFO show standard_conforming_strings
+2025-12-28 17:01:44,420 INFO [raw sql] {}
+2025-12-28 17:01:44,729 INFO BEGIN (implicit)
+2025-12-28 17:01:44,733 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:01:44,733 INFO [generated in 0.00034s] {'table_name': 'shift', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:01:45,066 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:01:45,067 INFO [cached since 0.334s ago] {'table_name': 'headcounttarget', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:01:45,213 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:01:45,213 INFO [cached since 0.4808s ago] {'table_name': 'employee', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:01:45,359 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:01:45,359 INFO [cached since 0.627s ago] {'table_name': 'dailyoperation', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:01:45,507 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:01:45,507 INFO [cached since 0.7749s ago] {'table_name': 'event', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:01:45,660 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:01:45,660 INFO [cached since 0.9278s ago] {'table_name': 'user', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:01:45,865 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:01:45,865 INFO [cached since 1.132s ago] {'table_name': 'sectorconfiguration', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:01:46,013 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:01:46,013 INFO [cached since 1.281s ago] {'table_name': 'client', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:01:46,160 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:01:46,161 INFO [cached since 1.428s ago] {'table_name': 'route', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:01:46,322 INFO COMMIT
+2025-12-28 17:01:46,479 INFO BEGIN (implicit)
+2025-12-28 17:01:46,490 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 17:01:46,491 INFO [generated in 0.00038s] {'status_1': 'fired'}
+2025-12-28 17:01:46,947 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 17:01:46,947 INFO [generated in 0.00031s] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 17:01:47,248 INFO SELECT headcounttarget.id, headcounttarget.shift_name, headcounttarget.target_value 
+FROM headcounttarget 
+WHERE headcounttarget.shift_name = %(shift_name_1)s
+2025-12-28 17:01:47,248 INFO [generated in 0.00030s] {'shift_name_1': 'Manhã'}
+2025-12-28 17:01:47,398 INFO SELECT sectorconfiguration.id, sectorconfiguration.shift_name, sectorconfiguration.config_json, sectorconfiguration.updated_at 
+FROM sectorconfiguration 
+WHERE sectorconfiguration.shift_name = %(shift_name_1)s
+2025-12-28 17:01:47,399 INFO [generated in 0.00041s] {'shift_name_1': 'Manhã'}
+2025-12-28 17:01:47,546 INFO SELECT route.id, route.date, route.shift, route.employee_id, route.client_id, route.start_time, route.end_time, route.tonnage, route.status, route.created_at 
+FROM route 
+WHERE route.date = %(date_1)s AND route.shift = %(shift_1)s
+2025-12-28 17:01:47,546 INFO [generated in 0.00032s] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 17:01:47,709 INFO ROLLBACK
+2025-12-28 17:03:32,332 INFO BEGIN (implicit)
+2025-12-28 17:03:32,333 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 17:03:32,333 INFO [cached since 105.8s ago] {'status_1': 'fired'}
+2025-12-28 17:03:53,258 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 17:03:53,258 INFO [cached since 126.3s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 17:03:54,450 INFO SELECT headcounttarget.id, headcounttarget.shift_name, headcounttarget.target_value 
+FROM headcounttarget 
+WHERE headcounttarget.shift_name = %(shift_name_1)s
+2025-12-28 17:03:54,450 INFO [cached since 127.2s ago] {'shift_name_1': 'Manhã'}
+2025-12-28 17:03:54,598 INFO SELECT sectorconfiguration.id, sectorconfiguration.shift_name, sectorconfiguration.config_json, sectorconfiguration.updated_at 
+FROM sectorconfiguration 
+WHERE sectorconfiguration.shift_name = %(shift_name_1)s
+2025-12-28 17:03:54,598 INFO [cached since 127.2s ago] {'shift_name_1': 'Manhã'}
+2025-12-28 17:03:54,746 INFO SELECT route.id, route.date, route.shift, route.employee_id, route.client_id, route.start_time, route.end_time, route.tonnage, route.status, route.created_at 
+FROM route 
+WHERE route.date = %(date_1)s AND route.shift = %(shift_1)s
+2025-12-28 17:03:54,746 INFO [cached since 127.2s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 17:03:54,907 INFO ROLLBACK
+2025-12-28 17:04:16,630 INFO select pg_catalog.version()
+2025-12-28 17:04:16,630 INFO [raw sql] {}
+2025-12-28 17:04:16,919 INFO select current_schema()
+2025-12-28 17:04:16,920 INFO [raw sql] {}
+2025-12-28 17:04:17,218 INFO show standard_conforming_strings
+2025-12-28 17:04:17,218 INFO [raw sql] {}
+2025-12-28 17:04:17,522 INFO BEGIN (implicit)
+2025-12-28 17:04:17,526 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:04:17,526 INFO [generated in 0.00031s] {'table_name': 'shift', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:04:17,818 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:04:18,736 INFO [cached since 1.21s ago] {'table_name': 'headcounttarget', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:04:18,881 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:04:18,882 INFO [cached since 1.356s ago] {'table_name': 'employee', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:04:19,026 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:04:19,027 INFO [cached since 1.501s ago] {'table_name': 'dailyoperation', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:04:19,172 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:04:19,172 INFO [cached since 1.646s ago] {'table_name': 'event', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:04:19,318 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:04:19,319 INFO [cached since 1.793s ago] {'table_name': 'user', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:04:19,467 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:04:19,467 INFO [cached since 1.941s ago] {'table_name': 'sectorconfiguration', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:04:19,615 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:04:19,615 INFO [cached since 2.089s ago] {'table_name': 'client', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:04:19,762 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:04:19,762 INFO [cached since 2.237s ago] {'table_name': 'route', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:04:19,920 INFO COMMIT
+2025-12-28 17:04:20,113 INFO BEGIN (implicit)
+2025-12-28 17:04:20,124 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status = %(status_1)s
+2025-12-28 17:04:20,124 INFO [generated in 0.00032s] {'status_1': 'active'}
+2025-12-28 17:04:20,561 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status = %(status_1)s
+2025-12-28 17:04:20,561 INFO [cached since 0.4375s ago] {'status_1': 'vacation'}
+2025-12-28 17:04:20,738 INFO ROLLBACK
+2025-12-28 17:04:21,873 INFO BEGIN (implicit)
+2025-12-28 17:04:21,873 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status = %(status_1)s
+2025-12-28 17:04:21,874 INFO [cached since 1.75s ago] {'status_1': 'active'}
+2025-12-28 17:04:22,318 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status = %(status_1)s
+2025-12-28 17:04:22,318 INFO [cached since 2.195s ago] {'status_1': 'vacation'}
+2025-12-28 17:04:22,465 INFO ROLLBACK
+2025-12-28 17:04:26,978 INFO BEGIN (implicit)
+2025-12-28 17:04:26,979 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 17:04:26,979 INFO [generated in 0.00023s] {'status_1': 'fired'}
+2025-12-28 17:04:27,416 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 17:04:27,417 INFO [generated in 0.00033s] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 17:04:27,712 INFO SELECT headcounttarget.id, headcounttarget.shift_name, headcounttarget.target_value 
+FROM headcounttarget 
+WHERE headcounttarget.shift_name = %(shift_name_1)s
+2025-12-28 17:04:27,712 INFO [generated in 0.00033s] {'shift_name_1': 'Manhã'}
+2025-12-28 17:04:27,862 INFO SELECT sectorconfiguration.id, sectorconfiguration.shift_name, sectorconfiguration.config_json, sectorconfiguration.updated_at 
+FROM sectorconfiguration 
+WHERE sectorconfiguration.shift_name = %(shift_name_1)s
+2025-12-28 17:04:27,862 INFO [generated in 0.00037s] {'shift_name_1': 'Manhã'}
+2025-12-28 17:04:28,009 INFO SELECT route.id, route.date, route.shift, route.employee_id, route.client_id, route.start_time, route.end_time, route.tonnage, route.status, route.created_at 
+FROM route 
+WHERE route.date = %(date_1)s AND route.shift = %(shift_1)s
+2025-12-28 17:04:28,009 INFO [generated in 0.00029s] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 17:04:28,168 INFO ROLLBACK
+2025-12-28 17:04:34,391 INFO BEGIN (implicit)
+2025-12-28 17:04:34,391 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 17:04:34,391 INFO [cached since 7.412s ago] {'status_1': 'fired'}
+2025-12-28 17:04:34,829 INFO COMMIT
+2025-12-28 17:04:35,283 INFO BEGIN (implicit)
+2025-12-28 17:04:35,283 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee
+2025-12-28 17:04:35,284 INFO [generated in 0.00024s] {}
+2025-12-28 17:04:35,575 INFO SELECT headcounttarget.id, headcounttarget.shift_name, headcounttarget.target_value 
+FROM headcounttarget
+2025-12-28 17:04:35,575 INFO [generated in 0.00030s] {}
+2025-12-28 17:04:35,721 INFO ROLLBACK
+2025-12-28 17:04:40,774 INFO BEGIN (implicit)
+2025-12-28 17:04:40,775 INFO SELECT client.id, client.name, client.created_at 
+FROM client
+2025-12-28 17:04:40,775 INFO [generated in 0.00022s] {}
+2025-12-28 17:04:41,069 INFO ROLLBACK
+2025-12-28 17:04:42,267 INFO BEGIN (implicit)
+2025-12-28 17:04:42,267 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 17:04:42,267 INFO [cached since 14.85s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 17:04:42,860 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 17:04:42,860 INFO [cached since 15.88s ago] {'status_1': 'fired'}
+2025-12-28 17:04:43,014 INFO SELECT client.id, client.name, client.created_at 
+FROM client
+2025-12-28 17:04:43,014 INFO [cached since 2.239s ago] {}
+2025-12-28 17:04:43,160 INFO SELECT route.id, route.date, route.shift, route.employee_id, route.client_id, route.start_time, route.end_time, route.tonnage, route.status, route.created_at 
+FROM route 
+WHERE route.date = %(date_1)s AND route.shift = %(shift_1)s ORDER BY route.start_time
+2025-12-28 17:04:43,160 INFO [generated in 0.00031s] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 17:04:43,318 INFO ROLLBACK
+2025-12-28 17:05:04,964 INFO BEGIN (implicit)
+2025-12-28 17:05:04,964 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 17:05:04,965 INFO [cached since 37.99s ago] {'status_1': 'fired'}
+2025-12-28 17:05:05,410 INFO COMMIT
+2025-12-28 17:05:05,558 INFO BEGIN (implicit)
+2025-12-28 17:05:05,558 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee
+2025-12-28 17:05:05,558 INFO [cached since 30.27s ago] {}
+2025-12-28 17:05:05,887 INFO SELECT headcounttarget.id, headcounttarget.shift_name, headcounttarget.target_value 
+FROM headcounttarget
+2025-12-28 17:05:05,887 INFO [cached since 30.31s ago] {}
+2025-12-28 17:05:06,042 INFO ROLLBACK
+2025-12-28 17:05:22,229 INFO BEGIN (implicit)
+2025-12-28 17:05:22,229 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status = %(status_1)s
+2025-12-28 17:05:22,230 INFO [cached since 62.11s ago] {'status_1': 'active'}
+2025-12-28 17:05:22,674 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status = %(status_1)s
+2025-12-28 17:05:22,675 INFO [cached since 62.55s ago] {'status_1': 'vacation'}
+2025-12-28 17:05:22,823 INFO ROLLBACK
+2025-12-28 17:05:25,091 INFO BEGIN (implicit)
+2025-12-28 17:05:25,091 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 17:05:25,092 INFO [cached since 58.11s ago] {'status_1': 'fired'}
+2025-12-28 17:05:25,535 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 17:05:25,535 INFO [cached since 58.12s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 17:05:25,832 INFO SELECT headcounttarget.id, headcounttarget.shift_name, headcounttarget.target_value 
+FROM headcounttarget 
+WHERE headcounttarget.shift_name = %(shift_name_1)s
+2025-12-28 17:05:25,832 INFO [cached since 58.12s ago] {'shift_name_1': 'Manhã'}
+2025-12-28 17:05:25,992 INFO SELECT sectorconfiguration.id, sectorconfiguration.shift_name, sectorconfiguration.config_json, sectorconfiguration.updated_at 
+FROM sectorconfiguration 
+WHERE sectorconfiguration.shift_name = %(shift_name_1)s
+2025-12-28 17:05:25,992 INFO [cached since 58.13s ago] {'shift_name_1': 'Manhã'}
+2025-12-28 17:05:26,140 INFO SELECT route.id, route.date, route.shift, route.employee_id, route.client_id, route.start_time, route.end_time, route.tonnage, route.status, route.created_at 
+FROM route 
+WHERE route.date = %(date_1)s AND route.shift = %(shift_1)s
+2025-12-28 17:05:26,141 INFO [cached since 58.13s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 17:05:26,290 INFO ROLLBACK
+2025-12-28 17:05:34,506 INFO BEGIN (implicit)
+2025-12-28 17:05:34,506 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 17:05:34,507 INFO [cached since 67.09s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 17:05:35,109 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 17:05:35,109 INFO [cached since 68.13s ago] {'status_1': 'fired'}
+2025-12-28 17:05:35,258 INFO SELECT client.id, client.name, client.created_at 
+FROM client
+2025-12-28 17:05:35,258 INFO [cached since 54.48s ago] {}
+2025-12-28 17:05:35,404 INFO SELECT route.id, route.date, route.shift, route.employee_id, route.client_id, route.start_time, route.end_time, route.tonnage, route.status, route.created_at 
+FROM route 
+WHERE route.date = %(date_1)s AND route.shift = %(shift_1)s ORDER BY route.start_time
+2025-12-28 17:05:35,405 INFO [cached since 52.24s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 17:05:35,553 INFO ROLLBACK
+2025-12-28 17:06:04,108 INFO select pg_catalog.version()
+2025-12-28 17:06:04,108 INFO [raw sql] {}
+2025-12-28 17:06:04,405 INFO select current_schema()
+2025-12-28 17:06:04,406 INFO [raw sql] {}
+2025-12-28 17:06:04,701 INFO show standard_conforming_strings
+2025-12-28 17:06:04,701 INFO [raw sql] {}
+2025-12-28 17:06:04,996 INFO BEGIN (implicit)
+2025-12-28 17:06:04,999 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:06:04,999 INFO [generated in 0.00031s] {'table_name': 'shift', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:06:05,298 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:06:05,298 INFO [cached since 0.2995s ago] {'table_name': 'headcounttarget', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:06:05,449 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:06:05,449 INFO [cached since 0.4505s ago] {'table_name': 'employee', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:06:05,599 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:06:05,599 INFO [cached since 0.6007s ago] {'table_name': 'dailyoperation', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:06:05,746 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:06:05,746 INFO [cached since 0.7476s ago] {'table_name': 'event', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:06:05,969 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:06:05,969 INFO [cached since 0.9704s ago] {'table_name': 'user', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:06:06,124 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:06:06,124 INFO [cached since 1.125s ago] {'table_name': 'sectorconfiguration', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:06:06,272 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:06:06,272 INFO [cached since 1.273s ago] {'table_name': 'client', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:06:06,424 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:06:06,424 INFO [cached since 1.425s ago] {'table_name': 'route', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:06:06,571 INFO COMMIT
+2025-12-28 17:06:22,180 INFO BEGIN (implicit)
+2025-12-28 17:06:22,202 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 17:06:22,203 INFO [generated in 0.00059s] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 17:06:22,807 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 17:06:22,808 INFO [generated in 0.00032s] {'status_1': 'fired'}
+2025-12-28 17:06:22,974 INFO SELECT client.id, client.name, client.created_at 
+FROM client
+2025-12-28 17:06:22,974 INFO [generated in 0.00037s] {}
+2025-12-28 17:06:23,127 INFO SELECT route.id, route.date, route.shift, route.employee_id, route.client_id, route.start_time, route.end_time, route.tonnage, route.status, route.created_at 
+FROM route 
+WHERE route.date = %(date_1)s AND route.shift = %(shift_1)s ORDER BY route.start_time
+2025-12-28 17:06:23,127 INFO [generated in 0.00033s] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 17:06:23,295 INFO ROLLBACK
+2025-12-28 17:06:24,202 INFO BEGIN (implicit)
+2025-12-28 17:06:24,203 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 17:06:24,203 INFO [cached since 1.396s ago] {'status_1': 'fired'}
+2025-12-28 17:06:24,711 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 17:06:24,712 INFO [cached since 2.51s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 17:06:25,017 INFO SELECT headcounttarget.id, headcounttarget.shift_name, headcounttarget.target_value 
+FROM headcounttarget 
+WHERE headcounttarget.shift_name = %(shift_name_1)s
+2025-12-28 17:06:25,017 INFO [generated in 0.00037s] {'shift_name_1': 'Manhã'}
+2025-12-28 17:06:25,163 INFO SELECT sectorconfiguration.id, sectorconfiguration.shift_name, sectorconfiguration.config_json, sectorconfiguration.updated_at 
+FROM sectorconfiguration 
+WHERE sectorconfiguration.shift_name = %(shift_name_1)s
+2025-12-28 17:06:25,163 INFO [generated in 0.00028s] {'shift_name_1': 'Manhã'}
+2025-12-28 17:06:25,312 INFO SELECT route.id, route.date, route.shift, route.employee_id, route.client_id, route.start_time, route.end_time, route.tonnage, route.status, route.created_at 
+FROM route 
+WHERE route.date = %(date_1)s AND route.shift = %(shift_1)s
+2025-12-28 17:06:25,312 INFO [generated in 0.00030s] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 17:06:25,478 INFO ROLLBACK
+2025-12-28 17:06:44,771 INFO select pg_catalog.version()
+2025-12-28 17:06:44,771 INFO [raw sql] {}
+2025-12-28 17:06:45,067 INFO select current_schema()
+2025-12-28 17:06:45,068 INFO [raw sql] {}
+2025-12-28 17:06:45,362 INFO show standard_conforming_strings
+2025-12-28 17:06:45,363 INFO [raw sql] {}
+2025-12-28 17:06:45,655 INFO BEGIN (implicit)
+2025-12-28 17:06:45,658 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:06:45,658 INFO [generated in 0.00029s] {'table_name': 'shift', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:06:46,021 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:06:46,021 INFO [cached since 0.363s ago] {'table_name': 'headcounttarget', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:06:46,174 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:06:46,174 INFO [cached since 0.5162s ago] {'table_name': 'employee', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:06:46,326 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:06:46,327 INFO [cached since 0.6687s ago] {'table_name': 'dailyoperation', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:06:46,473 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:06:46,473 INFO [cached since 0.8148s ago] {'table_name': 'event', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:06:46,622 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:06:46,622 INFO [cached since 0.9643s ago] {'table_name': 'user', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:06:46,770 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:06:46,771 INFO [cached since 1.113s ago] {'table_name': 'sectorconfiguration', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:06:46,917 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:06:46,918 INFO [cached since 1.26s ago] {'table_name': 'client', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:06:47,075 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 17:06:47,075 INFO [cached since 1.417s ago] {'table_name': 'route', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 17:06:47,225 INFO COMMIT
+2025-12-28 17:06:58,291 INFO BEGIN (implicit)
+2025-12-28 17:06:58,303 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 17:06:58,304 INFO [generated in 0.00030s] {'status_1': 'fired'}
+2025-12-28 17:06:58,752 INFO COMMIT
+2025-12-28 17:06:58,898 INFO BEGIN (implicit)
+2025-12-28 17:06:58,898 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee
+2025-12-28 17:06:58,899 INFO [generated in 0.00020s] {}
+2025-12-28 17:06:59,195 INFO SELECT headcounttarget.id, headcounttarget.shift_name, headcounttarget.target_value 
+FROM headcounttarget
+2025-12-28 17:06:59,196 INFO [generated in 0.00027s] {}
+2025-12-28 17:06:59,343 INFO ROLLBACK
+2025-12-28 17:07:05,421 INFO BEGIN (implicit)
+2025-12-28 17:07:05,421 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 17:07:05,422 INFO [cached since 7.118s ago] {'status_1': 'fired'}
+2025-12-28 17:07:05,862 INFO COMMIT
+2025-12-28 17:07:06,025 INFO BEGIN (implicit)
+2025-12-28 17:07:06,025 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee
+2025-12-28 17:07:06,026 INFO [cached since 7.127s ago] {}
+2025-12-28 17:07:06,325 INFO SELECT headcounttarget.id, headcounttarget.shift_name, headcounttarget.target_value 
+FROM headcounttarget
+2025-12-28 17:07:06,326 INFO [cached since 7.13s ago] {}
+2025-12-28 17:07:06,478 INFO ROLLBACK

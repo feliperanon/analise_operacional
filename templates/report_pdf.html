@@ -170,7 +170,6 @@
         <!-- Absences -->
         <div>
             <h2>Faltas e Atestados</h2>
-            {% set absences = snapshot.people | selectattr('status_daily', 'in', ['absent', 'sick']) | list %}
             {% if absences %}
             <table>
                 <thead>
@@ -203,7 +202,6 @@
         <!-- Vacations & Away -->
         <div>
             <h2>Férias e Afastados</h2>
-            {% set unavail = snapshot.people | selectattr('status_daily', 'in', ['vacation', 'away']) | list %}
             {% if unavail %}
             <table>
                 <thead>
@@ -249,10 +247,11 @@
 
             <!-- Contracts -->
             <div>
-                <h3 class="text-xs font-bold uppercase text-orange-400 mb-1">Vencimento de Contrato (Próx. 45 dias)</h3>
+                <h3 class="text-xs font-bold uppercase text-orange-400 mb-1">Vencimento de Contrato</h3>
                 <ul class="text-sm list-disc pl-4 text-slate-700">
                     {% for c in contracts %}
-                    <li><b>{{ c.date }}</b> - {{ c.name }} ({{ c.days }} dias)</li>
+                    <li><b>{{ c.date }}</b> - {{ c.name }} <span class="text-xs text-slate-500">({{ c.type }} - {{
+                            c.days }} dias)</span></li>
                     {% else %}
                     <li class="list-none text-slate-400 italic">Nenhum vencimento próximo.</li>
                     {% endfor %}

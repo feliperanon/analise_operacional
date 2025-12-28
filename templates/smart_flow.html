@@ -538,14 +538,14 @@
     const ALL_EMPLOYEES = [
         {% for emp in employees_list %}
     {
-        id: {{ emp.registration_id | tojson }},
-        name: {{ emp.name | tojson }},
-        role: {{ emp.role | tojson }},
-        shift: {{ emp.work_shift | tojson }},
-        cost_center: {{ emp.cost_center | tojson }},
-        status: {{ emp.status | tojson }},
-        birthday: {{ (emp.birthday.isoformat() if emp.birthday else None) | tojson }},
-        admission_date: {{ (emp.admission_date.isoformat() if emp.admission_date else None) | tojson }}
+        id: { { emp.registration_id | tojson } },
+        name: { { emp.name | tojson } },
+        role: { { emp.role | tojson } },
+        shift: { { emp.work_shift | tojson } },
+        cost_center: { { emp.cost_center | tojson } },
+        status: { { emp.status | tojson } },
+        birthday: { { (emp.birthday.isoformat() if emp.birthday else None) | tojson } },
+        admission_date: { { (emp.admission_date.isoformat() if emp.admission_date else None) | tojson } }
     },
     {% endfor %}
     ];
@@ -683,15 +683,6 @@
         renderFlow();
         updateKPIs();
     });
-
-    // ... (rest of code) ...
-    // Note: I will only replace the parts I need to change. 
-    // Wait, the ReplacementContent must complete the chunk.
-    // I will do multiple smaller replacements or one large one.
-    // simpler to do multiple or just replace the affected functions.
-
-    // I'll replace the top state definition first.
-
 
     // --- Core Rendering ---
     function renderFlow() {
@@ -1347,12 +1338,12 @@
             else alert('Erro ao salvar');
         } catch (e) {
             console.error(e);
-            alert('Erro de conexÃ£o');
+            alert('Erro de conexão');
         }
     }
 
     function closeOperation() {
-        if (confirm("ATENÃÃO: Deseja realmente ENCERRAR a operaÃ§Ã£o deste turno?\n\nIsso irÃ¡ consolidar os nÃºmeros e marcar o status como fechado.")) {
+        if (confirm("ATENÃÃO: Deseja realmente ENCERRAR a operação deste turno?\n\nIsso irá consolidar os números e marcar o status como fechado.")) {
             saveRoutine('closed');
         }
     }
@@ -1576,7 +1567,7 @@
                         <div>
                             <h3 class="text-lg font-bold text-slate-100" id="vacation-modal-title">Programar Férias
                             </h3>
-                            <p class="text-sm text-slate-400">Defina o perÃ­odo de fÃ©rias do colaborador.</p>
+                            <p class="text-sm text-slate-400">Defina o período de férias do colaborador.</p>
                         </div>
                     </div>
 
@@ -1585,7 +1576,7 @@
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label for="vacation-start"
-                                    class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5 ml-1">InÃ­cio</label>
+                                    class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5 ml-1">Início</label>
                                 <input type="date" id="vacation-start" required
                                     class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-slate-100 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition text-sm text-white-scheme">
                             </div>
@@ -1658,7 +1649,7 @@
             }
         } catch (e) {
             console.error(e);
-            alert('Erro de conexÃ£o');
+            alert('Erro de conexão');
         }
     }
 

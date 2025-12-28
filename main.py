@@ -746,7 +746,218 @@ async def update_routine(
     except Exception as e:
         print(f"Error updating routine: {e}")
         return JSONResponse({"error": str(e)}, status_code=500)
-# --- Employee Routes ---
+# --- Report Route ---
+@app.get("/routine/report", response_class=HTMLResponse)
+async def routine_report(
+    request: Request,
+    date: str,
+    shift: str,
+    session: Session = Depends(get_session)
+):
+    user = require_login(request)
+    try:
+        # 1. Fetch Daily Operation
+        daily_op = session.exec(
+            select(models.DailyOperation)
+            .where(models.DailyOperation.date == date)
+            .where(models.DailyOperation.shift == shift)
+        ).first()
+        
+        # 2. Fetch Employees (Active + those in log even if fired/changed)
+        # For simplicity, we fetch all non-fired first, then we might need to handle historical
+        # The log uses registration_id as key.
+        all_employees = session.exec(select(models.Employee)).all()
+        emp_map = {str(e.registration_id): e for e in all_employees}
+        
+        # 3. Fetch Sector Config (Targets)
+        sector_config_db = session.exec(select(models.SectorConfiguration).where(models.SectorConfiguration.shift_name == shift)).first()
+        sector_config = {}
+        if sector_config_db and sector_config_db.config_json:
+            sector_config = sector_config_db.config_json
+            if isinstance(sector_config, str):
+                import json
+                try:
+                    sector_config = json.loads(sector_config)
+                except:
+                    sector_config = {}
+                    
+        # Defaults if missing
+        if not sector_config or "sectors" not in sector_config:
+            sector_config = {
+                "sectors": [
+                    { "key": "recebimento", "label": "Recebimento", "target": 0 },
+                    { "key": "camara_fria", "label": "Câmara Fria", "target": 0 },
+                    { "key": "selecao", "label": "Seleção", "target": 0 },
+                    { "key": "expedicao", "label": "Expedição", "target": 0 }
+                ]
+            }
+            
+        SECTORS = sector_config.get("sectors", [])
+        
+        # 4. Build Snapshot Data
+        
+        # Initial State
+        log = daily_op.attendance_log if daily_op and daily_op.attendance_log else {}
+        tonnage = daily_op.tonnage if daily_op and daily_op.tonnage else 0.0
+        
+        # Prepare People List for Report
+        people_list = []
+        
+        # We iterate over ALL active employees to show absences/vacations correctly
+        # AND we check the log for specific daily statuses
+        
+        # Helper to get daily entry
+        def get_daily_status(reg_id):
+            return log.get(str(reg_id), {})
+            
+        total_present = 0
+        
+        for emp in all_employees:
+            if emp.status == 'fired': continue # Skip fired for now unless in log?
+            
+            # Filter by Shift:
+            # Include if they belong to this shift OR if they are in the log (borrowed)
+            # Normalize strings for comparison just in case
+            emp_shift = (emp.work_shift or "").strip().lower()
+            req_shift = shift.strip().lower()
+            
+            is_same_shift = (emp_shift == req_shift)
+            entry = get_daily_status(emp.registration_id)
+            is_in_log = (str(emp.registration_id) in log)
+            
+            if not is_same_shift and not is_in_log:
+                continue
+            
+            # Determine effective status for today
+            daily_status = entry.get('status')
+            
+            if not daily_status:
+                # Fallback to permanent
+                if emp.status == 'active': daily_status = 'present'
+                else: daily_status = emp.status # vacation, sick, away
+            
+            sector_key = entry.get('sector')
+            
+            # Count Present
+            if daily_status == 'present':
+                total_present += 1
+                
+            people_list.append({
+                "id": emp.registration_id,
+                "name": emp.name,
+                "status_daily": daily_status,
+                "sector_daily": sector_key
+            })
+            
+        # Build Sectors Detailed
+        sectors_detailed = []
+        total_target = 0
+        
+        for sec in SECTORS:
+            key = sec.get('key')
+            target = int(sec.get('target', 0))
+            total_target += target
+            
+            # Find people allocated to this sector AND present
+            allocated_people = [p for p in people_list if p['sector_daily'] == key]
+            present_people = [p for p in allocated_people if p['status_daily'] == 'present']
+            
+            gap = max(0, target - len(present_people))
+            
+            sectors_detailed.append({
+                "label": sec.get('label'),
+                "target": target,
+                "allocated_count": len(allocated_people),
+                "present_count": len(present_people),
+                "gap": gap
+            })
+            
+        # Top KPIs
+        total_gap = sum(s['gap'] for s in sectors_detailed)
+        prod_per_person = round(tonnage / total_present, 2) if total_present > 0 else 0
+        
+        snapshot = {
+            "kpis": {
+                "total_target": total_target,
+                "total_present": total_present,
+                "total_gap": total_gap,
+                "tonnage": f"{tonnage:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+                "prod_per_person": f"{prod_per_person:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            },
+            "sectors": sectors_detailed,
+            "people": people_list
+        }
+        
+        # Extras for Insights
+        params_date = datetime.strptime(date, "%Y-%m-%d").date()
+        
+        # Pre-filter lists for Report (Avoid Jinja complexity)
+        absences = [p for p in people_list if p['status_daily'] in ['absent', 'sick']]
+        unavail = [p for p in people_list if p['status_daily'] in ['vacation', 'away']]
+        
+        # Birthdays
+        birthdays = []
+        for emp in all_employees:
+            if emp.birthday:
+                b_date = emp.birthday.date()
+                if b_date.month == params_date.month:
+                    birthdays.append({
+                        "name": emp.name,
+                        "day": b_date.day,
+                        "month": b_date.month
+                    })
+        birthdays.sort(key=lambda x: x['day'])
+        
+        # Contracts (45 and 90 days from admission)
+        contracts = []
+        for emp in all_employees:
+            if emp.admission_date:
+                adm = emp.admission_date.date()
+                
+                # 45 Days
+                d45 = adm + timedelta(days=45)
+                days_to_45 = (d45 - params_date).days
+                
+                # 90 Days
+                d90 = adm + timedelta(days=90)
+                days_to_90 = (d90 - params_date).days
+                
+                # Show if within next 30 days of the milestone
+                if 0 <= days_to_45 <= 30:
+                     contracts.append({
+                        "name": emp.name,
+                        "date": d45.strftime("%d/%m"),
+                        "days": days_to_45,
+                        "type": "45 Dias"
+                     })
+                     
+                if 0 <= days_to_90 <= 30:
+                     contracts.append({
+                        "name": emp.name,
+                        "date": d90.strftime("%d/%m"),
+                        "days": days_to_90,
+                        "type": "90 Dias"
+                     })
+                     
+        contracts.sort(key=lambda x: x['days'])
+
+        return templates.TemplateResponse("report_pdf.html", {
+            "request": request,
+            "date": datetime.strptime(date, "%Y-%m-%d").strftime("%d/%m/%Y"),
+            "shift": shift,
+            "generated_at": datetime.now().strftime("%d/%m/%Y %H:%M"),
+            "snapshot": snapshot,
+            "absences": absences,
+            "unavail": unavail,
+            "birthdays": birthdays,
+            "contracts": contracts
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return HTMLResponse(content=f"<h1>Erro ao Gerar Relatório</h1><pre>{traceback.format_exc()}</pre>", status_code=500)
+
 from sqlmodel import select
 @app.get("/employees", response_class=HTMLResponse)
 async def employees_page(request: Request, session: Session = Depends(get_session)):
@@ -835,23 +1046,12 @@ async def _employees_page_impl(request: Request, session: Session):
     }
     return templates.TemplateResponse("employees.html", {
         "request": request,
+        "user": user,
         "employees": employees,
         "stats": {
             "total_active": total_real_active,
             "total_target": total_target,
             "vacancies": total_target - total_real_active,
-            "shifts": shift_stats,
-            "statuses": status_stats
-        }
-    })
-    return templates.TemplateResponse("employees.html", {
-        "request": request,
-        "user": user,
-        "employees": employees,
-        "stats": {
-            "total_active": total_active,
-            "total_target": total_target,
-            "vacancies": total_target - total_active,
             "shifts": shift_stats,
             "statuses": status_stats
         }
