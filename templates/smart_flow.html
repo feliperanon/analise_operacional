@@ -528,24 +528,24 @@
     let shiftTargetHr = {{ shift_target_hr }};
 
     // Dynamic Config from Backend
-    let config = {{ sector_config | tojson}};
+    let config = {{ sector_config | tojson }} || {};
     let SECTORS = config.sectors || [];
 
     let employees = {
-        log: {{ daily_op.attendance_log | tojson }}
+        log: {{ daily_op.attendance_log | tojson }} || {}
     };
 
     const ALL_EMPLOYEES = [
         {% for emp in employees_list %}
     {
-        id: { { emp.registration_id | tojson } },
-        name: { { emp.name | tojson } },
-        role: { { emp.role | tojson } },
-        shift: { { emp.work_shift | tojson } },
-        cost_center: { { emp.cost_center | tojson } },
-        status: { { emp.status | tojson } },
-        birthday: { { (emp.birthday.isoformat() if emp.birthday else None) | tojson } },
-        admission_date: { { (emp.admission_date.isoformat() if emp.admission_date else None) | tojson } }
+        id: {{ emp.registration_id | tojson }},
+        name: {{ emp.name | tojson }},
+        role: {{ emp.role | tojson }},
+        shift: {{ emp.work_shift | tojson }},
+        cost_center: {{ emp.cost_center | tojson }},
+        status: {{ emp.status | tojson }},
+        birthday: {{ (emp.birthday.isoformat() if emp.birthday else None) | tojson }},
+        admission_date: {{ (emp.admission_date.isoformat() if emp.admission_date else None) | tojson }}
     },
     {% endfor %}
     ];

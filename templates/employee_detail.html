@@ -483,10 +483,12 @@
                 <!-- Content -->
                 <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
                     <div class="flex justify-between items-start mb-2">
-                        <span
-                            class="text-xs font-semibold uppercase tracking-wider 
-<<<<<<< HEAD
-                        {% if event.type == 'advertencia' %}text-red-400{% elif event.type == 'atestado' %}text-yellow-400{% else %}text-slate-400{% endif %}">
+                        <span class="text-xs font-semibold uppercase tracking-wider 
+                        {% if event.type == 'advertencia' %}text-red-400
+                        {% elif event.type == 'atestado' %}text-yellow-400
+                        {% elif event.type == 'ferias_hist' %}text-blue-400
+                        {% elif event.type == 'allocacao' %}text-slate-300
+                        {% else %}text-slate-400{% endif %}">
                             {% if event.type == 'allocacao' %}ALOCAÇÃO
                             {% elif event.type == 'falta' %}FALTA
                             {% elif event.type == 'atestado' %}ATESTADO
@@ -496,14 +498,6 @@
                             {% elif event.type == 'advertencia' %}ADVERTÊNCIA
                             {% elif event.type == 'remocao' %}REMOÇÃO
                             {% elif event.type == 'retorno' %}RETORNO
-=======
-                        {% if event.type == 'advertencia' %}text-red-400{% elif event.type == 'atestado' %}text-yellow-400{% elif event.type == 'ferias_hist' %}text-blue-400{% elif event.type == 'allocacao' %}text-slate-300{% else %}text-slate-400{% endif %}">
-                            {% if event.type == 'advertencia' %}ADVERTÊNCIA
-                            {% elif event.type == 'atestado' %}ATESTADO
-                            {% elif event.type == 'ferias_hist' %}FÉRIAS
-                            {% elif event.type == 'falta' %}FALTA
-                            {% elif event.type == 'allocacao' %}ALOCAÇÃO
->>>>>>> 5c5d69a3c49a04aff106ba90af32869e4540d976
                             {% else %}{{ event.type }}{% endif %}
                         </span>
                         <span class="text-xs text-slate-500">{{ event.timestamp.strftime('%d/%m/%Y %H:%M') }}</span>

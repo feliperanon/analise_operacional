@@ -991,7 +991,8 @@ async def _employees_page_impl(request: Request, session: Session):
             session.add(d)
         session.commit()
         targets = session.exec(select(models.HeadcountTarget)).all()
-        target_map = {t.shift_name: t.target_value for t in targets}
+    
+    target_map = {t.shift_name: t.target_value for t in targets}
     total_target = sum(t.target_value for t in targets)
         # Shift Stats
     shifts = ["Manhã", "Tarde", "Noite"]
