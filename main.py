@@ -8,18 +8,13 @@ from starlette.middleware.sessions import SessionMiddleware
 from sqlmodel import Session, select
 from database import create_db_and_tables, get_session
 import models
-
 # --- Config ---
 SECRET_KEY = "your-secret-key-change-in-production"
 ALLOWED_USER = "feliperanon"
 ALLOWED_PASS = "571232ce"
-
-
-
 # API Models
 from pydantic import BaseModel
 from typing import Optional, List
-
 class DailyRoutineUpdate(BaseModel):
     date: str
     shift: str
@@ -31,21 +26,18 @@ class DailyRoutineUpdate(BaseModel):
     rating: Optional[int] = 0
     status: Optional[str] = None
     sector_config: Optional[dict] = None
-
+    logs: Optional[list] = None
 class VacationSchedule(BaseModel):
     registration_id: str
     start_date: str
     end_date: str
-
 def update_vacation_statuses(session: Session, target_date: datetime):
     """
     Updates employee status based on vacation schedule vs target date.
     """
     check_start = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
     check_end = target_date.replace(hour=23, minute=59, second=59, microsecond=999)
-    
     employees = session.exec(select(models.Employee).where(models.Employee.status != "fired")).all()
-    
     for emp in employees:
         if emp.vacation_start and emp.vacation_end:
             # Basic validation of dates
@@ -68,47 +60,35 @@ def update_vacation_statuses(session: Session, target_date: datetime):
                 if emp.status == 'vacation':
                     emp.status = 'active'
                     session.add(emp)
-    
     session.commit()
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
     yield
-
 app = FastAPI(lifespan=lifespan)
-
 # Add Session Middleware
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
-
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
 templates = Jinja2Templates(directory="templates")
-
 # --- Auth Dependencies ---
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
     return Response(status_code=204)
-
 def get_current_user(request: Request):
     user = request.session.get("user")
     if not user:
         return None
     return user
-
 def require_login(request: Request):
     user = get_current_user(request)
     if not user:
         raise HTTPException(status_code=status.HTTP_307_TEMPORARY_REDIRECT, detail="Not authenticated")
     return user
-
 # --- Routes ---
-
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
-
 @app.post("/login", response_class=HTMLResponse)
 async def login(request: Request, username: str = Form(...), password: str = Form(...)):
     if username == ALLOWED_USER and password == ALLOWED_PASS:
@@ -116,14 +96,11 @@ async def login(request: Request, username: str = Form(...), password: str = For
         return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
     else:
         return templates.TemplateResponse("login.html", {"request": request, "error": "Credenciais inválidas"})
-
 @app.get("/logout")
 async def logout(request: Request):
     request.session.clear()
     return RedirectResponse(url="/login")
-
 # --- Client Routes ---
-
 @app.post("/clients/add", response_class=RedirectResponse)
 async def add_client(
     request: Request,
@@ -140,33 +117,27 @@ async def add_client(
             session.commit()
     except Exception as e:
         print(f"Error adding client: {e}")
-    
-    # Redirect back to Clients page
+        # Redirect back to Clients page
     return RedirectResponse(url="/clients", status_code=status.HTTP_303_SEE_OTHER)
-
 @app.get("/clients", response_class=HTMLResponse)
 async def clients_page(request: Request, session: Session = Depends(get_session)):
     user = require_login(request)
     clients = session.exec(select(models.Client)).all()
     return templates.TemplateResponse("clients.html", {"request": request, "user": user, "clients": clients})
-
 @app.get("/clients/list", response_class=JSONResponse)
 async def list_clients(session: Session = Depends(get_session)):
     clients = session.exec(select(models.Client)).all()
     return {"clients": [c.name for c in clients]}
-
 # --- Route Management ---
-
 # --- Separação de Mercadorias Management ---
-
 @app.get("/separacao", response_class=HTMLResponse)
 async def separacao_page(request: Request, date: Optional[str] = None, shift: str = "Manhã", session: Session = Depends(get_session)):
     user = require_login(request)
     
     if not date:
         date = datetime.now().strftime("%Y-%m-%d")
-
-    # 1. Fetch DailyOperation for Allocation Data
+        
+    # 1. Fetch DailyOperation
     daily_op = session.exec(
         select(models.DailyOperation)
         .where(models.DailyOperation.date == date)
@@ -176,39 +147,40 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
     # 2. Filter Employees (Sector == Expedicao)
     all_employees = session.exec(select(models.Employee).where(models.Employee.status != "fired")).all()
     emp_map_reg = {e.registration_id: e for e in all_employees}
-    emp_map_id = {e.id: e for e in all_employees}
     
     eligible_employees = []
-    
     if daily_op and daily_op.attendance_log:
         for reg_id, data in daily_op.attendance_log.items():
             if data.get('sector') == 'expedicao': 
                 emp = emp_map_reg.get(reg_id)
                 if emp:
                     eligible_employees.append(emp)
-    
+                    
     eligible_employees.sort(key=lambda x: x.name)
 
     # 3. Fetch Clients
     clients = session.exec(select(models.Client)).all()
     cli_map = {c.id: c.name for c in clients}
 
-    # 4. Fetch Routes (Separação)
+    # 4. Fetch Routes
     db_routes = session.exec(
         select(models.Route)
         .where(models.Route.date == date)
         .where(models.Route.shift == shift)
         .order_by(models.Route.start_time)
     ).all()
-    
-    # 5. Enrich & Calculate Productivity
+
+    # 5. Enrich
+    # Create ID map for name lookup
+    emp_map_id = {e.id: e for e in all_employees}
+
+    # 5. Enrich
     routes_view = []
     
     def calc_productivity(start, end, tonnage):
         try:
             if not start: return 0.0
             t = tonnage if tonnage is not None else 0.0
-            
             s = datetime.strptime(start, "%H:%M")
             if not end: return 0.0
             e = datetime.strptime(end, "%H:%M")
@@ -217,28 +189,26 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
             return round(t / diff, 2)
         except Exception:
             return 0.0
+            
+    def fmt_num(n):
+        val = n if n is not None else 0.0
+        return f"{val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        
+    def calc_duration_str(start, end):
+        if not start or not end: return None
+        try:
+            s = datetime.strptime(start, "%H:%M")
+            e = datetime.strptime(end, "%H:%M")
+            diff = (e - s).total_seconds()
+            if diff < 0: return None
+            hours = int(diff // 3600)
+            mins = int((diff % 3600) // 60)
+            return f"{hours:02d}h {mins:02d}m"
+        except:
+            return None
 
     for r in db_routes:
         prod = calc_productivity(r.start_time, r.end_time, r.tonnage)
-        
-        def fmt_num(n):
-            val = n if n is not None else 0.0
-            return f"{val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-            
-        def calc_duration_str(start, end):
-            if not start or not end: return None
-            try:
-                s = datetime.strptime(start, "%H:%M")
-                e = datetime.strptime(end, "%H:%M")
-                diff = (e - s).total_seconds()
-                if diff < 0: return None # Ignore negative/overflow for now
-                
-                hours = int(diff // 3600)
-                mins = int((diff % 3600) // 60)
-                return f"{hours:02d}h {mins:02d}m"
-            except:
-                return None
-
         routes_view.append({
             "id": r.id,
             "start_time": r.start_time,
@@ -264,7 +234,6 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
         "selected_shift": shift,
         "selected_date_fmt": datetime.strptime(date, "%Y-%m-%d").strftime("%d/%m/%Y")
     })
-
 @app.post("/separacao/add", response_class=RedirectResponse)
 async def add_separacao(
     request: Request,
@@ -293,9 +262,7 @@ async def add_separacao(
         session.commit()
     except Exception as e:
         print(f"Error adding separacao: {e}")
-        
     return RedirectResponse(url=f"/separacao?date={date}&shift={shift}", status_code=status.HTTP_303_SEE_OTHER)
-
 @app.post("/separacao/delete/{route_id}", response_class=RedirectResponse)
 async def delete_separacao(
     request: Request,
@@ -311,7 +278,6 @@ async def delete_separacao(
         session.commit()
         return RedirectResponse(url=f"/separacao?date={date}&shift={shift}", status_code=status.HTTP_303_SEE_OTHER)
     return RedirectResponse(url="/separacao", status_code=status.HTTP_303_SEE_OTHER)
-
 @app.post("/separacao/update", response_class=RedirectResponse)
 async def update_separacao(
     request: Request,
@@ -331,23 +297,18 @@ async def update_separacao(
         if start_time is not None: route.start_time = start_time
         if end_time is not None: route.end_time = end_time
         if tonnage is not None: route.tonnage = tonnage
-        
         session.add(route)
         session.commit()
         return RedirectResponse(url=f"/separacao?date={route.date}&shift={route.shift}", status_code=status.HTTP_303_SEE_OTHER)
     return RedirectResponse(url="/separacao", status_code=status.HTTP_303_SEE_OTHER)
-
-
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request, shift: Optional[str] = None, session: Session = Depends(get_session)):
     try:
         user = get_current_user(request)
         if not user:
             return RedirectResponse(url="/login")
-        
         # --- People Management Logic ---
         today = datetime.now().date()
-        
         # Base Query
         query = select(models.Employee).where(models.Employee.status == 'active')
         
@@ -362,17 +323,15 @@ async def read_root(request: Request, shift: Optional[str] = None, session: Sess
         vac_query = select(models.Employee).where(models.Employee.status == 'vacation')
         if shift and shift not in ['Todos', 'all']:
             vac_query = vac_query.where(models.Employee.work_shift == shift)
-        
+            
         vacation_active_employees = session.exec(vac_query).all()
-        
-        # Helper to get shift badge color/label
+                # Helper to get shift badge color/label
         def get_shift_meta(s):
             s = (s or '').lower()
             if s == 'manhã': return {'label': 'M', 'color': 'blue'}
             if s == 'tarde': return {'label': 'T', 'color': 'orange'}
             if s == 'noite': return {'label': 'N', 'color': 'purple'}
             return {'label': '-', 'color': 'slate'}
-
         # 1. Birthdays (Current Month)
         birthdays = []
         for emp in employees:
@@ -389,7 +348,6 @@ async def read_root(request: Request, shift: Optional[str] = None, session: Sess
                         "shift": get_shift_meta(emp.work_shift)
                     })
         birthdays.sort(key=lambda x: x['day'])
-
         # 2. Company Anniversaries (Current Month)
         anniversaries = []
         for emp in employees:
@@ -407,13 +365,11 @@ async def read_root(request: Request, shift: Optional[str] = None, session: Sess
                         "shift": get_shift_meta(emp.work_shift)
                     })
         anniversaries.sort(key=lambda x: x['day'])
-
         # 3. Vacations (Active + Upcoming 20 days)
         # We need to scan ACTIVE employees for UPCOMING vacations, 
         # and VACATION employees for CURRENT status.
         vacation_list = []
-        
-        # A) Currently on Vacation
+                # A) Currently on Vacation
         for emp in vacation_active_employees:
             end_str = "-"
             if emp.vacation_end:
@@ -426,7 +382,6 @@ async def read_root(request: Request, shift: Optional[str] = None, session: Sess
                 "is_active": True, # Blue/Orange status
                 "shift": get_shift_meta(emp.work_shift)
             })
-
         # B) Upcoming (Next 20 days) - Scan Active Employees
         limit_date = today + timedelta(days=20)
         for emp in employees:
@@ -443,13 +398,11 @@ async def read_root(request: Request, shift: Optional[str] = None, session: Sess
                         "shift": get_shift_meta(emp.work_shift),
                         "sort_date": v_start
                     })
-        
-        # Sort: Current first, then upcoming by date
+                # Sort: Current first, then upcoming by date
         # We can use a sort key tuple: (0 for current/1 for future, date)
         # Active vacations don't have a sort_date easily, give them today
         # Fix: Using v_start directly in lambda can be tricky if not captured, but x['sort_date'] works.
         vacation_list.sort(key=lambda x: (1 if x['status'] == 'Vai sair' else 0, x.get('sort_date', today)))
-
         # 4. Contract Expiry (45 and 90 days)
         contracts = []
         for emp in employees:
@@ -463,7 +416,7 @@ async def read_root(request: Request, shift: Optional[str] = None, session: Sess
                 # 90 Days
                 d90 = adm + timedelta(days=90)
                 days_to_90 = (d90 - today).days
-
+                
                 if 0 <= days_to_45 <= 30:
                     contracts.append({
                         "id": emp.id,
@@ -474,7 +427,7 @@ async def read_root(request: Request, shift: Optional[str] = None, session: Sess
                         "is_today": (days_to_45 == 0),
                         "shift": get_shift_meta(emp.work_shift)
                     })
-                
+                    
                 if 0 <= days_to_90 <= 30:
                     contracts.append({
                         "id": emp.id,
@@ -486,12 +439,10 @@ async def read_root(request: Request, shift: Optional[str] = None, session: Sess
                         "shift": get_shift_meta(emp.work_shift)
                     })
         contracts.sort(key=lambda x: x['days_left'])
-
         months_pt = {
             1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril', 5: 'Maio', 6: 'Junho',
             7: 'Julho', 8: 'Agosto', 9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
         }
-        
         return templates.TemplateResponse("index.html", {
             "request": request, 
             "message": "Operação Inteligente - Sistema Iniciado",
@@ -508,123 +459,114 @@ async def read_root(request: Request, shift: Optional[str] = None, session: Sess
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return HTMLResponse(content=f"<h1>Erro Interno (500)</h1><pre>{traceback.format_exc()}</pre>", status_code=500)
-
-
-
+        return HTMLResponse(content=f"<h1>Error Interno (500)</h1><pre>{traceback.format_exc()}</pre>", status_code=500)
 # --- Smart Flow Routes ---
-
 @app.get("/smart-flow", response_class=HTMLResponse)
 async def smart_flow_page(request: Request, shift: str = "Manhã", date: Optional[str] = None, session: Session = Depends(get_session)):
-    user = require_login(request)
-    
-    # Get Employees for "Available Pool" (Active, Sick, Vacation, Away - Everyone except Fired)
-    
-    # Auto-Update Vacation Status Check
-    
-    # Auto-Update Vacation Status Check
-    if date:
-        try:
-            update_vacation_statuses(session, datetime.strptime(date, "%Y-%m-%d"))
-        except Exception as e:
-            print(f"Error checking vacation dates: {e}")
+    try:
+        user = require_login(request)
+        # Get Employees for "Available Pool" (Active, Sick, Vacation, Away - Everyone except Fired)
+        # Auto-Update Vacation Status Check
+        if date:
+            try:
+                update_vacation_statuses(session, datetime.strptime(date, "%Y-%m-%d"))
+            except Exception as e:
+                print(f"Error checking vacation dates: {e}")
+                
+        employees = session.exec(select(models.Employee).where(models.Employee.status != "fired")).all()
+        emp_map = {e.registration_id: e for e in employees}
+        
+        # Get Daily Op
+        if not date:
+            date = datetime.now().strftime("%Y-%m-%d")
             
-    employees = session.exec(select(models.Employee).where(models.Employee.status != "fired")).all()
-    emp_map = {e.registration_id: e for e in employees}
-
-    # Get Daily Op
-    if not date:
-        date = datetime.now().strftime("%Y-%m-%d")
-        
-    daily_op = session.exec(
-        select(models.DailyOperation)
-        .where(models.DailyOperation.date == date)
-        .where(models.DailyOperation.shift == shift)
-    ).first()
-    
-    if not daily_op:
-        # Logic: Smart Copy from Last Operation
-        last_op = session.exec(
+        daily_op = session.exec(
             select(models.DailyOperation)
+            .where(models.DailyOperation.date == date)
             .where(models.DailyOperation.shift == shift)
-            .where(models.DailyOperation.date < date)
-            .order_by(models.DailyOperation.date.desc())
         ).first()
-
-        initial_log = {}
-        if last_op and last_op.attendance_log:
-            for reg_id, entry in last_op.attendance_log.items():
-                # Only copy if employee is still active
-                if reg_id in emp_map:
-                    emp_record = emp_map[reg_id]
-                    # Reset daily status to 'present' ONLY if their permanent status is active.
-                    new_entry = entry.copy()
-                    
-                    if emp_record.status == 'vacation':
-                        new_entry['status'] = 'vacation'
-                    elif emp_record.status == 'sick':
-                         new_entry['status'] = 'sick'
-                    elif emp_record.status == 'away':
-                         new_entry['status'] = 'away'
-                    else:
-                        new_entry['status'] = 'present'
+        if not daily_op:
+            # Logic: Smart Copy from Last Operation
+            last_op = session.exec(
+                select(models.DailyOperation)
+                .where(models.DailyOperation.shift == shift)
+                .where(models.DailyOperation.date < date)
+                .order_by(models.DailyOperation.date.desc())
+            ).first()
+            
+            initial_log = {}
+            if last_op and last_op.attendance_log:
+                for reg_id, entry in last_op.attendance_log.items():
+                    # Only copy if employee is still active
+                    if reg_id in emp_map:
+                        emp_record = emp_map[reg_id]
+                        # Reset daily status to 'present' ONLY if their permanent status is active.
+                        new_entry = entry.copy()
                         
-                    initial_log[reg_id] = new_entry
+                        if emp_record.status == 'vacation':
+                            new_entry['status'] = 'vacation'
+                        elif emp_record.status == 'sick':
+                            new_entry['status'] = 'sick'
+                        elif emp_record.status == 'away':
+                            new_entry['status'] = 'away'
+                        else:
+                            new_entry['status'] = 'present'
+                            
+                        initial_log[reg_id] = new_entry
+                        
+            daily_op = models.DailyOperation(date=date, shift=shift, attendance_log=initial_log) # Transient
+    
+        # Get Targets (Headcount) - Official HR Target
+        targets_db = session.exec(select(models.HeadcountTarget).where(models.HeadcountTarget.shift_name == shift)).first()
+        shift_target_hr = targets_db.target_value if targets_db else 0
         
-        daily_op = models.DailyOperation(date=date, shift=shift, attendance_log=initial_log) # Transient
+        # Get Sector Configuration
+        sector_config_db = session.exec(select(models.SectorConfiguration).where(models.SectorConfiguration.shift_name == shift)).first()
+        
+        if sector_config_db and sector_config_db.config_json:
+            sector_config = sector_config_db.config_json
+        else:
+            # Default Seed (Targets initialized to 0 to avoid confusion with HR Target)
+            sector_config = {
+                "sectors": [
+                    { "key": "recebimento", "label": "Recebimento", "target": 0, "subsectors": ["Doca 1", "Doca 2", "Paletização"] },
+                    { "key": "camara_fria", "label": "Câmara Fria", "target": 0, "subsectors": ["Armazenagem", "Abastecimento"] },
+                    { "key": "selecao", "label": "Seleção", "target": 0, "subsectors": ["Linha 1", "Linha 2"] },
+                    { "key": "expedicao", "label": "Expedição", "target": 0, "subsectors": ["Separação", "Carregamento"] }
+                ]
+            }
     
-    # Get Targets (Headcount) - Official HR Target
-    targets_db = session.exec(select(models.HeadcountTarget).where(models.HeadcountTarget.shift_name == shift)).first()
-    shift_target_hr = targets_db.target_value if targets_db else 0
-    
-    # Get Sector Configuration
-    sector_config_db = session.exec(select(models.SectorConfiguration).where(models.SectorConfiguration.shift_name == shift)).first()
-    
-    if sector_config_db and sector_config_db.config_json:
-        sector_config = sector_config_db.config_json
-    else:
-        # Default Seed (Targets initialized to 0 to avoid confusion with HR Target)
-        sector_config = {
-            "sectors": [
-                { "key": "recebimento", "label": "Recebimento", "target": 0, "subsectors": ["Doca 1", "Doca 2", "Paletização"] },
-                { "key": "camara_fria", "label": "Câmara Fria", "target": 0, "subsectors": ["Armazenagem", "Abastecimento"] },
-                { "key": "selecao", "label": "Seleção", "target": 0, "subsectors": ["Linha 1", "Linha 2"] },
-                { "key": "expedicao", "label": "Expedição", "target": 0, "subsectors": ["Separação", "Carregamento"] }
-            ]
-        }
-    
-    # Calculate Total Target from Config (Operational Demand)
-    sectors_total_demand = sum(s.get("target", 0) for s in sector_config.get("sectors", []))
-
-    # Calculate Real Tonnage from Routes
-    routes_in_shift = session.exec(
-        select(models.Route)
-        .where(models.Route.date == date)
-        .where(models.Route.shift == shift)
-    ).all()
-    total_tonnage_real = sum(r.tonnage for r in routes_in_shift if r.tonnage)
-
-    # Format Tonnage
-    def fmt_num(n):
-        val = n if n is not None else 0.0
-        return f"{val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
-    return templates.TemplateResponse("smart_flow.html", {
-        "request": request,
-        "user": user,
-        "daily_op": daily_op,
-        "employees_list": employees,
-        "current_shift": shift,
-        "current_date": date,
-        "total_target": sectors_total_demand, 
-        "shift_target_hr": shift_target_hr, # Passed for KPI
-        "sector_config": sector_config,
-        "total_tonnage_fmt": fmt_num(total_tonnage_real)
-    })
-
+        # Calculate Total Target from Config (Operational Demand)
+        sectors_total_demand = sum(s.get("target", 0) for s in sector_config.get("sectors", []))
+        # Calculate Real Tonnage from Routes
+        routes_in_shift = session.exec(
+            select(models.Route)
+            .where(models.Route.date == date)
+            .where(models.Route.shift == shift)
+        ).all()
+        total_tonnage_real = sum(r.tonnage for r in routes_in_shift if r.tonnage)
+        # Format Tonnage
+        def fmt_num(n):
+            val = n if n is not None else 0.0
+            return f"{val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            
+        return templates.TemplateResponse("smart_flow.html", {
+            "request": request,
+            "user": user,
+            "daily_op": daily_op,
+            "employees_list": employees,
+            "current_shift": shift,
+            "current_date": date,
+            "total_target": sectors_total_demand, 
+            "shift_target_hr": shift_target_hr, # Passed for KPI
+            "sector_config": sector_config,
+            "total_tonnage_fmt": fmt_num(total_tonnage_real)
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise e
     # Valid return is above
-
-
 @app.post("/employees/vacation", response_class=JSONResponse)
 async def schedule_vacation(
     request: Request,
@@ -635,7 +577,6 @@ async def schedule_vacation(
     emp = session.exec(select(models.Employee).where(models.Employee.registration_id == data.registration_id)).first()
     if not emp:
         return JSONResponse({"error": "Employee not found"}, status_code=404)
-    
     try:
         # Parse YYYY-MM-DD
         emp.vacation_start = datetime.strptime(data.start_date, "%Y-%m-%d")
@@ -651,7 +592,7 @@ async def schedule_vacation(
         else:
             if emp.status == 'vacation':
                 emp.status = 'active'
-        
+                
         # LOG EVENT (New)
         # Format dates to BR
         fmt_start = datetime.strptime(data.start_date, "%Y-%m-%d").strftime("%d/%m/%Y")
@@ -675,12 +616,10 @@ async def schedule_vacation(
         return JSONResponse({"error": "Invalid date format"}, status_code=400)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
-
 class BulkVacationItem(BaseModel):
     registration_id: str
     start_date: str
     end_date: str
-
 @app.post("/employees/vacation/bulk", response_class=JSONResponse)
 async def bulk_schedule_vacation(
     request: Request,
@@ -690,9 +629,7 @@ async def bulk_schedule_vacation(
     require_login(request)
     updated_count = 0
     errors = []
-    
     today = datetime.now()
-    
     for item in items:
         # Find by Registration ID
         emp = session.exec(select(models.Employee).where(models.Employee.registration_id == str(item.registration_id))).first()
@@ -713,11 +650,11 @@ async def bulk_schedule_vacation(
             check_end = v_end.replace(hour=23, minute=59, second=59, microsecond=999)
             
             if check_start <= today <= check_end:
-                 emp.status = 'vacation'
+                emp.status = 'vacation'
             else:
-                 if emp.status == 'vacation':
-                     emp.status = 'active'
-            
+                if emp.status == 'vacation':
+                    emp.status = 'active'
+                    
             # Create History Event
             hist_event = models.Event(
                 employee_id=emp.id,
@@ -734,16 +671,15 @@ async def bulk_schedule_vacation(
             
         except ValueError:
             errors.append(f"Data inválida para matrícula {item.registration_id}")
-            continue
-            
+        except Exception as e:
+            errors.append(f"Erro ao processar matrícula {item.registration_id}: {str(e)}")
+
     session.commit()
-    return JSONResponse({
-        "message": f"{updated_count} colaboradores atualizados.",
-        "errors": errors
-    })
-
-
-
+    msg = f"{updated_count} colaboradores atualizados/agendados."
+    if errors:
+        msg += f" Erros: {'; '.join(errors)}"
+    
+    return JSONResponse({"message": msg, "errors": errors})
 @app.post("/routine/update", response_class=JSONResponse)
 async def update_routine(
     request: Request,
@@ -752,20 +688,16 @@ async def update_routine(
 ):
     require_login(request)
     try:
-        # Find or Create
         daily = session.exec(
             select(models.DailyOperation)
             .where(models.DailyOperation.date == data.date)
             .where(models.DailyOperation.shift == data.shift)
         ).first()
-        
-        old_log = {}
         if not daily:
             daily = models.DailyOperation(date=data.date, shift=data.shift)
-        else:
-            old_log = daily.attendance_log or {}
+            session.add(daily)
             
-        # Update fields
+        # Update Log Fields
         if data.attendance_log is not None:
             daily.attendance_log = data.attendance_log
         if data.tonnage is not None:
@@ -780,179 +712,30 @@ async def update_routine(
             daily.rating = data.rating
         if data.status is not None:
             daily.status = data.status
+        if data.logs is not None:
+            daily.logs = data.logs
             
         daily.updated_at = datetime.now()
         
-        # --- Timeline Logic ---
-        if data.attendance_log:
-            new_log = data.attendance_log
-            
-            # SYNC: Update Employee Status based on attendance log
-            for emp_id, entry in new_log.items():
-                status = entry.get("status")
-                target_status = None
-                
-                # Retrieve Employee
-                employee = session.exec(select(models.Employee).where(models.Employee.registration_id == emp_id)).first()
-                if not employee: continue
-
-                # Event generation for DAILY statuses (Persistent or Not)
-                # 'absent' (Falta) is usually a daily thing, might not change GLOBAL employee status?
-                # 'sick' (Atestado) might be short term.
-                
-                # Check if this precise daily entry is NEW or CHANGED from old logs to avoid duplicates on every save?
-                # Ideally we check against the DB or simple logic: if status is provided and different?
-                # For simplicity, we trust the 'status' field.
-                
-                # Event Logic for STATS
-                if status == 'absent':
-                     # Check if we already logged a 'falta' for this employee TODAY to avoid duplicates
-                     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-                     existing_falta = session.exec(
-                         select(models.Event)
-                         .where(models.Event.employee_id == employee.id)
-                         .where(models.Event.type == 'falta')
-                         .where(models.Event.timestamp >= today_start)
-                     ).first()
-                     
-                     if not existing_falta:
-                         evt = models.Event(
-                            employee_id=employee.id,
-                            type="falta",
-                            text=f"Falta registrada em {data.date}",
-                            timestamp=datetime.now(),
-                            category="pessoas",
-                            sector="RH"
-                         )
-                         session.add(evt)
-                     
-                target_status = None
-                if status == 'vacation': target_status = 'vacation' 
-                elif status == 'sick': target_status = 'sick'       
-                elif status == 'away': target_status = 'away'
-                elif status == 'present': target_status = 'active' # Logic for return
-
-                if target_status:
-                    employee = session.exec(select(models.Employee).where(models.Employee.registration_id == emp_id)).first()
-                    # Only update if changed
-                    if employee and employee.status != target_status:
-                        # Log Event for Status Change
-                        event_type = None
-                        event_text = None
-                        
-                        if target_status == 'sick':
-                            event_type = "atestado"
-                            event_text = f"Atestado registrado em {data.date}"
-                        elif target_status == 'vacation':
-                            event_type = "ferias_hist"
-                            event_text = f"Início de férias em {data.date}"
-                        elif target_status == 'away':
-                            event_type = "advertencia" 
-                            event_text = f"Afastamento registrado em {data.date}"
-                        elif target_status == 'active':
-                            if employee.status == 'vacation':
-                                event_type = "retorno_ferias"
-                                event_text = f"Retorno de Férias em {data.date}"
-                            elif employee.status == 'sick':
-                                event_type = "retorno_atestado"
-                                event_text = f"Retorno de Atestado em {data.date}"
-                            else:
-                                event_type = "retorno"
-                                event_text = f"Retorno à atividade em {data.date}"
-                        
-                        employee.status = target_status
-                        session.add(employee)
-                        
-                        if event_type:
-                            evt = models.Event(
-                                employee_id=employee.id,
-                                type=event_type,
-                                text=event_text,
-                                timestamp=datetime.now(),
-                                category="pessoas",
-                                sector="RH"
-                            )
-                            session.add(evt)
-            
-            # Detect Changes
-            all_ids = set(old_log.keys()) | set(new_log.keys())
-            
-            for reg_id in all_ids:
-                old_entry = old_log.get(reg_id)
-                new_entry = new_log.get(reg_id)
-                
-                # Fetch Employee PK
-                emp_obj = session.exec(select(models.Employee).where(models.Employee.registration_id == reg_id)).first()
-                if not emp_obj:
-                    continue # Should not happen if data is consistent
-                
-                real_emp_id = emp_obj.id
-
-                # Case 1: New Allocation (Was not in log, now is)
-                if not old_entry and new_entry:
-                    sector = new_entry.get('sector')
-                    sub = new_entry.get('subsector', 'Geral')
-                    event = models.Event(
-                        employee_id=real_emp_id,
-                        type="allocacao",
-                        text=f"Alocado em {sector} ({sub}) - {data.shift}",
-                        timestamp=datetime.now(),
-                        category="processo",
-                        sector=sector
-                    )
-                    session.add(event)
-                    
-                # Case 2: Changed Allocation (Moved Sector/Subsector)
-                elif old_entry and new_entry:
-                    old_sec = old_entry.get('sector')
-                    old_sub = old_entry.get('subsector', 'Geral')
-                    new_sec = new_entry.get('sector')
-                    new_sub = new_entry.get('subsector', 'Geral')
-                    
-                    if old_sec != new_sec or old_sub != new_sub:
-                        event = models.Event(
-                            employee_id=real_emp_id,
-                            type="movimentacao",
-                            text=f"Movido de {old_sec} ({old_sub}) para {new_sec} ({new_sub})",
-                            timestamp=datetime.now(),
-                            category="processo",
-                            sector=new_sec
-                        )
-                        session.add(event)
-                        
-                # Case 3: Removed
-                elif old_entry and not new_entry:
-                    event = models.Event(
-                        employee_id=real_emp_id,
-                        type="remocao",
-                        text=f"Removido do fluxo operacional ({data.shift})",
-                        timestamp=datetime.now(),
-                        category="processo",
-                        sector="Geral"
-                    )
-                    session.add(event)
-
+        # Save Sector Config
         if data.sector_config:
-            # Save Sector Config
             config_entry = session.exec(select(models.SectorConfiguration).where(models.SectorConfiguration.shift_name == data.shift)).first()
             if not config_entry:
                 config_entry = models.SectorConfiguration(shift_name=data.shift, config_json=data.sector_config)
+                session.add(config_entry)
             else:
                 config_entry.config_json = data.sector_config
                 config_entry.updated_at = datetime.now()
-            session.add(config_entry)
-            
-        session.add(daily)
-        session.commit()
+                session.add(config_entry)
         
-        return {"status": "success", "id": daily.id}
+        session.commit()
+        session.refresh(daily)
+        return JSONResponse({"message": "Routine updated successfully", "id": daily.id})
     except Exception as e:
-        print(f"Update error: {e}")
-        return JSONResponse(content={"status": "error", "msg": str(e)}, status_code=500)
-
+        print(f"Error updating routine: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
 # --- Employee Routes ---
 from sqlmodel import select
-
 @app.get("/employees", response_class=HTMLResponse)
 async def employees_page(request: Request, session: Session = Depends(get_session)):
     import traceback
@@ -963,21 +746,16 @@ async def employees_page(request: Request, session: Session = Depends(get_sessio
         raise
     except Exception:
         return HTMLResponse(content=f"<h1>Debug 500</h1><pre>{traceback.format_exc()}</pre>", status_code=500)
-
 async def _employees_page_impl(request: Request, session: Session):
     # Auto-update statuses based on today's date
     update_vacation_statuses(session, datetime.now())
-
     # user = require_login(request)
     user = "debug_admin"
-    
-    # Fetch Employees
+        # Fetch Employees
     employees = session.exec(select(models.Employee)).all()
-    
-    # Calculate Stats
+        # Calculate Stats
     total_active = sum(1 for e in employees if e.status == "active")
-    
-    # Fetch Targets (Create defaults if not exist)
+        # Fetch Targets (Create defaults if not exist)
     targets = session.exec(select(models.HeadcountTarget)).all()
     if not targets:
         # Defaults
@@ -990,21 +768,17 @@ async def _employees_page_impl(request: Request, session: Session):
             session.add(d)
         session.commit()
         targets = session.exec(select(models.HeadcountTarget)).all()
-    
-    target_map = {t.shift_name: t.target_value for t in targets}
+        target_map = {t.shift_name: t.target_value for t in targets}
     total_target = sum(t.target_value for t in targets)
-    
-    # Shift Stats
+        # Shift Stats
     shifts = ["Manhã", "Tarde", "Noite"]
     shift_stats = []
-    
-    # Init counters for each shift
+        # Init counters for each shift
     shift_data = {
         "Manhã": {"active": 0, "vacation": 0, "away": 0},
         "Tarde": {"active": 0, "vacation": 0, "away": 0},
         "Noite": {"active": 0, "vacation": 0, "away": 0}
     }
-
     # Helper to determine shift from work_shift
     def get_shift_name(shift_val):
         s = (shift_val or "").strip().lower()
@@ -1012,20 +786,15 @@ async def _employees_page_impl(request: Request, session: Session):
         if "tarde" in s: return "Tarde"
         # Default to Manhã only if explicitly Manhã or fallback
         return "Manhã"
-
     total_real_active = 0
-
     for e in employees:
         if e.status == "fired":
             continue
-            
-        # Count towards total if not fired
+                    # Count towards total if not fired
         total_real_active += 1
-        
-        # Determine shift
+                # Determine shift
         s_name = get_shift_name(e.work_shift)
-        
-        # Increment specific status counter for that shift
+                # Increment specific status counter for that shift
         if e.status == "active":
             shift_data[s_name]["active"] += 1
         elif e.status == "vacation":
@@ -1033,11 +802,9 @@ async def _employees_page_impl(request: Request, session: Session):
         elif e.status == "away":
             shift_data[s_name]["away"] += 1
         # If there are other statuses (unlikely per current logic), they are counted in total but not specifically in shift 'active'
-
     for s in shifts:
         data = shift_data.get(s, {"active":0, "vacation":0, "away":0})
         active_count = data["active"]
-        
         target = target_map.get(s, 0)
         shift_stats.append({
             "name": s,
@@ -1054,7 +821,6 @@ async def _employees_page_impl(request: Request, session: Session):
         "away": sum(1 for e in employees if e.status == "away"),
         "fired": sum(1 for e in employees if e.status == "fired")
     }
-
     return templates.TemplateResponse("employees.html", {
         "request": request,
         "employees": employees,
@@ -1066,7 +832,6 @@ async def _employees_page_impl(request: Request, session: Session):
             "statuses": status_stats
         }
     })
-
     return templates.TemplateResponse("employees.html", {
         "request": request,
         "user": user,
@@ -1079,7 +844,6 @@ async def _employees_page_impl(request: Request, session: Session):
             "statuses": status_stats
         }
     })
-
 @app.post("/employees/add")
 async def add_employee(
     request: Request,
@@ -1093,7 +857,6 @@ async def add_employee(
     session: Session = Depends(get_session)
 ):
     require_login(request)
-    
     # Parse dates if provided
     admission_dt = None
     if admission_date:
@@ -1108,7 +871,6 @@ async def add_employee(
             birthday_dt = datetime.strptime(birthday, "%Y-%m-%d")
         except:
             pass
-
     new_employee = models.Employee(
         name=name,
         registration_id=registration_id,
@@ -1124,15 +886,12 @@ async def add_employee(
         session.commit()
     except Exception as e:
         print(f"Error adding employee: {e}")
-    
-    return RedirectResponse(url="/employees", status_code=status.HTTP_303_SEE_OTHER)
-
+        return RedirectResponse(url="/employees", status_code=status.HTTP_303_SEE_OTHER)
 @app.get("/employees/{employee_id}", response_class=HTMLResponse)
 async def read_employee(request: Request, employee_id: int, session: Session = Depends(get_session)):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login")
-        
     employee = session.get(models.Employee, employee_id)
     if not employee:
         # Handle 404
@@ -1144,7 +903,7 @@ async def read_employee(request: Request, employee_id: int, session: Session = D
     # Calculate Tenure
     tenure_str = "-"
     if employee.admission_date:
-        delta = today_date.date() - employee.admission_date
+        delta = today_date.date() - employee.admission_date.date()
         years = delta.days // 365
         months = (delta.days % 365) // 30
         tenure_str = f"{years} anos, {months} meses"
@@ -1161,7 +920,6 @@ async def read_employee(request: Request, employee_id: int, session: Session = D
         "atestados": medicals,
         "faltas": absences
     }
-
     return templates.TemplateResponse("employee_detail.html", {
         "request": request, 
         "emp": employee, 
@@ -1170,8 +928,6 @@ async def read_employee(request: Request, employee_id: int, session: Session = D
         "stats": stats,
         "tenure": tenure_str
     })
-
-
 @app.post("/employees/{emp_id}/status")
 async def update_employee_status(
     emp_id: int,
@@ -1194,7 +950,6 @@ async def update_employee_status(
             # Generate History Event
             event_type = "ocorrencia"
             text_desc = f"Status alterado para {status_action}"
-            
             if status_action == "vacation":
                 event_type = "ferias_hist"
                 text_desc = "Entrou em Férias"
@@ -1207,7 +962,7 @@ async def update_employee_status(
             elif status_action == "active":
                 event_type = "retorno"
                 text_desc = "Colaborador Reativado (Retorno)"
-            
+                
             new_event = models.Event(
                 text=text_desc,
                 type=event_type,
@@ -1216,12 +971,10 @@ async def update_employee_status(
                 shift_id=None # Optionally link to current shift if known
             )
             session.add(new_event)
-            
             emp.status = status_action
             session.add(emp)
         session.commit()
     return RedirectResponse(url="/employees", status_code=status.HTTP_303_SEE_OTHER)
-
 @app.post("/events/{event_id}/delete")
 async def delete_event(
     event_id: int,
@@ -1236,7 +989,6 @@ async def delete_event(
         session.commit()
         return RedirectResponse(url=f"/employees/{emp_id}", status_code=status.HTTP_303_SEE_OTHER)
     return RedirectResponse(url="/employees", status_code=status.HTTP_303_SEE_OTHER)
-
 @app.post("/events/{event_id}/update_vacation")
 async def update_vacation_event(
     event_id: int,
@@ -1249,16 +1001,13 @@ async def update_vacation_event(
     event = session.get(models.Event, event_id)
     if not event or event.type != 'ferias_hist':
         raise HTTPException(status_code=404, detail="Evento de férias não encontrado")
-    
-    emp = session.get(models.Employee, event.employee_id)
+        emp = session.get(models.Employee, event.employee_id)
     if not emp:
-         raise HTTPException(status_code=404, detail="Colaborador não encontrado")
-
+        raise HTTPException(status_code=404, detail="Colaborador não encontrado")
     try:
         # Update Employee Dates
         v_start = datetime.strptime(start_date, "%Y-%m-%d")
         v_end = datetime.strptime(end_date, "%Y-%m-%d")
-        
         # Update Event Text (BR Format)
         fmt_start = v_start.strftime("%d/%m/%Y")
         fmt_end = v_end.strftime("%d/%m/%Y")
@@ -1274,19 +1023,17 @@ async def update_vacation_event(
         check_end = v_end.replace(hour=23, minute=59, second=59, microsecond=999)
         
         if check_start <= today <= check_end:
-             emp.status = 'vacation'
+            emp.status = 'vacation'
         else:
-             if emp.status == 'vacation':
-                 emp.status = 'active'
-        
+            if emp.status == 'vacation':
+                emp.status = 'active'
+                
         session.add(emp)
         session.commit()
-
     except ValueError:
-         raise HTTPException(status_code=400, detail="Data inválida")
-
+        raise HTTPException(status_code=400, detail="Data inválida")
+        
     return RedirectResponse(url=f"/employees/{emp.id}", status_code=status.HTTP_303_SEE_OTHER)
-
 @app.post("/employees/{emp_id}/update")
 async def update_employee(
     emp_id: int,
@@ -1311,8 +1058,7 @@ async def update_employee(
                 category="pessoas",
                 employee_id=emp.id
             ))
-            
-        # Log Role Change
+                    # Log Role Change
         if emp.role != role:
             session.add(models.Event(
                 text=f"Alteração de Cargo: {emp.role} para {role}",
@@ -1320,16 +1066,15 @@ async def update_employee(
                 category="pessoas",
                 employee_id=emp.id
             ))
-            
         # Log Cost Center Change
         if emp.cost_center != cost_center:
-             session.add(models.Event(
+            session.add(models.Event(
                 text=f"Alteração de Centro de Custo: {emp.cost_center} -> {cost_center}",
                 type="alteracao_cadastro",
                 category="pessoas",
                 employee_id=emp.id
             ))
-
+            
         emp.name = name
         emp.registration_id = registration_id
         emp.role = role
@@ -1341,7 +1086,7 @@ async def update_employee(
                 emp.admission_date = datetime.strptime(admission_date, "%Y-%m-%d")
             except:
                 pass
-        
+                
         if birthday:
             try:
                 emp.birthday = datetime.strptime(birthday, "%Y-%m-%d")
@@ -1350,8 +1095,8 @@ async def update_employee(
                 
         session.add(emp)
         session.commit()
+        
     return RedirectResponse(url="/employees", status_code=status.HTTP_303_SEE_OTHER)
-
 @app.post("/settings/targets")
 async def update_targets(
     request: Request,
@@ -1359,8 +1104,7 @@ async def update_targets(
 ):
     require_login(request)
     form_data = await request.form()
-    
-    # Iterate over form keys to find target_{shift}
+        # Iterate over form keys to find target_{shift}
     for key, value in form_data.items():
         if key.startswith("target_"):
             shift_name = key.replace("target_", "")
@@ -1377,14 +1121,11 @@ async def update_targets(
                     session.add(new_target)
             except ValueError:
                 pass
-    
-    session.commit()
+        session.commit()
     return RedirectResponse(url="/employees", status_code=status.HTTP_303_SEE_OTHER)
-
 import pandas as pd
 from fastapi import UploadFile, File
 import io
-
 @app.post("/employees/import")
 async def import_employees(
     request: Request,
@@ -1394,7 +1135,6 @@ async def import_employees(
     require_login(request)
     import pandas as pd
     import io
-    
     content = await file.read()
     try:
         # Check if first row is title or header
@@ -1408,14 +1148,13 @@ async def import_employees(
             if any(h in row_vals for h in ["Matrícula", "Matricula", "Colaborador", "Turno"]):
                 header_row = idx
                 break
-        
+                
         # Reload with correct header
         df = pd.read_excel(io.BytesIO(content), header=header_row)
         
         # Clean column names (strip whitespace and title case for better matching)
         # We will create a map of normalized_col -> original_col to rename correctly below
         # Actually simplest is just to add more keys to the map.
-        
         df.columns = df.columns.astype(str).str.strip()
         
         # Map Portuguese headers (Robust mapping)
@@ -1429,7 +1168,6 @@ async def import_employees(
             "Turno": "work_shift", "TURNO": "work_shift"
         }
         df = df.rename(columns=column_map)
-        
         count = 0 
         for _, row in df.iterrows():
             # Validation
@@ -1447,19 +1185,19 @@ async def import_employees(
                         admission = pd.to_datetime(row["admission_date"]).to_pydatetime()
                     except:
                         pass
-                
+                        
                 bday = None
                 if "birthday" in row and pd.notna(row["birthday"]):
                     try:
                         bday = pd.to_datetime(row["birthday"]).to_pydatetime()
                     except:
                         pass
-                
+                        
                 # Shift
                 shift_raw = str(row.get("work_shift", "Manhã"))
                 if pd.isna(shift_raw) or shift_raw.strip() == "" or shift_raw.lower() == "nan":
-                     shift_raw = "Manhã"
-                
+                    shift_raw = "Manhã"
+                    
                 # Normalize specific cases to match System options (Manhã, Tarde, Noite)
                 shift_clean = shift_raw.strip().title() # Converts NOITE -> Noite
                 
@@ -1471,7 +1209,7 @@ async def import_employees(
                     shift_val = "Noite"
                 else:
                     shift_val = shift_clean # Fallback (e.g. ADM)
-
+                    
                 emp = models.Employee(
                     name=str(row.get("name", "Sem Nome")).strip(),
                     registration_id=reg_id.strip(),
@@ -1484,7 +1222,7 @@ async def import_employees(
                 )
                 session.add(emp)
                 count += 1
-        
+                
         session.commit()
     except Exception as e:
         print(f"Import Error: {e}")

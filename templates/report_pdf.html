@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Relatório Operacional - {{ date }}</title>
+    <!-- Tailwind for styling (handled by backend or simple inline if needed, but using CDN for PDF is fine if access allows) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .no-print {
+                display: none;
+            }
+
+            .page-break {
+                page-break-before: always;
+            }
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 12px;
+            color: #1e293b;
+        }
+
+        h1 {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        h2 {
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 10px;
+            margin-bottom: 5px;
+            border-bottom: 1px solid #cbd5e1;
+            padding-bottom: 2px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+
+        th,
+        td {
+            border: 1px solid #e2e8f0;
+            padding: 4px 6px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f1f5f9;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .bg-green-100 {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+
+        .bg-red-100 {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .bg-blue-100 {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+    </style>
+</head>
+
+<body class="bg-white p-8 max-w-4xl mx-auto">
+
+    <!-- Header -->
+    <div class="flex justify-between items-start mb-6 border-b pb-4">
+        <div>
+            <h1 class="text-2xl text-slate-800">Relatório Operacional Diário</h1>
+            <p class="text-sm text-slate-500">Fluxo Operacional Inteligente</p>
+        </div>
+        <div class="text-right">
+            <p class="font-bold text-lg">{{ date }} - {{ shift }}</p>
+            <p class="text-xs text-slate-400">Gerado em: {{ generated_at }}</p>
+        </div>
+    </div>
+
+    <!-- Top KPIs -->
+    <div class="grid grid-cols-4 gap-4 mb-6">
+        <div class="border rounded p-3 bg-slate-50">
+            <p class="text-xs text-slate-500 uppercase font-bold">Meta Total</p>
+            <p class="text-lg font-bold text-slate-700">{{ snapshot.kpis.total_target }}</p>
+        </div>
+        <div class="border rounded p-3 bg-slate-50">
+            <p class="text-xs text-slate-500 uppercase font-bold">Presentes</p>
+            <p class="text-lg font-bold text-emerald-600">{{ snapshot.kpis.total_present }}</p>
+        </div>
+        <div class="border rounded p-3 bg-slate-50">
+            <p class="text-xs text-slate-500 uppercase font-bold">Gap / Vagas</p>
+            <p class="text-lg font-bold text-red-500">{{ snapshot.kpis.total_gap }}</p>
+        </div>
+        <div class="border rounded p-3 bg-slate-50">
+            <p class="text-xs text-slate-500 uppercase font-bold">Tonelagem</p>
+            <p class="text-lg font-bold text-blue-600">{{ snapshot.kpis.tonnage }} t</p>
+            <p class="text-[10px] text-slate-400">{{ snapshot.kpis.prod_per_person }} kg/pessoa</p>
+        </div>
+    </div>
+
+    <!-- Sector Summary -->
+    <h2>Resumo por Setor</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Setor</th>
+                <th class="text-center">Meta</th>
+                <th class="text-center">Alocados</th>
+                <th class="text-center">Presentes</th>
+                <th class="text-center">Gap</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sec in snapshot.sectors %}
+            <tr>
+                <td class="font-semibold">{{ sec.label }}</td>
+                <td class="text-center">{{ sec.target }}</td>
+                <td class="text-center">{{ sec.allocated_count }}</td>
+                <td class="text-center">{{ sec.present_count }}</td>
+                <td class="text-center font-bold {{ 'text-red-500' if sec.gap > 0 else 'text-slate-300' }}">
+                    {{ sec.gap if sec.gap > 0 else '-' }}
+                </td>
+                <td class="text-center">
+                    {% if sec.gap > 0 %}
+                    <span class="badge bg-red-100">CRÍTICO</span>
+                    {% else %}
+                    <span class="badge bg-green-100">OK</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Lists -->
+    <div class="grid grid-cols-2 gap-8 mt-6">
+
+        <!-- Absences -->
+        <div>
+            <h2>Faltas e Atestados</h2>
+            {% set absences = snapshot.people | selectattr('status_daily', 'in', ['absent', 'sick']) | list %}
+            {% if absences %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Status</th>
+                        <th>Motivo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in absences %}
+                    <tr>
+                        <td>{{ p.name }} <span class="text-[10px] text-slate-400">#{{ p.id }}</span></td>
+                        <td>
+                            {% if p.status_daily == 'absent' %}<span class="text-red-600 font-bold">FALTA</span>{% endif
+                            %}
+                            {% if p.status_daily == 'sick' %}<span class="text-amber-600 font-bold">ATESTADO</span>{%
+                            endif %}
+                        </td>
+                        <td>-</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-slate-400 italic text-sm">Nenhuma ocorrência registrada.</p>
+            {% endif %}
+        </div>
+
+        <!-- Vacations & Away -->
+        <div>
+            <h2>Férias e Afastados</h2>
+            {% set unavail = snapshot.people | selectattr('status_daily', 'in', ['vacation', 'away']) | list %}
+            {% if unavail %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Tipo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in unavail %}
+                    <tr>
+                        <td>{{ p.name }}</td>
+                        <td>
+                            {% if p.status_daily == 'vacation' %}<span class="text-blue-600">FÉRIAS</span>{% endif %}
+                            {% if p.status_daily == 'away' %}<span class="text-purple-600">AFASTADO</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-slate-400 italic text-sm">Nenhum registro.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Insights Area -->
+    <div class="mt-8 p-4 bg-orange-50 border border-orange-100 rounded-lg break-inside-avoid">
+        <h2 class="border-b-0 mb-2 text-orange-800">Alertas e Insights</h2>
+
+        <div class="grid grid-cols-2 gap-4">
+            <!-- Birthdays -->
+            <div>
+                <h3 class="text-xs font-bold uppercase text-orange-400 mb-1">Aniversariantes (Mês)</h3>
+                <ul class="text-sm list-disc pl-4 text-slate-700">
+                    {% for p in birthdays %}
+                    <li><b>{{ p.day }}/{{ p.month }}</b> - {{ p.name }}</li>
+                    {% else %}
+                    <li class="list-none text-slate-400 italic">Nenhum neste mês.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <!-- Contracts -->
+            <div>
+                <h3 class="text-xs font-bold uppercase text-orange-400 mb-1">Vencimento de Contrato (Próx. 45 dias)</h3>
+                <ul class="text-sm list-disc pl-4 text-slate-700">
+                    {% for c in contracts %}
+                    <li><b>{{ c.date }}</b> - {{ c.name }} ({{ c.days }} dias)</li>
+                    {% else %}
+                    <li class="list-none text-slate-400 italic">Nenhum vencimento próximo.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-8 text-center no-print">
+        <button onclick="window.print()"
+            class="bg-blue-600 text-white px-6 py-2 rounded shadow hover:bg-blue-700 font-bold">
+            Imprimir / Salvar PDF
+        </button>
+    </div>
+
+</body>
+
+</html>

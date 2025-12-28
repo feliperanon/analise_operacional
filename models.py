@@ -54,6 +54,7 @@ class DailyOperation(SQLModel, table=True):
     # Metrics
     tonnage: int = Field(default=0)
     attendance_log: Optional[dict] = Field(default={}, sa_column=Column(JSON))
+    logs: Optional[List[dict]] = Field(default=[], sa_column=Column(JSON)) # Store snapshots/events history
     
     # Logistics
     arrival_time: Optional[str] = Field(default=None)
