@@ -12,6 +12,11 @@ import logging
 logging.basicConfig(filename='logs.txt', level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger(__name__)
 
+# --- Config ---
+SECRET_KEY = "your-secret-key-change-in-production"
+ALLOWED_USER = "feliperanon"
+ALLOWED_PASS = "571232ce"
+
 # API Models
 from pydantic import BaseModel
 from typing import Optional, List

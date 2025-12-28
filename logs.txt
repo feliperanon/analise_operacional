@@ -1,0 +1,1037 @@
+2025-12-28 11:19:24,694 INFO select pg_catalog.version()
+2025-12-28 11:19:24,695 INFO [raw sql] {}
+2025-12-28 11:19:25,210 INFO select current_schema()
+2025-12-28 11:19:25,210 INFO [raw sql] {}
+2025-12-28 11:19:25,705 INFO show standard_conforming_strings
+2025-12-28 11:19:25,706 INFO [raw sql] {}
+2025-12-28 11:19:26,231 INFO BEGIN (implicit)
+2025-12-28 11:19:26,235 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 11:19:26,259 INFO [generated in 0.02329s] {'table_name': 'shift', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 11:19:26,797 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 11:19:26,798 INFO [cached since 0.5623s ago] {'table_name': 'headcounttarget', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 11:19:27,092 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 11:19:27,093 INFO [cached since 0.8573s ago] {'table_name': 'employee', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 11:19:27,333 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 11:19:27,334 INFO [cached since 1.099s ago] {'table_name': 'dailyoperation', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 11:19:27,576 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 11:19:27,576 INFO [cached since 1.341s ago] {'table_name': 'event', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 11:19:27,818 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 11:19:27,819 INFO [cached since 1.584s ago] {'table_name': 'user', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 11:19:28,130 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 11:19:28,131 INFO [cached since 1.896s ago] {'table_name': 'sectorconfiguration', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 11:19:28,370 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 11:19:28,371 INFO [cached since 2.136s ago] {'table_name': 'client', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 11:19:28,610 INFO SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = %(table_name)s AND pg_catalog.pg_class.relkind = ANY (ARRAY[%(param_1)s, %(param_2)s, %(param_3)s, %(param_4)s, %(param_5)s]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != %(nspname_1)s
+2025-12-28 11:19:28,611 INFO [cached since 2.375s ago] {'table_name': 'route', 'param_1': 'r', 'param_2': 'p', 'param_3': 'f', 'param_4': 'v', 'param_5': 'm', 'nspname_1': 'pg_catalog'}
+2025-12-28 11:19:28,850 INFO COMMIT
+2025-12-28 11:19:29,237 INFO BEGIN (implicit)
+2025-12-28 11:19:29,247 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status = %(status_1)s
+2025-12-28 11:19:29,247 INFO [generated in 0.00058s] {'status_1': 'active'}
+2025-12-28 11:19:29,909 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status = %(status_1)s
+2025-12-28 11:19:29,909 INFO [cached since 0.6623s ago] {'status_1': 'vacation'}
+2025-12-28 11:19:30,171 INFO ROLLBACK
+2025-12-28 11:19:37,652 INFO BEGIN (implicit)
+2025-12-28 11:19:37,654 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 11:19:37,654 INFO [generated in 0.00045s] {'status_1': 'fired'}
+2025-12-28 11:19:38,320 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 11:19:38,321 INFO [generated in 0.00059s] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 11:19:38,564 ERROR Error in smart_flow_page
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: column dailyoperation.logs does not exist
+LINE 1: ...operation.tonnage, dailyoperation.attendance_log, dailyopera...
+                                                             ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 488, in smart_flow_page
+    daily_op = session.exec(
+               ~~~~~~~~~~~~^
+        select(models.DailyOperation)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        .where(models.DailyOperation.date == date)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        .where(models.DailyOperation.shift == shift)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ).first()
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlmodel\orm\session.py", line 83, in exec
+    results = super().execute(
+        statement,
+    ...<4 lines>...
+        _add_event=_add_event,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+        statement, params or {}, execution_options=execution_options
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column dailyoperation.logs does not exist
+LINE 1: ...operation.tonnage, dailyoperation.attendance_log, dailyopera...
+                                                             ^
+
+[SQL: SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s]
+[parameters: {'date_1': '2025-12-28', 'shift_1': 'Manhã'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2025-12-28 11:19:38,571 INFO ROLLBACK
+2025-12-28 11:19:49,615 INFO BEGIN (implicit)
+2025-12-28 11:19:49,616 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status = %(status_1)s
+2025-12-28 11:19:49,616 INFO [cached since 20.37s ago] {'status_1': 'active'}
+2025-12-28 11:19:50,282 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status = %(status_1)s
+2025-12-28 11:19:50,282 INFO [cached since 21.03s ago] {'status_1': 'vacation'}
+2025-12-28 11:19:50,524 INFO ROLLBACK
+2025-12-28 11:19:52,465 INFO BEGIN (implicit)
+2025-12-28 11:19:52,466 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 11:19:52,466 INFO [cached since 14.81s ago] {'status_1': 'fired'}
+2025-12-28 11:19:53,121 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 11:19:53,122 INFO [cached since 14.8s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 11:19:53,360 ERROR Error in smart_flow_page
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: column dailyoperation.logs does not exist
+LINE 1: ...operation.tonnage, dailyoperation.attendance_log, dailyopera...
+                                                             ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 488, in smart_flow_page
+    daily_op = session.exec(
+               ~~~~~~~~~~~~^
+        select(models.DailyOperation)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        .where(models.DailyOperation.date == date)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        .where(models.DailyOperation.shift == shift)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ).first()
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlmodel\orm\session.py", line 83, in exec
+    results = super().execute(
+        statement,
+    ...<4 lines>...
+        _add_event=_add_event,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+        statement, params or {}, execution_options=execution_options
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column dailyoperation.logs does not exist
+LINE 1: ...operation.tonnage, dailyoperation.attendance_log, dailyopera...
+                                                             ^
+
+[SQL: SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s]
+[parameters: {'date_1': '2025-12-28', 'shift_1': 'Manhã'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2025-12-28 11:19:53,363 INFO ROLLBACK
+2025-12-28 11:20:03,936 INFO BEGIN (implicit)
+2025-12-28 11:20:03,936 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status = %(status_1)s
+2025-12-28 11:20:03,937 INFO [cached since 34.69s ago] {'status_1': 'active'}
+2025-12-28 11:20:04,598 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status = %(status_1)s
+2025-12-28 11:20:04,599 INFO [cached since 35.35s ago] {'status_1': 'vacation'}
+2025-12-28 11:20:04,848 INFO ROLLBACK
+2025-12-28 11:20:11,106 INFO BEGIN (implicit)
+2025-12-28 11:20:11,106 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 11:20:11,107 INFO [cached since 33.45s ago] {'status_1': 'fired'}
+2025-12-28 11:20:11,767 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 11:20:11,767 INFO [cached since 33.45s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 11:20:12,009 ERROR Error in smart_flow_page
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: column dailyoperation.logs does not exist
+LINE 1: ...operation.tonnage, dailyoperation.attendance_log, dailyopera...
+                                                             ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 488, in smart_flow_page
+    daily_op = session.exec(
+               ~~~~~~~~~~~~^
+        select(models.DailyOperation)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        .where(models.DailyOperation.date == date)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        .where(models.DailyOperation.shift == shift)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ).first()
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlmodel\orm\session.py", line 83, in exec
+    results = super().execute(
+        statement,
+    ...<4 lines>...
+        _add_event=_add_event,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+        statement, params or {}, execution_options=execution_options
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column dailyoperation.logs does not exist
+LINE 1: ...operation.tonnage, dailyoperation.attendance_log, dailyopera...
+                                                             ^
+
+[SQL: SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s]
+[parameters: {'date_1': '2025-12-28', 'shift_1': 'Manhã'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2025-12-28 11:20:12,011 INFO ROLLBACK
+2025-12-28 11:20:41,551 INFO BEGIN (implicit)
+2025-12-28 11:20:41,551 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 11:20:41,552 INFO [cached since 63.9s ago] {'status_1': 'fired'}
+2025-12-28 11:20:42,222 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 11:20:42,223 INFO [cached since 63.9s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 11:20:42,461 ERROR Error in smart_flow_page
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: column dailyoperation.logs does not exist
+LINE 1: ...operation.tonnage, dailyoperation.attendance_log, dailyopera...
+                                                             ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 488, in smart_flow_page
+    daily_op = session.exec(
+               ~~~~~~~~~~~~^
+        select(models.DailyOperation)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        .where(models.DailyOperation.date == date)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        .where(models.DailyOperation.shift == shift)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ).first()
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlmodel\orm\session.py", line 83, in exec
+    results = super().execute(
+        statement,
+    ...<4 lines>...
+        _add_event=_add_event,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+        statement, params or {}, execution_options=execution_options
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column dailyoperation.logs does not exist
+LINE 1: ...operation.tonnage, dailyoperation.attendance_log, dailyopera...
+                                                             ^
+
+[SQL: SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s]
+[parameters: {'date_1': '2025-12-28', 'shift_1': 'Manhã'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2025-12-28 11:20:42,467 INFO ROLLBACK
+2025-12-28 11:21:01,356 INFO BEGIN (implicit)
+2025-12-28 11:21:01,356 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 11:21:01,357 INFO [cached since 83.7s ago] {'status_1': 'fired'}
+2025-12-28 11:21:02,017 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 11:21:02,018 INFO [cached since 83.7s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 11:21:02,256 ERROR Error in smart_flow_page
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: column dailyoperation.logs does not exist
+LINE 1: ...operation.tonnage, dailyoperation.attendance_log, dailyopera...
+                                                             ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 488, in smart_flow_page
+    daily_op = session.exec(
+               ~~~~~~~~~~~~^
+        select(models.DailyOperation)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        .where(models.DailyOperation.date == date)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        .where(models.DailyOperation.shift == shift)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ).first()
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlmodel\orm\session.py", line 83, in exec
+    results = super().execute(
+        statement,
+    ...<4 lines>...
+        _add_event=_add_event,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+        statement, params or {}, execution_options=execution_options
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column dailyoperation.logs does not exist
+LINE 1: ...operation.tonnage, dailyoperation.attendance_log, dailyopera...
+                                                             ^
+
+[SQL: SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s]
+[parameters: {'date_1': '2025-12-28', 'shift_1': 'Manhã'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2025-12-28 11:21:02,260 INFO ROLLBACK
+2025-12-28 11:23:02,290 INFO BEGIN (implicit)
+2025-12-28 11:23:02,291 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status = %(status_1)s
+2025-12-28 11:23:02,291 INFO [cached since 213s ago] {'status_1': 'active'}
+2025-12-28 11:23:02,949 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status = %(status_1)s
+2025-12-28 11:23:02,950 INFO [cached since 213.7s ago] {'status_1': 'vacation'}
+2025-12-28 11:23:03,190 INFO ROLLBACK
+2025-12-28 11:23:10,642 INFO BEGIN (implicit)
+2025-12-28 11:23:10,642 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 11:23:10,643 INFO [cached since 213s ago] {'status_1': 'fired'}
+2025-12-28 11:23:11,300 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 11:23:11,301 INFO [cached since 213s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 11:23:11,542 ERROR Error in smart_flow_page
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: column dailyoperation.logs does not exist
+LINE 1: ...operation.tonnage, dailyoperation.attendance_log, dailyopera...
+                                                             ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 488, in smart_flow_page
+    daily_op = session.exec(
+               ~~~~~~~~~~~~^
+        select(models.DailyOperation)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        .where(models.DailyOperation.date == date)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        .where(models.DailyOperation.shift == shift)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ).first()
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlmodel\orm\session.py", line 83, in exec
+    results = super().execute(
+        statement,
+    ...<4 lines>...
+        _add_event=_add_event,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+        statement, params or {}, execution_options=execution_options
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column dailyoperation.logs does not exist
+LINE 1: ...operation.tonnage, dailyoperation.attendance_log, dailyopera...
+                                                             ^
+
+[SQL: SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s]
+[parameters: {'date_1': '2025-12-28', 'shift_1': 'Manhã'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2025-12-28 11:23:11,545 INFO ROLLBACK
+2025-12-28 11:23:20,058 INFO BEGIN (implicit)
+2025-12-28 11:23:20,059 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 11:23:20,059 INFO [cached since 222.4s ago] {'status_1': 'fired'}
+2025-12-28 11:23:20,724 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 11:23:20,724 INFO [cached since 222.4s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 11:23:20,962 ERROR Error in smart_flow_page
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: column dailyoperation.logs does not exist
+LINE 1: ...operation.tonnage, dailyoperation.attendance_log, dailyopera...
+                                                             ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 488, in smart_flow_page
+    daily_op = session.exec(
+               ~~~~~~~~~~~~^
+        select(models.DailyOperation)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        .where(models.DailyOperation.date == date)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        .where(models.DailyOperation.shift == shift)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ).first()
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlmodel\orm\session.py", line 83, in exec
+    results = super().execute(
+        statement,
+    ...<4 lines>...
+        _add_event=_add_event,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+        statement, params or {}, execution_options=execution_options
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column dailyoperation.logs does not exist
+LINE 1: ...operation.tonnage, dailyoperation.attendance_log, dailyopera...
+                                                             ^
+
+[SQL: SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s]
+[parameters: {'date_1': '2025-12-28', 'shift_1': 'Manhã'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2025-12-28 11:23:20,965 INFO ROLLBACK
+2025-12-28 11:24:19,962 INFO BEGIN (implicit)
+2025-12-28 11:24:19,963 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 11:24:19,964 INFO [cached since 282.3s ago] {'status_1': 'fired'}
+2025-12-28 11:24:20,626 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 11:24:20,626 INFO [cached since 282.3s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 11:24:20,865 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.shift = %(shift_1)s AND dailyoperation.date < %(date_1)s ORDER BY dailyoperation.date DESC
+2025-12-28 11:24:20,865 INFO [generated in 0.00063s] {'shift_1': 'Manhã', 'date_1': '2025-12-28'}
+2025-12-28 11:24:21,173 INFO SELECT headcounttarget.id, headcounttarget.shift_name, headcounttarget.target_value 
+FROM headcounttarget 
+WHERE headcounttarget.shift_name = %(shift_name_1)s
+2025-12-28 11:24:21,174 INFO [generated in 0.00054s] {'shift_name_1': 'Manhã'}
+2025-12-28 11:24:21,415 INFO SELECT sectorconfiguration.id, sectorconfiguration.shift_name, sectorconfiguration.config_json, sectorconfiguration.updated_at 
+FROM sectorconfiguration 
+WHERE sectorconfiguration.shift_name = %(shift_name_1)s
+2025-12-28 11:24:21,415 INFO [generated in 0.00042s] {'shift_name_1': 'Manhã'}
+2025-12-28 11:24:21,658 INFO SELECT route.id, route.date, route.shift, route.employee_id, route.client_id, route.start_time, route.end_time, route.tonnage, route.status, route.created_at 
+FROM route 
+WHERE route.date = %(date_1)s AND route.shift = %(shift_1)s
+2025-12-28 11:24:21,658 INFO [generated in 0.00062s] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 11:24:21,923 INFO ROLLBACK
+2025-12-28 11:25:12,068 INFO BEGIN (implicit)
+2025-12-28 11:25:12,069 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 11:25:12,069 INFO [cached since 334.4s ago] {'status_1': 'fired'}
+2025-12-28 11:25:12,732 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 11:25:12,732 INFO [cached since 334.4s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 11:25:12,980 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.shift = %(shift_1)s AND dailyoperation.date < %(date_1)s ORDER BY dailyoperation.date DESC
+2025-12-28 11:25:12,980 INFO [cached since 52.12s ago] {'shift_1': 'Manhã', 'date_1': '2025-12-28'}
+2025-12-28 11:25:13,230 INFO SELECT headcounttarget.id, headcounttarget.shift_name, headcounttarget.target_value 
+FROM headcounttarget 
+WHERE headcounttarget.shift_name = %(shift_name_1)s
+2025-12-28 11:25:13,230 INFO [cached since 52.06s ago] {'shift_name_1': 'Manhã'}
+2025-12-28 11:25:13,468 INFO SELECT sectorconfiguration.id, sectorconfiguration.shift_name, sectorconfiguration.config_json, sectorconfiguration.updated_at 
+FROM sectorconfiguration 
+WHERE sectorconfiguration.shift_name = %(shift_name_1)s
+2025-12-28 11:25:13,469 INFO [cached since 52.05s ago] {'shift_name_1': 'Manhã'}
+2025-12-28 11:25:13,711 INFO SELECT route.id, route.date, route.shift, route.employee_id, route.client_id, route.start_time, route.end_time, route.tonnage, route.status, route.created_at 
+FROM route 
+WHERE route.date = %(date_1)s AND route.shift = %(shift_1)s
+2025-12-28 11:25:13,712 INFO [cached since 52.05s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 11:25:13,960 INFO ROLLBACK
+2025-12-28 11:25:50,867 INFO BEGIN (implicit)
+2025-12-28 11:25:50,868 INFO SELECT employee.id, employee.registration_id, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.vacation_start, employee.vacation_end 
+FROM employee 
+WHERE employee.status != %(status_1)s
+2025-12-28 11:25:50,868 INFO [cached since 373.2s ago] {'status_1': 'fired'}
+2025-12-28 11:25:51,520 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.date = %(date_1)s AND dailyoperation.shift = %(shift_1)s
+2025-12-28 11:25:51,520 INFO [cached since 373.2s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 11:25:51,764 INFO SELECT dailyoperation.id, dailyoperation.date, dailyoperation.shift, dailyoperation.tonnage, dailyoperation.attendance_log, dailyoperation.logs, dailyoperation.arrival_time, dailyoperation.exit_time, dailyoperation.report, dailyoperation.rating, dailyoperation.status, dailyoperation.created_at, dailyoperation.updated_at 
+FROM dailyoperation 
+WHERE dailyoperation.shift = %(shift_1)s AND dailyoperation.date < %(date_1)s ORDER BY dailyoperation.date DESC
+2025-12-28 11:25:51,765 INFO [cached since 90.9s ago] {'shift_1': 'Manhã', 'date_1': '2025-12-28'}
+2025-12-28 11:25:52,009 INFO SELECT headcounttarget.id, headcounttarget.shift_name, headcounttarget.target_value 
+FROM headcounttarget 
+WHERE headcounttarget.shift_name = %(shift_name_1)s
+2025-12-28 11:25:52,010 INFO [cached since 90.84s ago] {'shift_name_1': 'Manhã'}
+2025-12-28 11:25:52,249 INFO SELECT sectorconfiguration.id, sectorconfiguration.shift_name, sectorconfiguration.config_json, sectorconfiguration.updated_at 
+FROM sectorconfiguration 
+WHERE sectorconfiguration.shift_name = %(shift_name_1)s
+2025-12-28 11:25:52,250 INFO [cached since 90.83s ago] {'shift_name_1': 'Manhã'}
+2025-12-28 11:25:52,490 INFO SELECT route.id, route.date, route.shift, route.employee_id, route.client_id, route.start_time, route.end_time, route.tonnage, route.status, route.created_at 
+FROM route 
+WHERE route.date = %(date_1)s AND route.shift = %(shift_1)s
+2025-12-28 11:25:52,491 INFO [cached since 90.83s ago] {'date_1': '2025-12-28', 'shift_1': 'Manhã'}
+2025-12-28 11:25:52,736 INFO ROLLBACK
