@@ -8,10 +8,10 @@ from starlette.middleware.sessions import SessionMiddleware
 from sqlmodel import Session, select
 from database import create_db_and_tables, get_session
 import models
-# --- Config ---
-SECRET_KEY = "your-secret-key-change-in-production"
-ALLOWED_USER = "feliperanon"
-ALLOWED_PASS = "571232ce"
+import logging
+logging.basicConfig(filename='logs.txt', level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s')
+logger = logging.getLogger(__name__)
+
 # API Models
 from pydantic import BaseModel
 from typing import Optional, List
@@ -523,9 +523,17 @@ async def smart_flow_page(request: Request, shift: str = "Manhã", date: Optiona
         # Get Sector Configuration
         sector_config_db = session.exec(select(models.SectorConfiguration).where(models.SectorConfiguration.shift_name == shift)).first()
         
+        sector_config = {}
         if sector_config_db and sector_config_db.config_json:
             sector_config = sector_config_db.config_json
-        else:
+            if isinstance(sector_config, str):
+                import json
+                try:
+                    sector_config = json.loads(sector_config)
+                except:
+                    sector_config = {}
+        
+        if not sector_config or not isinstance(sector_config, dict) or "sectors" not in sector_config:
             # Default Seed (Targets initialized to 0 to avoid confusion with HR Target)
             sector_config = {
                 "sectors": [
@@ -537,7 +545,7 @@ async def smart_flow_page(request: Request, shift: str = "Manhã", date: Optiona
             }
     
         # Calculate Total Target from Config (Operational Demand)
-        sectors_total_demand = sum(s.get("target", 0) for s in sector_config.get("sectors", []))
+        sectors_total_demand = sum(s.get("target", 0) for s in sector_config.get("sectors", []) if isinstance(s, dict))
         # Calculate Real Tonnage from Routes
         routes_in_shift = session.exec(
             select(models.Route)
@@ -563,8 +571,7 @@ async def smart_flow_page(request: Request, shift: str = "Manhã", date: Optiona
             "total_tonnage_fmt": fmt_num(total_tonnage_real)
         })
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.exception("Error in smart_flow_page")
         raise e
     # Valid return is above
 @app.post("/employees/vacation", response_class=JSONResponse)

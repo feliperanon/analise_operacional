@@ -92,7 +92,34 @@ def debug_flow():
             total_tonnage_real = sum(r.tonnage for r in routes_in_shift if r.tonnage)
             print(f"Tonelagem Real: {total_tonnage_real}")
 
-            print("--- Sucesso na execução da lógica do backend ---")
+            # 7. Simular Renderização Jinja2
+            print("Iniciando renderização do template Jinja2...")
+            from jinja2 import Environment, FileSystemLoader
+            env = Environment(loader=FileSystemLoader('templates'))
+            template = env.get_template('smart_flow.html')
+            
+            # Adicionar filtros ou globais se necessário (tipo tojson)
+            import json
+            def tojson_filter(value):
+                return json.dumps(value, default=str)
+            env.filters['tojson'] = tojson_filter
+            
+            # Contexto para o template
+            context = {
+                "request": {}, # Mock
+                "user": "debug_user",
+                "daily_op": daily_op,
+                "employees_list": employees,
+                "current_shift": shift,
+                "current_date": date,
+                "total_target": sectors_total_demand, 
+                "shift_target_hr": shift_target_hr,
+                "sector_config": sector_config,
+                "total_tonnage_fmt": "0,00" # Mock
+            }
+            
+            html = template.render(context)
+            print("--- Sucesso na renderização do template! ---")
 
         except Exception as e:
             print(f"--- ERRO DETECTADO ---")
