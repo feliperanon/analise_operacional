@@ -633,10 +633,10 @@
         let totalPresent = 0;
         let totalAllocated = 0;
 
-        SECTORS.map(sec => { // Changed from forEach to map to build sectorsDetailed
+        const sectorsDetailed = SECTORS.map(sec => {
             const sectorStats = getSectorStats(sec.key);
             totalTarget += sectorStats.target;
-            totalPresent += sectorStats.count; // "count" in getSectorStats is actually present count now? No, check logic.
+            totalPresent += sectorStats.count;
 
             // Re-calc specific for snapshot to be safe
             const allocatedPeople = peopleList.filter(p => p.sector_daily === sec.key);
