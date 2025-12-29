@@ -1,0 +1,9 @@
+Encontrados 1 funcionário(s):
+ID: 544
+Nome: VANDERLI SOUZA PEDRA
+Matrícula: 1263
+Status: active
+Turno: Manhã
+Cost Center: Geral
+Role: LIDER LOGISTICO
+--------------------

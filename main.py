@@ -5,12 +5,13 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from datetime import datetime, timedelta
 from starlette.middleware.sessions import SessionMiddleware
-from sqlmodel import Session, select
+from sqlmodel import Session, select, col
 from typing import List
 from database import create_db_and_tables, get_session
 import models
 import logging
 import json
+import unicodedata
 logging.basicConfig(filename='logs.txt', level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -560,11 +561,19 @@ async def smart_flow_page(request: Request, shift: str = "Manhã", date: Optiona
             .where(models.Route.shift == shift)
         ).all()
         total_tonnage_real = sum(r.tonnage for r in routes_in_shift if r.tonnage)
+        if daily_op.tonnage and daily_op.tonnage > 0:
+            total_tonnage_real = daily_op.tonnage
+            
         # Format Tonnage
         def fmt_num(n):
             val = n if n is not None else 0.0
             return f"{val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
             
+        # Get employees who are substituted (for Dashboard "Substituição" KPI)
+        # Logic: Events where text contains "Substituído por"
+        sub_events = session.exec(select(models.Event).where(col(models.Event.text).contains("Substituído por"))).all()
+        substituted_ids = {e.employee_id for e in sub_events}
+
         return templates.TemplateResponse("smart_flow.html", {
             "request": request,
             "user": user,
@@ -575,7 +584,10 @@ async def smart_flow_page(request: Request, shift: str = "Manhã", date: Optiona
             "total_target": sectors_total_demand, 
             "shift_target_hr": shift_target_hr, # Passed for KPI
             "sector_config": sector_config,
-            "total_tonnage_fmt": fmt_num(total_tonnage_real)
+            "total_tonnage_fmt": fmt_num(total_tonnage_real),
+            "total_tonnage_raw": total_tonnage_real, # Raw for JS calc
+            "manual_tonnage": daily_op.tonnage or 0, # Pass raw manual value for frontend to know
+            "substituted_ids": list(substituted_ids)
         })
     except Exception as e:
         logger.exception("Error in smart_flow_page")
@@ -844,13 +856,39 @@ async def routine_report(
             if daily_status == 'present':
                 total_present += 1
                 
+            # Check if Substituted (Only relevant if Away/Vacation?)
+            # User said: "destacar que ele ja foi subistiuido, somente com a rotina de afastado"
+            # So we check if there's a "Substituído por" event for this employee
+            is_substituted = False
+            if daily_status in ['away', 'vacation']:
+                 has_sub_evt = session.exec(select(models.Event).where(
+                    models.Event.employee_id == emp.id,
+                    models.Event.text.like("%Substituído por%")
+                 )).first()
+                 if has_sub_evt:
+                     is_substituted = True
+
             people_list.append({
-                "id": emp.registration_id,
                 "name": emp.name,
                 "status_daily": daily_status,
-                "sector_daily": sector_key
+                "sector_daily": sector_key,
+                "is_substituted": is_substituted
             })
             
+        # Substituted Count (Employees 'Away' who have a replacement OR Active employees who are replacements?)
+        # User said "reminding that it can only pull this information from the away routine when creating a new employee"
+        # Interpreted as: Count of Away employees who have been substituted.
+        # Logic: Find 'away' employees. Check if they have an event "Substituído por..."
+        count_substitutions = 0
+        away_employees = [e for e in all_employees if e.status == 'away']
+        for emp in away_employees:
+            has_sub = session.exec(select(models.Event).where(
+                models.Event.employee_id == emp.id,
+                models.Event.text.like("%Substituído por%")
+            )).first()
+            if has_sub:
+                count_substitutions += 1
+                
         # Build Sectors Detailed
         sectors_detailed = []
         total_target = 0
@@ -861,10 +899,21 @@ async def routine_report(
             target = int(sec.get('target', 0))
             total_target += target
             
-            # Find people allocated to this sector AND present
+            # Find people allocated to this sector
             allocated_people = [p for p in people_list if p['sector_daily'] == key]
-            present_people = [p for p in allocated_people if p['status_daily'] == 'present']
             
+            # Counts per sector
+            present_people = [p for p in allocated_people if p['status_daily'] == 'present']
+            absent_people = [p for p in allocated_people if p['status_daily'] in ['absent', 'sick']]
+            vacation_away_people = [p for p in allocated_people if p['status_daily'] in ['vacation', 'away']]
+            
+            # Vagas: Target - Active Allocated? Or just Target - Present?
+            # User dashboard usually shows "Vagas" as empty spots. 
+            # If target=14 and allocated=13, vacancies=1. 
+            # If target=14, allocated=14, present=10 -> gap=4.
+            # Usually Vagas = Target - Allocated (Open positions).
+            # Gap = Target - Present (Operational gap).
+            vacancies = max(0, target - len(allocated_people))
             gap = max(0, target - len(present_people))
             
             sectors_detailed.append({
@@ -872,6 +921,9 @@ async def routine_report(
                 "target": target,
                 "allocated_count": len(allocated_people),
                 "present_count": len(present_people),
+                "vacancies": vacancies, # Vagas
+                "absences": len(absent_people), # Faltas/Atestados
+                "vacation_away": len(vacation_away_people), # Férias/Afastados
                 "gap": gap
             })
             total_allocated_sum += len(allocated_people)
@@ -882,6 +934,8 @@ async def routine_report(
         
         others_allocated = [p for p in people_list if p['sector_daily'] not in mapped_sector_keys]
         others_present = [p for p in others_allocated if p['status_daily'] == 'present']
+        others_absent = [p for p in others_allocated if p['status_daily'] in ['absent', 'sick']]
+        others_vac_away = [p for p in others_allocated if p['status_daily'] in ['vacation', 'away']]
         
         if others_present or others_allocated:
             sectors_detailed.append({
@@ -889,12 +943,17 @@ async def routine_report(
                 "target": 0,
                 "allocated_count": len(others_allocated),
                 "present_count": len(others_present),
+                "vacancies": 0,
+                "absences": len(others_absent),
+                "vacation_away": len(others_vac_away),
                 "gap": 0
             })
             total_allocated_sum += len(others_allocated)
             
         # Top KPIs
         total_gap = sum(s['gap'] for s in sectors_detailed)
+        total_vacancies = sum(s['vacancies'] for s in sectors_detailed)
+        
         prod_per_person = round(tonnage / total_present, 2) if total_present > 0 else 0
         present_pct = int((total_present / total_target * 100)) if total_target > 0 else 0
         
@@ -911,12 +970,12 @@ async def routine_report(
                 "total_present": total_present,
                 "present_pct": present_pct,
                 "total_gap": total_gap,
+                "total_vacancies": total_vacancies,
                 "tonnage": f"{tonnage:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
                 "prod_per_person": f"{prod_per_person:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
-                "count_absent": daily_absent,
-                "count_sick": daily_sick,
-                "count_vacation": daily_vacation,
-                "count_away": daily_away
+                "count_absent": daily_absent + daily_sick, # Combine for card
+                "count_vacation_away": daily_vacation + daily_away, # Combine for card
+                "count_substitutions": count_substitutions
             },
             "sectors": sectors_detailed,
             "people": people_list
@@ -936,9 +995,11 @@ async def routine_report(
 
         target_shift_norm = normalize_str(shift)
 
-        # Birthdays (Filtered by Shift)
+        # Birthdays (Filtered by Shift, exclude fired)
         birthdays = []
         for emp in all_employees:
+            if emp.status == 'fired':
+                continue
             emp_shift_norm = normalize_str(emp.work_shift)
             if target_shift_norm not in emp_shift_norm:
                 continue
@@ -955,9 +1016,11 @@ async def routine_report(
                     })
         birthdays.sort(key=lambda x: x['day'])
         
-        # Contracts (45 and 90 days from admission) - Filtered by Shift
+        # Contracts (45 and 90 days from admission) - Filtered by Shift, exclude fired
         contracts = []
         for emp in all_employees:
+            if emp.status == 'fired':
+                continue
             emp_shift_norm = normalize_str(emp.work_shift)
             if target_shift_norm not in emp_shift_norm:
                 continue
@@ -1108,6 +1171,17 @@ async def _employees_page_impl(request: Request, session: Session):
             "statuses": status_stats
         }
     })
+@app.get("/employees/candidates", response_class=JSONResponse)
+async def get_candidates(request: Request, status: str, session: Session = Depends(get_session)):
+    require_login(request)
+    # Filter by status (fired or away)
+    employees = session.exec(select(models.Employee).where(models.Employee.status == status)).all()
+    return [{
+        "id": e.id,
+        "name": e.name,
+        "registration_id": e.registration_id
+    } for e in employees]
+
 @app.post("/employees/add")
 async def add_employee(
     request: Request,
@@ -1119,6 +1193,10 @@ async def add_employee(
     admission_date: str = Form(None),
     birthday: str = Form(None),
     work_days: List[str] = Form(None),
+    # Substitution Fields
+    is_substitution: bool = Form(False), # Checkbox key presence or explicit true/false if JS sends it
+    sub_reason: str = Form(None), # fired, away
+    replaced_employee_id: int = Form(None),
     session: Session = Depends(get_session)
 ):
     require_login(request)
@@ -1155,6 +1233,35 @@ async def add_employee(
     )
     try:
         session.add(new_employee)
+        session.flush() # Flush to get ID if needed, though we just need to commit later
+        
+        # Substitution Logic
+        if is_substitution and replaced_employee_id:
+            old_emp = session.get(models.Employee, replaced_employee_id)
+            if old_emp:
+                # 1. History for New Employee
+                # "Entrou em substituição a X (Motivo)"
+                reason_pt = "Demitido" if sub_reason == 'fired' else "Afastado"
+                new_evt = models.Event(
+                    text=f"Entrou em substituição a {old_emp.name} ({reason_pt})",
+                    type="alteracao_cadastro",
+                    category="pessoas",
+                    employee_id=new_employee.id,
+                    sector="RH"
+                )
+                session.add(new_evt)
+                
+                # 2. History for Old Employee
+                # "Substituído por Y (Data)"
+                old_evt = models.Event(
+                    text=f"Substituído por {new_employee.name}",
+                    type="alteracao_cadastro",
+                    category="pessoas",
+                    employee_id=old_emp.id,
+                    sector="RH"
+                )
+                session.add(old_evt)
+        
         session.commit()
     except Exception as e:
         print(f"Error adding employee: {e}")
@@ -1193,13 +1300,33 @@ async def read_employee(request: Request, employee_id: int, session: Session = D
         "atestados": medicals,
         "faltas": absences
     }
+    # Parse Work Days for Display
+    work_days_list = []
+    if employee.work_days:
+        try:
+            wd_val = employee.work_days
+            # Check if it looks like JSON list
+            if wd_val.strip().startswith("["):
+                 work_days_list = json.loads(wd_val)
+            else:
+                 # Assume comma separated or single string if not JSON? 
+                 # Or just wrap single string.
+                 work_days_list = [wd_val]
+        except:
+            work_days_list = [] # Fallback
+            
+    days_map = {'Monday': 'Segunda', 'Tuesday': 'Terça', 'Wednesday': 'Quarta', 'Thursday': 'Quinta', 'Friday': 'Sexta', 'Saturday': 'Sábado', 'Sunday': 'Domingo'}
+    # Translate immediately for simpler template
+    work_days_display = ", ".join([days_map.get(d, d) for d in work_days_list])
+
     return templates.TemplateResponse("employee_detail.html", {
         "request": request, 
         "emp": employee, 
         "events": events, 
         "user": user,
         "stats": stats,
-        "tenure": tenure_str
+        "tenure": tenure_str,
+        "work_days_display": work_days_display
     })
 @app.post("/employees/{emp_id}/status")
 async def update_employee_status(
@@ -1318,6 +1445,7 @@ async def update_employee(
     cost_center: str = Form(...),
     admission_date: str = Form(None),
     birthday: str = Form(None),
+    work_days: List[str] = Form(None),
     session: Session = Depends(get_session)
 ):
     require_login(request)
@@ -1353,6 +1481,56 @@ async def update_employee(
         emp.role = role
         emp.work_shift = work_shift
         emp.cost_center = cost_center
+
+        # Update Work Days
+        if work_days:
+             emp.work_days = json.dumps(work_days)
+        else:
+             # Check if it was sent as empty list (cleared) or not sent?
+             # If form sends checkboxes, unchecked usually means not sent.
+             # We should assume if the list is None/Empty but the request is an Update,
+             # we might want to clear it? Or default?
+             # Logic: If Form is present in request but empty... FastAPI makes it None usually.
+             # Let's save a default "all days" or empty list if explicitly cleared?
+             # Ideally if user unchecks all, we receive empty list.
+             # BUT: FastAPI Form(None) defaults to None if key missing.
+             # If key exists but empty values?
+             # For safety: If update comes, we can overwrite. But checkboxes not checked simply don't send keys.
+             # This is tricky with pure HTML forms.
+             # If the frontend always sends at least one, we are good.
+             # If we want to allow clearing all, we need a hidden input or assume None = Clear?
+             # Let's assume if updated, we overwrite. If None, maybe don't change?
+             # Actually, simpler: if work_days is None, it means NO checkbox checked (or key missing).
+             # We should probably clear it if we want to support unchecking all.
+             # However, to be safe against accidental clears if form is incomplete:
+             # Let's only update if we have data OR if we explicitly handle "clear".
+             # For now, let's just update if present. To allow "clearing", user usually leaves one checked.
+             # To truly support clearing all, we'd need a hidden input with same name or JS handling.
+             # Given the snippet, let's just save valid list if provided.
+             pass
+        
+        # Actually, standard behavior for checkboxes: NOT sent if unchecked.
+        # So verifying if we can differentiate "not submitted" vs "unchecked all".
+        # We can't easily. But since this is a dedicated update form, we can assume
+        # if the user submits the form, they see the checkboxes.
+        # If work_days is None, it likely means they unchecked everything.
+        # So let's save empty list "[]" if work_days is None? 
+        # But wait, we set default Form(None).
+        # Let's check how add_employee does it:
+        # work_days_json = '["Monday"...]' # Default
+        # if work_days: work_days_json = json.dumps(work_days)
+        
+        # Here: we want to UPDATE.
+        # If work_days received (List[str]), we dump it.
+        # If None, it means no box checked. Should we clear it? 
+        # Yes, usually "Edit" means "Current State".
+        # So: emp.work_days = json.dumps(work_days if work_days else [])
+        
+        if work_days is not None:
+             emp.work_days = json.dumps(work_days)
+        else:
+             # Checkboxes not checked -> None
+             emp.work_days = "[]"
         
         if admission_date:
             try:

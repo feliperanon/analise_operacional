@@ -49,6 +49,14 @@
                 <span class="px-3 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">Demitido</span>
                 {% endif %}
             </div>
+
+            <!-- Work Days Display -->
+            <div class="mt-2 text-xs text-slate-500 font-medium">
+                {% if work_days_display %}
+                <span class="text-slate-400">Dias de Trabalho: </span>
+                <span class="text-slate-300">{{ work_days_display }}</span>
+                {% endif %}
+            </div>
             <div class="mt-4 flex gap-4 text-xs text-slate-500">
                 <div>Admissão: <span class="text-slate-300">{{ emp.admission_date.strftime('%d/%m/%Y') if
                         emp.admission_date else '-' }}</span></div>

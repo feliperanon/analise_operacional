@@ -56,7 +56,7 @@
                         </svg>
                     </span> Fluxo Operacional
                 </h1>
-                <p class="text-[10px] text-slate-400 font-medium tracking-wide">VISï¿½O EM TEMPO REAL</p>
+                <p class="text-[10px] text-slate-400 font-medium tracking-wide">VISÃO EM TEMPO REAL</p>
             </div>
 
             <!-- Center: Context Controls (Date & Shift) -->
@@ -81,8 +81,8 @@
 
                 <!-- Shift Tabs -->
                 <div class="flex p-0.5 bg-slate-800 rounded-xl">
-                    <button onclick="changeShift('Manhï¿½')"
-                        class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all{{'bg-blue-600 text-white shadow-md' if current_shift == 'Manhï¿½' else 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50'}}">Manhï¿½</button>
+                    <button onclick="changeShift('Manhç')"
+                        class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all{{'bg-blue-600 text-white shadow-md' if current_shift == 'Manhç' else 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50'}}">Manhç</button>
                     <button onclick="changeShift('Tarde')"
                         class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all{{'bg-orange-500 text-white shadow-md' if current_shift == 'Tarde' else 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50'}}">Tarde</button>
                     <button onclick="changeShift('Noite')"
@@ -95,7 +95,7 @@
             <div class="flex items-center justify-end gap-3 flex-1">
                 <a href="/routine/report?date={{current_date}}&shift={{current_shift}}" target="_blank"
                     class="bg-purple-600/10 text-purple-400 hover:bg-purple-600/20 hover:text-purple-300 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 border border-purple-500/20"
-                    title="Gerar Relatï¿½rio PDF">
+                    title="Gerar Relatçrio PDF">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                         <polyline points="14 2 14 8 20 8"></polyline>
@@ -103,7 +103,7 @@
                         <line x1="16" y1="17" x2="8" y2="17"></line>
                         <polyline points="10 9 9 9 8 9"></polyline>
                     </svg>
-                    Relatï¿½rio
+                    Relatçrio
                 </a>
 
                 <button onclick="createSector()"
@@ -149,10 +149,10 @@
                 </p>
                 <div class="bg-blue-500/10 p-1 rounded-lg text-blue-400">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                        <circle cx="9" cy="7" r="4" />
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                     </svg>
                 </div>
             </div>
@@ -160,22 +160,22 @@
                 <p class="text-lg font-bold text-white leading-none"><span id="total-present">0</span> <span
                         class="text-slate-500 text-xs font-normal">/</span> <span id="total-target-kpi"
                         class="text-slate-400 text-sm">0</span></p>
-                <p class="text-[9px] text-slate-500 mt-0.5">Presenï¿½a: <span class="text-emerald-400 font-bold"
+                <p class="text-[9px] text-slate-500 mt-0.5">Presença: <span class="text-emerald-400 font-bold"
                         id="present-percent">0%</span></p>
             </div>
         </div>
 
-        <!-- 2. Gap (Vagas) -->
+        <!-- 2. Vagas (Gap) -->
         <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-red-500/50 group h-20"
             onclick="openDashboardDetail('gap')">
             <div class="flex justify-between items-start">
                 <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-red-400 transition">Vagas</p>
                 <div class="bg-red-500/10 p-1 rounded-lg text-red-400">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                        <circle cx="8.5" cy="7" r="4" />
-                        <line x1="18" y1="8" x2="23" y2="13" />
-                        <line x1="23" y1="8" x2="18" y2="13" />
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="8.5" cy="7" r="4"></circle>
+                        <line x1="18" y1="8" x2="23" y2="13"></line>
+                        <line x1="23" y1="8" x2="18" y2="13"></line>
                     </svg>
                 </div>
             </div>
@@ -185,107 +185,105 @@
             </div>
         </div>
 
-        <!-- 3. Absenteï¿½smo (Sick/Faltas) -->
+        <!-- 3. Produção Total (Tonnage) -->
+        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-emerald-500/50 group h-20"
+            onclick="editTonnage()">
+            <div class="flex justify-between items-start">
+                <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-emerald-400 transition">
+                    Produção Total</p>
+                <div class="bg-emerald-500/10 p-1 rounded-lg text-emerald-400">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                        </path>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                </div>
+            </div>
+            <div>
+                <p class="text-lg font-bold text-emerald-400 leading-none" id="total-tonnage">{{ total_tonnage_fmt }}kg
+                </p>
+                <p class="text-[9px] text-slate-500 mt-0.5">Movimentação {{ "Manual" if manual_tonnage > 0 else
+                    "Calculada" }}</p>
+            </div>
+        </div>
+
+        <!-- 4. Faltas e Atestados (Combined) -->
         <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-amber-500/50 group h-20"
             onclick="openDashboardDetail('sick')">
             <div class="flex justify-between items-start">
                 <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-amber-400 transition"
-                    title="Atestados e Faltas">Absenteï¿½smo</p>
+                    title="Faltas + Atestados">Faltas e Atestados</p>
                 <div class="bg-amber-500/10 p-1 rounded-lg text-amber-400">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="12" y1="8" x2="12" y2="12" />
-                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
                     </svg>
                 </div>
             </div>
             <div>
-                <p class="text-lg font-bold text-amber-400 leading-none" id="total-sick">0</p>
-                <p class="text-[9px] text-slate-500 mt-0.5">Atestados/Faltas</p>
+                <p class="text-lg font-bold text-amber-400 leading-none" id="total-sick-absent">0</p>
+                <p class="text-[9px] text-slate-500 mt-0.5">Ocorrências</p>
             </div>
         </div>
 
-        <!-- 4. Afastados (Away) -->
+        <!-- 5. Férias e Afastados (Combined) -->
         <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-purple-500/50 group h-20"
-            onclick="openDashboardDetail('away')">
+            onclick="openDashboardDetail('vacation_away')">
             <div class="flex justify-between items-start">
-                <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-purple-400 transition">
-                    Afastados</p>
+                <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-purple-400 transition">Férias
+                    e Afastados</p>
                 <div class="bg-purple-500/10 p-1 rounded-lg text-purple-400">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M10 10l-6 6v-6h6z" />
-                        <path d="M14 14l6-6v6h-6z" />
-                        <path d="M4 20h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" />
+                        <path d="M10 10l-6 6v-6h6z"></path>
+                        <path d="M14 14l6-6v6h-6z"></path>
+                        <path d="M4 20h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z"></path>
                     </svg>
                 </div>
             </div>
             <div>
-                <p class="text-lg font-bold text-purple-400 leading-none" id="total-away">0</p>
-                <p class="text-[9px] text-slate-500 mt-0.5">INSS/Licenï¿½as</p>
+                <p class="text-lg font-bold text-purple-400 leading-none" id="total-vacation-away">0</p>
+                <p class="text-[9px] text-slate-500 mt-0.5">Ausências Legais</p>
             </div>
         </div>
 
-        <!-- 5. Fï¿½rias -->
-        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-orange-500/50 group h-20"
-            onclick="openDashboardDetail('vacation')">
+        <!-- 6. Substituição (New) -->
+        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-blue-400/50 group h-20"
+            onclick="openDashboardDetail('substitution')">
             <div class="flex justify-between items-start">
-                <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-orange-400 transition">Fï¿½rias
-                </p>
-                <div class="bg-orange-500/10 p-1 rounded-lg text-orange-400">
+                <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-blue-400 transition">
+                    Substituição</p>
+                <div class="bg-blue-400/10 p-1 rounded-lg text-blue-400">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M2 12h20" />
-                        <path d="M7 16v4" />
-                        <path d="M17 16v4" />
-                        <path d="M12 2v20" />
-                        <path d="M5 8h14" />
+                        <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l5 5 5-5"></path>
                     </svg>
                 </div>
             </div>
             <div>
-                <p class="text-lg font-bold text-orange-400 leading-none" id="total-vacation">0</p>
-                <p class="text-[9px] text-slate-500 mt-0.5">Programadas</p>
+                <p class="text-lg font-bold text-blue-400 leading-none" id="total-substitution">0</p>
+                <p class="text-[9px] text-slate-500 mt-0.5">Coberturas Ativas</p>
             </div>
         </div>
 
-        <!-- 6. Produï¿½ï¿½o Total -->
+        <!-- 7. Produção/Colaborador -->
         <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-emerald-500/50 group h-20"
-            onclick="openDashboardDetail('tonnage')">
+            title="Produção média por pessoa presente">
             <div class="flex justify-between items-start">
                 <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-emerald-400 transition">
-                    Produï¿½ï¿½o Total</p>
+                    Produção / Pessoa</p>
                 <div class="bg-emerald-500/10 p-1 rounded-lg text-emerald-400">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path
-                            d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                        <line x1="12" y1="22.08" x2="12" y2="12" />
-                    </svg>
-                </div>
-            </div>
-            <div>
-                <p class="text-lg font-bold text-emerald-400 leading-none" id="total-tonnage">{{daily_op.tonnage}}kg
-                </p>
-                <p class="text-[9px] text-slate-500 mt-0.5">Movimentaï¿½ï¿½o Bruta</p>
-            </div>
-        </div>
-
-        <!-- 7. Produï¿½ï¿½o/Colaborador -->
-        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-emerald-500/50 group h-20"
-            title="Produï¿½ï¿½o mï¿½dia por pessoa presente">
-            <div class="flex justify-between items-start">
-                <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-emerald-400 transition">
-                    Produï¿½ï¿½o / Pessoa</p>
-                <div class="bg-emerald-500/10 p-1 rounded-lg text-emerald-400">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                        <circle cx="9" cy="7" r="4" />
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                     </svg>
                 </div>
             </div>
             <div>
                 <p class="text-lg font-bold text-emerald-400 leading-none" id="production-per-person">0 kg/p</p>
-                <p class="text-[9px] text-slate-500 mt-0.5">Produtividade Mï¿½dia</p>
+                <p class="text-[9px] text-slate-500 mt-0.5">Produtividade Média</p>
             </div>
         </div>
     </div>
@@ -345,7 +343,7 @@
                             <line x1="12" y1="16" x2="12.01" y2="16" />
                         </svg>
                     </div>
-                    <div class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Advertï¿½ncias</div>
+                    <div class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Advertências</div>
                     <div class="text-2xl font-bold text-white flex items-end gap-1">
                         <span id="modal-warnings">0</span>
                     </div>
@@ -404,7 +402,7 @@
                                 d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
                         </svg>
                     </div>
-                    <div class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Fï¿½rias</div>
+                    <div class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Férias</div>
                     <div class="text-2xl font-bold text-orange-400 flex items-end gap-1">
                         <span id="modal-vacation">0</span>
                     </div>
@@ -421,7 +419,7 @@
                             <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Banco de Talentos</h3>
 
                             <label class="flex items-center gap-2 cursor-pointer"
-                                title="Mostrar funcionï¿½rios de outros turnos">
+                                title="Mostrar funcionários de outros turnos">
                                 <input type="checkbox" id="show-all-toggle" onchange="filterEmployees()"
                                     class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800">
                                 <span class="text-xs text-slate-500 select-none">Mostrar Todos</span>
@@ -434,7 +432,7 @@
                                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                             </svg>
                             <input type="text" id="search-input" onkeyup="filterEmployees()"
-                                placeholder="Buscar nome ou matrï¿½cula..."
+                                placeholder="Buscar nome ou matrícula..."
                                 class="w-full pl-9 pr-4 py-2 text-sm bg-slate-800 border border-slate-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-500">
                         </div>
                     </div>
@@ -535,6 +533,10 @@
         log: {{ daily_op.attendance_log | tojson }} || {}
     };
 
+    // Tonnage (Manual Override)
+    let manualTonnage = {{ manual_tonnage | tojson }};
+
+    let substitutedIds = {{ substituted_ids | tojson }} || [];
     const ALL_EMPLOYEES = [
         {% for emp in employees_list %}
     {
@@ -545,7 +547,8 @@
         cost_center: {{ emp.cost_center | tojson }},
         status: {{ emp.status | tojson }},
         birthday: {{ (emp.birthday.isoformat() if emp.birthday else None) | tojson }},
-        admission_date: {{ (emp.admission_date.isoformat() if emp.admission_date else None) | tojson }}
+        admission_date: {{ (emp.admission_date.isoformat() if emp.admission_date else None) | tojson }},
+        is_substituted: substitutedIds.includes({{ emp.registration_id | tojson }})
     },
     {% endfor %}
     ];
@@ -774,13 +777,12 @@
         // Calculate stats
         let totalPresent = 0;
 
-        // Count Present (Anyone present in log is counted, regardless of shift - borrowed staff etc)
+        // Count Present (Anyone present in log is counted)
         Object.values(employees.log).forEach(e => {
             if (e.status === 'present') totalPresent++;
         });
 
         // Absences/Status Logic (Strict Shift Filtering + Effective Status)
-        // We use the helper to get exact lists
         const listAbsent = getShiftEmployeesByStatus('absent');
         const listSick = getShiftEmployeesByStatus('sick');
         const listVacation = getShiftEmployeesByStatus('vacation');
@@ -790,6 +792,12 @@
         const totalSick = listSick.length;
         const vacationCount = listVacation.length;
         const awayCount = listAway.length;
+
+        // Substitution Calculation
+        // Person is substituted if they are Away/Vacation AND is_substituted is true
+        // Filter listAway and listVacation to check for is_substituted flag
+        const substitutedCount = [...listAway, ...listVacation].filter(emp => emp.is_substituted).length;
+
 
         // Gap Calculation & Total Target
         let totalGap = 0;
@@ -805,14 +813,17 @@
             totalGap += gap;
         });
 
-        // Presence Percent Logic: (Total Present / Total Target) * 100
+        // Presence Percent Logic
         const presencePercent = totalTarget > 0 ? Math.round((totalPresent / totalTarget) * 100) : 0;
 
         // Production / Person
         let tonnage = 0;
-        const tonnageEl = document.getElementById('total-tonnage');
-        if (tonnageEl) {
-            tonnage = parseInt(tonnageEl.innerText.replace(/\D/g, '')) || 0;
+
+        // Use raw variables instead of DOM scraping
+        if (manualTonnage > 0) {
+            tonnage = manualTonnage;
+        } else {
+            tonnage = calculatedTonnage;
         }
 
         const prodPerPerson = totalPresent > 0 ? Math.round(tonnage / totalPresent) : 0;
@@ -829,19 +840,16 @@
 
         setVal('total-gap', totalGap);
 
-        // Absenteï¿½smo = Atestados + Faltas
+        // Faltas e Atestados (Combined)
         const absenteeism = totalSick + dailyAbsences;
-        setVal('total-sick', absenteeism); // Atestados + Faltas
-        setVal('total-away', awayCount); // Afastados
-        setVal('total-vacation', vacationCount);
+        setVal('total-sick-absent', absenteeism);
 
-        // We might want to show Faltas somewhere too? 
-        // User asked for 4 cards in Report, but Dashboard maybe wasn't updated?
-        // Checking user request: User says "Acho que aqui podemos incluir mais card..." for REPORT.
-        // Dashboard has 'total-sick', 'total-away', 'total-vacation'.
-        // There is no 'total-absent' ID in the dashboard HTML I saw earlier... wait.
-        // I should check if there is an Absent card in dashboard HTML. 
-        // If not, I can't update it. Leaving as is (sick is just sick).
+        // Férias e Afastados (Combined)
+        const vacationAway = vacationCount + awayCount;
+        setVal('total-vacation-away', vacationAway);
+
+        // Substituição
+        setVal('total-substitution', substitutedCount);
 
         setVal('production-per-person', prodPerPerson + ' kg/p');
 
@@ -898,7 +906,7 @@
             let shiftColor = "text-slate-400 bg-slate-700/50 border-slate-600";
             let shiftShort = empShift.substring(0, 3).toUpperCase();
 
-            if (shiftLower.includes("manhï¿½") || shiftLower.includes("manha")) {
+            if (shiftLower.includes("manhç") || shiftLower.includes("manha")) {
                 shiftColor = "text-blue-400 bg-blue-500/10 border-blue-500/20";
                 shiftShort = "MAN";
             } else if (shiftLower.includes("tarde")) {
@@ -912,7 +920,7 @@
             // Status Badge Logic
             let statusBadge = "";
             if (emp.status === 'vacation') {
-                statusBadge = '<span class="text-[8px] font-bold px-1 rounded border text-orange-400 bg-orange-500/10 border-orange-500/20 uppercase tracking-wider">Fï¿½RIAS</span>';
+                statusBadge = '<span class="text-[8px] font-bold px-1 rounded border text-orange-400 bg-orange-500/10 border-orange-500/20 uppercase tracking-wider">FçRIAS</span>';
             } else if (emp.status === 'sick') {
                 statusBadge = '<span class="text-[8px] font-bold px-1 rounded border text-cyan-400 bg-cyan-500/10 border-cyan-500/20 uppercase tracking-wider">ATESTADO</span>';
             } else if (emp.status === 'away') {
@@ -940,13 +948,14 @@
                             <span class="text-[9px] font-mono text-slate-500">${emp.id ? '#' + emp.id : ''}</span>
                             <span class="text-[8px] font-bold px-1 rounded border ${shiftColor} uppercase tracking-wider">${shiftShort}</span>
                             ${statusBadge}
+                            ${emp.is_substituted ? '<span class="text-[8px] font-bold px-1 rounded border text-blue-400 bg-blue-500/10 border-blue-500/20 uppercase tracking-wider">SUBSTITUÍDO</span>' : ''}
                             ${isWrongShift ? `<span class="text-[8px] text-amber-500 bg-amber-500/10 px-1 rounded border border-amber-500/20" title="Turno original: ${empShift}"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>` : ''}
                         </div>
                     </div>
                 </div>
                 
                 <div class="flex items-center gap-1">
-                    <button onclick="openVacationModal('${emp.id}')" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-orange-600 hover:text-white text-orange-400 border border-slate-700 hover:border-orange-500 flex items-center justify-center transition shadow-sm" title="Programar Fï¿½rias">
+                    <button onclick="openVacationModal('${emp.id}')" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-orange-600 hover:text-white text-orange-400 border border-slate-700 hover:border-orange-500 flex items-center justify-center transition shadow-sm" title="Programar Férias">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
                     </button>
                     <button onclick="addToSector('${emp.id}', '${emp.name}')" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-500 border border-slate-700 hover:border-blue-500 flex items-center justify-center transition shadow-sm" aria-label="Adicionar" title="Adicionar ao setor">
@@ -1330,13 +1339,13 @@
         if (status === 'present') return '<span class="text-[10px] text-emerald-400">Presente</span>';
         if (status === 'absent') return '<span class="text-[10px] text-red-400">Falta</span>';
         if (status === 'sick') return '<span class="text-[10px] text-cyan-400">Atestado</span>';
-        if (status === 'vacation') return '<span class="text-[10px] text-orange-400">Fï¿½rias</span>';
+        if (status === 'vacation') return '<span class="text-[10px] text-orange-400">Férias</span>';
         if (status === 'away') return '<span class="text-[10px] text-purple-400">Afastado</span>';
         return '<span class="text-[10px] text-slate-500">Desconhecido</span>';
     }
 
     // --- Save ---
-    async function saveRoutine(statusOverride = null) {
+    async function saveRoutine(statusOverride = null, optionalTonnage = null) {
         // Update config inside payload
         config.sectors = SECTORS;
 
@@ -1352,6 +1361,14 @@
             payload.status = statusOverride;
         }
 
+        // Manual Tonnage Override
+        if (typeof optionalTonnage === 'number') {
+            payload.tonnage = optionalTonnage;
+        } else if (manualTonnage > 0) {
+            // Persist existing manual tonnage if not changing it
+            payload.tonnage = manualTonnage;
+        }
+
         try {
             const res = await fetch('/routine/update', {
                 method: 'POST',
@@ -1361,21 +1378,37 @@
 
             if (res.ok) {
                 if (statusOverride === 'closed') {
-                    alert('Operaï¿½ï¿½o Encerrada com Sucesso!');
+                    alert('Operação Encerrada com Sucesso!');
                     window.location.reload();
-                } else {
+                } else if (statusOverride === null && typeof optionalTonnage !== 'number') {
+                    // Silent save or specific alert if needed, but 'Salvo' is fine
                     alert('Salvo e Sincronizado com Sucesso!');
+                } else if (typeof optionalTonnage === 'number') {
+                    alert('Tonelagem atualizada!');
+                    window.location.reload();
                 }
             }
             else alert('Erro ao salvar');
         } catch (e) {
             console.error(e);
-            alert('Erro de conexï¿½o');
+            alert('Erro de conexão');
+        }
+    }
+
+    function editTonnage() {
+        const current = manualTonnage > 0 ? manualTonnage : 0;
+        const input = prompt("Informe a Tonelagem Total (KG) Manualmente:\n(0 para voltar ao cálculo automático)", current);
+
+        if (input !== null) {
+            const val = parseInt(input.replace(/[^0-9]/g, ''));
+            if (!isNaN(val)) {
+                saveRoutine(null, val);
+            }
         }
     }
 
     function closeOperation() {
-        if (confirm("ATENï¿½?ï¿½?O: Deseja realmente ENCERRAR a operaï¿½ï¿½o deste turno?\n\nIsso irï¿½ consolidar os nï¿½meros e marcar o status como fechado.")) {
+        if (confirm("ATENç?ç?O: Deseja realmente ENCERRAR a operaçço deste turno?\n\nIsso irç consolidar os nçmeros e marcar o status como fechado.")) {
             saveRoutine('closed');
         }
     }
@@ -1519,9 +1552,9 @@
             }
 
         } else if (type === 'vacation') {
-            titleEl.textContent = 'Colaboradores em Fï¿½rias';
+            titleEl.textContent = 'Colaboradores em Férias';
             const list = getShiftEmployeesByStatus('vacation');
-            contentEl.innerHTML = createEmpList(list, 'Fï¿½RIAS', 'text-orange-400 bg-orange-500/10 border-orange-500/20');
+            contentEl.innerHTML = createEmpList(list, 'FçRIAS', 'text-orange-400 bg-orange-500/10 border-orange-500/20');
 
         } else if (type === 'away') {
             titleEl.textContent = 'Colaboradores Afastados';
@@ -1529,8 +1562,8 @@
             contentEl.innerHTML = createEmpList(list, 'AFASTADO', 'text-purple-400 bg-purple-500/10 border-purple-500/20');
 
         } else if (type === 'tonnage') {
-            titleEl.textContent = 'Detalhamento de Produï¿½ï¿½o';
-            contentEl.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-slate-500"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="opacity-50 mb-2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><p class="text-sm">Produï¿½ï¿½o: ' + document.getElementById('total-tonnage').innerText + '</p></div>';
+            titleEl.textContent = 'Detalhamento de Produçço';
+            contentEl.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-slate-500"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="opacity-50 mb-2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><p class="text-sm">Produçço: ' + document.getElementById('total-tonnage').innerText + '</p></div>';
         }
     }
 
@@ -1598,9 +1631,9 @@
                             </svg>
                         </div>
                         <div>
-                            <h3 class="text-lg font-bold text-slate-100" id="vacation-modal-title">Programar Fï¿½rias
+                            <h3 class="text-lg font-bold text-slate-100" id="vacation-modal-title">Programar Férias
                             </h3>
-                            <p class="text-sm text-slate-400">Defina o perï¿½odo de fï¿½rias do colaborador.</p>
+                            <p class="text-sm text-slate-400">Defina o perçodo de fçrias do colaborador.</p>
                         </div>
                     </div>
 
@@ -1609,7 +1642,7 @@
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label for="vacation-start"
-                                    class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5 ml-1">Inï¿½cio</label>
+                                    class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5 ml-1">Início</label>
                                 <input type="date" id="vacation-start" required
                                     class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-slate-100 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition text-sm text-white-scheme">
                             </div>
@@ -1643,7 +1676,7 @@
         if (!emp) return alert("Colaborador nÃ£o encontrado.");
 
         document.getElementById('vacation-emp-reg').value = emp.id; // Reg ID
-        document.getElementById('vacation-modal-title').innerText = `Programar Fï¿½rias: ${emp.name}`;
+        document.getElementById('vacation-modal-title').innerText = `Programar Férias: ${emp.name}`;
         document.getElementById('vacation-start').value = '';
         document.getElementById('vacation-end').value = '';
         document.getElementById('vacation-schedule-modal').classList.remove('hidden');
@@ -1673,7 +1706,7 @@
             });
 
             if (res.ok) {
-                alert('Fï¿½rias programadas com sucesso!');
+                alert('Férias programadas com sucesso!');
                 closeVacationModal();
                 window.location.reload();
             } else {
@@ -1682,7 +1715,7 @@
             }
         } catch (e) {
             console.error(e);
-            alert('Erro de conexï¿½o');
+            alert('Erro de conexço');
         }
     }
 

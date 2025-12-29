@@ -123,7 +123,7 @@
         </div>
         <div class="border rounded p-3 bg-slate-50">
             <p class="text-xs text-slate-500 uppercase font-bold">Vagas</p>
-            <p class="text-lg font-bold text-red-500">{{ snapshot.kpis.total_gap }}</p>
+            <p class="text-lg font-bold text-red-500">{{ snapshot.kpis.total_vacancies }}</p>
         </div>
         <div class="border rounded p-3 bg-slate-50">
             <p class="text-xs text-slate-500 uppercase font-bold">Tonelagem</p>
@@ -135,13 +135,21 @@
         <div class="border rounded p-3 bg-slate-50">
             <p class="text-xs text-slate-500 uppercase font-bold">Faltas e Atestados</p>
             <p class="text-lg font-bold text-red-500">
-                {{ snapshot.kpis.count_absent + snapshot.kpis.count_sick }}
+                {{ snapshot.kpis.count_absent }}
             </p>
         </div>
         <div class="border rounded p-3 bg-slate-50">
             <p class="text-xs text-slate-500 uppercase font-bold">Férias e Afastados</p>
             <p class="text-lg font-bold text-purple-600">
-                {{ snapshot.kpis.count_vacation + snapshot.kpis.count_away }}
+                {{ snapshot.kpis.count_vacation_away }}
+            </p>
+        </div>
+        <!-- Substitution Card -->
+        <div class="border rounded p-3 bg-slate-50">
+            <p class="text-xs text-slate-500 uppercase font-bold">Substituição</p>
+            <!-- Logic: Count of 'Away' employees who are currently substituted -->
+            <p class="text-lg font-bold text-orange-500">
+                {{ snapshot.kpis.count_substitutions }}
             </p>
         </div>
     </div>
@@ -155,6 +163,11 @@
                 <th class="text-center">Meta</th>
                 <th class="text-center">Alocados</th>
                 <th class="text-center">Presentes</th>
+                <!-- New Columns -->
+                <th class="text-center">Vagas</th>
+                <th class="text-center">Faltas/Atest.</th>
+                <th class="text-center">Férias/Afast.</th>
+
                 <th class="text-center">Gap</th>
                 <th>Status</th>
             </tr>
@@ -165,7 +178,16 @@
                 <td class="font-semibold">{{ sec.label }}</td>
                 <td class="text-center">{{ sec.target }}</td>
                 <td class="text-center">{{ sec.allocated_count }}</td>
-                <td class="text-center">{{ sec.present_count }}</td>
+                <td class="text-center {{ 'underline font-bold' if sec.present_count < sec.target else '' }}">
+                    {{ sec.present_count }}
+                </td>
+
+                <td class="text-center text-slate-400 font-medium">{{ sec.vacancies if sec.vacancies > 0 else '-' }}
+                </td>
+                <td class="text-center text-red-300 font-medium">{{ sec.absences if sec.absences > 0 else '-' }}</td>
+                <td class="text-center text-purple-300 font-medium">{{ sec.vacation_away if sec.vacation_away > 0 else
+                    '-' }}</td>
+
                 <td class="text-center font-bold {{ 'text-red-500' if sec.gap > 0 else 'text-slate-300' }}">
                     {{ sec.gap if sec.gap > 0 else '-' }}
                 </td>
@@ -185,6 +207,11 @@
                 <td class="text-center">{{ snapshot.kpis.total_target }}</td>
                 <td class="text-center">{{ snapshot.kpis.total_allocated }}</td>
                 <td class="text-center">{{ snapshot.kpis.total_present }}</td>
+                <!-- Footer Totals -->
+                <td class="text-center">{{ snapshot.kpis.total_vacancies }}</td>
+                <td class="text-center">{{ snapshot.kpis.count_absent }}</td>
+                <td class="text-center">{{ snapshot.kpis.count_vacation_away }}</td>
+
                 <td class="text-center">{{ snapshot.kpis.total_gap }}</td>
                 <td></td>
             </tr>
@@ -240,7 +267,12 @@
                         <td>{{ p.name }}</td>
                         <td>
                             {% if p.status_daily == 'vacation' %}<span class="text-blue-600">FÉRIAS</span>{% endif %}
-                            {% if p.status_daily == 'away' %}<span class="text-purple-600">AFASTADO</span>{% endif %}
+                            {% if p.status_daily == 'away' %}
+                            <span class="text-purple-600">AFASTADO</span>
+                            {% if p.is_substituted %}
+                            <span class="text-xs text-orange-500 font-bold ml-2">(SUBSTITUÍDO)</span>
+                            {% endif %}
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}

@@ -407,6 +407,45 @@
                         class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
                 </div>
             </div>
+            <!-- Seção de Substituição -->
+            <div class="mt-4 border-t border-slate-700 pt-4">
+                <label class="flex items-center gap-2 cursor-pointer mb-3">
+                    <input type="checkbox" id="is_sub" name="is_substitution" value="true"
+                        class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800"
+                        onchange="toggleSubOptions()">
+                    <span class="text-sm font-medium text-white">É Substituição?</span>
+                </label>
+
+                <div id="sub_options"
+                    class="hidden pl-4 space-y-3 bg-slate-900/30 p-3 rounded-lg border border-slate-700/50">
+                    <!-- Opções Radio -->
+                    <div class="flex gap-4">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="sub_reason" value="fired" checked
+                                class="text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800"
+                                onchange="fetchCandidates()">
+                            <span class="text-sm text-slate-300">Substituir Demitido</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="sub_reason" value="away"
+                                class="text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800"
+                                onchange="fetchCandidates()">
+                            <span class="text-sm text-slate-300">Substituir Afastado</span>
+                        </label>
+                    </div>
+
+                    <!-- Dropdown Dinâmico -->
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Colaborador Anterior</label>
+                        <select name="replaced_employee_id" id="replaced_emp_select"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+                            <option value="">Selecione...</option>
+                            <!-- Populado via JS -->
+                        </select>
+                    </div>
+                </div>
+            </div>
+
             <div class="pt-4 flex justify-end gap-3">
                 <button type="button" onclick="document.getElementById('addModal').classList.add('hidden')"
                     class="px-4 py-2 text-slate-300 hover:text-white">Cancelar</button>
@@ -925,6 +964,52 @@
     if (sessionStorage.getItem('shouldReload') === 'true') {
         sessionStorage.removeItem('shouldReload');
         setTimeout(() => window.location.reload(), 100);
+    }
+
+    // --- Substitution Logic ---
+    function toggleSubOptions() {
+        const isSub = document.getElementById('is_sub').checked;
+        const subOptions = document.getElementById('sub_options');
+        if (isSub) {
+            subOptions.classList.remove('hidden');
+            fetchCandidates();
+        } else {
+            subOptions.classList.add('hidden');
+        }
+    }
+
+    async function fetchCandidates() {
+        const reason = document.querySelector('input[name="sub_reason"]:checked').value;
+        const select = document.getElementById('replaced_emp_select');
+
+        // Clear existing
+        select.innerHTML = '<option value="">Carregando...</option>';
+
+        try {
+            const response = await fetch(`/employees/candidates?status=${reason}`);
+            const data = await response.json();
+
+            select.innerHTML = '<option value="">Selecione...</option>';
+
+            if (data.length === 0) {
+                const opt = document.createElement('option');
+                opt.disabled = true;
+                opt.text = "Nenhum colaborador encontrado";
+                select.appendChild(opt);
+                return;
+            }
+
+            data.forEach(emp => {
+                const opt = document.createElement('option');
+                opt.value = emp.id;
+                opt.text = `${emp.name} (Mat: ${emp.registration_id})`;
+                select.appendChild(opt);
+            });
+
+        } catch (error) {
+            console.error('Error fetching candidates:', error);
+            select.innerHTML = '<option value="">Erro ao carregar</option>';
+        }
     }
 </script>
 {% endblock %}
