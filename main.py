@@ -741,6 +741,51 @@ async def update_routine(
         if data.logs is not None:
             daily.logs = data.logs
             
+        # [NEW] Sync Absences to Events
+        # We process the attendance_log to find 'absent' or 'sick'
+        if data.attendance_log:
+             try:
+                op_date_dt = datetime.strptime(data.date, "%Y-%m-%d")
+                
+                # Fetch employees map
+                all_ids = [str(k) for k in data.attendance_log.keys()]
+                # Optimization: Only fetch relevant employees later if needed, or query all
+                # For now, simplistic approach:
+                
+                for reg_id, entry in data.attendance_log.items():
+                    status = entry.get('status')
+                    if status in ['absent', 'sick', 'away']:
+                        # Check if event already exists for this day/emp
+                        # We need the employee ID (int) not just registration_id (str)
+                        # So we might need to fetch the employee object
+                        emp = session.exec(select(models.Employee).where(models.Employee.registration_id == str(reg_id))).first()
+                        if emp:
+                            evt_type = "falta"
+                            if status == 'sick': evt_type = "atestado"
+                            elif status == 'away': evt_type = "afastamento"
+                            
+                            # Check existence
+                            existing = session.exec(select(models.Event).where(
+                                models.Event.employee_id == emp.id, 
+                                models.Event.type == evt_type
+                            ).where(col(models.Event.timestamp) >= op_date_dt).where(col(models.Event.timestamp) < op_date_dt + timedelta(days=1))).first()
+                            
+                            if not existing:
+                                # Create
+                                evt_text = f"Registro: {status.upper()} em {data.date}"
+                                new_event = models.Event(
+                                    timestamp=datetime.now(), # Logged NOW, but text refers to date
+                                    text=evt_text,
+                                    type=evt_type,
+                                    category="pessoas",
+                                    sector=emp.cost_center or "Geral",
+                                    impact="medium",
+                                    employee_id=emp.id
+                                )
+                                session.add(new_event)
+             except Exception as e_sync:
+                 print(f"Error syncing events: {e_sync}")
+            
         daily.updated_at = datetime.now()
         
         # Save Sector Config
@@ -1639,7 +1684,100 @@ async def import_employees(
                         
                 bday = None
                 if "birthday" in row and pd.notna(row["birthday"]):
-                    try:
+
+# --- People Intelligence Route ---
+@app.get("/people-intelligence", response_class=HTMLResponse)
+async def people_intelligence_page(request: Request, session: Session = Depends(get_session)):
+    user = require_login(request)
+    
+    # 1. Overview Data
+    employees = session.exec(select(models.Employee).where(models.Employee.status != "fired")).all()
+    total_headcount = len(employees)
+    
+    # Fetch Events (Last 6 months for relevance, or all time?)
+    # Let's do All Time for now, or Year To Date. 
+    # Year to Date is standard.
+    today = datetime.now()
+    start_of_year = datetime(today.year, 1, 1)
+    
+    events = session.exec(
+        select(models.Event)
+        .where(models.Event.timestamp >= start_of_year)
+        .where(col(models.Event.type).in_(['falta', 'atestado', 'advertencia']))
+    ).all()
+    
+    total_absences = sum(1 for e in events if e.type == 'falta')
+    total_sick = sum(1 for e in events if e.type == 'atestado')
+    
+    # 2. Rankings (Top Offenders)
+    # Group by Employee
+    emp_stats = {}
+    for e in events:
+        if e.employee_id not in emp_stats:
+            emp_stats[e.employee_id] = {'falta': 0, 'atestado': 0, 'advertencia': 0, 'name': 'Unknown', 'sector': 'Unknown', 'tenure_months': 0}
+        
+        emp_stats[e.employee_id][e.type] += 1
+        
+    # Enlighten with Employee Data
+    emp_map = {e.id: e for e in employees}
+    
+    ranking_data = []
+    for eid, stats in emp_stats.items():
+        if eid in emp_map:
+            emp = emp_map[eid]
+            stats['name'] = emp.name
+            stats['sector'] = emp.cost_center or "Geral"
+            if emp.admission_date:
+                delta = datetime.now() - emp.admission_date
+                stats['tenure_months'] = int(delta.days / 30)
+            ranking_data.append(stats)
+            
+    # Sorts
+    top_absent = sorted(ranking_data, key=lambda x: x['falta'], reverse=True)[:10]
+    top_sick = sorted(ranking_data, key=lambda x: x['atestado'], reverse=True)[:10]
+    
+    # 3. Sector Analysis
+    # Group by Sector
+    sector_stats = {}
+    for item in ranking_data:
+        sec = item['sector']
+        if sec not in sector_stats:
+            sector_stats[sec] = {'falta': 0, 'atestado': 0, 'headcount': 0}
+        
+        sector_stats[sec]['falta'] += item['falta']
+        sector_stats[sec]['atestado'] += item['atestado']
+        
+    # Calc Headcount per sector for Rate
+    for emp in employees:
+        sec = emp.cost_center or "Geral"
+        if sec not in sector_stats:
+             sector_stats[sec] = {'falta': 0, 'atestado': 0, 'headcount': 0}
+        sector_stats[sec]['headcount'] += 1
+        
+    sector_list = []
+    for sec, stats in sector_stats.items():
+        if stats['headcount'] > 0:
+            stats['name'] = sec
+            # Risk Index: (Faltas + Atestados) / Headcount
+            stats['risk_index'] = round((stats['falta'] + stats['atestado']) / stats['headcount'], 2)
+            sector_list.append(stats)
+            
+    sector_list.sort(key=lambda x: x['risk_index'], reverse=True)
+
+    return templates.TemplateResponse("people_intelligence.html", {
+        "request": request,
+        "user": user,
+        "overview": {
+            "headcount": total_headcount,
+            "total_absences": total_absences,
+            "total_sick": total_sick,
+            "avg_absence_per_emp": round(total_absences / total_headcount, 2) if total_headcount > 0 else 0
+        },
+        "top_absent": top_absent,
+        "top_sick": top_sick,
+        "sectors": sector_list
+    })
+
                         bday = pd.to_datetime(row["birthday"]).to_pydatetime()
                     except:
                         pass
