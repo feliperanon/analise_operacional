@@ -6,10 +6,11 @@ from fastapi.staticfiles import StaticFiles
 from datetime import datetime, timedelta
 from starlette.middleware.sessions import SessionMiddleware
 from sqlmodel import Session, select
+from typing import List
 from database import create_db_and_tables, get_session
 import models
 import logging
-import unicodedata
+import json
 logging.basicConfig(filename='logs.txt', level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -1117,6 +1118,7 @@ async def add_employee(
     cost_center: str = Form(...),
     admission_date: str = Form(None),
     birthday: str = Form(None),
+    work_days: List[str] = Form(None),
     session: Session = Depends(get_session)
 ):
     require_login(request)
@@ -1134,6 +1136,12 @@ async def add_employee(
             birthday_dt = datetime.strptime(birthday, "%Y-%m-%d")
         except:
             pass
+    
+    # Process work_days
+    work_days_json = '["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]'  # Default
+    if work_days:
+        work_days_json = json.dumps(work_days)
+    
     new_employee = models.Employee(
         name=name,
         registration_id=registration_id,
@@ -1142,6 +1150,7 @@ async def add_employee(
         cost_center=cost_center,
         admission_date=admission_dt,
         birthday=birthday_dt,
+        work_days=work_days_json,
         status="active"
     )
     try:
@@ -1149,7 +1158,8 @@ async def add_employee(
         session.commit()
     except Exception as e:
         print(f"Error adding employee: {e}")
-        return RedirectResponse(url="/employees", status_code=status.HTTP_303_SEE_OTHER)
+    
+    return RedirectResponse(url="/employees", status_code=status.HTTP_303_SEE_OTHER)
 @app.get("/employees/{employee_id}", response_class=HTMLResponse)
 async def read_employee(request: Request, employee_id: int, session: Session = Depends(get_session)):
     user = get_current_user(request)

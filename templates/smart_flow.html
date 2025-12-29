@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block content %}
 
@@ -56,7 +56,7 @@
                         </svg>
                     </span> Fluxo Operacional
                 </h1>
-                <p class="text-[10px] text-slate-400 font-medium tracking-wide">VISÃO EM TEMPO REAL</p>
+                <p class="text-[10px] text-slate-400 font-medium tracking-wide">VISï¿½O EM TEMPO REAL</p>
             </div>
 
             <!-- Center: Context Controls (Date & Shift) -->
@@ -81,8 +81,8 @@
 
                 <!-- Shift Tabs -->
                 <div class="flex p-0.5 bg-slate-800 rounded-xl">
-                    <button onclick="changeShift('Manhã')"
-                        class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all{{'bg-blue-600 text-white shadow-md' if current_shift == 'Manhã' else 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50'}}">Manhã</button>
+                    <button onclick="changeShift('Manhï¿½')"
+                        class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all{{'bg-blue-600 text-white shadow-md' if current_shift == 'Manhï¿½' else 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50'}}">Manhï¿½</button>
                     <button onclick="changeShift('Tarde')"
                         class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all{{'bg-orange-500 text-white shadow-md' if current_shift == 'Tarde' else 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50'}}">Tarde</button>
                     <button onclick="changeShift('Noite')"
@@ -95,7 +95,7 @@
             <div class="flex items-center justify-end gap-3 flex-1">
                 <a href="/routine/report?date={{current_date}}&shift={{current_shift}}" target="_blank"
                     class="bg-purple-600/10 text-purple-400 hover:bg-purple-600/20 hover:text-purple-300 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 border border-purple-500/20"
-                    title="Gerar Relatório PDF">
+                    title="Gerar Relatï¿½rio PDF">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                         <polyline points="14 2 14 8 20 8"></polyline>
@@ -103,7 +103,7 @@
                         <line x1="16" y1="17" x2="8" y2="17"></line>
                         <polyline points="10 9 9 9 8 9"></polyline>
                     </svg>
-                    Relatório
+                    Relatï¿½rio
                 </a>
 
                 <button onclick="createSector()"
@@ -160,7 +160,7 @@
                 <p class="text-lg font-bold text-white leading-none"><span id="total-present">0</span> <span
                         class="text-slate-500 text-xs font-normal">/</span> <span id="total-target-kpi"
                         class="text-slate-400 text-sm">0</span></p>
-                <p class="text-[9px] text-slate-500 mt-0.5">Presença: <span class="text-emerald-400 font-bold"
+                <p class="text-[9px] text-slate-500 mt-0.5">Presenï¿½a: <span class="text-emerald-400 font-bold"
                         id="present-percent">0%</span></p>
             </div>
         </div>
@@ -185,12 +185,12 @@
             </div>
         </div>
 
-        <!-- 3. Absenteísmo (Sick/Faltas) -->
+        <!-- 3. Absenteï¿½smo (Sick/Faltas) -->
         <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-amber-500/50 group h-20"
             onclick="openDashboardDetail('sick')">
             <div class="flex justify-between items-start">
                 <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-amber-400 transition"
-                    title="Atestados e Faltas">Absenteísmo</p>
+                    title="Atestados e Faltas">Absenteï¿½smo</p>
                 <div class="bg-amber-500/10 p-1 rounded-lg text-amber-400">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="10" />
@@ -221,15 +221,15 @@
             </div>
             <div>
                 <p class="text-lg font-bold text-purple-400 leading-none" id="total-away">0</p>
-                <p class="text-[9px] text-slate-500 mt-0.5">INSS/Licenças</p>
+                <p class="text-[9px] text-slate-500 mt-0.5">INSS/Licenï¿½as</p>
             </div>
         </div>
 
-        <!-- 5. Férias -->
+        <!-- 5. Fï¿½rias -->
         <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-orange-500/50 group h-20"
             onclick="openDashboardDetail('vacation')">
             <div class="flex justify-between items-start">
-                <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-orange-400 transition">Férias
+                <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-orange-400 transition">Fï¿½rias
                 </p>
                 <div class="bg-orange-500/10 p-1 rounded-lg text-orange-400">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -247,12 +247,12 @@
             </div>
         </div>
 
-        <!-- 6. Produção Total -->
+        <!-- 6. Produï¿½ï¿½o Total -->
         <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-emerald-500/50 group h-20"
             onclick="openDashboardDetail('tonnage')">
             <div class="flex justify-between items-start">
                 <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-emerald-400 transition">
-                    Produção Total</p>
+                    Produï¿½ï¿½o Total</p>
                 <div class="bg-emerald-500/10 p-1 rounded-lg text-emerald-400">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path
@@ -265,16 +265,16 @@
             <div>
                 <p class="text-lg font-bold text-emerald-400 leading-none" id="total-tonnage">{{daily_op.tonnage}}kg
                 </p>
-                <p class="text-[9px] text-slate-500 mt-0.5">Movimentação Bruta</p>
+                <p class="text-[9px] text-slate-500 mt-0.5">Movimentaï¿½ï¿½o Bruta</p>
             </div>
         </div>
 
-        <!-- 7. Produção/Colaborador -->
+        <!-- 7. Produï¿½ï¿½o/Colaborador -->
         <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-emerald-500/50 group h-20"
-            title="Produção média por pessoa presente">
+            title="Produï¿½ï¿½o mï¿½dia por pessoa presente">
             <div class="flex justify-between items-start">
                 <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-emerald-400 transition">
-                    Produção / Pessoa</p>
+                    Produï¿½ï¿½o / Pessoa</p>
                 <div class="bg-emerald-500/10 p-1 rounded-lg text-emerald-400">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -285,7 +285,7 @@
             </div>
             <div>
                 <p class="text-lg font-bold text-emerald-400 leading-none" id="production-per-person">0 kg/p</p>
-                <p class="text-[9px] text-slate-500 mt-0.5">Produtividade Média</p>
+                <p class="text-[9px] text-slate-500 mt-0.5">Produtividade Mï¿½dia</p>
             </div>
         </div>
     </div>
@@ -345,7 +345,7 @@
                             <line x1="12" y1="16" x2="12.01" y2="16" />
                         </svg>
                     </div>
-                    <div class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Advertências</div>
+                    <div class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Advertï¿½ncias</div>
                     <div class="text-2xl font-bold text-white flex items-end gap-1">
                         <span id="modal-warnings">0</span>
                     </div>
@@ -404,7 +404,7 @@
                                 d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
                         </svg>
                     </div>
-                    <div class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Férias</div>
+                    <div class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Fï¿½rias</div>
                     <div class="text-2xl font-bold text-orange-400 flex items-end gap-1">
                         <span id="modal-vacation">0</span>
                     </div>
@@ -421,7 +421,7 @@
                             <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Banco de Talentos</h3>
 
                             <label class="flex items-center gap-2 cursor-pointer"
-                                title="Mostrar funcionários de outros turnos">
+                                title="Mostrar funcionï¿½rios de outros turnos">
                                 <input type="checkbox" id="show-all-toggle" onchange="filterEmployees()"
                                     class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800">
                                 <span class="text-xs text-slate-500 select-none">Mostrar Todos</span>
@@ -434,7 +434,7 @@
                                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                             </svg>
                             <input type="text" id="search-input" onkeyup="filterEmployees()"
-                                placeholder="Buscar nome ou matrícula..."
+                                placeholder="Buscar nome ou matrï¿½cula..."
                                 class="w-full pl-9 pr-4 py-2 text-sm bg-slate-800 border border-slate-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-500">
                         </div>
                     </div>
@@ -829,7 +829,9 @@
 
         setVal('total-gap', totalGap);
 
-        setVal('total-sick', totalSick); // Now just 'sick' (Atestados)
+        // Absenteï¿½smo = Atestados + Faltas
+        const absenteeism = totalSick + dailyAbsences;
+        setVal('total-sick', absenteeism); // Atestados + Faltas
         setVal('total-away', awayCount); // Afastados
         setVal('total-vacation', vacationCount);
 
@@ -896,7 +898,7 @@
             let shiftColor = "text-slate-400 bg-slate-700/50 border-slate-600";
             let shiftShort = empShift.substring(0, 3).toUpperCase();
 
-            if (shiftLower.includes("manhã") || shiftLower.includes("manha")) {
+            if (shiftLower.includes("manhï¿½") || shiftLower.includes("manha")) {
                 shiftColor = "text-blue-400 bg-blue-500/10 border-blue-500/20";
                 shiftShort = "MAN";
             } else if (shiftLower.includes("tarde")) {
@@ -910,7 +912,7 @@
             // Status Badge Logic
             let statusBadge = "";
             if (emp.status === 'vacation') {
-                statusBadge = '<span class="text-[8px] font-bold px-1 rounded border text-orange-400 bg-orange-500/10 border-orange-500/20 uppercase tracking-wider">FÉRIAS</span>';
+                statusBadge = '<span class="text-[8px] font-bold px-1 rounded border text-orange-400 bg-orange-500/10 border-orange-500/20 uppercase tracking-wider">Fï¿½RIAS</span>';
             } else if (emp.status === 'sick') {
                 statusBadge = '<span class="text-[8px] font-bold px-1 rounded border text-cyan-400 bg-cyan-500/10 border-cyan-500/20 uppercase tracking-wider">ATESTADO</span>';
             } else if (emp.status === 'away') {
@@ -944,7 +946,7 @@
                 </div>
                 
                 <div class="flex items-center gap-1">
-                    <button onclick="openVacationModal('${emp.id}')" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-orange-600 hover:text-white text-orange-400 border border-slate-700 hover:border-orange-500 flex items-center justify-center transition shadow-sm" title="Programar Férias">
+                    <button onclick="openVacationModal('${emp.id}')" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-orange-600 hover:text-white text-orange-400 border border-slate-700 hover:border-orange-500 flex items-center justify-center transition shadow-sm" title="Programar Fï¿½rias">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
                     </button>
                     <button onclick="addToSector('${emp.id}', '${emp.name}')" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-500 border border-slate-700 hover:border-blue-500 flex items-center justify-center transition shadow-sm" aria-label="Adicionar" title="Adicionar ao setor">
@@ -986,7 +988,10 @@
             grouped[sub].push(p);
         });
 
-        document.getElementById('active-count').innerText = `${activeInSector.filter(p => p.status === 'present').length} Presentes`;
+        const sectorConfig = SECTORS.find(s => s.key === currentSectorKey);
+        const presentCount = activeInSector.filter(p => p.status === 'present').length;
+        const targetCount = sectorConfig ? (sectorConfig.target || 0) : 0;
+        document.getElementById('active-count').innerText = `${presentCount} Presentes / ${targetCount} Meta`;
 
         Object.entries(grouped).forEach(([subName, people]) => {
             const groupEl = document.createElement('div');
@@ -1020,6 +1025,7 @@
                 const isSick = p.status === 'sick';
                 const isVacation = p.status === 'vacation';
                 const isAway = p.status === 'away';
+                const isDayOff = p.status === 'day_off';
 
                 return `
                             <div class="group bg-slate-800 border border-slate-700 rounded-lg p-3 shadow-sm hover:shadow-md hover:border-blue-500/30 transition-all relative" draggable="true" ondragstart="drag(event, '${p.id}')">
@@ -1046,11 +1052,14 @@
                                     <button onclick="setStatus('${p.id}', 'sick')" class="flex-1 py-1 rounded text-[10px] font-bold transition flex items-center justify-center gap-1 ${isSick ? 'bg-cyan-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-700 hover:text-cyan-400'}" title="Atestado">
                                         A
                                     </button>
-                                    <button onclick="setStatus('${p.id}', 'vacation')" class="flex-1 py-1 rounded text-[10px] font-bold transition flex items-center justify-center gap-1 ${isVacation ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-700 hover:text-orange-400'}" title="Férias">
-                                        Fé
+                                    <button onclick="setStatus('${p.id}', 'vacation')" class="flex-1 py-1 rounded text-[10px] font-bold transition flex items-center justify-center gap-1 ${isVacation ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-700 hover:text-orange-400'}" title="FÃ©rias">
+                                        FÃ©
                                     </button>
                                     <button onclick="setStatus('${p.id}', 'away')" class="flex-1 py-1 rounded text-[10px] font-bold transition flex items-center justify-center gap-1 ${isAway ? 'bg-purple-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-700 hover:text-purple-400'}" title="Afastado">
                                         Af
+                                    </button>
+                                    <button onclick="setStatus('${p.id}', 'day_off')" class="flex-1 py-1 rounded text-[10px] font-bold transition flex items-center justify-center gap-1 ${isDayOff ? 'bg-sky-400 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-700 hover:text-sky-400'}" title="Folga">
+                                        FL
                                     </button>
                                 </div>
                             </div>
@@ -1075,11 +1084,13 @@
         let absent = 0;
         let sick = 0;
         let vacation = 0;
+        let away = 0;
 
         activeInSector.forEach(p => {
             if (p.status === 'absent') absent++;
             if (p.status === 'sick') sick++;
             if (p.status === 'vacation') vacation++;
+            if (p.status === 'away') away++;
             // if (p.status === 'warning') warnings++; 
         });
 
@@ -1092,6 +1103,7 @@
         setVal('modal-warnings', warnings);
         setVal('modal-absent', absent);
         setVal('modal-sick', sick);
+        setVal('modal-away', away);
         setVal('modal-vacation', vacation);
     }
 
@@ -1318,7 +1330,7 @@
         if (status === 'present') return '<span class="text-[10px] text-emerald-400">Presente</span>';
         if (status === 'absent') return '<span class="text-[10px] text-red-400">Falta</span>';
         if (status === 'sick') return '<span class="text-[10px] text-cyan-400">Atestado</span>';
-        if (status === 'vacation') return '<span class="text-[10px] text-orange-400">Férias</span>';
+        if (status === 'vacation') return '<span class="text-[10px] text-orange-400">Fï¿½rias</span>';
         if (status === 'away') return '<span class="text-[10px] text-purple-400">Afastado</span>';
         return '<span class="text-[10px] text-slate-500">Desconhecido</span>';
     }
@@ -1349,7 +1361,7 @@
 
             if (res.ok) {
                 if (statusOverride === 'closed') {
-                    alert('Operação Encerrada com Sucesso!');
+                    alert('Operaï¿½ï¿½o Encerrada com Sucesso!');
                     window.location.reload();
                 } else {
                     alert('Salvo e Sincronizado com Sucesso!');
@@ -1358,12 +1370,12 @@
             else alert('Erro ao salvar');
         } catch (e) {
             console.error(e);
-            alert('Erro de conexão');
+            alert('Erro de conexï¿½o');
         }
     }
 
     function closeOperation() {
-        if (confirm("ATENÃÃO: Deseja realmente ENCERRAR a operação deste turno?\n\nIsso irá consolidar os números e marcar o status como fechado.")) {
+        if (confirm("ATENï¿½?ï¿½?O: Deseja realmente ENCERRAR a operaï¿½ï¿½o deste turno?\n\nIsso irï¿½ consolidar os nï¿½meros e marcar o status como fechado.")) {
             saveRoutine('closed');
         }
     }
@@ -1507,9 +1519,9 @@
             }
 
         } else if (type === 'vacation') {
-            titleEl.textContent = 'Colaboradores em Férias';
+            titleEl.textContent = 'Colaboradores em Fï¿½rias';
             const list = getShiftEmployeesByStatus('vacation');
-            contentEl.innerHTML = createEmpList(list, 'FÉRIAS', 'text-orange-400 bg-orange-500/10 border-orange-500/20');
+            contentEl.innerHTML = createEmpList(list, 'Fï¿½RIAS', 'text-orange-400 bg-orange-500/10 border-orange-500/20');
 
         } else if (type === 'away') {
             titleEl.textContent = 'Colaboradores Afastados';
@@ -1517,8 +1529,8 @@
             contentEl.innerHTML = createEmpList(list, 'AFASTADO', 'text-purple-400 bg-purple-500/10 border-purple-500/20');
 
         } else if (type === 'tonnage') {
-            titleEl.textContent = 'Detalhamento de Produção';
-            contentEl.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-slate-500"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="opacity-50 mb-2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><p class="text-sm">Produção: ' + document.getElementById('total-tonnage').innerText + '</p></div>';
+            titleEl.textContent = 'Detalhamento de Produï¿½ï¿½o';
+            contentEl.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-slate-500"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="opacity-50 mb-2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><p class="text-sm">Produï¿½ï¿½o: ' + document.getElementById('total-tonnage').innerText + '</p></div>';
         }
     }
 
@@ -1586,9 +1598,9 @@
                             </svg>
                         </div>
                         <div>
-                            <h3 class="text-lg font-bold text-slate-100" id="vacation-modal-title">Programar Férias
+                            <h3 class="text-lg font-bold text-slate-100" id="vacation-modal-title">Programar Fï¿½rias
                             </h3>
-                            <p class="text-sm text-slate-400">Defina o período de férias do colaborador.</p>
+                            <p class="text-sm text-slate-400">Defina o perï¿½odo de fï¿½rias do colaborador.</p>
                         </div>
                     </div>
 
@@ -1597,7 +1609,7 @@
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label for="vacation-start"
-                                    class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5 ml-1">Início</label>
+                                    class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5 ml-1">Inï¿½cio</label>
                                 <input type="date" id="vacation-start" required
                                     class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-slate-100 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition text-sm text-white-scheme">
                             </div>
@@ -1631,7 +1643,7 @@
         if (!emp) return alert("Colaborador nÃ£o encontrado.");
 
         document.getElementById('vacation-emp-reg').value = emp.id; // Reg ID
-        document.getElementById('vacation-modal-title').innerText = `Programar Férias: ${emp.name}`;
+        document.getElementById('vacation-modal-title').innerText = `Programar Fï¿½rias: ${emp.name}`;
         document.getElementById('vacation-start').value = '';
         document.getElementById('vacation-end').value = '';
         document.getElementById('vacation-schedule-modal').classList.remove('hidden');
@@ -1661,7 +1673,7 @@
             });
 
             if (res.ok) {
-                alert('Férias programadas com sucesso!');
+                alert('Fï¿½rias programadas com sucesso!');
                 closeVacationModal();
                 window.location.reload();
             } else {
@@ -1670,7 +1682,7 @@
             }
         } catch (e) {
             console.error(e);
-            alert('Erro de conexão');
+            alert('Erro de conexï¿½o');
         }
     }
 

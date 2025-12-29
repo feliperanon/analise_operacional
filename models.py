@@ -30,13 +30,19 @@ class Employee(SQLModel, table=True):
     photo_url: Optional[str] = None
     
     # Status
-    # active, vacation, away, fired
+    # active, vacation, away, fired, day_off
     status: str = Field(default="active")
     work_shift: str = Field(default="Manhã") # Manhã, Tarde, Noite
+    
+    # Work Days (dias da semana que trabalha)
+    work_days: Optional[str] = Field(default='["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]')
     
     # Vacation Scheduling
     vacation_start: Optional[datetime] = None
     vacation_end: Optional[datetime] = None
+    
+    # Termination
+    termination_date: Optional[datetime] = None
     
 
 

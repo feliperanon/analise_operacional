@@ -282,19 +282,14 @@
                             </form>
 
                             <!-- Demitir -->
-                            <form action="/employees/{{ emp.id }}/status" method="POST" class="inline"
-                                onsubmit="return confirm('Confirmar demissão de {{ emp.name }}?');">
-                                <input type="hidden" name="status_action" value="fired">
-                                <button type="submit"
-                                    class="p-1.5 hover:bg-slate-700 rounded text-red-500 transition-colors"
-                                    title="Demitir">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6">
-                                        </path>
-                                    </svg>
-                                </button>
-                            </form>
+                            <button type="button" onclick="openFireModal('{{ emp.id }}', '{{ emp.name }}')"
+                                class="p-1.5 hover:bg-slate-700 rounded text-red-500 transition-colors" title="Demitir">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6">
+                                    </path>
+                                </svg>
+                            </button>
 
                             <!-- Excluir -->
                             <form action="/employees/{{ emp.id }}/status" method="POST" class="inline"
@@ -477,6 +472,49 @@
                         class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
                 </div>
             </div>
+
+            <!-- Dias de Trabalho -->
+            <div>
+                <label class="block text-sm font-medium text-slate-400 mb-2">Dias de Trabalho</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <label class="flex items-center gap-2 cursor-pointer hover:bg-slate-700/30 p-2 rounded transition">
+                        <input type="checkbox" name="work_days" value="Monday"
+                            class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800">
+                        <span class="text-sm text-slate-300">Segunda</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer hover:bg-slate-700/30 p-2 rounded transition">
+                        <input type="checkbox" name="work_days" value="Tuesday"
+                            class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800">
+                        <span class="text-sm text-slate-300">Terça</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer hover:bg-slate-700/30 p-2 rounded transition">
+                        <input type="checkbox" name="work_days" value="Wednesday"
+                            class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800">
+                        <span class="text-sm text-slate-300">Quarta</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer hover:bg-slate-700/30 p-2 rounded transition">
+                        <input type="checkbox" name="work_days" value="Thursday"
+                            class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800">
+                        <span class="text-sm text-slate-300">Quinta</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer hover:bg-slate-700/30 p-2 rounded transition">
+                        <input type="checkbox" name="work_days" value="Friday"
+                            class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800">
+                        <span class="text-sm text-slate-300">Sexta</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer hover:bg-slate-700/30 p-2 rounded transition">
+                        <input type="checkbox" name="work_days" value="Saturday"
+                            class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800">
+                        <span class="text-sm text-slate-300">Sábado</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer hover:bg-slate-700/30 p-2 rounded transition">
+                        <input type="checkbox" name="work_days" value="Sunday"
+                            class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800">
+                        <span class="text-sm text-slate-300">Domingo</span>
+                    </label>
+                </div>
+            </div>
+
             <div class="pt-4 flex justify-end gap-3">
                 <button type="button" onclick="document.getElementById('editModal').classList.add('hidden')"
                     class="px-4 py-2 text-slate-300 hover:text-white">Cancelar</button>
@@ -488,134 +526,7 @@
     </div>
 </div>
 
-<script>
-    function openEditModal(emp) {
-        document.getElementById('editForm').action = '/employees/' + emp.id + '/update';
-        document.getElementById('editName').value = emp.name;
-        document.getElementById('editReg').value = emp.registration_id;
-        document.getElementById('editRole').value = emp.role;
-        document.getElementById('editCost').value = emp.cost_center;
-        document.getElementById('editShift').value = emp.work_shift;
 
-        // Dates need to be YYYY-MM-DD
-        if (emp.admission_date) {
-            document.getElementById('editAdmission').value = emp.admission_date.split('T')[0];
-        }
-        if (emp.birthday) {
-            document.getElementById('editBirthday').value = emp.birthday.split('T')[0];
-        }
-
-        document.getElementById('editModal').classList.remove('hidden');
-    }
-
-    let currentFilter = 'all';
-
-    function setFilter(filter) {
-        currentFilter = filter;
-
-        // Update Buttons
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-            if (btn.dataset.filter === filter) {
-                btn.classList.add('bg-slate-700', 'text-white', 'active');
-                btn.classList.remove('bg-slate-900', 'text-slate-400');
-            } else {
-                btn.classList.remove('bg-slate-700', 'text-white', 'active');
-                btn.classList.add('bg-slate-900', 'text-slate-400');
-            }
-        });
-
-        filterTable();
-    }
-
-    function filterTable() {
-        const input = document.getElementById('searchInput');
-        const searchVal = input.value.toLowerCase();
-        const rows = document.querySelectorAll('.employee-row');
-        const tbody = document.getElementById('tableBody');
-
-        // Logic: 
-        // If search is empty AND filter is 'all' -> Hide List (as per request "Não aparecer lista")
-        // But maybe "Todos" should show all?
-        // User said: "Não aparecer lista de colaboradores... Ter a opção de marcar e selecionar para exibir todos os colaboradores"
-        // So: If search is empty AND filter is 'all' AND user hasn't explicitly clicked 'Todos' maybe?
-        // Let's assume if they click "Todos" btn they want to see all. 
-        // If they just landed, we hide.
-        // We can track if a filter/search interaction happened?
-
-        // Simplification: Always show based on filter logic, but verify "default hidden".
-        // Use a class or just check values.
-
-        let hasVisible = false;
-
-        rows.forEach(row => {
-            const name = row.dataset.name;
-            const reg = row.dataset.reg;
-            const shift = row.dataset.shift;
-            const status = row.dataset.status;
-
-            let matchesSearch = !searchVal || name.includes(searchVal) || reg.includes(searchVal);
-            let matchesFilter = false;
-
-            if (currentFilter === 'all') {
-                // Show all active employees used to be default, but maybe users want to see everyone including vacation? 
-                // Usually "Todos" means "Todos Ativos" in shifts contexts, let's keep it simple: Show all.
-                matchesFilter = true;
-            } else if (['Manhã', 'Tarde', 'Noite'].includes(currentFilter)) {
-                // If shift filter, strictly that shift. Using derived shift.
-                matchesFilter = (shift === currentFilter);
-            } else {
-                // If status filter (vacation, away, fired)
-                matchesFilter = status === currentFilter;
-            }
-
-            if (matchesSearch && matchesFilter) {
-                row.classList.remove('hidden');
-                hasVisible = true;
-            } else {
-                row.classList.add('hidden');
-            }
-        });
-
-        // Toggle tbody visibility based on whether we should show anything or if search/filter is present
-        // User wants: Default hidden.
-        // If "Todos" is active but search is empty, maybe hidden? 
-        // Use flag: 
-        if (searchVal.length > 0 || currentFilter !== 'all' || document.querySelector('.filter-btn[data-filter="all"]').classList.contains('active')) {
-            tbody.classList.remove('hidden');
-        }
-    }
-    function sortTable(criteria) {
-        const tbody = document.getElementById('tableBody');
-        const rows = Array.from(document.querySelectorAll('.employee-row'));
-
-        // Highlight active sort button
-        // (Simplified: just sorting logic first)
-
-        rows.sort((a, b) => {
-            let valA, valB;
-
-            if (criteria === 'name') {
-                valA = a.dataset.name;
-                valB = b.dataset.name;
-            } else if (criteria === 'reg') {
-                valA = parseInt(a.dataset.reg) || 0;
-                valB = parseInt(b.dataset.reg) || 0;
-            } else if (criteria === 'date') {
-                valA = a.dataset.admission || '';
-                valB = b.dataset.admission || '';
-            }
-
-            if (valA < valB) return -1;
-            if (valA > valB) return 1;
-            return 0;
-        });
-
-        // Re-append
-        rows.forEach(row => tbody.appendChild(row));
-    }
-
-    // Vacation logic consolidated in the script block at the end of file
-</script>
 
 
 
@@ -720,6 +631,42 @@
     </div>
 </div>
 
+<!-- Fire Confirmation Modal -->
+<div id="fireModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="bg-slate-800 rounded-2xl w-full max-w-md border border-slate-700 shadow-2xl p-6">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center">
+                <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+            <div>
+                <h3 class="text-lg font-bold text-white">Confirmar Demissão</h3>
+                <p class="text-sm text-slate-400" id="fire-employee-name"></p>
+            </div>
+        </div>
+
+        <form id="fireForm" method="POST">
+            <input type="hidden" name="status_action" value="fired">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-slate-400 mb-2">Data de Fim de Contrato</label>
+                <input type="date" name="termination_date" id="termination-date" required
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-red-500">
+                <p class="text-xs text-slate-500 mt-1">Selecione a data de término do contrato</p>
+            </div>
+
+            <div class="flex justify-end gap-3">
+                <button type="button" onclick="closeFireModal()"
+                    class="px-4 py-2 text-slate-300 hover:text-white">Cancelar</button>
+                <button type="submit" class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium">
+                    Confirmar Demissão
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
     // --- Edit Modal Logic ---
     function openEditModal(emp) {
@@ -737,7 +684,36 @@
             document.getElementById('editBirthday').value = emp.birthday.split('T')[0];
         }
 
+        // Populate work_days checkboxes
+        document.querySelectorAll('input[name="work_days"]').forEach(cb => cb.checked = false);
+        if (emp.work_days) {
+            try {
+                const workDays = typeof emp.work_days === 'string' ? JSON.parse(emp.work_days) : emp.work_days;
+                if (Array.isArray(workDays)) {
+                    workDays.forEach(day => {
+                        const checkbox = document.querySelector(`input[name="work_days"][value="${day}"]`);
+                        if (checkbox) checkbox.checked = true;
+                    });
+                }
+            } catch (e) {
+                console.error('Error parsing work_days:', e);
+            }
+        }
+
         document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    // --- Fire Modal Logic ---
+    function openFireModal(empId, empName) {
+        document.getElementById('fireForm').action = '/employees/' + empId + '/status';
+        document.getElementById('fire-employee-name').innerText = empName;
+        document.getElementById('termination-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('termination-date').max = new Date().toISOString().split('T')[0];
+        document.getElementById('fireModal').classList.remove('hidden');
+    }
+
+    function closeFireModal() {
+        document.getElementById('fireModal').classList.add('hidden');
     }
 
     // --- Filter Logic ---
@@ -934,6 +910,21 @@
             console.error(e);
             alert("Erro de conexão.");
         }
+    }
+
+    // Force reload after adding employee to avoid cache issues
+    const addForm = document.querySelector('form[action="/employees/add"]');
+    if (addForm) {
+        addForm.addEventListener('submit', function () {
+            // Set flag in sessionStorage to reload after redirect
+            sessionStorage.setItem('shouldReload', 'true');
+        });
+    }
+
+    // Check if we should reload
+    if (sessionStorage.getItem('shouldReload') === 'true') {
+        sessionStorage.removeItem('shouldReload');
+        setTimeout(() => window.location.reload(), 100);
     }
 </script>
 {% endblock %}
