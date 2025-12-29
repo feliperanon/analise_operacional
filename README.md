@@ -29,10 +29,12 @@ O coração da operação. Uma interface visual interativa para gestão em tempo
 - Gráficos de performance histórica.
 - Relatórios de "Dia Crítico" e Rankings de Produtividade.
 
-### 4. 📝 Diário de Operações
-- Registro o oficial do turno.
-- Controle de horários (Chegada/Saída de caminhões).
-- Relatório qualitativo da operação.
+### 4. 📝 Diário de Operações e Relatórios
+- **Registro Oficial**: Controle detalhado de ocorrências do turno (Chegada/Saída, Qualitativo).
+- **Relatório PDF**: Geração automática de relatório de turno (`/routine/report`) contendo:
+    - KPIs consolidados (Total, GAP, Tonelagem, Produtividade).
+    - Lista de presença e ausências.
+    - Insights automáticos: Aniversariantes e Vencimento de Contratos (45/90 dias).
 
 ## 🛠️ Tecnologias Utilizadas
 
@@ -47,6 +49,7 @@ O coração da operação. Uma interface visual interativa para gestão em tempo
 - **Estilização**: TailwindCSS (Utility-first CSS, Foco em Dark Mode/Slate Theme)
 - **Interatividade**: Vanilla JavaScript (Leve e rápido)
 - **Ícones**: SVG (Lucide/Feather style)
+- **Relatórios**: Geração de HTML/PDF otimizado para impressão/exportação.
 
 ## 📦 Instalação e Execução
 
@@ -107,6 +110,8 @@ analise_operacional/
 │   ├── base.html        # Layout Base (Sidebar, Header)
 │   ├── smart_flow.html  # Página do Fluxo Inteligente
 │   ├── employees.html   # Gestão de Colaboradores
+│   ├── employee_detail.html # Detalhes do Colaborador
+│   ├── report_pdf.html  # Modelo de Relatório PDF
 │   └── index.html       # Dashboard
 │
 └── static/              # Arquivos Estáticos (CSS, JS, Imagens)

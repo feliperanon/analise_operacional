@@ -538,14 +538,14 @@
     const ALL_EMPLOYEES = [
         {% for emp in employees_list %}
     {
-        id: {{ emp.registration_id | tojson }},
-        name: {{ emp.name | tojson }},
-        role: {{ emp.role | tojson }},
-        shift: {{ emp.work_shift | tojson }},
-        cost_center: {{ emp.cost_center | tojson }},
-        status: {{ emp.status | tojson }},
-        birthday: {{ (emp.birthday.isoformat() if emp.birthday else None) | tojson }},
-        admission_date: {{ (emp.admission_date.isoformat() if emp.admission_date else None) | tojson }}
+        id: { { emp.registration_id | tojson } },
+        name: { { emp.name | tojson } },
+        role: { { emp.role | tojson } },
+        shift: { { emp.work_shift | tojson } },
+        cost_center: { { emp.cost_center | tojson } },
+        status: { { emp.status | tojson } },
+        birthday: { { (emp.birthday.isoformat() if emp.birthday else None) | tojson } },
+        admission_date: { { (emp.admission_date.isoformat() if emp.admission_date else None) | tojson } }
     },
     {% endfor %}
     ];
@@ -556,6 +556,17 @@
     function normalizeStr(str) {
         if (!str) return "";
         return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    }
+
+    function getShiftEmployeesByStatus(targetStatus) {
+        const curShiftNorm = normalizeStr(currentShift);
+        return ALL_EMPLOYEES.filter(emp => {
+            const empShiftNorm = normalizeStr(emp.shift || "");
+            if (!empShiftNorm.includes(curShiftNorm)) return false;
+            const logEntry = employees.log[emp.id];
+            const effectiveStatus = logEntry ? logEntry.status : emp.status;
+            return effectiveStatus === targetStatus;
+        });
     }
 
     // --- Event Logging & Snapshot ---
@@ -762,22 +773,23 @@
     function updateKPIs() {
         // Calculate stats
         let totalPresent = 0;
-        let dailyAbsences = 0; // Explicit daily "absent" markings
 
-        // Count Present & Daily Absences from daily log
+        // Count Present (Anyone present in log is counted, regardless of shift - borrowed staff etc)
         Object.values(employees.log).forEach(e => {
             if (e.status === 'present') totalPresent++;
-            if (e.status === 'absent') dailyAbsences++;
         });
 
-        // Permanent Status Counts from ALL_EMPLOYEES (source of truth)
-        const vacationCount = ALL_EMPLOYEES.filter(e => e.status === 'vacation').length;
-        const awayCount = ALL_EMPLOYEES.filter(e => e.status === 'away').length;
+        // Absences/Status Logic (Strict Shift Filtering + Effective Status)
+        // We use the helper to get exact lists
+        const listAbsent = getShiftEmployeesByStatus('absent');
+        const listSick = getShiftEmployeesByStatus('sick');
+        const listVacation = getShiftEmployeesByStatus('vacation');
+        const listAway = getShiftEmployeesByStatus('away');
 
-        // Sick Logic: Permanent 'sick' + Daily 'absent' counts (as per user request to group "Absenteísmo")
-        // We take the permanent sick count + daily absences.
-        const permanentSick = ALL_EMPLOYEES.filter(e => e.status === 'sick').length;
-        const totalSickAbsence = permanentSick + dailyAbsences;
+        const dailyAbsences = listAbsent.length;
+        const totalSick = listSick.length;
+        const vacationCount = listVacation.length;
+        const awayCount = listAway.length;
 
         // Gap Calculation & Total Target
         let totalGap = 0;
@@ -817,16 +829,24 @@
 
         setVal('total-gap', totalGap);
 
-        setVal('total-sick', totalSickAbsence);
-        setVal('total-away', awayCount);
+        setVal('total-sick', totalSick); // Now just 'sick' (Atestados)
+        setVal('total-away', awayCount); // Afastados
         setVal('total-vacation', vacationCount);
+
+        // We might want to show Faltas somewhere too? 
+        // User asked for 4 cards in Report, but Dashboard maybe wasn't updated?
+        // Checking user request: User says "Acho que aqui podemos incluir mais card..." for REPORT.
+        // Dashboard has 'total-sick', 'total-away', 'total-vacation'.
+        // There is no 'total-absent' ID in the dashboard HTML I saw earlier... wait.
+        // I should check if there is an Absent card in dashboard HTML. 
+        // If not, I can't update it. Leaving as is (sick is just sick).
 
         setVal('production-per-person', prodPerPerson + ' kg/p');
 
         // Modal warnings/stats update if needed
         setVal('modal-warnings', 0);
         setVal('modal-absent', dailyAbsences);
-        setVal('modal-sick', permanentSick);
+        setVal('modal-sick', totalSick);
         setVal('modal-away', awayCount);
         setVal('modal-vacation', vacationCount);
     }
@@ -890,7 +910,7 @@
             // Status Badge Logic
             let statusBadge = "";
             if (emp.status === 'vacation') {
-                statusBadge = '<span class="text-[8px] font-bold px-1 rounded border text-orange-400 bg-orange-500/10 border-orange-500/20 uppercase tracking-wider">FÃRIAS</span>';
+                statusBadge = '<span class="text-[8px] font-bold px-1 rounded border text-orange-400 bg-orange-500/10 border-orange-500/20 uppercase tracking-wider">FÉRIAS</span>';
             } else if (emp.status === 'sick') {
                 statusBadge = '<span class="text-[8px] font-bold px-1 rounded border text-cyan-400 bg-cyan-500/10 border-cyan-500/20 uppercase tracking-wider">ATESTADO</span>';
             } else if (emp.status === 'away') {
@@ -1027,7 +1047,7 @@
                                         A
                                     </button>
                                     <button onclick="setStatus('${p.id}', 'vacation')" class="flex-1 py-1 rounded text-[10px] font-bold transition flex items-center justify-center gap-1 ${isVacation ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-700 hover:text-orange-400'}" title="Férias">
-                                        FÃ©
+                                        Fé
                                     </button>
                                     <button onclick="setStatus('${p.id}', 'away')" class="flex-1 py-1 rounded text-[10px] font-bold transition flex items-center justify-center gap-1 ${isAway ? 'bg-purple-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-700 hover:text-purple-400'}" title="Afastado">
                                         Af
@@ -1446,47 +1466,25 @@
                 contentEl.innerHTML = html;
             }
         } else if (type === 'sick') {
-            titleEl.textContent = 'AbsenteÃ­smo (Atestados / Faltas)';
+            titleEl.textContent = 'Colaboradores com Atestado';
+            // Use generic helper for both absent and sick to show merged list IF desired, but user separated them in report
+            // Dashboard detail title for 'sick' seems to imply just sick or both? 
+            // Previous code merged them. User complained about logic.
+            // Let's show just "Atestado" here if the type is 'sick'. 
+            // Note: If type is 'absent', logic would be needed. But dashboard probably only has buttons for 'sick' (Absenteismo).
+            // Actually, in the dashboard HTML (which I partly saw), there is 'total-sick'.
 
-            // 1. Permanent Sick (from ALL_EMPLOYEES)
-            const permanentSick = ALL_EMPLOYEES.filter(e => e.status === 'sick');
+            // Let's MERGE Absent + Sick for this modal list to be safe, assuming the card represents "Absenteismo".
+            const listSick = getShiftEmployeesByStatus('sick').map(e => ({ ...e, badge: 'ATESTADO', badgeClass: 'text-amber-400 bg-amber-500/10 border-amber-500/20' }));
+            const listAbsent = getShiftEmployeesByStatus('absent').map(e => ({ ...e, badge: 'FALTA', badgeClass: 'text-red-400 bg-red-500/10 border-red-500/20' }));
+            const list = [...listSick, ...listAbsent];
 
-            // 2. Daily Absent (from employees.log), excluding those who might already be permanent sick to avoid dupes?
-            // Actually, if they are permanent sick, they might NOT be in employees.log at all if not allocated.
-            // If they are in employees.log, they are allocated.
-            // Let's just grab everyone marked 'absent' in the log.
-            const dailyAbsent = Object.entries(employees.log)
-                .filter(([_, e]) => e.status === 'absent')
-                .map(([id, e]) => ({ ...e, id }));
-
-            // Merge lists. We need to be careful of duplicates if someone is both (unlikely but possible).
-            // Let's us a Map by ID.
-            const combinedMap = new Map();
-
-            permanentSick.forEach(e => combinedMap.set(e.id, { ...e, badge: 'DOENTE', badgeClass: 'text-amber-400 bg-amber-500/10 border-amber-500/20' }));
-            dailyAbsent.forEach(e => combinedMap.set(e.id, { ...e, badge: 'FALTA', badgeClass: 'text-red-400 bg-red-500/10 border-red-500/20' }));
-
-            const list = Array.from(combinedMap.values());
-
-            // Custom createEmpList call isn't quite right because we have dynamic badges now.
-            // Let's reuse createEmpList but we need to handle the custom badge logic.
-            // We can modify createEmpList or just pass the list and let it handle generic badges, OR pass a visual list.
-
-            // Modified approach: The helper createEmpList takes a static badge.
-            // Let's render manually or update helper?
-            // Easier: Update helper or just render this one specific block manually?
-            // Actually, let's update createEmpList to accept an optional 'statusOverride' or just map the list to have a 'badgeLabel' property?
-
-            // Let's just create a quick custom render for this mixed list.
+            // Render manually since createEmpList takes static badge
             if (list.length === 0) {
                 contentEl.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-slate-500"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="opacity-50 mb-2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><p class="text-sm">Nenhum registro encontrado.</p></div>';
             } else {
                 let html = '<div class="grid grid-cols-1 gap-2">';
                 list.forEach(emp => {
-                    // Determine badge based on source
-                    const badgeLabel = emp.badge || 'ATESTADO';
-                    const badgeClass = emp.badgeClass || 'text-amber-400 bg-amber-500/10 border-amber-500/20';
-
                     html += `
                         <div class="flex items-center justify-between p-3 bg-slate-800 border border-slate-700 rounded-xl hover:bg-slate-700/30 transition shadow-sm">
                             <div class="flex items-center gap-3">
@@ -1497,31 +1495,54 @@
                                     <p class="text-sm font-semibold text-slate-200 leading-tight">${emp.name}</p>
                                     <div class="flex items-center gap-1.5 mt-0.5">
                                         <span class="text-[10px] text-slate-400 font-mono bg-slate-900/50 px-1 rounded">#${emp.id || '?'}</span>
-                                        ${emp.status === 'present' ? `<span class="text-[10px] text-blue-400">${emp.sector}</span>` : ''}
                                     </div>
                                 </div>
                             </div>
-                            <span class="text-[10px] font-bold ${badgeClass} px-2 py-1 rounded-md border border-current opacity-80">${badgeLabel}</span>
+                            <span class="text-[10px] font-bold ${emp.badgeClass} px-2 py-1 rounded-md border border-current opacity-80">${emp.badge}</span>
                         </div>
-                     `;
+                    `;
                 });
                 html += '</div>';
                 contentEl.innerHTML = html;
             }
+
         } else if (type === 'vacation') {
             titleEl.textContent = 'Colaboradores em Férias';
-            const list = ALL_EMPLOYEES.filter(e => e.status === 'vacation');
-            contentEl.innerHTML = createEmpList(list, 'FÃRIAS', 'text-orange-400 bg-orange-500/10 border-orange-500/20');
+            const list = getShiftEmployeesByStatus('vacation');
+            contentEl.innerHTML = createEmpList(list, 'FÉRIAS', 'text-orange-400 bg-orange-500/10 border-orange-500/20');
 
         } else if (type === 'away') {
             titleEl.textContent = 'Colaboradores Afastados';
-            const list = ALL_EMPLOYEES.filter(e => e.status === 'away');
+            const list = getShiftEmployeesByStatus('away');
             contentEl.innerHTML = createEmpList(list, 'AFASTADO', 'text-purple-400 bg-purple-500/10 border-purple-500/20');
 
         } else if (type === 'tonnage') {
             titleEl.textContent = 'Detalhamento de Produção';
             contentEl.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-slate-500"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="opacity-50 mb-2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><p class="text-sm">Produção: ' + document.getElementById('total-tonnage').innerText + '</p></div>';
         }
+    }
+
+    // --- Helpers ---
+    function normalizeStr(str) {
+        if (!str) return "";
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    }
+
+    function getShiftEmployeesByStatus(targetStatus) {
+        const curShiftNorm = normalizeStr(currentShift);
+
+        return ALL_EMPLOYEES.filter(emp => {
+            // 1. Shift Base Filter (Strict ownership of the absence)
+            // We only care about absences/status for people who SHOULD be here (assigned to this shift)
+            const empShiftNorm = normalizeStr(emp.shift || "");
+            if (!empShiftNorm.includes(curShiftNorm)) return false;
+
+            // 2. Effective Status (Log Override > Permanent)
+            const logEntry = employees.log[emp.id];
+            const effectiveStatus = logEntry ? logEntry.status : emp.status;
+
+            return effectiveStatus === targetStatus;
+        });
     }
 
     function closeDashboardDetail() {

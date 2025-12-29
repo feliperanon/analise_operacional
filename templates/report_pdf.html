@@ -116,16 +116,33 @@
         </div>
         <div class="border rounded p-3 bg-slate-50">
             <p class="text-xs text-slate-500 uppercase font-bold">Presentes</p>
-            <p class="text-lg font-bold text-emerald-600">{{ snapshot.kpis.total_present }}</p>
+            <p class="text-lg font-bold text-emerald-600">
+                {{ snapshot.kpis.total_present }}
+                <span class="text-xs text-slate-400 font-normal ml-1">({{ snapshot.kpis.present_pct }}%)</span>
+            </p>
         </div>
         <div class="border rounded p-3 bg-slate-50">
-            <p class="text-xs text-slate-500 uppercase font-bold">Gap / Vagas</p>
+            <p class="text-xs text-slate-500 uppercase font-bold">Vagas</p>
             <p class="text-lg font-bold text-red-500">{{ snapshot.kpis.total_gap }}</p>
         </div>
         <div class="border rounded p-3 bg-slate-50">
             <p class="text-xs text-slate-500 uppercase font-bold">Tonelagem</p>
             <p class="text-lg font-bold text-blue-600">{{ snapshot.kpis.tonnage }} t</p>
             <p class="text-[10px] text-slate-400">{{ snapshot.kpis.prod_per_person }} kg/pessoa</p>
+        </div>
+
+        <!-- Row 2: Consolidated -->
+        <div class="border rounded p-3 bg-slate-50">
+            <p class="text-xs text-slate-500 uppercase font-bold">Faltas e Atestados</p>
+            <p class="text-lg font-bold text-red-500">
+                {{ snapshot.kpis.count_absent + snapshot.kpis.count_sick }}
+            </p>
+        </div>
+        <div class="border rounded p-3 bg-slate-50">
+            <p class="text-xs text-slate-500 uppercase font-bold">Férias e Afastados</p>
+            <p class="text-lg font-bold text-purple-600">
+                {{ snapshot.kpis.count_vacation + snapshot.kpis.count_away }}
+            </p>
         </div>
     </div>
 
@@ -162,6 +179,16 @@
             </tr>
             {% endfor %}
         </tbody>
+        <tfoot>
+            <tr class="bg-slate-100 font-bold border-t-2 border-slate-300">
+                <td>Total</td>
+                <td class="text-center">{{ snapshot.kpis.total_target }}</td>
+                <td class="text-center">{{ snapshot.kpis.total_allocated }}</td>
+                <td class="text-center">{{ snapshot.kpis.total_present }}</td>
+                <td class="text-center">{{ snapshot.kpis.total_gap }}</td>
+                <td></td>
+            </tr>
+        </tfoot>
     </table>
 
     <!-- Lists -->
@@ -175,27 +202,24 @@
                 <thead>
                     <tr>
                         <th>Nome</th>
-                        <th>Status</th>
                         <th>Motivo</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for p in absences %}
                     <tr>
-                        <td>{{ p.name }} <span class="text-[10px] text-slate-400">#{{ p.id }}</span></td>
+                        <td>{{ p.name }}</td>
                         <td>
-                            {% if p.status_daily == 'absent' %}<span class="text-red-600 font-bold">FALTA</span>{% endif
+                            {% if p.status_daily == 'absent' %}<span class="text-red-500 font-bold">FALTA</span>{% endif
                             %}
-                            {% if p.status_daily == 'sick' %}<span class="text-amber-600 font-bold">ATESTADO</span>{%
-                            endif %}
+                            {% if p.status_daily == 'sick' %}<span class="text-cyan-600">ATESTADO</span>{% endif %}
                         </td>
-                        <td>-</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
             {% else %}
-            <p class="text-slate-400 italic text-sm">Nenhuma ocorrência registrada.</p>
+            <p class="text-slate-400 italic text-sm">Nenhum registro.</p>
             {% endif %}
         </div>
 
@@ -238,7 +262,13 @@
                 <h3 class="text-xs font-bold uppercase text-orange-400 mb-1">Aniversariantes (Mês)</h3>
                 <ul class="text-sm list-disc pl-4 text-slate-700">
                     {% for p in birthdays %}
-                    <li><b>{{ p.day }}/{{ p.month }}</b> - {{ p.name }}</li>
+                    <li>
+                        {% if p.is_today %}
+                        <span class="mr-1">🎂</span><b>{{ p.day }}/{{ p.month }} - {{ p.name }}</b>
+                        {% else %}
+                        <b>{{ p.day }}/{{ p.month }}</b> - {{ p.name }}
+                        {% endif %}
+                    </li>
                     {% else %}
                     <li class="list-none text-slate-400 italic">Nenhum neste mês.</li>
                     {% endfor %}

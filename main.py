@@ -852,6 +852,7 @@ async def routine_report(
         # Build Sectors Detailed
         sectors_detailed = []
         total_target = 0
+        total_allocated_sum = 0
         
         for sec in SECTORS:
             key = sec.get('key')
@@ -871,18 +872,49 @@ async def routine_report(
                 "present_count": len(present_people),
                 "gap": gap
             })
+            total_allocated_sum += len(allocated_people)
+            
+        # Catch Unallocated (Present but not in a sector)
+        # We need to know which people were already counted in sectors
+        mapped_sector_keys = [s.get('key') for s in SECTORS]
+        
+        others_allocated = [p for p in people_list if p['sector_daily'] not in mapped_sector_keys]
+        others_present = [p for p in others_allocated if p['status_daily'] == 'present']
+        
+        if others_present or others_allocated:
+            sectors_detailed.append({
+                "label": "Outros / Não Definido",
+                "target": 0,
+                "allocated_count": len(others_allocated),
+                "present_count": len(others_present),
+                "gap": 0
+            })
+            total_allocated_sum += len(others_allocated)
             
         # Top KPIs
         total_gap = sum(s['gap'] for s in sectors_detailed)
         prod_per_person = round(tonnage / total_present, 2) if total_present > 0 else 0
+        present_pct = int((total_present / total_target * 100)) if total_target > 0 else 0
+        
+        # Detailed Counts
+        daily_absent = len([p for p in people_list if p['status_daily'] == 'absent'])
+        daily_sick = len([p for p in people_list if p['status_daily'] == 'sick'])
+        daily_vacation = len([p for p in people_list if p['status_daily'] == 'vacation'])
+        daily_away = len([p for p in people_list if p['status_daily'] == 'away'])
         
         snapshot = {
             "kpis": {
                 "total_target": total_target,
+                "total_allocated": total_allocated_sum,
                 "total_present": total_present,
+                "present_pct": present_pct,
                 "total_gap": total_gap,
                 "tonnage": f"{tonnage:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
-                "prod_per_person": f"{prod_per_person:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                "prod_per_person": f"{prod_per_person:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+                "count_absent": daily_absent,
+                "count_sick": daily_sick,
+                "count_vacation": daily_vacation,
+                "count_away": daily_away
             },
             "sectors": sectors_detailed,
             "people": people_list
@@ -901,10 +933,12 @@ async def routine_report(
             if emp.birthday:
                 b_date = emp.birthday.date()
                 if b_date.month == params_date.month:
+                    is_today = (b_date.day == params_date.day)
                     birthdays.append({
                         "name": emp.name,
                         "day": b_date.day,
-                        "month": b_date.month
+                        "month": b_date.month,
+                        "is_today": is_today
                     })
         birthdays.sort(key=lambda x: x['day'])
         
