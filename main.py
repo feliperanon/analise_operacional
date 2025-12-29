@@ -9,6 +9,7 @@ from sqlmodel import Session, select
 from database import create_db_and_tables, get_session
 import models
 import logging
+import unicodedata
 logging.basicConfig(filename='logs.txt', level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -927,9 +928,20 @@ async def routine_report(
         absences = [p for p in people_list if p['status_daily'] in ['absent', 'sick']]
         unavail = [p for p in people_list if p['status_daily'] in ['vacation', 'away']]
         
-        # Birthdays
+        # Helper for Shift Normalization
+        def normalize_str(s):
+            if not s: return ""
+            return unicodedata.normalize('NFD', str(s)).encode('ascii', 'ignore').decode('utf-8').lower().strip()
+
+        target_shift_norm = normalize_str(shift)
+
+        # Birthdays (Filtered by Shift)
         birthdays = []
         for emp in all_employees:
+            emp_shift_norm = normalize_str(emp.work_shift)
+            if target_shift_norm not in emp_shift_norm:
+                continue
+
             if emp.birthday:
                 b_date = emp.birthday.date()
                 if b_date.month == params_date.month:
@@ -942,9 +954,13 @@ async def routine_report(
                     })
         birthdays.sort(key=lambda x: x['day'])
         
-        # Contracts (45 and 90 days from admission)
+        # Contracts (45 and 90 days from admission) - Filtered by Shift
         contracts = []
         for emp in all_employees:
+            emp_shift_norm = normalize_str(emp.work_shift)
+            if target_shift_norm not in emp_shift_norm:
+                continue
+
             if emp.admission_date:
                 adm = emp.admission_date.date()
                 
