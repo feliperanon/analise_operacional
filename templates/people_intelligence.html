@@ -31,18 +31,6 @@
             page-break-inside: avoid;
         }
 
-        .grid-cols-1.md\\:grid-cols-4 {
-            display: grid !important;
-            grid-template-columns: repeat(4, 1fr) !important;
-            gap: 8px !important;
-        }
-
-        .grid-cols-1.lg\\:grid-cols-2 {
-            display: grid !important;
-            grid-template-columns: 1fr 1fr !important;
-            gap: 10px !important;
-        }
-
         table {
             font-size: 8px !important;
         }
@@ -59,533 +47,328 @@
         h2 {
             font-size: 11px !important;
         }
-
-        .bg-gradient-to-br.from-slate-800 {
-            display: none !important;
-        }
     }
 </style>
 
 <div class="p-6 space-y-6">
-    <!-- Modern Header with Filters -->
-    <header class="bg-slate-800 border-b border-slate-700 px-6 py-3 shrink-0 -mx-6 -mt-6 mb-6">
-        <div class="flex items-center justify-between">
+    <!-- Simplified Header -->
+    <header class="bg-slate-800/50 border border-slate-700 rounded-xl px-6 py-4">
+        <div class="flex items-center justify-between gap-6">
 
-            <!-- Left: Brand & Period Info -->
-            <div class="flex flex-col flex-1">
-                <h1 class="text-lg font-bold text-white flex items-center gap-2">
-                    <span class="text-indigo-500 text-xl">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path
-                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
-                            </path>
-                        </svg>
-                    </span> Gestão de Pessoas 2.0
-                </h1>
-                <p class="text-[10px] text-slate-400 font-medium tracking-wide">
-                    📅 {{ start_date }} a {{ end_date }} • {{ ((end_date.split('-')[0] | int - start_date.split('-')[0]
-                    | int) * 365 + (end_date.split('-')[1] | int - start_date.split('-')[1] | int) * 30 +
-                    (end_date.split('-')[2] | int - start_date.split('-')[2] | int)) }} dias analisados
-                </p>
-            </div>
-
-            <!-- Center: Date Controls -->
-            <div
-                class="flex items-center gap-4 bg-slate-900/80 p-1.5 rounded-2xl border border-slate-700/60 shadow-inner">
-
-                <!-- Date Início -->
-                <div class="relative group px-2">
-                    <div class="absolute inset-y-0 left-2 flex items-center pointer-events-none">
-                        <svg class="h-4 w-4 text-slate-500 group-hover:text-indigo-400 transition" fill="none"
-                            viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
-                            </path>
-                        </svg>
-                    </div>
-                    <input type="date" id="startDateFilter" value="{{ start_date }}"
-                        class="bg-transparent text-white text-xs font-bold py-1.5 pl-8 pr-1 border-none focus:ring-0 cursor-pointer outline-none w-32 text-center tracking-wide hover:text-indigo-200 transition">
-                </div>
-
-                <div class="w-px h-5 bg-slate-700"></div>
-
-                <!-- Date Fim -->
-                <div class="relative group px-2">
-                    <div class="absolute inset-y-0 left-2 flex items-center pointer-events-none">
-                        <svg class="h-4 w-4 text-slate-500 group-hover:text-indigo-400 transition" fill="none"
-                            viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
-                            </path>
-                        </svg>
-                    </div>
-                    <input type="date" id="endDateFilter" value="{{ end_date }}"
-                        class="bg-transparent text-white text-xs font-bold py-1.5 pl-8 pr-1 border-none focus:ring-0 cursor-pointer outline-none w-32 text-center tracking-wide hover:text-indigo-200 transition">
-                </div>
-
-                <div class="w-px h-5 bg-slate-700"></div>
-
-                <!-- Shift Tabs -->
-                <div class="flex p-0.5 bg-slate-800 rounded-xl">
-                    <button onclick="changeShift('Todos')"
-                        class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all {{ 'bg-indigo-600 text-white' if current_shift == 'Todos' else 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50' }}">
-                        Todos
-                    </button>
-                    <button onclick="changeShift('Manhã')"
-                        class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all {{ 'bg-indigo-600 text-white' if current_shift == 'Manhã' else 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50' }}">
-                        Manhã
-                    </button>
-                    <button onclick="changeShift('Tarde')"
-                        class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all {{ 'bg-indigo-600 text-white' if current_shift == 'Tarde' else 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50' }}">
-                        Tarde
-                    </button>
-                    <button onclick="changeShift('Noite')"
-                        class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all {{ 'bg-indigo-600 text-white' if current_shift == 'Noite' else 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50' }}">
-                        Noite
-                    </button>
-                </div>
-
-            </div>
-
-            <!-- Right: Actions -->
-            <div class="flex items-center justify-end gap-3 flex-1">
-                <!-- Quick Presets -->
-                <div class="flex gap-1">
-                    <button onclick="setPreset('month')"
-                        class="text-xs px-2 py-1 rounded-lg bg-slate-700/50 hover:bg-slate-600 text-slate-300 hover:text-white transition font-medium">
-                        Este Mês
-                    </button>
-                    <button onclick="setPreset('quarter')"
-                        class="text-xs px-2 py-1 rounded-lg bg-slate-700/50 hover:bg-slate-600 text-slate-300 hover:text-white transition font-medium">
-                        Trimestre
-                    </button>
-                    <button onclick="setPreset('year')"
-                        class="text-xs px-2 py-1 rounded-lg bg-slate-700/50 hover:bg-slate-600 text-slate-300 hover:text-white transition font-medium">
-                        Este Ano
-                    </button>
-                </div>
-
-                <div class="h-6 w-px bg-slate-700/50"></div>
-
-                <button onclick="openPrintPreview()"
-                    class="bg-purple-600/10 text-purple-400 hover:bg-purple-600/20 hover:text-purple-300 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 border border-purple-500/20"
-                    title="Gerar Relatório">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                        <line x1="16" y1="13" x2="8" y2="13"></line>
-                        <line x1="16" y1="17" x2="8" y2="17"></line>
-                    </svg>
-                    Relatório
-                </button>
-
-                <button onclick="resetFilters()"
-                    class="text-slate-400 hover:text-white hover:bg-slate-700/50 px-3 py-2 rounded-xl text-xs font-medium transition flex items-center gap-1.5 border border-transparent hover:border-slate-600"
-                    title="Resetar Filtros">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-                        </path>
-                    </svg>
-                    Resetar
-                </button>
-
-                <button onclick="applyFilters()"
-                    class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-lg shadow-indigo-900/20 active:scale-95 transition flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2.5">
-                        <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                    </svg>
-                    <span>Filtrar</span>
-                </button>
-            </div>
-
-        </div>
-    </header>
-
-    <!-- Overview Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <!-- Headcount Card -->
-        <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
-            <div class="flex items-center gap-2 mb-2">
-                <div class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                    <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <!-- Title -->
+            <div>
+                <h1 class="text-xl font-bold text-white flex items-center gap-2">
+                    <svg class="w-6 h-6 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
                         </path>
                     </svg>
-                </div>
-                <h3 class="text-slate-400 text-[10px] font-semibold uppercase tracking-wider flex-1">Headcount</h3>
-                <div class="group relative">
-                    <svg class="w-3 h-3 text-slate-500 hover:text-blue-400 cursor-help transition" fill="none"
-                        stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <div
-                        class="absolute bottom-full right-0 mb-2 w-64 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                        <p class="text-xs text-slate-300 font-semibold mb-1">Como é calculado:</p>
-                        <p class="text-xs text-slate-400">Total de colaboradores ativos (excluindo demitidos) filtrados
-                            pelo turno selecionado.</p>
-                    </div>
-                </div>
+                    Gestão de Pessoas 2.0
+                </h1>
+                <p class="text-xs text-slate-400 mt-0.5">{{ start_date }} a {{ end_date }}</p>
             </div>
+
+            <!-- Filters -->
+            <div class="flex items-center gap-3">
+                <!-- Date Filters -->
+                <div class="flex items-center gap-2 bg-slate-900/50 px-3 py-2 rounded-lg border border-slate-700">
+                    <input type="date" id="startDateFilter" value="{{ start_date }}"
+                        class="bg-transparent text-white text-xs font-medium border-none focus:ring-0 cursor-pointer outline-none">
+                    <span class="text-slate-600">→</span>
+                    <input type="date" id="endDateFilter" value="{{ end_date }}"
+                        class="bg-transparent text-white text-xs font-medium border-none focus:ring-0 cursor-pointer outline-none">
+                </div>
+
+                <!-- Shift Tabs -->
+                <div class="flex gap-1 bg-slate-900/50 p-1 rounded-lg border border-slate-700">
+                    <button onclick="changeShift('Todos')"
+                        class="px-3 py-1.5 rounded text-xs font-bold transition {{ 'bg-indigo-600 text-white' if current_shift == 'Todos' else 'text-slate-400 hover:text-white' }}">Todos</button>
+                    <button onclick="changeShift('Manhã')"
+                        class="px-3 py-1.5 rounded text-xs font-bold transition {{ 'bg-indigo-600 text-white' if current_shift == 'Manhã' else 'text-slate-400 hover:text-white' }}">Manhã</button>
+                    <button onclick="changeShift('Tarde')"
+                        class="px-3 py-1.5 rounded text-xs font-bold transition {{ 'bg-indigo-600 text-white' if current_shift == 'Tarde' else 'text-slate-400 hover:text-white' }}">Tarde</button>
+                    <button onclick="changeShift('Noite')"
+                        class="px-3 py-1.5 rounded text-xs font-bold transition {{ 'bg-indigo-600 text-white' if current_shift == 'Noite' else 'text-slate-400 hover:text-white' }}">Noite</button>
+                </div>
+
+                <!-- Actions -->
+                <button onclick="applyFilters()"
+                    class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    Filtrar
+                </button>
+
+                <button onclick="openPrintPreview()"
+                    class="bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 px-4 py-2 rounded-lg text-xs font-bold transition border border-purple-500/30">
+                    Relatório
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Overview Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <!-- Headcount Card -->
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+            <h3 class="text-slate-400 text-xs font-semibold uppercase mb-2">Headcount</h3>
             <p class="text-2xl font-bold text-white">{{ overview.headcount }}</p>
         </div>
 
         <!-- Faltas Card -->
         <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
-            <div class="flex items-center gap-2 mb-2">
-                <div class="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
-                    <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
-                        </path>
-                    </svg>
-                </div>
-                <h3 class="text-slate-400 text-[10px] font-semibold uppercase tracking-wider flex-1">Faltas</h3>
-                <div class="group relative">
-                    <svg class="w-3 h-3 text-slate-500 hover:text-red-400 cursor-help transition" fill="none"
-                        stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <div
-                        class="absolute bottom-full right-0 mb-2 w-64 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                        <p class="text-xs text-slate-300 font-semibold mb-1">Como é calculado:</p>
-                        <p class="text-xs text-slate-400">Soma de todas as faltas registradas no período selecionado.
-                            Média = Total de faltas ÷ Headcount.</p>
-                    </div>
-                </div>
-            </div>
-            <p class="text-2xl font-bold bg-gradient-to-r from-red-400 to-pink-400 bg-clip-text text-transparent">{{
-                overview.total_absences }}</p>
-            <p class="text-[10px] text-slate-500 mt-1">Média: {{ overview.avg_absence_per_emp }}</p>
+            <h3 class="text-slate-400 text-xs font-semibold uppercase mb-2">Faltas</h3>
+            <p class="text-2xl font-bold text-red-400">{{ overview.total_absences }}</p>
+            <p class="text-xs text-slate-500 mt-1">Média: {{ overview.avg_absence_per_emp }}</p>
         </div>
 
         <!-- Atestados Card -->
         <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
-            <div class="flex items-center gap-2 mb-2">
-                <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                    <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                        </path>
-                    </svg>
-                </div>
-                <h3 class="text-slate-400 text-[10px] font-semibold uppercase tracking-wider flex-1">Atestados</h3>
-                <div class="group relative">
-                    <svg class="w-3 h-3 text-slate-500 hover:text-amber-400 cursor-help transition" fill="none"
-                        stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <div
-                        class="absolute bottom-full right-0 mb-2 w-64 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                        <p class="text-xs text-slate-300 font-semibold mb-1">Como é calculado:</p>
-                        <p class="text-xs text-slate-400">Soma de todos os atestados médicos registrados no período
-                            selecionado.</p>
-                    </div>
-                </div>
-            </div>
-            <p class="text-2xl font-bold text-white">{{ overview.total_sick }}</p>
+            <h3 class="text-slate-400 text-xs font-semibold uppercase mb-2">Atestados</h3>
+            <p class="text-2xl font-bold text-amber-400">{{ overview.total_sick }}</p>
         </div>
 
         <!-- Presença Card -->
         <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
-            <div class="flex items-center gap-2 mb-2">
-                <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                </div>
-                <h3 class="text-slate-400 text-[10px] font-semibold uppercase tracking-wider flex-1">Presença</h3>
-                <div class="group relative">
-                    <svg class="w-3 h-3 text-slate-500 hover:text-emerald-400 cursor-help transition" fill="none"
-                        stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <div
-                        class="absolute bottom-full right-0 mb-2 w-72 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                        <p class="text-xs text-slate-300 font-semibold mb-1">Como é calculado:</p>
-                        <p class="text-xs text-slate-400 mb-2">Fórmula: (1 - (Total Eventos ÷ Frequência Teórica)) × 100
-                        </p>
-                        <p class="text-xs text-slate-500">• Frequência Teórica = Headcount × Dias no Período<br>• Total
-                            Eventos = Faltas + Atestados<br>• 100% = Presença perfeita</p>
-                    </div>
-                </div>
-            </div>
-            <p class="text-2xl font-bold text-white">{{ overview.presence_rate }}%</p>
+            <h3 class="text-slate-400 text-xs font-semibold uppercase mb-2">Presença</h3>
+            <p class="text-2xl font-bold text-emerald-400">{{ overview.presence_rate }}%</p>
         </div>
 
         <!-- Risco Geral Card -->
         <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
-            <div class="flex items-center gap-2 mb-2">
-                <div class="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                    <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-                    </svg>
-                </div>
-                <h3 class="text-slate-400 text-[10px] font-semibold uppercase tracking-wider flex-1">Risco Geral</h3>
-                <div class="group relative">
-                    <svg class="w-3 h-3 text-slate-500 hover:text-purple-400 cursor-help transition" fill="none"
-                        stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <div
-                        class="absolute bottom-full right-0 mb-2 w-64 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                        <p class="text-xs text-slate-300 font-semibold mb-1">Como é calculado:</p>
-                        <p class="text-xs text-slate-400">Índice do setor principal: (Faltas + Atestados) ÷ Headcount do
-                            setor. Quanto maior, mais risco.</p>
-                    </div>
-                </div>
-            </div>
+            <h3 class="text-slate-400 text-xs font-semibold uppercase mb-2">Risco Geral</h3>
             <p class="text-2xl font-bold text-purple-400">{{ sectors[0].risk_index if sectors else 0 }}</p>
         </div>
 
         <!-- Ofensores Card -->
         <div class="bg-gradient-to-br from-red-900/30 to-orange-900/30 rounded-xl border border-red-500/40 p-4">
-            <div class="flex items-center gap-2 mb-2">
-                <div class="w-8 h-8 rounded-lg bg-red-500/30 flex items-center justify-center">
-                    <svg class="w-4 h-4 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
-                        </path>
-                    </svg>
-                </div>
-                <h3 class="text-red-300 text-[10px] font-semibold uppercase tracking-wider flex-1">Ofensores</h3>
-                <div class="group relative">
-                    <svg class="w-3 h-3 text-red-400 hover:text-red-300 cursor-help transition" fill="none"
-                        stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <div
-                        class="absolute bottom-full right-0 mb-2 w-64 p-3 bg-slate-900 border border-red-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                        <p class="text-xs text-red-300 font-semibold mb-1">Como é calculado:</p>
-                        <p class="text-xs text-red-400">Colaboradores com 3+ eventos combinados (faltas + atestados) no
-                            período. Alto risco operacional.</p>
-                    </div>
-                </div>
-            </div>
+            <h3 class="text-red-300 text-xs font-semibold uppercase mb-2">Ofensores</h3>
             <p class="text-2xl font-bold text-red-300">{{ overview.chronic_count }}</p>
-            <p class="text-[10px] text-red-400 mt-1">Alto Risco</p>
+            <p class="text-xs text-red-400 mt-1">Alto Risco</p>
         </div>
     </div>
 
+    <!-- Main Content Grid 2x2 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-
-    <!-- Main Content Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <!-- Left Column -->
-        <div class="space-y-8">
-            <!-- Top Absences -->
-            <div class="bg-slate-800 rounded-xl border border-slate-700 p-6">
-                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                    <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
-                        </path>
-                    </svg>
-                    Ofensores de Faltas
-                </h2>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="text-xs text-slate-500 uppercase border-b border-slate-700">
-                                <th class="pb-2">Colaborador</th>
-                                <th class="pb-2">Setor</th>
-                                <th class="pb-2 text-right">Faltas</th>
-                                <th class="pb-2 text-right">Tempo Casa</th>
-                            </tr>
-                        </thead>
-                        <tbody class="text-sm">
-                            {% for item in top_absent %}
-                            <tr class="border-b border-slate-800 hover:bg-slate-800/50 transition">
-                                <td class="py-3 font-medium">
-                                    <a href="/employees/{{ item.employee_id }}"
-                                        class="text-white hover:text-indigo-400 transition">{{ item.name }}</a>
-                                </td>
-                                <td class="py-3 text-slate-400">{{ item.sector }}</td>
-                                <td class="py-3 text-right">
-                                    <span class="inline-block px-2 py-1 rounded bg-red-500/10 text-red-400 font-bold">{{
-                                        item.falta }}</span>
-                                </td>
-                                <td class="py-3 text-right text-slate-500">{{ item.tenure_months }} meses</td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="4" class="py-4 text-center text-slate-600">Nenhum dado registrado.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Chronic Offenders Detail -->
-            {% if chronic_offenders %}
-            <div class="bg-gradient-to-br from-red-900/10 to-orange-900/10 rounded-xl border border-red-500/20 p-6">
-                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                    <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
-                        </path>
-                    </svg>
-                    Ofensores Crônicos - Detalhado
-                </h2>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="text-xs text-slate-500 uppercase border-b border-red-700">
-                                <th class="pb-2">Colaborador</th>
-                                <th class="pb-2">Setor</th>
-                                <th class="pb-2 text-right">Faltas</th>
-                                <th class="pb-2 text-right">Atestados</th>
-                                <th class="pb-2 text-right">Total</th>
-                                <th class="pb-2 text-right">Risco %</th>
-                            </tr>
-                        </thead>
-                        <tbody class="text-sm">
-                            {% for item in chronic_offenders %}
-                            <tr class="border-b border-red-800/30 hover:bg-red-900/20 transition">
-                                <td class="py-3 font-medium">
-                                    <a href="/employees/{{ item.employee_id }}"
-                                        class="text-white hover:text-red-400 transition">{{ item.name }}</a>
-                                </td>
-                                <td class="py-3 text-slate-400">{{ item.sector }}</td>
-                                <td class="py-3 text-right">
-                                    <span class="inline-block px-2 py-1 rounded bg-red-500/10 text-red-400 font-bold">{{
-                                        item.falta }}</span>
-                                </td>
-                                <td class="py-3 text-right">
-                                    <span
-                                        class="inline-block px-2 py-1 rounded bg-amber-500/10 text-amber-400 font-bold">{{
-                                        item.atestado }}</span>
-                                </td>
-                                <td class="py-3 text-right">
-                                    <span
-                                        class="inline-block px-2 py-1 rounded bg-orange-500/20 text-orange-300 font-bold text-lg">{{
-                                        item.combined_events }}</span>
-                                </td>
-                                <td class="py-3 text-right">
-                                    <span
-                                        class="inline-block px-2 py-1 rounded {% if item.risk_score > 10 %}bg-red-500/30 text-red-300{% elif item.risk_score > 5 %}bg-orange-500/30 text-orange-300{% else %}bg-yellow-500/30 text-yellow-300{% endif %} font-bold">{{
-                                        item.risk_score }}%</span>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                <div class="mt-4 p-3 bg-red-900/20 border border-red-700/30 rounded-lg">
-                    <p class="text-xs text-red-300">
-                        <strong>⚠️ Ação Recomendada:</strong> Acompanhamento individual com RH e liderança imediata.
-                    </p>
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- Top Sick Leave -->
-            <div class="bg-slate-800 rounded-xl border border-slate-700 p-6">
-                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                    <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                        </path>
-                    </svg>
-                    Top Atestados Médicos
-                </h2>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="text-xs text-slate-500 uppercase border-b border-slate-700">
-                                <th class="pb-2">Colaborador</th>
-                                <th class="pb-2">Setor</th>
-                                <th class="pb-2 text-right">Atestados</th>
-                            </tr>
-                        </thead>
-                        <tbody class="text-sm">
-                            {% for item in top_sick %}
-                            <tr class="border-b border-slate-800 hover:bg-slate-800/50 transition">
-                                <td class="py-3 font-medium">
-                                    <a href="/employees/{{ item.employee_id }}"
-                                        class="text-white hover:text-indigo-400 transition">{{ item.name }}</a>
-                                </td>
-                                <td class="py-3 text-slate-400">{{ item.sector }}</td>
-                                <td class="py-3 text-right">
-                                    <span
-                                        class="inline-block px-2 py-1 rounded bg-amber-500/10 text-amber-400 font-bold">{{
-                                        item.atestado }}</span>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="3" class="py-4 text-center text-slate-600">Nenhum dado registrado.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+        <!-- Top Left: Ofensores de Faltas -->
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-6">
+            <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                    </path>
+                </svg>
+                Ofensores de Faltas
+            </h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-xs text-slate-500 uppercase border-b border-slate-700">
+                            <th class="pb-2">Colaborador</th>
+                            <th class="pb-2">Setor</th>
+                            <th class="pb-2 text-right">Faltas</th>
+                            <th class="pb-2 text-right">Tempo Casa</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-sm">
+                        {% for item in top_absent %}
+                        <tr class="border-b border-slate-800 hover:bg-slate-800/50 transition">
+                            <td class="py-3 font-medium">
+                                <a href="/employees/{{ item.employee_id }}"
+                                    class="text-white hover:text-indigo-400 transition">{{ item.name }}</a>
+                            </td>
+                            <td class="py-3 text-slate-400">{{ item.sector }}</td>
+                            <td class="py-3 text-right">
+                                <span class="inline-block px-2 py-1 rounded bg-red-500/10 text-red-400 font-bold">{{
+                                    item.falta }}</span>
+                            </td>
+                            <td class="py-3 text-right text-slate-500">{{ item.tenure_months }} meses</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="py-4 text-center text-slate-600">Nenhum dado registrado.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <!-- Right Column -->
-        <div class="space-y-8">
-            <!-- Insights -->
-            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl border border-indigo-500/20 p-6">
-                <h2 class="text-xl font-bold text-indigo-400 mb-4 flex items-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <!-- Top Right: Top Atestados Médicos -->
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-6">
+            <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                    </path>
+                </svg>
+                Top Atestados Médicos
+            </h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-xs text-slate-500 uppercase border-b border-slate-700">
+                            <th class="pb-2">Colaborador</th>
+                            <th class="pb-2">Setor</th>
+                            <th class="pb-2 text-right">Atestados</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-sm">
+                        {% for item in top_sick %}
+                        <tr class="border-b border-slate-800 hover:bg-slate-800/50 transition">
+                            <td class="py-3 font-medium">
+                                <a href="/employees/{{ item.employee_id }}"
+                                    class="text-white hover:text-indigo-400 transition">{{ item.name }}</a>
+                            </td>
+                            <td class="py-3 text-slate-400">{{ item.sector }}</td>
+                            <td class="py-3 text-right">
+                                <span class="inline-block px-2 py-1 rounded bg-amber-500/10 text-amber-400 font-bold">{{
+                                    item.atestado }}</span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" class="py-4 text-center text-slate-600">Nenhum dado registrado.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Bottom: Ofensores Crônicos - Detalhado (Full Width) -->
+        {% if chronic_offenders %}
+        <div
+            class="lg:col-span-2 bg-gradient-to-br from-red-900/10 to-orange-900/10 rounded-xl border border-red-500/20 p-8">
+            <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                <svg class="w-7 h-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                    </path>
+                </svg>
+                Ofensores Crônicos - Detalhado
+            </h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-sm text-slate-400 uppercase border-b-2 border-red-700">
+                            <th class="pb-3 pr-4 font-semibold">Colaborador</th>
+                            <th class="pb-3 px-3 font-semibold">Setor</th>
+                            <th class="pb-3 px-3 text-center font-semibold">Faltas</th>
+                            <th class="pb-3 px-3 text-center font-semibold">Atestados</th>
+                            <th class="pb-3 px-3 text-center font-semibold">Total</th>
+                            <th class="pb-3 px-3 text-center font-semibold">Dias Esperados</th>
+                            <th class="pb-3 px-3 text-center font-semibold">Aproveitamento</th>
+                            <th class="pb-3 pl-3 text-center font-semibold">Risco %</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-base">
+                        {% for item in chronic_offenders %}
+                        <tr class="border-b border-red-800/30 hover:bg-red-900/20 transition">
+                            <td class="py-4 pr-4 font-medium">
+                                <a href="/employees/{{ item.employee_id }}"
+                                    class="text-white hover:text-red-400 transition text-base">{{ item.name }}</a>
+                            </td>
+                            <td class="py-4 px-3 text-slate-300">{{ item.sector }}</td>
+                            <td class="py-4 px-3 text-center">
+                                <span
+                                    class="inline-block px-3 py-1.5 rounded-lg bg-red-500/20 text-red-300 font-bold text-base">{{
+                                    item.falta }}</span>
+                            </td>
+                            <td class="py-4 px-3 text-center">
+                                <span
+                                    class="inline-block px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 font-bold text-base">{{
+                                    item.atestado }}</span>
+                            </td>
+                            <td class="py-4 px-3 text-center">
+                                <span
+                                    class="inline-block px-3 py-1.5 rounded-lg bg-orange-500/30 text-orange-200 font-bold text-lg">{{
+                                    item.combined_events }}</span>
+                            </td>
+                            <td class="py-4 px-3 text-center">
+                                <div class="flex flex-col items-center gap-1">
+                                    <span class="text-slate-200 font-bold text-base">{{ item.actual_work_days }}/{{
+                                        item.expected_work_days }}</span>
+                                    <span class="text-xs text-slate-500">dias</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-3 text-center">
+                                <span
+                                    class="inline-block px-3 py-1.5 rounded-lg font-bold text-base {% if item.utilization_rate >= 90 %}bg-emerald-500/30 text-emerald-200{% elif item.utilization_rate >= 75 %}bg-yellow-500/30 text-yellow-200{% elif item.utilization_rate >= 60 %}bg-orange-500/30 text-orange-200{% else %}bg-red-500/40 text-red-200{% endif %}">
+                                    {{ item.utilization_rate }}%
+                                </span>
+                            </td>
+                            <td class="py-4 pl-3 text-center">
+                                <span
+                                    class="inline-block px-3 py-1.5 rounded-lg {% if item.risk_score > 10 %}bg-red-500/40 text-red-200{% elif item.risk_score > 5 %}bg-orange-500/30 text-orange-200{% else %}bg-yellow-500/30 text-yellow-200{% endif %} font-bold text-base">{{
+                                    item.risk_score }}%</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-6 p-4 bg-red-900/30 border border-red-700/40 rounded-lg">
+                <p class="text-sm text-red-200 leading-relaxed">
+                    <strong class="text-red-100">⚠️ Ação Recomendada:</strong> Acompanhamento individual com RH e
+                    liderança imediata. Colaboradores com aproveitamento abaixo de 75% requerem atenção especial.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Insights IA -->
+        <div
+            class="lg:col-span-2 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl border border-indigo-500/20 p-6">
+            <h2 class="text-xl font-bold text-indigo-400 mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z">
+                    </path>
+                </svg>
+                Insights IA
+            </h2>
+            <ul class="space-y-3">
+                <li class="flex gap-3 items-start">
+                    <svg class="w-4 h-4 mt-1 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z">
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <p class="text-sm text-slate-300">
+                        A média de faltas é mais alta em colaboradores com menos de <strong class="text-white">6
+                            meses</strong> de casa.
+                    </p>
+                </li>
+                <li class="flex gap-3 items-start">
+                    <svg class="w-4 h-4 mt-1 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
                         </path>
                     </svg>
-                    Insights IA
-                </h2>
-                <ul class="space-y-3">
-                    <li class="flex gap-3 items-start">
-                        <svg class="w-4 h-4 mt-1 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <p class="text-sm text-slate-300">
-                            A média de faltas é mais alta em colaboradores com menos de <strong class="text-white">6
-                                meses</strong> de casa.
-                        </p>
-                    </li>
-                    <li class="flex gap-3 items-start">
-                        <svg class="w-4 h-4 mt-1 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
-                            </path>
-                        </svg>
-                        <p class="text-sm text-slate-300">
-                            Atestados aumentam nas segundas-feiras. Considere ações preventivas.
-                        </p>
-                    </li>
-                    <li class="flex gap-3 items-start">
-                        <svg class="w-4 h-4 mt-1 text-emerald-400" fill="none" stroke="currentColor"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <p class="text-sm text-slate-300">
-                            Colaboradores sem faltas há 6+ meses merecem reconhecimento.
-                        </p>
-                    </li>
-                </ul>
-            </div>
+                    <p class="text-sm text-slate-300">
+                        Atestados aumentam nas segundas-feiras. Considere ações preventivas.
+                    </p>
+                </li>
+                <li class="flex gap-3 items-start">
+                    <svg class="w-4 h-4 mt-1 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <p class="text-sm text-slate-300">
+                        Colaboradores sem faltas há 6+ meses merecem reconhecimento.
+                    </p>
+                </li>
+            </ul>
         </div>
     </div>
 </div>
 
 <script>
     function applyFilters() {
-        const shift = document.getElementById('shiftFilter').value;
+        const shift = '{{ current_shift }}';
         const startDate = document.getElementById('startDateFilter').value;
         const endDate = document.getElementById('endDateFilter').value;
         window.location.href = `/people-intelligence?shift=${shift}&start_date=${startDate}&end_date=${endDate}`;
@@ -595,28 +378,8 @@
         window.location.href = '/people-intelligence';
     }
 
-    function setPreset(type) {
-        const today = new Date();
-        let start, end;
-
-        if (type === 'month') {
-            start = new Date(today.getFullYear(), today.getMonth(), 1);
-            end = today;
-        } else if (type === 'quarter') {
-            start = new Date(today.getFullYear(), today.getMonth() - 3, 1);
-            end = today;
-        } else if (type === 'year') {
-            start = new Date(today.getFullYear(), 0, 1);
-            end = today;
-        }
-
-        document.getElementById('startDateFilter').value = start.toISOString().split('T')[0];
-        document.getElementById('endDateFilter').value = end.toISOString().split('T')[0];
-        applyFilters();
-    }
-
     function openPrintPreview() {
-        const shift = document.getElementById('shiftFilter') ? document.getElementById('shiftFilter').value : '{{ current_shift }}';
+        const shift = '{{ current_shift }}';
         const startDate = document.getElementById('startDateFilter').value;
         const endDate = document.getElementById('endDateFilter').value;
         window.open(`/people-intelligence/report?shift=${shift}&start_date=${startDate}&end_date=${endDate}`, '_blank');

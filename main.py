@@ -20,6 +20,58 @@ SECRET_KEY = "your-secret-key-change-in-production"
 ALLOWED_USER = "feliperanon"
 ALLOWED_PASS = "571232ce"
 
+# --- Helper Functions ---
+def calculate_expected_work_days(work_days_json: str, start_date: datetime, end_date: datetime) -> int:
+    """
+    Calcula quantos dias o colaborador deveria trabalhar baseado na escala.
+    
+    Args:
+        work_days_json: JSON string com dias da semana, ex: '["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]'
+        start_date: Data inicial do período
+        end_date: Data final do período
+    
+    Returns:
+        Número de dias esperados de trabalho
+    """
+    # Default fallback: Segunda a Sábado (6 dias)
+    default_work_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    
+    try:
+        if work_days_json and work_days_json.strip():
+            work_days = json.loads(work_days_json)
+            if not work_days:  # Empty list
+                work_days = default_work_days
+        else:
+            work_days = default_work_days
+    except (json.JSONDecodeError, TypeError):
+        work_days = default_work_days
+    
+    # Mapeamento de dias da semana (weekday() retorna 0=Monday, 6=Sunday)
+    day_map = {
+        "Monday": 0,
+        "Tuesday": 1,
+        "Wednesday": 2,
+        "Thursday": 3,
+        "Friday": 4,
+        "Saturday": 5,
+        "Sunday": 6
+    }
+    
+    # Converter work_days para números
+    work_day_numbers = {day_map[day] for day in work_days if day in day_map}
+    
+    # Contar dias no período
+    expected_days = 0
+    current_date = start_date
+    
+    while current_date < end_date:
+        if current_date.weekday() in work_day_numbers:
+            expected_days += 1
+        current_date += timedelta(days=1)
+    
+    return expected_days
+
+
 # API Models
 from pydantic import BaseModel
 from typing import Optional, List
@@ -1854,6 +1906,25 @@ async def people_intelligence_page(
         if combined_events >= 3:  # Threshold: 3+ events in period
             item['combined_events'] = combined_events
             item['risk_score'] = round((combined_events / days_in_period) * 100, 1) if days_in_period > 0 else 0
+            
+            # NEW: Calculate expected work days based on employee's work schedule
+            emp = emp_map.get(item['employee_id'])
+            if emp:
+                item['expected_work_days'] = calculate_expected_work_days(
+                    emp.work_days or '[]',
+                    start_dt,
+                    end_dt
+                )
+                item['actual_work_days'] = max(0, item['expected_work_days'] - combined_events)
+                item['utilization_rate'] = round(
+                    (item['actual_work_days'] / item['expected_work_days']) * 100, 1
+                ) if item['expected_work_days'] > 0 else 0
+            else:
+                # Fallback if employee not found
+                item['expected_work_days'] = 0
+                item['actual_work_days'] = 0
+                item['utilization_rate'] = 0
+            
             chronic_offenders.append(item)
     
     # Sort by combined events
@@ -1987,6 +2058,24 @@ async def people_intelligence_report(
         if combined_events >= 3:
             item['combined_events'] = combined_events
             item['risk_score'] = round((combined_events / days_in_period) * 100, 1) if days_in_period > 0 else 0
+            
+            # Calculate expected work days based on employee's work schedule
+            emp = emp_map.get(item['employee_id'])
+            if emp:
+                item['expected_work_days'] = calculate_expected_work_days(
+                    emp.work_days or '[]',
+                    start_dt,
+                    end_dt
+                )
+                item['actual_work_days'] = max(0, item['expected_work_days'] - combined_events)
+                item['utilization_rate'] = round(
+                    (item['actual_work_days'] / item['expected_work_days']) * 100, 1
+                ) if item['expected_work_days'] > 0 else 0
+            else:
+                item['expected_work_days'] = 0
+                item['actual_work_days'] = 0
+                item['utilization_rate'] = 0
+            
             chronic_offenders.append(item)
     
     chronic_offenders.sort(key=lambda x: x['combined_events'], reverse=True)

@@ -81,8 +81,8 @@
 
                 <!-- Shift Tabs -->
                 <div class="flex p-0.5 bg-slate-800 rounded-xl">
-                    <button onclick="changeShift('Manhç')"
-                        class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all{{'bg-blue-600 text-white shadow-md' if current_shift == 'Manhç' else 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50'}}">Manhç</button>
+                    <button onclick="changeShift('Manhã')"
+                        class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all{{'bg-blue-600 text-white shadow-md' if current_shift == 'Manhã' else 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50'}}">Manhã</button>
                     <button onclick="changeShift('Tarde')"
                         class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all{{'bg-orange-500 text-white shadow-md' if current_shift == 'Tarde' else 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50'}}">Tarde</button>
                     <button onclick="changeShift('Noite')"
@@ -520,6 +520,20 @@
 </div>
 
 <script>
+    // Função para formatar números no padrão brasileiro
+    function formatBR(value) {
+        let str = String(value).trim().replace(/\./g, '').replace(',', '.');
+        const number = parseFloat(str);
+        if (isNaN(number)) return '0,00';
+        return number.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // Função para parsear número brasileiro
+    function parseBR(value) {
+        let str = String(value).trim().replace(/\./g, '').replace(',', '.');
+        return parseFloat(str) || 0;
+    }
+
     // --- State ---
     let currentShift = "{{current_shift}}";
     let currentDate = "{{current_date}}";
@@ -906,7 +920,7 @@
             let shiftColor = "text-slate-400 bg-slate-700/50 border-slate-600";
             let shiftShort = empShift.substring(0, 3).toUpperCase();
 
-            if (shiftLower.includes("manhç") || shiftLower.includes("manha")) {
+            if (shiftLower.includes("Manhã") || shiftLower.includes("manha")) {
                 shiftColor = "text-blue-400 bg-blue-500/10 border-blue-500/20";
                 shiftShort = "MAN";
             } else if (shiftLower.includes("tarde")) {
@@ -1562,8 +1576,8 @@
             contentEl.innerHTML = createEmpList(list, 'AFASTADO', 'text-purple-400 bg-purple-500/10 border-purple-500/20');
 
         } else if (type === 'tonnage') {
-            titleEl.textContent = 'Detalhamento de Produçço';
-            contentEl.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-slate-500"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="opacity-50 mb-2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><p class="text-sm">Produçço: ' + document.getElementById('total-tonnage').innerText + '</p></div>';
+            titleEl.textContent = 'Detalhamento de Produção';
+            contentEl.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-slate-500"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="opacity-50 mb-2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><p class="text-sm">Produção: ' + document.getElementById('total-tonnage').innerText + '</p></div>';
         }
     }
 
