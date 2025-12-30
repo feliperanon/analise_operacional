@@ -1732,22 +1732,55 @@ async def auth_exception_handler(request: Request, exc: HTTPException):
 
 # --- People Intelligence Route ---
 @app.get("/people-intelligence", response_class=HTMLResponse)
-async def people_intelligence_page(request: Request, session: Session = Depends(get_session)):
+async def people_intelligence_page(
+    request: Request, 
+    shift: str = "Todos",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    session: Session = Depends(get_session)
+):
     user = require_login(request)
     
     # 1. Overview Data
     employees = session.exec(select(models.Employee).where(models.Employee.status != "fired")).all()
-    total_headcount = len(employees)
     
-    # Fetch Events (Year to Date)
+    # Filter by Shift
+    if shift != "Todos":
+        employees = [e for e in employees if e.work_shift == shift]
+    
+    total_headcount = len(employees)
+    employee_ids = {e.id for e in employees}
+    
+    # Fetch Events with Filters
     today = datetime.now()
-    start_of_year = datetime(today.year, 1, 1)
+    
+    # Date range filter (flexible: can be month, year,  or custom range)
+    if start_date and end_date:
+        try:
+            start_dt = datetime.fromisoformat(start_date)
+            end_dt = datetime.fromisoformat(end_date)
+        except:
+            # Fallback to current month
+            start_dt = datetime(today.year, today.month, 1)
+            if today.month == 12:
+                end_dt = datetime(today.year + 1, 1, 1)
+            else:
+                end_dt = datetime(today.year, today.month + 1, 1)
+    else:
+        # Default: Current Year to Date
+        start_dt = datetime(today.year, 1, 1)
+        end_dt = today
+    
     
     events = session.exec(
         select(models.Event)
-        .where(models.Event.timestamp >= start_of_year)
+        .where(models.Event.timestamp >= start_dt)
+        .where(models.Event.timestamp < end_dt)
         .where(col(models.Event.type).in_(['falta', 'atestado', 'advertencia']))
     ).all()
+    
+    # Filter events by employee_ids (shift filter)
+    events = [e for e in events if e.employee_id in employee_ids]
     
     total_absences = sum(1 for e in events if e.type == 'falta')
     total_sick = sum(1 for e in events if e.type == 'atestado')
@@ -1766,6 +1799,7 @@ async def people_intelligence_page(request: Request, session: Session = Depends(
     for eid, stats in emp_stats.items():
         if eid in emp_map:
             emp = emp_map[eid]
+            stats['employee_id'] = eid  # For linking
             stats['name'] = emp.name
             stats['sector'] = emp.cost_center or "Geral"
             if emp.admission_date:
@@ -1773,9 +1807,9 @@ async def people_intelligence_page(request: Request, session: Session = Depends(
                 stats['tenure_months'] = int(delta.days / 30)
             ranking_data.append(stats)
             
-    # Sorts
-    top_absent = sorted(ranking_data, key=lambda x: x['falta'], reverse=True)[:10]
-    top_sick = sorted(ranking_data, key=lambda x: x['atestado'], reverse=True)[:10]
+    # Sorts - Only show employees with actual events
+    top_absent = sorted([r for r in ranking_data if r['falta'] > 0], key=lambda x: x['falta'], reverse=True)[:10]
+    top_sick = sorted([r for r in ranking_data if r['atestado'] > 0], key=lambda x: x['atestado'], reverse=True)[:10]
     
     # 3. Sector Analysis
     sector_stats = {}
@@ -1801,18 +1835,180 @@ async def people_intelligence_page(request: Request, session: Session = Depends(
             sector_list.append(stats)
             
     sector_list.sort(key=lambda x: x['risk_index'], reverse=True)
+    
+    # 4. Calculate Presence Index
+    # Total working days in period
+    days_in_period = (end_dt - start_dt).days
+    # Theoretical attendance = headcount * working days
+    theoretical_attendance = total_headcount * days_in_period if total_headcount > 0 else 1
+    # Actual absences (faltas + atestados)
+    total_events = total_absences + total_sick
+    # Presence rate = (1 - (absences / theoretical)) * 100
+    presence_rate = round((1 - (total_events / theoretical_attendance)) * 100, 1) if theoretical_attendance > 0 else 100
+    
+    # 5. Chronic Offenders (High Operational Risk)
+    # Employees with high combined falta + atestado that disrupt operations
+    chronic_offenders = []
+    for item in ranking_data:
+        combined_events = item['falta'] + item['atestado']
+        if combined_events >= 3:  # Threshold: 3+ events in period
+            item['combined_events'] = combined_events
+            item['risk_score'] = round((combined_events / days_in_period) * 100, 1) if days_in_period > 0 else 0
+            chronic_offenders.append(item)
+    
+    # Sort by combined events
+    chronic_offenders.sort(key=lambda x: x['combined_events'], reverse=True)
+    chronic_offenders = chronic_offenders[:10]  # Top 10
 
     return templates.TemplateResponse("people_intelligence.html", {
         "request": request,
         "user": user,
+        "current_shift": shift,
+        "start_date": start_dt.strftime("%Y-%m-%d"),
+        "end_date": end_dt.strftime("%Y-%m-%d"),
         "overview": {
             "headcount": total_headcount,
             "total_absences": total_absences,
             "total_sick": total_sick,
-            "avg_absence_per_emp": round(total_absences / total_headcount, 2) if total_headcount > 0 else 0
+            "avg_absence_per_emp": round(total_absences / total_headcount, 2) if total_headcount > 0 else 0,
+            "presence_rate": presence_rate,
+            "chronic_count": len(chronic_offenders)
         },
         "top_absent": top_absent,
         "top_sick": top_sick,
-        "sectors": sector_list
+        "sectors": sector_list,
+        "chronic_offenders": chronic_offenders,
+        "emp_map": emp_map  # For linking to employee pages
     })
+
+# --- People Intelligence Report (Print Preview) ---
+@app.get("/people-intelligence/report", response_class=HTMLResponse)
+async def people_intelligence_report(
+    request: Request,
+    shift: str = "Todos",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    session: Session = Depends(get_session)
+):
+    """Print-ready version of people intelligence (no sidebar)"""
+    user = require_login(request)
+    
+    # Reuse the same logic as main page
+    employees = session.exec(select(models.Employee).where(models.Employee.status != "fired")).all()
+    
+    if shift != "Todos":
+        employees = [e for e in employees if e.work_shift == shift]
+    
+    total_headcount = len(employees)
+    employee_ids = {e.id for e in employees}
+    
+    today = datetime.now()
+    
+    if start_date and end_date:
+        try:
+            start_dt = datetime.fromisoformat(start_date)
+            end_dt = datetime.fromisoformat(end_date)
+        except:
+            start_dt = datetime(today.year, today.month, 1)
+            if today.month == 12:
+                end_dt = datetime(today.year + 1, 1, 1)
+            else:
+                end_dt = datetime(today.year, today.month + 1, 1)
+    else:
+        start_dt = datetime(today.year, 1, 1)
+        end_dt = today
+    
+    events = session.exec(
+        select(models.Event)
+        .where(models.Event.timestamp >= start_dt)
+        .where(models.Event.timestamp < end_dt)
+        .where(col(models.Event.type).in_(['falta', 'atestado', 'advertencia']))
+    ).all()
+    
+    events = [e for e in events if e.employee_id in employee_ids]
+    
+    total_absences = sum(1 for e in events if e.type == 'falta')
+    total_sick = sum(1 for e in events if e.type == 'atestado')
+    
+    emp_stats = {}
+    for e in events:
+        if e.employee_id not in emp_stats:
+            emp_stats[e.employee_id] = {'falta': 0, 'atestado': 0, 'advertencia': 0}
+        emp_stats[e.employee_id][e.type] += 1
+    
+    emp_map = {e.id: e for e in employees}
+    
+    ranking_data = []
+    for eid, stats in emp_stats.items():
+        if eid in emp_map:
+            emp = emp_map[eid]
+            stats['employee_id'] = eid
+            stats['name'] = emp.name
+            stats['sector'] = emp.cost_center or "Geral"
+            if emp.admission_date:
+                delta = datetime.now() - emp.admission_date
+                stats['tenure_months'] = int(delta.days / 30)
+            ranking_data.append(stats)
+    
+    top_absent = sorted([r for r in ranking_data if r['falta'] > 0], key=lambda x: x['falta'], reverse=True)[:10]
+    top_sick = sorted([r for r in ranking_data if r['atestado'] > 0], key=lambda x: x['atestado'], reverse=True)[:10]
+    
+    sector_stats = {}
+    for item in ranking_data:
+        sec = item['sector']
+        if sec not in sector_stats:
+            sector_stats[sec] = {'falta': 0, 'atestado': 0, 'headcount': 0}
+        sector_stats[sec]['falta'] += item['falta']
+        sector_stats[sec]['atestado'] += item['atestado']
+    
+    for emp in employees:
+        sec = emp.cost_center or "Geral"
+        if sec not in sector_stats:
+            sector_stats[sec] = {'falta': 0, 'atestado': 0, 'headcount': 0}
+        sector_stats[sec]['headcount'] += 1
+    
+    sector_list = []
+    for sec, stats in sector_stats.items():
+        if stats['headcount'] > 0:
+            stats['name'] = sec
+            stats['risk_index'] = round((stats['falta'] + stats['atestado']) / stats['headcount'], 2)
+            sector_list.append(stats)
+    
+    sector_list.sort(key=lambda x: x['risk_index'], reverse=True)
+    
+    days_in_period = (end_dt - start_dt).days
+    theoretical_attendance = total_headcount * days_in_period if total_headcount > 0 else 1
+    total_events = total_absences + total_sick
+    presence_rate = round((1 - (total_events / theoretical_attendance)) * 100, 1) if theoretical_attendance > 0 else 100
+    
+    chronic_offenders = []
+    for item in ranking_data:
+        combined_events = item['falta'] + item['atestado']
+        if combined_events >= 3:
+            item['combined_events'] = combined_events
+            item['risk_score'] = round((combined_events / days_in_period) * 100, 1) if days_in_period > 0 else 0
+            chronic_offenders.append(item)
+    
+    chronic_offenders.sort(key=lambda x: x['combined_events'], reverse=True)
+    chronic_offenders = chronic_offenders[:10]
+    
+    return templates.TemplateResponse("people_intelligence_report.html", {
+        "request": request,
+        "current_shift": shift,
+        "start_date": start_dt.strftime("%Y-%m-%d"),
+        "end_date": end_dt.strftime("%Y-%m-%d"),
+        "overview": {
+            "headcount": total_headcount,
+            "total_absences": total_absences,
+            "total_sick": total_sick,
+            "avg_absence_per_emp": round(total_absences / total_headcount, 2) if total_headcount > 0 else 0,
+            "presence_rate": presence_rate,
+            "chronic_count": len(chronic_offenders)
+        },
+        "top_absent": top_absent,
+        "top_sick": top_sick,
+        "sectors": sector_list,
+        "chronic_offenders": chronic_offenders
+    })
+
 

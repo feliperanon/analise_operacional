@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório - Gestão de Pessoas | {{ current_shift }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 0.4cm;
+            }
+
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            font-size: 10px;
+            color: #1e293b;
+            line-height: 1.4;
+        }
+
+        h1 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        h2 {
+            font-size: 12px;
+            font-weight: 600;
+            color: #334155;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        table {
+            font-size: 9px;
+        }
+
+        th {
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .alert-card {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            border: 2px solid #dc2626;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
+        }
+    </style>
+</head>
+
+<body class="bg-white p-6">
+    <!-- Header -->
+    <div class="mb-4 pb-3 border-b-2 border-gray-300 flex justify-between items-center">
+        <div>
+            <h1 class="text-gray-900">Relatório - Gestão de Pessoas 2.0</h1>
+            <p class="text-gray-600 text-sm">Período: {{ start_date }} a {{ end_date }} | Turno: {{ current_shift }}</p>
+        </div>
+        <button onclick="window.print()"
+            class="no-print px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium">
+            Imprimir
+        </button>
+    </div>
+
+    <!-- Overview Stats -->
+    <div class="grid grid-cols-4 gap-3 mb-4">
+        <div class="stat-card">
+            <p class="text-xs text-gray-500 uppercase mb-1">Headcount Ativo</p>
+            <p class="text-2xl font-bold text-gray-900">{{ overview.headcount }}</p>
+        </div>
+        <div class="stat-card">
+            <p class="text-xs text-gray-500 uppercase mb-1">Total de Faltas</p>
+            <p class="text-2xl font-bold text-red-600">{{ overview.total_absences }}</p>
+            <p class="text-xs text-gray-500 mt-1">Média: {{ overview.avg_absence_per_emp }}/pessoa</p>
+        </div>
+        <div class="stat-card">
+            <p class="text-xs text-gray-500 uppercase mb-1">Atestados Médicos</p>
+            <p class="text-2xl font-bold text-amber-600">{{ overview.total_sick }}</p>
+        </div>
+        <div class="stat-card">
+            <p class="text-xs text-gray-500 uppercase mb-1">Índice de Presença</p>
+            <p class="text-2xl font-bold text-emerald-600">{{ overview.presence_rate }}%</p>
+        </div>
+    </div>
+
+    <!-- Chronic Offenders Alert -->
+    {% if chronic_offenders %}
+    <div class="alert-card mb-4">
+        <div class="flex items-center justify-between">
+            <div>
+                <h3 class="font-bold text-red-900">⚠️ Alto Risco Operacional Detectado</h3>
+                <p class="text-sm text-red-700"><strong>{{ overview.chronic_count }}</strong> colaborador(es) com 3+
+                    eventos no período</p>
+            </div>
+            <p class="text-3xl font-bold text-red-700">{{ overview.chronic_count }}</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-2 gap-4">
+        <!-- Top Absences -->
+        <div>
+            <h2 class="mb-1 pb-0.5 border-b border-gray-300 text-[11px]">Ofensores de Faltas</h2>
+            <table class="w-full border-collapse border border-gray-300">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="border border-gray-300 px-1 py-0.5 text-left">Colaborador</th>
+                        <th class="border border-gray-300 px-1 py-0.5 text-left">Setor</th>
+                        <th class="border border-gray-300 px-1 py-0.5 text-right">Faltas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in top_absent %}
+                    <tr>
+                        <td class="border border-gray-300 px-1 py-0.5">{{ item.name }}</td>
+                        <td class="border border-gray-300 px-1 py-0.5 text-xs text-gray-600">{{ item.sector }}</td>
+                        <td class="border border-gray-300 px-1 py-0.5 text-right font-bold text-red-600">{{ item.falta
+                            }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="border border-gray-300 p-1 text-center text-gray-400">Nenhum registro
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Top Sick Leave -->
+        <div>
+            <h2 class="mb-1 pb-0.5 border-b border-gray-300 text-[11px]">Top Atestados Médicos</h2>
+            <table class="w-full border-collapse border border-gray-300">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="border border-gray-300 px-1 py-0.5 text-left">Colaborador</th>
+                        <th class="border border-gray-300 px-1 py-0.5 text-left">Setor</th>
+                        <th class="border border-gray-300 px-1 py-0.5 text-right">Atestados</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in top_sick %}
+                    <tr>
+                        <td class="border border-gray-300 px-1 py-0.5">{{ item.name }}</td>
+                        <td class="border border-gray-300 px-1 py-0.5 text-xs text-gray-600">{{ item.sector }}</td>
+                        <td class="border border-gray-300 px-1 py-0.5 text-right font-bold text-amber-600">{{
+                            item.atestado }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="border border-gray-300 p-2 text-center text-gray-400">Nenhum registro
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Chronic Offenders Detail -->
+        {% if chronic_offenders %}
+        <div class="col-span-2">
+            <h2 class="mb-1 pb-0.5 border-b-2 border-red-600 text-red-900 text-[11px]">⚠️ Ofensores Crônicos - Detalhado
+            </h2>
+            <table class="w-full border-collapse border border-gray-300">
+                <thead>
+                    <tr class="bg-red-50">
+                        <th class="border border-gray-300 px-1 py-0.5 text-left">Colaborador</th>
+                        <th class="border border-gray-300 px-1 py-0.5 text-left">Setor</th>
+                        <th class="border border-gray-300 px-1 py-0.5 text-right">Faltas</th>
+                        <th class="border border-gray-300 px-1 py-0.5 text-right">Atestados</th>
+                        <th class="border border-gray-300 px-1 py-0.5 text-right">Total</th>
+                        <th class="border border-gray-300 px-1 py-0.5 text-right">Tempo Casa</th>
+                        <th class="border border-gray-300 px-1 py-0.5 text-right">Risco %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in chronic_offenders %}
+                    <tr>
+                        <td class="border border-gray-300 px-1 py-0.5">{{ item.name }}</td>
+                        <td class="border border-gray-300 px-1 py-0.5 text-xs text-gray-600">{{ item.sector }}</td>
+                        <td class="border border-gray-300 px-1 py-0.5 text-right text-red-600 font-bold">{{ item.falta
+                            }}</td>
+                        <td class="border border-gray-300 px-1 py-0.5 text-right text-amber-600 font-bold">{{
+                            item.atestado }}</td>
+                        <td class="border border-gray-300 px-1 py-0.5 text-right font-bold text-base">{{
+                            item.combined_events }}</td>
+                        <td class="border border-gray-300 px-1 py-0.5 text-right text-xs text-gray-500">{{
+                            item.tenure_months }}m</td>
+                        <td
+                            class="border border-gray-300 px-1 py-0.5 text-right font-bold {% if item.risk_score > 10 %}text-red-700{% elif item.risk_score > 5 %}text-orange-600{% else %}text-yellow-600{% endif %}">
+                            {{ item.risk_score }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div class="mt-1 p-1.5 bg-red-50 border border-red-200 rounded text-[8px]">
+                <strong>⚠️ Ação Recomendada:</strong> Acompanhamento individual com RH e liderança imediata.
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Sector Heatmap -->
+        <div class="col-span-2">
+            <h2 class="mb-1 pb-0.5 border-b border-gray-300 text-[11px]">Mapa de Risco por Setor</h2>
+            <table class="w-full border-collapse border border-gray-300">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="border border-gray-300 px-1 py-0.5 text-left">Setor</th>
+                        <th class="border border-gray-300 px-1 py-0.5 text-right">HC</th>
+                        <th class="border border-gray-300 px-1 py-0.5 text-right">Faltas</th>
+                        <th class="border border-gray-300 px-1 py-0.5 text-right">Atest.</th>
+                        <th class="border border-gray-300 px-1 py-0.5 text-right">Risco</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sec in sectors %}
+                    <tr>
+                        <td class="border border-gray-300 px-1 py-0.5 font-medium">{{ sec.name }}</td>
+                        <td class="border border-gray-300 px-1 py-0.5 text-right">{{ sec.headcount }}</td>
+                        <td class="border border-gray-300 px-1 py-0.5 text-right">{{ sec.falta }}</td>
+                        <td class="border border-gray-300 px-1 py-0.5 text-right">{{ sec.atestado }}</td>
+                        <td
+                            class="border border-gray-300 px-1 py-0.5 text-right font-bold {% if sec.risk_index > 2 %}text-red-600{% elif sec.risk_index > 1 %}text-amber-600{% else %}text-emerald-600{% endif %}">
+                            {{ sec.risk_index }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Auto-trigger print dialog after page loads
+        window.addEventListener('load', function () {
+            setTimeout(function () {
+                window.print();
+            }, 500);
+        });
+    </script>
+</body>
+
+</html>
