@@ -3,14 +3,17 @@ from fastapi import FastAPI, Request, Form, Depends, HTTPException, status
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from typing import Optional, List
+import json
 from datetime import datetime, timedelta
+import traceback
+import os
 from starlette.middleware.sessions import SessionMiddleware
 from sqlmodel import Session, select, col
 from typing import List
 from database import create_db_and_tables, get_session
 import models
 import logging
-import json
 import unicodedata
 logging.basicConfig(filename='logs.txt', level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger(__name__)
@@ -587,7 +590,6 @@ async def smart_flow_page(request: Request, shift: str = "Manhã", date: Optiona
         if sector_config_db and sector_config_db.config_json:
             sector_config = sector_config_db.config_json
             if isinstance(sector_config, str):
-                import json
                 try:
                     sector_config = json.loads(sector_config)
                 except:
@@ -639,7 +641,21 @@ async def smart_flow_page(request: Request, shift: str = "Manhã", date: Optiona
             "total_tonnage_fmt": fmt_num(total_tonnage_real),
             "total_tonnage_raw": total_tonnage_real, # Raw for JS calc
             "manual_tonnage": daily_op.tonnage or 0, # Pass raw manual value for frontend to know
-            "substituted_ids": list(substituted_ids)
+            "substituted_ids": list(substituted_ids),
+            # JSON data for JavaScript modules
+            "employees_json": json.dumps(daily_op.attendance_log or {}),
+            "config_json": json.dumps(sector_config),
+            "all_employees_json": json.dumps([{
+                "id": e.registration_id,
+                "name": e.name,
+                "role": e.role,
+                "shift": e.work_shift,
+                "cost_center": e.cost_center,
+                "status": e.status,
+                "birthday": e.birthday.isoformat() if e.birthday else None,
+                "admission_date": e.admission_date.isoformat() if e.admission_date else None,
+                "is_substituted": e.registration_id in substituted_ids
+            } for e in employees])
         })
     except Exception as e:
         logger.exception("Error in smart_flow_page")
@@ -886,7 +902,6 @@ async def routine_report(
         if sector_config_db and sector_config_db.config_json:
             sector_config = sector_config_db.config_json
             if isinstance(sector_config, str):
-                import json
                 try:
                     sector_config = json.loads(sector_config)
                 except:

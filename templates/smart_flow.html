@@ -1729,9 +1729,37 @@
             }
         } catch (e) {
             console.error(e);
-            alert('Erro de conexço');
+            alert('Erro de conexão');
         }
     }
 
 </script>
+
+<!-- ========================================
+     MÓDULOS JAVASCRIPT MODULARES
+     ======================================== -->
+<script src="/static/js/utils/format-br.js"></script>
+<script src="/static/js/smart-flow/state.js"></script>
+<script src="/static/js/smart-flow/kpis.js"></script>
+<script src="/static/js/smart-flow/sectors.js"></script>
+<script src="/static/js/smart-flow/modals.js"></script>
+<script src="/static/js/smart-flow/drag-drop.js"></script>
+<script src="/static/js/smart-flow/api.js"></script>
+<script src="/static/js/smart-flow/main.js"></script>
+
+<!-- Dados iniciais do servidor -->
+<script>
+    // Dados passados do backend para o frontend
+    const INITIAL_DATA = {
+        employees: {{ employees_json | default ('[]') | safe }},
+    config: {{ config_json | default ('{}') | safe }},
+    all_employees: {{ all_employees_json | default ('[]') | safe }}
+    };
+
+    console.log('📊 Dados iniciais carregados:', {
+        employees: INITIAL_DATA.employees.length,
+        all_employees: INITIAL_DATA.all_employees.length
+    });
+</script>
+
 {% endblock %}
