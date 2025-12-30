@@ -67,115 +67,146 @@
 </style>
 
 <div class="p-6 space-y-6">
-    <!-- Header -->
-    <div class="flex justify-between items-center mb-6">
-        <div>
-            <h1 class="text-3xl font-bold text-white">Gestão de Pessoas 2.0</h1>
-            <p class="text-slate-400 text-sm mt-1">Radar de Risco Humano-Operacional</p>
-        </div>
-        <button onclick="openPrintPreview()"
-            class="no-print px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 transition text-sm font-medium flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z">
-                </path>
-            </svg>
-            Imprimir Relatório
-        </button>
-    </div>
+    <!-- Modern Header with Filters -->
+    <header class="bg-slate-800 border-b border-slate-700 px-6 py-3 shrink-0 -mx-6 -mt-6 mb-6">
+        <div class="flex items-center justify-between">
 
-    <!-- Modern Filters -->
-    <div class="bg-slate-800 rounded-xl border border-slate-700 p-6 no-print">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-semibold text-slate-300 uppercase tracking-wider">Filtros de Análise</h3>
-            <button onclick="resetFilters()"
-                class="text-xs text-indigo-400 hover:text-indigo-300 transition flex items-center gap-1">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-                    </path>
-                </svg>
-                Resetar
-            </button>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <!-- Shift Filter -->
-            <div>
-                <label class="block text-xs text-slate-400 mb-2 font-medium flex items-center gap-1">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    Turno
-                </label>
-                <select id="shiftFilter"
-                    class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
-                    <option value="Todos" {{ 'selected' if current_shift=='Todos' else '' }}>Todos os Turnos</option>
-                    <option value="Manhã" {{ 'selected' if current_shift=='Manhã' else '' }}>🌅 Manhã</option>
-                    <option value="Tarde" {{ 'selected' if current_shift=='Tarde' else '' }}>☀️ Tarde</option>
-                    <option value="Noite" {{ 'selected' if current_shift=='Noite' else '' }}>🌙 Noite</option>
-                </select>
+            <!-- Left: Brand & Period Info -->
+            <div class="flex flex-col flex-1">
+                <h1 class="text-lg font-bold text-white flex items-center gap-2">
+                    <span class="text-indigo-500 text-xl">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
+                            </path>
+                        </svg>
+                    </span> Gestão de Pessoas 2.0
+                </h1>
+                <p class="text-[10px] text-slate-400 font-medium tracking-wide">
+                    📅 {{ start_date }} a {{ end_date }} • {{ ((end_date.split('-')[0] | int - start_date.split('-')[0]
+                    | int) * 365 + (end_date.split('-')[1] | int - start_date.split('-')[1] | int) * 30 +
+                    (end_date.split('-')[2] | int - start_date.split('-')[2] | int)) }} dias analisados
+                </p>
             </div>
 
-            <!-- Start Date -->
-            <div>
-                <label class="block text-xs text-slate-400 mb-2 font-medium flex items-center gap-1">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
-                        </path>
-                    </svg>
-                    Data Início
-                </label>
-                <input type="date" id="startDateFilter" value="{{ start_date }}"
-                    class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+            <!-- Center: Date Controls -->
+            <div
+                class="flex items-center gap-4 bg-slate-900/80 p-1.5 rounded-2xl border border-slate-700/60 shadow-inner">
+
+                <!-- Date Início -->
+                <div class="relative group px-2">
+                    <div class="absolute inset-y-0 left-2 flex items-center pointer-events-none">
+                        <svg class="h-4 w-4 text-slate-500 group-hover:text-indigo-400 transition" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                            </path>
+                        </svg>
+                    </div>
+                    <input type="date" id="startDateFilter" value="{{ start_date }}"
+                        class="bg-transparent text-white text-xs font-bold py-1.5 pl-8 pr-1 border-none focus:ring-0 cursor-pointer outline-none w-32 text-center tracking-wide hover:text-indigo-200 transition">
+                </div>
+
+                <div class="w-px h-5 bg-slate-700"></div>
+
+                <!-- Date Fim -->
+                <div class="relative group px-2">
+                    <div class="absolute inset-y-0 left-2 flex items-center pointer-events-none">
+                        <svg class="h-4 w-4 text-slate-500 group-hover:text-indigo-400 transition" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                            </path>
+                        </svg>
+                    </div>
+                    <input type="date" id="endDateFilter" value="{{ end_date }}"
+                        class="bg-transparent text-white text-xs font-bold py-1.5 pl-8 pr-1 border-none focus:ring-0 cursor-pointer outline-none w-32 text-center tracking-wide hover:text-indigo-200 transition">
+                </div>
+
+                <div class="w-px h-5 bg-slate-700"></div>
+
+                <!-- Shift Tabs -->
+                <div class="flex p-0.5 bg-slate-800 rounded-xl">
+                    <button onclick="changeShift('Todos')"
+                        class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all {{ 'bg-indigo-600 text-white' if current_shift == 'Todos' else 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50' }}">
+                        Todos
+                    </button>
+                    <button onclick="changeShift('Manhã')"
+                        class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all {{ 'bg-indigo-600 text-white' if current_shift == 'Manhã' else 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50' }}">
+                        Manhã
+                    </button>
+                    <button onclick="changeShift('Tarde')"
+                        class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all {{ 'bg-indigo-600 text-white' if current_shift == 'Tarde' else 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50' }}">
+                        Tarde
+                    </button>
+                    <button onclick="changeShift('Noite')"
+                        class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all {{ 'bg-indigo-600 text-white' if current_shift == 'Noite' else 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50' }}">
+                        Noite
+                    </button>
+                </div>
+
             </div>
 
-            <!-- End Date -->
-            <div>
-                <label class="block text-xs text-slate-400 mb-2 font-medium flex items-center gap-1">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
-                        </path>
-                    </svg>
-                    Data Fim
-                </label>
-                <input type="date" id="endDateFilter" value="{{ end_date }}"
-                    class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
-            </div>
+            <!-- Right: Actions -->
+            <div class="flex items-center justify-end gap-3 flex-1">
+                <!-- Quick Presets -->
+                <div class="flex gap-1">
+                    <button onclick="setPreset('month')"
+                        class="text-xs px-2 py-1 rounded-lg bg-slate-700/50 hover:bg-slate-600 text-slate-300 hover:text-white transition font-medium">
+                        Este Mês
+                    </button>
+                    <button onclick="setPreset('quarter')"
+                        class="text-xs px-2 py-1 rounded-lg bg-slate-700/50 hover:bg-slate-600 text-slate-300 hover:text-white transition font-medium">
+                        Trimestre
+                    </button>
+                    <button onclick="setPreset('year')"
+                        class="text-xs px-2 py-1 rounded-lg bg-slate-700/50 hover:bg-slate-600 text-slate-300 hover:text-white transition font-medium">
+                        Este Ano
+                    </button>
+                </div>
 
-            <!-- Apply Button -->
-            <div class="flex items-end">
-                <button onclick="applyFilters()"
-                    class="w-full px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-lg font-medium transition shadow-lg hover:shadow-indigo-500/50 flex items-center justify-center gap-2">
+                <div class="h-6 w-px bg-slate-700/50"></div>
+
+                <button onclick="openPrintPreview()"
+                    class="bg-purple-600/10 text-purple-400 hover:bg-purple-600/20 hover:text-purple-300 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 border border-purple-500/20"
+                    title="Gerar Relatório">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                    Relatório
+                </button>
+
+                <button onclick="resetFilters()"
+                    class="text-slate-400 hover:text-white hover:bg-slate-700/50 px-3 py-2 rounded-xl text-xs font-medium transition flex items-center gap-1.5 border border-transparent hover:border-slate-600"
+                    title="Resetar Filtros">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                        </path>
                     </svg>
-                    Filtrar
+                    Resetar
+                </button>
+
+                <button onclick="applyFilters()"
+                    class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-lg shadow-indigo-900/20 active:scale-95 transition flex items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5">
+                        <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <span>Filtrar</span>
                 </button>
             </div>
-        </div>
 
-        <!-- Quick Presets -->
-        <div class="mt-4 flex flex-wrap gap-2">
-            <span class="text-xs text-slate-500">Atalhos:</span>
-            <button onclick="setPreset('month')"
-                class="text-xs px-3 py-1 rounded-full bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 transition">Este
-                Mês</button>
-            <button onclick="setPreset('quarter')"
-                class="text-xs px-3 py-1 rounded-full bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 transition">Último
-                Trimestre</button>
-            <button onclick="setPreset('year')"
-                class="text-xs px-3 py-1 rounded-full bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 transition">Este
-                Ano</button>
         </div>
-    </div>
+    </header>
 
     <!-- Overview Stats -->
     <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <!-- Headcount Card -->
         <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
             <div class="flex items-center gap-2 mb-2">
                 <div class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
@@ -185,11 +216,25 @@
                         </path>
                     </svg>
                 </div>
-                <h3 class="text-slate-400 text-[10px] font-semibold uppercase tracking-wider">Headcount</h3>
+                <h3 class="text-slate-400 text-[10px] font-semibold uppercase tracking-wider flex-1">Headcount</h3>
+                <div class="group relative">
+                    <svg class="w-3 h-3 text-slate-500 hover:text-blue-400 cursor-help transition" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <div
+                        class="absolute bottom-full right-0 mb-2 w-64 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                        <p class="text-xs text-slate-300 font-semibold mb-1">Como é calculado:</p>
+                        <p class="text-xs text-slate-400">Total de colaboradores ativos (excluindo demitidos) filtrados
+                            pelo turno selecionado.</p>
+                    </div>
+                </div>
             </div>
             <p class="text-2xl font-bold text-white">{{ overview.headcount }}</p>
         </div>
 
+        <!-- Faltas Card -->
         <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
             <div class="flex items-center gap-2 mb-2">
                 <div class="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
@@ -198,13 +243,27 @@
                         </path>
                     </svg>
                 </div>
-                <h3 class="text-slate-400 text-[10px] font-semibold uppercase tracking-wider">Faltas</h3>
+                <h3 class="text-slate-400 text-[10px] font-semibold uppercase tracking-wider flex-1">Faltas</h3>
+                <div class="group relative">
+                    <svg class="w-3 h-3 text-slate-500 hover:text-red-400 cursor-help transition" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <div
+                        class="absolute bottom-full right-0 mb-2 w-64 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                        <p class="text-xs text-slate-300 font-semibold mb-1">Como é calculado:</p>
+                        <p class="text-xs text-slate-400">Soma de todas as faltas registradas no período selecionado.
+                            Média = Total de faltas ÷ Headcount.</p>
+                    </div>
+                </div>
             </div>
             <p class="text-2xl font-bold bg-gradient-to-r from-red-400 to-pink-400 bg-clip-text text-transparent">{{
                 overview.total_absences }}</p>
             <p class="text-[10px] text-slate-500 mt-1">Média: {{ overview.avg_absence_per_emp }}</p>
         </div>
 
+        <!-- Atestados Card -->
         <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
             <div class="flex items-center gap-2 mb-2">
                 <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
@@ -214,11 +273,25 @@
                         </path>
                     </svg>
                 </div>
-                <h3 class="text-slate-400 text-[10px] font-semibold uppercase tracking-wider">Atestados</h3>
+                <h3 class="text-slate-400 text-[10px] font-semibold uppercase tracking-wider flex-1">Atestados</h3>
+                <div class="group relative">
+                    <svg class="w-3 h-3 text-slate-500 hover:text-amber-400 cursor-help transition" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <div
+                        class="absolute bottom-full right-0 mb-2 w-64 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                        <p class="text-xs text-slate-300 font-semibold mb-1">Como é calculado:</p>
+                        <p class="text-xs text-slate-400">Soma de todos os atestados médicos registrados no período
+                            selecionado.</p>
+                    </div>
+                </div>
             </div>
             <p class="text-2xl font-bold text-white">{{ overview.total_sick }}</p>
         </div>
 
+        <!-- Presença Card -->
         <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
             <div class="flex items-center gap-2 mb-2">
                 <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
@@ -227,11 +300,27 @@
                             d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                 </div>
-                <h3 class="text-slate-400 text-[10px] font-semibold uppercase tracking-wider">Presença</h3>
+                <h3 class="text-slate-400 text-[10px] font-semibold uppercase tracking-wider flex-1">Presença</h3>
+                <div class="group relative">
+                    <svg class="w-3 h-3 text-slate-500 hover:text-emerald-400 cursor-help transition" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <div
+                        class="absolute bottom-full right-0 mb-2 w-72 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                        <p class="text-xs text-slate-300 font-semibold mb-1">Como é calculado:</p>
+                        <p class="text-xs text-slate-400 mb-2">Fórmula: (1 - (Total Eventos ÷ Frequência Teórica)) × 100
+                        </p>
+                        <p class="text-xs text-slate-500">• Frequência Teórica = Headcount × Dias no Período<br>• Total
+                            Eventos = Faltas + Atestados<br>• 100% = Presença perfeita</p>
+                    </div>
+                </div>
             </div>
             <p class="text-2xl font-bold text-white">{{ overview.presence_rate }}%</p>
         </div>
 
+        <!-- Risco Geral Card -->
         <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
             <div class="flex items-center gap-2 mb-2">
                 <div class="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
@@ -240,11 +329,25 @@
                             d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
                     </svg>
                 </div>
-                <h3 class="text-slate-400 text-[10px] font-semibold uppercase tracking-wider">Risco Geral</h3>
+                <h3 class="text-slate-400 text-[10px] font-semibold uppercase tracking-wider flex-1">Risco Geral</h3>
+                <div class="group relative">
+                    <svg class="w-3 h-3 text-slate-500 hover:text-purple-400 cursor-help transition" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <div
+                        class="absolute bottom-full right-0 mb-2 w-64 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                        <p class="text-xs text-slate-300 font-semibold mb-1">Como é calculado:</p>
+                        <p class="text-xs text-slate-400">Índice do setor principal: (Faltas + Atestados) ÷ Headcount do
+                            setor. Quanto maior, mais risco.</p>
+                    </div>
+                </div>
             </div>
             <p class="text-2xl font-bold text-purple-400">{{ sectors[0].risk_index if sectors else 0 }}</p>
         </div>
 
+        <!-- Ofensores Card -->
         <div class="bg-gradient-to-br from-red-900/30 to-orange-900/30 rounded-xl border border-red-500/40 p-4">
             <div class="flex items-center gap-2 mb-2">
                 <div class="w-8 h-8 rounded-lg bg-red-500/30 flex items-center justify-center">
@@ -254,40 +357,27 @@
                         </path>
                     </svg>
                 </div>
-                <h3 class="text-red-300 text-[10px] font-semibold uppercase tracking-wider">Ofensores</h3>
+                <h3 class="text-red-300 text-[10px] font-semibold uppercase tracking-wider flex-1">Ofensores</h3>
+                <div class="group relative">
+                    <svg class="w-3 h-3 text-red-400 hover:text-red-300 cursor-help transition" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <div
+                        class="absolute bottom-full right-0 mb-2 w-64 p-3 bg-slate-900 border border-red-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                        <p class="text-xs text-red-300 font-semibold mb-1">Como é calculado:</p>
+                        <p class="text-xs text-red-400">Colaboradores com 3+ eventos combinados (faltas + atestados) no
+                            período. Alto risco operacional.</p>
+                    </div>
+                </div>
             </div>
             <p class="text-2xl font-bold text-red-300">{{ overview.chronic_count }}</p>
             <p class="text-[10px] text-red-400 mt-1">Alto Risco</p>
         </div>
     </div>
 
-    <!-- Chronic Offenders Alert -->
-    {% if chronic_offenders %}
-    <div class="bg-gradient-to-r from-red-900/20 to-orange-900/20 rounded-xl border border-red-500/30 p-6">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center">
-                    <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
-                        </path>
-                    </svg>
-                </div>
-                <div>
-                    <h3 class="text-xl font-bold text-white">Alto Risco Operacional Detectado</h3>
-                    <p class="text-red-300 text-sm mt-1">
-                        <strong>{{ overview.chronic_count }}</strong> colaborador(es) com 3+ eventos (faltas/atestados)
-                        no período
-                    </p>
-                </div>
-            </div>
-            <div class="text-right">
-                <p class="text-3xl font-bold text-red-400">{{ overview.chronic_count }}</p>
-                <p class="text-xs text-red-300 uppercase tracking-wider">Ofensores Crônicos</p>
-            </div>
-        </div>
-    </div>
-    {% endif %}
+
 
     <!-- Main Content Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -446,40 +536,6 @@
 
         <!-- Right Column -->
         <div class="space-y-8">
-            <!-- Sector Heatmap -->
-            <div class="bg-slate-800 rounded-xl border border-slate-700 p-6">
-                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                    <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7">
-                        </path>
-                    </svg>
-                    Mapa de Risco por Setor
-                </h2>
-                <div class="space-y-4">
-                    {% for sec in sectors %}
-                    <div class="group">
-                        <div class="flex justify-between text-sm mb-1">
-                            <span class="text-white font-medium">{{ sec.name }}</span>
-                            <span class="text-slate-400 text-xs">Risco: {{ sec.risk_index }} | HC: {{ sec.headcount
-                                }}</span>
-                        </div>
-                        <div class="w-full bg-slate-700 rounded-full h-2.5 overflow-hidden">
-                            {% set width = (sec.risk_index * 20) | float %}
-                            {% if width > 100 %}{% set width = 100 %}{% endif %}
-                            <div class="h-2.5 rounded-full {% if sec.risk_index > 2 %}bg-red-500{% elif sec.risk_index > 1 %}bg-amber-500{% else %}bg-emerald-500{% endif %}"
-                                style="width: {{ width }}%"></div>
-                        </div>
-                        <div
-                            class="flex justify-end gap-3 mt-1 text-xs text-slate-500 opacity-0 group-hover:opacity-100 transition">
-                            <span>Faltas: {{ sec.falta }}</span>
-                            <span>Atestados: {{ sec.atestado }}</span>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-
             <!-- Insights -->
             <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl border border-indigo-500/20 p-6">
                 <h2 class="text-xl font-bold text-indigo-400 mb-4 flex items-center gap-2">
@@ -560,10 +616,16 @@
     }
 
     function openPrintPreview() {
-        const shift = document.getElementById('shiftFilter').value;
+        const shift = document.getElementById('shiftFilter') ? document.getElementById('shiftFilter').value : '{{ current_shift }}';
         const startDate = document.getElementById('startDateFilter').value;
         const endDate = document.getElementById('endDateFilter').value;
         window.open(`/people-intelligence/report?shift=${shift}&start_date=${startDate}&end_date=${endDate}`, '_blank');
+    }
+
+    function changeShift(shift) {
+        const startDate = document.getElementById('startDateFilter').value;
+        const endDate = document.getElementById('endDateFilter').value;
+        window.location.href = `/people-intelligence?shift=${shift}&start_date=${startDate}&end_date=${endDate}`;
     }
 </script>
 {% endblock %}
