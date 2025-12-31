@@ -874,6 +874,32 @@ async def update_routine(
         print(f"Error updating routine: {e}")
         return JSONResponse({"error": str(e)}, status_code=500)
 
+# --- Employees API ---
+
+@app.get("/api/employees", response_class=JSONResponse)
+async def get_employees(
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """Retorna lista de todos os colaboradores ativos"""
+    require_login(request)
+    
+    employees = session.exec(
+        select(models.Employee)
+        .where(models.Employee.status != 'fired')
+    ).all()
+    
+    return {
+        "employees": [{
+            "id": e.registration_id,
+            "name": e.name,
+            "role": e.role,
+            "shift": e.work_shift,
+            "cost_center": e.cost_center,
+            "status": e.status
+        } for e in employees]
+    }
+
 # --- Smart Flow Hierarchical API Endpoints ---
 
 @app.get("/api/smart-flow/sectors", response_class=JSONResponse)
