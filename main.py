@@ -873,7 +873,320 @@ async def update_routine(
     except Exception as e:
         print(f"Error updating routine: {e}")
         return JSONResponse({"error": str(e)}, status_code=500)
+
+# --- Smart Flow Hierarchical API Endpoints ---
+
+@app.get("/api/smart-flow/sectors", response_class=JSONResponse)
+async def get_sectors(
+    request: Request,
+    shift: str = "Manhã",
+    session: Session = Depends(get_session)
+):
+    """Retorna todos os setores e sub-setores de um turno"""
+    require_login(request)
+    
+    sectors = session.exec(
+        select(models.Sector)
+        .where(models.Sector.shift == shift)
+        .order_by(models.Sector.order)
+    ).all()
+    
+    result = []
+    for sector in sectors:
+        subsectors = session.exec(
+            select(models.SubSector)
+            .where(models.SubSector.sector_id == sector.id)
+            .order_by(models.SubSector.order)
+        ).all()
+        
+        result.append({
+            "id": sector.id,
+            "name": sector.name,
+            "max_employees": sector.max_employees,
+            "color": sector.color,
+            "icon": sector.icon,
+            "order": sector.order,
+            "subsectors": [{
+                "id": sub.id,
+                "name": sub.name,
+                "max_employees": sub.max_employees,
+                "order": sub.order
+            } for sub in subsectors]
+        })
+    
+    return {"sectors": result}
+
+@app.post("/api/smart-flow/sectors", response_class=JSONResponse)
+async def create_sector(
+    request: Request,
+    name: str = Form(...),
+    shift: str = Form(...),
+    max_employees: int = Form(0),
+    color: str = Form("blue"),
+    session: Session = Depends(get_session)
+):
+    """Cria um novo setor"""
+    require_login(request)
+    
+    # Pegar próxima ordem
+    max_order_result = session.exec(
+        select(models.Sector.order)
+        .where(models.Sector.shift == shift)
+        .order_by(models.Sector.order.desc())
+    ).first()
+    
+    max_order = max_order_result if max_order_result is not None else 0
+    
+    new_sector = models.Sector(
+        name=name,
+        shift=shift,
+        max_employees=max_employees,
+        color=color,
+        order=max_order + 1
+    )
+    
+    session.add(new_sector)
+    session.commit()
+    session.refresh(new_sector)
+    
+    return {"success": True, "sector": {"id": new_sector.id, "name": new_sector.name}}
+
+@app.put("/api/smart-flow/sectors/{sector_id}", response_class=JSONResponse)
+async def update_sector(
+    request: Request,
+    sector_id: int,
+    name: str = Form(None),
+    max_employees: int = Form(None),
+    color: str = Form(None),
+    session: Session = Depends(get_session)
+):
+    """Edita um setor existente"""
+    require_login(request)
+    
+    sector = session.get(models.Sector, sector_id)
+    if not sector:
+        return JSONResponse({"error": "Setor não encontrado"}, status_code=404)
+    
+    if name is not None:
+        sector.name = name
+    if max_employees is not None:
+        sector.max_employees = max_employees
+    if color is not None:
+        sector.color = color
+    
+    sector.updated_at = datetime.now()
+    session.add(sector)
+    session.commit()
+    
+    return {"success": True}
+
+@app.delete("/api/smart-flow/sectors/{sector_id}", response_class=JSONResponse)
+async def delete_sector(
+    request: Request,
+    sector_id: int,
+    session: Session = Depends(get_session)
+):
+    """Exclui um setor e remove todas as alocações"""
+    require_login(request)
+    
+    sector = session.get(models.Sector, sector_id)
+    if not sector:
+        return JSONResponse({"error": "Setor não encontrado"}, status_code=404)
+    
+    # Cascade delete vai remover sub-setores e alocações automaticamente
+    session.delete(sector)
+    session.commit()
+    
+    return {"success": True}
+
+@app.post("/api/smart-flow/subsectors", response_class=JSONResponse)
+async def create_subsector(
+    request: Request,
+    sector_id: int = Form(...),
+    name: str = Form(...),
+    max_employees: int = Form(0),
+    session: Session = Depends(get_session)
+):
+    """Cria um novo sub-setor"""
+    require_login(request)
+    
+    sector = session.get(models.Sector, sector_id)
+    if not sector:
+        return JSONResponse({"error": "Setor não encontrado"}, status_code=404)
+    
+    # Pegar próxima ordem
+    max_order_result = session.exec(
+        select(models.SubSector.order)
+        .where(models.SubSector.sector_id == sector_id)
+        .order_by(models.SubSector.order.desc())
+    ).first()
+    
+    max_order = max_order_result if max_order_result is not None else 0
+    
+    new_subsector = models.SubSector(
+        sector_id=sector_id,
+        name=name,
+        max_employees=max_employees,
+        order=max_order + 1
+    )
+    
+    session.add(new_subsector)
+    session.commit()
+    session.refresh(new_subsector)
+    
+    return {"success": True, "subsector": {"id": new_subsector.id, "name": new_subsector.name}}
+
+@app.put("/api/smart-flow/subsectors/{subsector_id}", response_class=JSONResponse)
+async def update_subsector(
+    request: Request,
+    subsector_id: int,
+    name: str = Form(None),
+    max_employees: int = Form(None),
+    session: Session = Depends(get_session)
+):
+    """Edita um sub-setor existente"""
+    require_login(request)
+    
+    subsector = session.get(models.SubSector, subsector_id)
+    if not subsector:
+        return JSONResponse({"error": "Sub-setor não encontrado"}, status_code=404)
+    
+    if name is not None:
+        subsector.name = name
+    if max_employees is not None:
+        subsector.max_employees = max_employees
+    
+    session.add(subsector)
+    session.commit()
+    
+    return {"success": True}
+
+@app.delete("/api/smart-flow/subsectors/{subsector_id}", response_class=JSONResponse)
+async def delete_subsector(
+    request: Request,
+    subsector_id: int,
+    session: Session = Depends(get_session)
+):
+    """Exclui um sub-setor e remove todas as alocações"""
+    require_login(request)
+    
+    subsector = session.get(models.SubSector, subsector_id)
+    if not subsector:
+        return JSONResponse({"error": "Sub-setor não encontrado"}, status_code=404)
+    
+    # Cascade delete vai remover alocações automaticamente
+    session.delete(subsector)
+    session.commit()
+    
+    return {"success": True}
+
+@app.get("/api/smart-flow/allocations", response_class=JSONResponse)
+async def get_allocations(
+    request: Request,
+    date: str,
+    shift: str,
+    session: Session = Depends(get_session)
+):
+    """Retorna alocações e rotinas do dia/turno"""
+    require_login(request)
+    
+    # Buscar alocações
+    allocations = session.exec(
+        select(models.EmployeeAllocation)
+        .where(models.EmployeeAllocation.date == date)
+        .where(models.EmployeeAllocation.shift == shift)
+    ).all()
+    
+    # Buscar rotinas
+    routines = session.exec(
+        select(models.EmployeeRoutine)
+        .where(models.EmployeeRoutine.date == date)
+        .where(models.EmployeeRoutine.shift == shift)
+    ).all()
+    
+    # Montar resposta
+    allocations_map = {}
+    for alloc in allocations:
+        allocations_map[alloc.employee_id] = {
+            "subsector_id": alloc.subsector_id,
+            "allocation_id": alloc.id
+        }
+    
+    routines_map = {}
+    for routine in routines:
+        routines_map[routine.employee_id] = routine.routine
+    
+    return {
+        "allocations": allocations_map,
+        "routines": routines_map
+    }
+
+@app.post("/api/smart-flow/allocations/save", response_class=JSONResponse)
+async def save_allocations(
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """Salva alocações e rotinas do dia"""
+    require_login(request)
+    
+    try:
+        data = await request.json()
+        date = data.get("date")
+        shift = data.get("shift")
+        allocations = data.get("allocations", {})  # {employee_id: subsector_id}
+        routines = data.get("routines", {})  # {employee_id: routine}
+        
+        # 1. Limpar alocações antigas do dia/turno
+        old_allocations = session.exec(
+            select(models.EmployeeAllocation)
+            .where(models.EmployeeAllocation.date == date)
+            .where(models.EmployeeAllocation.shift == shift)
+        ).all()
+        
+        for alloc in old_allocations:
+            session.delete(alloc)
+        
+        # 2. Criar novas alocações
+        for emp_id, subsector_id in allocations.items():
+            new_alloc = models.EmployeeAllocation(
+                date=date,
+                shift=shift,
+                employee_id=int(emp_id),
+                subsector_id=subsector_id
+            )
+            session.add(new_alloc)
+        
+        # 3. Atualizar rotinas
+        for emp_id, routine in routines.items():
+            existing = session.exec(
+                select(models.EmployeeRoutine)
+                .where(models.EmployeeRoutine.date == date)
+                .where(models.EmployeeRoutine.shift == shift)
+                .where(models.EmployeeRoutine.employee_id == int(emp_id))
+            ).first()
+            
+            if existing:
+                existing.routine = routine
+                existing.updated_at = datetime.now()
+                session.add(existing)
+            else:
+                new_routine = models.EmployeeRoutine(
+                    date=date,
+                    shift=shift,
+                    employee_id=int(emp_id),
+                    routine=routine
+                )
+                session.add(new_routine)
+        
+        session.commit()
+        
+        return {"success": True, "message": "Alocações e rotinas salvas com sucesso"}
+    except Exception as e:
+        logger.exception("Error saving allocations")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
 # --- Report Route ---
+
 @app.get("/routine/report", response_class=HTMLResponse)
 async def routine_report(
     request: Request,
@@ -2116,3 +2429,54 @@ async def people_intelligence_report(
     })
 
 
+
+@app.get("/smart-flow/load", response_class=JSONResponse)
+async def smart_flow_load(request: Request, shift: str = "Manhã", date: Optional[str] = None, session: Session = Depends(get_session)):
+    try:
+        if not date:
+            date = datetime.now().strftime("%Y-%m-%d")
+
+        # Get Sector Config
+        sector_config_db = session.exec(select(models.SectorConfiguration).where(models.SectorConfiguration.shift_name == shift)).first()
+        sector_config = {}
+        if sector_config_db and sector_config_db.config_json:
+            sector_config = sector_config_db.config_json
+            if isinstance(sector_config, str):
+                try:
+                    sector_config = json.loads(sector_config)
+                except:
+                    sector_config = {}
+        
+        # Default sectors if empty
+        if not sector_config or not isinstance(sector_config, dict) or "sectors" not in sector_config:
+            sector_config = {
+                "sectors": [
+                    { "key": "recebimento", "label": "Recebimento", "target": 0, "subsectors": ["Doca 1", "Doca 2", "Paletização"] },
+                    { "key": "camara_fria", "label": "Câmara Fria", "target": 0, "subsectors": ["Armazenagem", "Abastecimento"] },
+                    { "key": "selecao", "label": "Seleção", "target": 0, "subsectors": ["Linha 1", "Linha 2"] },
+                    { "key": "expedicao", "label": "Expedição", "target": 0, "subsectors": ["Separação", "Carregamento"] }
+                ]
+            }
+
+        # Get Operation
+        daily_op = session.exec(
+            select(models.DailyOperation)
+            .where(models.DailyOperation.date == date)
+            .where(models.DailyOperation.shift == shift)
+        ).first()
+
+        employees_log = {}
+        manual_tonnage = 0
+        
+        if daily_op:
+            employees_log = daily_op.attendance_log or {}
+            manual_tonnage = daily_op.tonnage or 0
+
+        return {
+            "employees_log": employees_log,
+            "sector_config": sector_config.get("sectors", []),
+            "manual_tonnage": manual_tonnage
+        }
+    except Exception as e:
+        logger.error(f"Error in smart_flow_load: {e}")
+        return JSONResponse(content={"error": str(e)}, status_code=500)

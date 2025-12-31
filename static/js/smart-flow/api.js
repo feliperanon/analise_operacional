@@ -1,103 +1,112 @@
-// API Module - Chamadas ao backend
+/**
+ * API Module - Smart Flow V2
+ * Responsável por toda comunicação com o Backend.
+ */
 
-// Salvar rotina do dia
-async function saveRoutine() {
-    if (!isDirty()) {
-        alert('Nenhuma alteração para salvar');
-        return;
-    }
-
-    const data = {
-        date: currentDate,
-        shift: currentShift,
-        employees_log: employees.log,
-        sector_config: SECTORS,
-        events: eventLogger.getEvents()
-    };
-
-    try {
-        const response = await fetch('/smart-flow/save', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-
-        if (response.ok) {
-            clearDirty();
-            eventLogger.clear();
-            alert('Rotina salva com sucesso!');
-        } else {
-            alert('Erro ao salvar rotina');
+const API = {
+    /**
+     * Carrega a rotina do dia/turno
+     */
+    async loadRoutine(date, shift) {
+        try {
+            const response = await fetch(`/api/smart-flow/routine?date=${date}&shift=${shift}`);
+            if (!response.ok) throw new Error('Erro ao carregar rotina');
+            return await response.json();
+        } catch (error) {
+            console.error('API Error:', error);
+            // Retorna estrutura vazia em caso de erro para não quebrar a UI
+            return { log: {}, tonnage: 0, sectors_config: [] };
         }
-    } catch (error) {
-        console.error('Erro:', error);
-        alert('Erro de conexão');
-    }
-}
+    },
 
-// Carregar rotina do dia
-async function loadRoutine() {
-    try {
-        const response = await fetch(`/smart-flow/load?date=${currentDate}&shift=${currentShift}`);
-
-        if (response.ok) {
-            const data = await response.json();
-
-            if (data.employees_log) {
-                employees.log = data.employees_log;
-            }
-
-            if (data.sector_config) {
-                SECTORS.length = 0;
-                SECTORS.push(...data.sector_config);
-            }
-
-            renderFlow();
-            updateKPIs();
+    /**
+     * Salva o estado atual (log de alocações)
+     */
+    async saveRoutine(payload) {
+        try {
+            const response = await fetch('/api/smart-flow/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) throw new Error('Erro ao salvar');
+            return await response.json();
+        } catch (error) {
+            console.error('API Error:', error);
+            return { success: false };
         }
-    } catch (error) {
-        console.error('Erro ao carregar rotina:', error);
-    }
-}
+    },
 
-// Atualizar status de colaborador
-async function updateEmployeeStatus(empId, status) {
-    try {
-        const response = await fetch(`/employees/${empId}/status`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: status })
-        });
+    /**
+     * Adiciona um novo colaborador
+     */
+    async addEmployee(data) {
+        // Implementar se necessário endpoint via AJAX, 
+        // ou manter o form submit tradicional do HTML se preferir.
+    },
 
-        return response.ok;
-    } catch (error) {
-        console.error('Erro ao atualizar status:', error);
-        return false;
-    }
-}
-
-// Agendar férias
-async function scheduleVacation(empId, startDate, endDate) {
-    try {
-        const response = await fetch(`/employees/${empId}/vacation`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                start_date: startDate,
-                end_date: endDate
-            })
-        });
-
-        if (response.ok) {
-            return true;
-        } else {
-            const error = await response.json();
-            alert(error.error || 'Erro ao agendar férias');
-            return false;
+    /**
+     * Reseta a rotina do dia
+     */
+    async resetRoutine(date, shift) {
+        try {
+            const response = await fetch('/api/smart-flow/reset', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date, shift })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('API Reset Error:', error);
+            return { success: false };
         }
-    } catch (error) {
-        console.error('Erro:', error);
-        alert('Erro de conexão');
-        return false;
+    },
+
+    /**
+     * Carrega setores e sub-setores do turno
+     */
+    async loadSectors(shift) {
+        try {
+            const response = await fetch(`/api/smart-flow/sectors?shift=${shift}`);
+            if (!response.ok) throw new Error('Erro ao carregar setores');
+            return await response.json();
+        } catch (error) {
+            console.error('API Error:', error);
+            return { sectors: [] };
+        }
+    },
+
+    /**
+     * Carrega alocações e rotinas do dia/turno
+     */
+    async loadAllocations(date, shift) {
+        try {
+            const response = await fetch(`/api/smart-flow/allocations?date=${date}&shift=${shift}`);
+            if (!response.ok) throw new Error('Erro ao carregar alocações');
+            return await response.json();
+        } catch (error) {
+            console.error('API Error:', error);
+            return { allocations: {}, routines: {} };
+        }
+    },
+
+    /**
+     * Salva alocações e rotinas
+     */
+    async saveAllocations(payload) {
+        try {
+            const response = await fetch('/api/smart-flow/allocations/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) throw new Error('Erro ao salvar alocações');
+            return await response.json();
+        } catch (error) {
+            console.error('API Error:', error);
+            return { success: false };
+        }
     }
-}
+};
+
+window.API = API; // Expor globalmente

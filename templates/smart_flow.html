@@ -1,52 +1,13 @@
 {% extends "base.html" %}
 
 {% block content %}
+<div class="h-screen flex flex-col bg-slate-900 text-slate-100 font-sans overflow-hidden">
 
-
-<style>
-    @keyframes slideUp {
-        from {
-            transform: translateY(100%);
-            opacity: 0;
-        }
-
-        to {
-            transform: translateY(0);
-            opacity: 1;
-        }
-    }
-
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-        }
-
-        to {
-            opacity: 1;
-        }
-    }
-
-    .animate-slide-up {
-        animation: slideUp 0.3s ease-out forwards;
-    }
-
-    .animate-fade-in {
-        animation: fadeIn 0.3s ease-out forwards;
-    }
-
-    /* Sector Card - Delete Btn transition */
-    .delete-btn {
-        transition: opacity 0.2s, background-color 0.2s;
-    }
-</style>
-
-<div class="flex flex-col h-full">
-    <!-- Header -->
     <!-- Header -->
     <header class="bg-slate-800 border-b border-slate-700 px-6 py-3 shrink-0">
         <div class="flex items-center justify-between">
 
-            <!-- Left: Brand (Fixed width or Flex-1) -->
+            <!-- Left: Brand -->
             <div class="flex flex-col flex-1">
                 <h1 class="text-lg font-bold text-white flex items-center gap-2">
                     <span class="text-blue-500 text-xl">
@@ -69,10 +30,11 @@
                         <svg class="h-4 w-4 text-slate-500 group-hover:text-blue-400 transition" fill="none"
                             viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                            </path>
                         </svg>
                     </div>
-                    <input type="date" id="date-picker" value="{{current_date}}" onchange="changeDate(this.value)"
+                    <input type="date" id="date-picker" value="{{ current_date }}" onchange="changeDate(this.value)"
                         class="bg-transparent text-white text-xs font-bold py-1.5 pl-8 pr-1 border-none focus:ring-0 cursor-pointer outline-none w-32 text-center tracking-wide hover:text-blue-200 transition"
                         onclick="this.showPicker()">
                 </div>
@@ -80,1686 +42,254 @@
                 <div class="w-px h-5 bg-slate-700"></div>
 
                 <!-- Shift Tabs -->
-                <div class="flex p-0.5 bg-slate-800 rounded-xl">
-                    <button onclick="changeShift('Manhã')"
-                        class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all{{'bg-blue-600 text-white shadow-md' if current_shift == 'Manhã' else 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50'}}">Manhã</button>
-                    <button onclick="changeShift('Tarde')"
-                        class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all{{'bg-orange-500 text-white shadow-md' if current_shift == 'Tarde' else 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50'}}">Tarde</button>
-                    <button onclick="changeShift('Noite')"
-                        class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all{{'bg-purple-600 text-white shadow-md' if current_shift == 'Noite' else 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50'}}">Noite</button>
+                <div class="flex p-0.5 bg-slate-800 rounded-xl" id="shift-controls">
+                    <button onclick="changeShift('Manhã')" data-shift="Manhã"
+                        class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all text-slate-500 hover:text-slate-300 hover:bg-slate-700/50">Manhã</button>
+                    <button onclick="changeShift('Tarde')" data-shift="Tarde"
+                        class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all text-slate-500 hover:text-slate-300 hover:bg-slate-700/50">Tarde</button>
+                    <button onclick="changeShift('Noite')" data-shift="Noite"
+                        class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all text-slate-500 hover:text-slate-300 hover:bg-slate-700/50">Noite</button>
                 </div>
-
             </div>
 
             <!-- Right: Actions -->
-            <div class="flex items-center justify-end gap-3 flex-1">
-                <a href="/routine/report?date={{current_date}}&shift={{current_shift}}" target="_blank"
-                    class="bg-purple-600/10 text-purple-400 hover:bg-purple-600/20 hover:text-purple-300 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 border border-purple-500/20"
-                    title="Gerar Relatçrio PDF">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                        <line x1="16" y1="13" x2="8" y2="13"></line>
-                        <line x1="16" y1="17" x2="8" y2="17"></line>
-                        <polyline points="10 9 9 9 8 9"></polyline>
+            <div class="flex items-center gap-2 flex-1 justify-end">
+                <a href="/routine/report?date={{ current_date }}&shift={{ current_shift }}" id="report-link"
+                    target="_blank"
+                    class="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow-md">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                        </path>
                     </svg>
-                    Relatçrio
+                    Relatório
                 </a>
 
                 <button onclick="createSector()"
-                    class="text-slate-400 hover:text-white hover:bg-slate-700/50 px-3 py-2 rounded-xl text-xs font-medium transition flex items-center gap-1.5 border border-transparent hover:border-slate-600"
-                    title="Novo Setor">
-                    <span class="text-lg leading-none mb-0.5">+</span> Setor
+                    class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow-md">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"
+                        viewBox="0 0 24 24">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Setor
                 </button>
 
-                <div class="h-6 w-px bg-slate-700/50"></div>
-
-                <button onclick="saveRoutine()"
-                    class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-lg shadow-blue-900/20 active:scale-95 transition flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2.5">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                        <polyline points="7 3 7 8 15 8"></polyline>
-                    </svg>
-                    <span>Salvar</span>
+                <button onclick="saveAll()"
+                    class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition shadow-md">
+                    Salvar
                 </button>
 
-                <button onclick="closeOperation()"
-                    class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-lg shadow-emerald-900/20 active:scale-95 transition flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2.5">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                    </svg>
-                    <span>Encerrar</span>
+                <button onclick="closeShift()"
+                    class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded-lg transition shadow-md">
+                    Encerrar
                 </button>
             </div>
 
         </div>
     </header>
 
-    <!-- KPI Bar: People & Status & Production Combined -->
-    <div class="px-6 py-4 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3 shrink-0">
-        <!-- 1. Headcount & Presence -->
-        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-blue-500/50 group h-20"
-            onclick="openDashboardDetail('headcount')">
-            <div class="flex justify-between items-start">
-                <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-blue-400 transition">Headcount
-                </p>
-                <div class="bg-blue-500/10 p-1 rounded-lg text-blue-400">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="9" cy="7" r="4"></circle>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                    </svg>
-                </div>
-            </div>
+    <!-- KPI Strip -->
+    <div id="kpi-strip"
+        class="h-24 shrink-0 px-6 py-3 flex gap-4 overflow-x-auto border-b border-slate-800 bg-slate-900/95 backdrop-blur z-10 no-scrollbar">
+        <!-- Cards will be populated dynamically by render.js -->
+        <!-- Static placeholders for structure -->
+
+        <!-- 1. Headcount -->
+        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between min-w-[140px]">
+            <p class="text-[10px] font-bold text-slate-400 uppercase">Headcount</p>
             <div>
-                <p class="text-lg font-bold text-white leading-none"><span id="total-present">0</span> <span
-                        class="text-slate-500 text-xs font-normal">/</span> <span id="total-target-kpi"
-                        class="text-slate-400 text-sm">0</span></p>
-                <p class="text-[9px] text-slate-500 mt-0.5">Presença: <span class="text-emerald-400 font-bold"
-                        id="present-percent">0%</span></p>
+                <p class="text-lg font-bold text-white leading-none"><span id="total-present">0</span> / <span
+                        id="total-target-kpi" class="text-xs text-slate-500">45</span></p>
+                <p class="text-[9px] text-slate-500 mt-0.5">Presença: <span id="present-percent"
+                        class="text-emerald-400 font-bold">0%</span></p>
             </div>
         </div>
 
-        <!-- 2. Vagas (Gap) -->
-        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-red-500/50 group h-20"
-            onclick="openDashboardDetail('gap')">
-            <div class="flex justify-between items-start">
-                <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-red-400 transition">Vagas</p>
-                <div class="bg-red-500/10 p-1 rounded-lg text-red-400">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="8.5" cy="7" r="4"></circle>
-                        <line x1="18" y1="8" x2="23" y2="13"></line>
-                        <line x1="23" y1="8" x2="18" y2="13"></line>
-                    </svg>
-                </div>
-            </div>
+        <!-- 2. Vagas -->
+        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between min-w-[140px]">
+            <p class="text-[10px] font-bold text-slate-400 uppercase text-red-400">Vagas</p>
             <div>
-                <p class="text-lg font-bold text-red-400 leading-none" id="total-gap">0</p>
+                <p class="text-lg font-bold text-white leading-none" id="total-gap">45</p>
                 <p class="text-[9px] text-slate-500 mt-0.5">Em aberto</p>
             </div>
         </div>
 
-        <!-- 3. Produção Total (Tonnage) -->
-        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-emerald-500/50 group h-20"
+        <!-- 3. Tonnage -->
+        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between min-w-[140px] cursor-pointer hover:border-purple-500 transition"
             onclick="editTonnage()">
-            <div class="flex justify-between items-start">
-                <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-emerald-400 transition">
-                    Produção Total</p>
-                <div class="bg-emerald-500/10 p-1 rounded-lg text-emerald-400">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path
-                            d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
-                        </path>
-                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                    </svg>
-                </div>
-            </div>
+            <p class="text-[10px] font-bold text-slate-400 uppercase text-purple-400">Produção Total</p>
             <div>
-                <p class="text-lg font-bold text-emerald-400 leading-none" id="total-tonnage">{{ total_tonnage_fmt }}kg
-                </p>
-                <p class="text-[9px] text-slate-500 mt-0.5">Movimentação {{ "Manual" if manual_tonnage > 0 else
-                    "Calculada" }}</p>
+                <p class="text-lg font-bold text-white leading-none" id="total-tonnage">0 kg</p>
+                <p class="text-[9px] text-slate-500 mt-0.5"><span id="prod-per-person"
+                        class="text-purple-400 font-bold">0</span> kg/pessoa</p>
             </div>
         </div>
 
-        <!-- 4. Faltas e Atestados (Combined) -->
-        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-amber-500/50 group h-20"
-            onclick="openDashboardDetail('sick')">
-            <div class="flex justify-between items-start">
-                <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-amber-400 transition"
-                    title="Faltas + Atestados">Faltas e Atestados</p>
-                <div class="bg-amber-500/10 p-1 rounded-lg text-amber-400">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="8" x2="12" y2="12"></line>
-                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                    </svg>
-                </div>
-            </div>
+        <!-- 4. Férias -->
+        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between min-w-[120px]">
+            <p class="text-[10px] font-bold text-slate-400 uppercase text-orange-400">Férias</p>
             <div>
-                <p class="text-lg font-bold text-amber-400 leading-none" id="total-sick-absent">0</p>
-                <p class="text-[9px] text-slate-500 mt-0.5">Ocorrências</p>
+                <p class="text-lg font-bold text-white leading-none" id="total-vacation">0</p>
             </div>
         </div>
 
-        <!-- 5. Férias e Afastados (Combined) -->
-        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-purple-500/50 group h-20"
-            onclick="openDashboardDetail('vacation_away')">
-            <div class="flex justify-between items-start">
-                <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-purple-400 transition">Férias
-                    e Afastados</p>
-                <div class="bg-purple-500/10 p-1 rounded-lg text-purple-400">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M10 10l-6 6v-6h6z"></path>
-                        <path d="M14 14l6-6v6h-6z"></path>
-                        <path d="M4 20h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z"></path>
-                    </svg>
-                </div>
-            </div>
+        <!-- 5. Afastados -->
+        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between min-w-[120px]">
+            <p class="text-[10px] font-bold text-slate-400 uppercase text-indigo-400">Afastados</p>
             <div>
-                <p class="text-lg font-bold text-purple-400 leading-none" id="total-vacation-away">0</p>
-                <p class="text-[9px] text-slate-500 mt-0.5">Ausências Legais</p>
+                <p class="text-lg font-bold text-white leading-none" id="total-away">0</p>
             </div>
         </div>
 
-        <!-- 6. Substituição (New) -->
-        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-blue-400/50 group h-20"
-            onclick="openDashboardDetail('substitution')">
-            <div class="flex justify-between items-start">
-                <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-blue-400 transition">
-                    Substituição</p>
-                <div class="bg-blue-400/10 p-1 rounded-lg text-blue-400">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l5 5 5-5"></path>
-                    </svg>
-                </div>
-            </div>
+        <!-- 6. Faltas -->
+        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between min-w-[120px]">
+            <p class="text-[10px] font-bold text-slate-400 uppercase text-rose-400">Faltas</p>
             <div>
-                <p class="text-lg font-bold text-blue-400 leading-none" id="total-substitution">0</p>
-                <p class="text-[9px] text-slate-500 mt-0.5">Coberturas Ativas</p>
+                <p class="text-lg font-bold text-white leading-none" id="total-missing">0</p>
             </div>
         </div>
 
-        <!-- 7. Produção/Colaborador -->
-        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-700/50 transition hover:border-emerald-500/50 group h-20"
-            title="Produção média por pessoa presente">
-            <div class="flex justify-between items-start">
-                <p class="text-[10px] font-bold text-slate-400 uppercase group-hover:text-emerald-400 transition">
-                    Produção / Pessoa</p>
-                <div class="bg-emerald-500/10 p-1 rounded-lg text-emerald-400">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="9" cy="7" r="4"></circle>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                    </svg>
-                </div>
-            </div>
+        <!-- 7. Atestados -->
+        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between min-w-[120px]">
+            <p class="text-[10px] font-bold text-slate-400 uppercase text-amber-400">Atestados</p>
             <div>
-                <p class="text-lg font-bold text-emerald-400 leading-none" id="production-per-person">0 kg/p</p>
-                <p class="text-[9px] text-slate-500 mt-0.5">Produtividade Média</p>
+                <p class="text-lg font-bold text-white leading-none" id="total-sick">0</p>
             </div>
         </div>
+
     </div>
 
-    <!-- Main Flow -->
-    <!-- Main Flow -->
-    <div class="p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 auto-rows-min content-start flex-1 overflow-y-auto"
-        id="flow-grid">
-        <!-- Rendered by JS -->
-    </div>
+    <!-- Main Content -->
+    <main class="flex-1 overflow-hidden flex flex-col">
+        <!-- Flow Grid -->
+        <div class="flex-1 overflow-y-auto p-6">
+            <div id="flow-grid" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                <!-- Sectors will be rendered here by render.js -->
+            </div>
+        </div>
+    </main>
+
 </div>
 
-<!-- Manager Modal -->
-<div id="checkin-modal" class="fixed inset-0 z-50 hidden">
-    <div class="modal-overlay absolute inset-0 backdrop-blur-sm"></div>
-    <div class="absolute inset-0 flex items-center justify-center p-4">
-        <div
-            class="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden animate-slide-up border border-slate-700">
-
-            <!-- Modal Header -->
-            <div class="px-6 py-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50">
-                <div class="flex items-center gap-3">
-                    <div class="bg-blue-500/10 p-2 rounded-lg text-blue-400">
-                        <!-- Icon -->
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="9" cy="7" r="4"></circle>
-                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                        </svg>
-                    </div>
-                    <div>
-                        <h2 class="text-lg font-bold text-white" id="modal-title">Gerenciar Setor</h2>
-                        <p class="text-xs text-slate-400">Distribua a equipe nos sub-setores</p>
-                    </div>
-                </div>
-                <button onclick="closeModal()"
-                    class="p-2 hover:bg-slate-700 rounded-full text-slate-400 hover:text-red-400 transition"
-                    aria-label="Fechar Modal">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
+<!-- Modal: Criar/Editar Setor -->
+<div id="sector-crud-modal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/90 backdrop-blur-sm" onclick="closeModal('sector-crud-modal')"></div>
+    <div class="relative z-10 flex min-h-full items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md">
+            <div class="flex items-center justify-between p-4 border-b border-slate-700">
+                <h3 class="text-lg font-bold text-slate-100" id="sector-modal-title">Novo Setor</h3>
+                <button onclick="closeModal('sector-crud-modal')" class="text-slate-400 hover:text-white">
+                    <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
             </div>
 
-            <!-- KPI Grid -->
-            <div class="px-6 py-4 bg-slate-900/30 border-b border-slate-700 grid grid-cols-5 gap-4">
-                <div
-                    class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col relative overflow-hidden group hover:border-blue-500/30 transition">
-                    <div class="absolute right-2 top-2 opacity-10 group-hover:opacity-20 transition text-slate-400">
-                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <circle cx="12" cy="12" r="10" />
-                            <line x1="12" y1="8" x2="12" y2="12" />
-                            <line x1="12" y1="16" x2="12.01" y2="16" />
-                        </svg>
-                    </div>
-                    <div class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Advertências</div>
-                    <div class="text-2xl font-bold text-white flex items-end gap-1">
-                        <span id="modal-warnings">0</span>
-                    </div>
-                </div>
-                <div
-                    class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col relative overflow-hidden group hover:border-red-500/30 transition">
-                    <div class="absolute right-2 top-2 opacity-10 group-hover:opacity-20 transition text-red-500">
-                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <line x1="18" y1="6" x2="6" y2="18" />
-                            <line x1="6" y1="6" x2="18" y2="18" />
-                        </svg>
-                    </div>
-                    <div class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Faltas</div>
-                    <div class="text-2xl font-bold text-red-400 flex items-end gap-1">
-                        <span id="modal-absent">0</span>
-                    </div>
-                </div>
-                <div
-                    class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col relative overflow-hidden group hover:border-cyan-500/30 transition">
-                    <div class="absolute right-2 top-2 opacity-10 group-hover:opacity-20 transition text-cyan-500">
-                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-                        </svg>
-                    </div>
-                    <div class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Atestados</div>
-                    <div class="text-2xl font-bold text-cyan-400 flex items-end gap-1">
-                        <span id="modal-sick">0</span>
-                    </div>
-                </div>
-                <!-- New Afastados Card -->
-                <div
-                    class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col relative overflow-hidden group hover:border-purple-500/30 transition">
-                    <div class="absolute right-2 top-2 opacity-10 group-hover:opacity-20 transition text-purple-500">
-                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <path d="M10 10l-6 6v-6h6z" />
-                            <path d="M14 14l6-6v6h-6z" />
-                            <path d="M4 20h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" />
-                        </svg>
-                    </div>
-                    <div class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Afastados</div>
-                    <div class="text-2xl font-bold text-purple-400 flex items-end gap-1">
-                        <span id="modal-away">0</span>
-                    </div>
-                </div>
-                <div
-                    class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col relative overflow-hidden group hover:border-orange-500/30 transition">
-                    <div class="absolute right-2 top-2 opacity-10 group-hover:opacity-20 transition text-orange-500">
-                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <path d="M2 12h20" />
-                            <path d="M12 2v20" />
-                            <path
-                                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                        </svg>
-                    </div>
-                    <div class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Férias</div>
-                    <div class="text-2xl font-bold text-orange-400 flex items-end gap-1">
-                        <span id="modal-vacation">0</span>
-                    </div>
-                </div>
-            </div>
+            <form id="sector-form" class="p-4 space-y-4">
+                <input type="hidden" id="sector-id" name="sector_id">
 
-            <!-- Modal Body -->
-            <div class="flex-1 overflow-hidden flex divide-x divide-slate-700">
-
-                <!-- Left: Available Pool -->
-                <div class="w-1/3 bg-slate-900 flex flex-col">
-                    <div class="p-4 border-b border-slate-700 flex flex-col gap-2">
-                        <div class="flex justify-between items-center">
-                            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Banco de Talentos</h3>
-
-                            <label class="flex items-center gap-2 cursor-pointer"
-                                title="Mostrar funcionários de outros turnos">
-                                <input type="checkbox" id="show-all-toggle" onchange="filterEmployees()"
-                                    class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800">
-                                <span class="text-xs text-slate-500 select-none">Mostrar Todos</span>
-                            </label>
-                        </div>
-                        <div class="relative">
-                            <svg class="absolute left-3 top-2.5 text-slate-500" width="16" height="16"
-                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="11" cy="11" r="8"></circle>
-                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                            </svg>
-                            <input type="text" id="search-input" onkeyup="filterEmployees()"
-                                placeholder="Buscar nome ou matrícula..."
-                                class="w-full pl-9 pr-4 py-2 text-sm bg-slate-800 border border-slate-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-500">
-                        </div>
-                    </div>
-                    <div class="flex-1 overflow-y-auto p-4 space-y-2" id="available-list">
-                        <!-- Items -->
-                    </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Nome do Setor</label>
+                    <input type="text" id="sector-name" name="name" required
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500">
                 </div>
 
-                <!-- Right: Active Subsectors -->
-                <div class="flex-1 bg-slate-800 flex flex-col">
-                    <div class="p-4 border-b border-slate-700 flex justify-between items-center">
-                        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Equipe Alocada</h3>
-
-                        <div class="flex items-center gap-2">
-                            <span
-                                class="bg-emerald-500/10 text-emerald-400 text-xs px-2 py-1 rounded-full font-bold border border-emerald-500/20"
-                                id="active-count">0 Presentes</span>
-                            <button onclick="createSubsector()"
-                                class="text-blue-400 text-xs font-bold hover:underline px-2 py-1 rounded hover:bg-slate-700 transition"
-                                title="Criar nova equipe ou linha">+ Novo Sub-setor</button>
-                        </div>
-                    </div>
-                    <div class="flex-1 overflow-y-auto p-4" id="subsectors-container">
-                        <!-- Rendered Subsectors -->
-                    </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Limite de Vagas</label>
+                    <input type="number" id="sector-max" name="max_employees" min="0" value="0"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500">
                 </div>
-            </div>
 
-        </div>
-    </div>
-</div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Cor</label>
+                    <select id="sector-color" name="color"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                        <option value="blue">Azul</option>
+                        <option value="green">Verde</option>
+                        <option value="purple">Roxo</option>
+                        <option value="orange">Laranja</option>
+                        <option value="red">Vermelho</option>
+                    </select>
+                </div>
+            </form>
 
-<!-- Allocation Selection Modal -->
-<div id="allocation-modal" class="fixed inset-0 z-[60] hidden">
-    <div class="modal-overlay absolute inset-0 backdrop-blur-sm" onclick="closeAllocationModal()"></div>
-    <div class="absolute inset-0 flex items-center justify-center p-4">
-        <div
-            class="bg-slate-800 rounded-xl shadow-2xl w-full max-w-sm border border-slate-700 overflow-hidden animate-slide-up">
-            <div class="p-4 border-b border-slate-700 bg-slate-900/50">
-                <h3 class="text-lg font-bold text-white">Alocar Colaborador</h3>
-                <p class="text-xs text-slate-400">Escolha a equipe de destino</p>
-            </div>
-            <div class="p-4 flex flex-col gap-2" id="allocation-options">
-                <!-- Options rendered dynamically -->
-            </div>
-            <div class="p-4 border-t border-slate-700 bg-slate-900/30 flex justify-end">
-                <button onclick="closeAllocationModal()"
-                    class="text-slate-400 hover:text-white text-sm font-medium">Cancelar</button>
+            <div class="p-4 border-t border-slate-700 flex justify-end gap-2">
+                <button onclick="closeModal('sector-crud-modal')"
+                    class="px-4 py-2 text-sm text-slate-300 hover:text-white">Cancelar</button>
+                <button onclick="saveSector()"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-bold">Salvar</button>
             </div>
         </div>
     </div>
 </div>
 
-
-<!-- Dashboard Detail Modal -->
-<div id="dashboard-detail-modal" class="fixed inset-0 z-[70] hidden">
-    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeDashboardDetail()">
-    </div>
-    <div class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center pointer-events-none">
-        <!-- Panel -->
-        <div
-            class="bg-slate-800 w-full md:w-[500px] md:rounded-2xl shadow-2xl border-t md:border border-slate-700 transform transition-all duration-300 translate-y-full opacity-0 pointer-events-auto flex flex-col max-h-[80vh]">
-
-            <!-- Header -->
-            <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800 md:rounded-t-2xl">
-                <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                    <span class="w-1 h-5 bg-blue-500 rounded-full"></span>
-                    <span id="dashboard-detail-title">Detalhes</span>
-                </h3>
-                <button onclick="closeDashboardDetail()"
-                    class="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-700 transition">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
+<!-- Modal: Criar/Editar Sub-setor -->
+<div id="subsector-crud-modal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/90 backdrop-blur-sm" onclick="closeModal('subsector-crud-modal')"></div>
+    <div class="relative z-10 flex min-h-full items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md">
+            <div class="flex items-center justify-between p-4 border-b border-slate-700">
+                <h3 class="text-lg font-bold text-slate-100" id="subsector-modal-title">Novo Sub-setor</h3>
+                <button onclick="closeModal('subsector-crud-modal')" class="text-slate-400 hover:text-white">
+                    <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
             </div>
 
-            <!-- Content -->
-            <div class="p-4 overflow-y-auto flex-1 bg-slate-900/50" id="dashboard-detail-content">
-                <!-- Dynamic Content -->
+            <form id="subsector-form" class="p-4 space-y-4">
+                <input type="hidden" id="subsector-id" name="subsector_id">
+                <input type="hidden" id="subsector-sector-id" name="sector_id">
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Nome do Sub-setor</label>
+                    <input type="text" id="subsector-name" name="name" required
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Limite de Vagas</label>
+                    <input type="number" id="subsector-max" name="max_employees" min="0" value="0"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                </div>
+            </form>
+
+            <div class="p-4 border-t border-slate-700 flex justify-end gap-2">
+                <button onclick="closeModal('subsector-crud-modal')"
+                    class="px-4 py-2 text-sm text-slate-300 hover:text-white">Cancelar</button>
+                <button onclick="saveSubSector()"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-bold">Salvar</button>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Scripts Loader -->
 <script>
-    // Função para formatar números no padrão brasileiro
-    function formatBR(value) {
-        let str = String(value).trim().replace(/\./g, '').replace(',', '.');
-        const number = parseFloat(str);
-        if (isNaN(number)) return '0,00';
-        return number.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-
-    // Função para parsear número brasileiro
-    function parseBR(value) {
-        let str = String(value).trim().replace(/\./g, '').replace(',', '.');
-        return parseFloat(str) || 0;
-    }
-
-    // --- State ---
-    let currentShift = "{{current_shift}}";
-    let currentDate = "{{current_date}}";
-    let shiftTargetHr = {{ shift_target_hr }};
-
-    // Dynamic Config from Backend
-    let config = {{ sector_config | tojson }} || {};
-    let SECTORS = config.sectors || [];
-
-    let employees = {
-        log: {{ daily_op.attendance_log | tojson }} || {}
+    // Dados iniciais - carregados do backend
+    window.INITIAL_DATA = {
+        employees: [],
+        sectors: [],
+        tonnage: 0
     };
 
-    // Tonnage (Manual Override)
-    let manualTonnage = {{ manual_tonnage | tojson }};
-
-    let substitutedIds = {{ substituted_ids | tojson }} || [];
-    const ALL_EMPLOYEES = [
-        {% for emp in employees_list %}
-    {
-        id: {{ emp.registration_id | tojson }},
-        name: {{ emp.name | tojson }},
-        role: {{ emp.role | tojson }},
-        shift: {{ emp.work_shift | tojson }},
-        cost_center: {{ emp.cost_center | tojson }},
-        status: {{ emp.status | tojson }},
-        birthday: {{ (emp.birthday.isoformat() if emp.birthday else None) | tojson }},
-        admission_date: {{ (emp.admission_date.isoformat() if emp.admission_date else None) | tojson }},
-        is_substituted: substitutedIds.includes({{ emp.registration_id | tojson }})
-    },
-    {% endfor %}
-    ];
-
-    let currentSectorKey = null;
-
-    // --- Helpers ---
-    function normalizeStr(str) {
-        if (!str) return "";
-        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-    }
-
-    function getShiftEmployeesByStatus(targetStatus) {
-        const curShiftNorm = normalizeStr(currentShift);
-        return ALL_EMPLOYEES.filter(emp => {
-            const empShiftNorm = normalizeStr(emp.shift || "");
-            if (!empShiftNorm.includes(curShiftNorm)) return false;
-            const logEntry = employees.log[emp.id];
-            const effectiveStatus = logEntry ? logEntry.status : emp.status;
-            return effectiveStatus === targetStatus;
-        });
-    }
-
-    // --- Event Logging & Snapshot ---
-
-    class EventLog {
-        constructor() {
-            this.events = [];
-        }
-
-        add(type, payload) {
-            this.events.push({
-                timestamp: new Date().toISOString(),
-                type: type,
-                payload: payload,
-                context: { shift: currentShift, date: currentDate }
-            });
-            console.log(`[EventLog] ${type}`, payload);
-        }
-
-        getEvents() {
-            return this.events;
-        }
-
-        clear() {
-            this.events = [];
-        }
-    }
-
-    const eventLogger = new EventLog();
-
-    function logEvent(type, payload) {
-        eventLogger.add(type, payload);
-        markDirty();
-    }
-
-    function markDirty() {
-        // Optional: Visual indicator that there are unsaved changes or logs
-    }
-
-    function buildSnapshot() {
-        const timestamp = new Date().toISOString();
-
-        // 1. Context
-        const context = {
-            date: currentDate,
-            shift: currentShift,
-            shift_target_hr: shiftTargetHr,
-            saved_at: timestamp
-        };
-
-        // 2. People List (Consolidated)
-        const peopleList = ALL_EMPLOYEES.map(emp => {
-            const daily = employees.log[emp.id] || {};
-            return {
-                id: emp.id,
-                name: emp.name,
-                role: emp.role,
-                shift: emp.shift, // Official
-                cost_center: emp.cost_center,
-                status_master: emp.status,
-                birthday: emp.birthday,
-                admission: emp.admission_date,
-
-                // Daily State
-                status_daily: daily.status || 'present', // Default to present if not logged but in list? No, logic is usually present if not exceptions.
-                sector_daily: daily.sector || null,
-                subsector_daily: daily.subsector || null,
-
-                is_allocated: !!daily.sector
-            };
-        });
-
-        // 3. Sectors Detailed
-        let totalTarget = 0;
-        let totalPresent = 0;
-        let totalAllocated = 0;
-
-        const sectorsDetailed = SECTORS.map(sec => {
-            const sectorStats = getSectorStats(sec.key);
-            totalTarget += sectorStats.target;
-            totalPresent += sectorStats.count;
-
-            // Re-calc specific for snapshot to be safe
-            const allocatedPeople = peopleList.filter(p => p.sector_daily === sec.key);
-            const presentPeople = allocatedPeople.filter(p => p.status_daily === 'present');
-
-            return {
-                key: sec.key,
-                label: sec.label,
-                target: sec.target || 0,
-                allocated_count: allocatedPeople.length,
-                present_count: presentPeople.length,
-                gap: Math.max(0, (sec.target || 0) - presentPeople.length),
-                people: allocatedPeople.map(p => ({ id: p.id, name: p.name, status: p.status_daily, subsector: p.subsector_daily }))
-            };
-        });
-
-        // 4. KPIs
-        const totalGap = sectorsDetailed.reduce((sum, s) => sum + s.gap, 0);
-        const presencePercent = totalTarget > 0 ? Math.round((totalPresent / totalTarget) * 100) : 0;
-
-        // Tonnage & Prod
-        let tonnage = 0;
-        const tonnageEl = document.getElementById('total-tonnage');
-        if (tonnageEl) tonnage = parseInt(tonnageEl.innerText.replace(/\D/g, '')) || 0;
-        const prodPerPerson = totalPresent > 0 ? Math.round(tonnage / totalPresent) : 0;
-
-        return {
-            context: context,
-            sectors: sectorsDetailed,
-            kpis: {
-                total_target: totalTarget,
-                total_present: totalPresent,
-                total_gap: totalGap,
-                presence_percent: presencePercent,
-                tonnage: tonnage,
-                prod_per_person: prodPerPerson
-            },
-            people: peopleList
-        };
-    }
-
-    // --- Init ---
-    document.addEventListener('DOMContentLoaded', () => {
-        renderFlow();
-        updateKPIs();
-    });
-
-    // --- Core Rendering ---
-    function renderFlow() {
-        const container = document.getElementById('flow-grid');
-        container.innerHTML = '';
-
-        SECTORS.forEach((sec, idx) => {
-            const sectorData = getSectorStats(sec.key);
-            const isDeficit = sectorData.deficit > 0;
-
-            const card = document.createElement('div');
-            // Using Tailwind classes entirely
-            card.innerHTML = `
-                <div class="bg-slate-800 border-slate-700 border rounded-xl p-3 flex flex-col justify-between h-32 relative group hover:border-blue-500 hover:shadow-lg transition-all shadow-md cursor-pointer ${isDeficit ? 'border-l-4 border-l-red-500' : 'border-l-4 border-l-emerald-500'}" onclick="openModal('${sec.key}')">
-                    <!-- Delete Btn -->
-                    <button onclick="event.stopPropagation(); deleteSector(${idx})" class="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-sm z-10 hover:bg-red-600" title="Excluir">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                    </button>
-
-                    <!-- Header -->
-                    <div class="flex justify-between items-start">
-                        <div class="overflow-hidden">
-                            <h3 class="font-bold text-slate-200 text-sm leading-tight truncate" title="${sec.label}">${sec.label}</h3>
-                            <span class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Meta: ${sec.target || 0}</span>
-                        </div>
-                        <button onclick="event.stopPropagation(); editMeta(${idx})" class="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded border border-slate-600 hover:bg-slate-600 hover:text-white transition shrink-0 ml-1">${sectorData.count}/${sec.target || 0}</button>
-                    </div>
-
-                    <!-- Progress -->
-                    <div class="mt-1">
-                        <div class="flex justify-between items-end mb-1">
-                            ${isDeficit
-                    ? `<span class="text-[10px] font-bold text-red-400 flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> -${sectorData.deficit}</span>`
-                    : `<span class="text-[10px] font-bold text-emerald-400 flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg> OK</span>`
-                }
-                        </div>
-                        <div class="w-full bg-slate-700/50 rounded-full h-1.5 overflow-hidden">
-                            <div class="bg-blue-500 h-1.5 rounded-full transition-all duration-500" style="width: ${Math.min(100, (sectorData.count / (sec.target || 1)) * 100)}%"></div>
-                        </div>
-                    </div>
-
-                    <!-- People Preview (limit 5) -->
-                    <div class="flex -space-x-1.5 overflow-hidden pt-1">
-                            ${sectorData.people.slice(0, 5).map(p => `
-                            <div class="w-5 h-5 rounded-full bg-slate-700 border border-slate-800 flex items-center justify-center text-[9px] font-bold text-slate-300 shrink-0 select-none shadow-sm" title="${p.name}">
-                                ${p.name.charAt(0)}
-                            </div>
-                            `).join('')}
-                            ${sectorData.people.length > 5 ? `<div class="w-5 h-5 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[9px] text-slate-500 shrink-0 shadow-sm">+${sectorData.people.length - 5}</div>` : ''}
-                    </div>
-                </div>
-            `;
-            container.appendChild(card.firstElementChild); // Append the inner div directly to simple grid
-        });
-    }
-
-    function getSectorStats(sectorKey) {
-        const sectorConfig = SECTORS.find(s => s.key === sectorKey);
-        const target = sectorConfig ? (sectorConfig.target || 0) : 0;
-
-        // "Vagas" means "Operational Gap" (Target - Present).
-        const people = Object.entries(employees.log)
-            .filter(([_, entry]) => entry.sector === sectorKey && entry.status === 'present')
-            .map(([id, entry]) => ({ ...entry, id }));
-
-        return {
-            count: people.length,
-            people: people,
-            target: target,
-            deficit: Math.max(0, target - people.length)
-        };
-    }
-
-    function updateKPIs() {
-        // Calculate stats
-        let totalPresent = 0;
-
-        // Count Present (Anyone present in log is counted)
-        Object.values(employees.log).forEach(e => {
-            if (e.status === 'present') totalPresent++;
-        });
-
-        // Absences/Status Logic (Strict Shift Filtering + Effective Status)
-        const listAbsent = getShiftEmployeesByStatus('absent');
-        const listSick = getShiftEmployeesByStatus('sick');
-        const listVacation = getShiftEmployeesByStatus('vacation');
-        const listAway = getShiftEmployeesByStatus('away');
-
-        const dailyAbsences = listAbsent.length;
-        const totalSick = listSick.length;
-        const vacationCount = listVacation.length;
-        const awayCount = listAway.length;
-
-        // Substitution Calculation
-        // Person is substituted if they are Away/Vacation AND is_substituted is true
-        // Filter listAway and listVacation to check for is_substituted flag
-        const substitutedCount = [...listAway, ...listVacation].filter(emp => emp.is_substituted).length;
-
-
-        // Gap Calculation & Total Target
-        let totalGap = 0;
-        let totalTarget = 0;
-
-        SECTORS.forEach(sec => {
-            const demand = sec.target || 0;
-            totalTarget += demand;
-
-            // Operational Gap: Count only PRESENT people
-            const allocated = Object.values(employees.log).filter(e => e.sector === sec.key && e.status === 'present').length;
-            const gap = Math.max(0, demand - allocated);
-            totalGap += gap;
-        });
-
-        // Presence Percent Logic
-        const presencePercent = totalTarget > 0 ? Math.round((totalPresent / totalTarget) * 100) : 0;
-
-        // Production / Person
-        let tonnage = 0;
-
-        // Use raw variables instead of DOM scraping
-        if (manualTonnage > 0) {
-            tonnage = manualTonnage;
-        } else {
-            tonnage = calculatedTonnage;
-        }
-
-        const prodPerPerson = totalPresent > 0 ? Math.round(tonnage / totalPresent) : 0;
-
-        // Update DOM
-        const setVal = (id, val) => {
-            const el = document.getElementById(id);
-            if (el) el.innerText = val;
-        };
-
-        setVal('total-present', totalPresent);
-        setVal('total-target-kpi', totalTarget);
-        setVal('present-percent', presencePercent + '%');
-
-        setVal('total-gap', totalGap);
-
-        // Faltas e Atestados (Combined)
-        const absenteeism = totalSick + dailyAbsences;
-        setVal('total-sick-absent', absenteeism);
-
-        // Férias e Afastados (Combined)
-        const vacationAway = vacationCount + awayCount;
-        setVal('total-vacation-away', vacationAway);
-
-        // Substituição
-        setVal('total-substitution', substitutedCount);
-
-        setVal('production-per-person', prodPerPerson + ' kg/p');
-
-        // Modal warnings/stats update if needed
-        setVal('modal-warnings', 0);
-        setVal('modal-absent', dailyAbsences);
-        setVal('modal-sick', totalSick);
-        setVal('modal-away', awayCount);
-        setVal('modal-vacation', vacationCount);
-    }
-
-    // --- Modal & Listings ---
-    function openModal(sectorKey) {
-        currentSectorKey = sectorKey;
-        const sector = SECTORS.find(s => s.key === sectorKey);
-        document.getElementById('modal-title').innerText = sector.label;
-        document.getElementById('checkin-modal').classList.remove('hidden');
-
-        renderAvailableList();
-        renderActiveList();
-        updateModalStats();
-    }
-
-    function closeModal() {
-        document.getElementById('checkin-modal').classList.add('hidden');
-        renderFlow();
-        updateKPIs();
-    }
-
-    function renderAvailableList(filter = "") {
-        const list = document.getElementById('available-list');
-        list.innerHTML = '';
-
-        const showAll = document.getElementById('show-all-toggle').checked;
-        const curShiftNorm = normalizeStr(currentShift);
-
-        const candidates = ALL_EMPLOYEES.filter(emp => {
-            const isAllocated = employees.log[emp.id];
-            const matchesFilter = emp.name.toLowerCase().includes(filter.toLowerCase()) || emp.id.includes(filter);
-            const empShiftNorm = normalizeStr(emp.shift || "");
-            const matchesShift = showAll || (empShiftNorm === curShiftNorm) || empShiftNorm.includes(curShiftNorm);
-            return !isAllocated && matchesFilter && matchesShift;
-        }).slice(0, 50);
-
-        candidates.forEach(emp => {
-            const empShift = (emp.shift || "N/A").trim();
-            const curShift = (currentShift || "").trim();
-            const empShiftNorm = normalizeStr(empShift);
-            const curShiftNorm = normalizeStr(curShift);
-            const isWrongShift = !empShiftNorm.includes(curShiftNorm);
-
-            // Shift Badge Logic - Compact
-            const shiftLower = empShift.toLowerCase();
-            let shiftColor = "text-slate-400 bg-slate-700/50 border-slate-600";
-            let shiftShort = empShift.substring(0, 3).toUpperCase();
-
-            if (shiftLower.includes("Manhã") || shiftLower.includes("manha")) {
-                shiftColor = "text-blue-400 bg-blue-500/10 border-blue-500/20";
-                shiftShort = "MAN";
-            } else if (shiftLower.includes("tarde")) {
-                shiftColor = "text-orange-400 bg-orange-500/10 border-orange-500/20";
-                shiftShort = "TAR";
-            } else if (shiftLower.includes("noite")) {
-                shiftColor = "text-purple-400 bg-purple-500/10 border-purple-500/20";
-                shiftShort = "NOI";
-            }
-
-            // Status Badge Logic
-            let statusBadge = "";
-            if (emp.status === 'vacation') {
-                statusBadge = '<span class="text-[8px] font-bold px-1 rounded border text-orange-400 bg-orange-500/10 border-orange-500/20 uppercase tracking-wider">FçRIAS</span>';
-            } else if (emp.status === 'sick') {
-                statusBadge = '<span class="text-[8px] font-bold px-1 rounded border text-cyan-400 bg-cyan-500/10 border-cyan-500/20 uppercase tracking-wider">ATESTADO</span>';
-            } else if (emp.status === 'away') {
-                statusBadge = '<span class="text-[8px] font-bold px-1 rounded border text-purple-400 bg-purple-500/10 border-purple-500/20 uppercase tracking-wider">AFASTADO</span>';
-            }
-
-            const el = document.createElement('div');
-            // Draggable Card Style
-            // Add visual cue for unavailable employees
-            const isUnavailable = ['vacation', 'sick', 'away'].includes(emp.status);
-            const opacityClass = isUnavailable ? "opacity-75" : "";
-
-            el.className = `group relative bg-slate-800/80 hover:bg-slate-700 p-2 rounded-lg border border-slate-700 hover:border-blue-500/50 transition-all cursor-grab active:cursor-grabbing flex items-center justify-between shadow-sm hover:shadow-md mb-2 select-none ${opacityClass}`;
-            el.draggable = true;
-            el.ondragstart = (e) => drag(e, emp.id);
-
-            el.innerHTML = `
-                <div class="flex items-center gap-3 overflow-hidden ml-1">
-                    <div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-600 flex items-center justify-center text-xs font-bold text-slate-400 shrink-0 shadow-inner">
-                        ${emp.name.charAt(0)}
-                    </div>
-                    <div class="overflow-hidden flex flex-col justify-center">
-                        <p class="text-xs font-semibold text-slate-200 truncate leading-tight group-hover:text-white transition">${emp.name}</p>
-                        <div class="flex items-center gap-1.5 mt-0.5">
-                            <span class="text-[9px] font-mono text-slate-500">${emp.id ? '#' + emp.id : ''}</span>
-                            <span class="text-[8px] font-bold px-1 rounded border ${shiftColor} uppercase tracking-wider">${shiftShort}</span>
-                            ${statusBadge}
-                            ${emp.is_substituted ? '<span class="text-[8px] font-bold px-1 rounded border text-blue-400 bg-blue-500/10 border-blue-500/20 uppercase tracking-wider">SUBSTITUÍDO</span>' : ''}
-                            ${isWrongShift ? `<span class="text-[8px] text-amber-500 bg-amber-500/10 px-1 rounded border border-amber-500/20" title="Turno original: ${empShift}"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>` : ''}
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="flex items-center gap-1">
-                    <button onclick="openVacationModal('${emp.id}')" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-orange-600 hover:text-white text-orange-400 border border-slate-700 hover:border-orange-500 flex items-center justify-center transition shadow-sm" title="Programar Férias">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                    </button>
-                    <button onclick="addToSector('${emp.id}', '${emp.name}')" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-500 border border-slate-700 hover:border-blue-500 flex items-center justify-center transition shadow-sm" aria-label="Adicionar" title="Adicionar ao setor">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-                    </button>
-                </div>
-            `;
-            list.appendChild(el);
-        });
-
-        if (candidates.length === 0) {
-            list.innerHTML = `<div class="flex flex-col items-center justify-center py-8 text-slate-500 gap-2 opacity-60">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <p class="text-xs">Nenhum colaborador disponÃ­vel</p>
-                ${!showAll ? '<p class="text-[10px] text-blue-400 cursor-pointer hover:underline" onclick="document.getElementById(\'show-all-toggle\').click()">Mostrar outros turnos</p>' : ''}
-            </div>`;
-        }
-    }
-
-    function renderActiveList() {
-        const container = document.getElementById('subsectors-container');
-        container.innerHTML = '';
-
-        const sector = SECTORS.find(s => s.key === currentSectorKey);
-        const activeInSector = Object.entries(employees.log)
-            .filter(([_, entry]) => entry.sector === currentSectorKey)
-            .map(([id, entry]) => ({ ...entry, id }));
-
-        const usedSubsectors = new Set(activeInSector.map(p => p.subsector || 'Geral'));
-        if (sector.subsectors && Array.isArray(sector.subsectors)) {
-            sector.subsectors.forEach(s => usedSubsectors.add(s));
-        }
-
-        const grouped = {};
-        usedSubsectors.forEach(sub => grouped[sub] = []);
-        activeInSector.forEach(p => {
-            const sub = p.subsector || 'Geral';
-            if (!grouped[sub]) grouped[sub] = [];
-            grouped[sub].push(p);
-        });
-
-        const sectorConfig = SECTORS.find(s => s.key === currentSectorKey);
-        const presentCount = activeInSector.filter(p => p.status === 'present').length;
-        const targetCount = sectorConfig ? (sectorConfig.target || 0) : 0;
-        document.getElementById('active-count').innerText = `${presentCount} Presentes / ${targetCount} Meta`;
-
-        Object.entries(grouped).forEach(([subName, people]) => {
-            const groupEl = document.createElement('div');
-            groupEl.className = 'mb-6 animate-fade-in';
-            groupEl.innerHTML = `
-                <div class="flex items-center gap-2 mb-3 group pl-1">
-                    <h4 class="text-xs font-bold text-slate-400 uppercase flex items-center gap-2 tracking-wider">
-                        ${subName} 
-                        <span class="bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded text-[10px] min-w-[20px] text-center">${people.length}</span>
-                    </h4>
-                    <div class="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition ml-auto">
-                        <button onclick="renameSubsector('${subName}')" class="text-slate-500 hover:text-blue-400 p-1.5 rounded hover:bg-slate-700 transition" title="Renomear">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                        </button>
-                        ${subName !== 'Geral' ? `<button onclick="deleteSubsector('${subName}')" class="text-slate-500 hover:text-red-400 p-1.5 rounded hover:bg-slate-700 transition" title="Excluir"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>` : ''}
-                    </div>
-                </div>
-                
-                <div class="subsector-dropzone min-h-[120px] bg-slate-900/50 border-2 border-dashed border-slate-700 supports-backdrop-blur:bg-slate-900/50 rounded-xl p-3 transition-all hover:border-slate-600" ondragover="this.classList.add('border-blue-500', 'bg-blue-500/5'); allowDrop(event)" ondragleave="this.classList.remove('border-blue-500', 'bg-blue-500/5')" ondrop="this.classList.remove('border-blue-500', 'bg-blue-500/5'); drop(event, '${subName}')">
-                    ${people.length === 0 ? '<div class="h-full flex flex-col items-center justify-center text-slate-600 gap-2"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="opacity-50"><path d="M12 5v14M5 12h14"/></svg><p class="text-[10px] font-medium">Arraste colaboradores aqui</p></div>' : ''}
-                     <div class="grid grid-cols-1 xl:grid-cols-2 gap-2">
-                         ${people.map(p => {
-                const empData = ALL_EMPLOYEES.find(e => e.id === p.id);
-                const empShift = empData ? (empData.shift || "N/A").trim() : "N/A";
-                const curShift = (currentShift || "").trim();
-                const isWrongShift = !normalizeStr(empShift).includes(normalizeStr(curShift));
-
-                // Interactive Status Buttons
-                const isPresent = p.status === 'present';
-                const isAbsent = p.status === 'absent';
-                const isSick = p.status === 'sick';
-                const isVacation = p.status === 'vacation';
-                const isAway = p.status === 'away';
-                const isDayOff = p.status === 'day_off';
-
-                return `
-                            <div class="group bg-slate-800 border border-slate-700 rounded-lg p-3 shadow-sm hover:shadow-md hover:border-blue-500/30 transition-all relative" draggable="true" ondragstart="drag(event, '${p.id}')">
-                                <div class="flex justify-between items-start mb-2">
-                                    <div class="flex items-center gap-2 overflow-hidden">
-                                        <div class="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-300 relative shrink-0 border border-slate-600">
-                                            ${p.name.charAt(0)}
-                                            ${isWrongShift ? '<div class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-slate-800" title="Turno Diferente"></div>' : ''}
-                                        </div>
-                                        <div class="overflow-hidden">
-                                            <p class="text-xs font-semibold text-slate-200 truncate leading-tight w-full" title="${p.name}">${p.name}</p>
-                                        </div>
-                                    </div>
-                                    <button onclick="removeFromSector('${p.id}')" class="text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition p-0.5 rounded hover:bg-slate-700" title="Remover"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-                                </div>
-                                
-                                <div class="flex items-center justify-between gap-1 bg-slate-900/50 p-1 rounded-lg">
-                                    <button onclick="setStatus('${p.id}', 'present')" class="flex-1 py-1 rounded text-[10px] font-bold transition flex items-center justify-center gap-1 ${isPresent ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-700 hover:text-emerald-400'}" title="Presente">
-                                        P
-                                    </button>
-                                    <button onclick="setStatus('${p.id}', 'absent')" class="flex-1 py-1 rounded text-[10px] font-bold transition flex items-center justify-center gap-1 ${isAbsent ? 'bg-red-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-700 hover:text-red-400'}" title="Falta">
-                                        F
-                                    </button>
-                                    <button onclick="setStatus('${p.id}', 'sick')" class="flex-1 py-1 rounded text-[10px] font-bold transition flex items-center justify-center gap-1 ${isSick ? 'bg-cyan-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-700 hover:text-cyan-400'}" title="Atestado">
-                                        A
-                                    </button>
-                                    <button onclick="setStatus('${p.id}', 'vacation')" class="flex-1 py-1 rounded text-[10px] font-bold transition flex items-center justify-center gap-1 ${isVacation ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-700 hover:text-orange-400'}" title="FÃ©rias">
-                                        FÃ©
-                                    </button>
-                                    <button onclick="setStatus('${p.id}', 'away')" class="flex-1 py-1 rounded text-[10px] font-bold transition flex items-center justify-center gap-1 ${isAway ? 'bg-purple-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-700 hover:text-purple-400'}" title="Afastado">
-                                        Af
-                                    </button>
-                                    <button onclick="setStatus('${p.id}', 'day_off')" class="flex-1 py-1 rounded text-[10px] font-bold transition flex items-center justify-center gap-1 ${isDayOff ? 'bg-sky-400 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-700 hover:text-sky-400'}" title="Folga">
-                                        FL
-                                    </button>
-                                </div>
-                            </div>
-                         `}).join('')}
-                     </div>
-                </div>
-            `;
-            container.appendChild(groupEl);
-        });
-
-        updateModalStats(); // Update stats whenever list is rendered (e.g. after status change)
-    }
-
-    function updateModalStats() {
-        if (!currentSectorKey) return;
-
-        const activeInSector = Object.entries(employees.log)
-            .filter(([_, entry]) => entry.sector === currentSectorKey)
-            .map(([_, entry]) => entry);
-
-        let warnings = 0; // Placeholder for now
-        let absent = 0;
-        let sick = 0;
-        let vacation = 0;
-        let away = 0;
-
-        activeInSector.forEach(p => {
-            if (p.status === 'absent') absent++;
-            if (p.status === 'sick') sick++;
-            if (p.status === 'vacation') vacation++;
-            if (p.status === 'away') away++;
-            // if (p.status === 'warning') warnings++; 
-        });
-
-        // Update DOM elements safely
-        const setVal = (id, val) => {
-            const el = document.getElementById(id);
-            if (el) el.innerText = val;
-        };
-
-        setVal('modal-warnings', warnings);
-        setVal('modal-absent', absent);
-        setVal('modal-sick', sick);
-        setVal('modal-away', away);
-        setVal('modal-vacation', vacation);
-    }
-
-    // --- Configuration Editing ---
-
-    function deleteSubsector(subName) {
-        if (subName === 'Geral') return; // Cannot delete default
-        if (!confirm(`Tem certeza que deseja excluir a equipe "${subName}"?\nOs colaboradores voltarÃ£o para "Geral".`)) return;
-
-        const sector = SECTORS.find(s => s.key === currentSectorKey);
-        if (sector && sector.subsectors) {
-            const idx = sector.subsectors.indexOf(subName);
-            if (idx !== -1) {
-                sector.subsectors.splice(idx, 1);
-
-                // Move employees to 'Geral'
-                Object.keys(employees.log).forEach(id => {
-                    const entry = employees.log[id];
-                    if (entry.sector === currentSectorKey && entry.subsector === subName) {
-                        entry.subsector = 'Geral';
-                    }
-                });
-
-                renderActiveList();
-            }
-        }
-    }
-
-    function createSector() {
-        const name = prompt("Nome do novo setor:");
-        if (!name) return;
-
-        const key = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
-        SECTORS.push({
-            key: key,
-            label: name,
-            target: 0,
-            subsectors: ['Geral']
-        });
-        renderFlow();
-        updateKPIs();
-    }
-
-    function deleteSector(index) {
-        if (confirm("Tem certeza que deseja excluir este setor?")) {
-            SECTORS.splice(index, 1);
-            renderFlow();
-            updateKPIs();
-        }
-    }
-
-    function editMeta(index) {
-        const current = SECTORS[index].target || 0;
-        const newVal = prompt("Nova Meta:", current);
-        if (newVal && !isNaN(newVal)) {
-            SECTORS[index].target = parseInt(newVal);
-            renderFlow();
-            updateKPIs();
-        }
-    }
-
-    function createSubsector() {
-        const name = prompt("Nome do novo sub-setor:");
-        if (!name) return;
-
-        // Safer way to get sector ref
-        const sectorIndex = SECTORS.findIndex(s => s.key === currentSectorKey);
-        if (sectorIndex === -1) return;
-
-        const sector = SECTORS[sectorIndex];
-
-        if (!sector.subsectors || !Array.isArray(sector.subsectors)) {
-            sector.subsectors = ['Geral'];
-        }
-
-        if (!sector.subsectors.includes(name)) {
-            sector.subsectors.push(name);
-            // Important: Update the global config immediately in memory?
-            // Yes, SECTORS is a ref.
-
-            // Re-render
-            renderActiveList();
-        }
-    }
-
-    function renameSubsector(oldName) {
-        const newName = prompt("Renomear equipe " + oldName + " para:", oldName);
-        if (newName && newName !== oldName) {
-            // Update Config
-            const sector = SECTORS.find(s => s.key === currentSectorKey);
-            if (sector.subsectors) {
-                const idx = sector.subsectors.indexOf(oldName);
-                if (idx !== -1) sector.subsectors[idx] = newName;
-                else sector.subsectors.push(newName); // If it was transient
-            }
-
-            // Update Employees
-            Object.keys(employees.log).forEach(id => {
-                const entry = employees.log[id];
-                if (entry.sector === currentSectorKey && (entry.subsector === oldName || (!entry.subsector && oldName === 'Geral'))) {
-                    entry.subsector = newName;
-                }
-            });
-            renderActiveList();
-        }
-    }
-
-
-    // --- Interaction ---
-
-    function filterEmployees() {
-        renderAvailableList(document.getElementById('search-input').value);
-    }
-
-    let pendingAllocation = null; // Store {id, name} for simple add
-
-    function addToSector(id, name, subsector = null) {
-        if (!subsector) {
-            const sector = SECTORS.find(s => s.key === currentSectorKey);
-            const subs = sector.subsectors || ['Geral'];
-
-            // === Allocation Logic ===
-            if (subs.length > 1) {
-                // Open Selection Modal
-                pendingAllocation = { id, name };
-                openAllocationModal(subs);
-                return;
-            } else {
-                // Default to first (usually Geral)
-                subsector = subs.length > 0 ? subs[0] : 'Geral';
-            }
-        }
-
-        // Determine initial status based on employee record
-        const empRecord = ALL_EMPLOYEES.find(e => e.id === id);
-        let initialStatus = 'present';
-
-        if (empRecord) {
-            if (empRecord.status === 'vacation') initialStatus = 'vacation';
-            else if (empRecord.status === 'sick') initialStatus = 'sick';
-            else if (empRecord.status === 'away') initialStatus = 'away';
-        }
-
-        // Proceed to allocate
-        employees.log[id] = {
-            status: initialStatus,
-            sector: currentSectorKey,
-            subsector: subsector,
-            name: name
-        };
-
-        renderAvailableList(document.getElementById('search-input').value);
-        renderActiveList();
-        updateKPIs();
-    }
-
-    function openAllocationModal(subsectors) {
-        const container = document.getElementById('allocation-options');
-        container.innerHTML = '';
-
-        subsectors.forEach(sub => {
-            const btn = document.createElement('button');
-            btn.className = "w-full text-left px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition border border-slate-600 flex justify-between items-center group";
-            btn.innerHTML = `
-                <span class="font-medium">${sub}</span>
-                <span class="text-xs text-slate-400 group-hover:text-blue-400">Selecionar &rarr;</span>
-            `;
-            btn.onclick = () => {
-                addToSector(pendingAllocation.id, pendingAllocation.name, sub);
-                closeAllocationModal();
-            };
-            container.appendChild(btn);
-        });
-
-        document.getElementById('allocation-modal').classList.remove('hidden');
-    }
-
-    function closeAllocationModal() {
-        document.getElementById('allocation-modal').classList.add('hidden');
-        pendingAllocation = null;
-    }
-
-    function removeFromSector(id) {
-        delete employees.log[id];
-        renderAvailableList(document.getElementById('search-input').value);
-        renderActiveList();
-        updateKPIs();
-    }
-
-    function setStatus(id, status) {
-        if (employees.log[id]) {
-            employees.log[id].status = status;
-            renderActiveList();
-            updateKPIs();
-        }
-    }
-
-    function changeShift(shift) {
-        window.location.href = `/smart-flow?shift=${shift}&date=${currentDate}`;
-    }
-
-    function changeDate(date) {
-        window.location.href = `/smart-flow?shift=${currentShift}&date=${date}`;
-    }
-
-    function drag(ev, id) {
-        ev.dataTransfer.setData("text", id);
-    }
-
-    function allowDrop(ev) {
-        ev.preventDefault();
-    }
-
-    function drop(ev, targetSubsector) {
-        ev.preventDefault();
-        const id = ev.dataTransfer.getData("text");
-        if (employees.log[id]) {
-            employees.log[id].subsector = targetSubsector;
-            renderActiveList();
-        }
-    }
-
-    function renderStatusBadge(status) {
-        if (status === 'present') return '<span class="text-[10px] text-emerald-400">Presente</span>';
-        if (status === 'absent') return '<span class="text-[10px] text-red-400">Falta</span>';
-        if (status === 'sick') return '<span class="text-[10px] text-cyan-400">Atestado</span>';
-        if (status === 'vacation') return '<span class="text-[10px] text-orange-400">Férias</span>';
-        if (status === 'away') return '<span class="text-[10px] text-purple-400">Afastado</span>';
-        return '<span class="text-[10px] text-slate-500">Desconhecido</span>';
-    }
-
-    // --- Save ---
-    async function saveRoutine(statusOverride = null, optionalTonnage = null) {
-        // Update config inside payload
-        config.sectors = SECTORS;
-
-        const payload = {
-            date: currentDate,
-            shift: currentShift,
-            attendance_log: employees.log,
-            sector_config: { sectors: SECTORS },
-            logs: [buildSnapshot(), ...eventLogger.getEvents()]
-        };
-
-        if (statusOverride) {
-            payload.status = statusOverride;
-        }
-
-        // Manual Tonnage Override
-        if (typeof optionalTonnage === 'number') {
-            payload.tonnage = optionalTonnage;
-        } else if (manualTonnage > 0) {
-            // Persist existing manual tonnage if not changing it
-            payload.tonnage = manualTonnage;
-        }
-
-        try {
-            const res = await fetch('/routine/update', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (res.ok) {
-                if (statusOverride === 'closed') {
-                    alert('Operação Encerrada com Sucesso!');
-                    window.location.reload();
-                } else if (statusOverride === null && typeof optionalTonnage !== 'number') {
-                    // Silent save or specific alert if needed, but 'Salvo' is fine
-                    alert('Salvo e Sincronizado com Sucesso!');
-                } else if (typeof optionalTonnage === 'number') {
-                    alert('Tonelagem atualizada!');
-                    window.location.reload();
-                }
-            }
-            else alert('Erro ao salvar');
-        } catch (e) {
-            console.error(e);
-            alert('Erro de conexão');
-        }
-    }
-
-    function editTonnage() {
-        const current = manualTonnage > 0 ? manualTonnage : 0;
-        const input = prompt("Informe a Tonelagem Total (KG) Manualmente:\n(0 para voltar ao cálculo automático)", current);
-
-        if (input !== null) {
-            const val = parseInt(input.replace(/[^0-9]/g, ''));
-            if (!isNaN(val)) {
-                saveRoutine(null, val);
-            }
-        }
-    }
-
-    function closeOperation() {
-        if (confirm("ATENç?ç?O: Deseja realmente ENCERRAR a operaçço deste turno?\n\nIsso irç consolidar os nçmeros e marcar o status como fechado.")) {
-            saveRoutine('closed');
-        }
-    }
-
-
-
-    function openDashboardDetail(type) {
-        const modal = document.getElementById('dashboard-detail-modal');
-        const titleEl = document.getElementById('dashboard-detail-title');
-        const contentEl = document.getElementById('dashboard-detail-content');
-
-        modal.classList.remove('hidden');
-        contentEl.innerHTML = '';
-
-        // Animation Frame
-        requestAnimationFrame(() => {
-            const panel = modal.querySelector('div.bg-slate-800');
-            if (panel) panel.classList.remove('translate-y-full', 'opacity-0');
-        });
-
-        // Helpers
-        const createEmpList = (list, badgeLabel, badgeColorClass) => {
-            if (list.length === 0) {
-                return '<div class="flex flex-col items-center justify-center py-8 text-slate-500"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="opacity-50 mb-2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><p class="text-sm">Nenhum registro encontrado.</p></div>';
-            }
-            let html = '<div class="grid grid-cols-1 gap-2">';
-            list.forEach(emp => {
-                html += `
-                    <div class="flex items-center justify-between p-3 bg-slate-800 border border-slate-700 rounded-xl hover:bg-slate-700/30 transition shadow-sm">
-                        <div class="flex items-center gap-3">
-                            <div class="w-9 h-9 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-xs font-bold text-slate-300 shadow-inner">
-                                ${emp.name.charAt(0)}
-                            </div>
-                            <div>
-                                <p class="text-sm font-semibold text-slate-200 leading-tight">${emp.name}</p>
-                                <div class="flex items-center gap-1.5 mt-0.5">
-                                    <span class="text-[10px] text-slate-400 font-mono bg-slate-900/50 px-1 rounded">#${emp.id || '?'}</span>
-                                    ${emp.status === 'present' ? `<span class="text-[10px] text-blue-400">${emp.sector} ${emp.subsector && emp.subsector !== 'Geral' ? '&bull; ' + emp.subsector : ''}</span>` : ''}
-                                </div>
-                            </div>
-                        </div>
-                        <span class="text-[10px] font-bold ${badgeColorClass} px-2 py-1 rounded-md border border-current opacity-80">${badgeLabel}</span>
-                    </div>
-                 `;
-            });
-            html += '</div>';
-            return html;
-        };
-
-        if (type === 'headcount') {
-            titleEl.textContent = 'Colaboradores Presentes';
-            const present = Object.values(employees.log).filter(e => e.status === 'present');
-
-            if (present.length === 0) {
-                contentEl.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-slate-500"><p class="text-sm">Nenhum colaborador presente.</p></div>';
-            } else {
-                contentEl.innerHTML = createEmpList(present, 'PRESENTE', 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20');
-            }
-        } else if (type === 'gap') {
-            titleEl.textContent = 'Vagas em Aberto por Setor';
-            let hasGap = false;
-            let html = '<div class="grid grid-cols-1 gap-2">';
-
-            SECTORS.forEach(sec => {
-                const allocated = Object.values(employees.log).filter(e => e.sector === sec.key && e.status === 'present').length;
-                const deficit = Math.max(0, (sec.target || 0) - allocated);
-
-                if (deficit > 0) {
-                    hasGap = true;
-                    html += `
-                        <div class="flex items-center justify-between p-3 bg-slate-800 border border-red-500/30 rounded-xl shadow-sm relative overflow-hidden">
-                            <div class="absolute left-0 top-0 bottom-0 w-1 bg-red-500"></div>
-                            <div class="pl-2">
-                                <h4 class="text-sm font-bold text-slate-100">${sec.label}</h4>
-                                <div class="flex items-center gap-3 mt-1.5">
-                                    <div class="flex flex-col">
-                                        <span class="text-[10px] text-slate-500 uppercase font-bold">Meta</span>
-                                        <span class="text-xs font-mono text-slate-300">${sec.target || 0}</span>
-                                    </div>
-                                    <div class="w-px h-6 bg-slate-700"></div>
-                                    <div class="flex flex-col">
-                                        <span class="text-[10px] text-slate-500 uppercase font-bold">Real</span>
-                                        <span class="text-xs font-mono text-slate-300">${allocated}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="flex flex-col items-center bg-red-500/10 p-2 rounded-lg border border-red-500/20 min-w-[60px]">
-                                <span class="text-xl font-black text-red-500 leading-none">-${deficit}</span>
-                                <span class="text-[9px] text-red-400 uppercase font-bold mt-0.5">Vagas</span>
-                            </div>
-                        </div>
-                    `;
-                }
-            });
-            html += '</div>';
-
-            if (!hasGap) {
-                contentEl.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-slate-500"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" class="text-emerald-500 mb-2 opacity-80"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" stroke-width="2"/><polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" stroke-width="2"/></svg><p class="text-sm font-medium text-slate-300">Meta atingida em todos os setores!</p></div>';
-            } else {
-                contentEl.innerHTML = html;
-            }
-        } else if (type === 'sick') {
-            titleEl.textContent = 'Colaboradores com Atestado';
-            // Use generic helper for both absent and sick to show merged list IF desired, but user separated them in report
-            // Dashboard detail title for 'sick' seems to imply just sick or both? 
-            // Previous code merged them. User complained about logic.
-            // Let's show just "Atestado" here if the type is 'sick'. 
-            // Note: If type is 'absent', logic would be needed. But dashboard probably only has buttons for 'sick' (Absenteismo).
-            // Actually, in the dashboard HTML (which I partly saw), there is 'total-sick'.
-
-            // Let's MERGE Absent + Sick for this modal list to be safe, assuming the card represents "Absenteismo".
-            const listSick = getShiftEmployeesByStatus('sick').map(e => ({ ...e, badge: 'ATESTADO', badgeClass: 'text-amber-400 bg-amber-500/10 border-amber-500/20' }));
-            const listAbsent = getShiftEmployeesByStatus('absent').map(e => ({ ...e, badge: 'FALTA', badgeClass: 'text-red-400 bg-red-500/10 border-red-500/20' }));
-            const list = [...listSick, ...listAbsent];
-
-            // Render manually since createEmpList takes static badge
-            if (list.length === 0) {
-                contentEl.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-slate-500"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="opacity-50 mb-2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><p class="text-sm">Nenhum registro encontrado.</p></div>';
-            } else {
-                let html = '<div class="grid grid-cols-1 gap-2">';
-                list.forEach(emp => {
-                    html += `
-                        <div class="flex items-center justify-between p-3 bg-slate-800 border border-slate-700 rounded-xl hover:bg-slate-700/30 transition shadow-sm">
-                            <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-xs font-bold text-slate-300 shadow-inner">
-                                    ${emp.name.charAt(0)}
-                                </div>
-                                <div>
-                                    <p class="text-sm font-semibold text-slate-200 leading-tight">${emp.name}</p>
-                                    <div class="flex items-center gap-1.5 mt-0.5">
-                                        <span class="text-[10px] text-slate-400 font-mono bg-slate-900/50 px-1 rounded">#${emp.id || '?'}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <span class="text-[10px] font-bold ${emp.badgeClass} px-2 py-1 rounded-md border border-current opacity-80">${emp.badge}</span>
-                        </div>
-                    `;
-                });
-                html += '</div>';
-                contentEl.innerHTML = html;
-            }
-
-        } else if (type === 'vacation') {
-            titleEl.textContent = 'Colaboradores em Férias';
-            const list = getShiftEmployeesByStatus('vacation');
-            contentEl.innerHTML = createEmpList(list, 'FçRIAS', 'text-orange-400 bg-orange-500/10 border-orange-500/20');
-
-        } else if (type === 'away') {
-            titleEl.textContent = 'Colaboradores Afastados';
-            const list = getShiftEmployeesByStatus('away');
-            contentEl.innerHTML = createEmpList(list, 'AFASTADO', 'text-purple-400 bg-purple-500/10 border-purple-500/20');
-
-        } else if (type === 'tonnage') {
-            titleEl.textContent = 'Detalhamento de Produção';
-            contentEl.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-slate-500"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="opacity-50 mb-2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><p class="text-sm">Produção: ' + document.getElementById('total-tonnage').innerText + '</p></div>';
-        }
-    }
-
-    // --- Helpers ---
-    function normalizeStr(str) {
-        if (!str) return "";
-        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-    }
-
-    function getShiftEmployeesByStatus(targetStatus) {
-        const curShiftNorm = normalizeStr(currentShift);
-
-        return ALL_EMPLOYEES.filter(emp => {
-            // 1. Shift Base Filter (Strict ownership of the absence)
-            // We only care about absences/status for people who SHOULD be here (assigned to this shift)
-            const empShiftNorm = normalizeStr(emp.shift || "");
-            if (!empShiftNorm.includes(curShiftNorm)) return false;
-
-            // 2. Effective Status (Log Override > Permanent)
-            const logEntry = employees.log[emp.id];
-            const effectiveStatus = logEntry ? logEntry.status : emp.status;
-
-            return effectiveStatus === targetStatus;
-        });
-    }
-
-    function closeDashboardDetail() {
-        const modal = document.getElementById('dashboard-detail-modal');
-        if (!modal) return;
-
-        const panel = modal.querySelector('div.bg-slate-800');
-
-        // Anim out
-        if (panel) panel.classList.add('translate-y-full', 'opacity-0');
-        setTimeout(() => {
-            modal.classList.add('hidden');
-        }, 300);
-    }
-
-
-
-
-
-
-
-
+    // Carregar employees do backend via fetch imediato
+    fetch('/api/employees')
+        .then(r => r.json())
+        .then(data => {
+            window.INITIAL_DATA.employees = data.employees || [];
+            console.log('Employees loaded:', window.INITIAL_DATA.employees.length);
+        })
+        .catch(err => console.error('Error loading employees:', err));
 </script>
 
-<!-- Vacation Modal (Copied from Employees) -->
-<div id="vacation-schedule-modal" class="fixed inset-0 z-[80] hidden" aria-labelledby="modal-title" role="dialog"
-    aria-modal="true">
-    <div class="absolute inset-0 bg-slate-900/90 backdrop-blur-sm transition-opacity"></div>
-    <div class="fixed inset-0 z-10 overflow-y-auto">
-        <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
-            <div
-                class="relative transform overflow-hidden rounded-2xl bg-slate-800 text-left shadow-2xl shadow-black/50 transition-all sm:my-8 sm:w-full sm:max-w-lg border border-slate-700">
-                <div class="px-6 py-6">
-                    <div class="flex items-center gap-4 mb-6">
-                        <div
-                            class="w-12 h-12 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-400 border border-orange-500/20">
-                            <svg width="24" height="24" fill="none" class="w-6 h-6" viewBox="0 0 24 24"
-                                stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="text-lg font-bold text-slate-100" id="vacation-modal-title">Programar Férias
-                            </h3>
-                            <p class="text-sm text-slate-400">Defina o perçodo de fçrias do colaborador.</p>
-                        </div>
-                    </div>
-
-                    <form id="vacation-form" onsubmit="event.preventDefault(); saveVacationSchedule();">
-                        <input type="hidden" id="vacation-emp-reg">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label for="vacation-start"
-                                    class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5 ml-1">Início</label>
-                                <input type="date" id="vacation-start" required
-                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-slate-100 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition text-sm text-white-scheme">
-                            </div>
-                            <div>
-                                <label for="vacation-end"
-                                    class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5 ml-1">Fim</label>
-                                <input type="date" id="vacation-end" required
-                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-slate-100 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition text-sm text-white-scheme">
-                            </div>
-                        </div>
-
-                        <div class="mt-8 flex justify-end gap-3">
-                            <button type="button" onclick="closeVacationModal()"
-                                class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm font-semibold transition border border-slate-600">Cancelar</button>
-                            <button type="submit"
-                                class="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-semibold transition shadow-lg shadow-blue-900/20">Salvar
-                                ProgramaÃ§Ã£o</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-    function openVacationModal(id) {
-        // Find employee in ALL_EMPLOYEES (Smart Flow context)
-        // Note: In Smart Flow, ALL_EMPLOYEES items have 'id' which IS the registration id.
-        const emp = ALL_EMPLOYEES.find(e => e.id === id);
-        if (!emp) return alert("Colaborador nÃ£o encontrado.");
-
-        document.getElementById('vacation-emp-reg').value = emp.id; // Reg ID
-        document.getElementById('vacation-modal-title').innerText = `Programar Férias: ${emp.name}`;
-        document.getElementById('vacation-start').value = '';
-        document.getElementById('vacation-end').value = '';
-        document.getElementById('vacation-schedule-modal').classList.remove('hidden');
-    }
-
-    function closeVacationModal() {
-        document.getElementById('vacation-schedule-modal').classList.add('hidden');
-    }
-
-    async function saveVacationSchedule() {
-        const regId = document.getElementById('vacation-emp-reg').value;
-        const start = document.getElementById('vacation-start').value;
-        const end = document.getElementById('vacation-end').value;
-
-        if (!start || !end) return alert("Preencha as datas.");
-        if (!regId) return alert("Erro interno: MatrÃ­cula invÃ¡lida.");
-
-        try {
-            const res = await fetch('/employees/vacation', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    registration_id: regId,
-                    start_date: start,
-                    end_date: end
-                })
-            });
-
-            if (res.ok) {
-                alert('Férias programadas com sucesso!');
-                closeVacationModal();
-                window.location.reload();
-            } else {
-                const err = await res.json();
-                alert('Erro: ' + (err.error || 'Falha ao salvar'));
-            }
-        } catch (e) {
-            console.error(e);
-            alert('Erro de conexão');
-        }
-    }
-
-</script>
-
-<!-- ========================================
-     MÓDULOS JAVASCRIPT MODULARES
-     ======================================== -->
-<script src="/static/js/utils/format-br.js"></script>
-<script src="/static/js/smart-flow/state.js"></script>
-<script src="/static/js/smart-flow/kpis.js"></script>
-<script src="/static/js/smart-flow/sectors.js"></script>
-<script src="/static/js/smart-flow/modals.js"></script>
-<script src="/static/js/smart-flow/drag-drop.js"></script>
+<!-- Modules -->
 <script src="/static/js/smart-flow/api.js"></script>
+<script src="/static/js/smart-flow/store.js"></script>
+<script src="/static/js/smart-flow/sectors-crud.js"></script>
+<script src="/static/js/smart-flow/render.js"></script>
+<script src="/static/js/smart-flow/events.js"></script>
 <script src="/static/js/smart-flow/main.js"></script>
-
-<!-- Dados iniciais do servidor -->
-<script>
-    // Dados passados do backend para o frontend
-    const INITIAL_DATA = {
-        employees: {{ employees_json | default ('[]') | safe }},
-    config: {{ config_json | default ('{}') | safe }},
-    all_employees: {{ all_employees_json | default ('[]') | safe }}
-    };
-
-    console.log('📊 Dados iniciais carregados:', {
-        employees: INITIAL_DATA.employees.length,
-        all_employees: INITIAL_DATA.all_employees.length
-    });
-</script>
 
 {% endblock %}

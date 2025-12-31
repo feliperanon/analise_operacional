@@ -117,3 +117,55 @@ class Route(SQLModel, table=True):
     tonnage: float = 0.0
     status: str = "pending" # pending, completed
     created_at: datetime = Field(default_factory=datetime.now)
+
+# --- Smart Flow Hierarchical Models ---
+
+class Sector(SQLModel, table=True):
+    """Setor principal (ex: Recebimento, Expedição)"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True)  # Nome do setor
+    shift: str = Field(index=True)  # Manhã, Tarde, Noite
+    max_employees: int = Field(default=0)  # Limite de vagas do setor
+    order: int = Field(default=0)  # Ordem de exibição
+    color: Optional[str] = Field(default="blue")  # Cor do card
+    icon: Optional[str] = Field(default="box")  # Ícone
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+    
+    # Relacionamentos
+    subsectors: List["SubSector"] = Relationship(back_populates="sector", cascade_delete=True)
+
+class SubSector(SQLModel, table=True):
+    """Sub-setor dentro de um setor (ex: Doca 1, Linha 2)"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    sector_id: int = Field(foreign_key="sector.id", index=True)
+    name: str  # Nome do sub-setor
+    max_employees: int = Field(default=0)  # Limite de vagas do sub-setor
+    order: int = Field(default=0)  # Ordem de exibição
+    created_at: datetime = Field(default_factory=datetime.now)
+    
+    # Relacionamentos
+    sector: Sector = Relationship(back_populates="subsectors")
+    allocations: List["EmployeeAllocation"] = Relationship(back_populates="subsector", cascade_delete=True)
+
+class EmployeeAllocation(SQLModel, table=True):
+    """Alocação de colaborador em sub-setor (por dia/turno)"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    date: str = Field(index=True)  # YYYY-MM-DD
+    shift: str = Field(index=True)  # Manhã, Tarde, Noite
+    employee_id: int = Field(foreign_key="employee.id", index=True)
+    subsector_id: int = Field(foreign_key="subsector.id", index=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+    
+    # Relacionamentos
+    subsector: SubSector = Relationship(back_populates="allocations")
+
+class EmployeeRoutine(SQLModel, table=True):
+    """Rotina diária do colaborador (Presente, Falta, Férias, etc)"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    date: str = Field(index=True)  # YYYY-MM-DD
+    shift: str = Field(index=True)  # Manhã, Tarde, Noite
+    employee_id: int = Field(foreign_key="employee.id", index=True)
+    routine: str = Field(default="present")  # present, absent, sick, vacation, away
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)

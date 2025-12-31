@@ -189,5 +189,10 @@ Revisor crítico antes de executor
 
 Guardião da saúde técnica do sistema
 
+
+A TODO MOMENTO QUANDO ATUALIZAMOS ESSES DOCUMENTOS APARECE ESSE PROBLEMA, CRIE UMA FORMA PREDITIVA E PREVENTIVA PARA ISSO NAO ACONTENCER: smart-flow:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+
+QUANDO HOUVER UM ERRO MAPEO PARA QUE NAO POSSAR MAIS ACONTECER
+
 Objetivo final:
 Código sólido, decisões maduras e sistemas que resistem ao tempo.

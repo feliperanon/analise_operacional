@@ -1,29 +1,55 @@
-// Inicialização do Smart Flow
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('Smart Flow inicializado');
+/**
+ * Main App Module - Smart Flow V2
+ * Ponto de entrada.
+ */
 
-    // Inicializar variáveis globais com dados do servidor
-    if (typeof INITIAL_DATA !== 'undefined') {
-        ALL_EMPLOYEES = INITIAL_DATA.all_employees || [];
+const App = {
+    async init() {
+        console.log('🚀 Smart Flow V2 Starting...');
 
-        if (INITIAL_DATA.config && INITIAL_DATA.config.sectors) {
-            SECTORS = INITIAL_DATA.config.sectors;
+        // 1. Inicializar Store com dados injetados
+        if (typeof INITIAL_DATA !== 'undefined') {
+            Store.init(INITIAL_DATA);
+        } else {
+            console.error('CRITICAL: INITIAL_DATA not found.');
         }
 
-        if (INITIAL_DATA.employees) {
-            employees.log = INITIAL_DATA.employees;
-        }
+        // 2. Inicializar Renderizador
+        Render.init();
+
+        // 3. Inicializar Eventos
+        Events.init();
+
+        // 4. Subscrever Renderizador ao Store
+        Store.subscribe((state) => {
+            Render.update(state);
+        });
+
+        // 5. Carregar dados da API
+        await this.loadData();
+
+        console.log('✅ Smart Flow V2 Ready.');
+    },
+
+    async loadData() {
+        const { currentDate, currentShift } = Store.state;
+
+        // Carregar setores
+        const sectorsData = await API.loadSectors(currentShift);
+
+        // Carregar alocações e rotinas
+        const allocData = await API.loadAllocations(currentDate, currentShift);
+
+        // Atualizar Store
+        Store.setData({
+            sectors: sectorsData.sectors || [],
+            allocations: allocData.allocations || {},
+            routines: allocData.routines || {}
+        });
     }
+};
 
-    // Inicializar drag & drop
-    initDragDrop();
-
-    // Carregar rotina do dia
-    loadRoutine();
-
-    // Renderizar interface inicial
-    renderFlow();
-    updateKPIs();
-
-    console.log('✅ Smart Flow pronto');
+// Start
+document.addEventListener('DOMContentLoaded', () => {
+    App.init();
 });
