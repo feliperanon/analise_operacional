@@ -877,27 +877,24 @@ async def update_routine(
 # --- Employees API ---
 
 @app.get("/api/employees", response_class=JSONResponse)
-async def get_employees(
-    request: Request,
-    session: Session = Depends(get_session)
-):
-    """Retorna lista de todos os colaboradores (incluindo demitidos para cálculo de vagas)"""
+async def get_all_employees(request: Request, session: Session = Depends(get_session)):
+    """Retorna todos os colaboradores (incluindo demitidos, mas excluindo substituídos)"""
     require_login(request)
     
-    # Buscar TODOS os colaboradores (incluindo demitidos)
+    # Buscar TODOS os colaboradores não substituídos
     employees = session.exec(
         select(models.Employee)
+        .where(models.Employee.replaced_by.is_(None))  # Excluir substituídos
     ).all()
     
     return {
         "employees": [{
-            "id": e.id,  # ✅ CORRIGIDO: usar id real, não registration_id
-            "registration_id": e.registration_id,  # Manter registration_id separado
+            "id": e.id,
+            "registration_id": e.registration_id,
             "name": e.name,
             "role": e.role,
             "shift": e.work_shift,
-            "cost_center": e.cost_center,
-            "status": e.status  # Incluir status (active, vacation, sick, away, fired, etc.)
+            "status": e.status
         } for e in employees]
     }
 
@@ -1813,8 +1810,11 @@ async def _employees_page_impl(request: Request, session: Session):
     update_vacation_statuses(session, datetime.now())
     # user = require_login(request)
     user = "debug_admin"
-        # Fetch Employees
-    employees = session.exec(select(models.Employee)).all()
+        # Fetch Employees (excluindo substituídos)
+    employees = session.exec(
+        select(models.Employee)
+        .where(models.Employee.replaced_by.is_(None))
+    ).all()
         # Calculate Stats
     total_active = sum(1 for e in employees if e.status == "active")
         # Fetch Targets (Create defaults if not exist)
@@ -1964,6 +1964,10 @@ async def add_employee(
         if is_substitution and replaced_employee_id:
             old_emp = session.get(models.Employee, replaced_employee_id)
             if old_emp:
+                # Marcar colaborador antigo como substituído
+                old_emp.replaced_by = new_employee.id
+                session.add(old_emp)
+                
                 # 1. History for New Employee
                 # "Entrou em substituição a X (Motivo)"
                 reason_pt = "Demitido" if sub_reason == 'fired' else "Afastado"
@@ -2421,8 +2425,12 @@ async def people_intelligence_page(
 ):
     user = require_login(request)
     
-    # 1. Overview Data
-    employees = session.exec(select(models.Employee).where(models.Employee.status != "fired")).all()
+    # 1. Overview Data (excluindo substituídos e demitidos)
+    employees = session.exec(
+        select(models.Employee)
+        .where(models.Employee.status != "fired")
+        .where(models.Employee.replaced_by.is_(None))
+    ).all()
     
     # Filter by Shift
     if shift != "Todos":

@@ -44,6 +44,9 @@ class Employee(SQLModel, table=True):
     # Termination
     termination_date: Optional[datetime] = None
     
+    # Replacement tracking
+    replaced_by: Optional[int] = Field(default=None, foreign_key="employee.id")  # ID do colaborador que substituiu este
+
 
 
 
