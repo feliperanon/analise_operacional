@@ -106,6 +106,49 @@ const API = {
             console.error('API Error:', error);
             return { success: false };
         }
+    },
+
+    /**
+     * Define férias de um colaborador
+     */
+    async setEmployeeVacation(employeeId, vacationStart, vacationEnd) {
+        try {
+            const response = await fetch('/api/employees/vacation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    employee_id: employeeId,
+                    vacation_start: vacationStart,
+                    vacation_end: vacationEnd
+                })
+            });
+            if (!response.ok) throw new Error('Erro ao definir férias');
+            return await response.json();
+        } catch (error) {
+            console.error('API Error:', error);
+            return { success: false, error: error.message };
+        }
+    },
+
+    /**
+     * Define rotina de um colaborador
+     */
+    async setEmployeeRoutine(employeeId, routine) {
+        try {
+            const response = await fetch('/api/employees/routine', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    employee_id: employeeId,
+                    routine: routine
+                })
+            });
+            if (!response.ok) throw new Error('Erro ao definir rotina');
+            return await response.json();
+        } catch (error) {
+            console.error('API Error:', error);
+            return { success: false, error: error.message };
+        }
     }
 };
 

@@ -91,70 +91,66 @@ const Render = {
 
     createSectorCard(sector, state) {
         const card = document.createElement('div');
-        card.className = 'bg-slate-800 rounded-2xl border border-slate-700 p-4 hover:border-slate-600 transition';
+        card.className = 'bg-slate-800 rounded-lg border border-slate-700 p-3 hover:border-blue-500 transition cursor-pointer group';
 
         // Calcular total de colaboradores alocados neste setor
         const sectorEmployeeCount = this.countSectorEmployees(sector, state.allocations);
+        const percentage = sector.max_employees > 0 ? Math.round((sectorEmployeeCount / sector.max_employees) * 100) : 0;
 
-        // Header do Setor
-        const header = document.createElement('div');
-        header.className = 'flex items-center justify-between mb-4';
-        header.innerHTML = `
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg bg-${sector.color}-600/20 flex items-center justify-center">
-                    <span class="text-${sector.color}-400 text-xl">📦</span>
+        // Tornar card clicável para abrir modal de gestão
+        card.onclick = (e) => {
+            // Não abrir modal se clicou em botão de ação
+            if (e.target.closest('button')) return;
+            SectorManagement.open(sector.id);
+        };
+
+        card.innerHTML = `
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-700/50">
+                <div class="flex-1 min-w-0">
+                    <h3 class="text-sm font-bold text-white group-hover:text-blue-400 transition truncate">${sector.name}</h3>
+                    <p class="text-[9px] text-slate-500">${sector.subsectors?.length || 0} sub-setores</p>
                 </div>
-                <div>
-                    <h3 class="text-lg font-bold text-white">${sector.name}</h3>
-                    <p class="text-xs text-slate-400">
-                        <span id="sector-${sector.id}-count">${sectorEmployeeCount}</span> / ${sector.max_employees} colaboradores
-                    </p>
+                <div class="flex gap-1 flex-shrink-0" onclick="event.stopPropagation()">
+                    <button onclick="SectorsCRUD.openEditSector(${sector.id}, '${sector.name}', ${sector.max_employees}, '${sector.color}')"
+                        class="text-slate-500 hover:text-blue-400 p-1 rounded transition" title="Editar">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                    </button>
+                    <button onclick="SectorsCRUD.deleteSector(${sector.id}, '${sector.name}')"
+                        class="text-slate-500 hover:text-red-400 p-1 rounded transition" title="Excluir">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </button>
                 </div>
             </div>
-            <div class="flex gap-2">
-                <button onclick="SectorsCRUD.openEditSector(${sector.id}, '${sector.name}', ${sector.max_employees}, '${sector.color}')"
-                    class="text-slate-400 hover:text-white p-2" title="Editar Setor">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                    </svg>
-                </button>
-                <button onclick="SectorsCRUD.deleteSector(${sector.id}, '${sector.name}')"
-                    class="text-red-400 hover:text-red-300 p-2" title="Excluir Setor">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </svg>
-                </button>
-                <button onclick="SectorsCRUD.openCreateSubSector(${sector.id})"
-                    class="text-blue-400 hover:text-blue-300 p-2" title="Adicionar Sub-setor">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                </button>
+
+            <!-- Stats -->
+            <div class="space-y-2">
+                <div class="flex items-baseline justify-between">
+                    <span class="text-[9px] text-slate-500 uppercase font-bold">Alocados</span>
+                    <div class="text-right">
+                        <span class="text-xl font-bold text-${percentage >= 80 ? 'emerald' : percentage >= 50 ? 'amber' : 'red'}-400">${sectorEmployeeCount}</span>
+                        <span class="text-slate-600 text-sm"> / ${sector.max_employees}</span>
+                    </div>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div class="w-full bg-slate-900 rounded-full h-1 overflow-hidden">
+                    <div class="bg-${percentage >= 80 ? 'emerald' : percentage >= 50 ? 'amber' : 'red'}-500 h-full transition-all" style="width: ${percentage}%"></div>
+                </div>
+                
+                <div class="text-right">
+                    <span class="text-[9px] text-slate-500">Ocupação: </span>
+                    <span class="text-xs font-bold text-${percentage >= 80 ? 'emerald' : percentage >= 50 ? 'amber' : 'red'}-400">${percentage}%</span>
+                </div>
             </div>
         `;
-        card.appendChild(header);
 
-        // Sub-setores
-        const subsectorsContainer = document.createElement('div');
-        subsectorsContainer.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3';
-
-        if (sector.subsectors && sector.subsectors.length > 0) {
-            sector.subsectors.forEach(subsector => {
-                const subsectorCard = this.createSubSectorCard(sector, subsector, state);
-                subsectorsContainer.appendChild(subsectorCard);
-            });
-        } else {
-            subsectorsContainer.innerHTML = `
-                <div class="col-span-full text-center text-slate-500 py-4 text-sm">
-                    Nenhum sub-setor criado. Clique no + acima para adicionar.
-                </div>
-            `;
-        }
-
-        card.appendChild(subsectorsContainer);
         return card;
     },
 

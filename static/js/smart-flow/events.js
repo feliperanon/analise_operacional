@@ -89,27 +89,59 @@ const Events = {
             });
         };
 
-        window.saveRoutine = () => {
-            API.saveRoutine({
+        window.saveAll = async () => {
+            const payload = {
                 date: Store.state.currentDate,
                 shift: Store.state.currentShift,
-                log: Store.state.log,
-                tonnage: Store.state.tonnage
-            }).then(() => {
-                alert('Rotina salva com sucesso!');
-            });
-        };
+                allocations: Store.state.allocations,
+                routines: Store.state.routines
+            };
 
-        window.closeOperation = () => {
-            if (confirm("Tem certeza que deseja encerrar a operação deste turno?")) {
-                // Implementar lógica de encerramento se houver endpoint específico,
-                // ou apenas redirecionar para relatórios.
-                window.location.href = `/daily_operations?date=${Store.state.currentDate}`;
+            console.log('💾 SALVANDO MANUALMENTE:');
+            console.log('📅 Date:', payload.date);
+            console.log('🕐 Shift:', payload.shift);
+            console.log('📊 Allocations:', payload.allocations);
+            console.log('📋 Routines:', payload.routines);
+            console.log('📦 Payload JSON:', JSON.stringify(payload, null, 2));
+
+            try {
+                const result = await API.saveAllocations(payload);
+                if (result.success) {
+                    alert('✅ Alocações salvas com sucesso!');
+                    Store.state.isDirty = false;
+                } else {
+                    console.error('❌ Resultado do servidor:', result);
+                    alert('❌ Erro ao salvar. Verifique o console.');
+                }
+            } catch (err) {
+                console.error('❌ Erro na requisição:', err);
+                alert('❌ Erro ao salvar. Verifique o console.');
             }
         };
 
+        window.closeShift = () => {
+            if (!confirm("Tem certeza que deseja encerrar este turno?")) return;
+
+            // Salvar antes de encerrar
+            API.saveAllocations({
+                date: Store.state.currentDate,
+                shift: Store.state.currentShift,
+                allocations: Store.state.allocations,
+                routines: Store.state.routines,
+                tonnage: Store.state.tonnage
+            }).then(() => {
+                alert('✅ Turno encerrado e salvo!');
+                // Redirecionar para daily operations
+                window.location.href = `/daily_operations?date=${Store.state.currentDate}`;
+            }).catch(err => {
+                console.error('Error closing shift:', err);
+                alert('❌ Erro ao encerrar turno. Verifique o console.');
+            });
+        };
+
         window.createSector = () => {
-            alert("Funcionalidade de criar setor visualmente será implementada em breve.");
+            // Abrir modal de criação de setor
+            SectorsCRUD.openCreateSector();
         };
 
         // --- KPI & Details ---

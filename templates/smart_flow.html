@@ -90,81 +90,97 @@
     </header>
 
     <!-- KPI Strip -->
-    <div id="kpi-strip"
-        class="h-24 shrink-0 px-6 py-3 flex gap-4 overflow-x-auto border-b border-slate-800 bg-slate-900/95 backdrop-blur z-10 no-scrollbar">
-        <!-- Cards will be populated dynamically by render.js -->
-        <!-- Static placeholders for structure -->
+    <div id="kpi-strip" class="shrink-0 px-6 py-4 border-b border-slate-800 bg-slate-900/95 backdrop-blur z-10">
+        <!-- Grid de 5 colunas responsivo -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
 
-        <!-- 1. Headcount -->
-        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between min-w-[140px]">
-            <p class="text-[10px] font-bold text-slate-400 uppercase">Headcount</p>
-            <div>
-                <p class="text-lg font-bold text-white leading-none"><span id="total-present">0</span> / <span
-                        id="total-target-kpi" class="text-xs text-slate-500">45</span></p>
-                <p class="text-[9px] text-slate-500 mt-0.5">Presença: <span id="present-percent"
-                        class="text-emerald-400 font-bold">0%</span></p>
+            <!-- 1. Headcount -->
+            <div onclick="KPIDetails.show('present')"
+                class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-emerald-500 transition">
+                <p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Headcount</p>
+                <div>
+                    <p class="text-xl font-bold text-white leading-none">
+                        <span id="total-present">0</span>
+                        <span class="text-slate-600 text-sm">/ <span id="total-target-kpi">45</span></span>
+                    </p>
+                    <p class="text-[8px] text-slate-500 mt-1">
+                        <span id="present-percent" class="text-emerald-400 font-bold">0%</span> presença
+                    </p>
+                </div>
             </div>
-        </div>
 
-        <!-- 2. Vagas -->
-        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between min-w-[140px]">
-            <p class="text-[10px] font-bold text-slate-400 uppercase text-red-400">Vagas</p>
-            <div>
-                <p class="text-lg font-bold text-white leading-none" id="total-gap">45</p>
-                <p class="text-[9px] text-slate-500 mt-0.5">Em aberto</p>
+            <!-- 6. Vagas (Demitidos) -->
+            <div onclick="KPIDetails.show('gap')"
+                class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-red-500 transition">
+                <p class="text-[9px] font-bold text-red-400 uppercase mb-1">Vagas</p>
+                <div>
+                    <p class="text-xl font-bold text-white leading-none" id="total-gap">0</p>
+                    <p class="text-[8px] text-slate-500 mt-1">Demitidos</p>
+                </div>
             </div>
-        </div>
 
-        <!-- 3. Tonnage -->
-        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between min-w-[140px] cursor-pointer hover:border-purple-500 transition"
-            onclick="editTonnage()">
-            <p class="text-[10px] font-bold text-slate-400 uppercase text-purple-400">Produção Total</p>
-            <div>
-                <p class="text-lg font-bold text-white leading-none" id="total-tonnage">0 kg</p>
-                <p class="text-[9px] text-slate-500 mt-0.5"><span id="prod-per-person"
-                        class="text-purple-400 font-bold">0</span> kg/pessoa</p>
+            <!-- 3. Férias -->
+            <div onclick="KPIDetails.show('vacation')"
+                class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-orange-500 transition">
+                <p class="text-[9px] font-bold text-orange-400 uppercase mb-1">Férias</p>
+                <div>
+                    <p class="text-xl font-bold text-white leading-none" id="total-vacation">0</p>
+                    <p class="text-[8px] text-slate-500 mt-1">Colaboradores</p>
+                </div>
             </div>
-        </div>
 
-        <!-- 4. Férias -->
-        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between min-w-[120px]">
-            <p class="text-[10px] font-bold text-slate-400 uppercase text-orange-400">Férias</p>
-            <div>
-                <p class="text-lg font-bold text-white leading-none" id="total-vacation">0</p>
+            <!-- 4. Afastados -->
+            <div onclick="KPIDetails.show('away')"
+                class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-indigo-500 transition">
+                <p class="text-[9px] font-bold text-indigo-400 uppercase mb-1">Afastados</p>
+                <div>
+                    <p class="text-xl font-bold text-white leading-none" id="total-away">0</p>
+                    <p class="text-[8px] text-slate-500 mt-1">Colaboradores</p>
+                </div>
             </div>
-        </div>
 
-        <!-- 5. Afastados -->
-        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between min-w-[120px]">
-            <p class="text-[10px] font-bold text-slate-400 uppercase text-indigo-400">Afastados</p>
-            <div>
-                <p class="text-lg font-bold text-white leading-none" id="total-away">0</p>
+            <!-- 5. Atestados -->
+            <div onclick="KPIDetails.show('sick')"
+                class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-amber-500 transition">
+                <p class="text-[9px] font-bold text-amber-400 uppercase mb-1">Atestados</p>
+                <div>
+                    <p class="text-xl font-bold text-white leading-none" id="total-sick">0</p>
+                    <p class="text-[8px] text-slate-500 mt-1">Colaboradores</p>
+                </div>
             </div>
-        </div>
 
-        <!-- 6. Faltas -->
-        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between min-w-[120px]">
-            <p class="text-[10px] font-bold text-slate-400 uppercase text-rose-400">Faltas</p>
-            <div>
-                <p class="text-lg font-bold text-white leading-none" id="total-missing">0</p>
+            <!-- 6. Faltas -->
+            <div onclick="KPIDetails.show('missing')"
+                class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-rose-500 transition">
+                <p class="text-[9px] font-bold text-rose-400 uppercase mb-1">Faltas</p>
+                <div>
+                    <p class="text-xl font-bold text-white leading-none" id="total-missing">0</p>
+                    <p class="text-[8px] text-slate-500 mt-1">Colaboradores</p>
+                </div>
             </div>
-        </div>
 
-        <!-- 7. Atestados -->
-        <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between min-w-[120px]">
-            <p class="text-[10px] font-bold text-slate-400 uppercase text-amber-400">Atestados</p>
-            <div>
-                <p class="text-lg font-bold text-white leading-none" id="total-sick">0</p>
+            <!-- 7. Produção Total -->
+            <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-purple-500 transition"
+                onclick="editTonnage()">
+                <p class="text-[9px] font-bold text-purple-400 uppercase mb-1">Produção</p>
+                <div>
+                    <p class="text-xl font-bold text-white leading-none" id="total-tonnage">0 kg</p>
+                    <p class="text-[8px] text-slate-500 mt-1">
+                        <span id="prod-per-person" class="text-purple-400 font-bold">0</span> kg/pessoa
+                    </p>
+                </div>
             </div>
-        </div>
 
+        </div>
     </div>
+
 
     <!-- Main Content -->
     <main class="flex-1 overflow-hidden flex flex-col">
         <!-- Flow Grid -->
-        <div class="flex-1 overflow-y-auto p-6">
-            <div id="flow-grid" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div class="flex-1 p-6 overflow-hidden">
+            <div id="flow-grid"
+                class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 h-full auto-rows-max">
                 <!-- Sectors will be rendered here by render.js -->
             </div>
         </div>
@@ -280,16 +296,25 @@
         .then(data => {
             window.INITIAL_DATA.employees = data.employees || [];
             console.log('Employees loaded:', window.INITIAL_DATA.employees.length);
+
+            // Atualizar Store se já estiver inicializado
+            if (window.Store && window.Store.state) {
+                window.Store.state.employees = window.INITIAL_DATA.employees;
+                window.Store.notify(); // Recalcular KPIs e atualizar UI
+                console.log('Store updated with employees');
+            }
         })
         .catch(err => console.error('Error loading employees:', err));
 </script>
 
 <!-- Modules -->
-<script src="/static/js/smart-flow/api.js"></script>
-<script src="/static/js/smart-flow/store.js"></script>
-<script src="/static/js/smart-flow/sectors-crud.js"></script>
-<script src="/static/js/smart-flow/render.js"></script>
-<script src="/static/js/smart-flow/events.js"></script>
-<script src="/static/js/smart-flow/main.js"></script>
+<script src="/static/js/smart-flow/api.js?v=20260102X"></script>
+<script src="/static/js/smart-flow/store.js?v=20260102X"></script>
+<script src="/static/js/smart-flow/sectors-crud.js?v=20260102X"></script>
+<script src="/static/js/smart-flow/sector-management.js?v=20260102X"></script>
+<script src="/static/js/smart-flow/kpi-details.js?v=20260102X"></script>
+<script src="/static/js/smart-flow/render.js?v=20260102X"></script>
+<script src="/static/js/smart-flow/events.js?v=20260102X"></script>
+<script src="/static/js/smart-flow/main.js?v=20260102X"></script>
 
 {% endblock %}

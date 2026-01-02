@@ -881,22 +881,23 @@ async def get_employees(
     request: Request,
     session: Session = Depends(get_session)
 ):
-    """Retorna lista de todos os colaboradores ativos"""
+    """Retorna lista de todos os colaboradores (incluindo demitidos para cálculo de vagas)"""
     require_login(request)
     
+    # Buscar TODOS os colaboradores (incluindo demitidos)
     employees = session.exec(
         select(models.Employee)
-        .where(models.Employee.status != 'fired')
     ).all()
     
     return {
         "employees": [{
-            "id": e.registration_id,
+            "id": e.id,  # ✅ CORRIGIDO: usar id real, não registration_id
+            "registration_id": e.registration_id,  # Manter registration_id separado
             "name": e.name,
             "role": e.role,
             "shift": e.work_shift,
             "cost_center": e.cost_center,
-            "status": e.status
+            "status": e.status  # Incluir status (active, vacation, sick, away, fired, etc.)
         } for e in employees]
     }
 
@@ -1116,27 +1117,113 @@ async def get_allocations(
     """Retorna alocações e rotinas do dia/turno"""
     require_login(request)
     
-    # Buscar alocações
+    # Buscar alocações do dia atual
     allocations = session.exec(
         select(models.EmployeeAllocation)
         .where(models.EmployeeAllocation.date == date)
         .where(models.EmployeeAllocation.shift == shift)
     ).all()
     
-    # Buscar rotinas
+    # Se não houver alocações, buscar do dia anterior
+    if not allocations:
+        from datetime import datetime, timedelta
+        try:
+            current_date = datetime.strptime(date, "%Y-%m-%d")
+            previous_date = current_date - timedelta(days=1)
+            previous_date_str = previous_date.strftime("%Y-%m-%d")
+            
+            print(f"📋 Nenhuma alocação encontrada para {date}. Buscando escala de {previous_date_str}...")
+            
+            # Buscar alocações do dia anterior
+            previous_allocations = session.exec(
+                select(models.EmployeeAllocation)
+                .where(models.EmployeeAllocation.date == previous_date_str)
+                .where(models.EmployeeAllocation.shift == shift)
+            ).all()
+            
+            if previous_allocations:
+                print(f"✅ Encontradas {len(previous_allocations)} alocações do dia anterior. Copiando...")
+                
+                # Copiar alocações do dia anterior para o dia atual
+                for prev_alloc in previous_allocations:
+                    new_alloc = models.EmployeeAllocation(
+                        date=date,
+                        shift=shift,
+                        employee_id=prev_alloc.employee_id,
+                        subsector_id=prev_alloc.subsector_id
+                    )
+                    session.add(new_alloc)
+                
+                session.commit()
+                
+                # Recarregar alocações criadas
+                allocations = session.exec(
+                    select(models.EmployeeAllocation)
+                    .where(models.EmployeeAllocation.date == date)
+                    .where(models.EmployeeAllocation.shift == shift)
+                ).all()
+                
+                print(f"✅ Escala copiada com sucesso! {len(allocations)} colaboradores alocados.")
+        except Exception as e:
+            print(f"❌ Erro ao copiar escala do dia anterior: {e}")
+    
+    # Buscar rotinas do dia atual
     routines = session.exec(
         select(models.EmployeeRoutine)
         .where(models.EmployeeRoutine.date == date)
         .where(models.EmployeeRoutine.shift == shift)
     ).all()
     
-    # Montar resposta
+    # Se não houver rotinas, copiar do dia anterior (especialmente Férias e Afastado)
+    if not routines and allocations:
+        from datetime import datetime, timedelta
+        try:
+            current_date = datetime.strptime(date, "%Y-%m-%d")
+            previous_date = current_date - timedelta(days=1)
+            previous_date_str = previous_date.strftime("%Y-%m-%d")
+            
+            print(f"📋 Buscando rotinas de {previous_date_str}...")
+            
+            # Buscar rotinas do dia anterior
+            previous_routines = session.exec(
+                select(models.EmployeeRoutine)
+                .where(models.EmployeeRoutine.date == previous_date_str)
+                .where(models.EmployeeRoutine.shift == shift)
+            ).all()
+            
+            if previous_routines:
+                # Copiar apenas rotinas persistentes (vacation, away, sick)
+                persistent_routines = ['vacation', 'away', 'sick']
+                copied_count = 0
+                
+                for prev_routine in previous_routines:
+                    if prev_routine.routine in persistent_routines:
+                        new_routine = models.EmployeeRoutine(
+                            date=date,
+                            shift=shift,
+                            employee_id=prev_routine.employee_id,
+                            routine=prev_routine.routine
+                        )
+                        session.add(new_routine)
+                        copied_count += 1
+                
+                if copied_count > 0:
+                    session.commit()
+                    print(f"✅ {copied_count} rotinas persistentes copiadas (Férias/Afastado/Atestado)")
+                    
+                    # Recarregar rotinas
+                    routines = session.exec(
+                        select(models.EmployeeRoutine)
+                        .where(models.EmployeeRoutine.date == date)
+                        .where(models.EmployeeRoutine.shift == shift)
+                    ).all()
+        except Exception as e:
+            print(f"❌ Erro ao copiar rotinas: {e}")
+    
+    # Montar resposta - APENAS subsector_id, não objeto completo
     allocations_map = {}
     for alloc in allocations:
-        allocations_map[alloc.employee_id] = {
-            "subsector_id": alloc.subsector_id,
-            "allocation_id": alloc.id
-        }
+        allocations_map[alloc.employee_id] = alloc.subsector_id
     
     routines_map = {}
     for routine in routines:
@@ -1157,10 +1244,20 @@ async def save_allocations(
     
     try:
         data = await request.json()
+        print(f"📥 Recebendo dados de alocação: {data.keys()}")
+        
         date = data.get("date")
         shift = data.get("shift")
         allocations = data.get("allocations", {})  # {employee_id: subsector_id}
         routines = data.get("routines", {})  # {employee_id: routine}
+        
+        print(f"📅 Data: {date}, Turno: {shift}")
+        print(f"👥 Alocações: {len(allocations)} colaboradores")
+        print(f"📋 Routines: {len(routines)} rotinas")
+        
+        if not date or not shift:
+            print("❌ Data ou turno não fornecidos")
+            return JSONResponse({"error": "Data e turno são obrigatórios"}, status_code=400)
         
         # 1. Limpar alocações antigas do dia/turno
         old_allocations = session.exec(
@@ -1169,46 +1266,223 @@ async def save_allocations(
             .where(models.EmployeeAllocation.shift == shift)
         ).all()
         
+        print(f"🗑️ Removendo {len(old_allocations)} alocações antigas")
         for alloc in old_allocations:
             session.delete(alloc)
         
         # 2. Criar novas alocações
+        print(f"📝 Criando {len(allocations)} novas alocações...")
         for emp_id, subsector_id in allocations.items():
-            new_alloc = models.EmployeeAllocation(
-                date=date,
-                shift=shift,
-                employee_id=int(emp_id),
-                subsector_id=subsector_id
-            )
-            session.add(new_alloc)
-        
-        # 3. Atualizar rotinas
-        for emp_id, routine in routines.items():
-            existing = session.exec(
-                select(models.EmployeeRoutine)
-                .where(models.EmployeeRoutine.date == date)
-                .where(models.EmployeeRoutine.shift == shift)
-                .where(models.EmployeeRoutine.employee_id == int(emp_id))
-            ).first()
-            
-            if existing:
-                existing.routine = routine
-                existing.updated_at = datetime.now()
-                session.add(existing)
-            else:
-                new_routine = models.EmployeeRoutine(
+            try:
+                emp_id_int = int(emp_id)
+                subsector_id_int = int(subsector_id)
+                
+                print(f"  - Validando emp_id={emp_id_int}, subsector_id={subsector_id_int}")
+                
+                # Validar se employee existe
+                employee = session.get(models.Employee, emp_id_int)
+                if not employee:
+                    print(f"  ❌ Employee {emp_id_int} não encontrado no banco!")
+                    continue  # Pular este colaborador
+                
+                # Validar se subsector existe
+                subsector = session.get(models.SubSector, subsector_id_int)
+                if not subsector:
+                    print(f"  ❌ SubSector {subsector_id_int} não encontrado no banco!")
+                    continue  # Pular este sub-setor
+                
+                print(f"  ✅ Criando alocação para {employee.name} em {subsector.name}")
+                new_alloc = models.EmployeeAllocation(
                     date=date,
                     shift=shift,
-                    employee_id=int(emp_id),
-                    routine=routine
+                    employee_id=emp_id_int,
+                    subsector_id=subsector_id_int
                 )
-                session.add(new_routine)
+                session.add(new_alloc)
+            except Exception as e:
+                print(f"❌ Erro ao criar alocação para emp_id={emp_id}, subsector_id={subsector_id}: {e}")
+                import traceback
+                traceback.print_exc()
+                raise
         
+        # 3. Atualizar rotinas
+        print(f"📝 Criando/atualizando {len(routines)} rotinas...")
+        for emp_id, routine in routines.items():
+            try:
+                emp_id_int = int(emp_id)
+                print(f"  - Rotina emp_id={emp_id_int}, routine={routine}")
+                
+                # Validar se employee existe
+                employee = session.get(models.Employee, emp_id_int)
+                if not employee:
+                    print(f"  ❌ Employee {emp_id_int} não encontrado para rotina!")
+                    continue
+                
+                existing = session.exec(
+                    select(models.EmployeeRoutine)
+                    .where(models.EmployeeRoutine.date == date)
+                    .where(models.EmployeeRoutine.shift == shift)
+                    .where(models.EmployeeRoutine.employee_id == emp_id_int)
+                ).first()
+                
+                if existing:
+                    print(f"    Atualizando rotina existente id={existing.id}")
+                    existing.routine = routine
+                    existing.updated_at = datetime.now()
+                    session.add(existing)
+                else:
+                    print(f"    Criando nova rotina")
+                    new_routine = models.EmployeeRoutine(
+                        date=date,
+                        shift=shift,
+                        employee_id=emp_id_int,
+                        routine=routine
+                    )
+                    session.add(new_routine)
+            except Exception as e:
+                print(f"❌ Erro ao criar rotina para emp_id={emp_id}: {e}")
+                import traceback
+                traceback.print_exc()
+                raise
+        
+        print("💾 Fazendo commit...")
         session.commit()
+        print("✅ Alocações e rotinas salvas com sucesso")
         
         return {"success": True, "message": "Alocações e rotinas salvas com sucesso"}
     except Exception as e:
-        logger.exception("Error saving allocations")
+        print(f"❌ ERRO GERAL ao salvar alocações: {e}")
+        import traceback
+        traceback.print_exc()
+        session.rollback()
+        return JSONResponse({"error": str(e), "success": False}, status_code=500)
+
+
+@app.post("/api/employees/vacation", response_class=JSONResponse)
+async def set_employee_vacation(
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """Define férias de um colaborador"""
+    require_login(request)
+    
+    try:
+        data = await request.json()
+        employee_id = data.get("employee_id")
+        vacation_start = data.get("vacation_start")
+        vacation_end = data.get("vacation_end")
+        
+        if not employee_id or not vacation_start or not vacation_end:
+            return JSONResponse({"error": "Dados incompletos"}, status_code=400)
+        
+        # Buscar colaborador
+        employee = session.get(models.Employee, int(employee_id))
+        if not employee:
+            return JSONResponse({"error": "Colaborador não encontrado"}, status_code=404)
+        
+        # Validar datas
+        start_date = datetime.strptime(vacation_start, "%Y-%m-%d")
+        end_date = datetime.strptime(vacation_end, "%Y-%m-%d")
+        
+        if start_date > end_date:
+            return JSONResponse({"error": "Data de início não pode ser maior que data de fim"}, status_code=400)
+        
+        # Atualizar colaborador
+        employee.vacation_start = start_date
+        employee.vacation_end = end_date
+        employee.status = "vacation"
+        
+        # Criar evento para histórico
+        event = models.Event(
+            timestamp=datetime.now(),
+            text=f"Férias Agendadas: {start_date.strftime('%d/%m/%Y')} a {end_date.strftime('%d/%m/%Y')}",
+            type="ferias_hist",
+            category="vacation",
+            employee_id=employee_id
+        )
+        session.add(event)
+        
+        session.commit()
+        
+        print(f"✅ Férias definidas: {employee.name} - {vacation_start} até {vacation_end}")
+        
+        return {"success": True, "message": "Férias definidas com sucesso"}
+    except Exception as e:
+        print(f"❌ Erro ao definir férias: {e}")
+        session.rollback()
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/employees/routine", response_class=JSONResponse)
+async def set_employee_routine(
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """Define rotina de um colaborador"""
+    require_login(request)
+    
+    try:
+        data = await request.json()
+        employee_id = data.get("employee_id")
+        routine = data.get("routine")
+        
+        if not employee_id or not routine:
+            return JSONResponse({"error": "Dados incompletos"}, status_code=400)
+        
+        # Buscar colaborador
+        employee = session.get(models.Employee, int(employee_id))
+        if not employee:
+            return JSONResponse({"error": "Colaborador não encontrado"}, status_code=404)
+        
+        old_status = employee.status
+        
+        # Mapear rotina para status
+        status_map = {
+            'present': 'active',
+            'vacation': 'vacation',
+            'sick': 'sick',
+            'away': 'away',
+            'absent': 'absent',
+            'dayoff': 'dayoff'
+        }
+        
+        new_status = status_map.get(routine, 'active')
+        
+        # Atualizar colaborador
+        employee.status = new_status
+        
+        # Se voltar para presente, limpar férias
+        if routine == 'present':
+            employee.vacation_start = None
+            employee.vacation_end = None
+        
+        # Labels em português
+        routine_labels = {
+            'present': 'Presente',
+            'vacation': 'Férias',
+            'sick': 'Atestado',
+            'away': 'Afastado',
+            'absent': 'Falta',
+            'dayoff': 'Folga'
+        }
+        
+        event = models.Event(
+            timestamp=datetime.now(),
+            text=f"{employee.name} mudou de {old_status} para {routine_labels.get(routine, routine)}",
+            type="routine_change",
+            category=routine,
+            employee_id=employee_id
+        )
+        session.add(event)
+        
+        session.commit()
+        
+        print(f"✅ Rotina atualizada: {employee.name} - {routine}")
+        
+        return {"success": True, "message": "Rotina atualizada com sucesso"}
+    except Exception as e:
+        print(f"❌ Erro ao atualizar rotina: {e}")
+        session.rollback()
         return JSONResponse({"error": str(e)}, status_code=500)
 
 # --- Report Route ---
@@ -2182,20 +2456,21 @@ async def people_intelligence_page(
         select(models.Event)
         .where(models.Event.timestamp >= start_dt)
         .where(models.Event.timestamp < end_dt)
-        .where(col(models.Event.type).in_(['falta', 'atestado', 'advertencia']))
+        .where(col(models.Event.type).in_(['falta', 'atestado', 'advertencia', 'afastamento'])) # Added 'afastamento'
     ).all()
     
     # Filter events by employee_ids (shift filter)
     events = [e for e in events if e.employee_id in employee_ids]
-    
+    # Contadores gerais
     total_absences = sum(1 for e in events if e.type == 'falta')
     total_sick = sum(1 for e in events if e.type == 'atestado')
+    total_away = sum(1 for e in events if e.type == 'afastamento')  # Separado de atestado
     
     # 2. Rankings (Top Offenders)
     emp_stats = {}
     for e in events:
         if e.employee_id not in emp_stats:
-            emp_stats[e.employee_id] = {'falta': 0, 'atestado': 0, 'advertencia': 0, 'name': 'Unknown', 'sector': 'Unknown', 'tenure_months': 0}
+            emp_stats[e.employee_id] = {'falta': 0, 'atestado': 0, 'advertencia': 0, 'afastamento': 0, 'name': 'Unknown', 'sector': 'Unknown', 'tenure_months': 0} # Added 'afastamento'
         emp_stats[e.employee_id][e.type] += 1
         
     # Enlighten with Employee Data
@@ -2295,6 +2570,7 @@ async def people_intelligence_page(
             "headcount": total_headcount,
             "total_absences": total_absences,
             "total_sick": total_sick,
+            "total_away": total_away,
             "avg_absence_per_emp": round(total_absences / total_headcount, 2) if total_headcount > 0 else 0,
             "presence_rate": presence_rate,
             "chronic_count": len(chronic_offenders)

@@ -70,28 +70,23 @@ const Store = {
     },
 
     // Alocar colaborador em sub-setor
-    allocateEmployee(empId, subsectorId) {
-        if (!empId || !subsectorId) return;
-
-        this.state.allocations[empId] = subsectorId;
-
-        // Inicializar rotina como presente se não existir
-        if (!this.state.routines[empId]) {
-            this.state.routines[empId] = 'present';
-        }
-
+    allocateEmployee(employeeId, subsectorId) {
+        this.state.allocations[employeeId] = subsectorId;
         this.state.isDirty = true;
         this.notify();
-        this.autoSave();
+        this.autoSave(); // Reabilitado - erro 500 resolvido
     },
 
     // Remover alocação de colaborador
     removeAllocation(empId) {
-        if (this.state.allocations[empId]) {
+        const wasAllocated = this.state.allocations.hasOwnProperty(empId);
+        if (wasAllocated) {
             delete this.state.allocations[empId];
+            delete this.state.routines[empId]; // Também remover rotina
             this.state.isDirty = true;
             this.notify();
-            this.autoSave();
+            this.autoSave(); // Reabilitado - erro 500 resolvido
+            console.log(`🗑️ Colaborador ${empId} removido (alocação e rotina)`);
         }
     },
 
@@ -100,7 +95,7 @@ const Store = {
         this.state.routines[empId] = routine;
         this.state.isDirty = true;
         this.notify();
-        this.autoSave();
+        this.autoSave(); // Reabilitado - erro 500 resolvido
     },
 
     // Atualizar Tonelagem
@@ -108,7 +103,7 @@ const Store = {
         this.state.tonnage = val;
         this.state.isDirty = true;
         this.notify();
-        this.autoSave();
+        this.autoSave(); // Reabilitado - erro 500 resolvido
     },
 
     // --- Computed Logic (KPIs) ---
@@ -119,71 +114,106 @@ const Store = {
             totalEmployees: employees.length,
             currentShift,
             sectors: sectors.length,
-            allocations: Object.keys(allocations).length
+            allocations: Object.keys(allocations).length,
+            routines: Object.keys(routines).length
         });
 
-        // Filtrar funcionários do turno (campo correto é work_shift, não shift)
+        // Filtrar funcionários do turno - usar comparação exata
         const shiftEmps = employees.filter(e => {
-            if (!e.shift && !e.work_shift) return false;
-            const empShift = e.shift || e.work_shift;
-            return empShift && empShift.toLowerCase().includes(currentShift.toLowerCase());
+            const empShift = e.work_shift ?? e.shift ?? null;
+            if (!empShift) {
+                console.warn('Employee without shift:', e.id, e.name);
+                return false;
+            }
+            // Comparação exata (case-insensitive) para evitar matches incorretos
+            return empShift.toLowerCase() === currentShift.toLowerCase();
         });
 
-        console.log('Shift employees:', shiftEmps.length);
+        console.log('Shift employees:', shiftEmps.length, 'for shift:', currentShift);
 
-        // Contadores de rotinas
+        // Contadores de status
         let present = 0;
         let sick = 0;
         let vacation = 0;
         let away = 0;
         let missing = 0;
 
-        // Contar por rotina
-        Object.entries(routines).forEach(([empId, routine]) => {
-            const emp = employees.find(e => e.id == empId);
-            if (!emp) return;
+        // Contar status baseado em rotinas (prioridade) ou status do employee
+        shiftEmps.forEach(emp => {
+            // Priorizar rotina do dia, depois status do employee
+            const routine = this.state.routines[emp.id];
+            const status = routine || emp.status || 'active';
+            const normalizedStatus = status.toLowerCase();
 
-            const empShift = emp.shift || emp.work_shift;
-            if (!empShift || empShift !== currentShift) return;
-
-            if (routine === 'present') present++;
-            else if (routine === 'sick') sick++;
-            else if (routine === 'vacation') vacation++;
-            else if (routine === 'away') away++;
-            else if (routine === 'absent') missing++;
+            // Apenas contar como presente se routine for 'present' ou não houver rotina e status for 'active'/'ativo'
+            if (normalizedStatus === 'present' ||
+                (!routine && (normalizedStatus === 'active' || normalizedStatus === 'ativo'))) {
+                present++;
+            } else if (normalizedStatus === 'sick' || normalizedStatus === 'atestado') {
+                sick++;
+            } else if (normalizedStatus === 'vacation' || normalizedStatus === 'férias' || normalizedStatus === 'ferias') {
+                vacation++;
+            } else if (normalizedStatus === 'away' || normalizedStatus === 'afastado') {
+                away++;
+            } else if (normalizedStatus === 'absent' || normalizedStatus === 'falta') {
+                missing++;
+            } else if (normalizedStatus === 'dayoff' || normalizedStatus === 'folga') {
+                // Folga não conta como presente
+                // Não incrementa nenhum contador específico
+            } else if (normalizedStatus === 'fired' || normalizedStatus === 'demitido') {
+                // Demitido - não conta como presente (usado para cálculo de vagas)
+                // Não incrementa nenhum contador específico
+            } else {
+                // Default: se não for nenhuma rotina especial e não houver rotina definida, conta como presente
+                if (!routine) {
+                    console.warn('Unknown status for employee:', emp.name, '- status:', status);
+                    present++;
+                }
+            }
         });
+
+        console.log('Status breakdown:', { present, sick, vacation, away, missing });
 
         // Contar alocados (presentes operacionais)
         const operationalPresent = Object.keys(allocations).filter(empId => {
             const emp = employees.find(e => e.id == empId);
             if (!emp) return false;
-            const empShift = emp.shift || emp.work_shift;
-            return empShift && empShift === currentShift;
+            const empShift = emp.work_shift ?? emp.shift ?? null;
+            return empShift && empShift.toLowerCase() === currentShift.toLowerCase();
         }).length;
 
-        // Calcular target total
-        let totalTarget = 0;
-        sectors.forEach(sector => {
-            totalTarget += sector.max_employees || 0;
+        // Calcular target total (total de colaboradores ATIVOS do turno)
+        const totalTarget = shiftEmps.length;
+
+        // Calcular vagas REAIS (colaboradores demitidos do turno)
+        // Buscar TODOS os colaboradores do turno (incluindo demitidos)
+        const allShiftEmps = employees.filter(e => {
+            const empShift = e.work_shift ?? e.shift ?? null;
+            if (!empShift) return false;
+            return empShift.toLowerCase() === currentShift.toLowerCase();
         });
 
-        const totalGap = Math.max(0, totalTarget - operationalPresent);
+        // Contar demitidos
+        const fired = allShiftEmps.filter(e => {
+            const status = (e.status || 'active').toLowerCase();
+            return status === 'fired' || status === 'demitido';
+        }).length;
 
         // Produtividade
-        const prod = operationalPresent > 0 ? Math.round(this.state.tonnage / operationalPresent) : 0;
+        const prod = present > 0 ? Math.round(this.state.tonnage / present) : 0;
 
         this.state.kpis = {
             headcount: shiftEmps.length,
-            present: operationalPresent,
+            present: present,
             target: totalTarget,
-            gap: totalGap,
+            gap: fired, // Vagas = demitidos
             sick,
             vacation,
             away,
             missing,
             tonnage: this.state.tonnage,
             productivity: prod,
-            percent: totalTarget > 0 ? Math.round((operationalPresent / totalTarget) * 100) : 0
+            percent: totalTarget > 0 ? Math.round((present / totalTarget) * 100) : 0
         };
 
         console.log('KPIs computed:', this.state.kpis);
@@ -193,15 +223,29 @@ const Store = {
     saveTimeout: null,
     autoSave() {
         if (this.saveTimeout) clearTimeout(this.saveTimeout);
-        this.saveTimeout = setTimeout(() => {
-            console.log('Auto-saving...');
-            API.saveAllocations({
+        this.saveTimeout = setTimeout(async () => { // Adicionado async aqui
+            const payload = {
                 date: this.state.currentDate,
                 shift: this.state.currentShift,
                 allocations: this.state.allocations,
-                routines: this.state.routines,
-                tonnage: this.state.tonnage
-            });
+                routines: this.state.routines
+            };
+
+            console.log('💾 Salvando alocações:');
+            console.log('📅 Date:', payload.date);
+            console.log('🕐 Shift:', payload.shift);
+            console.log('📊 Allocations:', payload.allocations);
+            console.log('📋 Routines:', payload.routines);
+            console.log('📦 Payload completo:', JSON.stringify(payload, null, 2));
+
+            const result = await API.saveAllocations(payload);
+
+            if (result.success) {
+                console.log('✅ Alocações salvas com sucesso');
+            } else {
+                console.error('❌ Erro ao salvar alocações:', result);
+                alert('Erro ao salvar alocações. Verifique o console para mais detalhes.');
+            }
         }, 2000);
     }
 };

@@ -75,6 +75,31 @@
         </div>
     </div>
 
+    <!-- Férias Programadas (se houver) -->
+    {% if emp.vacation_start and emp.vacation_end %}
+    <div class="bg-gradient-to-r from-orange-900/20 to-amber-900/20 border border-orange-500/30 rounded-xl p-4">
+        <div class="flex items-center gap-3">
+            <div class="bg-orange-500/20 p-3 rounded-lg">
+                <svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                    </path>
+                </svg>
+            </div>
+            <div class="flex-1">
+                <h3 class="text-sm font-bold text-orange-300 mb-1">🏖️ Férias Programadas</h3>
+                <p class="text-white font-medium">
+                    {{ emp.vacation_start.strftime('%d/%m/%Y') }} até {{ emp.vacation_end.strftime('%d/%m/%Y') }}
+                </p>
+                <p class="text-xs text-orange-400/70 mt-1">
+                    {% set days_diff = (emp.vacation_end - emp.vacation_start).days + 1 %}
+                    {{ days_diff }} dia{{ 's' if days_diff != 1 else '' }} de férias
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Stats Grid -->
     <div class="grid grid-cols-4 gap-4">
         <div onclick="openHistory('advertencia', 'Advertências')"
