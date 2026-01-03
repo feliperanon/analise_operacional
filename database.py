@@ -18,7 +18,9 @@ if "sqlite" in sqlite_url:
     # connect_args = {"check_same_thread": False}
     pass
 
-engine = create_engine(sqlite_url, echo=True, connect_args=connect_args)
+# Performance: Only echo SQL in DEBUG mode
+DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
+engine = create_engine(sqlite_url, echo=DEBUG, connect_args=connect_args)
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)

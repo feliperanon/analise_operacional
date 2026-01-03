@@ -14,9 +14,26 @@ from typing import List
 from database import create_db_and_tables, get_session
 import models
 import logging
+from logging.handlers import RotatingFileHandler
 import unicodedata
-logging.basicConfig(filename='logs.txt', level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s')
+import os
+
+# Performance: Use INFO level in production, DEBUG only when explicitly enabled
+LOG_LEVEL = logging.DEBUG if os.getenv("DEBUG", "false").lower() == "true" else logging.INFO
+
+# Use RotatingFileHandler to prevent infinite log growth
+handler = RotatingFileHandler(
+    'logs.txt',
+    maxBytes=5*1024*1024,  # 5 MB max per file
+    backupCount=3  # Keep 3 backup files
+)
+handler.setFormatter(logging.Formatter(
+    '%(asctime)s | %(levelname)-8s | %(name)s | %(message)s'
+))
+
 logger = logging.getLogger(__name__)
+logger.setLevel(LOG_LEVEL)
+logger.addHandler(handler)
 
 # --- Config ---
 SECRET_KEY = "your-secret-key-change-in-production"
@@ -1342,9 +1359,114 @@ async def save_allocations(
                 traceback.print_exc()
                 raise
         
+        # 4. SINCRONIZAR com DailyOperation.attendance_log (para compatibilidade com relatório)
+        print("🔄 Sincronizando com DailyOperation.attendance_log...")
+        
+        # Buscar ou criar DailyOperation
+        daily_op = session.exec(
+            select(models.DailyOperation)
+            .where(models.DailyOperation.date == date)
+            .where(models.DailyOperation.shift == shift)
+        ).first()
+        
+        if not daily_op:
+            print("  📝 Criando novo DailyOperation")
+            daily_op = models.DailyOperation(
+                date=date,
+                shift=shift,
+                attendance_log={}
+            )
+            session.add(daily_op)
+        
+        # Construir attendance_log a partir das alocações e rotinas
+        attendance_log = {}
+        
+        # Buscar todas as alocações recém-salvas
+        allocations_db = session.exec(
+            select(models.EmployeeAllocation)
+            .where(models.EmployeeAllocation.date == date)
+            .where(models.EmployeeAllocation.shift == shift)
+        ).all()
+        
+        # Buscar todas as rotinas recém-salvas
+        routines_db = session.exec(
+            select(models.EmployeeRoutine)
+            .where(models.EmployeeRoutine.date == date)
+            .where(models.EmployeeRoutine.shift == shift)
+        ).all()
+        
+        # Mapear rotinas por employee_id
+        routines_map = {r.employee_id: r.routine for r in routines_db}
+        
+        print(f"  📊 Processando {len(allocations_db)} alocações...")
+        
+        # Construir log
+        for alloc in allocations_db:
+            employee = session.get(models.Employee, alloc.employee_id)
+            if not employee:
+                print(f"  ⚠️ Employee {alloc.employee_id} não encontrado")
+                continue
+            
+            # Buscar sub-setor e setor pai
+            subsector = session.get(models.SubSector, alloc.subsector_id)
+            if not subsector:
+                print(f"  ⚠️ SubSector {alloc.subsector_id} não encontrado")
+                continue
+            
+            
+            sector = session.get(models.Sector, subsector.sector_id)
+            if not sector:
+                print(f"  ⚠️ Sector {subsector.sector_id} não encontrado")
+                continue
+            
+            # Mapeamento robusto de nomes de setores para chaves padronizadas
+            sector_name_lower = sector.name.lower().strip()
+            sector_key_map = {
+                'recebimento': 'recebimento',
+                'câmara fria': 'camara_fria',
+                'camara fria': 'camara_fria',
+                'seleção': 'selecao',
+                'selecao': 'selecao',
+                'expedição': 'expedicao',
+                'expedicao': 'expedicao',
+                'gerência': 'gerencia',
+                'gerencia': 'gerencia',
+                'estoque': 'estoque',
+                'ceasa': 'ceasa',
+                'liderança': 'lideranca',
+                'lideranca': 'lideranca'
+            }
+            
+            sector_key = sector_key_map.get(sector_name_lower)
+            if not sector_key:
+                # Fallback: normalização genérica
+                import unicodedata
+                sector_key = unicodedata.normalize('NFD', sector_name_lower)
+                sector_key = sector_key.encode('ascii', 'ignore').decode('utf-8')
+                sector_key = sector_key.replace(' ', '_')
+                print(f"  ⚠️ Setor '{sector.name}' não mapeado, usando fallback: '{sector_key}'")
+            
+            # Status da rotina ou 'present' como padrão
+            status = routines_map.get(alloc.employee_id, 'present')
+            
+            # IMPORTANTE: Usar registration_id como chave (não employee_id)
+            reg_id_str = str(employee.registration_id)
+            attendance_log[reg_id_str] = {
+                "status": status,
+                "sector": sector_key
+            }
+            
+            print(f"  ✅ {employee.name} ({reg_id_str}) → {sector_key} [{status}]")
+        
+        # Atualizar DailyOperation
+        daily_op.attendance_log = attendance_log
+        session.add(daily_op)
+        
+        print(f"✅ Attendance log atualizado com {len(attendance_log)} colaboradores")
+        
         print("💾 Fazendo commit...")
         session.commit()
-        print("✅ Alocações e rotinas salvas com sucesso")
+        print("✅ Alocações, rotinas e relatório sincronizados com sucesso")
         
         return {"success": True, "message": "Alocações e rotinas salvas com sucesso"}
     except Exception as e:
@@ -1539,8 +1661,8 @@ async def routine_report(
         # Prepare People List for Report
         people_list = []
         
-        # We iterate over ALL active employees to show absences/vacations correctly
-        # AND we check the log for specific daily statuses
+        # IMPORTANTE: Iterar apenas sobre colaboradores no attendance_log (alocados)
+        # Não mostrar TODOS os colaboradores do turno, apenas os alocados no Smart Flow
         
         # Helper to get daily entry
         def get_daily_status(reg_id):
@@ -1548,30 +1670,16 @@ async def routine_report(
             
         total_present = 0
         
-        for emp in all_employees:
-            if emp.status == 'fired': continue # Skip fired for now unless in log?
-            
-            # Filter by Shift:
-            # Include if they belong to this shift OR if they are in the log (borrowed)
-            # Normalize strings for comparison just in case
-            emp_shift = (emp.work_shift or "").strip().lower()
-            req_shift = shift.strip().lower()
-            
-            is_same_shift = (emp_shift == req_shift)
-            entry = get_daily_status(emp.registration_id)
-            is_in_log = (str(emp.registration_id) in log)
-            
-            if not is_same_shift and not is_in_log:
+        # Iterar sobre o attendance_log (apenas colaboradores alocados)
+        for reg_id_str, entry in log.items():
+            # Buscar colaborador por registration_id
+            employee = emp_map.get(reg_id_str)
+            if not employee:
+                print(f"⚠️ Colaborador com matrícula {reg_id_str} não encontrado no banco")
                 continue
             
             # Determine effective status for today
-            daily_status = entry.get('status')
-            
-            if not daily_status:
-                # Fallback to permanent
-                if emp.status == 'active': daily_status = 'present'
-                else: daily_status = emp.status # vacation, sick, away
-            
+            daily_status = entry.get('status', 'present')
             sector_key = entry.get('sector')
             
             # Count Present
@@ -1584,18 +1692,23 @@ async def routine_report(
             is_substituted = False
             if daily_status in ['away', 'vacation']:
                  has_sub_evt = session.exec(select(models.Event).where(
-                    models.Event.employee_id == emp.id,
+                    models.Event.employee_id == employee.id,
                     models.Event.text.like("%Substituído por%")
                  )).first()
                  if has_sub_evt:
                      is_substituted = True
 
             people_list.append({
-                "name": emp.name,
+                "name": employee.name,
                 "status_daily": daily_status,
                 "sector_daily": sector_key,
                 "is_substituted": is_substituted
             })
+        
+        # DEBUG: Mostrar setores únicos presentes no attendance_log
+        unique_sectors = set(p['sector_daily'] for p in people_list if p['sector_daily'])
+        print(f"🔍 DEBUG - Setores no attendance_log: {unique_sectors}")
+        print(f"🔍 DEBUG - Total de colaboradores: {len(people_list)}")
             
         # Substituted Count (Employees 'Away' who have a replacement OR Active employees who are replacements?)
         # User said "reminding that it can only pull this information from the away routine when creating a new employee"
@@ -1619,10 +1732,16 @@ async def routine_report(
         for sec in SECTORS:
             key = sec.get('key')
             target = int(sec.get('target', 0))
-            total_target += target
             
             # Find people allocated to this sector
             allocated_people = [p for p in people_list if p['sector_daily'] == key]
+            
+            # IMPORTANTE: Pular setores sem colaboradores alocados
+            if len(allocated_people) == 0:
+                continue
+            
+            # Adicionar target ao total apenas se setor tiver colaboradores
+            total_target += target
             
             # Counts per sector
             present_people = [p for p in allocated_people if p['status_daily'] == 'present']

@@ -110,26 +110,13 @@ const Store = {
     computeKPIs() {
         const { employees, sectors, allocations, routines, currentShift } = this.state;
 
-        console.log('Computing KPIs:', {
-            totalEmployees: employees.length,
-            currentShift,
-            sectors: sectors.length,
-            allocations: Object.keys(allocations).length,
-            routines: Object.keys(routines).length
-        });
-
         // Filtrar funcionários do turno - usar comparação exata
         const shiftEmps = employees.filter(e => {
             const empShift = e.work_shift ?? e.shift ?? null;
-            if (!empShift) {
-                console.warn('Employee without shift:', e.id, e.name);
-                return false;
-            }
+            if (!empShift) return false;
             // Comparação exata (case-insensitive) para evitar matches incorretos
             return empShift.toLowerCase() === currentShift.toLowerCase();
         });
-
-        console.log('Shift employees:', shiftEmps.length, 'for shift:', currentShift);
 
         // Contadores de status
         let present = 0;
@@ -171,8 +158,6 @@ const Store = {
                 }
             }
         });
-
-        console.log('Status breakdown:', { present, sick, vacation, away, missing });
 
         // Contar alocados (presentes operacionais)
         const operationalPresent = Object.keys(allocations).filter(empId => {
@@ -216,14 +201,26 @@ const Store = {
             percent: totalTarget > 0 ? Math.round((present / totalTarget) * 100) : 0
         };
 
-        console.log('KPIs computed:', this.state.kpis);
+        // Log reduzido - apenas em caso de mudanças significativas
+        // console.log('KPIs computed:', this.state.kpis);
     },
 
-    // Debounce Save
+    // Debounce Save - Otimizado para evitar salvamentos excessivos
     saveTimeout: null,
+    isSaving: false,
     autoSave() {
+        // Evitar múltiplos salvamentos simultâneos
+        if (this.isSaving) {
+            console.log('⏳ Salvamento já em andamento, aguardando...');
+            return;
+        }
+
         if (this.saveTimeout) clearTimeout(this.saveTimeout);
-        this.saveTimeout = setTimeout(async () => { // Adicionado async aqui
+
+        // Debounce de 5 segundos (aumentado de 2s para reduzir requests)
+        this.saveTimeout = setTimeout(async () => {
+            this.isSaving = true;
+
             const payload = {
                 date: this.state.currentDate,
                 shift: this.state.currentShift,
@@ -231,22 +228,30 @@ const Store = {
                 routines: this.state.routines
             };
 
-            console.log('💾 Salvando alocações:');
-            console.log('📅 Date:', payload.date);
-            console.log('🕐 Shift:', payload.shift);
-            console.log('📊 Allocations:', payload.allocations);
-            console.log('📋 Routines:', payload.routines);
-            console.log('📦 Payload completo:', JSON.stringify(payload, null, 2));
+            console.log('💾 Salvando alocações:', {
+                date: payload.date,
+                shift: payload.shift,
+                allocations: Object.keys(payload.allocations).length,
+                routines: Object.keys(payload.routines).length
+            });
 
-            const result = await API.saveAllocations(payload);
+            try {
+                const result = await API.saveAllocations(payload);
 
-            if (result.success) {
-                console.log('✅ Alocações salvas com sucesso');
-            } else {
-                console.error('❌ Erro ao salvar alocações:', result);
-                alert('Erro ao salvar alocações. Verifique o console para mais detalhes.');
+                if (result.success) {
+                    console.log('✅ Alocações salvas com sucesso');
+                    this.state.isDirty = false;
+                } else {
+                    console.error('❌ Erro ao salvar alocações:', result);
+                    alert('Erro ao salvar alocações. Verifique o console para mais detalhes.');
+                }
+            } catch (error) {
+                console.error('❌ Exceção ao salvar:', error);
+                alert('Erro de conexão ao salvar. Tente novamente.');
+            } finally {
+                this.isSaving = false;
             }
-        }, 2000);
+        }, 5000); // Aumentado de 2000ms para 5000ms
     }
 };
 
