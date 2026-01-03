@@ -1419,32 +1419,14 @@ async def save_allocations(
                 print(f"  ⚠️ Sector {subsector.sector_id} não encontrado")
                 continue
             
-            # Mapeamento robusto de nomes de setores para chaves padronizadas
-            sector_name_lower = sector.name.lower().strip()
-            sector_key_map = {
-                'recebimento': 'recebimento',
-                'câmara fria': 'camara_fria',
-                'camara fria': 'camara_fria',
-                'seleção': 'selecao',
-                'selecao': 'selecao',
-                'expedição': 'expedicao',
-                'expedicao': 'expedicao',
-                'gerência': 'gerencia',
-                'gerencia': 'gerencia',
-                'estoque': 'estoque',
-                'ceasa': 'ceasa',
-                'liderança': 'lideranca',
-                'lideranca': 'lideranca'
-            }
             
-            sector_key = sector_key_map.get(sector_name_lower)
-            if not sector_key:
-                # Fallback: normalização genérica
-                import unicodedata
-                sector_key = unicodedata.normalize('NFD', sector_name_lower)
-                sector_key = sector_key.encode('ascii', 'ignore').decode('utf-8')
-                sector_key = sector_key.replace(' ', '_')
-                print(f"  ⚠️ Setor '{sector.name}' não mapeado, usando fallback: '{sector_key}'")
+            # Normalizar nome do setor: sempre remover acentos e espaços
+            import unicodedata
+            sector_name_original = sector.name
+            sector_name_normalized = unicodedata.normalize('NFD', sector.name.lower().strip())
+            sector_key = sector_name_normalized.encode('ascii', 'ignore').decode('utf-8')
+            sector_key = sector_key.replace(' ', '_')
+            print(f"  🔧 Normalizando setor: '{sector_name_original}' → '{sector_key}'")
             
             # Status da rotina ou 'present' como padrão
             status = routines_map.get(alloc.employee_id, 'present')
@@ -1791,31 +1773,49 @@ async def routine_report(
             })
             total_allocated_sum += len(others_allocated)
             
-        # Top KPIs
+        # Top KPIs - ALINHADO COM SMART FLOW
+        # Total target = TODOS os colaboradores do turno (não apenas soma de metas)
+        # Buscar total de colaboradores do turno (incluindo demitidos para calcular vagas)
+        all_shift_employees = session.exec(
+            select(models.Employee)
+            .where(col(models.Employee.work_shift).ilike(f"%{shift}%"))
+        ).all()
+        
+        # Total target = colaboradores ativos do turno
+        total_target_real = len([e for e in all_shift_employees if e.status != 'fired'])
+        
+        # Vagas = colaboradores demitidos do turno
+        total_vacancies_real = len([e for e in all_shift_employees if e.status == 'fired'])
+        
         total_gap = sum(s['gap'] for s in sectors_detailed)
         total_vacancies = sum(s['vacancies'] for s in sectors_detailed)
         
         prod_per_person = round(tonnage / total_present, 2) if total_present > 0 else 0
-        present_pct = int((total_present / total_target * 100)) if total_target > 0 else 0
+        present_pct = int((total_present / total_target_real * 100)) if total_target_real > 0 else 0
         
-        # Detailed Counts
+        # Detailed Counts - SEPARADOS (não combinados)
         daily_absent = len([p for p in people_list if p['status_daily'] == 'absent'])
         daily_sick = len([p for p in people_list if p['status_daily'] == 'sick'])
         daily_vacation = len([p for p in people_list if p['status_daily'] == 'vacation'])
         daily_away = len([p for p in people_list if p['status_daily'] == 'away'])
+        daily_dayoff = len([p for p in people_list if p['status_daily'] == 'dayoff'])
         
         snapshot = {
             "kpis": {
-                "total_target": total_target,
+                "total_target": total_target_real,  # Usar total real de colaboradores do turno
                 "total_allocated": total_allocated_sum,
                 "total_present": total_present,
                 "present_pct": present_pct,
-                "total_gap": total_gap,
-                "total_vacancies": total_vacancies,
+                "total_gap": total_vacancies_real,  # Vagas = demitidos
+                "total_vacancies": total_vacancies_real,
                 "tonnage": f"{tonnage:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
                 "prod_per_person": f"{prod_per_person:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
-                "count_absent": daily_absent + daily_sick, # Combine for card
-                "count_vacation_away": daily_vacation + daily_away, # Combine for card
+                "count_absent": daily_absent,  # Faltas apenas
+                "count_sick": daily_sick,  # Atestados separado
+                "count_vacation": daily_vacation,  # Férias separado
+                "count_away": daily_away,  # Afastados separado
+                "count_dayoff": daily_dayoff,  # Folgas separado
+                "count_vacation_away": daily_vacation + daily_away,  # Combinado para compatibilidade
                 "count_substitutions": count_substitutions
             },
             "sectors": sectors_detailed,

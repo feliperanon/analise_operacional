@@ -131,17 +131,35 @@
             <p class="text-[10px] text-slate-400">{{ snapshot.kpis.prod_per_person }} kg/pessoa</p>
         </div>
 
-        <!-- Row 2: Consolidated -->
+        <!-- Row 2: Separated (aligned with Smart Flow) -->
         <div class="border rounded p-3 bg-slate-50">
-            <p class="text-xs text-slate-500 uppercase font-bold">Faltas e Atestados</p>
-            <p class="text-lg font-bold text-red-500">
+            <p class="text-xs text-slate-500 uppercase font-bold">Faltas</p>
+            <p class="text-lg font-bold text-rose-500">
                 {{ snapshot.kpis.count_absent }}
             </p>
         </div>
         <div class="border rounded p-3 bg-slate-50">
-            <p class="text-xs text-slate-500 uppercase font-bold">Férias e Afastados</p>
-            <p class="text-lg font-bold text-purple-600">
-                {{ snapshot.kpis.count_vacation_away }}
+            <p class="text-xs text-slate-500 uppercase font-bold">Atestados</p>
+            <p class="text-lg font-bold text-amber-500">
+                {{ snapshot.kpis.count_sick }}
+            </p>
+        </div>
+        <div class="border rounded p-3 bg-slate-50">
+            <p class="text-xs text-slate-500 uppercase font-bold">Férias</p>
+            <p class="text-lg font-bold text-orange-500">
+                {{ snapshot.kpis.count_vacation }}
+            </p>
+        </div>
+        <div class="border rounded p-3 bg-slate-50">
+            <p class="text-xs text-slate-500 uppercase font-bold">Afastados</p>
+            <p class="text-lg font-bold text-indigo-600">
+                {{ snapshot.kpis.count_away }}
+            </p>
+        </div>
+        <div class="border rounded p-3 bg-slate-50">
+            <p class="text-xs text-slate-500 uppercase font-bold">Folgas</p>
+            <p class="text-lg font-bold text-slate-600">
+                {{ snapshot.kpis.count_dayoff }}
             </p>
         </div>
         <!-- Substitution Card -->
