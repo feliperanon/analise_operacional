@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, Form, Depends, HTTPException, status
+from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, UploadFile, File
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -11,7 +11,7 @@ import os
 from starlette.middleware.sessions import SessionMiddleware
 from sqlmodel import Session, select, col
 from typing import List
-from database import create_db_and_tables, get_session
+from database import create_db_and_tables, get_session, engine
 import models
 import logging
 from logging.handlers import RotatingFileHandler
@@ -41,14 +41,23 @@ ALLOWED_USER = "feliperanon"
 ALLOWED_PASS = "571232ce"
 
 # --- Helper Functions ---
-def calculate_expected_work_days(work_days_json: str, start_date: datetime, end_date: datetime) -> int:
+def calculate_expected_work_days(
+    work_days_json: str, 
+    start_date: datetime, 
+    end_date: datetime,
+    vacation_start: Optional[datetime] = None,
+    vacation_end: Optional[datetime] = None
+) -> int:
     """
-    Calcula quantos dias o colaborador deveria trabalhar baseado na escala.
+    Calcula quantos dias o colaborador deveria trabalhar baseado na escala,
+    descontando dias de férias se houver sobreposição.
     
     Args:
-        work_days_json: JSON string com dias da semana, ex: '["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]'
+        work_days_json: JSON string com dias da semana
         start_date: Data inicial do período
-        end_date: Data final do período
+        end_date: Data final do período (exclusiva, geralmente)
+        vacation_start: Início das férias
+        vacation_end: Fim das férias
     
     Returns:
         Número de dias esperados de trabalho
@@ -84,8 +93,20 @@ def calculate_expected_work_days(work_days_json: str, start_date: datetime, end_
     expected_days = 0
     current_date = start_date
     
+    # Normalize vacation dates per day comparison (ignoring time)
+    v_start_date = vacation_start.date() if vacation_start else None
+    v_end_date = vacation_end.date() if vacation_end else None
+    
     while current_date < end_date:
-        if current_date.weekday() in work_day_numbers:
+        # Check Vacation
+        is_vacation = False
+        if v_start_date and v_end_date:
+            curr_d = current_date.date()
+            if v_start_date <= curr_d <= v_end_date:
+                is_vacation = True
+        
+        # Só conta se for dia de trabalho E não estiver de férias
+        if not is_vacation and current_date.weekday() in work_day_numbers:
             expected_days += 1
         current_date += timedelta(days=1)
     
@@ -141,13 +162,61 @@ def update_vacation_statuses(session: Session, target_date: datetime):
                     emp.status = 'active'
                     session.add(emp)
     session.commit()
+def sync_sectors_on_startup():
+    """Sincroniza automaticamente Sector -> SectorConfiguration ao iniciar"""
+    try:
+        print("🔄 Sincronizando setores com configuração...")
+        with Session(engine) as session:
+            sectors = session.exec(select(models.Sector)).all()
+            shifts = {}
+            for s in sectors:
+                if s.shift not in shifts: shifts[s.shift] = []
+                shifts[s.shift].append(s)
+                
+            for shift, sector_list in shifts.items():
+                 config_db = session.exec(select(models.SectorConfiguration).where(models.SectorConfiguration.shift_name == shift)).first()
+                 if not config_db: continue
+                 
+                 data = config_db.config_json
+                 if isinstance(data, str):
+                     import json
+                     data = json.loads(data)
+                 
+                 if not data: continue
+                 
+                 config_sectors = data.get('sectors', [])
+                 changed = False
+                 
+                 for s in sector_list:
+                     for cs in config_sectors:
+                         if cs.get('label') == s.name and cs.get('target') != s.max_employees:
+                             print(f"   🔧 Auto-Corrigindo {s.name} ({shift}): {cs.get('target')} -> {s.max_employees}")
+                             cs['target'] = s.max_employees
+                             changed = True
+                
+                 if changed:
+                     config_db.config_json = data
+                     config_db.updated_at = datetime.now()
+                     session.add(config_db)
+            
+            session.commit()
+        print("✅ Sincronização de startup concluída.")
+    except Exception as e:
+        print(f"❌ Erro no sync de startup: {e}")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
+    try:
+        sync_sectors_on_startup()
+    except Exception as e:
+        print(f"❌ Erro ao iniciar sync: {e}")
     yield
-app = FastAPI(lifespan=lifespan)
+
+app = FastAPI(title="Análise Operacional", version="2.0.0", lifespan=lifespan)
 # Add Session Middleware
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
@@ -791,6 +860,421 @@ async def bulk_schedule_vacation(
         msg += f" Erros: {'; '.join(errors)}"
     
     return JSONResponse({"message": msg, "errors": errors})
+
+# --- Medical Certificate Bulk Import ---
+@app.post("/api/import-medical-certificates", response_class=JSONResponse)
+async def import_medical_certificates(
+    request: Request,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session)
+):
+    """
+    Importa atestados médicos em lote a partir de planilha Excel/CSV
+    
+    Formato esperado:
+    - Coluna 1: Matrícula
+    - Coluna 2: Data Início (YYYY-MM-DD ou DD/MM/YYYY)
+    - Coluna 3: Data Fim (YYYY-MM-DD ou DD/MM/YYYY)
+    - Coluna 4: Observação (opcional)
+    
+    Retorna:
+    {
+        "success_count": int,
+        "error_count": int,
+        "skipped_count": int,
+        "details": List[dict]
+    }
+    """
+    require_login(request)
+    
+    import uuid
+    import io
+    import pandas as pd
+    from zoneinfo import ZoneInfo
+    
+    trace_id = str(uuid.uuid4())[:8]
+    logger.info(f"[{trace_id}] Iniciando importação de atestados - arquivo: {file.filename}")
+    
+    # Validação 1: Tamanho do arquivo (max 5MB)
+    MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+    contents = await file.read()
+    
+    if len(contents) > MAX_FILE_SIZE:
+        logger.warning(f"[{trace_id}] Arquivo muito grande: {len(contents)} bytes")
+        return JSONResponse({
+            "error": "Arquivo muito grande. Tamanho máximo: 5MB",
+            "trace_id": trace_id
+        }, status_code=400)
+    
+    # Validação 2: Formato do arquivo
+    allowed_extensions = ['.xlsx', '.xls', '.csv']
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    
+    if file_ext not in allowed_extensions:
+        logger.warning(f"[{trace_id}] Formato inválido: {file_ext}")
+        return JSONResponse({
+            "error": f"Formato de arquivo inválido. Permitidos: {', '.join(allowed_extensions)}",
+            "trace_id": trace_id
+        }, status_code=400)
+    
+    # Processar arquivo
+    try:
+        df = None
+        if file_ext == '.csv':
+            # Try multiple encodings and delimiters to handle different CSV formats
+            for encoding in ['utf-8', 'latin-1', 'cp1252', 'utf-8-sig']:
+                for delimiter in [',', ';', '\t']:
+                    try:
+                        df = pd.read_csv(io.BytesIO(contents), encoding=encoding, delimiter=delimiter)
+                        # Check if we got valid columns (more than 1 column means correct delimiter)
+                        if len(df.columns) > 1:
+                            logger.info(f"[{trace_id}] CSV lido com encoding: {encoding}, delimiter: '{delimiter}'")
+                            break
+                    except (UnicodeDecodeError, pd.errors.ParserError):
+                        continue
+                if df is not None and len(df.columns) > 1:
+                    break
+            
+            if df is None or len(df.columns) <= 1:
+                raise ValueError("Não foi possível ler o arquivo CSV. Verifique o formato do arquivo.")
+        else:
+            df = pd.read_excel(io.BytesIO(contents), engine='openpyxl')
+        
+        logger.info(f"[{trace_id}] Arquivo lido com sucesso - {len(df)} linhas, {len(df.columns)} colunas")
+        
+    except Exception as e:
+        logger.exception(f"[{trace_id}] Erro ao ler arquivo")
+        return JSONResponse({
+            "error": f"Erro ao processar arquivo: {str(e)}",
+            "trace_id": trace_id
+        }, status_code=400)
+    
+    # Validação 3: Verificar colunas obrigatórias
+    if df.empty:
+        return JSONResponse({
+            "error": "Arquivo vazio",
+            "trace_id": trace_id
+        }, status_code=400)
+    
+    # Normalizar nomes de colunas (case-insensitive, sem espaços extras)
+    # Também substituir underscores por espaços para normalização
+    df.columns = df.columns.str.strip().str.lower().str.replace('_', ' ')
+    
+    # Mapear possíveis nomes de colunas (mais flexível)
+    col_mapping = {}
+    for col in df.columns:
+        col_clean = col.replace(' ', '').replace('í', 'i').replace('ú', 'u')
+        
+        if 'matr' in col_clean or 'matricula' in col_clean:
+            col_mapping['matricula'] = col
+        elif 'inicio' in col_clean or 'start' in col_clean or 'datainicio' in col_clean:
+            col_mapping['data_inicio'] = col
+        elif 'fim' in col_clean or 'end' in col_clean or 'datafim' in col_clean or 'termino' in col_clean:
+            col_mapping['data_fim'] = col
+        elif 'obs' in col_clean or 'observ' in col_clean or 'nota' in col_clean:
+            col_mapping['observacao'] = col
+    
+    required_cols = ['matricula', 'data_inicio', 'data_fim']
+    missing_cols = [c for c in required_cols if c not in col_mapping]
+    
+    if missing_cols:
+        # Mensagem de erro mais clara com as colunas encontradas
+        found_cols = list(df.columns)
+        return JSONResponse({
+            "error": f"Colunas obrigatórias faltando: {', '.join(missing_cols)}. Esperado: Matrícula, Data Início, Data Fim. Encontrado: {', '.join(found_cols)}",
+            "trace_id": trace_id
+        }, status_code=400)
+    
+    # Processar cada linha
+    tz = ZoneInfo("America/Sao_Paulo")
+    success_count = 0
+    error_count = 0
+    skipped_count = 0
+    details = []
+    
+    for idx, row in df.iterrows():
+        row_num = idx + 2  # +2 porque: índice começa em 0 + linha de cabeçalho
+        
+        try:
+            # Extrair dados
+            matricula = str(row[col_mapping['matricula']]).strip()
+            data_inicio_raw = row[col_mapping['data_inicio']]
+            data_fim_raw = row[col_mapping['data_fim']]
+            observacao = str(row.get(col_mapping.get('observacao', ''), '')).strip() if 'observacao' in col_mapping else ''
+            
+            # Validação: Matrícula não vazia
+            if not matricula or matricula == 'nan':
+                details.append({
+                    "linha": row_num,
+                    "status": "erro",
+                    "matricula": matricula,
+                    "mensagem": "Matrícula vazia"
+                })
+                error_count += 1
+                continue
+            
+            # Buscar colaborador
+            emp = session.exec(
+                select(models.Employee).where(models.Employee.registration_id == matricula)
+            ).first()
+            
+            if not emp:
+                details.append({
+                    "linha": row_num,
+                    "status": "ignorado",
+                    "matricula": matricula,
+                    "mensagem": "Matrícula não encontrada no sistema"
+                })
+                skipped_count += 1
+                logger.warning(f"[{trace_id}] Linha {row_num}: Matrícula {matricula} não encontrada")
+                continue
+            
+            # Parsear datas (suporta YYYY-MM-DD e DD/MM/YYYY)
+            def parse_date(date_val):
+                """Tenta parsear data em múltiplos formatos"""
+                if pd.isna(date_val):
+                    return None
+                
+                # Se já é datetime do pandas
+                if isinstance(date_val, pd.Timestamp):
+                    return date_val.to_pydatetime().replace(tzinfo=tz)
+                
+                # Se é string
+                date_str = str(date_val).strip()
+                formats = ["%Y-%m-%d", "%d/%m/%Y", "%Y/%m/%d", "%d-%m-%Y"]
+                
+                for fmt in formats:
+                    try:
+                        dt = datetime.strptime(date_str, fmt)
+                        return dt.replace(tzinfo=tz)
+                    except ValueError:
+                        continue
+                
+                return None
+            
+            data_inicio = parse_date(data_inicio_raw)
+            data_fim = parse_date(data_fim_raw)
+            
+            if not data_inicio or not data_fim:
+                details.append({
+                    "linha": row_num,
+                    "status": "erro",
+                    "matricula": matricula,
+                    "nome": emp.name,
+                    "mensagem": f"Data inválida (Início: {data_inicio_raw}, Fim: {data_fim_raw})"
+                })
+                error_count += 1
+                logger.warning(f"[{trace_id}] Linha {row_num}: Datas inválidas para {emp.name}")
+                continue
+            
+            # Validação: Data fim >= Data início
+            if data_fim < data_inicio:
+                details.append({
+                    "linha": row_num,
+                    "status": "erro",
+                    "matricula": matricula,
+                    "nome": emp.name,
+                    "mensagem": "Data fim anterior à data início"
+                })
+                error_count += 1
+                continue
+            
+            # Verificar duplicação (se já existe evento de atestado no período)
+            existing_events = session.exec(
+                select(models.Event)
+                .where(models.Event.employee_id == emp.id)
+                .where(models.Event.type == "atestado")
+                .where(models.Event.timestamp >= data_inicio)
+                .where(models.Event.timestamp <= data_fim)
+            ).all()
+            
+            if existing_events:
+                details.append({
+                    "linha": row_num,
+                    "status": "ignorado",
+                    "matricula": matricula,
+                    "nome": emp.name,
+                    "mensagem": f"Já existe atestado registrado no período ({len(existing_events)} evento(s))"
+                })
+                skipped_count += 1
+                logger.info(f"[{trace_id}] Linha {row_num}: Atestado duplicado para {emp.name}")
+                continue
+            
+            # Criar eventos para cada dia do período
+            current_date = data_inicio
+            events_created = 0
+            events_to_add = []
+            routines_to_add = []
+            
+            while current_date <= data_fim:
+                # Criar evento de atestado
+                evt_text = f"Atestado médico"
+                if observacao and observacao != 'nan':
+                    evt_text += f" - {observacao}"
+                
+                new_event = models.Event(
+                    employee_id=emp.id,
+                    type="atestado",
+                    text=evt_text,
+                    timestamp=current_date,
+                    category="pessoas",
+                    sector=emp.cost_center or "Geral",
+                    impact="medium"
+                )
+                events_to_add.append(new_event)
+                events_created += 1
+                
+                # Criar rotinas para todos os turnos (sem verificar se existe - mais rápido)
+                date_str = current_date.strftime("%Y-%m-%d")
+                for shift in ["Manhã", "Tarde", "Noite"]:
+                    routine = models.EmployeeRoutine(
+                        employee_id=emp.id,
+                        date=date_str,
+                        shift=shift,
+                        routine="sick",
+                        created_at=datetime.now(tz),
+                        updated_at=datetime.now(tz)
+                    )
+                    routines_to_add.append(routine)
+                
+                current_date += timedelta(days=1)
+            
+            # Adicionar todos de uma vez (batch insert)
+            for event in events_to_add:
+                session.add(event)
+            for routine in routines_to_add:
+                session.add(routine)
+            
+            details.append({
+                "linha": row_num,
+                "status": "sucesso",
+                "matricula": matricula,
+                "nome": emp.name,
+                "periodo": f"{data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}",
+                "dias": events_created,
+                "mensagem": f"{events_created} dia(s) de atestado registrado(s)"
+            })
+            success_count += 1
+            logger.info(f"[{trace_id}] Linha {row_num}: Atestado criado para {emp.name} - {events_created} dia(s)")
+            
+        except Exception as e:
+            logger.exception(f"[{trace_id}] Erro ao processar linha {row_num}")
+            details.append({
+                "linha": row_num,
+                "status": "erro",
+                "matricula": matricula if 'matricula' in locals() else "?",
+                "mensagem": f"Erro ao processar: {str(e)}"
+            })
+            error_count += 1
+            # Não fazer rollback aqui - continuar processando outras linhas
+    
+    # Commit único no final (muito mais rápido!)
+    try:
+        session.commit()
+        logger.info(f"[{trace_id}] Commit realizado com sucesso")
+    except Exception as e_commit:
+        logger.exception(f"[{trace_id}] Erro ao fazer commit final")
+        session.rollback()
+        return JSONResponse({
+            "error": f"Erro ao salvar dados: {str(e_commit)}",
+            "trace_id": trace_id,
+            "partial_results": {
+                "success_count": success_count,
+                "error_count": error_count,
+                "skipped_count": skipped_count
+            }
+        }, status_code=500)
+    
+    logger.info(f"[{trace_id}] Importação concluída - Sucesso: {success_count}, Erros: {error_count}, Ignorados: {skipped_count}")
+    
+    return JSONResponse({
+        "success_count": success_count,
+        "error_count": error_count,
+        "skipped_count": skipped_count,
+        "total_processed": len(df),
+        "details": details,
+        "trace_id": trace_id
+    })
+
+@app.get("/import-medical-certificates", response_class=HTMLResponse)
+async def import_medical_certificates_page(request: Request):
+    """Página de importação de atestados"""
+    user = require_login(request)
+    return templates.TemplateResponse("import_medical_certificates.html", {
+        "request": request,
+        "user": user
+    })
+
+@app.get("/api/debug/force-sync")
+async def force_sync_debug():
+    """Força sincronização e retorna log detalhado"""
+    logs = []
+    try:
+        with Session(engine) as session:
+            sectors = session.exec(select(models.Sector)).all()
+            shifts = {}
+            for s in sectors:
+                if s.shift not in shifts: shifts[s.shift] = []
+                shifts[s.shift].append(s)
+            
+            logs.append(f"Setores encontrados no DB: {len(sectors)}")
+
+            for shift, sector_list in shifts.items():
+                 config_db = session.exec(select(models.SectorConfiguration).where(models.SectorConfiguration.shift_name == shift)).first()
+                 if not config_db: 
+                     logs.append(f"❌ Config não encontrada para turno '{shift}'")
+                     continue
+                 
+                 data = config_db.config_json
+                 if isinstance(data, str):
+                     import json
+                     data = json.loads(data)
+                 
+                 if not data: 
+                    logs.append(f"❌ JSON inválido/vazio para '{shift}'")
+                    continue
+                 
+                 config_sectors = data.get('sectors', [])
+                 logs.append(f"Turno '{shift}': {len(sector_list)} setores no DB vs {len(config_sectors)} no JSON")
+
+                 changed = False
+                 
+                 for s in sector_list:
+                     found = False
+                     for cs in config_sectors:
+                         # Normalize names for comparison
+                         db_name = s.name.strip().lower()
+                         json_name = cs.get('label', '').strip().lower()
+                         
+                         if db_name == json_name:
+                             found = True
+                             target = cs.get('target')
+                             if target != s.max_employees:
+                                 logs.append(f"   🔧 CORRIGINDO '{s.name}': {target} -> {s.max_employees}")
+                                 cs['target'] = s.max_employees
+                                 changed = True
+                             else:
+                                 logs.append(f"   ✅ '{s.name}' OK: {target}")
+                             break
+                     
+                     if not found:
+                         logs.append(f"   ⚠️ '{s.name}' não encontrado no JSON")
+                
+                 if changed:
+                     config_db.config_json = data
+                     config_db.updated_at = datetime.now()
+                     session.add(config_db)
+                     logs.append(f"💾 Salvando config para '{shift}'")
+            
+            session.commit()
+            logs.append("✅ Sync concluído com sucesso")
+    except Exception as e:
+        logs.append(f"❌ ERRO FATAL: {str(e)}")
+        import traceback
+        logs.append(traceback.format_exc())
+    
+    return {"logs": logs}
+
 @app.post("/routine/update", response_class=JSONResponse)
 async def update_routine(
     request: Request,
@@ -1004,20 +1488,93 @@ async def update_sector(
     """Edita um setor existente"""
     require_login(request)
     
+    # DEBUG: Log para rastrear chamadas
+    print(f"\n{'='*60}")
+    print(f"🔧 UPDATE_SECTOR CHAMADO")
+    print(f"   sector_id: {sector_id}")
+    print(f"   name: {name}")
+    print(f"   max_employees: {max_employees}")
+    print(f"   color: {color}")
+    print(f"{'='*60}\n")
+    
     sector = session.get(models.Sector, sector_id)
     if not sector:
+        print(f"❌ Setor {sector_id} não encontrado!")
         return JSONResponse({"error": "Setor não encontrado"}, status_code=404)
+    
+    print(f"✅ Setor encontrado: {sector.name} (shift: {sector.shift})")
+    print(f"   max_employees atual: {sector.max_employees}")
+    
+    # Track if max_employees changed (need to sync with SectorConfiguration)
+    # FORÇANDO True para garantir sincronização durante debug
+    meta_changed = True 
     
     if name is not None:
         sector.name = name
     if max_employees is not None:
+        if sector.max_employees != max_employees:
+            print(f"🔄 MUDANÇA DETECTADA: {sector.max_employees} -> {max_employees}")
         sector.max_employees = max_employees
     if color is not None:
         sector.color = color
     
     sector.updated_at = datetime.now()
     session.add(sector)
-    session.commit()
+    
+    # IMPORTANTE: Sincronizar com SectorConfiguration
+    print(f"\n🔄 TENTANDO SINCRONIZAR SETOR: {sector.name} (Meta: {sector.max_employees})")
+    
+    # Buscar configuração do turno
+    config_db = session.exec(
+        select(models.SectorConfiguration)
+        .where(models.SectorConfiguration.shift_name == sector.shift)
+    ).first()
+    
+    if config_db:
+        print(f"   ✅ SectorConfiguration encontrado para {sector.shift}")
+        if config_db.config_json:
+            # Parse config
+            config_data = config_db.config_json if isinstance(config_db.config_json, dict) else json.loads(config_db.config_json)
+            
+            # Atualizar meta do setor na configuração
+            sectors_list = config_data.get('sectors', [])
+            found = False
+            
+            print(f"   📋 Procurando '{sector.name}' em {len(sectors_list)} setores na config...")
+            
+            for s in sectors_list:
+                label = s.get('label')
+                print(f"      - Comparando com: '{label}'")
+                
+                if label == sector.name:
+                    old_target = s.get('target')
+                    s['target'] = sector.max_employees
+                    print(f"      ✅ ATUALIZADO NA CONFIG: {old_target} -> {sector.max_employees}")
+                    found = True
+                    break
+            
+            if found:
+                # Salvar configuração atualizada
+                config_db.config_json = config_data
+                config_db.updated_at = datetime.now()
+                session.add(config_db)
+                # Forçar flush para garantir que SQLAlchemy veja a mudança no JSON
+                session.flush() 
+                print(f"   💾 SectorConfiguration SALVO com sucesso para turno {sector.shift}")
+            else:
+                print(f"   ⚠️ AVISO: Setor '{sector.name}' não encontrado na lista de configuração JSON!")
+                
+        else:
+            print("   ❌ config_json está VAZIO!")
+    else:
+        print(f"   ❌ SectorConfiguration NÃO ENCONTRADO para turno {sector.shift}!")
+            
+    try:
+        session.commit()
+    except Exception as e:
+        print(f"❌ Erro ao salvar setor ou configuração: {e}")
+        session.rollback()
+        return JSONResponse({"error": f"Erro ao atualizar setor: {e}"}, status_code=500)
     
     return {"success": True}
 
@@ -1621,16 +2178,23 @@ async def routine_report(
                 except:
                     sector_config = {}
                     
-        # Defaults if missing
+        # DEBUG: Log configuration status
+        print(f"🔍 DEBUG - Sector Config DB found: {sector_config_db is not None}")
+        if sector_config_db:
+            print(f"🔍 DEBUG - Config JSON type: {type(sector_config_db.config_json)}")
+            print(f"🔍 DEBUG - Sectors in config: {len(sector_config.get('sectors', []))}")
+            if sector_config.get('sectors'):
+                for s in sector_config['sectors']:
+                    print(f"   - {s.get('label')}: meta {s.get('target')}")
+        else:
+            print(f"⚠️ WARNING - No SectorConfiguration found for shift '{shift}'")
+                    
+        # IMPORTANTE: Não usar defaults hardcoded
+        # O relatório deve sempre usar a configuração real do Smart Flow
+        # Se não houver configuração, mostrar lista vazia (não inventar setores)
         if not sector_config or "sectors" not in sector_config:
-            sector_config = {
-                "sectors": [
-                    { "key": "recebimento", "label": "Recebimento", "target": 0 },
-                    { "key": "camara_fria", "label": "Câmara Fria", "target": 0 },
-                    { "key": "selecao", "label": "Seleção", "target": 0 },
-                    { "key": "expedicao", "label": "Expedição", "target": 0 }
-                ]
-            }
+            print(f"⚠️ WARNING - Using empty sectors list (no config found)")
+            sector_config = {"sectors": []}
             
         SECTORS = sector_config.get("sectors", [])
         
@@ -1718,12 +2282,12 @@ async def routine_report(
             # Find people allocated to this sector
             allocated_people = [p for p in people_list if p['sector_daily'] == key]
             
-            # IMPORTANTE: Pular setores sem colaboradores alocados
-            if len(allocated_people) == 0:
-                continue
-            
-            # Adicionar target ao total apenas se setor tiver colaboradores
+            # IMPORTANTE: SEMPRE adicionar target ao total, mesmo sem colaboradores
+            # Isso garante que a meta total seja a soma de TODAS as metas configuradas
             total_target += target
+            
+            # IMPORTANTE: Mostrar TODOS os setores, mesmo sem colaboradores
+            # Isso mantém consistência com o Smart Flow
             
             # Counts per sector
             present_people = [p for p in allocated_people if p['status_daily'] == 'present']
@@ -1774,24 +2338,17 @@ async def routine_report(
             total_allocated_sum += len(others_allocated)
             
         # Top KPIs - ALINHADO COM SMART FLOW
-        # Total target = TODOS os colaboradores do turno (não apenas soma de metas)
-        # Buscar total de colaboradores do turno (incluindo demitidos para calcular vagas)
-        all_shift_employees = session.exec(
-            select(models.Employee)
-            .where(col(models.Employee.work_shift).ilike(f"%{shift}%"))
-        ).all()
+        # IMPORTANTE: Total target = SOMA DAS METAS CONFIGURADAS (não colaboradores do turno)
+        # Isso garante consistência com o Smart Flow
         
-        # Total target = colaboradores ativos do turno
-        total_target_real = len([e for e in all_shift_employees if e.status != 'fired'])
-        
-        # Vagas = colaboradores demitidos do turno
-        total_vacancies_real = len([e for e in all_shift_employees if e.status == 'fired'])
+        # total_target já foi calculado no loop acima (soma de todas as metas)
+        # Não usar total_target_real (colaboradores ativos) pois isso causa divergência
         
         total_gap = sum(s['gap'] for s in sectors_detailed)
         total_vacancies = sum(s['vacancies'] for s in sectors_detailed)
         
         prod_per_person = round(tonnage / total_present, 2) if total_present > 0 else 0
-        present_pct = int((total_present / total_target_real * 100)) if total_target_real > 0 else 0
+        present_pct = int((total_present / total_target * 100)) if total_target > 0 else 0
         
         # Detailed Counts - SEPARADOS (não combinados)
         daily_absent = len([p for p in people_list if p['status_daily'] == 'absent'])
@@ -1802,12 +2359,12 @@ async def routine_report(
         
         snapshot = {
             "kpis": {
-                "total_target": total_target_real,  # Usar total real de colaboradores do turno
+                "total_target": total_target,  # CORRIGIDO: Usar soma das metas configuradas
                 "total_allocated": total_allocated_sum,
                 "total_present": total_present,
                 "present_pct": present_pct,
-                "total_gap": total_vacancies_real,  # Vagas = demitidos
-                "total_vacancies": total_vacancies_real,
+                "total_gap": total_vacancies,  # Vagas = diferença entre meta e alocados
+                "total_vacancies": total_vacancies,
                 "tonnage": f"{tonnage:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
                 "prod_per_person": f"{prod_per_person:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
                 "count_absent": daily_absent,  # Faltas apenas
@@ -2644,14 +3201,33 @@ async def people_intelligence_page(
             
     sector_list.sort(key=lambda x: x['risk_index'], reverse=True)
     
-    # 4. Calculate Presence Index
-    # Total working days in period
+    # 4. Calculate PRESENCE (Accurate Method: Sum of Expected Days)
     days_in_period = (end_dt - start_dt).days
-    # Theoretical attendance = headcount * working days
-    theoretical_attendance = total_headcount * days_in_period if total_headcount > 0 else 1
-    # Actual absences (faltas + atestados)
+    
+    total_expected_work_days_global = 0
+    emp_expected_days_map = {}
+    
+    for emp in employees:
+        calc_start = start_dt
+        if emp.admission_date:
+            try:
+                if emp.admission_date.replace(tzinfo=None) > start_dt.replace(tzinfo=None):
+                    calc_start = emp.admission_date.replace(tzinfo=None)
+            except:
+                pass
+        
+        ex_days = calculate_expected_work_days(
+            emp.work_days or '[]',
+            calc_start,
+            end_dt,
+            vacation_start=emp.vacation_start,
+            vacation_end=emp.vacation_end
+        )
+        emp_expected_days_map[emp.id] = ex_days
+        total_expected_work_days_global += ex_days
+        
+    theoretical_attendance = total_expected_work_days_global if total_expected_work_days_global > 0 else 1
     total_events = total_absences + total_sick
-    # Presence rate = (1 - (absences / theoretical)) * 100
     presence_rate = round((1 - (total_events / theoretical_attendance)) * 100, 1) if theoretical_attendance > 0 else 100
     
     # 5. Chronic Offenders (High Operational Risk)
@@ -2663,14 +3239,10 @@ async def people_intelligence_page(
             item['combined_events'] = combined_events
             item['risk_score'] = round((combined_events / days_in_period) * 100, 1) if days_in_period > 0 else 0
             
-            # NEW: Calculate expected work days based on employee's work schedule
+            # Use pre-calculated expected days
             emp = emp_map.get(item['employee_id'])
             if emp:
-                item['expected_work_days'] = calculate_expected_work_days(
-                    emp.work_days or '[]',
-                    start_dt,
-                    end_dt
-                )
+                item['expected_work_days'] = emp_expected_days_map.get(item['employee_id'], 0)
                 item['actual_work_days'] = max(0, item['expected_work_days'] - combined_events)
                 item['utilization_rate'] = round(
                     (item['actual_work_days'] / item['expected_work_days']) * 100, 1
@@ -2804,8 +3376,32 @@ async def people_intelligence_report(
     
     sector_list.sort(key=lambda x: x['risk_index'], reverse=True)
     
+    # 4. Calculate PRESENCE (Accurate Method: Sum of Expected Days)
     days_in_period = (end_dt - start_dt).days
-    theoretical_attendance = total_headcount * days_in_period if total_headcount > 0 else 1
+    
+    total_expected_work_days_global = 0
+    emp_expected_days_map = {}
+    
+    for emp in employees:
+        calc_start = start_dt
+        if emp.admission_date:
+            try:
+                if emp.admission_date.replace(tzinfo=None) > start_dt.replace(tzinfo=None):
+                    calc_start = emp.admission_date.replace(tzinfo=None)
+            except:
+                pass
+        
+        ex_days = calculate_expected_work_days(
+            emp.work_days or '[]',
+            calc_start,
+            end_dt,
+            vacation_start=emp.vacation_start,
+            vacation_end=emp.vacation_end
+        )
+        emp_expected_days_map[emp.id] = ex_days
+        total_expected_work_days_global += ex_days
+        
+    theoretical_attendance = total_expected_work_days_global if total_expected_work_days_global > 0 else 1
     total_events = total_absences + total_sick
     presence_rate = round((1 - (total_events / theoretical_attendance)) * 100, 1) if theoretical_attendance > 0 else 100
     
@@ -2816,14 +3412,10 @@ async def people_intelligence_report(
             item['combined_events'] = combined_events
             item['risk_score'] = round((combined_events / days_in_period) * 100, 1) if days_in_period > 0 else 0
             
-            # Calculate expected work days based on employee's work schedule
+            # Use pre-calculated expected days
             emp = emp_map.get(item['employee_id'])
             if emp:
-                item['expected_work_days'] = calculate_expected_work_days(
-                    emp.work_days or '[]',
-                    start_dt,
-                    end_dt
-                )
+                item['expected_work_days'] = emp_expected_days_map.get(item['employee_id'], 0)
                 item['actual_work_days'] = max(0, item['expected_work_days'] - combined_events)
                 item['utilization_rate'] = round(
                     (item['actual_work_days'] / item['expected_work_days']) * 100, 1

@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-6 space-y-6 max-w-5xl mx-auto">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-white">Importar Atestados Médicos</h1>
+            <p class="text-slate-400 text-sm mt-1">Importe múltiplos atestados de uma só vez via planilha Excel/CSV</p>
+        </div>
+        <a href="/employees"
+            class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors">
+            ← Voltar
+        </a>
+    </div>
+
+    <!-- Instructions Card -->
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-6">
+        <h2 class="text-lg font-semibold text-white mb-4">📋 Formato da Planilha</h2>
+        <div class="space-y-3 text-sm text-slate-300">
+            <p>A planilha deve conter as seguintes colunas (nesta ordem):</p>
+            <div class="bg-slate-900 p-4 rounded-lg border border-slate-700 font-mono text-xs">
+                <div class="grid grid-cols-4 gap-4 font-bold text-blue-400 mb-2">
+                    <div>Matrícula</div>
+                    <div>Data Início</div>
+                    <div>Data Fim</div>
+                    <div>Observação</div>
+                </div>
+                <div class="grid grid-cols-4 gap-4 text-slate-400">
+                    <div>12345</div>
+                    <div>2026-01-03</div>
+                    <div>2026-01-05</div>
+                    <div>CID: J00</div>
+                </div>
+                <div class="grid grid-cols-4 gap-4 text-slate-400 mt-1">
+                    <div>67890</div>
+                    <div>04/01/2026</div>
+                    <div>04/01/2026</div>
+                    <div>Atestado 1 dia</div>
+                </div>
+            </div>
+            <ul class="list-disc list-inside space-y-1 text-slate-400">
+                <li><strong class="text-white">Matrícula:</strong> Deve existir no sistema (obrigatório)</li>
+                <li><strong class="text-white">Data Início/Fim:</strong> Formatos aceitos: YYYY-MM-DD ou DD/MM/YYYY</li>
+                <li><strong class="text-white">Observação:</strong> Texto livre (opcional)</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Upload Section -->
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-6">
+        <h2 class="text-lg font-semibold text-white mb-4">📤 Upload de Arquivo</h2>
+
+        <form id="uploadForm" class="space-y-4">
+            <div
+                class="border-2 border-dashed border-slate-700 rounded-lg p-8 text-center hover:border-blue-500/50 transition-colors">
+                <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" class="hidden"
+                    onchange="handleFileSelect(event)">
+                <label for="fileInput" class="cursor-pointer">
+                    <div class="flex flex-col items-center gap-3">
+                        <svg class="w-12 h-12 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12">
+                            </path>
+                        </svg>
+                        <div>
+                            <p class="text-white font-medium">Clique para selecionar ou arraste o arquivo aqui</p>
+                            <p class="text-slate-400 text-sm mt-1">Formatos aceitos: .xlsx, .xls, .csv (máx. 5MB)</p>
+                        </div>
+                    </div>
+                </label>
+            </div>
+
+            <div id="fileInfo" class="hidden bg-slate-900 p-4 rounded-lg border border-slate-700">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <svg class="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                            </path>
+                        </svg>
+                        <div>
+                            <p class="text-white font-medium" id="fileName"></p>
+                            <p class="text-slate-400 text-sm" id="fileSize"></p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="clearFile()" class="text-red-400 hover:text-red-300">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" id="submitBtn" disabled
+                class="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                </svg>
+                Processar Importação
+            </button>
+        </form>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="hidden bg-slate-800 rounded-xl border border-slate-700 p-8">
+        <div class="flex flex-col items-center gap-4">
+            <div class="animate-spin rounded-full h-12 w-12 border-4 border-slate-700 border-t-blue-500"></div>
+            <p class="text-white font-medium">Processando importação...</p>
+            <p class="text-slate-400 text-sm">Validando dados e criando registros</p>
+        </div>
+    </div>
+
+    <!-- Results Section -->
+    <div id="resultsSection" class="hidden space-y-4">
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+                <h3 class="text-slate-400 text-xs font-medium uppercase mb-1">Total Processado</h3>
+                <div class="text-2xl font-bold text-white" id="totalProcessed">0</div>
+            </div>
+            <div class="bg-slate-800 rounded-xl border border-green-700/50 p-4">
+                <h3 class="text-slate-400 text-xs font-medium uppercase mb-1">✅ Sucesso</h3>
+                <div class="text-2xl font-bold text-green-400" id="totalSuccess">0</div>
+            </div>
+            <div class="bg-slate-800 rounded-xl border border-red-700/50 p-4">
+                <h3 class="text-slate-400 text-xs font-medium uppercase mb-1">❌ Erros</h3>
+                <div class="text-2xl font-bold text-red-400" id="totalErrors">0</div>
+            </div>
+            <div class="bg-slate-800 rounded-xl border border-yellow-700/50 p-4">
+                <h3 class="text-slate-400 text-xs font-medium uppercase mb-1">⏭️ Ignorados</h3>
+                <div class="text-2xl font-bold text-yellow-400" id="totalSkipped">0</div>
+            </div>
+        </div>
+
+        <!-- Details Table -->
+        <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-white">Detalhes da Importação</h3>
+                <div class="flex gap-2">
+                    <button onclick="filterResults('all')"
+                        class="filter-result-btn active px-3 py-1 rounded text-sm bg-slate-700 text-white"
+                        data-filter="all">Todos</button>
+                    <button onclick="filterResults('sucesso')"
+                        class="filter-result-btn px-3 py-1 rounded text-sm bg-slate-900 text-slate-400"
+                        data-filter="sucesso">Sucesso</button>
+                    <button onclick="filterResults('erro')"
+                        class="filter-result-btn px-3 py-1 rounded text-sm bg-slate-900 text-slate-400"
+                        data-filter="erro">Erros</button>
+                    <button onclick="filterResults('ignorado')"
+                        class="filter-result-btn px-3 py-1 rounded text-sm bg-slate-900 text-slate-400"
+                        data-filter="ignorado">Ignorados</button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-slate-900/50 text-slate-300 font-medium border-b border-slate-700">
+                        <tr>
+                            <th class="p-3 text-left">Linha</th>
+                            <th class="p-3 text-left">Status</th>
+                            <th class="p-3 text-left">Matrícula</th>
+                            <th class="p-3 text-left">Nome</th>
+                            <th class="p-3 text-left">Período</th>
+                            <th class="p-3 text-left">Mensagem</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsTableBody" class="divide-y divide-slate-700 text-slate-300">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    let selectedFile = null;
+    let currentResultFilter = 'all';
+    let allResults = [];
+
+    function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        selectedFile = file;
+
+        // Show file info
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('fileSize').textContent = formatFileSize(file.size);
+        document.getElementById('fileInfo').classList.remove('hidden');
+        document.getElementById('submitBtn').disabled = false;
+    }
+
+    function clearFile() {
+        selectedFile = null;
+        document.getElementById('fileInput').value = '';
+        document.getElementById('fileInfo').classList.add('hidden');
+        document.getElementById('submitBtn').disabled = true;
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        if (!selectedFile) {
+            alert('Selecione um arquivo primeiro');
+            return;
+        }
+
+        // Show loading
+        document.getElementById('loadingState').classList.remove('hidden');
+        document.getElementById('resultsSection').classList.add('hidden');
+
+        // Prepare form data
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        try {
+            const response = await fetch('/api/import-medical-certificates', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            // Hide loading
+            document.getElementById('loadingState').classList.add('hidden');
+
+            if (!response.ok) {
+                // Error response
+                alert(`Erro: ${data.error || 'Erro ao processar arquivo'}\nTrace ID: ${data.trace_id || 'N/A'}`);
+                return;
+            }
+
+            // Show results
+            displayResults(data);
+
+        } catch (error) {
+            console.error('Error:', error);
+            document.getElementById('loadingState').classList.add('hidden');
+            alert('Erro ao enviar arquivo: ' + error.message);
+        }
+    });
+
+    function displayResults(data) {
+        // Update summary cards
+        document.getElementById('totalProcessed').textContent = data.total_processed || 0;
+        document.getElementById('totalSuccess').textContent = data.success_count || 0;
+        document.getElementById('totalErrors').textContent = data.error_count || 0;
+        document.getElementById('totalSkipped').textContent = data.skipped_count || 0;
+
+        // Store results
+        allResults = data.details || [];
+
+        // Render table
+        renderResultsTable();
+
+        // Show results section
+        document.getElementById('resultsSection').classList.remove('hidden');
+    }
+
+    function renderResultsTable() {
+        const tbody = document.getElementById('resultsTableBody');
+        tbody.innerHTML = '';
+
+        const filtered = currentResultFilter === 'all'
+            ? allResults
+            : allResults.filter(r => r.status === currentResultFilter);
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="p-8 text-center text-slate-500">
+                    Nenhum resultado para exibir
+                </td>
+            </tr>
+        `;
+            return;
+        }
+
+        filtered.forEach(result => {
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-slate-700/30 transition-colors result-row';
+            row.dataset.status = result.status;
+
+            const statusBadge = getStatusBadge(result.status);
+
+            row.innerHTML = `
+            <td class="p-3">${result.linha}</td>
+            <td class="p-3">${statusBadge}</td>
+            <td class="p-3 font-mono text-xs">${result.matricula || '-'}</td>
+            <td class="p-3">${result.nome || '-'}</td>
+            <td class="p-3 text-xs">${result.periodo || '-'}</td>
+            <td class="p-3 text-xs text-slate-400">${result.mensagem}</td>
+        `;
+
+            tbody.appendChild(row);
+        });
+    }
+
+    function getStatusBadge(status) {
+        const badges = {
+            'sucesso': '<span class="px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 text-xs border border-green-500/20">✓ Sucesso</span>',
+            'erro': '<span class="px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 text-xs border border-red-500/20">✗ Erro</span>',
+            'ignorado': '<span class="px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 text-xs border border-yellow-500/20">⊘ Ignorado</span>'
+        };
+        return badges[status] || status;
+    }
+
+    function filterResults(filter) {
+        currentResultFilter = filter;
+
+        // Update button states
+        document.querySelectorAll('.filter-result-btn').forEach(btn => {
+            if (btn.dataset.filter === filter) {
+                btn.classList.add('bg-slate-700', 'text-white', 'active');
+                btn.classList.remove('bg-slate-900', 'text-slate-400');
+            } else {
+                btn.classList.remove('bg-slate-700', 'text-white', 'active');
+                btn.classList.add('bg-slate-900', 'text-slate-400');
+            }
+        });
+
+        renderResultsTable();
+    }
+</script>
+
+{% endblock %}

@@ -10,7 +10,7 @@
         @media print {
             @page {
                 size: A4 portrait;
-                margin: 0.5cm;
+                margin: 0.3cm;
             }
 
             body {
@@ -25,7 +25,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            font-size: 12px;
+            font-size: 9px;
             color: #1e293b;
         }
 
@@ -52,7 +52,7 @@
         th,
         td {
             border: 1px solid #e2e8f0;
-            padding: 4px 6px;
+            padding: 1px 3px;
             text-align: left;
         }
 
@@ -98,10 +98,10 @@
     </style>
 </head>
 
-<body class="bg-white p-8 max-w-4xl mx-auto">
+<body class="bg-white p-4 max-w-4xl mx-auto">
 
     <!-- Header -->
-    <div class="flex justify-between items-start mb-6 border-b pb-4">
+    <div class="flex justify-between items-start mb-3 border-b pb-4">
         <div>
             <h1 class="text-2xl text-slate-800">Relatório - Gestão de Pessoas 2.0</h1>
             <p class="text-sm text-slate-500">Análise de Performance e Presença</p>
@@ -115,38 +115,37 @@
     </div>
 
     <!-- Overview Stats -->
-    <div class="grid grid-cols-3 gap-4 mb-6">
-        <div class="border rounded p-3 bg-slate-50">
-            <p class="text-xs text-slate-500 uppercase font-bold">Headcount</p>
-            <p class="text-lg font-bold text-slate-700">{{ overview.headcount }}</p>
+    <div class="grid grid-cols-6 gap-2 mb-2">
+        <div class="border rounded p-1 bg-slate-50 text-center">
+            <p class="text-[9px] text-slate-500 uppercase font-bold">Headcount</p>
+            <p class="text-base font-bold text-slate-700">{{ overview.headcount }}</p>
         </div>
-        <div class="border rounded p-3 bg-slate-50">
-            <p class="text-xs text-slate-500 uppercase font-bold">Faltas</p>
-            <p class="text-lg font-bold text-red-600">{{ overview.total_absences }}</p>
-            <p class="text-xs text-slate-400">Média: {{ overview.avg_absence_per_emp }}</p>
+        <div class="border rounded p-1 bg-slate-50 text-center">
+            <p class="text-[9px] text-slate-500 uppercase font-bold">Faltas</p>
+            <p class="text-base font-bold text-red-600">{{ overview.total_absences }}</p>
         </div>
-        <div class="border rounded p-3 bg-slate-50">
-            <p class="text-xs text-slate-500 uppercase font-bold">Atestados</p>
-            <p class="text-lg font-bold text-amber-600">{{ overview.total_sick }}</p>
+        <div class="border rounded p-1 bg-slate-50 text-center">
+            <p class="text-[9px] text-slate-500 uppercase font-bold">Atestados</p>
+            <p class="text-base font-bold text-amber-600">{{ overview.total_sick }}</p>
         </div>
-        <div class="border rounded p-3 bg-slate-50">
-            <p class="text-xs text-slate-500 uppercase font-bold">Presença</p>
-            <p class="text-lg font-bold text-emerald-600">{{ overview.presence_rate }}%</p>
+        <div class="border rounded p-1 bg-slate-50 text-center">
+            <p class="text-[9px] text-slate-500 uppercase font-bold">Presença</p>
+            <p class="text-base font-bold text-emerald-600">{{ overview.presence_rate }}%</p>
         </div>
-        <div class="border rounded p-3 bg-slate-50">
-            <p class="text-xs text-slate-500 uppercase font-bold">Risco Geral</p>
-            <p class="text-lg font-bold text-purple-600">{{ ((overview.total_absences + overview.total_sick) /
+        <div class="border rounded p-1 bg-slate-50 text-center">
+            <p class="text-[9px] text-slate-500 uppercase font-bold">Risco</p>
+            <p class="text-base font-bold text-purple-600">{{ ((overview.total_absences + overview.total_sick) /
                 overview.headcount)|round(1) if overview.headcount > 0 else 0 }}</p>
         </div>
-        <div class="border rounded p-3 bg-red-50 border-red-200">
-            <p class="text-xs text-red-600 uppercase font-bold">Ofensores</p>
-            <p class="text-lg font-bold text-red-700">{{ overview.chronic_count }}</p>
+        <div class="border rounded p-1 bg-red-50 border-red-200 text-center">
+            <p class="text-[9px] text-red-600 uppercase font-bold">Ofensores</p>
+            <p class="text-base font-bold text-red-700">{{ overview.chronic_count }}</p>
         </div>
     </div>
 
     <!-- Chronic Offenders Detail -->
     {% if chronic_offenders %}
-    <div class="mb-6">
+    <div class="mb-3">
         <h2 class="text-red-900">⚠️ Ofensores Crônicos - Detalhado</h2>
         <table>
             <thead>
@@ -202,7 +201,7 @@
     {% endif %}
 
     <!-- Side by Side Tables -->
-    <div class="grid grid-cols-2 gap-4 mb-6">
+    <div class="grid grid-cols-2 gap-4 mb-3">
         <!-- Top Absences -->
         <div>
             <h2>Ofensores de Faltas</h2>
@@ -263,7 +262,7 @@
     </div>
 
     <!-- Sector Heatmap -->
-    <div class="mb-6">
+    <div class="mb-3">
         <h2>Mapa de Risco por Setor</h2>
         <table>
             <thead>
