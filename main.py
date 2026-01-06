@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import traceback
 import os
 from starlette.middleware.sessions import SessionMiddleware
-from sqlmodel import Session, select, col
+from sqlmodel import Session, select, col, delete, text
 from typing import List
 from database import create_db_and_tables, get_session, engine
 import models
@@ -235,6 +235,9 @@ def require_login(request: Request):
         raise HTTPException(status_code=status.HTTP_307_TEMPORARY_REDIRECT, detail="Not authenticated")
     return user
 # --- Routes ---
+@app.get("/")
+async def root():
+    return RedirectResponse(url="/smart-flow")
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
@@ -277,6 +280,180 @@ async def clients_page(request: Request, session: Session = Depends(get_session)
 async def list_clients(session: Session = Depends(get_session)):
     clients = session.exec(select(models.Client)).all()
     return {"clients": [c.name for c in clients]}
+@app.get("/clients/{client_id}", response_class=HTMLResponse)
+async def client_details(request: Request, client_id: int, session: Session = Depends(get_session)):
+    user = require_login(request)
+    client = session.get(models.Client, client_id)
+    if not client:
+        return RedirectResponse(url="/clients")
+        
+    # Fetch all routes for this client
+    routes = session.exec(
+        select(models.Route)
+        .where(models.Route.client_id == client_id)
+        .order_by(models.Route.date.desc(), models.Route.start_time.desc())
+    ).all()
+    
+    # --- Metrics Logic ---
+    total_tonnage = 0.0
+    total_duration_secs = 0.0
+    count_duration = 0
+    
+    # Period Stats
+    today = datetime.now().date()
+    stats_today = 0.0
+    stats_week = 0.0
+    stats_month = 0.0
+    stats_year = 0.0
+    
+    # Employee Stats
+    emp_counter = {}
+    
+    emp_map = {e.id: e.name for e in session.exec(select(models.Employee)).all()}
+    
+    history = []
+    
+    for r in routes:
+        t = r.tonnage or 0.0
+        total_tonnage += t
+        
+        # Date Parsing
+        try:
+            r_date = datetime.strptime(r.date, "%Y-%m-%d").date()
+        except:
+            continue
+            
+        # Periods
+        if r_date == today:
+            stats_today += t
+        
+        # Week (Start of week usually Monday)
+        # Simple iso calendar check
+        if r_date.isocalendar()[1] == today.isocalendar()[1] and r_date.year == today.year:
+            stats_week += t
+            
+        if r_date.month == today.month and r_date.year == today.year:
+            stats_month += t
+            
+        if r_date.year == today.year:
+            stats_year += t
+            
+        # Employee Count
+        eid = r.employee_id
+        if eid not in emp_counter: emp_counter[eid] = {'count': 0, 'tonnage': 0.0}
+        emp_counter[eid]['count'] += 1
+        emp_counter[eid]['tonnage'] += t
+        
+        # Duration
+        dur_str = None
+        prod = 0.0
+        if r.start_time and r.end_time:
+            try:
+                s = datetime.strptime(r.start_time, "%H:%M")
+                e = datetime.strptime(r.end_time, "%H:%M")
+                diff = (e - s).total_seconds()
+                if diff > 0:
+                    total_duration_secs += diff
+                    count_duration += 1
+                    dur_str = f"{int(diff//3600)}h {int((diff%3600)//60)}m"
+                    # Productivity (kg/h)
+                    hours = diff / 3600
+                    prod = round(t / hours, 2)
+            except:
+                pass
+                
+        # History Row
+        history.append({
+            "date_fmt": r_date.strftime("%d/%m/%Y"),
+            "shift": r.shift,
+            "employee_name": emp_map.get(r.employee_id, "Desconhecido"),
+            "tonnage_fmt": f"{t:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+            "duration_fmt": dur_str,
+            "productivity": prod,
+            "productivity_fmt": f"{prod:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        })
+        
+    # Aggregates
+    avg_duration_str = "-"
+    avg_prod_val = 0.0
+    if count_duration > 0:
+        avg_sec = total_duration_secs / count_duration
+        avg_duration_str = f"{int(avg_sec//3600)}h {int((avg_sec%3600)//60)}m"
+        # Rough average productivity
+        # Total Tonnage / Total Hours (Weighted Average)
+        total_hours = total_duration_secs / 3600
+        if total_hours > 0:
+            avg_prod_val = total_tonnage / total_hours
+            
+    # Top Employee
+    top_emp_name = "-"
+    top_emp_count = 0
+    if emp_counter:
+        best_id = max(emp_counter, key=lambda k: emp_counter[k]['tonnage']) # Ranking by Tonnage
+        top_emp_name = emp_map.get(best_id, "-")
+        top_emp_count = emp_counter[best_id]['count']
+        
+    # Last Op
+    last_op_date = "-"
+    last_op_days_ago = 0
+    if routes:
+        last_r = routes[0] # Sorted desc
+        try:
+            l_date = datetime.strptime(last_r.date, "%Y-%m-%d").date()
+            last_op_date = l_date.strftime("%d/%m/%Y")
+            last_op_days_ago = (today - l_date).days
+        except:
+            pass
+            
+    def fmt(n): return f"{n:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    
+    return templates.TemplateResponse("client_details.html", {
+        "request": request,
+        "user": user,
+        "client": client,
+        "stats": {
+            "total_tonnage_fmt": fmt(total_tonnage),
+            "avg_duration_fmt": avg_duration_str,
+            "last_op_date": last_op_date,
+            "last_op_days_ago": last_op_days_ago,
+            "top_employee": top_emp_name,
+            "top_employee_count": top_emp_count,
+            "total_routes": len(routes),
+            "avg_tonnage_per_route_fmt": fmt(total_tonnage / len(routes)) if routes else "0,00",
+            "avg_productivity_fmt": fmt(avg_prod_val)
+        },
+        "periods": {
+            "today_fmt": fmt(stats_today),
+            "week_fmt": fmt(stats_week),
+            "month_fmt": fmt(stats_month),
+            "year_fmt": fmt(stats_year)
+        },
+        "history": history
+    })
+
+@app.post("/clients/{client_id}/update", response_class=RedirectResponse)
+async def update_client(request: Request, client_id: int, name: str = Form(...), session: Session = Depends(get_session)):
+    require_login(request)
+    client = session.get(models.Client, client_id)
+    if client:
+        client.name = name
+        session.add(client)
+        session.commit()
+    return RedirectResponse(url=f"/clients/{client_id}", status_code=status.HTTP_303_SEE_OTHER)
+
+@app.post("/clients/{client_id}/delete", response_class=RedirectResponse)
+async def delete_client(request: Request, client_id: int, session: Session = Depends(get_session)):
+    require_login(request)
+    client = session.get(models.Client, client_id)
+    if client:
+        # Cascade Delete: Remove allocations/routes first
+        # WARN: This removes historical production data for this client!
+        session.exec(delete(models.Route).where(models.Route.client_id == client_id))
+        
+        session.delete(client)
+        session.commit()
+    return RedirectResponse(url="/clients", status_code=status.HTTP_303_SEE_OTHER)
+
 # --- Route Management ---
 # --- Separação de Mercadorias Management ---
 @app.get("/separacao", response_class=HTMLResponse)
@@ -293,18 +470,11 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
         .where(models.DailyOperation.shift == shift)
     ).first()
     
-    # 2. Filter Employees (Sector == Expedicao)
+    # 2. Filter Employees (Active Only, Any Shift)
+    # User Request: Trazer somente ativos (independente do turno/log)
     all_employees = session.exec(select(models.Employee).where(models.Employee.status != "fired")).all()
-    emp_map_reg = {e.registration_id: e for e in all_employees}
     
-    eligible_employees = []
-    if daily_op and daily_op.attendance_log:
-        for reg_id, data in daily_op.attendance_log.items():
-            if data.get('sector') == 'expedicao': 
-                emp = emp_map_reg.get(reg_id)
-                if emp:
-                    eligible_employees.append(emp)
-                    
+    eligible_employees = [e for e in all_employees if e.status == 'active']
     eligible_employees.sort(key=lambda x: x.name)
 
     # 3. Fetch Clients
@@ -373,12 +543,55 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
             "client_id": r.client_id
         })
 
+    # Group by Employee
+    from collections import defaultdict
+    groups = {} 
+    
+    for r in routes_view:
+        eid = r['employee_id']
+        if eid not in groups:
+            groups[eid] = {
+                "employee_id": eid,
+                "employee_name": r['employee_name'],
+                "routes": [],
+                "total_tonnage": 0.0
+            }
+        groups[eid]['routes'].append(r)
+        groups[eid]['total_tonnage'] += r['tonnage']
+        
+    # Sort logical groups:
+    # Split into Active (Open) vs Finished
+    for group in groups.values():
+         all_r = group['routes']
+         
+         # Active: No end_time
+         active = [x for x in all_r if not x['end_time']]
+         active.sort(key=lambda x: x['start_time']) # Earliest start first
+         
+         # Finished: Has end_time
+         finished = [x for x in all_r if x['end_time']]
+         finished.sort(key=lambda x: x['end_time'], reverse=True) # Latest finish first
+         
+         group['routes_active'] = active
+         group['routes_finished'] = finished
+         
+    # 2. Groups display order: By Name
+    grouped_routes = sorted(groups.values(), key=lambda x: x['employee_name'])
+
+    # Determine Active Clients (In Route)
+    active_client_ids = set()
+    for r in routes_view:
+        if not r['end_time']: # Active/Open route
+            active_client_ids.add(r['client_id'])
+
     return templates.TemplateResponse("routes.html", {
         "request": request, 
         "user": user,
         "employees": eligible_employees, 
         "clients": clients,
-        "routes": routes_view,
+        "active_client_ids": list(active_client_ids),
+        "routes": routes_view, # Keep flat list for "Total" count
+        "grouped_routes": grouped_routes, # New grouped structure
         "selected_date": date,
         "selected_shift": shift,
         "selected_date_fmt": datetime.strptime(date, "%Y-%m-%d").strftime("%d/%m/%Y")
@@ -431,7 +644,7 @@ async def delete_separacao(
 async def update_separacao(
     request: Request,
     route_id: int = Form(...),
-    employee_id: int = Form(None), # Made optional as finish modal doesn't send it? Wait, finish modal sends hidden inputs. Edit modal sends all.
+    employee_id: int = Form(None), 
     client_id: int = Form(None),
     start_time: str = Form(None),
     end_time: str = Form(None),
@@ -441,24 +654,435 @@ async def update_separacao(
     require_login(request)
     route = session.get(models.Route, route_id)
     if route:
+        old_status = route.status
+        
         if employee_id is not None: route.employee_id = employee_id
         if client_id is not None: route.client_id = client_id
         if start_time is not None: route.start_time = start_time
         if end_time is not None: route.end_time = end_time
         if tonnage is not None: route.tonnage = tonnage
+        
+        # Check for completion (XP Gain)
+        # Assuming pending -> completed when end_time is present
+        if end_time and route.start_time and tonnage and tonnage > 0:
+             route.status = "completed"
+             
+             # Determine XP Gain (Only if it wasn't already credited? Simplistic: just add)
+             # To be robust we should check if status changed.
+             if old_status != "completed":
+                 emp = session.get(models.Employee, route.employee_id)
+                 if emp:
+                     emp.total_xp += tonnage
+                     session.add(emp)
+        
         session.add(route)
         session.commit()
         return RedirectResponse(url=f"/separacao?date={route.date}&shift={route.shift}", status_code=status.HTTP_303_SEE_OTHER)
     return RedirectResponse(url="/separacao", status_code=status.HTTP_303_SEE_OTHER)
-@app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request, shift: Optional[str] = None, session: Session = Depends(get_session)):
+
+@app.get("/admin/backfill_xp")
+async def backfill_xp(request: Request, session: Session = Depends(get_session)):
+    require_login(request)
+    # Recalculate XP for all employees
+    employees = session.exec(select(models.Employee)).all()
+    count = 0
+    
+    for emp in employees:
+        # Sum tonnage of all valid completed routes
+        statement = select(func.sum(models.Route.tonnage)).where(
+            models.Route.employee_id == emp.id,
+            models.Route.tonnage > 0,
+            models.Route.end_time != None
+        )
+        total = session.exec(statement).one() or 0.0
+        
+        if total != emp.total_xp:
+            emp.total_xp = total
+            session.add(emp)
+            count += 1
+            
+    session.commit()
+    return JSONResponse({"status": "ok", "updated_employees": count, "message": "XP recalcitrado com sucesso!"})
+
+# --- Strategy & Gamification Routes ---
+
+@app.get("/strategy", response_class=HTMLResponse)
+async def strategy_page(request: Request, session: Session = Depends(get_session)):
+    import traceback
     try:
-        user = get_current_user(request)
-        if not user:
-            return RedirectResponse(url="/login")
-        # --- People Management Logic ---
+        user = require_login(request)
+        
+        # Fetch all *completed* routes for analysis
+        all_routes = session.exec(select(models.Route).where(models.Route.tonnage > 0).order_by(models.Route.date.desc())).all()
+        clients = session.exec(select(models.Client)).all()
+        client_map = {c.id: c.name for c in clients}
+
+        # 1. ABC Curve (Clients)
+        client_stats = {} # id -> {tonnage, count}
+        
+        # 2. PRODUCTIVITY CHART (30 Days)
+        # Replaces Heatmap
+        
         today = datetime.now().date()
-        # Base Query
+        start_date = today - timedelta(days=30)
+        
+        # Initialize map: date -> {tonnage: 0.0, duration_seconds: 0.0}
+        daily_stats = {}
+        for i in range(31): # 0 to 30
+            d = start_date + timedelta(days=i)
+            daily_stats[d] = {'tonnage': 0.0, 'duration_seconds': 0.0}
+
+        total_sys_tonnage = 0.0
+
+        for r in all_routes:
+            t = r.tonnage or 0.0
+            total_sys_tonnage += t
+            
+            # ABC Logic
+            cid = r.client_id
+            if cid not in client_stats:
+                client_stats[cid] = {"name": client_map.get(cid, f"Client {cid}"), "tonnage": 0.0, "count": 0}
+            client_stats[cid]['tonnage'] += t
+            client_stats[cid]['count'] += 1
+            
+            # Chart Logic
+            if r.date and r.start_time and r.end_time: # Only consider completed/valid time routes for chart?
+                # Actually, user asked for "Daily Average Kg/h".
+                # We need sum(tonnage) / sum(hours) for that day.
+                try:
+                    r_date = datetime.strptime(r.date, "%Y-%m-%d").date()
+                    if start_date <= r_date <= today:
+                        if r_date in daily_stats:
+                            daily_stats[r_date]['tonnage'] += t
+                            
+                            # Duration
+                            s = datetime.strptime(r.start_time, "%H:%M")
+                            e = datetime.strptime(r.end_time, "%H:%M")
+                            diff = (e - s).total_seconds()
+                            if diff > 0:
+                                daily_stats[r_date]['duration_seconds'] += diff
+                except:
+                    pass
+        
+        # Prepare Chart Data
+        prod_chart_labels = []
+        prod_chart_data = [] # Kg/h
+        
+        sorted_dates = sorted(daily_stats.keys())
+        for d in sorted_dates:
+            stats = daily_stats[d]
+            t = stats['tonnage']
+            sec = stats['duration_seconds']
+            hours = sec / 3600
+            
+            kgh = 0.0
+            if hours > 0:
+                kgh = t / hours
+            
+            prod_chart_labels.append(d.strftime("%d/%m"))
+            prod_chart_data.append(round(kgh, 1))
+
+
+        # Process ABC
+        abc_data = sorted(client_stats.values(), key=lambda x: x['tonnage'], reverse=True)
+        cumulative = 0.0
+        for item in abc_data:
+            cumulative += item['tonnage']
+            item['share'] = (item['tonnage'] / total_sys_tonnage * 100) if total_sys_tonnage else 0
+            item['cumulative_share'] = (cumulative / total_sys_tonnage * 100) if total_sys_tonnage else 0
+            
+            # Template Compatibility Keys
+            item['total'] = item['tonnage']
+            item['pct'] = item['share']
+            
+            # SLA Calc
+            avg_dur_min = 0
+            avg_dur_str = "-"
+            # We need to track duration sums per client to calc this.
+            # Currently client_stats only tracks tonnage/count.
+            # We need to fix the Main Loop to track duration_sum per client too.
+            
+            # Classify
+            if item['cumulative_share'] <= 80:
+                item['class'] = 'A'
+            elif item['cumulative_share'] <= 95:
+                item['class'] = 'B'
+            else:
+                item['class'] = 'C'
+
+        # --- Re-implement Detailed Aggregation (Duration/Idle) ---
+        # We need another pass or improve the first pass. Let's do a clean pass for clarity.
+        
+        emp_stats = {} # id -> {ton, dur, gaps_sum, gaps_count}
+        client_dur_stats = {} # cid -> {dur_sum, count}
+        emp_day_intervals = {} # (emp_id, date) -> list of (start, end)
+        
+        all_emps = {e.id: e.name for e in session.exec(select(models.Employee)).all()}
+        
+        for r in all_routes:
+            # Client Duration
+            if r.client_id and r.start_time and r.end_time:
+                try:
+                    s = datetime.strptime(r.start_time, "%H:%M")
+                    e = datetime.strptime(r.end_time, "%H:%M")
+                    dur = (e - s).total_seconds()
+                    
+                    if r.client_id not in client_dur_stats:
+                        client_dur_stats[r.client_id] = {'sum': 0, 'count': 0}
+                    client_dur_stats[r.client_id]['sum'] += dur
+                    client_dur_stats[r.client_id]['count'] += 1
+                    
+                    # Emp Stats
+                    if r.employee_id:
+                        eid = r.employee_id
+                        if eid not in emp_stats: emp_stats[eid] = {'ton': 0, 'dur': 0}
+                        emp_stats[eid]['ton'] += (r.tonnage or 0)
+                        emp_stats[eid]['dur'] += dur
+                        
+                        # Idle prep
+                        key = (eid, r.date)
+                        if key not in emp_day_intervals: emp_day_intervals[key] = []
+                        emp_day_intervals[key].append((s, e))
+                except:
+                    pass
+                    
+        # Finalize SLA Ranking
+        final_sla = []
+        for item in abc_data:
+            # Match back with duration stats
+            cid = [k for k, v in client_map.items() if v == item['name']] # Inverse lookup tricky if name not unique
+            # Better: use original logic or mapping. 
+            # Simplification: Let's assume we can match by client_id if we preserved it.
+            # Actually, `client_stats` was keyed by ID. `abc_data` lost ID.
+            # Let's rebuild abc_data with ID to be safe or just use client_dur_stats directly.
+            pass
+            
+        # Better approach: Iterate client_dur_stats and map to names
+        for cid, stats in client_dur_stats.items():
+            if stats['count'] > 0:
+                avg_sec = stats['sum'] / stats['count']
+                avg_min = int(avg_sec / 60)
+                fmt = f"{int(avg_sec//3600)}h {int((avg_sec%3600)//60)}m"
+                
+                final_sla.append({
+                    "name": client_map.get(cid, "Client"),
+                    "sla_min": avg_min,
+                    "sla_fmt": fmt,
+                    "count": stats['count']
+                })
+        sla_ranking = sorted(final_sla, key=lambda x: x['sla_min'], reverse=True)[:10]
+        
+        # Finalize Productivity & Idle
+        productivity = []
+        
+        # Idle Calculation
+        emp_idle_map = {} # eid -> {sum_min, count}
+        for key, intervals in emp_day_intervals.items():
+            eid = key[0]
+            intervals.sort(key=lambda x: x[0])
+            for i in range(len(intervals) - 1):
+                gap = (intervals[i+1][0] - intervals[i][1]).total_seconds()
+                if gap > 60 and gap < 7200:
+                    if eid not in emp_idle_map: emp_idle_map[eid] = {'sum': 0, 'cnt': 0}
+                    emp_idle_map[eid]['sum'] += (gap/60)
+                    emp_idle_map[eid]['cnt'] += 1
+
+        for eid, s in emp_stats.items():
+            kgh = (s['ton'] / (s['dur']/3600)) if s['dur'] > 0 else 0
+            
+            idle_data = emp_idle_map.get(eid, {'sum': 0, 'cnt': 0})
+            avg_idle = int(idle_data['sum'] / idle_data['cnt']) if idle_data['cnt'] > 0 else 0
+            
+            productivity.append({
+                "name": all_emps.get(eid, "Unknown"),
+                "kgh": kgh,
+                "avg_idle": avg_idle,
+                "idle_count": idle_data['cnt']
+            })
+        productivity.sort(key=lambda x: x['kgh'], reverse=True)
+
+        import json
+        return templates.TemplateResponse("strategy.html", {
+            "request": request,
+            "user": user,
+            "abc_data": abc_data,
+            "prod_chart_labels": json.dumps(prod_chart_labels),
+            "prod_chart_data": json.dumps(prod_chart_data),
+            "total_tonnage": total_sys_tonnage,
+            "kpi": {
+                "global_kgh": "0", 
+                "avg_idle": "0", 
+                "total_vol": f"{total_sys_tonnage:,.0f}".replace(",", ".")
+            },
+            "productivity": productivity,
+            "sla_ranking": sla_ranking
+        })
+    except Exception:
+        return HTMLResponse(content=f"<pre>{traceback.format_exc()}</pre>", status_code=500)
+
+@app.get("/rankings", response_class=HTMLResponse)
+async def rankings_page(request: Request, shift: Optional[str] = None, date: Optional[str] = None, session: Session = Depends(get_session)):
+    import traceback
+    try:
+        user = require_login(request)
+        if not date:
+            date = datetime.now().strftime("%Y-%m-%d")
+        
+        # --- Leaderboards (Selected Date) ---
+        # Relaxed query: any route with tonnage is considered "rankable" even if status flag missed
+        query = select(models.Route).where(models.Route.date == date).where(models.Route.tonnage > 0)
+        
+        if shift and shift != 'Geral':
+            query = query.where(models.Route.shift == shift)
+            
+        routes_today = session.exec(query).all()
+        
+        emp_stats = {} # id -> {original_obj, tonnage, duration_secs, count, max_tonnage, max_kgh}
+        
+        emp_map = {e.id: e for e in session.exec(select(models.Employee)).all()}
+        
+        for r in routes_today:
+            eid = r.employee_id
+            if eid not in emp_stats:
+                emp_stats[eid] = {'emp': emp_map.get(eid), 'tonnage': 0, 'secs': 0, 'count': 0, 'max_tonnage': 0, 'max_kgh': 0}
+                
+            stats = emp_stats[eid]
+            # Safeguard: treat None tonnage as 0.0
+            t = r.tonnage or 0.0
+            stats['tonnage'] += t
+            stats['count'] += 1
+            if t > stats['max_tonnage']:
+                stats['max_tonnage'] = t
+                
+            # Duration
+            try:
+                s = datetime.strptime(r.start_time, "%H:%M")
+                if r.end_time:
+                    e = datetime.strptime(r.end_time, "%H:%M")
+                    diff = (e-s).total_seconds()
+                    if diff > 0:
+                        stats['secs'] += diff
+                        kgh = (t / (diff/3600))
+                        if kgh > stats['max_kgh']:
+                            stats['max_kgh'] = kgh
+            except:
+                pass
+                
+        # Listify
+        ranking_list = []
+        for eid, s in emp_stats.items():
+            if not s['emp']: continue
+            # Filter out inactive employees from RANKINGS too if requested, 
+            # but technically if they worked today (route exists), they should show. 
+            # However, for "Levels" user was specific. Let's keeping "worked today" as criteria for ranking.
+            
+            avg_kgh = 0
+            if s['secs'] > 0:
+                avg_kgh = s['tonnage'] / (s['secs']/3600)
+                
+            ranking_list.append({
+                "name": s['emp'].name,
+                "photo": s['emp'].photo_url,
+                "tonnage": s['tonnage'],
+                "kgh": avg_kgh,
+                "max_tonnage": s['max_tonnage'],
+                "max_kgh": s['max_kgh'],
+                "count": s['count']
+            })
+            
+        # Sorters
+        rank_volume = sorted(ranking_list, key=lambda x: x['tonnage'], reverse=True)[:5]
+        rank_speed = sorted(ranking_list, key=lambda x: x['kgh'], reverse=True)[:5]
+        
+        # --- Badges Logic ---
+        badges = []
+        
+        # Flash (Maior Kgh único do dia)
+        if ranking_list:
+            flash_winner = max(ranking_list, key=lambda x: x['max_kgh'])
+            if flash_winner['max_kgh'] > 0:
+                badges.append({
+                    "image": "/static/badges/flash.png", 
+                    "title": "The Flash", 
+                    "class": "shadow-yellow-500/50 border-yellow-500/50",
+                    "desc": "Maior velocidade em uma única carga",
+                    "winner": flash_winner['name'],
+                    "value": f"{int(flash_winner['max_kgh'])} kg/h"
+                })
+                
+        # Hulk (Maior Carga única)
+        if ranking_list:
+            hulk_winner = max(ranking_list, key=lambda x: x['max_tonnage'])
+            if hulk_winner['max_tonnage'] > 0:
+                badges.append({
+                    "image": "/static/badges/hulk.png", 
+                    "title": "O Hulk", 
+                    "class": "shadow-green-500/50 border-green-500/50",
+                    "desc": "Maior peso carregado de uma só vez",
+                    "winner": hulk_winner['name'],
+                    "value": f"{hulk_winner['max_tonnage']} kg"
+                })
+                
+        # Maratonista (Mais viagens)
+        if ranking_list:
+            mara_winner = max(ranking_list, key=lambda x: x['count'])
+            if mara_winner['count'] > 0:
+                 badges.append({
+                    "image": "/static/badges/marathon.png", 
+                    "title": "Maratonista", 
+                    "class": "shadow-blue-500/50 border-blue-500/50",
+                    "desc": "Maior número de viagens completas",
+                    "winner": mara_winner['name'],
+                    "value": f"{mara_winner['count']} viagens"
+                })
+                
+        # --- Global Levels (All Employees) ---
+        # Filter only ACTIVE employees
+        query_levels = select(models.Employee).where(models.Employee.status == 'active')
+        
+        if shift and shift != 'Geral':
+            query_levels = query_levels.where(models.Employee.work_shift == shift)
+            
+        all_emps = session.exec(query_levels.order_by(models.Employee.total_xp.desc()).limit(10)).all()
+        
+        level_list = []
+        for e in all_emps:
+            xp = e.total_xp or 0.0
+            lvl = "Júnior"
+            progress = 0
+            
+            if xp < 500:
+                lvl = "Júnior"
+                progress = (xp / 500) * 100
+            elif xp < 2000:
+                lvl = "Pleno"
+                progress = ((xp - 500) / 1500) * 100
+            elif xp < 5000:
+                lvl = "Sênior"
+                progress = ((xp - 2000) / 3000) * 100
+            else:
+                lvl = "Mestre"
+                progress = 100
+                
+            level_list.append({
+                "name": e.name,
+                "xp": int(xp),
+                "level": lvl,
+                "progress": int(progress)
+            })
+
+        return templates.TemplateResponse("rankings.html", {
+            "request": request, 
+            "user": user,
+            "rank_volume": rank_volume,
+            "rank_speed": rank_speed,
+            "badges": badges,
+            "levels": level_list,
+            "current_shift": shift or 'Geral',
+            "selected_date": date
+        })
+    except Exception:
+        return HTMLResponse(content=f"<pre>{traceback.format_exc()}</pre>", status_code=500)        # Base Query
         query = select(models.Employee).where(models.Employee.status == 'active')
         
         # Apply Shift Filter (if specific shift selected)
@@ -1800,9 +2424,19 @@ async def get_allocations(
     for routine in routines:
         routines_map[routine.employee_id] = routine.routine
     
+    # Buscar tonélagem do DailyOperation
+    daily_op = session.exec(
+        select(models.DailyOperation)
+        .where(models.DailyOperation.date == date)
+        .where(models.DailyOperation.shift == shift)
+    ).first()
+    
+    tonnage = daily_op.tonnage if daily_op and daily_op.tonnage else 0
+
     return {
         "allocations": allocations_map,
-        "routines": routines_map
+        "routines": routines_map,
+        "tonnage": tonnage
     }
 
 @app.post("/api/smart-flow/allocations/save", response_class=JSONResponse)
@@ -1810,116 +2444,113 @@ async def save_allocations(
     request: Request,
     session: Session = Depends(get_session)
 ):
-    """Salva alocações e rotinas do dia"""
+    """Salva alocações e rotinas do dia (Otimizado)"""
     require_login(request)
     
     try:
         data = await request.json()
-        print(f"📥 Recebendo dados de alocação: {data.keys()}")
-        
         date = data.get("date")
         shift = data.get("shift")
         allocations = data.get("allocations", {})  # {employee_id: subsector_id}
         routines = data.get("routines", {})  # {employee_id: routine}
-        
-        print(f"📅 Data: {date}, Turno: {shift}")
-        print(f"👥 Alocações: {len(allocations)} colaboradores")
-        print(f"📋 Routines: {len(routines)} rotinas")
+        tonnage = data.get("tonnage") # Optional float
         
         if not date or not shift:
-            print("❌ Data ou turno não fornecidos")
             return JSONResponse({"error": "Data e turno são obrigatórios"}, status_code=400)
+            
+        print(f"⚡ [SmartFlow] Salvando alocações para {date} - {shift}")
         
-        # 1. Limpar alocações antigas do dia/turno
-        old_allocations = session.exec(
-            select(models.EmployeeAllocation)
-            .where(models.EmployeeAllocation.date == date)
-            .where(models.EmployeeAllocation.shift == shift)
-        ).all()
+        # --- 1. Pre-Fetch Data (Cache in Memory) ---
+        # Fetch ALL employees (needed for validation and sync)
+        all_employees = session.exec(select(models.Employee)).all()
+        emp_map = {e.id: e for e in all_employees}
         
-        print(f"🗑️ Removendo {len(old_allocations)} alocações antigas")
-        for alloc in old_allocations:
-            session.delete(alloc)
+        # Fetch ALL SubSectors and Sectors
+        subsectors = session.exec(select(models.SubSector)).all()
+        subsector_map = {s.id: s for s in subsectors}
         
-        # 2. Criar novas alocações
-        print(f"📝 Criando {len(allocations)} novas alocações...")
-        for emp_id, subsector_id in allocations.items():
+        sectors = session.exec(select(models.Sector)).all()
+        sector_map = {s.id: s for s in sectors}
+        
+        # --- 2. Clear Old Allocations ---
+        # Bulk delete is faster
+        try:
+            # Note: SQLModel might require individual deletion if relationships cascade weirdly, 
+            # but for performance, we try bulk. If logic requires cascades, we might need loop 
+            # but at least fetch once. 
+            # Using execute() with delete statement:
+            statement = delete(models.EmployeeAllocation).where(
+                models.EmployeeAllocation.date == date,
+                models.EmployeeAllocation.shift == shift
+            )
+            session.exec(statement)
+        except Exception as e_del:
+            print(f"⚠️ Erro no bulk delete, tentando delete manual: {e_del}")
+            old_allocs = session.exec(
+                select(models.EmployeeAllocation)
+                .where(models.EmployeeAllocation.date == date)
+                .where(models.EmployeeAllocation.shift == shift)
+            ).all()
+            for a in old_allocs:
+                session.delete(a)
+        
+        # --- 3. Create New Allocations (Batch) ---
+        new_alloc_objs = []
+        valid_allocations_for_log = [] # List of (Employee, SubSector) for sync
+        
+        for emp_id_str, subsector_id_str in allocations.items():
             try:
-                emp_id_int = int(emp_id)
-                subsector_id_int = int(subsector_id)
+                emp_id = int(emp_id_str)
+                sub_id = int(subsector_id_str)
                 
-                print(f"  - Validando emp_id={emp_id_int}, subsector_id={subsector_id_int}")
-                
-                # Validar se employee existe
-                employee = session.get(models.Employee, emp_id_int)
-                if not employee:
-                    print(f"  ❌ Employee {emp_id_int} não encontrado no banco!")
-                    continue  # Pular este colaborador
-                
-                # Validar se subsector existe
-                subsector = session.get(models.SubSector, subsector_id_int)
-                if not subsector:
-                    print(f"  ❌ SubSector {subsector_id_int} não encontrado no banco!")
-                    continue  # Pular este sub-setor
-                
-                print(f"  ✅ Criando alocação para {employee.name} em {subsector.name}")
-                new_alloc = models.EmployeeAllocation(
-                    date=date,
-                    shift=shift,
-                    employee_id=emp_id_int,
-                    subsector_id=subsector_id_int
-                )
-                session.add(new_alloc)
-            except Exception as e:
-                print(f"❌ Erro ao criar alocação para emp_id={emp_id}, subsector_id={subsector_id}: {e}")
-                import traceback
-                traceback.print_exc()
-                raise
-        
-        # 3. Atualizar rotinas
-        print(f"📝 Criando/atualizando {len(routines)} rotinas...")
-        for emp_id, routine in routines.items():
-            try:
-                emp_id_int = int(emp_id)
-                print(f"  - Rotina emp_id={emp_id_int}, routine={routine}")
-                
-                # Validar se employee existe
-                employee = session.get(models.Employee, emp_id_int)
-                if not employee:
-                    print(f"  ❌ Employee {emp_id_int} não encontrado para rotina!")
+                # In-memory Validations
+                if emp_id not in emp_map:
                     continue
+                if sub_id not in subsector_map:
+                    continue
+                    
+                new_alloc = models.EmployeeAllocation(
+                    date=date, shift=shift,
+                    employee_id=emp_id, subsector_id=sub_id
+                )
+                new_alloc_objs.append(new_alloc)
+                valid_allocations_for_log.append((emp_map[emp_id], subsector_map[sub_id]))
                 
-                existing = session.exec(
-                    select(models.EmployeeRoutine)
-                    .where(models.EmployeeRoutine.date == date)
-                    .where(models.EmployeeRoutine.shift == shift)
-                    .where(models.EmployeeRoutine.employee_id == emp_id_int)
-                ).first()
+            except ValueError:
+                continue
                 
-                if existing:
-                    print(f"    Atualizando rotina existente id={existing.id}")
-                    existing.routine = routine
-                    existing.updated_at = datetime.now()
-                    session.add(existing)
+        session.add_all(new_alloc_objs)
+        
+        # --- 4. Update Routines ---
+        # Fetch existing routines for this shift to avoid duplicates
+        existing_routines = session.exec(
+            select(models.EmployeeRoutine)
+            .where(models.EmployeeRoutine.date == date)
+            .where(models.EmployeeRoutine.shift == shift)
+        ).all()
+        routine_dict_db = {r.employee_id: r for r in existing_routines}
+        
+        for emp_id_str, routine_val in routines.items():
+            try:
+                emp_id = int(emp_id_str)
+                if emp_id not in emp_map: continue
+                
+                if emp_id in routine_dict_db:
+                    # Update existing
+                    if routine_dict_db[emp_id].routine != routine_val:
+                        routine_dict_db[emp_id].routine = routine_val
+                        session.add(routine_dict_db[emp_id])
                 else:
-                    print(f"    Criando nova rotina")
+                    # Create new
                     new_routine = models.EmployeeRoutine(
-                        date=date,
-                        shift=shift,
-                        employee_id=emp_id_int,
-                        routine=routine
+                        date=date, shift=shift,
+                        employee_id=emp_id, routine=routine_val
                     )
                     session.add(new_routine)
-            except Exception as e:
-                print(f"❌ Erro ao criar rotina para emp_id={emp_id}: {e}")
-                import traceback
-                traceback.print_exc()
-                raise
-        
-        # 4. SINCRONIZAR com DailyOperation.attendance_log (para compatibilidade com relatório)
-        print("🔄 Sincronizando com DailyOperation.attendance_log...")
-        
-        # Buscar ou criar DailyOperation
+            except ValueError:
+                continue
+
+        # --- 5. Sync with DailyOperation.attendance_log ---
         daily_op = session.exec(
             select(models.DailyOperation)
             .where(models.DailyOperation.date == date)
@@ -1927,89 +2558,47 @@ async def save_allocations(
         ).first()
         
         if not daily_op:
-            print("  📝 Criando novo DailyOperation")
-            daily_op = models.DailyOperation(
-                date=date,
-                shift=shift,
-                attendance_log={}
-            )
+            daily_op = models.DailyOperation(date=date, shift=shift, attendance_log={})
             session.add(daily_op)
-        
-        # Construir attendance_log a partir das alocações e rotinas
+            
         attendance_log = {}
+        import unicodedata
         
-        # Buscar todas as alocações recém-salvas
-        allocations_db = session.exec(
-            select(models.EmployeeAllocation)
-            .where(models.EmployeeAllocation.date == date)
-            .where(models.EmployeeAllocation.shift == shift)
-        ).all()
+        # Build lookup for routine status from input (faster than db query)
+        routine_input_lookup = {int(k): v for k, v in routines.items()}
         
-        # Buscar todas as rotinas recém-salvas
-        routines_db = session.exec(
-            select(models.EmployeeRoutine)
-            .where(models.EmployeeRoutine.date == date)
-            .where(models.EmployeeRoutine.shift == shift)
-        ).all()
-        
-        # Mapear rotinas por employee_id
-        routines_map = {r.employee_id: r.routine for r in routines_db}
-        
-        print(f"  📊 Processando {len(allocations_db)} alocações...")
-        
-        # Construir log
-        for alloc in allocations_db:
-            employee = session.get(models.Employee, alloc.employee_id)
-            if not employee:
-                print(f"  ⚠️ Employee {alloc.employee_id} não encontrado")
-                continue
+        # Process allocations for log
+        for emp, sub in valid_allocations_for_log:
+            # Resolve Sector
+            sec = sector_map.get(sub.sector_id)
+            if not sec: continue
             
-            # Buscar sub-setor e setor pai
-            subsector = session.get(models.SubSector, alloc.subsector_id)
-            if not subsector:
-                print(f"  ⚠️ SubSector {alloc.subsector_id} não encontrado")
-                continue
+            # Normalize Sector Name
+            sector_name_norm = unicodedata.normalize('NFD', sec.name.lower().strip())
+            sector_key = sector_name_norm.encode('ascii', 'ignore').decode('utf-8').replace(' ', '_')
             
+            # Get Status
+            status = routine_input_lookup.get(emp.id, 'present')
             
-            sector = session.get(models.Sector, subsector.sector_id)
-            if not sector:
-                print(f"  ⚠️ Sector {subsector.sector_id} não encontrado")
-                continue
-            
-            
-            # Normalizar nome do setor: sempre remover acentos e espaços
-            import unicodedata
-            sector_name_original = sector.name
-            sector_name_normalized = unicodedata.normalize('NFD', sector.name.lower().strip())
-            sector_key = sector_name_normalized.encode('ascii', 'ignore').decode('utf-8')
-            sector_key = sector_key.replace(' ', '_')
-            print(f"  🔧 Normalizando setor: '{sector_name_original}' → '{sector_key}'")
-            
-            # Status da rotina ou 'present' como padrão
-            status = routines_map.get(alloc.employee_id, 'present')
-            
-            # IMPORTANTE: Usar registration_id como chave (não employee_id)
-            reg_id_str = str(employee.registration_id)
-            attendance_log[reg_id_str] = {
+            attendance_log[str(emp.registration_id)] = {
                 "status": status,
                 "sector": sector_key
             }
             
-            print(f"  ✅ {employee.name} ({reg_id_str}) → {sector_key} [{status}]")
-        
-        # Atualizar DailyOperation
+        if tonnage is not None:
+            daily_op.tonnage = float(tonnage)
+            
         daily_op.attendance_log = attendance_log
         session.add(daily_op)
         
-        print(f"✅ Attendance log atualizado com {len(attendance_log)} colaboradores")
-        
-        print("💾 Fazendo commit...")
+        print(f"💾 Commit final ({len(new_alloc_objs)} alocações, {len(attendance_log)} logs)...")
         session.commit()
-        print("✅ Alocações, rotinas e relatório sincronizados com sucesso")
+        print("✅ Salvo com sucesso!")
         
-        return {"success": True, "message": "Alocações e rotinas salvas com sucesso"}
+        return {"success": True, "message": "Dados salvos com sucesso"}
+        
     except Exception as e:
-        print(f"❌ ERRO GERAL ao salvar alocações: {e}")
+        print(f"❌ ERRO ao salvar alocações: {e}")
         import traceback
         traceback.print_exc()
         session.rollback()

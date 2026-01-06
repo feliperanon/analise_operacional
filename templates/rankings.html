@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-8 pb-32">
+    <div class="max-w-7xl mx-auto">
+
+        <div class="flex flex-col md:flex-row items-center justify-between mb-12 gap-6">
+            <div>
+                <h1
+                    class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 mb-2">
+                    Arena de Lendas 🏆
+                </h1>
+                <p class="text-slate-400 font-medium">Rankings diários e conquistas épicas.</p>
+            </div>
+
+            <div class="flex md:flex-row flex-col items-center gap-4">
+                <!-- Date Picker -->
+                <form action="/rankings" method="get">
+                    <input type="date" name="date" value="{{ selected_date }}" onchange="this.form.submit()"
+                        class="bg-slate-800 border-slate-700 text-white rounded-lg px-4 py-2 focus:ring-0 focus:border-indigo-500 shadow-lg font-bold">
+                    {% if current_shift != 'Geral' %}
+                    <input type="hidden" name="shift" value="{{ current_shift }}">
+                    {% endif %}
+                </form>
+
+                <!-- Shift Tabs -->
+                <div class="flex bg-slate-800 p-1 rounded-xl border border-slate-700">
+                    <a href="/rankings?date={{ selected_date }}&shift=Geral"
+                        class="px-6 py-2 rounded-lg font-bold shadow-lg text-sm transition-colors {{ 'bg-indigo-600 text-white' if current_shift == 'Geral' else 'text-slate-400 hover:text-white' }}">Geral</a>
+                    <a href="/rankings?date={{ selected_date }}&shift=Manhã"
+                        class="px-6 py-2 rounded-lg font-bold shadow-lg text-sm transition-colors {{ 'bg-indigo-600 text-white' if current_shift == 'Manhã' else 'text-slate-400 hover:text-white' }}">Manhã</a>
+                    <a href="/rankings?date={{ selected_date }}&shift=Tarde"
+                        class="px-6 py-2 rounded-lg font-bold shadow-lg text-sm transition-colors {{ 'bg-indigo-600 text-white' if current_shift == 'Tarde' else 'text-slate-400 hover:text-white' }}">Tarde</a>
+                    <a href="/rankings?date={{ selected_date }}&shift=Noite"
+                        class="px-6 py-2 rounded-lg font-bold shadow-lg text-sm transition-colors {{ 'bg-indigo-600 text-white' if current_shift == 'Noite' else 'text-slate-400 hover:text-white' }}">Noite</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Badges Section (Hall of Fame) -->
+        <style>
+            @keyframes levitate {
+                0% {
+                    transform: translateY(0px) scale(1);
+                }
+
+                50% {
+                    transform: translateY(-5px) scale(1.02);
+                }
+
+                100% {
+                    transform: translateY(0px) scale(1);
+                }
+            }
+
+            .badge-card:hover .badge-img {
+                animation: levitate 2s infinite ease-in-out;
+            }
+
+            .badge-glow-flash {
+                box-shadow: 0 0 20px rgba(234, 179, 8, 0.4);
+            }
+
+            .badge-glow-hulk {
+                box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+            }
+
+            .badge-glow-mara {
+                box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+            }
+        </style>
+
+        <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+            <span class="text-2xl">🎖️</span> Badges do Turno
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+            {% for badge in badges %}
+            <div
+                class="badge-card bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-1 rounded-2xl border transition-all duration-300 relative overflow-hidden group hover:scale-[1.05] hover:z-10 {{ badge.class }}">
+
+                <!-- Background Effects -->
+                <div
+                    class="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none group-hover:bg-white/10 transition-colors">
+                </div>
+
+                <div class="h-full rounded-xl p-6 relative z-10 flex flex-col items-center text-center">
+
+                    <!-- Hero Image -->
+                    <div class="w-32 h-32 mb-4 relative flex items-center justify-center">
+                        <div class="absolute inset-0 bg-white/5 blur-xl rounded-full opacity-50 badge-img"></div>
+                        <img src="{{ badge.image }}"
+                            class="w-full h-full object-contain badge-img drop-shadow-2xl filter brightness-110"
+                            alt="{{ badge.title }}">
+                    </div>
+
+                    <h3 class="text-2xl font-black text-white italic tracking-wider mb-1 uppercase"
+                        style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">{{ badge.title }}</h3>
+                    <p class="text-slate-400 text-xs font-medium text-center mb-6 h-8 flex items-center justify-center">
+                        {{ badge.desc }}</p>
+
+                    <div class="w-full bg-slate-950/80 rounded-lg p-3 border border-slate-700/50 backdrop-blur-sm">
+                        <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">Campeão Atual</p>
+                        <p class="text-lg font-bold text-white truncate w-full">{{ badge.winner }}</p>
+                        <p class="text-sm font-mono text-yellow-500 font-bold mt-1">{{ badge.value }}</p>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-span-3 text-center py-12 bg-slate-800/50 rounded-2xl border border-dashed border-slate-700">
+                <p class="text-slate-500">Nenhuma conquista desbloqueada neste turno ainda... Acelere! 🚀</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+
+            <!-- Volumetry Ranking -->
+            <div>
+                <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <span class="text-blue-400">📊</span> Top Volume (Kg)
+                </h2>
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-lg">
+                    {% for item in rank_volume %}
+                    <div
+                        class="p-4 flex items-center gap-4 hover:bg-slate-700/40 transition-colors border-b border-slate-700/50 last:border-0 relative">
+                        <div
+                            class="font-black text-xl w-8 text-center {{ 'text-yellow-400' if loop.index == 1 else 'text-slate-600' }}">
+                            #{{ loop.index }}
+                        </div>
+                        <div
+                            class="w-12 h-12 rounded-full bg-slate-700 border-2 {{ 'border-yellow-500' if loop.index == 1 else 'border-slate-600' }} overflow-hidden flex items-center justify-center">
+                            {% if item.photo %}
+                            <img src="{{ item.photo }}" class="w-full h-full object-cover">
+                            {% else %}
+                            <span class="text-xs font-bold text-slate-400">{{ item.name[:2] }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-bold text-white">{{ item.name }}</h4>
+                            <div class="text-xs text-slate-400">{{ item.count }} viagens hoje</div>
+                        </div>
+                        <div class="text-right">
+                            <span class="block text-xl font-bold text-white">{{
+                                "{:,.0f}".format(item.tonnage).replace(",", ".") }} <span
+                                    class="text-sm text-slate-500 font-normal">Kg</span></span>
+                        </div>
+                        {% if loop.index == 1 %}
+                        <div class="absolute right-0 top-0 text-3xl opacity-10">👑</div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                    {% if not rank_volume %}
+                    <div class="p-10 text-center text-slate-500">Sem dados ainda.</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Productivity Ranking -->
+            <div>
+                <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <span class="text-green-400">⚡</span> Top Velocidade (Kg/h)
+                </h2>
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-lg">
+                    {% for item in rank_speed %}
+                    <div
+                        class="p-4 flex items-center gap-4 hover:bg-slate-700/40 transition-colors border-b border-slate-700/50 last:border-0">
+                        <div
+                            class="font-black text-xl w-8 text-center {{ 'text-yellow-400' if loop.index == 1 else 'text-slate-600' }}">
+                            #{{ loop.index }}
+                        </div>
+                        <div
+                            class="w-12 h-12 rounded-full bg-slate-700 border-2 {{ 'border-green-500' if loop.index == 1 else 'border-slate-600' }} overflow-hidden flex items-center justify-center">
+                            <span class="text-xs font-bold text-slate-400">{{ item.name[:2] }}</span>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-bold text-white">{{ item.name }}</h4>
+                            <div class="flex items-center gap-1 text-xs text-green-400">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                </svg>
+                                Alta Performance
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="block text-xl font-bold text-white">{{ "{:,.0f}".format(item.kgh).replace(",",
+                                ".") }} <span class="text-sm text-slate-500 font-normal">Kg/h</span></span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% if not rank_speed %}
+                    <div class="p-10 text-center text-slate-500">Sem dados ainda.</div>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Levels Progression -->
+        <div class="mt-16">
+            <h2 class="text-xl font-bold text-white mb-6">Níveis Global (XP)</h2>
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {% for level in levels %}
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 flex items-center gap-4">
+                        <div class="relative">
+                            <svg class="w-14 h-14" viewBox="0 0 36 36">
+                                <path class="text-slate-700"
+                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                    fill="none" stroke="currentColor" stroke-width="3" />
+                                <path class="text-indigo-500" stroke-dasharray="{{ level.progress }}, 100"
+                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                    fill="none" stroke="currentColor" stroke-width="3" />
+                            </svg>
+                            <span
+                                class="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white">Lvl
+                                {{ 1 if level.level == 'Júnior' else 2 if level.level == 'Pleno' else 3 }}</span>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="text-white font-bold">{{ level.name }}</h4>
+                            <p class="text-xs text-indigo-400 font-bold uppercase">{{ level.level }}</p>
+                            <div class="w-full bg-slate-800 h-1.5 mt-2 rounded-full overflow-hidden">
+                                <div class="bg-indigo-500 h-full" style="width: {{ level.progress }}%"></div>
+                            </div>
+                            <p class="text-[10px] text-slate-500 mt-1 text-right">{{ level.xp }} XP</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

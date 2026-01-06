@@ -38,16 +38,23 @@
             {% if clients %}
             <div class="divide-y divide-slate-700">
                 {% for client in clients %}
-                <div class="px-6 py-4 flex items-center justify-between hover:bg-slate-700/30 transition-colors group">
-                    <div class="flex items-center gap-4">
-                        <div
-                            class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-slate-400 font-bold text-sm group-hover:bg-blue-500/20 group-hover:text-blue-400 transition-colors">
-                            {{ client.name[:2].upper() }}
+                <a href="/clients/{{ client.id }}" class="block hover:bg-slate-700/30 transition-colors group">
+                    <div class="px-6 py-4 flex items-center justify-between">
+                        <div class="flex items-center gap-4">
+                            <div
+                                class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-slate-400 font-bold text-sm group-hover:bg-blue-500/20 group-hover:text-blue-400 transition-colors">
+                                {{ client.name[:2].upper() }}
+                            </div>
+                            <div>
+                                <span class="text-slate-200 font-medium block">{{ client.name }}</span>
+                                <span
+                                    class="text-[10px] text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">Ver
+                                    Perfil Completo &rarr;</span>
+                            </div>
                         </div>
-                        <span class="text-slate-200 font-medium">{{ client.name }}</span>
+                        <span class="text-xs text-slate-500">ID: #{{ client.id }}</span>
                     </div>
-                    <span class="text-xs text-slate-500">ID: #{{ client.id }}</span>
-                </div>
+                </a>
                 {% endfor %}
             </div>
             {% else %}

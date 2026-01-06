@@ -94,7 +94,8 @@ const Events = {
                 date: Store.state.currentDate,
                 shift: Store.state.currentShift,
                 allocations: Store.state.allocations,
-                routines: Store.state.routines
+                routines: Store.state.routines,
+                tonnage: Store.state.tonnage
             };
 
             console.log('💾 SALVANDO MANUALMENTE:');

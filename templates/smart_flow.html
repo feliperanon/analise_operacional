@@ -90,82 +90,82 @@
     </header>
 
     <!-- KPI Strip -->
-    <div id="kpi-strip" class="shrink-0 px-6 py-4 border-b border-slate-800 bg-slate-900/95 backdrop-blur z-10">
-        <!-- Grid de 5 colunas responsivo -->
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+    <div id="kpi-strip" class="shrink-0 px-4 py-2 border-b border-slate-800 bg-slate-900/95 backdrop-blur z-10">
+        <!-- Grid de 7 colunas em telas grandes, responsivo -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
 
             <!-- 1. Headcount -->
             <div onclick="KPIDetails.show('present')"
-                class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-emerald-500 transition">
-                <p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Headcount</p>
+                class="bg-slate-800 p-2 rounded-lg border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-emerald-500 transition">
+                <p class="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Headcount</p>
                 <div>
-                    <p class="text-xl font-bold text-white leading-none">
+                    <p class="text-lg font-bold text-white leading-none">
                         <span id="total-present">0</span>
-                        <span class="text-slate-600 text-sm">/ <span id="total-target-kpi">45</span></span>
+                        <span class="text-slate-600 text-[10px]">/ <span id="total-target-kpi">45</span></span>
                     </p>
-                    <p class="text-[8px] text-slate-500 mt-1">
+                    <p class="text-[9px] text-slate-500 mt-0.5">
                         <span id="present-percent" class="text-emerald-400 font-bold">0%</span> presença
                     </p>
                 </div>
             </div>
 
-            <!-- 6. Vagas (Demitidos) -->
+            <!-- 2. Vagas (Demitidos) -->
             <div onclick="KPIDetails.show('gap')"
-                class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-red-500 transition">
-                <p class="text-[9px] font-bold text-red-400 uppercase mb-1">Vagas</p>
+                class="bg-slate-800 p-2 rounded-lg border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-red-500 transition">
+                <p class="text-[10px] font-bold text-red-400 uppercase mb-0.5">Vagas</p>
                 <div>
-                    <p class="text-xl font-bold text-white leading-none" id="total-gap">0</p>
-                    <p class="text-[8px] text-slate-500 mt-1">Demitidos</p>
+                    <p class="text-lg font-bold text-white leading-none" id="total-gap">0</p>
+                    <p class="text-[9px] text-slate-500 mt-0.5">Demitidos</p>
                 </div>
             </div>
 
             <!-- 3. Férias -->
             <div onclick="KPIDetails.show('vacation')"
-                class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-orange-500 transition">
-                <p class="text-[9px] font-bold text-orange-400 uppercase mb-1">Férias</p>
+                class="bg-slate-800 p-2 rounded-lg border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-orange-500 transition">
+                <p class="text-[10px] font-bold text-orange-400 uppercase mb-0.5">Férias</p>
                 <div>
-                    <p class="text-xl font-bold text-white leading-none" id="total-vacation">0</p>
-                    <p class="text-[8px] text-slate-500 mt-1">Colaboradores</p>
+                    <p class="text-lg font-bold text-white leading-none" id="total-vacation">0</p>
+                    <p class="text-[9px] text-slate-500 mt-0.5">Colaboradores</p>
                 </div>
             </div>
 
             <!-- 4. Afastados -->
             <div onclick="KPIDetails.show('away')"
-                class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-indigo-500 transition">
-                <p class="text-[9px] font-bold text-indigo-400 uppercase mb-1">Afastados</p>
+                class="bg-slate-800 p-2 rounded-lg border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-indigo-500 transition">
+                <p class="text-[10px] font-bold text-indigo-400 uppercase mb-0.5">Afastados</p>
                 <div>
-                    <p class="text-xl font-bold text-white leading-none" id="total-away">0</p>
-                    <p class="text-[8px] text-slate-500 mt-1">Colaboradores</p>
+                    <p class="text-lg font-bold text-white leading-none" id="total-away">0</p>
+                    <p class="text-[9px] text-slate-500 mt-0.5">Colaboradores</p>
                 </div>
             </div>
 
             <!-- 5. Atestados -->
             <div onclick="KPIDetails.show('sick')"
-                class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-amber-500 transition">
-                <p class="text-[9px] font-bold text-amber-400 uppercase mb-1">Atestados</p>
+                class="bg-slate-800 p-2 rounded-lg border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-amber-500 transition">
+                <p class="text-[10px] font-bold text-amber-400 uppercase mb-0.5">Atestados</p>
                 <div>
-                    <p class="text-xl font-bold text-white leading-none" id="total-sick">0</p>
-                    <p class="text-[8px] text-slate-500 mt-1">Colaboradores</p>
+                    <p class="text-lg font-bold text-white leading-none" id="total-sick">0</p>
+                    <p class="text-[9px] text-slate-500 mt-0.5">Colaboradores</p>
                 </div>
             </div>
 
             <!-- 6. Faltas -->
             <div onclick="KPIDetails.show('missing')"
-                class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-rose-500 transition">
-                <p class="text-[9px] font-bold text-rose-400 uppercase mb-1">Faltas</p>
+                class="bg-slate-800 p-2 rounded-lg border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-rose-500 transition">
+                <p class="text-[10px] font-bold text-rose-400 uppercase mb-0.5">Faltas</p>
                 <div>
-                    <p class="text-xl font-bold text-white leading-none" id="total-missing">0</p>
-                    <p class="text-[8px] text-slate-500 mt-1">Colaboradores</p>
+                    <p class="text-lg font-bold text-white leading-none" id="total-missing">0</p>
+                    <p class="text-[9px] text-slate-500 mt-0.5">Colaboradores</p>
                 </div>
             </div>
 
             <!-- 7. Produção Total -->
-            <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-purple-500 transition"
+            <div class="bg-slate-800 p-2 rounded-lg border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-purple-500 transition"
                 onclick="editTonnage()">
-                <p class="text-[9px] font-bold text-purple-400 uppercase mb-1">Produção</p>
+                <p class="text-[10px] font-bold text-purple-400 uppercase mb-0.5">Produção</p>
                 <div>
-                    <p class="text-xl font-bold text-white leading-none" id="total-tonnage">0 kg</p>
-                    <p class="text-[8px] text-slate-500 mt-1">
+                    <p class="text-lg font-bold text-white leading-none" id="total-tonnage">0 kg</p>
+                    <p class="text-[9px] text-slate-500 mt-0.5">
                         <span id="prod-per-person" class="text-purple-400 font-bold">0</span> kg/pessoa
                     </p>
                 </div>

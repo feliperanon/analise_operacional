@@ -1,0 +1,1 @@
+ALTER TABLE employee ADD COLUMN total_xp FLOAT DEFAULT 0.0;

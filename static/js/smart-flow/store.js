@@ -225,7 +225,8 @@ const Store = {
                 date: this.state.currentDate,
                 shift: this.state.currentShift,
                 allocations: this.state.allocations,
-                routines: this.state.routines
+                routines: this.state.routines,
+                tonnage: this.state.tonnage
             };
 
             console.log('💾 Salvando alocações:', {

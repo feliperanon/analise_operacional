@@ -40,7 +40,8 @@
                         Nova Separação
                     </h2>
 
-                    <form action="/separacao/add" method="post" class="space-y-4" autocomplete="off">
+                    <form action="/separacao/add" method="post" class="space-y-4" autocomplete="off"
+                        onsubmit="return validateForm()">
                         <input type="hidden" name="date" value="{{ selected_date }}">
                         <input type="hidden" name="shift" value="{{ selected_shift }}">
 
@@ -92,9 +93,17 @@
                                 <div id="client-dropdown"
                                     class="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden">
                                     {% for client in clients %}
-                                    <div class="px-4 py-2 hover:bg-slate-700 cursor-pointer text-slate-300 text-sm transition-colors"
+                                    {% set is_active = client.id in active_client_ids %}
+                                    <div class="px-4 py-2 hover:bg-slate-700 cursor-pointer text-sm transition-colors flex justify-between items-center {{ 'bg-indigo-900/20' if is_active else '' }}"
                                         onclick="selectItem('client', '{{ client.id }}', '{{ client.name }}')">
-                                        {{ client.name }}
+                                        <span
+                                            class="{{ 'text-indigo-400 font-bold' if is_active else 'text-slate-300' }}">{{
+                                            client.name }}</span>
+                                        {% if is_active %}
+                                        <span
+                                            class="text-[10px] bg-indigo-500/20 text-indigo-400 px-1.5 py-0.5 rounded uppercase font-bold border border-indigo-500/30">Em
+                                            Rota</span>
+                                        {% endif %}
                                     </div>
                                     {% endfor %}
                                 </div>
@@ -158,38 +167,50 @@
                     </div>
 
                     {% if routes %}
-                    <div class="divide-y divide-slate-700">
-                        {% for route in routes %}
-                        <div
-                            class="p-4 hover:bg-slate-700/30 transition-colors group flex items-start gap-4 {% if not route.end_time %}bg-indigo-900/10 border-l-2 border-indigo-500{% else %}border-l-2 border-transparent{% endif %}">
-
-                            <!-- Timer / Time Badge -->
-                            <div class="flex flex-col items-center min-w-[80px] pt-1">
-                                <span class="text-sm font-bold text-white">{{ route.start_time }}</span>
-                                <div class="w-px h-3 bg-slate-600 my-0.5"></div>
-                                {% if route.end_time %}
-                                <span class="text-xs text-slate-400">{{ route.end_time }}</span>
-                                {% if route.duration_fmt %}
-                                <span class="text-[10px] font-mono text-slate-500 mt-1" title="Duração total">{{
-                                    route.duration_fmt }}</span>
-                                {% endif %}
-                                {% else %}
-                                <!-- Live Timer Badge -->
-                                <span class="text-xs font-mono font-bold text-indigo-400 live-timer"
-                                    data-start="{{ route.start_time }}">
-                                    --:--:--
+                    <div class="space-y-6 p-4">
+                        {% for group in grouped_routes %}
+                        <div class="bg-slate-900/50 rounded-xl border border-slate-700/50 overflow-hidden">
+                            <!-- Group Header -->
+                            <div
+                                class="px-4 py-3 bg-slate-800 border-b border-slate-700 flex justify-between items-center">
+                                <div class="flex items-center gap-3">
+                                    <div
+                                        class="h-8 w-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 font-bold text-xs">
+                                        {{ group.employee_name[:2].upper() }}
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-white text-sm">{{ group.employee_name }}</h4>
+                                        <p class="text-[10px] text-slate-400">{{ group.routes|length }} separações</p>
+                                    </div>
+                                </div>
+                                <span
+                                    class="text-xs font-mono bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-600">
+                                    Total: <span class="text-white font-bold">{{
+                                        "%.2f"|format(group.total_tonnage)|replace(".", ",") }} Kg</span>
                                 </span>
-                                {% endif %}
                             </div>
 
-                            <!-- Content -->
-                            <div class="flex-1">
-                                <div class="flex justify-between items-start mb-2">
-                                    <div>
-                                        <h4 class="font-bold text-white text-md">{{ route.employee_name }}</h4>
-                                        <div class="flex items-center gap-2 text-xs text-slate-400 mt-1">
-                                            <span class="flex items-center gap-1 bg-slate-700/50 px-2 py-0.5 rounded">
-                                                <svg class="w-3 h-3" fill="none" stroke="currentColor"
+                            <!-- Active Routes (Separated) -->
+                            {% if group.routes_active %}
+                            <div class="divide-y divide-slate-700/50">
+                                {% for route in group.routes_active %}
+                                <div
+                                    class="p-3 transition-colors group flex items-center gap-4 bg-indigo-900/10 border-l-4 border-indigo-500 rounded-r-lg">
+
+                                    <!-- Timer / Time Badge -->
+                                    <div class="flex flex-col items-center min-w-[60px]">
+                                        <span class="text-xs font-bold text-white">{{ route.start_time }}</span>
+                                        <span
+                                            class="text-[10px] font-mono font-bold text-indigo-400 live-timer animate-pulse"
+                                            data-start="{{ route.start_time }}">--:--</span>
+                                    </div>
+
+                                    <!-- Content -->
+                                    <div class="flex-1 flex justify-between items-center">
+                                        <div class="flex items-center gap-3">
+                                            <span
+                                                class="flex items-center gap-1 bg-slate-700/50 px-2 py-1 rounded text-xs text-slate-300 border border-slate-600/50">
+                                                <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor"
                                                     viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round"
                                                         stroke-width="2"
@@ -198,80 +219,133 @@
                                                 </svg>
                                                 {{ route.client_name }}
                                             </span>
-                                            {% if not route.end_time %}
-                                            <span class="text-indigo-400 font-semibold animate-pulse">Em
-                                                Andamento</span>
+
+                                            {% if route.tonnage > 0 %}
+                                            <span class="text-xs font-mono text-slate-400">
+                                                {{ route.tonnage_fmt }} Kg
+                                            </span>
                                             {% endif %}
                                         </div>
-                                    </div>
 
-                                    <div class="flex items-center gap-2">
-                                        {% if not route.end_time %}
-                                        <button
-                                            onclick="openFinishModal({{ route.id }}, {{ route.employee_id }}, {{ route.client_id }}, '{{ route.start_time }}')"
-                                            class="bg-green-600 hover:bg-green-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-lg shadow-green-900/20 transition-all flex items-center gap-1">
-                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M5 13l4 4L19 7"></path>
-                                            </svg>
-                                            Encerrar
-                                        </button>
-                                        {% endif %}
-
-                                        <!-- Actions Menu -->
-                                        <div
-                                            class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                                        <!-- Actions -->
+                                        <div class="flex items-center gap-2">
                                             <button
-                                                onclick="editRoute({{ route.id }}, {{ route.employee_id }}, {{ route.client_id }}, '{{ route.start_time }}', '{{ route.end_time or '' }}', {{ route.tonnage }})"
-                                                class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition"
-                                                title="Editar">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor"
-                                                    viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2"
-                                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
-                                                    </path>
-                                                </svg>
+                                                onclick="openFinishModal({{ route.id }}, {{ route.employee_id }}, {{ route.client_id }}, '{{ route.start_time }}')"
+                                                class="bg-green-600 hover:bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg transition-all uppercase tracking-wider">
+                                                Encerrar
                                             </button>
-                                            <form action="/separacao/delete/{{ route.id }}" method="post"
-                                                onsubmit="return confirm('Excluir registro?')">
-                                                <button type="submit"
-                                                    class="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded transition"
-                                                    title="Excluir">
+
+                                            <div
+                                                class="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onclick="editRoute({{ route.id }}, {{ route.employee_id }}, {{ route.client_id }}, '{{ route.start_time }}', '', {{ route.tonnage }})"
+                                                    class="p-1 text-slate-400 hover:text-white transition">
                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor"
                                                         viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round"
                                                             stroke-width="2"
-                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
                                                         </path>
                                                     </svg>
                                                 </button>
-                                            </form>
+                                                <form action="/separacao/delete/{{ route.id }}" method="post"
+                                                    onsubmit="return confirm('Excluir?')" style="display:inline;">
+                                                    <button type="submit"
+                                                        class="p-1 text-slate-400 hover:text-red-400 transition">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                            viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2"
+                                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                                            </path>
+                                                        </svg>
+                                                    </button>
+                                                </form>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
 
-                                <!-- Completed Metrics & Status -->
-                                <div class="flex items-center gap-3">
-                                    <span
-                                        class="text-xs font-mono bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-600">
-                                        Peso: <span class="text-white">{{ route.tonnage_fmt }} Kg</span>
-                                    </span>
-
-                                    {% if route.end_time %}
-                                    {% if route.productivity > 0 %}
-                                    <span
-                                        class="text-xs font-mono bg-emerald-500/10 text-emerald-300 px-2 py-1 rounded border border-emerald-500/20 flex items-center gap-1">
+                            <!-- Finished Routes Section -->
+                            {% if group.routes_finished %}
+                            <div class="bg-slate-800/20 rounded-b-xl border-t border-slate-700/50">
+                                <div class="px-4 py-2 border-b border-slate-700/30 bg-slate-800/40">
+                                    <h5 class="text-[10px] uppercase font-bold text-slate-500 flex items-center gap-2">
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                         </svg>
-                                        {{ route.productivity_fmt }} Kg/h
-                                    </span>
-                                    {% endif %}
-                                    {% endif %}
+                                        Finalizadas ({{ group.routes_finished|length }})
+                                    </h5>
+                                </div>
+                                <div class="p-2 space-y-1">
+                                    {% for route in group.routes_finished %}
+                                    <div
+                                        class="p-2 transition-colors group flex items-center gap-3 opacity-60 hover:opacity-100 hover:bg-slate-700/40 rounded border border-transparent hover:border-slate-600/50">
+
+                                        <!-- Time (Compact) -->
+                                        <div class="flex flex-col items-center min-w-[50px] leading-none">
+                                            <span class="text-[10px] font-bold text-slate-400">{{ route.start_time
+                                                }}</span>
+                                            <div class="w-px h-1.5 bg-slate-700 my-0.5"></div>
+                                            <span class="text-[10px] text-slate-500">{{ route.end_time }}</span>
+                                        </div>
+
+                                        <!-- Simple Content -->
+                                        <div class="flex-1 flex justify-between items-center">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-[11px] text-slate-300 font-medium">{{
+                                                    route.client_name }}</span>
+
+                                                {% if route.tonnage > 0 %}
+                                                <span
+                                                    class="text-[10px] font-mono text-slate-400 bg-slate-900/50 px-1 rounded">{{
+                                                    route.tonnage_fmt }} Kg</span>
+                                                {% endif %}
+
+                                                {% if route.productivity > 0 %}
+                                                <span class="text-[10px] font-mono text-slate-500">{{
+                                                    route.productivity_fmt }} Kg/h</span>
+                                                {% endif %}
+                                            </div>
+
+                                            <!-- Minimal Actions -->
+                                            <div
+                                                class="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
+                                                <button
+                                                    onclick="editRoute({{ route.id }}, {{ route.employee_id }}, {{ route.client_id }}, '{{ route.start_time }}', '{{ route.end_time or '' }}', {{ route.tonnage }})"
+                                                    class="p-1 text-slate-500 hover:text-white transition">
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                                                        </path>
+                                                    </svg>
+                                                </button>
+                                                <form action="/separacao/delete/{{ route.id }}" method="post"
+                                                    onsubmit="return confirm('Excluir?')" style="display:inline;">
+                                                    <button type="submit"
+                                                        class="p-1 text-slate-500 hover:text-red-400 transition">
+                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor"
+                                                            viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2"
+                                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                                            </path>
+                                                        </svg>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
                                 </div>
                             </div>
+                            {% endif %}
                         </div>
                         {% endfor %}
                     </div>
@@ -380,6 +454,27 @@
 </div>
 
 <script>
+    function validateForm() {
+        const empId = document.getElementById('form-employee-id').value;
+        const clientId = document.getElementById('form-client-id').value;
+
+        if (!empId) {
+            alert('Por favor, selecione um Colaborador da lista. Você deve clicar em uma das opções sugeridas.');
+            // Clear invalid text
+            document.getElementById('employee-search').value = '';
+            document.getElementById('employee-search').focus();
+            return false;
+        }
+        if (!clientId) {
+            alert('Por favor, selecione um Cliente da lista. Você deve clicar em uma das opções sugeridas.');
+            // Clear invalid text
+            document.getElementById('client-search').value = '';
+            document.getElementById('client-search').focus();
+            return false;
+        }
+        return true;
+    }
+
     function applyFilters() {
         const date = document.getElementById('route-date').value;
         const shift = document.getElementById('route-shift').value;

@@ -29,3 +29,13 @@ CREATE INDEX IF NOT EXISTS idx_headcount_shift_name ON headcounttarget(shift_nam
 
 -- Índices para SectorConfiguration
 CREATE INDEX IF NOT EXISTS idx_sector_config_shift_name ON sectorconfiguration(shift_name);
+
+-- Índices para EmployeeAllocation (CRÍTICO para Smart Flow)
+CREATE INDEX IF NOT EXISTS idx_emp_alloc_date_shift ON employeeallocation(date, shift);
+CREATE INDEX IF NOT EXISTS idx_emp_alloc_employee_id ON employeeallocation(employee_id);
+CREATE INDEX IF NOT EXISTS idx_emp_alloc_subsector_id ON employeeallocation(subsector_id);
+
+-- Índices para EmployeeRoutine (CRÍTICO para Smart Flow)
+CREATE INDEX IF NOT EXISTS idx_emp_routine_date_shift ON employeeroutine(date, shift);
+CREATE INDEX IF NOT EXISTS idx_emp_routine_employee_id ON employeeroutine(employee_id);
+

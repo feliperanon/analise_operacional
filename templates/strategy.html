@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-8">
+    <div class="max-w-7xl mx-auto">
+        <h1 class="text-3xl font-bold text-white mb-2">Estratégia & Inteligência 🧠</h1>
+        <p class="text-slate-400 mb-8">Análise de clientes, horários, custos e eficiência.</p>
+
+        <!-- Global KPIs (Micro Efficiency) -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg">
+                <p class="text-xs font-bold text-slate-500 uppercase">Produtividade Global</p>
+                <div class="mt-2 flex items-baseline gap-2">
+                    <span class="text-3xl font-bold text-white">{{ kpi.global_kgh }}</span>
+                    <span class="text-sm text-slate-400">Kg/h</span>
+                </div>
+                <div class="mt-2 text-xs text-green-400 font-bold">Baseado em todo histórico</div>
+            </div>
+
+            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg">
+                <p class="text-xs font-bold text-slate-500 uppercase">Ociosidade Média</p>
+                <div class="mt-2 flex items-baseline gap-2">
+                    <span class="text-3xl font-bold text-white">{{ kpi.avg_idle }}</span>
+                </div>
+                <p class="text-xs text-slate-400 mt-2">Intervalo médio entre tarefas</p>
+            </div>
+
+            <!-- Cost Calculator -->
+            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg col-span-2">
+                <p class="text-xs font-bold text-slate-500 uppercase mb-2">Calculadora de Custo Operacional</p>
+                <div class="flex flex-col md:flex-row gap-4 items-end">
+                    <div class="flex-1 w-full">
+                        <label class="text-xs text-slate-400 mb-1 block">Folha Mensal (R$)</label>
+                        <input type="number" id="payroll-input" placeholder="Ex: 50000"
+                            class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
+                            onkeyup="calcCost()">
+                    </div>
+                    <div class="flex-1 w-full">
+                        <p class="text-xs text-slate-400 mb-1">Volume Total (Ref.)</p>
+                        <p class="text-lg font-mono text-slate-300 border-b border-slate-700 pb-1" id="total-vol"
+                            data-val="{{ kpi.total_vol }}">{{ kpi.total_vol }} kg</p>
+                    </div>
+                    <div class="flex-1 bg-slate-700/50 p-2 rounded text-center w-full">
+                        <p class="text-xs text-slate-400">Custo por Tonelada</p>
+                        <p class="text-xl font-bold text-green-400" id="cost-result">R$ -</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function calcCost() {
+                const payroll = parseFloat(document.getElementById('payroll-input').value) || 0;
+                // Remove dots/commas from formatted string to get float
+                const volStr = document.getElementById('total-vol').innerText.replace(/\./g, '').replace(/,/g, '.');
+                const vol = parseFloat(volStr) || 1;
+
+                // Convert Kg to Ton
+                const tons = vol / 1000;
+
+                if (tons > 0 && payroll > 0) {
+                    const cost = payroll / tons;
+                    document.getElementById('cost-result').innerText = "R$ " + cost.toFixed(2);
+                } else {
+                    document.getElementById('cost-result').innerText = "R$ -";
+                }
+            }
+        </script>
+
+        <!-- ABC Curve Section -->
+        <h2 class="text-xl font-bold text-white mb-4">1. Curva ABC de Clientes (Pareto)</h2>
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden mb-8">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-900/50 text-xs uppercase text-slate-400 font-bold">
+                        <tr>
+                            <th class="px-6 py-4">Classificação</th>
+                            <th class="px-6 py-4">Cliente</th>
+                            <th class="px-6 py-4">Volume (Kg)</th>
+                            <th class="px-6 py-4">% Acumulado</th>
+                            <th class="px-6 py-4">Visual</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-700 text-sm">
+                        {% for row in abc_data %}
+                        <tr class="hover:bg-slate-700/30 transition-colors">
+                            <td class="px-6 py-4">
+                                <span class="px-3 py-1 rounded-full font-bold text-xs
+                                    {% if row.class == 'A' %}bg-green-500/20 text-green-400 border border-green-500/30
+                                    {% elif row.class == 'B' %}bg-yellow-500/20 text-yellow-400 border border-yellow-500/30
+                                    {% else %}bg-slate-600/20 text-slate-400 border border-slate-600/30{% endif %}">
+                                    Classe {{ row.class }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 font-medium text-white">{{ row.name }}</td>
+                            <td class="px-6 py-4 text-slate-300">{{ "{:,.2f}".format(row.total).replace('.',',') }}</td>
+                            <td class="px-6 py-4 text-slate-400">{{ "{:.1f}%".format(row.pct) }}</td>
+                            <td class="px-6 py-4 w-48">
+                                <div class="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                                    <div class="h-full {% if row.class == 'A' %}bg-green-500{% elif row.class == 'B' %}bg-yellow-500{% else %}bg-slate-500{% endif %}"
+                                        style="width: {{ row.pct }}%"></div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if not abc_data %}
+            <div class="p-8 text-center text-slate-500">Sem dados suficientes para análise ABC.</div>
+            {% endif %}
+        </div>
+
+        <!-- Productivity Chart Section -->
+        <h2 class="text-xl font-bold text-white mb-4">2. Evolução de Produtividade (30 dias) 📈</h2>
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg p-6 mb-8">
+            <div class="relative h-80 w-full">
+                <canvas id="prodChart"></canvas>
+            </div>
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const ctx = document.getElementById('prodChart').getContext('2d');
+                const labels = JSON.parse('{{ prod_chart_labels | safe }}');
+                const data = JSON.parse('{{ prod_chart_data | safe }}');
+
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Produtividade Média (Kg/h)',
+                            data: data,
+                            borderColor: '#34d399', // Green-400
+                            backgroundColor: 'rgba(52, 211, 153, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            pointBackgroundColor: '#10b981',
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                                backgroundColor: '#1e293b',
+                                titleColor: '#fff',
+                                bodyColor: '#cbd5e1',
+                                borderColor: '#334155',
+                                borderWidth: 1
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    color: '#334155'
+                                },
+                                ticks: {
+                                    color: '#94a3b8'
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Kg/h',
+                                    color: '#64748b'
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    color: 'transparent'
+                                },
+                                ticks: {
+                                    color: '#94a3b8'
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+        </script>
+
+        <!-- Productivity & Idle Section -->
+        <h2 class="text-xl font-bold text-white mb-4 mt-8">2. Produtividade Individual & Ociosidade ⏱️</h2>
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden mb-8">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-900/50 text-xs uppercase text-slate-400 font-bold">
+                        <tr>
+                            <th class="px-6 py-4">Colaborador</th>
+                            <th class="px-6 py-4">Produtividade (Kg/h)</th>
+                            <th class="px-6 py-4">Ociosidade Média</th>
+                            <th class="px-6 py-4">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-700 text-sm">
+                        {% for row in productivity %}
+                        <tr class="hover:bg-slate-700/30 transition-colors">
+                            <td class="px-6 py-4 font-medium text-white">{{ row.name }}</td>
+                            <td class="px-6 py-4">
+                                <span
+                                    class="font-mono {{ 'text-green-400' if row.kgh > 250 else 'text-red-400' if row.kgh < 150 else 'text-yellow-400' }} font-bold text-lg">
+                                    {{ "%.0f"|format(row.kgh) }} Kg/h
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="font-mono {{ 'text-red-400' if row.avg_idle > 30 else 'text-green-400' }}">
+                                    {{ row.avg_idle }} min
+                                </span>
+                                <span class="text-xs text-slate-500 ml-1">({{ row.idle_count }}x)</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                {% if row.kgh > 300 %}
+                                <span
+                                    class="bg-green-500/10 text-green-400 px-2 py-1 rounded text-xs border border-green-500/20">🚀
+                                    Elite</span>
+                                {% elif row.avg_idle > 30 %}
+                                <span
+                                    class="bg-red-500/10 text-red-400 px-2 py-1 rounded text-xs border border-red-500/20">⚠️
+                                    Disperso</span>
+                                {% else %}
+                                <span class="bg-slate-700/50 text-slate-400 px-2 py-1 rounded text-xs">Normal</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if not productivity %}
+            <div class="p-8 text-center text-slate-500">Sem dados de movimentação.</div>
+            {% endif %}
+        </div>
+
+        <!-- SLA / Service Time Section -->
+        <h2 class="text-xl font-bold text-white mb-4 mt-8">3. SLA de Atendimento (Gargalos) ⏱️</h2>
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-900/50 text-xs uppercase text-slate-400 font-bold">
+                        <tr>
+                            <th class="px-6 py-4">Cliente</th>
+                            <th class="px-6 py-4">Tempo Médio de Separação (SLA)</th>
+                            <th class="px-6 py-4">Impacto</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-700 text-sm">
+                        {% for row in sla_ranking %}
+                        <tr class="hover:bg-slate-700/30 transition-colors">
+                            <td class="px-6 py-4 font-medium text-white">{{ row.name }}</td>
+                            <td class="px-6 py-4">
+                                <span class="font-mono text-slate-300">{{ row.sla_fmt }}</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                {% if row.sla_min > 60 %}
+                                <span class="text-red-400 font-bold flex items-center gap-1">⚠️ Crítico (>1h)</span>
+                                {% elif row.sla_min > 30 %}
+                                <span class="text-yellow-400 font-bold">⚠️ Atenção</span>
+                                {% else %}
+                                <span class="text-green-400 font-bold">✅ OK</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if not sla_ranking %}
+            <div class="p-8 text-center text-slate-500">Sem dados de tempo suficientes.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

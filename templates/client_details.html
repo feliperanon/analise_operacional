@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-8">
+    <div class="max-w-7xl mx-auto">
+
+        <!-- Header & Nav -->
+        <div class="flex items-center justify-between mb-8">
+            <div class="flex items-center gap-4">
+                <a href="/clients"
+                    class="p-2 bg-slate-800 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                    </svg>
+                </a>
+                <div>
+                    <h1 class="text-3xl font-bold text-white mb-1">{{ client.name }}</h1>
+                    <p class="text-slate-400 text-sm">Perfil do Cliente e Histórico Operacional</p>
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="openEditModal()"
+                    class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-blue-400 rounded-lg font-bold border border-slate-700 transition flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                        </path>
+                    </svg>
+                    Editar
+                </button>
+                <button onclick="openDeleteModal()"
+                    class="px-4 py-2 bg-slate-800 hover:bg-rose-900/30 text-rose-400 rounded-lg font-bold border border-slate-700 hover:border-rose-800 transition flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                        </path>
+                    </svg>
+                    Excluir
+                </button>
+            </div>
+        </div>
+
+        <!-- KPI Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <!-- Total Tonnage -->
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                <p class="text-slate-500 text-xs font-bold uppercase mb-1">Total Movimentado (Geral)</p>
+                <p class="text-3xl font-bold text-blue-400">{{ stats.total_tonnage_fmt }} <span
+                        class="text-sm text-slate-500 font-normal">ton</span></p>
+            </div>
+
+            <!-- Avg Duration -->
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                <p class="text-slate-500 text-xs font-bold uppercase mb-1">Tempo Médio (Carga)</p>
+                <p class="text-3xl font-bold text-emerald-400">{{ stats.avg_duration_fmt }}</p>
+            </div>
+
+            <!-- Last Op -->
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                <p class="text-slate-500 text-xs font-bold uppercase mb-1">Última Operação</p>
+                <p class="text-xl font-bold text-white">{{ stats.last_op_date }}</p>
+                <p class="text-xs text-slate-500">{{ stats.last_op_days_ago }} dias atrás</p>
+            </div>
+
+            <!-- Top Employee -->
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                <p class="text-slate-500 text-xs font-bold uppercase mb-1">Top Colaborador</p>
+                <p class="text-lg font-bold text-white truncate" title="{{ stats.top_employee }}">{{ stats.top_employee
+                    or '-' }}</p>
+                <p class="text-xs text-slate-500">{{ stats.top_employee_count }} operações</p>
+            </div>
+        </div>
+
+        <!-- Period Analysis -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+            <!-- Tonnage Breakdown -->
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6 col-span-2">
+                <h3 class="text-white font-bold mb-6 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+                        </path>
+                    </svg>
+                    Volume por Período
+                </h3>
+
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 text-center">
+                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-1">Hoje</p>
+                        <p class="text-xl font-bold text-white">{{ periods.today_fmt }} t</p>
+                    </div>
+                    <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 text-center">
+                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-1">Esta Semana</p>
+                        <p class="text-xl font-bold text-white">{{ periods.week_fmt }} t</p>
+                    </div>
+                    <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 text-center">
+                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-1">Este Mês</p>
+                        <p class="text-xl font-bold text-white">{{ periods.month_fmt }} t</p>
+                    </div>
+                    <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 text-center">
+                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-1">Este Ano</p>
+                        <p class="text-2xl font-bold text-indigo-400">{{ periods.year_fmt }} t</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
+                <h3 class="text-white font-bold mb-4">Raio-X</h3>
+                <ul class="space-y-4">
+                    <li class="flex justify-between items-center text-sm border-b border-slate-700 pb-3">
+                        <span class="text-slate-400">Total de Viagens (Rotas)</span>
+                        <span class="text-white font-bold">{{ stats.total_routes }}</span>
+                    </li>
+                    <li class="flex justify-between items-center text-sm border-b border-slate-700 pb-3">
+                        <span class="text-slate-400">Média Peso / Viagem</span>
+                        <span class="text-white font-bold">{{ stats.avg_tonnage_per_route_fmt }} kg</span>
+                    </li>
+                    <li class="flex justify-between items-center text-sm">
+                        <span class="text-slate-400">Produtividade Média</span>
+                        <span class="text-white font-bold">{{ stats.avg_productivity_fmt }} kg/h</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- History Table -->
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center">
+                <h3 class="text-white font-bold flex items-center gap-2">
+                    <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Histórico de Operações
+                </h3>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-900/50 text-slate-400 text-xs uppercase font-bold">
+                            <th class="px-6 py-4">Data</th>
+                            <th class="px-6 py-4">Turno</th>
+                            <th class="px-6 py-4">Colaborador</th>
+                            <th class="px-6 py-4 text-right">Peso (kg)</th>
+                            <th class="px-6 py-4 text-center">Duração</th>
+                            <th class="px-6 py-4 text-center">Produtividade</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-700 text-sm">
+                        {% for route in history %}
+                        <tr class="hover:bg-slate-700/30 transition-colors">
+                            <td class="px-6 py-4 text-white font-mono">{{ route.date_fmt }}</td>
+                            <td class="px-6 py-4 text-slate-300">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold 
+                                    {% if route.shift == 'Manhã' %}bg-blue-500/20 text-blue-300
+                                    {% elif route.shift == 'Tarde' %}bg-orange-500/20 text-orange-300
+                                    {% else %}bg-purple-500/20 text-purple-300{% endif %}">
+                                    {{ route.shift }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-slate-300">{{ route.employee_name }}</td>
+                            <td class="px-6 py-4 text-right font-bold text-white">{{ route.tonnage_fmt }}</td>
+                            <td class="px-6 py-4 text-center text-slate-400 font-mono">{{ route.duration_fmt or '-' }}
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                {% if route.productivity > 0 %}
+                                <span class="text-emerald-400 font-bold">{{ route.productivity_fmt }}</span> <span
+                                    class="text-[10px] text-slate-500">kg/h</span>
+                                {% else %}
+                                <span class="text-slate-600">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="px-6 py-12 text-center text-slate-500">Nenhum registro encontrado.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm">
+    <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-sm mx-4">
+        <h3 class="text-lg font-bold text-white mb-4">Editar Cliente</h3>
+        <form action="/clients/{{ client.id }}/update" method="post" class="space-y-4">
+            <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Nome do Cliente</label>
+                <input type="text" name="name" value="{{ client.name }}" required
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="flex justify-end gap-2 mt-6">
+                <button type="button" onclick="closeEditModal()"
+                    class="px-4 py-2 text-slate-400 hover:text-white transition">Cancelar</button>
+                <button type="submit"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold">Salvar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div id="deleteModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm">
+    <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-sm mx-4">
+        <h3 class="text-lg font-bold text-white mb-2">Excluir Cliente?</h3>
+        <p class="text-slate-400 text-sm mb-6">Atenção: A exclusão é permanente e removerá <b>todo o histórico de
+                operações</b> vinculado a este cliente. Deseja continuar?</p>
+        <form action="/clients/{{ client.id }}/delete" method="post" class="flex justify-end gap-2">
+            <button type="button" onclick="closeDeleteModal()"
+                class="px-4 py-2 text-slate-400 hover:text-white transition">Cancelar</button>
+            <button type="submit"
+                class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-bold">Confirmar
+                Exclusão</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEditModal() {
+        document.getElementById('editModal').classList.remove('hidden');
+        document.getElementById('editModal').classList.add('flex');
+    }
+    function closeEditModal() {
+        document.getElementById('editModal').classList.add('hidden');
+        document.getElementById('editModal').classList.remove('flex');
+    }
+    function openDeleteModal() {
+        document.getElementById('deleteModal').classList.remove('hidden');
+        document.getElementById('deleteModal').classList.add('flex');
+    }
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.add('hidden');
+        document.getElementById('deleteModal').classList.remove('flex');
+    }
+</script>
+{% endblock %}
