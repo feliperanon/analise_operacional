@@ -157,19 +157,36 @@
             <!-- List Card -->
             <div class="lg:col-span-2">
                 <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden min-h-[500px]">
-                    <div class="px-6 py-4 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center">
-                        <h3 class="text-slate-300 font-medium">Registros de {{ selected_date_fmt }} - {{ selected_shift
-                            }}</h3>
-                        <div class="flex gap-2">
-                            <span class="bg-indigo-500/20 text-indigo-300 px-3 py-1 rounded-full text-xs font-bold">{{
-                                routes|length }} Total</span>
+                    <div
+                        class="px-6 py-4 border-b border-slate-700 bg-slate-800/50 flex flex-col md:flex-row gap-4 justify-between items-center">
+                        <div>
+                            <h3 class="text-slate-300 font-medium">Registros de {{ selected_date_fmt }} - {{
+                                selected_shift }}</h3>
+                            <div class="flex gap-2 mt-1">
+                                <span
+                                    class="bg-indigo-500/20 text-indigo-300 px-3 py-1 rounded-full text-xs font-bold">{{
+                                    routes|length }} Total</span>
+                            </div>
+                        </div>
+                        <div class="relative w-full md:w-64">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg class="h-4 w-4 text-slate-500" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                            </div>
+                            <input type="text" id="route-list-search" placeholder="Filtrar por nome ou cliente..."
+                                oninput="filterRoutesList(this.value)"
+                                class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:ring-1 focus:ring-indigo-500 outline-none placeholder-slate-500 transition-all">
                         </div>
                     </div>
 
                     {% if routes %}
                     <div class="space-y-6 p-4">
                         {% for group in grouped_routes %}
-                        <div class="bg-slate-900/50 rounded-xl border border-slate-700/50 overflow-hidden">
+                        <div
+                            class="bg-slate-900/50 rounded-xl border border-slate-700/50 overflow-hidden searchable-card">
                             <!-- Group Header -->
                             <div
                                 class="px-4 py-3 bg-slate-800 border-b border-slate-700 flex justify-between items-center">
@@ -594,5 +611,23 @@
     document.getElementById('editModal').addEventListener('click', (e) => {
         if (e.target === document.getElementById('editModal')) closeEditModal();
     });
+    // --- List Filter Logic ---
+    function filterRoutesList(searchText) {
+        const cards = document.querySelectorAll('.searchable-card');
+        const term = searchText.toLowerCase();
+
+        cards.forEach(card => {
+            const empName = card.querySelector('h4').innerText.toLowerCase();
+            // Collect all client names in this card (active and finished)
+            const clientBadges = Array.from(card.querySelectorAll('.text-xs.text-slate-300, .text-xs.font-medium, .text-\\[11px\\]'));
+            const clientNames = clientBadges.map(el => el.innerText.toLowerCase()).join(' ');
+
+            if (empName.includes(term) || clientNames.includes(term)) {
+                card.classList.remove('hidden');
+            } else {
+                card.classList.add('hidden');
+            }
+        });
+    }
 </script>
 {% endblock %}

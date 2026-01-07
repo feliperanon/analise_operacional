@@ -20,7 +20,7 @@ if "sqlite" in sqlite_url:
 
 # Performance: Only echo SQL in DEBUG mode
 DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
-engine = create_engine(sqlite_url, echo=DEBUG, connect_args=connect_args)
+engine = create_engine(sqlite_url, echo=DEBUG, connect_args=connect_args, pool_pre_ping=True)
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)

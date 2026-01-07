@@ -36,6 +36,9 @@ class Employee(SQLModel, table=True):
     
     # Work Days (dias da semana que trabalha)
     work_days: Optional[str] = Field(default='["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]')
+
+    # Schedule (Horário de Trabalho) e.g. "07:00 - 15:20"
+    work_schedule: Optional[str] = Field(default=None)
     
     # Gamification
     total_xp: float = Field(default=0.0) # Accumulated Tonnage/Score

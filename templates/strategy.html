@@ -3,8 +3,38 @@
 {% block content %}
 <div class="p-8">
     <div class="max-w-7xl mx-auto">
-        <h1 class="text-3xl font-bold text-white mb-2">Estratégia & Inteligência 🧠</h1>
-        <p class="text-slate-400 mb-8">Análise de clientes, horários, custos e eficiência.</p>
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-white mb-2">Estratégia & Inteligência 🧠</h1>
+                <p class="text-slate-400">Análise de clientes, horários, custos e eficiência.</p>
+            </div>
+
+            <!-- Filters -->
+            <div class="bg-slate-800 p-2 rounded-xl flex items-center gap-3 border border-slate-700 shadow-lg">
+                <!-- Date -->
+                <input type="date" id="strategy-date" value="{{ selected_date }}" onchange="applyStrategyFilters()"
+                    class="bg-transparent text-white text-sm font-bold border-none focus:ring-0 cursor-pointer outline-none">
+
+                <div class="w-px h-6 bg-slate-600"></div>
+
+                <!-- Shift -->
+                <select id="strategy-shift" onchange="applyStrategyFilters()"
+                    class="bg-transparent text-white text-sm font-bold border-none focus:ring-0 cursor-pointer outline-none [&>option]:bg-slate-800">
+                    <option value="Todos" {% if selected_shift=='Todos' %}selected{% endif %}>Todos os Turnos</option>
+                    <option value="Manhã" {% if selected_shift=='Manhã' %}selected{% endif %}>Manhã</option>
+                    <option value="Tarde" {% if selected_shift=='Tarde' %}selected{% endif %}>Tarde</option>
+                    <option value="Noite" {% if selected_shift=='Noite' %}selected{% endif %}>Noite</option>
+                </select>
+            </div>
+        </div>
+
+        <script>
+            function applyStrategyFilters() {
+                const date = document.getElementById('strategy-date').value;
+                const shift = document.getElementById('strategy-shift').value;
+                window.location.href = `/strategy?date=${date}&shift=${shift}`;
+            }
+        </script>
 
         <!-- Global KPIs (Micro Efficiency) -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -197,8 +227,9 @@
                     <thead class="bg-slate-900/50 text-xs uppercase text-slate-400 font-bold">
                         <tr>
                             <th class="px-6 py-4">Colaborador</th>
-                            <th class="px-6 py-4">Produtividade (Kg/h)</th>
-                            <th class="px-6 py-4">Ociosidade Média</th>
+                            <th class="px-6 py-4">Produtividade</th>
+                            <th class="px-6 py-4">Tempo Ativo</th>
+                            <th class="px-6 py-4">Tempo Ocioso</th>
                             <th class="px-6 py-4">Status</th>
                         </tr>
                     </thead>
@@ -212,21 +243,26 @@
                                     {{ "%.0f"|format(row.kgh) }} Kg/h
                                 </span>
                             </td>
+                            <td class="px-6 py-4 text-slate-300">
+                                {{ row.active_hours|int }}h {{ ((row.active_hours - row.active_hours|int)*60)|int }}m
+                                <span class="text-xs text-slate-500">/ {{ row.shift_duration|int }}h {{
+                                    ((row.shift_duration - row.shift_duration|int)*60)|int }}m</span>
+                            </td>
                             <td class="px-6 py-4">
-                                <span class="font-mono {{ 'text-red-400' if row.avg_idle > 30 else 'text-green-400' }}">
-                                    {{ row.avg_idle }} min
+                                <span
+                                    class="font-mono {{ 'text-red-400' if row.idle_hours > 2.0 else 'text-green-400' }} font-bold">
+                                    {{ row.idle_hours|int }}h {{ ((row.idle_hours - row.idle_hours|int)*60)|int }}m
                                 </span>
-                                <span class="text-xs text-slate-500 ml-1">({{ row.idle_count }}x)</span>
                             </td>
                             <td class="px-6 py-4">
                                 {% if row.kgh > 300 %}
                                 <span
                                     class="bg-green-500/10 text-green-400 px-2 py-1 rounded text-xs border border-green-500/20">🚀
                                     Elite</span>
-                                {% elif row.avg_idle > 30 %}
+                                {% elif row.idle_hours > 2.0 %}
                                 <span
                                     class="bg-red-500/10 text-red-400 px-2 py-1 rounded text-xs border border-red-500/20">⚠️
-                                    Disperso</span>
+                                    Ocioso</span>
                                 {% else %}
                                 <span class="bg-slate-700/50 text-slate-400 px-2 py-1 rounded text-xs">Normal</span>
                                 {% endif %}

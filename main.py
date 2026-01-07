@@ -214,8 +214,45 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="Análise Operacional", version="2.0.0", lifespan=lifespan)
+
 # Add Session Middleware
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+
+# --- Global Exception Handler ---
+@app.middleware("http")
+async def global_exception_handler(request: Request, call_next):
+    try:
+        response = await call_next(request)
+        return response
+    except Exception as e:
+        import traceback
+        import uuid
+        
+        trace_id = str(uuid.uuid4())[:8]
+        error_msg = str(e)
+        stack_trace = traceback.format_exc()
+        
+        # Log Full Trace
+        logger.error(f"❌ [500] {request.method} {request.url} | Trace: {trace_id} | Error: {error_msg}\n{stack_trace}")
+        
+        # Determine Response Type
+        accept = request.headers.get("accept", "")
+        
+        if "application/json" in accept or request.url.path.startswith("/api/"):
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "error": "Erro Interno do Servidor",
+                    "detail": error_msg if LOG_LEVEL == logging.DEBUG else "Contate o suporte.",
+                    "trace_id": trace_id
+                }
+            )
+        
+        return templates.TemplateResponse("error_500.html", {
+            "request": request, 
+            "error_detail": error_msg if LOG_LEVEL == logging.DEBUG else None,
+            "trace_id": trace_id
+        }, status_code=500)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -575,8 +612,8 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
          group['routes_active'] = active
          group['routes_finished'] = finished
          
-    # 2. Groups display order: By Name
-    grouped_routes = sorted(groups.values(), key=lambda x: x['employee_name'])
+    # 2. Groups display order: Active/Open first, then by Name
+    grouped_routes = sorted(groups.values(), key=lambda x: (0 if x['routes_active'] else 1, x['employee_name']))
 
     # Determine Active Clients (In Route)
     active_client_ids = set()
@@ -707,22 +744,26 @@ async def backfill_xp(request: Request, session: Session = Depends(get_session))
 # --- Strategy & Gamification Routes ---
 
 @app.get("/strategy", response_class=HTMLResponse)
-async def strategy_page(request: Request, session: Session = Depends(get_session)):
+async def strategy_page(request: Request, date: Optional[str] = None, shift: Optional[str] = None, session: Session = Depends(get_session)):
     import traceback
     try:
         user = require_login(request)
+        if not date:
+            date = datetime.now().strftime("%Y-%m-%d")
         
         # Fetch all *completed* routes for analysis
+        # Optimize: Maybe we only need last 30 days? But for now keep as is for ABC curve (global)
         all_routes = session.exec(select(models.Route).where(models.Route.tonnage > 0).order_by(models.Route.date.desc())).all()
         clients = session.exec(select(models.Client)).all()
         client_map = {c.id: c.name for c in clients}
 
-        # 1. ABC Curve (Clients)
+        # 1. ABC Curve (Clients) - GLOBAL (All Time) or SELECTED DATE? 
+        # Usually ABC is historical or monthly. Let's keep ABC as ALL TIME for now, or maybe current month?
+        # User didn't complain about ABC. Let's stick to fixing the "Daily Idle".
+        
         client_stats = {} # id -> {tonnage, count}
         
         # 2. PRODUCTIVITY CHART (30 Days)
-        # Replaces Heatmap
-        
         today = datetime.now().date()
         start_date = today - timedelta(days=30)
         
@@ -734,36 +775,72 @@ async def strategy_page(request: Request, session: Session = Depends(get_session
 
         total_sys_tonnage = 0.0
 
+        # --- Re-implement Detailed Aggregation (Duration/Idle) ---
+        # NOW FILTERED BY SINGLE DATE
+        emp_stats = {} # id -> {ton, dur, gaps_sum, gaps_count}
+        client_dur_stats = {} # cid -> {dur_sum, count}
+        emp_day_intervals = {} # (emp_id, date) -> list of (start, end)
+        
+        all_emps = {e.id: e.name for e in session.exec(select(models.Employee)).all()}
+        
         for r in all_routes:
             t = r.tonnage or 0.0
-            total_sys_tonnage += t
             
-            # ABC Logic
+            # ABC Logic (Keep Global)
+            total_sys_tonnage += t
             cid = r.client_id
             if cid not in client_stats:
                 client_stats[cid] = {"name": client_map.get(cid, f"Client {cid}"), "tonnage": 0.0, "count": 0}
             client_stats[cid]['tonnage'] += t
             client_stats[cid]['count'] += 1
             
-            # Chart Logic
-            if r.date and r.start_time and r.end_time: # Only consider completed/valid time routes for chart?
-                # Actually, user asked for "Daily Average Kg/h".
-                # We need sum(tonnage) / sum(hours) for that day.
-                try:
-                    r_date = datetime.strptime(r.date, "%Y-%m-%d").date()
-                    if start_date <= r_date <= today:
-                        if r_date in daily_stats:
-                            daily_stats[r_date]['tonnage'] += t
-                            
-                            # Duration
+            # Chart Logic (Last 30 Days)
+            try:
+                if r.date:
+                    r_date_obj = datetime.strptime(r.date, "%Y-%m-%d").date()
+                    if start_date <= r_date_obj <= today:
+                        if r.start_time and r.end_time: # Valid duration
                             s = datetime.strptime(r.start_time, "%H:%M")
                             e = datetime.strptime(r.end_time, "%H:%M")
                             diff = (e - s).total_seconds()
                             if diff > 0:
-                                daily_stats[r_date]['duration_seconds'] += diff
-                except:
-                    pass
-        
+                                daily_stats[r_date_obj]['tonnage'] += t
+                                daily_stats[r_date_obj]['duration_seconds'] += diff
+            except:
+                pass
+            
+            # --- INDIVIDUAL STATS (SELECTED DATE ONLY) ---
+            if r.date == date:
+                # Filter by shift if provided (optional)
+                if shift and shift != "Todos" and r.shift != shift:
+                     continue
+                     
+                if r.employee_id and r.start_time and r.end_time:
+                    try:
+                        s = datetime.strptime(r.start_time, "%H:%M")
+                        e = datetime.strptime(r.end_time, "%H:%M")
+                        dur = (e - s).total_seconds()
+                        
+                        # Client Duration (for SLA) - also daily filtered now
+                        if r.client_id:
+                            if r.client_id not in client_dur_stats:
+                                client_dur_stats[r.client_id] = {'sum': 0, 'count': 0}
+                            client_dur_stats[r.client_id]['sum'] += dur
+                            client_dur_stats[r.client_id]['count'] += 1
+                        
+                        # Emp Stats
+                        eid = r.employee_id
+                        if eid not in emp_stats: emp_stats[eid] = {'ton': 0, 'dur': 0}
+                        emp_stats[eid]['ton'] += (r.tonnage or 0)
+                        emp_stats[eid]['dur'] += dur
+                        
+                        # Idle prep
+                        key = (eid, r.date)
+                        if key not in emp_day_intervals: emp_day_intervals[key] = []
+                        emp_day_intervals[key].append((s, e))
+                    except:
+                        pass
+                    
         # Prepare Chart Data
         prod_chart_labels = []
         prod_chart_data = [] # Kg/h
@@ -782,8 +859,7 @@ async def strategy_page(request: Request, session: Session = Depends(get_session
             prod_chart_labels.append(d.strftime("%d/%m"))
             prod_chart_data.append(round(kgh, 1))
 
-
-        # Process ABC
+        # Process ABC (Must be done after loop populated client_stats)
         abc_data = sorted(client_stats.values(), key=lambda x: x['tonnage'], reverse=True)
         cumulative = 0.0
         for item in abc_data:
@@ -795,14 +871,6 @@ async def strategy_page(request: Request, session: Session = Depends(get_session
             item['total'] = item['tonnage']
             item['pct'] = item['share']
             
-            # SLA Calc
-            avg_dur_min = 0
-            avg_dur_str = "-"
-            # We need to track duration sums per client to calc this.
-            # Currently client_stats only tracks tonnage/count.
-            # We need to fix the Main Loop to track duration_sum per client too.
-            
-            # Classify
             if item['cumulative_share'] <= 80:
                 item['class'] = 'A'
             elif item['cumulative_share'] <= 95:
@@ -810,42 +878,6 @@ async def strategy_page(request: Request, session: Session = Depends(get_session
             else:
                 item['class'] = 'C'
 
-        # --- Re-implement Detailed Aggregation (Duration/Idle) ---
-        # We need another pass or improve the first pass. Let's do a clean pass for clarity.
-        
-        emp_stats = {} # id -> {ton, dur, gaps_sum, gaps_count}
-        client_dur_stats = {} # cid -> {dur_sum, count}
-        emp_day_intervals = {} # (emp_id, date) -> list of (start, end)
-        
-        all_emps = {e.id: e.name for e in session.exec(select(models.Employee)).all()}
-        
-        for r in all_routes:
-            # Client Duration
-            if r.client_id and r.start_time and r.end_time:
-                try:
-                    s = datetime.strptime(r.start_time, "%H:%M")
-                    e = datetime.strptime(r.end_time, "%H:%M")
-                    dur = (e - s).total_seconds()
-                    
-                    if r.client_id not in client_dur_stats:
-                        client_dur_stats[r.client_id] = {'sum': 0, 'count': 0}
-                    client_dur_stats[r.client_id]['sum'] += dur
-                    client_dur_stats[r.client_id]['count'] += 1
-                    
-                    # Emp Stats
-                    if r.employee_id:
-                        eid = r.employee_id
-                        if eid not in emp_stats: emp_stats[eid] = {'ton': 0, 'dur': 0}
-                        emp_stats[eid]['ton'] += (r.tonnage or 0)
-                        emp_stats[eid]['dur'] += dur
-                        
-                        # Idle prep
-                        key = (eid, r.date)
-                        if key not in emp_day_intervals: emp_day_intervals[key] = []
-                        emp_day_intervals[key].append((s, e))
-                except:
-                    pass
-                    
         # Finalize SLA Ranking
         final_sla = []
         for item in abc_data:
@@ -875,29 +907,67 @@ async def strategy_page(request: Request, session: Session = Depends(get_session
         # Finalize Productivity & Idle
         productivity = []
         
-        # Idle Calculation
-        emp_idle_map = {} # eid -> {sum_min, count}
-        for key, intervals in emp_day_intervals.items():
-            eid = key[0]
-            intervals.sort(key=lambda x: x[0])
-            for i in range(len(intervals) - 1):
-                gap = (intervals[i+1][0] - intervals[i][1]).total_seconds()
-                if gap > 60 and gap < 7200:
-                    if eid not in emp_idle_map: emp_idle_map[eid] = {'sum': 0, 'cnt': 0}
-                    emp_idle_map[eid]['sum'] += (gap/60)
-                    emp_idle_map[eid]['cnt'] += 1
-
+        # Idle Calculation (Daily Idle based on Shift)
+        # Strategy: 
+        # 1. Get Shift Start/End from Employee.work_schedule (e.g. "12:00 - 20:20")
+        # 2. Daily Shift Duration = End - Start
+        # 3. Active Time = Sum(Route Durations)
+        # 4. Idle Time = Daily Shift Duration - Active Time
+        
+        
+        # Calculate Active/Idle using Merged Intervals
+        emp_objs = {e.id: e for e in session.exec(select(models.Employee)).all()}
+        
         for eid, s in emp_stats.items():
-            kgh = (s['ton'] / (s['dur']/3600)) if s['dur'] > 0 else 0
+            # Calculate Real Active Duration (Merged Intervals)
+            real_active_hours = 0.0
+            intervals = emp_day_intervals.get((eid, date), [])
+            if intervals:
+                intervals.sort(key=lambda x: x[0])
+                merged = []
+                for start, end in intervals:
+                    if not merged or start > merged[-1][1]:
+                        merged.append([start, end])
+                    else:
+                        merged[-1][1] = max(merged[-1][1], end)
+                
+                real_active_sec = sum((m[1] - m[0]).total_seconds() for m in merged)
+                real_active_hours = real_active_sec / 3600
+
+            # KGH Calculation: Use Real Active Time or Summed Time?
+            # Metric Standard: Productivity = Output / Input Hours (Time on Floor)
+            # If I sort 200kg in 1h (even if 2 routes overlap), I did 200kg/h.
+            # So Real Active Hours is the correct denominator.
             
-            idle_data = emp_idle_map.get(eid, {'sum': 0, 'cnt': 0})
-            avg_idle = int(idle_data['sum'] / idle_data['cnt']) if idle_data['cnt'] > 0 else 0
+            kgh = (s['ton'] / real_active_hours) if real_active_hours > 0 else 0
+            
+            emp = emp_objs.get(eid)
+            shift_duration_hours = 8.0 # Default
+            
+            if emp and emp.work_schedule:
+                try:
+                    # Parse "HH:MM - HH:MM"
+                    parts = emp.work_schedule.split('-')
+                    if len(parts) == 2:
+                        h_start = datetime.strptime(parts[0].strip(), "%H:%M")
+                        h_end = datetime.strptime(parts[1].strip(), "%H:%M")
+                        
+                        # Handle crossing midnight
+                        if h_end < h_start:
+                            h_end += timedelta(days=1)
+                            
+                        shift_duration_hours = (h_end - h_start).total_seconds() / 3600
+                except:
+                    pass
+            
+            idle_hours = max(0, shift_duration_hours - real_active_hours)
             
             productivity.append({
                 "name": all_emps.get(eid, "Unknown"),
                 "kgh": kgh,
-                "avg_idle": avg_idle,
-                "idle_count": idle_data['cnt']
+                "active_hours": real_active_hours,
+                "idle_hours": idle_hours,
+                "shift_duration": shift_duration_hours
             })
         productivity.sort(key=lambda x: x['kgh'], reverse=True)
 
@@ -915,7 +985,10 @@ async def strategy_page(request: Request, session: Session = Depends(get_session
                 "total_vol": f"{total_sys_tonnage:,.0f}".replace(",", ".")
             },
             "productivity": productivity,
-            "sla_ranking": sla_ranking
+            "productivity": productivity,
+            "sla_ranking": sla_ranking,
+            "selected_date": date,
+            "selected_shift": shift or "Todos"
         })
     except Exception:
         return HTMLResponse(content=f"<pre>{traceback.format_exc()}</pre>", status_code=500)
@@ -2113,21 +2186,11 @@ async def update_sector(
     require_login(request)
     
     # DEBUG: Log para rastrear chamadas
-    print(f"\n{'='*60}")
-    print(f"🔧 UPDATE_SECTOR CHAMADO")
-    print(f"   sector_id: {sector_id}")
-    print(f"   name: {name}")
-    print(f"   max_employees: {max_employees}")
-    print(f"   color: {color}")
-    print(f"{'='*60}\n")
+    # print(f"🔧 UPDATE_SECTOR CHAMADO: {sector_id} - {name}")
     
     sector = session.get(models.Sector, sector_id)
     if not sector:
-        print(f"❌ Setor {sector_id} não encontrado!")
         return JSONResponse({"error": "Setor não encontrado"}, status_code=404)
-    
-    print(f"✅ Setor encontrado: {sector.name} (shift: {sector.shift})")
-    print(f"   max_employees atual: {sector.max_employees}")
     
     # Track if max_employees changed (need to sync with SectorConfiguration)
     # FORÇANDO True para garantir sincronização durante debug
@@ -2136,8 +2199,6 @@ async def update_sector(
     if name is not None:
         sector.name = name
     if max_employees is not None:
-        if sector.max_employees != max_employees:
-            print(f"🔄 MUDANÇA DETECTADA: {sector.max_employees} -> {max_employees}")
         sector.max_employees = max_employees
     if color is not None:
         sector.color = color
@@ -2146,52 +2207,31 @@ async def update_sector(
     session.add(sector)
     
     # IMPORTANTE: Sincronizar com SectorConfiguration
-    print(f"\n🔄 TENTANDO SINCRONIZAR SETOR: {sector.name} (Meta: {sector.max_employees})")
-    
-    # Buscar configuração do turno
     config_db = session.exec(
         select(models.SectorConfiguration)
         .where(models.SectorConfiguration.shift_name == sector.shift)
     ).first()
     
-    if config_db:
-        print(f"   ✅ SectorConfiguration encontrado para {sector.shift}")
-        if config_db.config_json:
-            # Parse config
-            config_data = config_db.config_json if isinstance(config_db.config_json, dict) else json.loads(config_db.config_json)
-            
-            # Atualizar meta do setor na configuração
-            sectors_list = config_data.get('sectors', [])
-            found = False
-            
-            print(f"   📋 Procurando '{sector.name}' em {len(sectors_list)} setores na config...")
-            
-            for s in sectors_list:
-                label = s.get('label')
-                print(f"      - Comparando com: '{label}'")
-                
-                if label == sector.name:
-                    old_target = s.get('target')
-                    s['target'] = sector.max_employees
-                    print(f"      ✅ ATUALIZADO NA CONFIG: {old_target} -> {sector.max_employees}")
-                    found = True
-                    break
-            
-            if found:
-                # Salvar configuração atualizada
-                config_db.config_json = config_data
-                config_db.updated_at = datetime.now()
-                session.add(config_db)
-                # Forçar flush para garantir que SQLAlchemy veja a mudança no JSON
-                session.flush() 
-                print(f"   💾 SectorConfiguration SALVO com sucesso para turno {sector.shift}")
-            else:
-                print(f"   ⚠️ AVISO: Setor '{sector.name}' não encontrado na lista de configuração JSON!")
-                
-        else:
-            print("   ❌ config_json está VAZIO!")
-    else:
-        print(f"   ❌ SectorConfiguration NÃO ENCONTRADO para turno {sector.shift}!")
+    if config_db and config_db.config_json:
+        # Parse config
+        config_data = config_db.config_json if isinstance(config_db.config_json, dict) else json.loads(config_db.config_json)
+        
+        # Atualizar meta do setor na configuração
+        sectors_list = config_data.get('sectors', [])
+        found = False
+        
+        for s in sectors_list:
+            if s.get('label') == sector.name:
+                s['target'] = sector.max_employees
+                found = True
+                break
+        
+        if found:
+            # Salvar configuração atualizada
+            config_db.config_json = config_data
+            config_db.updated_at = datetime.now()
+            session.add(config_db)
+            session.flush()
             
     try:
         session.commit()
@@ -2424,14 +2464,21 @@ async def get_allocations(
     for routine in routines:
         routines_map[routine.employee_id] = routine.routine
     
-    # Buscar tonélagem do DailyOperation
-    daily_op = session.exec(
-        select(models.DailyOperation)
-        .where(models.DailyOperation.date == date)
-        .where(models.DailyOperation.shift == shift)
-    ).first()
+    # Buscar tonélagem das ROTAS (Automático)
+    # Requisito: "Favor puxar os dados da tonelagem das rotas"
+    route_tonnage = session.exec(
+        select(func.sum(models.Route.tonnage))
+        .where(models.Route.date == date)
+        .where(models.Route.shift == shift) # Filter by shift to match operation context
+        .where(models.Route.tonnage > 0)
+    ).one()
     
-    tonnage = daily_op.tonnage if daily_op and daily_op.tonnage else 0
+    tonnage = route_tonnage if route_tonnage else 0.0
+    
+    # Se quiser manter o manual como fallback ou override, teria que ter lógica extra.
+    # Mas o pedido implica que as rotas são a fonte.
+    # daily_op = session.exec(...)
+    # tonnage = daily_op.tonnage if daily_op and daily_op.tonnage else 0
 
     return {
         "allocations": allocations_map,
@@ -3068,8 +3115,10 @@ async def employees_page(request: Request, session: Session = Depends(get_sessio
         return await _employees_page_impl(request, session)
     except HTTPException:
         raise
-    except Exception:
-        return HTMLResponse(content=f"<h1>Debug 500</h1><pre>{traceback.format_exc()}</pre>", status_code=500)
+    except Exception as e:
+        print(f"Error in employees_page: {e}")
+        traceback.print_exc() # Print to server log
+        return HTMLResponse(content=f"<h1>Erro Interno (500)</h1><p>Detalhes no log do servidor.</p><pre>{str(e)}</pre>", status_code=500)
 async def _employees_page_impl(request: Request, session: Session):
     # Auto-update statuses based on today's date
     update_vacation_statuses(session, datetime.now())
@@ -3159,7 +3208,9 @@ async def _employees_page_impl(request: Request, session: Session):
             "vacancies": total_target - total_real_active,
             "shifts": shift_stats,
             "statuses": status_stats
-        }
+        },
+        "error": request.query_params.get("error"),
+        "success": request.query_params.get("success")
     })
 @app.get("/employees/candidates", response_class=JSONResponse)
 async def get_candidates(request: Request, status: str, session: Session = Depends(get_session)):
@@ -3210,6 +3261,16 @@ async def add_employee(
     if work_days:
         work_days_json = json.dumps(work_days)
     
+    # Auto-assign Schedule based on Shift
+    default_schedule = None
+    s_lower = (work_shift or "").lower()
+    if "manhã" in s_lower or "manha" in s_lower:
+        default_schedule = "05:00 - 13:20"
+    elif "tarde" in s_lower:
+        default_schedule = "12:00 - 20:20"
+    elif "noite" in s_lower:
+        default_schedule = "19:00 - 07:00"
+
     new_employee = models.Employee(
         name=name,
         registration_id=registration_id,
@@ -3219,6 +3280,7 @@ async def add_employee(
         admission_date=admission_dt,
         birthday=birthday_dt,
         work_days=work_days_json,
+        work_schedule=default_schedule,
         status="active"
     )
     try:
@@ -3257,10 +3319,12 @@ async def add_employee(
                 session.add(old_evt)
         
         session.commit()
+        session.commit()
     except Exception as e:
         print(f"Error adding employee: {e}")
+        return RedirectResponse(url=f"/employees?error=Erro ao adicionar colaborador: {str(e)}", status_code=status.HTTP_303_SEE_OTHER)
     
-    return RedirectResponse(url="/employees", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url="/employees?success=Colaborador adicionado com sucesso", status_code=status.HTTP_303_SEE_OTHER)
 @app.get("/employees/{employee_id}", response_class=HTMLResponse)
 async def read_employee(request: Request, employee_id: int, session: Session = Depends(get_session)):
     user = get_current_user(request)
@@ -3356,19 +3420,78 @@ async def update_employee_status(
             elif status_action == "active":
                 event_type = "retorno"
                 text_desc = "Colaborador Reativado (Retorno)"
-                
+            elif status_action == "falta":
+                event_type = "falta"
+                text_desc = "Registrou Falta"
+            elif status_action == "atestado":
+                event_type = "atestado"
+                text_desc = "Apresentou Atestado"
+            
+            # Translate Routine Change log
+            if event_type == "ocorrencia" and "Status alterado" in text_desc:
+                 # Map internal status to Portuguese
+                 status_map = {
+                     "active": "Ativo",
+                     "vacation": "Férias",
+                     "away": "Afastado",
+                     "fired": "Demitido",
+                     "day_off": "Folga"
+                 }
+                 pt_status = status_map.get(status_action, status_action)
+                 text_desc = f"Alteração de Rotina: {pt_status}"
+                 
             new_event = models.Event(
                 text=text_desc,
                 type=event_type,
                 category="pessoas",
                 employee_id=emp.id,
-                shift_id=None # Optionally link to current shift if known
+                shift_id=None 
             )
             session.add(new_event)
             emp.status = status_action
             session.add(emp)
         session.commit()
     return RedirectResponse(url="/employees", status_code=status.HTTP_303_SEE_OTHER)
+
+@app.post("/events/{event_id}/update_content")
+async def update_event_content(
+    event_id: int,
+    request: Request,
+    new_type: str = Form(...),
+    new_date: str = Form(...),
+    new_text: str = Form(...),
+    session: Session = Depends(get_session)
+):
+    require_login(request)
+    event = session.get(models.Event, event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Evento não encontrado")
+    
+    # Update fields
+    event.type = new_type
+    event.text = new_text
+    
+    # Parse Date (expecting YYYY-MM-DDTHH:MM or similar, or just keep existing time if only date provided)
+    # The form input will likely be datetime-local or separate date/time. 
+    # For now assume the input is ISO string or handle format.
+    try:
+        # If input is just date, preserve original time?
+        # Let's assume input is full datetime-local "YYYY-MM-DDTHH:MM"
+        if "T" in new_date:
+            event.timestamp = datetime.fromisoformat(new_date)
+        else:
+            # Just Date
+            old_time = event.timestamp.time()
+            new_dt = datetime.fromisoformat(new_date)
+            event.timestamp = datetime.combine(new_dt.date(), old_time)
+            
+    except:
+        pass # Keep old date if fail
+        
+    session.add(event)
+    session.commit()
+    
+    return RedirectResponse(url=f"/employees/{event.employee_id}", status_code=status.HTTP_303_SEE_OTHER)
 @app.post("/events/{event_id}/delete")
 async def delete_event(
     event_id: int,
@@ -3440,6 +3563,7 @@ async def update_employee(
     admission_date: str = Form(None),
     birthday: str = Form(None),
     work_days: List[str] = Form(None),
+    work_schedule: str = Form(None),
     session: Session = Depends(get_session)
 ):
     require_login(request)
@@ -3475,6 +3599,7 @@ async def update_employee(
         emp.role = role
         emp.work_shift = work_shift
         emp.cost_center = cost_center
+        emp.work_schedule = work_schedule
 
         # Update Work Days
         if work_days:
@@ -3654,7 +3779,17 @@ async def import_employees(
                     shift_val = "Noite"
                 else:
                     shift_val = shift_clean # Fallback (e.g. ADM)
-                    
+
+                # Auto-assign Schedule
+                default_schedule = None
+                s_lower = (shift_val or "").lower()
+                if "manhã" in s_lower or "manha" in s_lower:
+                    default_schedule = "05:00 - 13:20"
+                elif "tarde" in s_lower:
+                    default_schedule = "12:00 - 20:20"
+                elif "noite" in s_lower:
+                    default_schedule = "19:00 - 07:00"
+
                 emp = models.Employee(
                     name=str(row.get("name", "Sem Nome")).strip(),
                     registration_id=reg_id.strip(),
@@ -3663,6 +3798,7 @@ async def import_employees(
                     cost_center=str(row.get("cost_center", "Geral")).strip(),
                     admission_date=admission,
                     birthday=bday,
+                    work_schedule=default_schedule,
                     status="active"
                 )
                 session.add(emp)
@@ -3671,25 +3807,17 @@ async def import_employees(
         session.commit()
     except Exception as e:
         print(f"Import Error: {e}")
+        return RedirectResponse(url=f"/employees?error=Erro na importação: {str(e)}", status_code=status.HTTP_303_SEE_OTHER)
         
-    return RedirectResponse(url="/employees", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url=f"/employees?success={count} colaboradores importados com sucesso.", status_code=status.HTTP_303_SEE_OTHER)
 @app.exception_handler(HTTPException)
 async def auth_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_307_TEMPORARY_REDIRECT:
         return RedirectResponse(url="/login")
     raise exc
 
-# --- People Intelligence Route ---
-@app.get("/people-intelligence", response_class=HTMLResponse)
-async def people_intelligence_page(
-    request: Request, 
-    shift: str = "Todos",
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    session: Session = Depends(get_session)
-):
-    user = require_login(request)
-    
+# --- People Intelligence Helper ---
+def get_people_intelligence_metrics(session: Session, shift: str, start_date: Optional[str], end_date: Optional[str]):
     # 1. Overview Data (excluindo substituídos e demitidos)
     employees = session.exec(
         select(models.Employee)
@@ -3729,7 +3857,7 @@ async def people_intelligence_page(
         select(models.Event)
         .where(models.Event.timestamp >= start_dt)
         .where(models.Event.timestamp < end_dt)
-        .where(col(models.Event.type).in_(['falta', 'atestado', 'advertencia', 'afastamento'])) # Added 'afastamento'
+        .where(col(models.Event.type).in_(['falta', 'atestado', 'advertencia', 'afastamento']))
     ).all()
     
     # Filter events by employee_ids (shift filter)
@@ -3737,13 +3865,13 @@ async def people_intelligence_page(
     # Contadores gerais
     total_absences = sum(1 for e in events if e.type == 'falta')
     total_sick = sum(1 for e in events if e.type == 'atestado')
-    total_away = sum(1 for e in events if e.type == 'afastamento')  # Separado de atestado
+    total_away = sum(1 for e in events if e.type == 'afastamento')
     
     # 2. Rankings (Top Offenders)
     emp_stats = {}
     for e in events:
         if e.employee_id not in emp_stats:
-            emp_stats[e.employee_id] = {'falta': 0, 'atestado': 0, 'advertencia': 0, 'afastamento': 0, 'name': 'Unknown', 'sector': 'Unknown', 'tenure_months': 0} # Added 'afastamento'
+            emp_stats[e.employee_id] = {'falta': 0, 'atestado': 0, 'advertencia': 0, 'afastamento': 0, 'name': 'Unknown', 'sector': 'Unknown', 'tenure_months': 0}
         emp_stats[e.employee_id][e.type] += 1
         
     # Enlighten with Employee Data
@@ -3762,8 +3890,8 @@ async def people_intelligence_page(
             ranking_data.append(stats)
             
     # Sorts - Only show employees with actual events
-    top_absent = sorted([r for r in ranking_data if r['falta'] > 0], key=lambda x: x['falta'], reverse=True)[:10]
-    top_sick = sorted([r for r in ranking_data if r['atestado'] > 0], key=lambda x: x['atestado'], reverse=True)[:10]
+    top_absent = sorted([r for r in ranking_data if r['falta'] > 0], key=lambda x: x['falta'], reverse=True)
+    top_sick = sorted([r for r in ranking_data if r['atestado'] > 0], key=lambda x: x['atestado'], reverse=True)
     
     # 3. Sector Analysis
     sector_stats = {}
@@ -3846,14 +3974,8 @@ async def people_intelligence_page(
     
     # Sort by combined events
     chronic_offenders.sort(key=lambda x: x['combined_events'], reverse=True)
-    chronic_offenders = chronic_offenders[:10]  # Top 10
-
-    return templates.TemplateResponse("people_intelligence.html", {
-        "request": request,
-        "user": user,
-        "current_shift": shift,
-        "start_date": start_dt.strftime("%Y-%m-%d"),
-        "end_date": end_dt.strftime("%Y-%m-%d"),
+    
+    return {
         "overview": {
             "headcount": total_headcount,
             "total_absences": total_absences,
@@ -3867,8 +3989,48 @@ async def people_intelligence_page(
         "top_sick": top_sick,
         "sectors": sector_list,
         "chronic_offenders": chronic_offenders,
-        "emp_map": emp_map  # For linking to employee pages
+        "emp_map": emp_map,
+        "start_date": start_dt.strftime("%Y-%m-%d"),
+        "end_date": end_dt.strftime("%Y-%m-%d")
+    }
+
+# --- People Intelligence Route ---
+@app.get("/people-intelligence", response_class=HTMLResponse)
+async def people_intelligence_page(
+    request: Request, 
+    shift: str = "Todos",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    session: Session = Depends(get_session)
+):
+    user = require_login(request)
+    data = get_people_intelligence_metrics(session, shift, start_date, end_date)
+    
+    return templates.TemplateResponse("people_intelligence.html", {
+        "request": request,
+        "user": user,
+        "current_shift": shift,
+        "start_date": data['start_date'],
+        "end_date": data['end_date'],
+        "overview": data['overview'],
+        "top_absent": data['top_absent'][:10],
+        "top_sick": data['top_sick'][:10],
+        "sectors": data['sectors'],
+        "chronic_offenders": data['chronic_offenders'][:10],
+        "emp_map": data['emp_map']
     })
+
+@app.get("/api/people-intelligence/offenders")
+async def api_get_offenders(
+    request: Request,
+    shift: str = "Todos",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    session: Session = Depends(get_session)
+):
+    require_login(request)
+    data = get_people_intelligence_metrics(session, shift, start_date, end_date)
+    return JSONResponse(content={"offenders": data['chronic_offenders']})
 
 # --- People Intelligence Report (Print Preview) ---
 @app.get("/people-intelligence/report", response_class=HTMLResponse)
@@ -3881,161 +4043,18 @@ async def people_intelligence_report(
 ):
     """Print-ready version of people intelligence (no sidebar)"""
     user = require_login(request)
-    
-    # Reuse the same logic as main page
-    employees = session.exec(select(models.Employee).where(models.Employee.status != "fired")).all()
-    
-    if shift != "Todos":
-        employees = [e for e in employees if e.work_shift == shift]
-    
-    total_headcount = len(employees)
-    employee_ids = {e.id for e in employees}
-    
-    today = datetime.now()
-    
-    if start_date and end_date:
-        try:
-            start_dt = datetime.fromisoformat(start_date)
-            end_dt = datetime.fromisoformat(end_date)
-        except:
-            start_dt = datetime(today.year, today.month, 1)
-            if today.month == 12:
-                end_dt = datetime(today.year + 1, 1, 1)
-            else:
-                end_dt = datetime(today.year, today.month + 1, 1)
-    else:
-        start_dt = datetime(today.year, 1, 1)
-        end_dt = today
-    
-    events = session.exec(
-        select(models.Event)
-        .where(models.Event.timestamp >= start_dt)
-        .where(models.Event.timestamp < end_dt)
-        .where(col(models.Event.type).in_(['falta', 'atestado', 'advertencia']))
-    ).all()
-    
-    events = [e for e in events if e.employee_id in employee_ids]
-    
-    total_absences = sum(1 for e in events if e.type == 'falta')
-    total_sick = sum(1 for e in events if e.type == 'atestado')
-    
-    emp_stats = {}
-    for e in events:
-        if e.employee_id not in emp_stats:
-            emp_stats[e.employee_id] = {'falta': 0, 'atestado': 0, 'advertencia': 0}
-        emp_stats[e.employee_id][e.type] += 1
-    
-    emp_map = {e.id: e for e in employees}
-    
-    ranking_data = []
-    for eid, stats in emp_stats.items():
-        if eid in emp_map:
-            emp = emp_map[eid]
-            stats['employee_id'] = eid
-            stats['name'] = emp.name
-            stats['sector'] = emp.cost_center or "Geral"
-            if emp.admission_date:
-                delta = datetime.now() - emp.admission_date
-                stats['tenure_months'] = int(delta.days / 30)
-            ranking_data.append(stats)
-    
-    top_absent = sorted([r for r in ranking_data if r['falta'] > 0], key=lambda x: x['falta'], reverse=True)[:10]
-    top_sick = sorted([r for r in ranking_data if r['atestado'] > 0], key=lambda x: x['atestado'], reverse=True)[:10]
-    
-    sector_stats = {}
-    for item in ranking_data:
-        sec = item['sector']
-        if sec not in sector_stats:
-            sector_stats[sec] = {'falta': 0, 'atestado': 0, 'headcount': 0}
-        sector_stats[sec]['falta'] += item['falta']
-        sector_stats[sec]['atestado'] += item['atestado']
-    
-    for emp in employees:
-        sec = emp.cost_center or "Geral"
-        if sec not in sector_stats:
-            sector_stats[sec] = {'falta': 0, 'atestado': 0, 'headcount': 0}
-        sector_stats[sec]['headcount'] += 1
-    
-    sector_list = []
-    for sec, stats in sector_stats.items():
-        if stats['headcount'] > 0:
-            stats['name'] = sec
-            stats['risk_index'] = round((stats['falta'] + stats['atestado']) / stats['headcount'], 2)
-            sector_list.append(stats)
-    
-    sector_list.sort(key=lambda x: x['risk_index'], reverse=True)
-    
-    # 4. Calculate PRESENCE (Accurate Method: Sum of Expected Days)
-    days_in_period = (end_dt - start_dt).days
-    
-    total_expected_work_days_global = 0
-    emp_expected_days_map = {}
-    
-    for emp in employees:
-        calc_start = start_dt
-        if emp.admission_date:
-            try:
-                if emp.admission_date.replace(tzinfo=None) > start_dt.replace(tzinfo=None):
-                    calc_start = emp.admission_date.replace(tzinfo=None)
-            except:
-                pass
-        
-        ex_days = calculate_expected_work_days(
-            emp.work_days or '[]',
-            calc_start,
-            end_dt,
-            vacation_start=emp.vacation_start,
-            vacation_end=emp.vacation_end
-        )
-        emp_expected_days_map[emp.id] = ex_days
-        total_expected_work_days_global += ex_days
-        
-    theoretical_attendance = total_expected_work_days_global if total_expected_work_days_global > 0 else 1
-    total_events = total_absences + total_sick
-    presence_rate = round((1 - (total_events / theoretical_attendance)) * 100, 1) if theoretical_attendance > 0 else 100
-    
-    chronic_offenders = []
-    for item in ranking_data:
-        combined_events = item['falta'] + item['atestado']
-        if combined_events >= 3:
-            item['combined_events'] = combined_events
-            item['risk_score'] = round((combined_events / days_in_period) * 100, 1) if days_in_period > 0 else 0
-            
-            # Use pre-calculated expected days
-            emp = emp_map.get(item['employee_id'])
-            if emp:
-                item['expected_work_days'] = emp_expected_days_map.get(item['employee_id'], 0)
-                item['actual_work_days'] = max(0, item['expected_work_days'] - combined_events)
-                item['utilization_rate'] = round(
-                    (item['actual_work_days'] / item['expected_work_days']) * 100, 1
-                ) if item['expected_work_days'] > 0 else 0
-            else:
-                item['expected_work_days'] = 0
-                item['actual_work_days'] = 0
-                item['utilization_rate'] = 0
-            
-            chronic_offenders.append(item)
-    
-    chronic_offenders.sort(key=lambda x: x['combined_events'], reverse=True)
-    chronic_offenders = chronic_offenders[:10]
+    data = get_people_intelligence_metrics(session, shift, start_date, end_date)
     
     return templates.TemplateResponse("people_intelligence_report.html", {
         "request": request,
         "current_shift": shift,
-        "start_date": start_dt.strftime("%Y-%m-%d"),
-        "end_date": end_dt.strftime("%Y-%m-%d"),
-        "overview": {
-            "headcount": total_headcount,
-            "total_absences": total_absences,
-            "total_sick": total_sick,
-            "avg_absence_per_emp": round(total_absences / total_headcount, 2) if total_headcount > 0 else 0,
-            "presence_rate": presence_rate,
-            "chronic_count": len(chronic_offenders)
-        },
-        "top_absent": top_absent,
-        "top_sick": top_sick,
-        "sectors": sector_list,
-        "chronic_offenders": chronic_offenders
+        "start_date": data['start_date'],
+        "end_date": data['end_date'],
+        "overview": data['overview'],
+        "top_absent": data['top_absent'][:10],
+        "top_sick": data['top_sick'][:10],
+        "sectors": data['sectors'],
+        "chronic_offenders": data['chronic_offenders'][:10]
     })
 
 

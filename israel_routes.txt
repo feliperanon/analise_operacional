@@ -1,0 +1,9 @@
+Name: ISRAEL RODRIGUES MENDES
+Schedule: 05:00 - 13:20
+
+Routes:
+- 05:40 to 10:26 | 737.8kg
+- 04:40 to 10:26 | 1257.2kg
+
+Summed Duration: 10.53h
+Real (Merged) Duration: 5.77h

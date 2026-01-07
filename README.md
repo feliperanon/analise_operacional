@@ -22,8 +22,9 @@ O coração da operação. Uma interface visual interativa para gestão em tempo
 - **Cadastro Completo**: Matrícula, Nome, Função, Turno e Centro de Custo.
 - **Módulo de Férias Global**:
     - Agendamento individual de férias com feedback visual.
-    - **Importação em Massa**: Ferramenta para colagem direta do Excel (Matrícula, Início, Fim) para atualizar múltiplos colaboradores de uma vez.
-- **Histórico Automático**: Mudanças de status (Férias, Afastado, Ativo) geram eventos automáticos na timeline do colaborador.
+    - **Importação em Massa**: Ferramenta para colagem direta do Excel (Matrícula, Início, Fim).
+- **Histórico & Edição**: Mudanças de status (Férias, Afastado) geram eventos automáticos traduzidos. Edição completa de histórico (Tipo, Data, Texto) disponível.
+- **Horário de Trabalho**: Exibição clara do turno/horário no detalhe do colaborador.
 - **Filtros Inteligentes**: Busca rápida por nome, matrícula e visualização segmentada por turno.
 
 ### 3. 📈 Dashboard e Analytics
@@ -259,11 +260,11 @@ cp database.db database.db.backup_$(date +%Y%m%d_%H%M%S)
 ## 🏆 Melhorias Recentes
 
 ### Janeiro 2026
-- ✅ Implementada arquitetura API-First completa
-- ✅ Sistema de logs otimizado com rotação automática
-- ✅ 20+ índices de banco de dados para performance
-- ✅ Ganho de 2x-2.4x em velocidade de resposta
-- ✅ Redução de 90% no volume de logs
+- ✅ **Horário de Trabalho**: Módulo para exibição e gestão de escalas individuais.
+- ✅ **Edição de Histórico**: Possibilidade de corrigir qualquer evento passado (Ex: Falta -> Atestado).
+- ✅ **Blindagem Anti-500**: Proteção global de rotas e conexão de banco resiliente (Postgres `pool_pre_ping`).
+- ✅ **Tradução de Logs**: Eventos de sistema agora em Português nativo.
+- ✅ **Performance**: Ganho de 2x em velocidade e queries otimizadas.
 
 ---
 
