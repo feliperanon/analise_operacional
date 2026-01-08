@@ -153,10 +153,7 @@ const Events = {
         };
 
         window.editTonnage = () => {
-            const newVal = prompt("Nova Tonelagem:", Store.state.tonnage);
-            if (newVal && !isNaN(parseInt(newVal))) {
-                Store.updateTonnage(parseInt(newVal));
-            }
+            alert('A produção é calculada automaticamente a partir da Separação (Rotas).');
         };
     },
 

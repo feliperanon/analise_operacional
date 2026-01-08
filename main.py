@@ -10,10 +10,12 @@ import traceback
 import os
 from starlette.middleware.sessions import SessionMiddleware
 from sqlmodel import Session, select, col, delete, text
+from sqlalchemy import func
 from typing import List
 from database import create_db_and_tables, get_session, engine
 import models
 import logging
+import pydantic
 from logging.handlers import RotatingFileHandler
 import unicodedata
 import os
@@ -217,6 +219,17 @@ app = FastAPI(title="Análise Operacional", version="2.0.0", lifespan=lifespan)
 
 # Add Session Middleware
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+
+# --- Middleware: Anti-Cache (Force Fresh Data) ---
+@app.middleware("http")
+async def add_no_cache_header(request: Request, call_next):
+    response = await call_next(request)
+    # Apply to API and Smart Flow HTML pages to prevent "stale" state
+    if request.url.path.startswith("/api/") or request.url.path.startswith("/smart-flow") or request.url.path.startswith("/routine/report"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
 
 # --- Global Exception Handler ---
 @app.middleware("http")
@@ -2731,19 +2744,34 @@ async def set_employee_routine(
         old_status = employee.status
         
         # Mapear rotina para status
-        status_map = {
-            'present': 'active',
-            'vacation': 'vacation',
-            'sick': 'sick',
-            'away': 'away',
-            'absent': 'absent',
-            'dayoff': 'dayoff'
-        }
+        # status_map = {
+        #     'present': 'active',
+        #     'vacation': 'vacation',
+        #     'sick': 'sick',
+        #     'away': 'away',
+        #     'absent': 'absent',
+        #     'dayoff': 'dayoff'
+        # }
         
-        new_status = status_map.get(routine, 'active')
+        # New Logic: Only update long-term statuses
+        # Ephemeral statuses (sick, absent, dayoff) should NOT change global status
+        # unless we explicitly want them to persists.
+        # Decision: 'sick', 'absent', 'dayoff' are DAILY. Global status stays 'active' (or whatever it was).
+        # 'vacation', 'away' are LONG TERM.
         
-        # Atualizar colaborador
-        employee.status = new_status
+        should_update_status = False
+        new_status = old_status # Default keep old
+        
+        if routine in ['vacation', 'away', 'fired']:
+             new_status = routine
+             should_update_status = True
+        elif routine == 'present':
+             new_status = 'active' # Reset to active on present
+             should_update_status = True
+        
+        # Atualizar colaborador APENAS se for mudança de status persistente
+        if should_update_status:
+             employee.status = new_status
         
         # Se voltar para presente, limpar férias
         if routine == 'present':
@@ -2760,10 +2788,23 @@ async def set_employee_routine(
             'dayoff': 'Folga'
         }
         
+        # Determine Event Type correctly for Report
+        # Map routine -> event_type
+        event_type_map = {
+             'sick': 'atestado',
+             'absent': 'falta',
+             'away': 'afastamento',
+             'vacation': 'ferias',
+             'dayoff': 'folga',
+             'present': 'presenca'
+        }
+        
+        event_type = event_type_map.get(routine, 'routine_change')
+        
         event = models.Event(
             timestamp=datetime.now(),
-            text=f"{employee.name} mudou de {old_status} para {routine_labels.get(routine, routine)}",
-            type="routine_change",
+            text=f"{employee.name}: Rotina setada para {routine_labels.get(routine, routine)}",
+            type=event_type,
             category=routine,
             employee_id=employee_id
         )
@@ -2836,15 +2877,90 @@ async def routine_report(
         
         # 4. Build Snapshot Data
         
-        # Initial State
-        log = daily_op.attendance_log if daily_op and daily_op.attendance_log else {}
-        tonnage = daily_op.tonnage if daily_op and daily_op.tonnage else 0.0
+        # 4. Build Snapshot Data (FROM SMART FLOW TABLES - SOURCE OF TRUTH)
+        # We ignore daily_op.attendance_log because it is legacy/duplicated.
+        
+        # Fetch Allocations
+        allocations = session.exec(
+            select(models.EmployeeAllocation)
+            .where(models.EmployeeAllocation.date == date)
+            .where(models.EmployeeAllocation.shift == shift)
+        ).all()
+        
+        # Fetch Routines
+        routines = session.exec(
+            select(models.EmployeeRoutine)
+            .where(models.EmployeeRoutine.date == date)
+            .where(models.EmployeeRoutine.shift == shift)
+        ).all()
+        
+        # Fetch Tonnage (from Routes - Source of Truth)
+        route_tonnage_val = session.exec(
+            select(func.sum(models.Route.tonnage))
+            .where(models.Route.date == date)
+            .where(models.Route.shift == shift)
+            .where(models.Route.tonnage > 0)
+        ).one()
+        tonnage = route_tonnage_val if route_tonnage_val else 0.0
+
+        # Build "log" structure dynamically for Report compatibility
+        # We need Sector Map to resolve subsector_id -> sector_key
+        subsectors = session.exec(select(models.SubSector)).all()
+        subsector_map = {s.id: s for s in subsectors}
+        sectors = session.exec(select(models.Sector)).all()
+        sector_map = {s.id: s for s in sectors}
+        
+        # Build Routine Map {emp_id: status}
+        routine_map = {r.employee_id: r.routine for r in routines}
+        
+        # Reconstruct "log" (attendance_log style)
+        # Key: registration_id (str)
+        # Value: {status: ..., sector: key}
+        
+        log = {}
+        processed_emp_ids = set()
+        
+        # 1. Add allocated employees
+        for alloc in allocations:
+            emp = session.get(models.Employee, alloc.employee_id)
+            if not emp: continue
+            
+            sub = subsector_map.get(alloc.subsector_id)
+            if not sub: continue
+            
+            sec = sector_map.get(sub.sector_id)
+            if not sec: continue
+            
+            # Resolve Sector Key (normalization)
+            sector_name_norm = unicodedata.normalize('NFD', sec.name.lower().strip())
+            sector_key = sector_name_norm.encode('ascii', 'ignore').decode('utf-8').replace(' ', '_')
+            
+            # Resolve Status
+            # Priority: Routine > Employee Status > 'present'
+            status = routine_map.get(emp.id, 'present')
+            
+            log[str(emp.registration_id)] = {
+                "status": status,
+                "sector": sector_key
+            }
+            processed_emp_ids.add(emp.id)
+            
+        # 2. Add non-allocated but with routines (e.g. sick, away, absent not in a sector)
+        for r in routines:
+            if r.employee_id in processed_emp_ids: continue
+            
+            emp = session.get(models.Employee, r.employee_id)
+            if not emp: continue
+            
+            # Non-allocated usually doesn't have a sector, or could be 'outros'
+            # For report consistency, we might just list them if they have a relevant status
+            log[str(emp.registration_id)] = {
+                "status": r.routine,
+                "sector": None 
+            }
         
         # Prepare People List for Report
         people_list = []
-        
-        # IMPORTANTE: Iterar apenas sobre colaboradores no attendance_log (alocados)
-        # Não mostrar TODOS os colaboradores do turno, apenas os alocados no Smart Flow
         
         # Helper to get daily entry
         def get_daily_status(reg_id):
@@ -2852,7 +2968,7 @@ async def routine_report(
             
         total_present = 0
         
-        # Iterar sobre o attendance_log (apenas colaboradores alocados)
+        # Iterar sobre o log reconstruído
         for reg_id_str, entry in log.items():
             # Buscar colaborador por registration_id
             employee = emp_map.get(reg_id_str)
@@ -2869,8 +2985,6 @@ async def routine_report(
                 total_present += 1
                 
             # Check if Substituted (Only relevant if Away/Vacation?)
-            # User said: "destacar que ele ja foi subistiuido, somente com a rotina de afastado"
-            # So we check if there's a "Substituído por" event for this employee
             is_substituted = False
             if daily_status in ['away', 'vacation']:
                  has_sub_evt = session.exec(select(models.Event).where(
@@ -3696,7 +3810,138 @@ async def update_targets(
 import pandas as pd
 from fastapi import UploadFile, File
 import io
+
+class BulkImportData(pydantic.BaseModel):
+    raw_text: str
+
+@app.post("/api/import/occurrences")
+async def import_occurrences(
+    data: BulkImportData,
+    session: Session = Depends(get_session)
+):
+    """
+    Importa ocorrências (Faltas/Atestados) a partir de texto copiado do Excel.
+    Formato esperado: Matricula | Nome(Ignorado) | Data | Ocorrência
+    """
+    lines = data.raw_text.strip().split('\n')
+    stats = {"total": 0, "success": 0, "errors": []}
+    
+    # Pre-fetch all active employees for validation
+    employees = session.exec(select(models.Employee)).all()
+    emp_map = {str(e.registration_id): e for e in employees}
+    
+
+    # Parse all lines first to gather requirements
+    pending_entries = []
+    
+    # 1. First Pass: Parse and Validate Basic Format
+    for line in lines:
+        parts = line.split('\t')
+        if len(parts) < 4:
+            continue
+            
+        reg_id = parts[0].strip()
+        date_str = parts[2].strip()
+        occurrence_raw = parts[3].strip()
+        
+        # Validate Employee
+        employee = emp_map.get(reg_id)
+        if not employee:
+            stats['errors'].append(f"Matrícula {reg_id}: Colaborador não encontrado")
+            continue
+            
+        # Validate Date
+        try:
+            date_obj = datetime.strptime(date_str, "%d/%m/%Y")
+            iso_date = date_obj.strftime("%Y-%m-%d")
+        except:
+             try:
+                 date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+                 iso_date = date_obj.strftime("%Y-%m-%d")
+             except:
+                stats['errors'].append(f"Matrícula {reg_id}: Data inválida ({date_str})")
+                continue
+                
+        # Map Occurrence
+        occ_lower = occurrence_raw.lower()
+        routine_type, event_type = None, None
+        
+        if "falta" in occ_lower:
+            routine_type, event_type = "absent", "falta"
+        elif "atestado" in occ_lower:
+            routine_type, event_type = "sick", "atestado"
+        elif "suspensão" in occ_lower or "suspensao" in occ_lower:
+            routine_type, event_type = "absent", "suspension"
+        else:
+            stats['errors'].append(f"Matrícula {reg_id}: Ocorrência desconhecida ({occurrence_raw})")
+            continue
+            
+        pending_entries.append({
+            "employee": employee,
+            "iso_date": iso_date,
+            "date_obj": date_obj,
+            "routine_type": routine_type,
+            "event_type": event_type,
+            "raw_occ": occurrence_raw
+        })
+        
+    if not pending_entries:
+        return stats
+
+    # 2. Bulk Fetch Existing Routines
+    # To optimize, we fetch routines for involved employees within the date range
+    involved_ids = {e["employee"].id for e in pending_entries}
+    dates = [e["date_obj"] for e in pending_entries]
+    min_date = min(dates).strftime("%Y-%m-%d")
+    max_date = max(dates).strftime("%Y-%m-%d")
+    
+    existing_routines = session.exec(
+        select(models.EmployeeRoutine)
+        .where(models.EmployeeRoutine.employee_id.in_(involved_ids))
+        .where(models.EmployeeRoutine.date >= min_date)
+        .where(models.EmployeeRoutine.date <= max_date)
+    ).all()
+    
+    # Map (emp_id, date) -> RoutineObject
+    routine_map = {(r.employee_id, r.date): r for r in existing_routines}
+    
+    for entry in pending_entries:
+        stats['total'] += 1
+        emp = entry["employee"]
+        iso_date = entry["iso_date"]
+        
+        # Routine Upsert
+        key = (emp.id, iso_date)
+        if key in routine_map:
+            routine = routine_map[key]
+            routine.routine = entry["routine_type"]
+            session.add(routine)
+        else:
+            routine = models.EmployeeRoutine(
+                date=iso_date,
+                shift=emp.work_shift,
+                employee_id=emp.id,
+                routine=entry["routine_type"]
+            )
+            session.add(routine)
+            routine_map[key] = routine # Update map for potential duplicate lines in same batch
+            
+        # Event Creation (Blind Insert for history)
+        new_event = models.Event(
+            timestamp=entry["date_obj"].replace(hour=8, minute=0),
+            text=f"Importação em Massa: {entry['raw_occ']}",
+            type=entry["event_type"],
+            category="import",
+            employee_id=emp.id
+        )
+        session.add(new_event)
+        stats['success'] += 1
+
+    session.commit()
+    return stats
+
 @app.post("/employees/import")
+
 async def import_employees(
     request: Request,
     file: UploadFile = File(...),
@@ -3860,39 +4105,71 @@ def get_people_intelligence_metrics(session: Session, shift: str, start_date: Op
         .where(col(models.Event.type).in_(['falta', 'atestado', 'advertencia', 'afastamento']))
     ).all()
     
-    # Filter events by employee_ids (shift filter)
-    events = [e for e in events if e.employee_id in employee_ids]
-    # Contadores gerais
-    total_absences = sum(1 for e in events if e.type == 'falta')
-    total_sick = sum(1 for e in events if e.type == 'atestado')
-    total_away = sum(1 for e in events if e.type == 'afastamento')
+    # Filter events by employee_ids (shift filter) for context if needed, 
+    # BUT for Metrics (KPIs) we will use EmployeeRoutine table to count DAYS lost.
+    # This is more accurate for "Taxa de Absenteísmo" (Man-Days).
     
-    # 2. Rankings (Top Offenders)
+    # Fetch Routines for the period
+    routines = session.exec(
+        select(models.EmployeeRoutine)
+        .where(models.EmployeeRoutine.date >= start_dt.strftime("%Y-%m-%d"))
+        .where(models.EmployeeRoutine.date <= end_dt.strftime("%Y-%m-%d"))
+    ).all()
+    
+    # Filter routines for selected shift employees
+    routines = [r for r in routines if r.employee_id in employee_ids]
+    
+    # Contadores gerais (Dias)
+    total_absences = sum(1 for r in routines if r.routine in ['absent', 'falta'])
+    total_sick = sum(1 for r in routines if r.routine in ['sick', 'atestado'])
+    total_away = sum(1 for r in routines if r.routine in ['away', 'afastado'])
+    
+    # 2. Rankings (Top Offenders - by DAYS)
     emp_stats = {}
-    for e in events:
-        if e.employee_id not in emp_stats:
-            emp_stats[e.employee_id] = {'falta': 0, 'atestado': 0, 'advertencia': 0, 'afastamento': 0, 'name': 'Unknown', 'sector': 'Unknown', 'tenure_months': 0}
-        emp_stats[e.employee_id][e.type] += 1
-        
-    # Enlighten with Employee Data
-    emp_map = {e.id: e for e in employees}
     
+    # Initial population from employees list (to blank fill)
+    for emp in employees:
+         emp_stats[emp.id] = {'falta': 0, 'atestado': 0, 'advertencia': 0, 'afastamento': 0, 'name': emp.name, 'sector': emp.cost_center or "Geral", 'tenure_months': 0}
+         if emp.admission_date:
+                delta = datetime.now() - emp.admission_date
+                emp_stats[emp.id]['tenure_months'] = int(delta.days / 30)
+
+    # Count Routines (Days)
+    for r in routines:
+        if r.employee_id not in emp_stats: continue # Should be covered by filter above
+        
+        # Normalize routine types
+        r_type = r.routine
+        if r_type in ['absent', 'falta']:
+            emp_stats[r.employee_id]['falta'] += 1
+        elif r_type in ['sick', 'atestado']:
+            emp_stats[r.employee_id]['atestado'] += 1
+        elif r_type in ['away', 'afastado']:
+            emp_stats[r.employee_id]['afastamento'] += 1
+            
+    # Include Events only for "Advertencia" (which is an event, not a routine status)
+    filtered_events = [e for e in events if e.employee_id in employee_ids]
+    for e in filtered_events:
+        if e.type == 'advertencia':
+             if e.employee_id in emp_stats:
+                  emp_stats[e.employee_id]['advertencia'] += 1
+    
+    # Flatten to ranking list
     ranking_data = []
     for eid, stats in emp_stats.items():
-        if eid in emp_map:
-            emp = emp_map[eid]
-            stats['employee_id'] = eid  # For linking
-            stats['name'] = emp.name
-            stats['sector'] = emp.cost_center or "Geral"
-            if emp.admission_date:
-                delta = datetime.now() - emp.admission_date
-                stats['tenure_months'] = int(delta.days / 30)
-            ranking_data.append(stats)
+        stats['employee_id'] = eid
+        # Only add if they have something relevant? Or keep all for denominator?
+        # Only add if > 0 events/days?
+        # For Top lists we sort.
+        ranking_data.append(stats)
             
-    # Sorts - Only show employees with actual events
+    # Sorts - Only show employees with actual data
     top_absent = sorted([r for r in ranking_data if r['falta'] > 0], key=lambda x: x['falta'], reverse=True)
     top_sick = sorted([r for r in ranking_data if r['atestado'] > 0], key=lambda x: x['atestado'], reverse=True)
     
+    # Define Map for later use
+    emp_map = {e.id: e for e in employees}
+
     # 3. Sector Analysis
     sector_stats = {}
     for item in ranking_data:
@@ -3913,6 +4190,7 @@ def get_people_intelligence_metrics(session: Session, shift: str, start_date: Op
     for sec, stats in sector_stats.items():
         if stats['headcount'] > 0:
             stats['name'] = sec
+            # Risk Index = Days Lost / Headcount
             stats['risk_index'] = round((stats['falta'] + stats['atestado']) / stats['headcount'], 2)
             sector_list.append(stats)
             

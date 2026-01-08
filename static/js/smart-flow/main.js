@@ -44,7 +44,8 @@ const App = {
         Store.setData({
             sectors: sectorsData.sectors || [],
             allocations: allocData.allocations || {},
-            routines: allocData.routines || {}
+            routines: allocData.routines || {},
+            tonnage: allocData.tonnage || 0
         });
     }
 };

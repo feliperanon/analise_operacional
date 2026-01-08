@@ -1,0 +1,16 @@
+Employee: ARTHUR FERNANDO RAMOS DE ARAUJO (ID: 417) Status: active Shift: 'Manhã'
+
+--- EVENTS (Last 10) ---
+[2026-01-08 08:11:22.980530] Type: presenca | Category: present | Text: ARTHUR FERNANDO RAMOS DE ARAUJO mudou de sick para Presente
+[2026-01-05 10:16:43.488456] Type: atestado | Category: sick | Text: ARTHUR FERNANDO RAMOS DE ARAUJO mudou de active para Atestado
+[2025-11-01 03:00:00] Type: atestado | Category: pessoas | Text: Atestado médico
+[2025-10-31 03:00:00] Type: atestado | Category: pessoas | Text: Atestado médico
+[2025-09-19 03:00:00] Type: atestado | Category: pessoas | Text: Atestado médico
+[2025-09-18 03:00:00] Type: atestado | Category: pessoas | Text: Atestado médico
+[2025-07-07 03:00:00] Type: atestado | Category: pessoas | Text: Atestado médico
+
+--- ROUTINES (Jan 2026) ---
+[2026-01-05 - Manhã] Routine: sick
+[2026-01-06 - Manhã] Routine: sick
+[2026-01-07 - Manhã] Routine: sick
+[2026-01-08 - Manhã] Routine: present

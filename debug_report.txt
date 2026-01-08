@@ -1,0 +1,14 @@
+--- DEBUG REPORT LOGIC ---
+Shift: Manhã
+Dates: 2026-01-01 to 2026-01-08
+
+Total Employees: 133
+Filtered by Shift 'Manhã': 38
+✅ Arthur FOUND in filtered list. Shift: 'Manhã'
+Query Range: 2026-01-01 00:00:00 to 2026-01-08 00:00:00
+Raw Events Found (Global): 10
+Arthur Events in Raw Query: 1
+   [2026-01-05 10:16:43.488456] Type: 'atestado' ID: 2410
+Events after Employee Filter: 10
+Arthur Events Final: 1
+Total Sick Count: 1
