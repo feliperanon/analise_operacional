@@ -658,6 +658,146 @@
         });
     </script>
 
+    <!-- Recent Routines -->
+    <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
+        <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Rotinas Recentes (Ponto/Turno)
+        </h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="text-slate-400 text-xs uppercase tracking-wider border-b border-slate-700">
+                        <th class="pb-3 pl-4">Data</th>
+                        <th class="pb-3">Turno</th>
+                        <th class="pb-3">Horários</th>
+                        <th class="pb-3">Status</th>
+                        <th class="pb-3">Reabertura</th>
+                        <th class="pb-3 pr-4 text-right">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="text-sm divide-y divide-slate-700">
+                    {% for r in routines %}
+                    <tr class="hover:bg-slate-700/30 transition">
+                        <td class="py-3 pl-4 text-slate-300 font-mono">{{ r.date }}</td>
+                        <td class="py-3 text-slate-300">{{ r.shift }}</td>
+                        <td class="py-3 text-slate-300">
+                            {% if r.start_time %}
+                            {{ r.start_time }} - {{ r.end_time or '...' }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="py-3">
+                            {% if r.status == 'open' %}
+                            <span
+                                class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-xs font-bold uppercase">Aberto</span>
+                            {% elif r.status == 'closed' %}
+                            <span
+                                class="bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-0.5 rounded text-xs font-bold uppercase">Fechado</span>
+                            {% else %}
+                            <span
+                                class="bg-slate-500/10 text-slate-400 border border-slate-500/20 px-2 py-0.5 rounded text-xs font-bold uppercase">{{
+                                r.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 text-xs text-slate-500">
+                            {% if r.reopened_at %}
+                            <div class="flex flex-col">
+                                <span class="text-slate-400">Por: {{ r.reopened_by }}</span>
+                                <span>Motivo: {{ r.reopened_reason }}</span>
+                            </div>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="py-3 pr-4 text-right">
+                            {% if r.status == 'closed' %}
+                            <button onclick="openReopenModal('{{ r.id }}', '{{ r.date }}')"
+                                class="text-blue-400 hover:text-blue-300 text-xs font-bold border border-blue-500/30 hover:bg-blue-500/10 px-3 py-1.5 rounded transition">
+                                Reabrir
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="py-8 text-center text-slate-500 italic">Nenhuma rotina recente
+                            encontrada.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Reopen Modal -->
+    <div id="reopen-modal" class="fixed inset-0 z-[80] hidden" role="dialog" aria-modal="true">
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity opacity-0" id="reopen-backdrop"
+            onclick="closeReopenModal()"></div>
+        <div class="fixed inset-0 flex items-center justify-center p-4">
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-sm transform scale-95 opacity-0 transition-all"
+                id="reopen-panel">
+                <div class="p-6">
+                    <h3 class="text-lg font-bold text-white mb-2">Reabrir Rotina</h3>
+                    <p class="text-sm text-slate-400 mb-4">Justifique a reabertura da rotina de <span id="reopen-date"
+                            class="text-white font-mono"></span>. Esta ação será auditada.</p>
+                    <form id="reopen-form" method="POST">
+                        <div class="mb-4">
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Motivo (Obrigatório)</label>
+                            <textarea name="reason" rows="3" required placeholder="Ex: Esqueceu de lançar hora extra..."
+                                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 outline-none"></textarea>
+                        </div>
+                        <div class="flex justify-end gap-3">
+                            <button type="button" onclick="closeReopenModal()"
+                                class="px-3 py-2 text-sm text-slate-400 hover:text-white transition">Cancelar</button>
+                            <button type="submit"
+                                class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition shadow-lg shadow-blue-500/20">Confirmar
+                                Reabertura</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openReopenModal(id, date) {
+            const modal = document.getElementById('reopen-modal');
+            const backdrop = document.getElementById('reopen-backdrop');
+            const panel = document.getElementById('reopen-panel');
+            const form = document.getElementById('reopen-form');
+            const dateSpan = document.getElementById('reopen-date');
+
+            form.action = `/admin/routine/reopen/${id}`;
+            dateSpan.textContent = date;
+
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                backdrop.classList.remove('opacity-0');
+                panel.classList.remove('scale-95', 'opacity-0');
+                panel.classList.add('scale-100', 'opacity-100');
+            });
+        }
+
+        function closeReopenModal() {
+            const modal = document.getElementById('reopen-modal');
+            const backdrop = document.getElementById('reopen-backdrop');
+            const panel = document.getElementById('reopen-panel');
+
+            backdrop.classList.add('opacity-0');
+            panel.classList.remove('scale-100', 'opacity-100');
+            panel.classList.add('scale-95', 'opacity-0');
+
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+    </script>
+
     <!-- Timeline -->
     <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
         <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">

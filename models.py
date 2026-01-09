@@ -176,5 +176,26 @@ class EmployeeRoutine(SQLModel, table=True):
     shift: str = Field(index=True)  # Manhã, Tarde, Noite
     employee_id: int = Field(foreign_key="employee.id", index=True)
     routine: str = Field(default="present")  # present, absent, sick, vacation, away
+    
+    # New fields for Mobile Routine Management
+    start_time: Optional[str] = None # HH:MM
+    end_time: Optional[str] = None # HH:MM
+    status: str = Field(default="open") # open, closed (locked)
+    
+    # Audit Reopen
+    reopened_at: Optional[datetime] = None
+    reopened_by: Optional[str] = None
+    reopened_reason: Optional[str] = None
+    
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
+
+class XPLedger(SQLModel, table=True):
+    """Ledger contábil para auditoria de XP"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    employee_id: int = Field(foreign_key="employee.id", index=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+    transaction_type: str = Field(index=True) # SHIFT_CLOSED, JOB_DONE, RECORD_BONUS, REWARD_REDEEM, ADJUSTMENT
+    points: float
+    reference_id: Optional[str] = None # e.g. "shift_123", "job_456"
+    note: Optional[str] = None

@@ -80,13 +80,21 @@
                             {% endif %}
                         </div>
 
-                        <!-- Client Searchable -->
+                        <!-- Client Multi-Select -->
                         <div class="relative group">
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Cliente</label>
-                            <input type="hidden" name="client_id" id="form-client-id" required>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Clientes
+                                (Multi-seleção)</label>
+                            <input type="hidden" name="client_ids" id="form-client-ids" required>
+
+                            <!-- Selected Tags Container -->
+                            <div id="selected-clients-container"
+                                class="flex flex-wrap gap-2 mb-2 min-h-[38px] bg-slate-900 border border-slate-700 rounded-lg p-2">
+                                <span class="text-slate-500 text-sm py-1 px-2 italic" id="client-placeholder">Selecione
+                                    os clientes...</span>
+                            </div>
 
                             <div class="relative">
-                                <input type="text" id="client-search" placeholder="Digite para buscar..."
+                                <input type="text" id="client-search" placeholder="Busque e adicione..."
                                     class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                                     onfocus="showDropdown('client-dropdown')"
                                     oninput="filterDropdown('client-dropdown', this.value)">
@@ -95,7 +103,7 @@
                                     {% for client in clients %}
                                     {% set is_active = client.id in active_client_ids %}
                                     <div class="px-4 py-2 hover:bg-slate-700 cursor-pointer text-sm transition-colors flex justify-between items-center {{ 'bg-indigo-900/20' if is_active else '' }}"
-                                        onclick="selectItem('client', '{{ client.id }}', '{{ client.name }}')">
+                                        onclick="addClient('{{ client.id }}', '{{ client.name }}')">
                                         <span
                                             class="{{ 'text-indigo-400 font-bold' if is_active else 'text-slate-300' }}">{{
                                             client.name }}</span>
@@ -106,12 +114,6 @@
                                         {% endif %}
                                     </div>
                                     {% endfor %}
-                                </div>
-                                <div class="absolute right-3 top-3 text-slate-500 pointer-events-none">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                    </svg>
                                 </div>
                             </div>
                         </div>
@@ -473,7 +475,7 @@
 <script>
     function validateForm() {
         const empId = document.getElementById('form-employee-id').value;
-        const clientId = document.getElementById('form-client-id').value;
+        const clientId = document.getElementById('form-client-ids').value;
 
         if (!empId) {
             alert('Por favor, selecione um Colaborador da lista. Você deve clicar em uma das opções sugeridas.');
@@ -482,10 +484,12 @@
             document.getElementById('employee-search').focus();
             return false;
         }
-        if (!clientId) {
-            alert('Por favor, selecione um Cliente da lista. Você deve clicar em uma das opções sugeridas.');
-            // Clear invalid text
-            document.getElementById('client-search').value = '';
+
+        let clients = [];
+        try { clients = JSON.parse(clientId || '[]'); } catch (e) { }
+
+        if (clients.length === 0) {
+            alert('Por favor, adicione pelo menos um Cliente.');
             document.getElementById('client-search').focus();
             return false;
         }
@@ -519,7 +523,61 @@
         }
     }
 
+    // --- Multi-Client Logic ---
+    const selectedClients = new Set();
+    const clientsData = {}; // id -> name
+
+    function addClient(id, name) {
+        if (selectedClients.has(id)) return;
+
+        selectedClients.add(id);
+        clientsData[id] = name;
+        renderSelectedClients();
+
+        // Clear search
+        document.getElementById('client-search').value = '';
+        document.getElementById('client-dropdown').classList.add('hidden');
+    }
+
+    function removeClient(id) {
+        selectedClients.delete(id);
+        renderSelectedClients();
+    }
+
+    function renderSelectedClients() {
+        const container = document.getElementById('selected-clients-container');
+        const input = document.getElementById('form-client-ids');
+        const placeholder = document.getElementById('client-placeholder');
+
+        // Update hidden input
+        input.value = JSON.stringify(Array.from(selectedClients));
+
+        // Clear view (keep placeholder logic separate if needed, but easier to rebuild)
+        container.innerHTML = '';
+
+        if (selectedClients.size === 0) {
+            container.appendChild(placeholder);
+            placeholder.style.display = 'block';
+            return;
+        }
+
+        // Render tags
+        selectedClients.forEach(id => {
+            const name = clientsData[id];
+            const tag = document.createElement('div');
+            tag.className = 'bg-indigo-600 text-white text-xs font-bold px-2 py-1 rounded flex items-center gap-2 shadow-sm animate-fade-in';
+            tag.innerHTML = `
+                ${name}
+                <button type="button" onclick="removeClient('${id}')" class="hover:text-red-300 focus:outline-none">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            `;
+            container.appendChild(tag);
+        });
+    }
+
     function selectItem(type, id, name) {
+        // Legacy single select for Employee
         document.getElementById(`form-${type}-id`).value = id;
         document.getElementById(`${type}-search`).value = name;
         document.getElementById(`${type}-dropdown`).classList.add('hidden');
@@ -567,6 +625,21 @@
             });
         }, 1000);
     }
+
+    // Auto-Select Employee for Mobile Users
+    {% if is_mobile and employees %}
+    document.addEventListener('DOMContentLoaded', () => {
+        // Delay slightly to ensure elements ready
+        setTimeout(() => {
+            selectItem('employee', '{{ employees[0].id }}', '{{ employees[0].name }}');
+            const input = document.getElementById('employee-search');
+            if (input) {
+                input.readOnly = true;
+                input.classList.add('opacity-60', 'cursor-not-allowed');
+            }
+        }, 100);
+    });
+    {% endif %}
 
     // --- Modal Logic ---
     function openFinishModal(id, empId, cliId, start) {

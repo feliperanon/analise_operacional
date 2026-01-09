@@ -1,0 +1,244 @@
+{% extends "mobile/layout.html" %}
+
+{% block content %}
+<div class="flex flex-col gap-6 animate-fade-in relative z-10">
+
+    <!-- Header / User Info -->
+    <div class="flex justify-between items-center mb-2">
+        <div>
+            <h2 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
+                Olá, {{ (employee.name or 'Colaborador').split()[0] }}
+            </h2>
+            <p class="text-xs font-medium text-blue-400 tracking-wide">
+                MATRÍCULA: {{ employee.registration_id }}
+            </p>
+        </div>
+        <div
+            class="glass-panel px-4 py-2 flex items-center gap-3 border-yellow-500/20 shadow-[0_4px_12px_rgba(234,179,8,0.1)]">
+            <div class="p-1.5 rounded-full bg-yellow-500/10 text-yellow-400">
+                <i data-lucide="trophy" width="16" height="16"></i>
+            </div>
+            <span class="font-bold text-lg text-yellow-400 font-mono tracking-tight">
+                {{ "{:,.0f}".format(employee.total_xp or 0).replace(",", ".") }}
+            </span>
+        </div>
+    </div>
+
+    <!-- AI Insight / Message -->
+    {% if ai_message %}
+    <div class="glass-panel p-5 border-l-4 border-l-blue-500 relative overflow-hidden group">
+        <div class="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <div class="flex gap-4 items-start relative z-10">
+            <div class="p-2 rounded-lg bg-blue-500/20 text-blue-400 shrink-0 mt-0.5">
+                <i data-lucide="bot" width="20" height="20"></i>
+            </div>
+            <div>
+                <p class="text-sm text-slate-200 leading-relaxed font-medium">"{{ ai_message }}"</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Main Actions -->
+    <div class="grid grid-cols-2 gap-4">
+        <!-- Start Routine -->
+        <form action="/mobile/api/routine/start" method="POST" class="w-full h-full">
+            <button type="submit"
+                class="glass-panel w-full h-full p-5 flex flex-col items-center justify-center gap-3 hover:bg-green-500/10 hover:border-green-500/40 active:scale-95 transition-all group">
+                <div
+                    class="p-4 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/30 group-hover:shadow-green-500/50 transition-shadow">
+                    <i data-lucide="play" fill="currentColor" class="w-6 h-6"></i>
+                </div>
+                <span class="font-bold text-green-400 group-hover:text-green-300">Iniciar Dia</span>
+            </button>
+        </form>
+
+        <!-- Stop Routine -->
+        <button onclick="confirmStop()"
+            class="glass-panel w-full h-full p-5 flex flex-col items-center justify-center gap-3 hover:bg-red-500/10 hover:border-red-500/40 active:scale-95 transition-all group">
+            <div
+                class="p-4 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-lg shadow-red-500/30 group-hover:shadow-red-500/50 transition-shadow">
+                <i data-lucide="square" fill="currentColor" class="w-6 h-6"></i>
+            </div>
+            <span class="font-bold text-red-500 group-hover:text-red-400">Encerrar Dia</span>
+        </button>
+    </div>
+
+    <!-- Module Links -->
+    <div class="glass-panel p-5">
+        <h3 class="text-[10px] font-bold text-slate-500 mb-4 uppercase tracking-[0.2em]">Módulos Operacionais</h3>
+        <div class="grid grid-cols-2 gap-4">
+
+            <!-- Separacao -->
+            <a href="/separacao?mobile=1"
+                class="group relative flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50 hover:bg-blue-600/10 hover:border-blue-500/40 transition-all duration-300">
+                <div
+                    class="p-3 mb-2 rounded-xl bg-blue-500/10 text-blue-400 group-hover:scale-110 transition-transform">
+                    <i data-lucide="package" width="22" height="22"></i>
+                </div>
+                <span class="text-sm font-semibold text-slate-300 group-hover:text-white">Separação</span>
+            </a>
+
+            <!-- Selecao (Disabled) -->
+            <div
+                class="relative flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-800/20 border border-slate-700/30 opacity-50 grayscale cursor-not-allowed">
+                <div class="p-3 mb-2 rounded-xl bg-slate-700/30 text-slate-500">
+                    <i data-lucide="search" width="22" height="22"></i>
+                </div>
+                <span class="text-sm font-semibold text-slate-500">Seleção</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Chart -->
+    <div class="glass-panel p-6 relative overflow-hidden">
+        <div class="flex justify-between items-end mb-4 relative z-10">
+            <div>
+                <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Performance</h3>
+                <p class="text-xl font-bold text-white mt-1">Últimos 7 Dias</p>
+            </div>
+            <!-- Trend Indicator (Fake for visual) -->
+            <div class="text-xs font-medium text-emerald-400 flex items-center bg-emerald-500/10 px-2 py-1 rounded-md">
+                <i data-lucide="trending-up" width="12" class="mr-1"></i> Produtivo
+            </div>
+        </div>
+
+        <div class="relative z-10 h-48 w-full">
+            <canvas id="productivityChart"></canvas>
+        </div>
+
+        <!-- Background Decor -->
+        <div class="absolute -bottom-10 -right-10 opacity-5 pointer-events-none">
+            <i data-lucide="bar-chart-2" width="150" height="150" class="text-white"></i>
+        </div>
+    </div>
+
+    <!-- Logout -->
+    <div class="flex justify-center mt-4 pb-8">
+        <a href="/mobile/logout"
+            class="group flex items-center gap-2 px-6 py-2 rounded-full border border-slate-700/50 text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 hover:border-slate-600 transition-all">
+            <i data-lucide="log-out" width="14" class="group-hover:-translate-x-0.5 transition-transform"></i>
+            Sair da Conta
+        </a>
+    </div>
+
+</div>
+
+<!-- Confirmation Modal for Stop -->
+<dialog id="stopModal"
+    class="glass-panel p-0 backdrop:bg-black/90 open:animate-fade-in mx-auto mt-auto mb-4 w-[90%] max-w-[400px] rounded-3xl shadow-2xl shadow-black/80 border border-slate-700 overflow-hidden">
+
+    <div class="bg-gradient-to-b from-slate-800/80 to-slate-900/90 p-8 flex flex-col items-center text-center">
+        <div class="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-6 ring-4 ring-red-500/5">
+            <i data-lucide="power" width="32" height="32" class="text-red-500"></i>
+        </div>
+
+        <h3 class="text-2xl font-bold text-white mb-2">Encerrar o Dia?</h3>
+        <p class="text-sm text-slate-400 leading-relaxed mb-8">
+            Ao confirmar, sua rotina será fechada e você não poderá registrar novas atividades hoje.
+        </p>
+
+        <div class="grid grid-cols-2 gap-3 w-full">
+            <button onclick="document.getElementById('stopModal').close()"
+                class="py-3.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 font-semibold hover:bg-slate-700 active:scale-95 transition-all">
+                Voltar
+            </button>
+            <form action="/mobile/api/routine/stop" method="POST" class="w-full">
+                <button type="submit"
+                    class="w-full py-3.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold shadow-lg shadow-red-900/40 active:scale-95 transition-all">
+                    Confirmar
+                </button>
+            </form>
+        </div>
+    </div>
+</dialog>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/chart.js"></script>
+<script>
+    function confirmStop() {
+        document.getElementById('stopModal').showModal();
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const ctx = document.getElementById('productivityChart');
+        if (ctx) {
+            // Backend sends raw JSON strings (json.dumps), so we inject them directly
+            // No need for | tojson filter because the backend already sent a JSON string!
+            const rawLabels = {{ chart_labels | safe
+        }
+    };
+    const rawData = {{ chart_data | safe }};
+
+    new Chart(ctx.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: rawLabels,
+            datasets: [{
+                label: 'Kg',
+                data: rawData,
+                borderColor: '#60a5fa', // Blue-400
+                backgroundColor: (context) => {
+                    const ctx = context.chart.ctx;
+                    const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+                    gradient.addColorStop(0, 'rgba(96, 165, 250, 0.3)');
+                    gradient.addColorStop(1, 'rgba(96, 165, 250, 0.0)');
+                    return gradient;
+                },
+                borderWidth: 3,
+                pointBackgroundColor: '#1e293b',
+                pointBorderColor: '#60a5fa',
+                pointBorderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                    titleColor: '#e2e8f0',
+                    bodyColor: '#fff',
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    borderWidth: 1,
+                    padding: 10,
+                    displayColors: false,
+                    callbacks: {
+                        label: function (context) {
+                            return context.parsed.y + ' kg';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    display: false, // Cleaner look
+                    beginAtZero: true
+                },
+                x: {
+                    display: true,
+                    grid: { display: false },
+                    ticks: {
+                        color: '#64748b',
+                        font: { size: 10, family: "'Inter', sans-serif" }
+                    }
+                }
+            },
+            layout: { padding: { top: 10, bottom: 0, left: -5, right: 0 } },
+            interaction: {
+                mode: 'index',
+                intersect: false
+            }
+        }
+    });
+        }
+    });
+</script>
+{% endblock %}

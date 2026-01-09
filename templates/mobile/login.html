@@ -1,0 +1,32 @@
+{% extends "mobile/layout.html" %}
+
+{% block content %}
+<div class="flex flex-col justify-center h-full animate-fade-in" style="min-height: 80vh; justify-content: center;">
+
+    <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold mb-2">Bem-vindo</h1>
+        <p class="text-secondary">Portal do Colaborador <span class="text-gradient">Smart Flow</span></p>
+    </div>
+
+    <div class="glass-panel p-6">
+        <form action="/mobile/auth" method="POST">
+            <div class="mb-4">
+                <label for="registration_id" class="block text-sm font-medium text-secondary mb-2">Sua Matrícula</label>
+                <input type="text" id="registration_id" name="registration_id" class="input-field"
+                    placeholder="Ex: 123456" required inputmode="numeric" autofocus>
+            </div>
+
+            <button type="submit" class="btn-primary flex items-center justify-center gap-2">
+                <i data-lucide="log-in" width="20"></i>
+                Acessar Sistema
+            </button>
+        </form>
+    </div>
+
+    <div class="mt-8 text-center text-sm text-secondary">
+        <p>Problemas com acesso?</p>
+        <p>Procure seu supervisor.</p>
+    </div>
+
+</div>
+{% endblock %}

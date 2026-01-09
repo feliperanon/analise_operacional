@@ -167,8 +167,23 @@ const Store = {
             return empShift && empShift.toLowerCase() === currentShift.toLowerCase();
         }).length;
 
-        // Calcular target total (total de colaboradores ATIVOS do turno)
-        const totalTarget = shiftEmps.length;
+        // Calcular target total (total de colaboradores ATIVOS/AFASTADOS do turno, excluindo demitidos)
+        // Antes era shiftEmps.length (incluía demitidos)
+        // Agora: Total - Demitidos
+        const firedCount = shiftEmps.filter(e => {
+            const s = (e.status || 'active').toLowerCase();
+            return s === 'fired' || s === 'demitido';
+        }).length;
+
+        const totalTarget = shiftEmps.length - firedCount;
+
+        console.group('KPI Debug');
+        console.log('Shift:', currentShift);
+        console.log('Total in Shift (incl. fired):', shiftEmps.length);
+        console.log('Fired Count:', firedCount);
+        console.log('Active Workforce (Target):', totalTarget);
+        console.log('Present:', operationalPresent);
+        console.groupEnd();
 
         // Calcular vagas REAIS (colaboradores demitidos do turno)
         // Buscar TODOS os colaboradores do turno (incluindo demitidos)

@@ -1,0 +1,11 @@
+--- Counts by Shift/Status ---
+Shift 'Manhã': Active=54, Fired=6, Total=66
+Shift 'Noite': Active=67, Fired=0, Total=71
+Shift 'Tarde': Active=23, Fired=0, Total=24
+
+--- Duplicate Names (Active) ---
+No duplicate active names found.
+
+--- Duplicate Reg IDs (Active) ---
+No duplicate registration IDs found.
+Done.

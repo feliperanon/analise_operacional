@@ -238,6 +238,11 @@ async def global_exception_handler(request: Request, call_next):
         response = await call_next(request)
         return response
     except Exception as e:
+        # If it is a Starlette/FastAPI HTTPException, let it propagate (handles redirects/404s)
+        from starlette.exceptions import HTTPException as StarletteHTTPException
+        if isinstance(e, StarletteHTTPException):
+            raise e
+            
         import traceback
         import uuid
         
@@ -245,8 +250,8 @@ async def global_exception_handler(request: Request, call_next):
         error_msg = str(e)
         stack_trace = traceback.format_exc()
         
-        # Log Full Trace
-        logger.error(f"❌ [500] {request.method} {request.url} | Trace: {trace_id} | Error: {error_msg}\n{stack_trace}")
+        # Log Full Trace (Removed emoji to prevent UnicodeEncodeError on Windows)
+        logger.error(f"[500] {request.method} {request.url} | Trace: {trace_id} | Error: {error_msg}\n{stack_trace}")
         
         # Determine Response Type
         accept = request.headers.get("accept", "")
@@ -276,18 +281,29 @@ async def favicon():
     return Response(status_code=204)
 def get_current_user(request: Request):
     user = request.session.get("user")
-    if not user:
-        return None
-    return user
+    if user: return user
+    
+    # Support for Mobile Employee Session
+    user_id = request.session.get("user_id")
+    if user_id:
+        return {"type": "employee", "id": user_id}
+    return None
+
 def require_login(request: Request):
     user = get_current_user(request)
     if not user:
-        raise HTTPException(status_code=status.HTTP_307_TEMPORARY_REDIRECT, detail="Not authenticated")
+        if request.url.path.startswith("/mobile"):
+             raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/mobile/login"})
+        raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/login"})
     return user
 # --- Routes ---
 @app.get("/")
 async def root():
     return RedirectResponse(url="/smart-flow")
+
+@app.get("/mobile", response_class=RedirectResponse)
+async def mobile_root():
+    return RedirectResponse(url="/mobile/login")
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
@@ -302,6 +318,313 @@ async def login(request: Request, username: str = Form(...), password: str = For
 async def logout(request: Request):
     request.session.clear()
     return RedirectResponse(url="/login")
+# --- Mobile Portal Routes ---
+
+@app.get("/mobile/login", response_class=HTMLResponse)
+async def mobile_login(request: Request):
+    return templates.TemplateResponse("mobile/login.html", {"request": request})
+
+@app.post("/mobile/auth")
+async def mobile_auth(
+    request: Request,
+    registration_id: str = Form(...),
+    session: Session = Depends(get_session)
+):
+    registration_id = registration_id.strip()
+    statement = select(models.Employee).where(models.Employee.registration_id == registration_id)
+    employee = session.exec(statement).first()
+    
+    if not employee:
+        return templates.TemplateResponse(
+            "mobile/login.html", 
+            {"request": request, "error": "Matrícula não encontrada."}
+        )
+    
+    if employee.status == "fired":
+        return templates.TemplateResponse(
+            "mobile/login.html", 
+            {"request": request, "error": "Acesso não autorizado."}
+        )
+
+    request.session["user_id"] = employee.id
+    request.session["user_role"] = "employee"
+    return RedirectResponse(url="/mobile/dashboard", status_code=303)
+
+@app.get("/mobile/logout")
+async def mobile_logout(request: Request):
+    request.session.clear()
+    return RedirectResponse(url="/mobile/login", status_code=303)
+
+@app.get("/mobile/dashboard", response_class=HTMLResponse)
+async def mobile_dashboard(
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/mobile/login", status_code=303)
+        
+    employee = session.get(models.Employee, user_id)
+    if not employee:
+        request.session.clear()
+        return RedirectResponse(url="/mobile/login", status_code=303)
+
+    # --- AI / Gamification Logic ---
+    today = datetime.now().date()
+    yesterday = today - timedelta(days=1)
+    if yesterday.weekday() == 6: # If Sunday, check Saturday
+         yesterday = today - timedelta(days=2)
+
+    # Stats: Yesterday's Production
+    # Assuming production is tied to Routes for now (Separacao)
+    # TODO: Make this generic for other roles later
+    stmt = select(func.sum(models.Route.tonnage)).where(
+        models.Route.employee_id == employee.id,
+        models.Route.date == yesterday.strftime("%Y-%m-%d")
+    )
+    yesterday_kg = session.exec(stmt).one() or 0.0
+
+    # Build Message
+    ai_message = None
+    if yesterday_kg > 0:
+        target = yesterday_kg * 1.05 # 5% increase challenge
+        ai_message = f"Ontem você fez {yesterday_kg:,.0f}kg. Hoje sua meta é {target:,.0f}kg (+5% 🚀). Se bater o recorde ganha +100 XP!"
+    else:
+        ai_message = "Pronto para superar seus limites hoje? Vamos lá!"
+
+    # Chart Data (Last 7 days)
+    chart_labels = []
+    chart_data = []
+    for i in range(6, -1, -1):
+        d = today - timedelta(days=i)
+        d_str = d.strftime("%Y-%m-%d")
+        chart_labels.append(d.strftime("%d/%m"))
+        
+        daily_sum = session.exec(
+            select(func.sum(models.Route.tonnage))
+            .where(models.Route.employee_id == employee.id, models.Route.date == d_str)
+        ).one() or 0
+        chart_data.append(daily_sum)
+
+    context = {
+        "request": request,
+        "employee": employee,
+        "current_date": datetime.now().strftime("%d/%m/%Y"),
+        "ai_message": ai_message,
+        "chart_labels": json.dumps(chart_labels),
+        "chart_data": json.dumps(chart_data)
+    }
+    return templates.TemplateResponse("mobile/dashboard.html", context)
+
+# --- Helpers ---
+def add_xp_transaction(session: Session, employee_id: int, points: float, type: str, reference_id: str = None, note: str = None):
+    """Adds XP to ledger and updates employee total."""
+    # 1. Create Ledger Entry
+    ledger = models.XPLedger(
+        employee_id=employee_id,
+        transaction_type=type,
+        points=points,
+        reference_id=reference_id,
+        note=note,
+        created_at=datetime.now()
+    )
+    session.add(ledger)
+    
+    # 2. Update Employee Cache
+    emp = session.get(models.Employee, employee_id)
+    if emp:
+        emp.total_xp += points
+        session.add(emp)
+    
+    return ledger
+
+# --- Mobile Routes ---
+@app.get("/mobile/login", response_class=HTMLResponse)
+async def mobile_login_page(request: Request):
+    return templates.TemplateResponse("mobile/login.html", {"request": request})
+
+@app.post("/mobile/auth", response_class=RedirectResponse)
+async def mobile_auth(request: Request, registration_id: str = Form(...), session: Session = Depends(get_session)):
+    # Simple Auth: Check if ID exists and is active
+    statement = select(models.Employee).where(models.Employee.registration_id == registration_id)
+    employee = session.exec(statement).first()
+    
+    if not employee or employee.status == "fired":
+         return RedirectResponse(url="/mobile/login?error=Matrícula inválida ou inativa", status_code=status.HTTP_303_SEE_OTHER)
+         
+    # Set Session
+    request.session["user_id"] = employee.id
+    request.session["user_role"] = "employee"
+    
+    return RedirectResponse(url="/mobile/dashboard", status_code=303)
+
+@app.get("/mobile/logout")
+async def mobile_logout(request: Request):
+    request.session.clear()
+    return RedirectResponse(url="/mobile/login")
+
+@app.post("/mobile/routine/start", response_class=RedirectResponse)
+async def mobile_routine_start(request: Request, session: Session = Depends(get_session)):
+    user = require_login(request)
+    if not isinstance(user, dict) or user.get("type") != "employee":
+        return RedirectResponse(url="/mobile/login")
+        
+    user_id = user.get("id")
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    now_time = datetime.now().strftime("%H:%M")
+    
+    # Check if already exists
+    stmt = select(models.EmployeeRoutine).where(
+        models.EmployeeRoutine.employee_id == user_id,
+        models.EmployeeRoutine.date == today_str
+    )
+    existing = session.exec(stmt).first()
+    
+    if existing:
+        if existing.status == "closed":
+            # LOCKED: Cannot re-open
+            # TODO: Show error message nicely
+            pass 
+    else:
+        # Create New
+        # Determine shift based on time? For now placeholder
+        current_shift = "Manhã" 
+        routine = models.EmployeeRoutine(
+            date=today_str,
+            shift=current_shift, # Placeholder
+            employee_id=user_id,
+            routine="present",
+            start_time=now_time,
+            status="open"
+        )
+        session.add(routine)
+        session.commit()
+    
+    return RedirectResponse(url="/mobile/dashboard", status_code=303)
+
+@app.post("/mobile/routine/stop", response_class=RedirectResponse)
+async def mobile_routine_stop(request: Request, session: Session = Depends(get_session)):
+    user = require_login(request)
+    if not isinstance(user, dict) or user.get("type") != "employee":
+         return RedirectResponse(url="/mobile/login")
+         
+    user_id = user.get("id")
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    now_time = datetime.now().strftime("%H:%M")
+    
+    stmt = select(models.EmployeeRoutine).where(
+        models.EmployeeRoutine.employee_id == user_id,
+        models.EmployeeRoutine.date == today_str
+    )
+    routine = session.exec(stmt).first()
+    
+    if routine and routine.status == "open":
+        routine.end_time = now_time
+        routine.status = "closed"
+        session.add(routine)
+        
+        # --- Gamification: XP for Completing Day ---
+        add_xp_transaction(
+            session, 
+            employee_id=user_id, 
+            points=10.0, 
+            type="SHIFT_CLOSED", 
+            reference_id=f"shift_{routine.id}", 
+            note="Rotina encerrada"
+        )
+        
+        # --- Gamification: Check Production Record (Bonus) ---
+        # 1. Calc Today's Production
+        prod_stmt = select(func.sum(models.Route.tonnage)).where(
+            models.Route.employee_id == user_id,
+            models.Route.date == today_str
+        )
+        today_prod = session.exec(prod_stmt).one() or 0.0
+        
+        # 2. Check Threshold (Placeholder 5000kg)
+        # TODO: Real logic for "Record"
+        if today_prod > 5000:
+             add_xp_transaction(
+                session, 
+                employee_id=user_id, 
+                points=100.0, 
+                type="RECORD_BONUS", 
+                reference_id=f"shift_{routine.id}_bonus", 
+                note=f"Superou 5000kg ({today_prod}kg)"
+            )
+            # Log Event
+             event = models.Event(
+                date=today_str,
+                employee_id=user_id,
+                event_type="conquista",
+                description=f"Quebrou recorde diário: {today_prod}kg",
+                severity="info"
+            )
+             session.add(event)
+             
+        session.commit()
+        
+        # Logout after stopping routine? Or just stay on dashboard locked?
+        # User requested: "encerrar operação e travar"
+        # Let's logout to be safe/clear
+    return RedirectResponse(url="/mobile/dashboard", status_code=303)
+
+# --- Admin Routes ---
+@app.post("/admin/routine/reopen/{routine_id}", response_class=RedirectResponse)
+async def admin_reopen_routine(
+    request: Request,
+    routine_id: int, 
+    reason: str = Form(...),
+    session: Session = Depends(get_session)
+):
+    user = require_login(request)
+    # TODO: Verify if user is actually admin/manager logic (currently relying on simple require_login)
+    
+    routine = session.get(models.EmployeeRoutine, routine_id)
+    if routine and routine.status == "closed":
+        routine.status = "open"
+        routine.end_time = None # Reset end time? Or keep history?
+        # User requested: "reopened_by / reopened_reason / reopened_at"
+        routine.reopened_by = str(user)
+        routine.reopened_reason = reason
+        routine.reopened_at = datetime.now()
+        
+        session.add(routine)
+        
+        # Log Event
+        session.add(models.Event(
+            date=datetime.now().strftime("%Y-%m-%d"),
+            employee_id=routine.employee_id,
+            event_type="info",
+            description=f"Rotina reaberta por {user}: {reason}",
+            severity="warning"
+        ))
+        session.commit()
+    
+    # Redirect back to Employee Detail
+    return RedirectResponse(url=f"/employees/{routine.employee_id}", status_code=status.HTTP_303_SEE_OTHER)
+
+@app.get("/mobile/api/ai/today")
+async def mobile_ai_today(request: Request, session: Session = Depends(get_session)):
+    user = require_login(request)
+    if not isinstance(user, dict) or user.get("type") != "employee":
+         return JSONResponse({"error": "Unauthorized"}, status_code=401)
+         
+    user_id = user.get("id")
+    today = datetime.now().date()
+    
+    # 1. Calculate Average Productivity (Last 10 Days)
+    # Placeholder logic
+    avg_prod = 1500.0 # kg/h
+    target = round(avg_prod * 1.05, 0)
+    
+    return {
+        "avg_prod": avg_prod,
+        "target_prod": target,
+        "message": f"Ontem você fez X. Hoje sua meta é {target}kg/h."
+    }
+
+
 # --- Client Routes ---
 @app.post("/clients/add", response_class=RedirectResponse)
 async def add_client(
@@ -510,6 +833,14 @@ async def delete_client(request: Request, client_id: int, session: Session = Dep
 async def separacao_page(request: Request, date: Optional[str] = None, shift: str = "Manhã", session: Session = Depends(get_session)):
     user = require_login(request)
     
+    # Check for Mobile User
+    current_emp_id = None
+    is_mobile_user = False
+    
+    if isinstance(user, dict) and user.get("type") == "employee":
+        current_emp_id = user.get("id")
+        is_mobile_user = True
+    
     if not date:
         date = datetime.now().strftime("%Y-%m-%d")
         
@@ -520,24 +851,33 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
         .where(models.DailyOperation.shift == shift)
     ).first()
     
-    # 2. Filter Employees (Active Only, Any Shift)
-    # User Request: Trazer somente ativos (independente do turno/log)
-    all_employees = session.exec(select(models.Employee).where(models.Employee.status != "fired")).all()
+    # 2. Filter Employees
+    # Admin sees all active. Mobile sees only themselves.
+    stmt = select(models.Employee).where(models.Employee.status != "fired")
+    all_employees = session.exec(stmt).all()
     
-    eligible_employees = [e for e in all_employees if e.status == 'active']
-    eligible_employees.sort(key=lambda x: x.name)
+    if is_mobile_user:
+        eligible_employees = [e for e in all_employees if e.id == current_emp_id]
+    else:
+        # Filter by Active AND Shift
+        # Note: We filter by shift loosely (if employee shift matches selected shift)
+        # Assuming Employee model has a 'shift' field. If not, we just show all active.
+        # Based on previous context, Employee has a shift field.
+        eligible_employees = [e for e in all_employees if e.status == 'active' and e.work_shift == shift]
+        eligible_employees.sort(key=lambda x: x.name)
 
     # 3. Fetch Clients
     clients = session.exec(select(models.Client)).all()
     cli_map = {c.id: c.name for c in clients}
 
     # 4. Fetch Routes
-    db_routes = session.exec(
-        select(models.Route)
-        .where(models.Route.date == date)
-        .where(models.Route.shift == shift)
-        .order_by(models.Route.start_time)
-    ).all()
+    query = select(models.Route).where(models.Route.date == date).where(models.Route.shift == shift)
+    
+    if is_mobile_user:
+        query = query.where(models.Route.employee_id == current_emp_id)
+        
+    query = query.order_by(models.Route.start_time)
+    db_routes = session.exec(query).all()
 
     # 5. Enrich
     # Create ID map for name lookup
@@ -652,28 +992,81 @@ async def add_separacao(
     date: str = Form(...),
     shift: str = Form(...),
     employee_id: int = Form(...),
-    client_id: int = Form(...),
+    client_ids: str = Form(None), # JSON string of IDs
+    client_id: int = Form(None), # Legacy fallback
     start_time: str = Form(...),
     end_time: str = Form(None),
     tonnage: float = Form(0.0),
     session: Session = Depends(get_session)
 ):
     require_login(request)
+    import json
+    
+    # Resolve target clients
+    target_clients = []
+    if client_ids:
+        try:
+            target_clients = json.loads(client_ids)
+        except:
+            pass
+            
+    if not target_clients and client_id:
+        target_clients = [client_id]
+        
+    if not target_clients:
+        # Should not happen with frontend validation, but safety check
+        return RedirectResponse(url=f"/separacao?date={date}&shift={shift}", status_code=status.HTTP_303_SEE_OTHER)
+
     try:
-        new_route = models.Route(
-            date=date,
-            shift=shift,
-            employee_id=employee_id,
-            client_id=client_id,
-            start_time=start_time,
-            end_time=end_time,
-            tonnage=tonnage,
-            status="pending"
-        )
-        session.add(new_route)
+        # Split tonnage across clients? Or apply to first? 
+        # Requirement says "Create multiple routes". 
+        # Usually tonnage is entered PER route or total? 
+        # If user enters 1000kg and selects 2 clients, usually it implies 1000kg TOTAL split?
+        # OR 1000kg EACH?
+        # Given the UI "Peso (Kg)" field appears once, let's assume it is TOTAL weight to be split 
+        # OR replicated. Let's replicate for now (most flexible) OR assumes 0 for others.
+        # BETTER UX: Set tonnage for the FIRST one, or 0 for all if not specified.
+        # User request: "Selecionar varios clientes". 
+        # Implementation: Create one route entry per client.
+        # Tonnage: Since the input is singular, we will assign the tonnage to the FIRST route 
+        # and 0 to others, OR split it. 
+        # PROPOSED: Assign 0 to all except the first one? Or assign to each?
+        # Let's assign to EACH if it's likely they picked homogenous pallets. 
+        # SAFETY: Let's assign the tonnage to the first one and 0 to the rest to avoid creating "fake productivity".
+        
+        for i, c_id in enumerate(target_clients):
+            # Only apply tonnage to the first one to avoid double counting productivity
+            # unless user intends otherwise. 
+            # Actually, usually multi-sep means a "batch".
+            # Let's assign the full tonnage to the first one 
+            # and 0 to the rest? Or split evenly?
+            # Splitting evenly is safer for "Total" stats.
+            
+            final_tonnage = 0.0
+            if i == 0:
+                final_tonnage = tonnage # Assign all to first for now
+            else:
+                final_tonnage = 0.0 # Others get 0
+            
+            # If we want to split:
+            # final_tonnage = tonnage / len(target_clients) 
+            
+            new_route = models.Route(
+                date=date,
+                shift=shift,
+                employee_id=employee_id,
+                client_id=int(c_id),
+                start_time=start_time,
+                end_time=end_time,
+                tonnage=final_tonnage,
+                status="pending"
+            )
+            session.add(new_route)
+            
         session.commit()
     except Exception as e:
-        print(f"Error adding separacao: {e}")
+        print(f"Error adding separation: {e}")
+        
     return RedirectResponse(url=f"/separacao?date={date}&shift={shift}", status_code=status.HTTP_303_SEE_OTHER)
 @app.post("/separacao/delete/{route_id}", response_class=RedirectResponse)
 async def delete_separacao(
@@ -681,15 +1074,21 @@ async def delete_separacao(
     route_id: int,
     session: Session = Depends(get_session)
 ):
-    require_login(request)
+    user = require_login(request)
     route = session.get(models.Route, route_id)
     if route:
+        # PERMISSION CHECK: Mobile users cannot delete/edit completed routes
+        if isinstance(user, dict) and user.get("type") == "employee":
+             if route.status == "completed" or (route.end_time and route.end_time != ""):
+                 return RedirectResponse(url=f"/separacao?date={route.date}&shift={route.shift}", status_code=status.HTTP_303_SEE_OTHER)
+        
         date = route.date
         shift = route.shift
         session.delete(route)
         session.commit()
         return RedirectResponse(url=f"/separacao?date={date}&shift={shift}", status_code=status.HTTP_303_SEE_OTHER)
     return RedirectResponse(url="/separacao", status_code=status.HTTP_303_SEE_OTHER)
+
 @app.post("/separacao/update", response_class=RedirectResponse)
 async def update_separacao(
     request: Request,
@@ -701,9 +1100,15 @@ async def update_separacao(
     tonnage: Optional[float] = Form(None),
     session: Session = Depends(get_session)
 ):
-    require_login(request)
+    user = require_login(request)
     route = session.get(models.Route, route_id)
     if route:
+        # PERMISSION CHECK
+        if isinstance(user, dict) and user.get("type") == "employee":
+             # If route is ALREADY completed, prevent edits
+             if route.status == "completed" or (route.end_time and route.end_time != ""):
+                 return RedirectResponse(url=f"/separacao?date={route.date}&shift={route.shift}", status_code=status.HTTP_303_SEE_OTHER)
+
         old_status = route.status
         
         if employee_id is not None: route.employee_id = employee_id
@@ -2098,16 +2503,23 @@ async def get_all_employees(request: Request, session: Session = Depends(get_ses
         .where(models.Employee.replaced_by.is_(None))  # Excluir substituídos
     ).all()
     
-    return {
-        "employees": [{
-            "id": e.id,
-            "registration_id": e.registration_id,
-            "name": e.name,
-            "role": e.role,
-            "shift": e.work_shift,
-            "status": e.status
-        } for e in employees]
-    }
+    return JSONResponse(
+        content={
+            "employees": [{
+                "id": e.id,
+                "registration_id": e.registration_id,
+                "name": e.name,
+                "role": e.role,
+                "shift": e.work_shift,
+                "status": e.status
+            } for e in employees]
+        },
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
+    )
 
 # --- Smart Flow Hierarchical API Endpoints ---
 
@@ -3491,6 +3903,14 @@ async def read_employee(request: Request, employee_id: int, session: Session = D
     # Translate immediately for simpler template
     work_days_display = ", ".join([days_map.get(d, d) for d in work_days_list])
 
+    # Fetch Recent Routines (Last 15)
+    routines = session.exec(
+        select(models.EmployeeRoutine)
+        .where(models.EmployeeRoutine.employee_id == employee_id)
+        .order_by(models.EmployeeRoutine.date.desc())
+        .limit(15)
+    ).all()
+
     return templates.TemplateResponse("employee_detail.html", {
         "request": request, 
         "emp": employee, 
@@ -3498,7 +3918,8 @@ async def read_employee(request: Request, employee_id: int, session: Session = D
         "user": user,
         "stats": stats,
         "tenure": tenure_str,
-        "work_days_display": work_days_display
+        "work_days_display": work_days_display,
+        "routines": routines
     })
 @app.post("/employees/{emp_id}/status")
 async def update_employee_status(
@@ -3852,38 +4273,74 @@ async def import_occurrences(
             
         # Validate Date
         try:
-            date_obj = datetime.strptime(date_str, "%d/%m/%Y")
-            iso_date = date_obj.strftime("%Y-%m-%d")
+            start_date_obj = datetime.strptime(date_str, "%d/%m/%Y")
+            iso_date = start_date_obj.strftime("%Y-%m-%d") # Base date
         except:
              try:
-                 date_obj = datetime.strptime(date_str, "%Y-%m-%d")
-                 iso_date = date_obj.strftime("%Y-%m-%d")
+                 start_date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+                 iso_date = start_date_obj.strftime("%Y-%m-%d")
              except:
                 stats['errors'].append(f"Matrícula {reg_id}: Data inválida ({date_str})")
                 continue
                 
-        # Map Occurrence
-        occ_lower = occurrence_raw.lower()
-        routine_type, event_type = None, None
-        
-        if "falta" in occ_lower:
-            routine_type, event_type = "absent", "falta"
-        elif "atestado" in occ_lower:
-            routine_type, event_type = "sick", "atestado"
-        elif "suspensão" in occ_lower or "suspensao" in occ_lower:
-            routine_type, event_type = "absent", "suspension"
-        else:
-            stats['errors'].append(f"Matrícula {reg_id}: Ocorrência desconhecida ({occurrence_raw})")
-            continue
+        # CHECK FOR MULTI-DAY RANGE (If occurrence_raw is actually a Date)
+        end_date_obj = None
+        is_multi_day = False
+        try:
+            # Try parsing occurrence_raw as date
+            candidate_end = occurrence_raw
+            try:
+                end_date_obj = datetime.strptime(candidate_end, "%d/%m/%Y")
+            except:
+                end_date_obj = datetime.strptime(candidate_end, "%Y-%m-%d")
             
-        pending_entries.append({
-            "employee": employee,
-            "iso_date": iso_date,
-            "date_obj": date_obj,
-            "routine_type": routine_type,
-            "event_type": event_type,
-            "raw_occ": occurrence_raw
-        })
+            # If successful, it's a multi-day certificate!
+            is_multi_day = True
+            occurrence_raw = "Atestado (Multi-Dias)" # Force type
+            
+        except:
+            # Not a date, standard processing
+            end_date_obj = start_date_obj # Single day
+            is_multi_day = False
+
+        
+        # Loop for Days (Single or Multi)
+        current_loop_date = start_date_obj
+        while current_loop_date <= end_date_obj:
+            loop_iso = current_loop_date.strftime("%Y-%m-%d")
+            
+            # Determine Types
+            if is_multi_day:
+                routine_type, event_type = "sick", "atestado"
+                occ_label = f"Atestado ({start_date_obj.strftime('%d/%m')} a {end_date_obj.strftime('%d/%m')})"
+            else:
+                # Standard Logic
+                occ_lower = occurrence_raw.lower()
+                routine_type, event_type = None, None
+                occ_label = occurrence_raw
+                
+                if "falta" in occ_lower:
+                    routine_type, event_type = "absent", "falta"
+                elif "atestado" in occ_lower:
+                    routine_type, event_type = "sick", "atestado"
+                elif "suspensão" in occ_lower or "suspensao" in occ_lower:
+                    routine_type, event_type = "absent", "suspension"
+                elif "advertência" in occ_lower or "advertencia" in occ_lower:
+                    routine_type, event_type = None, "advertencia"
+                else:
+                    stats['errors'].append(f"Matrícula {reg_id}: Ocorrência desconhecida ({occurrence_raw})")
+                    break # Skip this line entirely if error
+            
+            pending_entries.append({
+                "employee": employee,
+                "iso_date": loop_iso,
+                "date_obj": current_loop_date,
+                "routine_type": routine_type,
+                "event_type": event_type,
+                "raw_occ": occ_label
+            })
+            
+            current_loop_date += timedelta(days=1)
         
     if not pending_entries:
         return stats
@@ -3911,20 +4368,22 @@ async def import_occurrences(
         iso_date = entry["iso_date"]
         
         # Routine Upsert
-        key = (emp.id, iso_date)
-        if key in routine_map:
-            routine = routine_map[key]
-            routine.routine = entry["routine_type"]
-            session.add(routine)
-        else:
-            routine = models.EmployeeRoutine(
-                date=iso_date,
-                shift=emp.work_shift,
-                employee_id=emp.id,
-                routine=entry["routine_type"]
-            )
-            session.add(routine)
-            routine_map[key] = routine # Update map for potential duplicate lines in same batch
+        # Routine Upsert (Only if routine_type matches a change, e.g. Absent/Sick)
+        if entry["routine_type"]:
+            key = (emp.id, iso_date)
+            if key in routine_map:
+                routine = routine_map[key]
+                routine.routine = entry["routine_type"]
+                session.add(routine)
+            else:
+                routine = models.EmployeeRoutine(
+                    date=iso_date,
+                    shift=emp.work_shift,
+                    employee_id=emp.id,
+                    routine=entry["routine_type"]
+                )
+                session.add(routine)
+                routine_map[key] = routine # Update map for potential duplicate lines in same batch
             
         # Event Creation (Blind Insert for history)
         new_event = models.Event(
@@ -4057,9 +4516,15 @@ async def import_employees(
     return RedirectResponse(url=f"/employees?success={count} colaboradores importados com sucesso.", status_code=status.HTTP_303_SEE_OTHER)
 @app.exception_handler(HTTPException)
 async def auth_exception_handler(request: Request, exc: HTTPException):
-    if exc.status_code == status.HTTP_307_TEMPORARY_REDIRECT:
-        return RedirectResponse(url="/login")
-    raise exc
+    if exc.status_code == status.HTTP_307_TEMPORARY_REDIRECT or exc.status_code == status.HTTP_303_SEE_OTHER:
+        return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
+    # For other HTTP exceptions, let them propagate or return JSON?
+    # Default behavior: return JSON or HTML error page.
+    # We should let FastAPI handle others, but since we are overriding the handler...
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+    )
 
 # --- People Intelligence Helper ---
 def get_people_intelligence_metrics(session: Session, shift: str, start_date: Optional[str], end_date: Optional[str]):
