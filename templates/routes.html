@@ -1,20 +1,20 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="p-8">
+<div class="p-8 animate-fade-in">
     <div class="max-w-7xl mx-auto">
         <!-- Header -->
         <div class="flex items-center justify-between mb-8">
             <div>
                 <h1 class="text-3xl font-bold text-white mb-2">Separação de Mercadorias</h1>
-                <p class="text-slate-400">Controle de produtividade e cargas por colaborador.</p>
+                <p class="text-slate-400">Gerenciamento de produtividade e cargas por colaborador.</p>
             </div>
 
             <!-- Filters -->
-            <div class="bg-slate-800 p-2 rounded-xl flex items-center gap-3 border border-slate-700">
+            <div class="bg-slate-800 p-2 rounded-xl flex items-center gap-3 border border-slate-700 shadow-sm">
                 <!-- Date -->
                 <input type="date" id="route-date" value="{{ selected_date }}" onchange="applyFilters()"
-                    class="bg-transparent text-white text-sm font-bold border-none focus:ring-0 cursor-pointer outline-none">
+                    class="bg-transparent text-white text-sm font-bold border-none focus:ring-0 cursor-pointer outline-none font-mono">
 
                 <div class="w-px h-6 bg-slate-600"></div>
 
@@ -31,81 +31,78 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <!-- Form Card -->
             <div class="lg:col-span-1">
-                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg sticky top-6">
+                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl sticky top-6">
                     <h2 class="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-                        <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
+                        <div class="p-2 rounded-lg bg-indigo-500/20 text-indigo-400">
+                            <i data-lucide="plus-circle" width="20" height="20"></i>
+                        </div>
                         Nova Separação
                     </h2>
 
-                    <form action="/separacao/add" method="post" class="space-y-4" autocomplete="off"
+                    <form action="/separacao/add" method="post" class="space-y-5" autocomplete="off"
                         onsubmit="return validateForm()">
                         <input type="hidden" name="date" value="{{ selected_date }}">
                         <input type="hidden" name="shift" value="{{ selected_shift }}">
+                        <input type="hidden" name="allocations" id="form-allocations">
 
                         <!-- Employee Searchable -->
                         <div class="relative group">
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Colaborador (Expedição)</label>
+                            <label
+                                class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Colaborador</label>
                             <input type="hidden" name="employee_id" id="form-employee-id" required>
 
                             {% if employees %}
                             <div class="relative">
-                                <input type="text" id="employee-search" placeholder="Digite para buscar..."
-                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i data-lucide="user" class="w-4 h-4 text-slate-500"></i>
+                                </div>
+                                <input type="text" id="employee-search" placeholder="Busque pelo nome..."
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-600"
                                     onfocus="showDropdown('employee-dropdown')"
                                     oninput="filterDropdown('employee-dropdown', this.value)">
+
                                 <div id="employee-dropdown"
-                                    class="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden">
+                                    class="absolute z-20 w- full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl max-h-60 overflow-y-auto hidden">
                                     {% for emp in employees %}
-                                    <div class="px-4 py-2 hover:bg-slate-700 cursor-pointer text-slate-300 text-sm transition-colors"
+                                    <div class="px-4 py-3 hover:bg-slate-700 cursor-pointer text-slate-200 text-sm transition-colors border-b border-slate-700/50 last:border-0"
                                         onclick="selectItem('employee', '{{ emp.id }}', '{{ emp.name }}')">
                                         {{ emp.name }}
                                     </div>
                                     {% endfor %}
                                 </div>
-                                <div class="absolute right-3 top-3 text-slate-500 pointer-events-none">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                    </svg>
-                                </div>
                             </div>
                             {% else %}
                             <div
-                                class="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-yellow-400 text-xs">
-                                Nenhum colaborador alocado na Expedição neste dia/turno.
+                                class="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-yellow-400 text-sm flex items-start gap-3">
+                                <i data-lucide="alert-triangle" class="shrink-0 mt-0.5"></i>
+                                <span>Nenhum colaborador disponível neste turno.</span>
                             </div>
                             {% endif %}
                         </div>
 
-                        <!-- Client Multi-Select -->
-                        <div class="relative group">
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Clientes
-                                (Multi-seleção)</label>
-                            <input type="hidden" name="client_ids" id="form-client-ids" required>
-
-                            <!-- Selected Tags Container -->
-                            <div id="selected-clients-container"
-                                class="flex flex-wrap gap-2 mb-2 min-h-[38px] bg-slate-900 border border-slate-700 rounded-lg p-2">
-                                <span class="text-slate-500 text-sm py-1 px-2 italic" id="client-placeholder">Selecione
-                                    os clientes...</span>
-                            </div>
+                        <!-- Client Search & Add -->
+                        <div class="relative group z-10">
+                            <label
+                                class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Adicionar
+                                Clientes</label>
 
                             <div class="relative">
-                                <input type="text" id="client-search" placeholder="Busque e adicione..."
-                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i data-lucide="search" class="w-4 h-4 text-slate-500"></i>
+                                </div>
+                                <input type="text" id="client-search" placeholder="Busque e clique para adicionar..."
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-600"
                                     onfocus="showDropdown('client-dropdown')"
                                     oninput="filterDropdown('client-dropdown', this.value)">
+
                                 <div id="client-dropdown"
-                                    class="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden">
+                                    class="absolute z-20 w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl max-h-60 overflow-y-auto hidden">
                                     {% for client in clients %}
                                     {% set is_active = client.id in active_client_ids %}
-                                    <div class="px-4 py-2 hover:bg-slate-700 cursor-pointer text-sm transition-colors flex justify-between items-center {{ 'bg-indigo-900/20' if is_active else '' }}"
+                                    <div class="px-4 py-2 hover:bg-slate-700 cursor-pointer text-sm transition-colors flex justify-between items-center border-b border-slate-700/50 last:border-0 {{ 'bg-indigo-900/10' if is_active else '' }}"
                                         onclick="addClient('{{ client.id }}', '{{ client.name }}')">
                                         <span
-                                            class="{{ 'text-indigo-400 font-bold' if is_active else 'text-slate-300' }}">{{
+                                            class="{{ 'text-indigo-300 font-semibold' if is_active else 'text-slate-300' }}">{{
                                             client.name }}</span>
                                         {% if is_active %}
                                         <span
@@ -118,39 +115,58 @@
                             </div>
                         </div>
 
+                        <!-- Allocations Table -->
+                        <div class="bg-slate-900/50 rounded-xl border border-slate-700 overflow-hidden">
+                            <div
+                                class="px-4 py-2 bg-slate-800/80 border-b border-slate-700 flex justify-between items-center">
+                                <span class="text-xs font-bold text-slate-400 uppercase">Lista de Separação</span>
+                                <span class="text-xs font-medium text-slate-500" id="allocation-count">0 items</span>
+                            </div>
+
+                            <div class="max-h-[200px] overflow-y-auto custom-scrollbar">
+                                <table class="w-full text-left border-collapse">
+                                    <tbody id="allocation-table-body" class="text-sm">
+                                        <!-- Rows injected by JS -->
+                                        <tr id="empty-row">
+                                            <td colspan="3" class="p-6 text-center text-slate-500 italic text-xs">
+                                                Nenhum cliente selecionado.
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Total Footer -->
+                            <div
+                                class="px-4 py-3 bg-slate-800/50 border-t border-slate-700 flex justify-between items-center">
+                                <span class="text-xs text-slate-400">Peso Total Previsto:</span>
+                                <span class="text-sm font-bold text-emerald-400 font-mono"
+                                    id="total-weight-display">0,00 Kg</span>
+                            </div>
+                        </div>
+
+
                         <!-- Times -->
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-xs font-medium text-slate-400 mb-1">Início</label>
+                                <label
+                                    class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Início</label>
                                 <input type="time" name="start_time" required id="form-start-time"
-                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none text-center font-mono">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-400 mb-1">Fim (Opcional)</label>
+                                <label class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Fim
+                                    (Opcional)</label>
                                 <input type="time" name="end_time"
-                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none placeholder-slate-600">
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none placeholder-slate-600 text-center font-mono">
                             </div>
-                        </div>
-
-                        <!-- Tonnage at Start -->
-                        <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Peso (Kg)</label>
-                            <input type="number" step="0.01" name="tonnage" required placeholder="0,00"
-                                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none font-bold">
                         </div>
 
                         <button type="submit" {% if not employees %}disabled{% endif %}
-                            class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-lg font-bold shadow-lg shadow-indigo-900/20 transition-all active:scale-[0.98] mt-2">
-                            <span class="flex items-center justify-center gap-2">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z">
-                                    </path>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                                Iniciar Separação
-                            </span>
+                            class="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3.5 rounded-lg font-bold shadow-lg shadow-indigo-900/30 transition-all active:scale-[0.98] mt-4 flex justify-center items-center gap-2 group">
+                            <span>Iniciar Separação</span>
+                            <i data-lucide="arrow-right"
+                                class="w-4 h-4 group-hover:translate-x-1 transition-transform"></i>
                         </button>
                     </form>
                 </div>
@@ -158,226 +174,190 @@
 
             <!-- List Card -->
             <div class="lg:col-span-2">
-                <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden min-h-[500px]">
+                <div
+                    class="bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-hidden min-h-[600px] flex flex-col">
                     <div
-                        class="px-6 py-4 border-b border-slate-700 bg-slate-800/50 flex flex-col md:flex-row gap-4 justify-between items-center">
+                        class="px-6 py-5 border-b border-slate-700 bg-slate-800/80 backdrop-blur-sm flex flex-col md:flex-row gap-4 justify-between items-center sticky top-0 z-10">
                         <div>
-                            <h3 class="text-slate-300 font-medium">Registros de {{ selected_date_fmt }} - {{
-                                selected_shift }}</h3>
-                            <div class="flex gap-2 mt-1">
+                            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                                <i data-lucide="list" class="text-slate-400"></i>
+                                Registros
                                 <span
-                                    class="bg-indigo-500/20 text-indigo-300 px-3 py-1 rounded-full text-xs font-bold">{{
-                                    routes|length }} Total</span>
-                            </div>
+                                    class="bg-indigo-500/10 text-indigo-400 px-2.5 py-0.5 rounded-md text-xs border border-indigo-500/20">
+                                    {{ selected_date_fmt }} • {{ selected_shift }}
+                                </span>
+                            </h3>
                         </div>
-                        <div class="relative w-full md:w-64">
+                        <div class="relative w-full md:w-72">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <svg class="h-4 w-4 text-slate-500" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                </svg>
+                                <i data-lucide="search" class="w-4 h-4 text-slate-500"></i>
                             </div>
                             <input type="text" id="route-list-search" placeholder="Filtrar por nome ou cliente..."
                                 oninput="filterRoutesList(this.value)"
-                                class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:ring-1 focus:ring-indigo-500 outline-none placeholder-slate-500 transition-all">
+                                class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:ring-1 focus:ring-indigo-500 outline-none placeholder-slate-500 transition-all">
                         </div>
                     </div>
 
-                    {% if routes %}
-                    <div class="space-y-6 p-4">
-                        {% for group in grouped_routes %}
-                        <div
-                            class="bg-slate-900/50 rounded-xl border border-slate-700/50 overflow-hidden searchable-card">
-                            <!-- Group Header -->
+                    <div class="flex-1 p-6 relative">
+                        {% if routes %}
+                        <div class="space-y-6">
+                            {% for group in grouped_routes %}
                             <div
-                                class="px-4 py-3 bg-slate-800 border-b border-slate-700 flex justify-between items-center">
-                                <div class="flex items-center gap-3">
-                                    <div
-                                        class="h-8 w-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 font-bold text-xs">
-                                        {{ group.employee_name[:2].upper() }}
+                                class="bg-slate-900/30 rounded-xl border border-slate-700/60 overflow-hidden searchable-card hover:border-slate-600 transition-colors">
+                                <!-- Group Header -->
+                                <div
+                                    class="px-5 py-3 bg-gradient-to-r from-slate-800 to-slate-800/50 border-b border-slate-700 flex justify-between items-center">
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-lg shadow-indigo-500/20">
+                                            {{ group.employee_name[:2].upper() }}
+                                        </div>
+                                        <div>
+                                            <h4 class="font-bold text-white text-sm">{{ group.employee_name }}</h4>
+                                            <div class="flex items-center gap-2 text-[10px] text-slate-400">
+                                                <span>{{ group.routes|length }} separações</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h4 class="font-bold text-white text-sm">{{ group.employee_name }}</h4>
-                                        <p class="text-[10px] text-slate-400">{{ group.routes|length }} separações</p>
+                                    <div class="flex flex-col items-end">
+                                        <span
+                                            class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Total
+                                            Acumulado</span>
+                                        <span class="text-emerald-400 font-mono font-bold text-sm">{{
+                                            "%.2f"|format(group.total_tonnage)|replace(".", ",") }} Kg</span>
                                     </div>
                                 </div>
-                                <span
-                                    class="text-xs font-mono bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-600">
-                                    Total: <span class="text-white font-bold">{{
-                                        "%.2f"|format(group.total_tonnage)|replace(".", ",") }} Kg</span>
-                                </span>
-                            </div>
 
-                            <!-- Active Routes (Separated) -->
-                            {% if group.routes_active %}
-                            <div class="divide-y divide-slate-700/50">
-                                {% for route in group.routes_active %}
-                                <div
-                                    class="p-3 transition-colors group flex items-center gap-4 bg-indigo-900/10 border-l-4 border-indigo-500 rounded-r-lg">
+                                <!-- Active Routes (Grid) -->
+                                {% if group.routes_active %}
+                                <div class="p-3 grid grid-cols-1 md:grid-cols-2 gap-3 bg-indigo-900/5 relative">
+                                    <div class="absolute top-0 left-0 w-1 h-full bg-indigo-500/30"></div>
+                                    {% for route in group.routes_active %}
+                                    <div
+                                        class="p-3 bg-slate-800 border border-slate-700 rounded-lg flex flex-col gap-2 relative group hover:border-indigo-500/50 transition-all shadow-sm">
 
-                                    <!-- Timer / Time Badge -->
-                                    <div class="flex flex-col items-center min-w-[60px]">
-                                        <span class="text-xs font-bold text-white">{{ route.start_time }}</span>
-                                        <span
-                                            class="text-[10px] font-mono font-bold text-indigo-400 live-timer animate-pulse"
-                                            data-start="{{ route.start_time }}">--:--</span>
-                                    </div>
-
-                                    <!-- Content -->
-                                    <div class="flex-1 flex justify-between items-center">
-                                        <div class="flex items-center gap-3">
-                                            <span
-                                                class="flex items-center gap-1 bg-slate-700/50 px-2 py-1 rounded text-xs text-slate-300 border border-slate-600/50">
-                                                <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor"
-                                                    viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2"
-                                                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
-                                                    </path>
-                                                </svg>
-                                                {{ route.client_name }}
-                                            </span>
-
-                                            {% if route.tonnage > 0 %}
-                                            <span class="text-xs font-mono text-slate-400">
-                                                {{ route.tonnage_fmt }} Kg
-                                            </span>
-                                            {% endif %}
-                                        </div>
-
-                                        <!-- Actions -->
-                                        <div class="flex items-center gap-2">
-                                            <button
-                                                onclick="openFinishModal({{ route.id }}, {{ route.employee_id }}, {{ route.client_id }}, '{{ route.start_time }}')"
-                                                class="bg-green-600 hover:bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg transition-all uppercase tracking-wider">
-                                                Encerrar
-                                            </button>
-
+                                        <!-- Header: Time & Client -->
+                                        <div class="flex justify-between items-start">
+                                            <div class="flex items-center gap-2">
+                                                <span
+                                                    class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-300 border border-slate-600">
+                                                    {{ route.start_time }}
+                                                </span>
+                                                <span
+                                                    class="text-[10px] font-mono font-bold text-indigo-400 live-timer animate-pulse"
+                                                    data-start="{{ route.start_time }}">--:--</span>
+                                            </div>
+                                            <!-- Actions (Hidden until hover) -->
                                             <div
-                                                class="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button
                                                     onclick="editRoute({{ route.id }}, {{ route.employee_id }}, {{ route.client_id }}, '{{ route.start_time }}', '', {{ route.tonnage }})"
-                                                    class="p-1 text-slate-400 hover:text-white transition">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor"
-                                                        viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                                            stroke-width="2"
-                                                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
-                                                        </path>
-                                                    </svg>
+                                                    class="p-1 hover:bg-slate-700 rounded text-slate-400 hover:text-white"
+                                                    title="Editar">
+                                                    <i data-lucide="edit-2" class="w-3 h-3"></i>
                                                 </button>
                                                 <form action="/separacao/delete/{{ route.id }}" method="post"
                                                     onsubmit="return confirm('Excluir?')" style="display:inline;">
                                                     <button type="submit"
-                                                        class="p-1 text-slate-400 hover:text-red-400 transition">
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor"
-                                                            viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                                stroke-width="2"
-                                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-                                                            </path>
-                                                        </svg>
+                                                        class="p-1 hover:bg-red-500/10 rounded text-slate-400 hover:text-red-400"
+                                                        title="Excluir">
+                                                        <i data-lucide="trash" class="w-3 h-3"></i>
                                                     </button>
                                                 </form>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            </div>
-                            {% endif %}
 
-                            <!-- Finished Routes Section -->
-                            {% if group.routes_finished %}
-                            <div class="bg-slate-800/20 rounded-b-xl border-t border-slate-700/50">
-                                <div class="px-4 py-2 border-b border-slate-700/30 bg-slate-800/40">
-                                    <h5 class="text-[10px] uppercase font-bold text-slate-500 flex items-center gap-2">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                        </svg>
-                                        Finalizadas ({{ group.routes_finished|length }})
-                                    </h5>
-                                </div>
-                                <div class="p-2 space-y-1">
-                                    {% for route in group.routes_finished %}
-                                    <div
-                                        class="p-2 transition-colors group flex items-center gap-3 opacity-60 hover:opacity-100 hover:bg-slate-700/40 rounded border border-transparent hover:border-slate-600/50">
-
-                                        <!-- Time (Compact) -->
-                                        <div class="flex flex-col items-center min-w-[50px] leading-none">
-                                            <span class="text-[10px] font-bold text-slate-400">{{ route.start_time
-                                                }}</span>
-                                            <div class="w-px h-1.5 bg-slate-700 my-0.5"></div>
-                                            <span class="text-[10px] text-slate-500">{{ route.end_time }}</span>
+                                        <div class="flex items-center gap-2">
+                                            <i data-lucide="package" class="w-4 h-4 text-indigo-400"></i>
+                                            <span class="text-sm font-semibold text-white truncate"
+                                                title="{{ route.client_name }}">{{ route.client_name }}</span>
                                         </div>
 
-                                        <!-- Simple Content -->
-                                        <div class="flex-1 flex justify-between items-center">
-                                            <div class="flex items-center gap-2">
-                                                <span class="text-[11px] text-slate-300 font-medium">{{
-                                                    route.client_name }}</span>
-
-                                                {% if route.tonnage > 0 %}
-                                                <span
-                                                    class="text-[10px] font-mono text-slate-400 bg-slate-900/50 px-1 rounded">{{
-                                                    route.tonnage_fmt }} Kg</span>
-                                                {% endif %}
-
-                                                {% if route.productivity > 0 %}
-                                                <span class="text-[10px] font-mono text-slate-500">{{
-                                                    route.productivity_fmt }} Kg/h</span>
-                                                {% endif %}
-                                            </div>
-
-                                            <!-- Minimal Actions -->
-                                            <div
-                                                class="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
-                                                <button
-                                                    onclick="editRoute({{ route.id }}, {{ route.employee_id }}, {{ route.client_id }}, '{{ route.start_time }}', '{{ route.end_time or '' }}', {{ route.tonnage }})"
-                                                    class="p-1 text-slate-500 hover:text-white transition">
-                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor"
-                                                        viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                                            stroke-width="2"
-                                                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
-                                                        </path>
-                                                    </svg>
-                                                </button>
-                                                <form action="/separacao/delete/{{ route.id }}" method="post"
-                                                    onsubmit="return confirm('Excluir?')" style="display:inline;">
-                                                    <button type="submit"
-                                                        class="p-1 text-slate-500 hover:text-red-400 transition">
-                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor"
-                                                            viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                                stroke-width="2"
-                                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-                                                            </path>
-                                                        </svg>
-                                                    </button>
-                                                </form>
-                                            </div>
+                                        <div class="flex justify-between items-end mt-1">
+                                            <span class="text-xs font-mono text-slate-400 flex items-center gap-1">
+                                                <i data-lucide="weight" class="w-3 h-3"></i>
+                                                {{ route.tonnage_fmt }} Kg
+                                            </span>
+                                            <button
+                                                onclick="openFinishModal({{ route.id }}, {{ route.employee_id }}, {{ route.client_id }}, '{{ route.start_time }}')"
+                                                class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-md shadow-lg transition-all flex items-center gap-1">
+                                                <i data-lucide="check" class="w-3 h-3"></i> Encerrar
+                                            </button>
                                         </div>
                                     </div>
                                     {% endfor %}
                                 </div>
+                                {% endif %}
+
+                                <!-- Finished Routes Section -->
+                                {% if group.routes_finished %}
+                                <div class="bg-slate-800/30 border-t border-slate-700/50">
+                                    <div class="px-4 py-1.5 bg-slate-800/40 flex items-center gap-2">
+                                        <i data-lucide="check-circle" class="w-3 h-3 text-emerald-500/70"></i>
+                                        <span class="text-[10px] font-bold text-slate-500 uppercase">Concluídas</span>
+                                    </div>
+                                    <div class="divide-y divide-slate-700/30">
+                                        {% for route in group.routes_finished %}
+                                        <div
+                                            class="px-4 py-2 flex items-center justify-between hover:bg-slate-700/20 transition-colors group">
+                                            <div class="flex items-center gap-4">
+                                                <div
+                                                    class="flex flex-col text-[10px] font-mono text-slate-500 leading-tight w-16">
+                                                    <span>{{ route.start_time }}</span>
+                                                    <span>{{ route.end_time }}</span>
+                                                </div>
+                                                <div class="flex flex-col">
+                                                    <span class="text-xs text-slate-300 font-medium">{{
+                                                        route.client_name }}</span>
+                                                    <span class="text-[10px] text-slate-500">{{ route.duration_fmt
+                                                        }}</span>
+                                                </div>
+                                            </div>
+
+                                            <div class="flex items-center gap-4">
+                                                {% if route.productivity > 0 %}
+                                                <span
+                                                    class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                                                    {{ route.productivity_fmt }} Kg/h
+                                                </span>
+                                                {% endif %}
+
+                                                <span class="text-xs font-mono text-slate-400 w-16 text-right">{{
+                                                    route.tonnage_fmt }} Kg</span>
+
+                                                <!-- Actions -->
+                                                <div
+                                                    class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        onclick="editRoute({{ route.id }}, {{ route.employee_id }}, {{ route.client_id }}, '{{ route.start_time }}', '{{ route.end_time }}', {{ route.tonnage }})"
+                                                        class="p-1 hover:bg-slate-700 rounded text-slate-500 hover:text-white">
+                                                        <i data-lucide="edit-2" class="w-3 h-3"></i>
+                                                    </button>
+                                                    <form action="/separacao/delete/{{ route.id }}" method="post"
+                                                        onsubmit="return confirm('Excluir?')" style="display:inline;">
+                                                        <button type="submit"
+                                                            class="p-1 hover:bg-red-500/10 rounded text-slate-500 hover:text-red-400">
+                                                            <i data-lucide="trash" class="w-3 h-3"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
                             </div>
-                            {% endif %}
+                            {% endfor %}
                         </div>
-                        {% endfor %}
+                        {% else %}
+                        <div class="absolute inset-0 flex flex-col items-center justify-center text-slate-600">
+                            <i data-lucide="clipboard-x" class="w-16 h-16 mb-4 opacity-50"></i>
+                            <p class="text-lg font-medium">Nenhuma separação registrada.</p>
+                            <p class="text-sm">Selecione um colaborador ao lado para iniciar.</p>
+                        </div>
+                        {% endif %}
                     </div>
-                    {% else %}
-                    <div class="flex flex-col items-center justify-center py-20 text-slate-500 opacity-60">
-                        <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                                d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7">
-                            </path>
-                        </svg>
-                        <p class="text-lg">Nenhum registro encontrado para este turno.</p>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -385,11 +365,14 @@
 </div>
 
 <!-- Finish Modal -->
-<div id="finishModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm">
-    <div
-        class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-sm mx-4 transform transition-all scale-100">
-        <h3 class="text-lg font-bold text-white mb-1">Encerrar Separação</h3>
-        <p class="text-slate-400 text-sm mb-4" id="finish-modal-desc">Finalizar tarefa...</p>
+<dialog id="finishModal"
+    class="glass-panel p-0 backdrop:bg-black/80 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden mx-auto mt-20">
+    <div class="bg-slate-800 p-6">
+        <h3 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
+            <i data-lucide="check-square" class="text-emerald-500"></i>
+            Encerrar Tarefa
+        </h3>
+        <p class="text-slate-400 text-xs mb-6">Confirme o horário de término para calcular a produtividade.</p>
 
         <form action="/separacao/update" method="post" class="space-y-4">
             <input type="hidden" name="route_id" id="finish-route-id">
@@ -398,26 +381,29 @@
             <input type="hidden" name="start_time" id="finish-start-time">
 
             <div>
-                <label class="block text-xs font-medium text-slate-400 mb-1">Horário de Término</label>
-                <input type="time" name="end_time" id="finish-end-time" required
-                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-green-500 outline-none text-lg font-mono">
+                <label class="block text-xs font-bold text-slate-400 mb-1 uppercase">Horário de Término</label>
+                <div class="relative">
+                    <i data-lucide="clock" class="absolute left-3 top-3 w-4 h-4 text-slate-500"></i>
+                    <input type="time" name="end_time" id="finish-end-time" required
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none text-lg font-mono tracking-wide">
+                </div>
             </div>
 
-            <div class="flex justify-end gap-2 mt-6">
-                <button type="button" onclick="closeFinishModal()"
-                    class="px-4 py-2 text-slate-400 hover:text-white transition">Cancelar</button>
+            <div class="grid grid-cols-2 gap-3 mt-6">
+                <button type="button" onclick="document.getElementById('finishModal').close()"
+                    class="py-2.5 rounded-lg border border-slate-600 text-slate-300 font-semibold hover:bg-slate-700 transition">Cancelar</button>
                 <button type="submit"
-                    class="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold shadow-lg shadow-green-900/20">Confirmar</button>
+                    class="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold shadow-lg shadow-emerald-900/20 transition">Confirmar</button>
             </div>
         </form>
     </div>
-</div>
+</dialog>
 
 <!-- Edit Modal -->
-<div id="editModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm">
-    <div
-        class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md mx-4 transform transition-all scale-100">
-        <h3 class="text-lg font-bold text-white mb-4">Editar Separação</h3>
+<dialog id="editModal"
+    class="glass-panel p-0 backdrop:bg-black/80 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden mx-auto mt-20">
+    <div class="bg-slate-800 p-6">
+        <h3 class="text-lg font-bold text-white mb-6">Editar Registro</h3>
         <form action="/separacao/update" method="post" class="space-y-4">
             <input type="hidden" name="route_id" id="edit-route-id">
 
@@ -447,52 +433,142 @@
                 <div>
                     <label class="block text-xs font-medium text-slate-400 mb-1">Início</label>
                     <input type="time" name="start_time" id="edit-start-time" required
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none font-mono">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-400 mb-1">Fim</label>
                     <input type="time" name="end_time" id="edit-end-time"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none font-mono">
                 </div>
             </div>
 
             <div>
                 <label class="block text-xs font-medium text-slate-400 mb-1">Peso Total (Kg)</label>
                 <input type="number" step="0.01" name="tonnage" id="edit-tonnage"
-                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none font-mono">
             </div>
 
-            <div class="flex justify-end gap-2 mt-6">
-                <button type="button" onclick="closeEditModal()"
-                    class="px-4 py-2 text-slate-400 hover:text-white transition">Cancelar</button>
+            <div class="grid grid-cols-2 gap-3 mt-6">
+                <button type="button" onclick="document.getElementById('editModal').close()"
+                    class="py-2.5 rounded-lg border border-slate-600 text-slate-300 font-semibold hover:bg-slate-700 transition">Cancelar</button>
                 <button type="submit"
-                    class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold">Salvar</button>
+                    class="py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold">Salvar</button>
             </div>
         </form>
     </div>
-</div>
+</dialog>
 
 <script>
+    // --- Icons ---
+    lucide.createIcons();
+
+    // --- State ---
+    const allocationTable = document.getElementById('allocation-table-body');
+    const allocationCount = document.getElementById('allocation-count');
+    const formAllocations = document.getElementById('form-allocations');
+    const totalWeightDisplay = document.getElementById('total-weight-display');
+    const addedClients = new Map(); // id -> { name, tonnage }
+
+    // --- Core Functions ---
+    function addClient(id, name) {
+        if (addedClients.has(id)) return; // No duplicates
+
+        addedClients.set(id, { name: name, tonnage: 0 }); // Default 0 weight
+        renderAllocationTable();
+
+        // Clear search
+        document.getElementById('client-search').value = '';
+        document.getElementById('client-dropdown').classList.add('hidden');
+    }
+
+    function removeClient(id) {
+        addedClients.delete(id);
+        renderAllocationTable();
+    }
+
+    function updateClientTonnage(id, value) {
+        if (!addedClients.has(id)) return;
+        const entry = addedClients.get(id);
+        entry.tonnage = parseFloat(value) || 0;
+        addedClients.set(id, entry);
+        renderAllocationTable(false); // No full re-render, just calc total? 
+        // Actually full re-render is wasteful if input loses focus.
+        // Let's just update total.
+        updateTotalWeight();
+    }
+
+    function renderAllocationTable(full = true) {
+        // Toggle Empty/List
+        if (addedClients.size === 0) {
+            allocationTable.innerHTML = `
+                <tr id="empty-row">
+                    <td colspan="3" class="p-6 text-center text-slate-500 italic text-xs border-b border-slate-800">
+                        Selecione clientes acima para adicionar a lista.
+                    </td>
+                </tr>
+            `;
+            allocationCount.innerText = '0 items';
+            updateTotalWeight();
+            return;
+        }
+
+        if (full) {
+            allocationTable.innerHTML = '';
+            addedClients.forEach((data, id) => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-slate-800 hover:bg-slate-800/30 transition-colors group animate-fade-in';
+                tr.innerHTML = `
+                    <td class="px-4 py-3 text-slate-300 font-medium">${data.name}</td>
+                    <td class="px-2 py-2 w-32">
+                        <input type="number" step="0.1" value="${data.tonnage || ''}" placeholder="0"
+                            onchange="updateClientTonnage('${id}', this.value)"
+                            onkeyup="updateClientTonnage('${id}', this.value)"
+                            class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white text-right font-mono focus:border-indigo-500 outline-none transition-colors">
+                    </td>
+                    <td class="px-2 py-2 w-10 text-right">
+                        <button type="button" onclick="removeClient('${id}')" 
+                            class="p-1.5 rounded text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-50 group-hover:opacity-100">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    </td>
+                `;
+                allocationTable.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        allocationCount.innerText = `${addedClients.size} items`;
+        updateTotalWeight();
+    }
+
+    function updateTotalWeight() {
+        let total = 0;
+        addedClients.forEach(c => total += c.tonnage);
+        totalWeightDisplay.innerText = total.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + ' Kg';
+
+        // Update hidden JSON input
+        const payload = [];
+        addedClients.forEach((data, id) => {
+            payload.push({ client_id: id, tonnage: data.tonnage });
+        });
+        formAllocations.value = JSON.stringify(payload);
+    }
+
+    // --- Validation ---
     function validateForm() {
         const empId = document.getElementById('form-employee-id').value;
-        const clientId = document.getElementById('form-client-ids').value;
-
         if (!empId) {
-            alert('Por favor, selecione um Colaborador da lista. Você deve clicar em uma das opções sugeridas.');
-            // Clear invalid text
-            document.getElementById('employee-search').value = '';
+            alert('Por favor, selecione um Colaborador.');
             document.getElementById('employee-search').focus();
             return false;
         }
 
-        let clients = [];
-        try { clients = JSON.parse(clientId || '[]'); } catch (e) { }
-
-        if (clients.length === 0) {
-            alert('Por favor, adicione pelo menos um Cliente.');
+        if (addedClients.size === 0) {
+            alert('Adicione pelo menos um cliente à lista.');
             document.getElementById('client-search').focus();
             return false;
         }
+
         return true;
     }
 
@@ -502,7 +578,7 @@
         window.location.href = `/separacao?date=${date}&shift=${shift}`;
     }
 
-    // --- Searchable Dropdown Logic ---
+    // --- Search Dropdowns ---
     function showDropdown(id) {
         document.getElementById(id).classList.remove('hidden');
     }
@@ -511,86 +587,30 @@
         const dropdown = document.getElementById(dropdownId);
         const items = dropdown.children;
         const term = searchText.toLowerCase();
-
-        let hasVisible = false;
         for (let item of items) {
+            // Skip if logic needed
             if (item.innerText.toLowerCase().includes(term)) {
                 item.classList.remove('hidden');
-                hasVisible = true;
             } else {
                 item.classList.add('hidden');
             }
         }
     }
 
-    // --- Multi-Client Logic ---
-    const selectedClients = new Set();
-    const clientsData = {}; // id -> name
-
-    function addClient(id, name) {
-        if (selectedClients.has(id)) return;
-
-        selectedClients.add(id);
-        clientsData[id] = name;
-        renderSelectedClients();
-
-        // Clear search
-        document.getElementById('client-search').value = '';
-        document.getElementById('client-dropdown').classList.add('hidden');
-    }
-
-    function removeClient(id) {
-        selectedClients.delete(id);
-        renderSelectedClients();
-    }
-
-    function renderSelectedClients() {
-        const container = document.getElementById('selected-clients-container');
-        const input = document.getElementById('form-client-ids');
-        const placeholder = document.getElementById('client-placeholder');
-
-        // Update hidden input
-        input.value = JSON.stringify(Array.from(selectedClients));
-
-        // Clear view (keep placeholder logic separate if needed, but easier to rebuild)
-        container.innerHTML = '';
-
-        if (selectedClients.size === 0) {
-            container.appendChild(placeholder);
-            placeholder.style.display = 'block';
-            return;
-        }
-
-        // Render tags
-        selectedClients.forEach(id => {
-            const name = clientsData[id];
-            const tag = document.createElement('div');
-            tag.className = 'bg-indigo-600 text-white text-xs font-bold px-2 py-1 rounded flex items-center gap-2 shadow-sm animate-fade-in';
-            tag.innerHTML = `
-                ${name}
-                <button type="button" onclick="removeClient('${id}')" class="hover:text-red-300 focus:outline-none">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            `;
-            container.appendChild(tag);
-        });
-    }
-
     function selectItem(type, id, name) {
-        // Legacy single select for Employee
         document.getElementById(`form-${type}-id`).value = id;
         document.getElementById(`${type}-search`).value = name;
         document.getElementById(`${type}-dropdown`).classList.add('hidden');
     }
 
-    // Close dropdowns when clicking outside
+    // Close dropdowns
     document.addEventListener('click', function (e) {
         if (!e.target.closest('.relative')) {
             document.querySelectorAll('[id$="-dropdown"]').forEach(el => el.classList.add('hidden'));
         }
     });
 
-    // Auto-set Start Time
+    // --- Auto Start Time ---
     document.addEventListener('DOMContentLoaded', () => {
         const now = new Date();
         const hours = String(now.getHours()).padStart(2, '0');
@@ -601,47 +621,28 @@
         startLiveTimers();
     });
 
-    // --- Active Timer Logic ---
+    // --- Live Timers (Copy from old) ---
     function startLiveTimers() {
         setInterval(() => {
             document.querySelectorAll('.live-timer').forEach(el => {
                 const startStr = el.dataset.start;
                 if (!startStr) return;
-
                 const now = new Date();
                 const [startH, startM] = startStr.split(':').map(Number);
                 const startDate = new Date();
                 startDate.setHours(startH, startM, 0, 0);
                 if (startDate > now) startDate.setDate(startDate.getDate() - 1);
-
                 const diff = now - startDate;
                 if (diff < 0) return;
-
                 const diffHrs = Math.floor(diff / 3600000);
                 const diffMins = Math.floor((diff % 3600000) / 60000);
                 const diffSecs = Math.floor((diff % 60000) / 1000);
-
                 el.innerText = `${String(diffHrs).padStart(2, '0')}:${String(diffMins).padStart(2, '0')}:${String(diffSecs).padStart(2, '0')}`;
             });
         }, 1000);
     }
 
-    // Auto-Select Employee for Mobile Users
-    {% if is_mobile and employees %}
-    document.addEventListener('DOMContentLoaded', () => {
-        // Delay slightly to ensure elements ready
-        setTimeout(() => {
-            selectItem('employee', '{{ employees[0].id }}', '{{ employees[0].name }}');
-            const input = document.getElementById('employee-search');
-            if (input) {
-                input.readOnly = true;
-                input.classList.add('opacity-60', 'cursor-not-allowed');
-            }
-        }, 100);
-    });
-    {% endif %}
-
-    // --- Modal Logic ---
+    // --- Modals ---
     function openFinishModal(id, empId, cliId, start) {
         document.getElementById('finish-route-id').value = id;
         document.getElementById('finish-employee-id').value = empId;
@@ -652,55 +653,39 @@
         const hours = String(now.getHours()).padStart(2, '0');
         const minutes = String(now.getMinutes()).padStart(2, '0');
         document.getElementById('finish-end-time').value = `${hours}:${minutes}`;
-        document.getElementById('finish-end-time').value = `${hours}:${minutes}`;
 
-        document.getElementById('finishModal').classList.remove('hidden');
-        document.getElementById('finishModal').classList.add('flex');
+        document.getElementById('finishModal').showModal();
     }
 
-    function closeFinishModal() {
-        document.getElementById('finishModal').classList.add('hidden');
-        document.getElementById('finishModal').classList.remove('flex');
-    }
-
-    function editRoute(id, empId, clientId, start, end, tonnage) {
+    function editRoute(id, empId, cliId, start, end, tonnage) {
         document.getElementById('edit-route-id').value = id;
         document.getElementById('edit-employee-id').value = empId;
-        document.getElementById('edit-client-id').value = clientId;
+        document.getElementById('edit-client-id').value = cliId;
         document.getElementById('edit-start-time').value = start;
         document.getElementById('edit-end-time').value = end;
         document.getElementById('edit-tonnage').value = tonnage;
-
-        document.getElementById('editModal').classList.remove('hidden');
-        document.getElementById('editModal').classList.add('flex');
+        document.getElementById('editModal').showModal();
     }
 
-    function closeEditModal() {
-        document.getElementById('editModal').classList.add('hidden');
-        document.getElementById('editModal').classList.remove('flex');
-    }
-
-    // Close modal on click outside
-    document.getElementById('editModal').addEventListener('click', (e) => {
-        if (e.target === document.getElementById('editModal')) closeEditModal();
-    });
-    // --- List Filter Logic ---
-    function filterRoutesList(searchText) {
-        const cards = document.querySelectorAll('.searchable-card');
-        const term = searchText.toLowerCase();
-
-        cards.forEach(card => {
-            const empName = card.querySelector('h4').innerText.toLowerCase();
-            // Collect all client names in this card (active and finished)
-            const clientBadges = Array.from(card.querySelectorAll('.text-xs.text-slate-300, .text-xs.font-medium, .text-\\[11px\\]'));
-            const clientNames = clientBadges.map(el => el.innerText.toLowerCase()).join(' ');
-
-            if (empName.includes(term) || clientNames.includes(term)) {
-                card.classList.remove('hidden');
-            } else {
-                card.classList.add('hidden');
-            }
-        });
-    }
 </script>
+
+<style>
+    /* Custom Scrollbar for the table */
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: rgba(30, 41, 59, 0.5);
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(71, 85, 105, 0.8);
+        border-radius: 3px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(100, 116, 139, 1);
+    }
+</style>
 {% endblock %}

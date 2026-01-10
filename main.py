@@ -992,81 +992,70 @@ async def add_separacao(
     date: str = Form(...),
     shift: str = Form(...),
     employee_id: int = Form(...),
-    client_ids: str = Form(None), # JSON string of IDs
+    allocations: str = Form(None), # JSON string: [{"client_id": 1, "tonnage": 100}, ...]
+    client_ids: str = Form(None), # Legacy fallback
     client_id: int = Form(None), # Legacy fallback
     start_time: str = Form(...),
     end_time: str = Form(None),
-    tonnage: float = Form(0.0),
+    tonnage: float = Form(0.0), # Legacy fallback
     session: Session = Depends(get_session)
 ):
     require_login(request)
     import json
     
-    # Resolve target clients
-    target_clients = []
-    if client_ids:
+    # 1. Parse Allocations
+    items = []
+    
+    if allocations:
         try:
-            target_clients = json.loads(client_ids)
+            items = json.loads(allocations)
+        except Exception as e:
+            print(f"Error parsing allocations: {e}")
+            items = []
+            
+    # Fallback: Legacy Client IDs (List)
+    elif client_ids:
+        try:
+            c_ids = json.loads(client_ids)
+            # Legacy assumption: 1st client gets tonnage, others get 0
+            for idx, cid in enumerate(c_ids):
+                items.append({
+                    "client_id": cid,
+                    "tonnage": tonnage if idx == 0 else 0.0
+                })
         except:
             pass
-            
-    if not target_clients and client_id:
-        target_clients = [client_id]
-        
-    if not target_clients:
-        # Should not happen with frontend validation, but safety check
+
+    # Fallback: Single Client
+    elif client_id:
+        items.append({
+            "client_id": client_id,
+            "tonnage": tonnage
+        })
+
+    if not items:
+        # Error? Just redirect back
         return RedirectResponse(url=f"/separacao?date={date}&shift={shift}", status_code=status.HTTP_303_SEE_OTHER)
 
-    try:
-        # Split tonnage across clients? Or apply to first? 
-        # Requirement says "Create multiple routes". 
-        # Usually tonnage is entered PER route or total? 
-        # If user enters 1000kg and selects 2 clients, usually it implies 1000kg TOTAL split?
-        # OR 1000kg EACH?
-        # Given the UI "Peso (Kg)" field appears once, let's assume it is TOTAL weight to be split 
-        # OR replicated. Let's replicate for now (most flexible) OR assumes 0 for others.
-        # BETTER UX: Set tonnage for the FIRST one, or 0 for all if not specified.
-        # User request: "Selecionar varios clientes". 
-        # Implementation: Create one route entry per client.
-        # Tonnage: Since the input is singular, we will assign the tonnage to the FIRST route 
-        # and 0 to others, OR split it. 
-        # PROPOSED: Assign 0 to all except the first one? Or assign to each?
-        # Let's assign to EACH if it's likely they picked homogenous pallets. 
-        # SAFETY: Let's assign the tonnage to the first one and 0 to the rest to avoid creating "fake productivity".
+    # 2. Create Routes
+    for item in items:
+        cid = int(item.get('client_id'))
+        weight = float(item.get('tonnage') or 0.0)
         
-        for i, c_id in enumerate(target_clients):
-            # Only apply tonnage to the first one to avoid double counting productivity
-            # unless user intends otherwise. 
-            # Actually, usually multi-sep means a "batch".
-            # Let's assign the full tonnage to the first one 
-            # and 0 to the rest? Or split evenly?
-            # Splitting evenly is safer for "Total" stats.
-            
-            final_tonnage = 0.0
-            if i == 0:
-                final_tonnage = tonnage # Assign all to first for now
-            else:
-                final_tonnage = 0.0 # Others get 0
-            
-            # If we want to split:
-            # final_tonnage = tonnage / len(target_clients) 
-            
-            new_route = models.Route(
-                date=date,
-                shift=shift,
-                employee_id=employee_id,
-                client_id=int(c_id),
-                start_time=start_time,
-                end_time=end_time,
-                tonnage=final_tonnage,
-                status="pending"
-            )
-            session.add(new_route)
-            
-        session.commit()
-    except Exception as e:
-        print(f"Error adding separation: {e}")
-        
+        route = models.Route(
+            date=date,
+            shift=shift,
+            employee_id=employee_id,
+            client_id=cid,
+            start_time=start_time,
+            end_time=end_time if end_time else None,
+            tonnage=weight,
+            type="separation"
+        )
+        session.add(route)
+    
+    session.commit()
+    
     return RedirectResponse(url=f"/separacao?date={date}&shift={shift}", status_code=status.HTTP_303_SEE_OTHER)
 @app.post("/separacao/delete/{route_id}", response_class=RedirectResponse)
 async def delete_separacao(
