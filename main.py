@@ -346,6 +346,9 @@ async def mobile_auth(
             {"request": request, "error": "Acesso não autorizado."}
         )
 
+    # Clear any existing session (e.g. Admin login) to prevent conflicts
+    request.session.clear()
+    
     request.session["user_id"] = employee.id
     request.session["user_role"] = "employee"
     return RedirectResponse(url="/mobile/dashboard", status_code=303)
@@ -356,167 +359,282 @@ async def mobile_logout(request: Request):
     return RedirectResponse(url="/mobile/login", status_code=303)
 
 @app.get("/mobile/dashboard", response_class=HTMLResponse)
-async def mobile_dashboard(
-    request: Request,
-    session: Session = Depends(get_session)
-):
-    user_id = request.session.get("user_id")
-    if not user_id:
-        return RedirectResponse(url="/mobile/login", status_code=303)
-        
-    employee = session.get(models.Employee, user_id)
-    if not employee:
-        request.session.clear()
-        return RedirectResponse(url="/mobile/login", status_code=303)
+async def mobile_dashboard(request: Request, current_user: dict = Depends(get_current_user), session: Session = Depends(get_session)):
+    try:
+        # Validate User Type (Must be dict from mobile login)
+        if not isinstance(current_user, dict):
+             # Logged in as Admin/User but trying to access Mobile Dashboard
+             # Redirect to mobile login to identify as Employee
+             return RedirectResponse(url="/mobile/login", status_code=303)
 
-    # --- AI / Gamification Logic ---
-    today = datetime.now().date()
-    yesterday = today - timedelta(days=1)
-    if yesterday.weekday() == 6: # If Sunday, check Saturday
-         yesterday = today - timedelta(days=2)
+        # Find Employee linked to User
+        # The existing get_current_user returns a dict with 'id' for employee
+        user_id = current_user.get("id")
+        if not user_id:
+            return RedirectResponse(url="/mobile/login", status_code=303)
 
-    # Stats: Yesterday's Production
-    # Assuming production is tied to Routes for now (Separacao)
-    # TODO: Make this generic for other roles later
-    stmt = select(func.sum(models.Route.tonnage)).where(
-        models.Route.employee_id == employee.id,
-        models.Route.date == yesterday.strftime("%Y-%m-%d")
-    )
-    yesterday_kg = session.exec(stmt).one() or 0.0
+        employee = session.get(models.Employee, user_id)
+        if not employee:
+            request.session.clear()
+            return RedirectResponse(url="/mobile/login", status_code=303)
 
-    # Build Message
-    ai_message = None
-    if yesterday_kg > 0:
-        target = yesterday_kg * 1.05 # 5% increase challenge
-        ai_message = f"Ontem você fez {yesterday_kg:,.0f}kg. Hoje sua meta é {target:,.0f}kg (+5% 🚀). Se bater o recorde ganha +100 XP!"
-    else:
-        ai_message = "Pronto para superar seus limites hoje? Vamos lá!"
+        today = datetime.now()
+        yesterday = today - timedelta(days=1)
+        if yesterday.weekday() == 6: # If Sunday, check Saturday
+             yesterday = today - timedelta(days=2)
+        
+        # --- Yesterday's Performance (gamification) ---
+        # TODO: Make this generic for other roles later
+        stmt = select(func.sum(models.Route.tonnage)).where(
+            models.Route.employee_id == employee.id,
+            models.Route.date == yesterday.strftime("%Y-%m-%d")
+        )
+        yesterday_kg = session.exec(stmt).one() or 0.0
 
-    # --- Clients for Modal ---
-    clients = session.exec(select(models.Client)).all()
+        # Build Message
+        ai_message = None
+        if yesterday_kg > 0:
+            target = yesterday_kg * 1.05 # 5% increase challenge
+            ai_message = f"Ontem você fez {yesterday_kg:,.0f}kg. Hoje sua meta é {target:,.0f}kg (+5% 🚀). Se bater o recorde ganha +100 XP!"
+        else:
+            ai_message = "Pronto para superar seus limites hoje? Vamos lá!"
 
-    # --- Chart Data (Advanced) ---
-    chart_labels = []
-    chart_daily_kg = []
-    chart_daily_kgh = []
-    chart_cumulative_kg = []
-    chart_bg_colors = []
-    
-    running_total = 0
-    
-    # Pre-fetch data to analyze rankings
-    daily_stats = []
-    
-    for i in range(6, -1, -1):
-        d = today - timedelta(days=i)
-        d_str = d.strftime("%Y-%m-%d")
-        label = d.strftime("%d/%m")
+        # --- Clients for Modal ---
+        clients = session.exec(select(models.Client)).all()
+
+        # --- Chart Data (Advanced) ---
+        chart_labels = []
+        chart_daily_kg = []
+        chart_daily_kgh = []
+        chart_cumulative_kg = []
+        chart_bg_colors = []
         
-        # 1. Total Daily Kg
-        daily_kg = session.exec(
-            select(func.sum(models.Route.tonnage))
-            .where(models.Route.employee_id == employee.id, models.Route.date == d_str)
-        ).one() or 0.0
+        running_total = 0
         
-        # 2. Work Hours (from Routine)
-        routine = session.exec(
-            select(models.EmployeeRoutine)
-            .where(models.EmployeeRoutine.employee_id == employee.id, models.EmployeeRoutine.date == d_str)
-        ).first()
+        # Pre-fetch data to analyze rankings
+        daily_stats = []
         
-        minutes = 480.0 # fallback (8 hours)
-        if routine and routine.start_time:
-             try:
-                start_dt = datetime.strptime(routine.start_time, "%H:%M")
-                if routine.end_time:
-                     end_dt = datetime.strptime(routine.end_time, "%H:%M")
-                else:
-                     # If today and open, use current time
-                     if d == today:
-                         end_dt = datetime.now()
-                     else:
-                         end_dt = start_dt + timedelta(hours=8)
-                
-                diff = (end_dt - start_dt).total_seconds() / 60 # minutes
-                minutes = max(1, diff) # Avoid div by zero
-             except:
-                pass
+        for i in range(6, -1, -1):
+            d = today - timedelta(days=i)
+            d_str = d.strftime("%Y-%m-%d")
+            label = d.strftime("%d/%m")
+            
+            # 1. Total Daily Kg
+            daily_kg = session.exec(
+                select(func.sum(models.Route.tonnage))
+                .where(models.Route.employee_id == employee.id, models.Route.date == d_str)
+            ).one() or 0.0
+            
+            # 2. Work Hours (from Routine)
+            routine = session.exec(
+                select(models.EmployeeRoutine)
+                .where(models.EmployeeRoutine.employee_id == employee.id, models.EmployeeRoutine.date == d_str)
+            ).first()
+            
+            minutes = 480.0 # fallback (8 hours)
+            if routine and routine.start_time:
+                 try:
+                    start_dt = datetime.strptime(routine.start_time, "%H:%M")
+                    if routine.end_time:
+                         end_dt = datetime.strptime(routine.end_time, "%H:%M")
+                    else:
+                         # If today and open, use current time
+                         if d.date() == today.date():
+                             end_dt = datetime.now()
+                         else:
+                             end_dt = start_dt + timedelta(hours=8)
+                    
+                    diff = (end_dt - start_dt).total_seconds() / 60 # minutes
+                    minutes = max(1, diff) # Avoid div by zero
+                 except:
+                    pass
+            
+            # Kg/h = Kg / Hours
+            hours = minutes / 60.0 # Convert minutes back to hours
+            kgh = (daily_kg / hours) if hours > 0 else 0
+            running_total += daily_kg
+            
+            daily_stats.append({
+                "label": label,
+                "kg": daily_kg,
+                "kgh": kgh, # Value is Kg/h
+                "cumulative": running_total
+            })
+            
+        # Determine Colors (Top 3 Green, Bottom 3 Red, Middle Blue)
+        # Filter only days with production > 0 for ranking, or rank all?
+        # User said "3 worst days red, 3 best green".
+        # Sort by Kg
+        sorted_by_kg = sorted([(i, s["kg"]) for i, s in enumerate(daily_stats) if s["kg"] > 0], key=lambda x: x[1], reverse=True)
         
-        kg_min = daily_kg / minutes if minutes > 0 else 0
-        running_total += daily_kg
+        nav_map = ["#3b82f6"] * 7 # Default Blue
         
-        daily_stats.append({
-            "label": label,
-            "kg": daily_kg,
-            "kgh": kg_min, # Variable name kept for compat, but is now Kg/min
-            "cumulative": running_total
-        })
-        
-    # Determine Colors (Top 3 Green, Bottom 3 Red, Middle Blue)
-    # Filter only days with production > 0 for ranking, or rank all?
-    # User said "3 worst days red, 3 best green".
-    # Sort by Kg
-    sorted_by_kg = sorted([(i, s["kg"]) for i, s in enumerate(daily_stats) if s["kg"] > 0], key=lambda x: x[1], reverse=True)
-    
-    nav_map = ["#3b82f6"] * 7 # Default Blue
-    
-    if len(sorted_by_kg) >= 1:
-        # Top 3 Green
-        for idx, _ in sorted_by_kg[:3]:
-             nav_map[idx] = "#10b981" # Emerald 500
-        # Bottom 3 Red (if we have enough data, excluding the top ones if overlap? usually distinct)
-        if len(sorted_by_kg) >= 6:
-             for idx, _ in sorted_by_kg[-3:]:
-                 nav_map[idx] = "#ef4444" # Red 500
-        elif len(sorted_by_kg) >= 2:
-             # If few days, just worst one
-             nav_map[sorted_by_kg[-1][0]] = "#ef4444"
+        if len(sorted_by_kg) >= 1:
+            # Top 3 Green
+            for idx, _ in sorted_by_kg[:3]:
+                 nav_map[idx] = "#10b981" # Emerald 500
+            # Bottom 3 Red (if we have enough data, excluding the top ones if overlap? usually distinct)
+            if len(sorted_by_kg) >= 6:
+                 for idx, _ in sorted_by_kg[-3:]:
+                     nav_map[idx] = "#ef4444" # Red 500
+            elif len(sorted_by_kg) >= 2:
+                 # If few days, just worst one
+                 nav_map[sorted_by_kg[-1][0]] = "#ef4444"
 
     # Assemble Arrays
-    for i, s in enumerate(daily_stats):
-        chart_labels.append(s["label"])
-        chart_daily_kg.append(s["kg"])
-        chart_daily_kgh.append(round(s["kgh"], 1))
-        chart_cumulative_kg.append(s["cumulative"])
-        chart_bg_colors.append(nav_map[i] if s["kg"] > 0 else "#1e293b") # Dark for 0
+        for i, s in enumerate(daily_stats):
+            chart_labels.append(s["label"])
+            chart_daily_kg.append(s["kg"])
+            chart_daily_kgh.append(round(s["kgh"], 1))
+            chart_cumulative_kg.append(s["cumulative"])
+            chart_bg_colors.append(nav_map[i] if s["kg"] > 0 else "#1e293b") # Dark for 0
 
-    # --- Active Routes (Pending) ---
-    today_str = today.strftime("%Y-%m-%d")
-    active_routes_stmt = (
-        select(models.Route, models.Client.name)
-        .join(models.Client, models.Route.client_id == models.Client.id) 
-        .where(
-            models.Route.employee_id == employee.id,
-            models.Route.date == today_str,
-            models.Route.status == "pending"
+        # --- Active Routes (Pending) ---
+        today_str = today.strftime("%Y-%m-%d")
+        
+        # 1. Active Routes (Pending)
+        active_routes_stmt = (
+            select(models.Route, models.Client.name)
+            .join(models.Client, models.Route.client_id == models.Client.id) 
+            .where(
+                models.Route.employee_id == employee.id,
+                models.Route.date == today_str,
+                models.Route.status == "pending"
+            )
         )
-    )
-    active_routes_result = session.exec(active_routes_stmt).all()
-    
-    # Format for JSON/Template
-    active_routes_list = []
-    for r, c_name in active_routes_result:
-        active_routes_list.append({
-            "id": r.id,
-            "client_name": c_name,
-            "tonnage": r.tonnage,
-            "start_time": r.start_time
-        })
+        active_routes_result = session.exec(active_routes_stmt).all()
+        
+        active_routes_list = []
+        for r, c_name in active_routes_result:
+            active_routes_list.append({
+                "id": r.id,
+                "client_name": c_name,
+                "tonnage": r.tonnage,
+                "start_time": r.start_time
+            })
 
-    context = {
-        "request": request,
-        "employee": employee,
-        "clients": clients,
-        "active_routes": json.dumps(active_routes_list), # Pass as JSON for Alpine
-        "current_date": datetime.now().strftime("%d/%m/%Y"),
-        "ai_message": ai_message,
-        "chart_labels": json.dumps(chart_labels),
-        "chart_daily_kg": json.dumps(chart_daily_kg),
-        "chart_daily_kgh": json.dumps(chart_daily_kgh),
-        "chart_cumulative_kg": json.dumps(chart_cumulative_kg),
-        "chart_bg_colors": json.dumps(chart_bg_colors)
-    }
-    return templates.TemplateResponse("mobile/dashboard.html", context)
+        # 2. Completed Routes (History Today)
+        completed_routes_stmt = (
+            select(models.Route, models.Client.name)
+            .join(models.Client, models.Route.client_id == models.Client.id) 
+            .where(
+                models.Route.employee_id == employee.id,
+                models.Route.date == today_str,
+                models.Route.status == "completed"
+            )
+            .order_by(models.Route.end_time.desc())
+        )
+        completed_routes_result = session.exec(completed_routes_stmt).all()
+        
+        completed_routes_list = []
+        for r, c_name in completed_routes_result:
+            # Calculate duration/productivity for display
+            duration_str = "00:00"
+            perf_str = "0,00 Kg/h"
+            
+            if r.start_time and r.end_time:
+                try:
+                    s = datetime.strptime(r.start_time, "%H:%M")
+                    e = datetime.strptime(r.end_time, "%H:%M")
+                    diff_sec = (e - s).total_seconds()
+                    
+                    # Duration
+                    h_dur = int(diff_sec // 3600)
+                    m_dur = int((diff_sec % 3600) // 60)
+                    duration_str = f"{h_dur:02d}h {m_dur:02d}m"
+                    
+                    # Metric: Kg/h
+                    t = r.tonnage if r.tonnage else 0
+                    hours_decimal = diff_sec / 3600.0
+                    if hours_decimal <= 0: hours_decimal = 0.016 # 1 min
+                    
+                    kgh = t / hours_decimal
+                    perf_str = f"{kgh:,.2f} Kg/h".replace(",", "X").replace(".", ",").replace("X", ".")
+                except Exception as ex:
+                    print(f"Error calc history: {ex}")
+                    pass
+
+            completed_routes_list.append({
+                "id": r.id,
+                "client_name": c_name,
+                "tonnage": r.tonnage,
+                "start_time": r.start_time,
+                "end_time": r.end_time,
+                "duration": duration_str,
+                "performance": perf_str
+            })
+
+            # --- Gamification Logic (XP = Total Tonnage) ---
+            # Calculate total XP (Historical Tonnage)
+            xp_stmt = select(func.sum(models.Route.tonnage)).where(
+                models.Route.employee_id == employee.id,
+                models.Route.end_time.is_not(None)
+            )
+            total_xp = session.exec(xp_stmt).one() or 0
+            
+            # Level Definitions
+            levels = [
+                {"level": 1, "name": "Novato", "min_xp": 0, "badge": "badge_1.png"},
+                {"level": 2, "name": "Aprendiz", "min_xp": 1000, "badge": "badge_2.png"},
+                {"level": 3, "name": "Operador", "min_xp": 5000, "badge": "badge_3.png"},
+                {"level": 4, "name": "Especialista", "min_xp": 10000, "badge": "badge_4.png"},
+                {"level": 5, "name": "Mestre", "min_xp": 25000, "badge": "badge_5.png"},
+                {"level": 6, "name": "Lenda", "min_xp": 50000, "badge": "badge_6.png"},
+            ]
+            
+            current_level = levels[0]
+            next_level = None
+            
+            for i, lvl in enumerate(levels):
+                if total_xp >= lvl["min_xp"]:
+                    current_level = lvl
+                    if i + 1 < len(levels):
+                        next_level = levels[i+1]
+                    else:
+                        next_level = None # Max level
+            
+            # Progress to next level
+            if next_level:
+                xp_needed = next_level["min_xp"] - current_level["min_xp"]
+                xp_progress = total_xp - current_level["min_xp"]
+                progress_percent = int((xp_progress / xp_needed) * 100)
+            else:
+                progress_percent = 100 # Max level reached
+
+            context = {
+                "request": request,
+                "employee": employee,
+                "clients": clients,
+                "active_routes": json.dumps(active_routes_list), # JSON for Alpine
+                "completed_routes": json.dumps(completed_routes_list), # JSON for Alpine History
+                "current_date": datetime.now().strftime("%d/%m/%Y"),
+                "ai_message": ai_message,
+                # Gamification Data
+                "gamification": {
+                    "level": current_level,
+                    "next_level": next_level,
+                    "total_xp": int(total_xp),
+                    "progress_percent": progress_percent
+                },
+                "chart_labels": json.dumps(chart_labels),
+                "chart_daily_kg": json.dumps(chart_daily_kg),
+                "chart_daily_kgh": json.dumps(chart_daily_kgh),
+                "chart_cumulative_kg": json.dumps(chart_cumulative_kg),
+                "chart_bg_colors": json.dumps(chart_bg_colors)
+            }
+            return templates.TemplateResponse("mobile/dashboard.html", context)
+    
+    except Exception as e:
+        import traceback
+        error_msg = f"Error in mobile_dashboard: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg) # Log to console
+        # Return a friendly error page or JSON
+        return JSONResponse(status_code=500, content={"error": "Internal Server Error", "details": str(e), "trace": traceback.format_exc()})
+        import traceback
+        error_msg = f"Error in mobile_dashboard: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg) # Log to console
+        # Return a friendly error page or JSON
+        return JSONResponse(status_code=500, content={"error": "Internal Server Error", "details": str(e), "trace": traceback.format_exc()})
 
 
 @app.post("/mobile/route/{route_id}/finish", response_class=JSONResponse)
@@ -1124,8 +1242,11 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
             s = datetime.strptime(start, "%H:%M")
             if not end: return 0.0
             e = datetime.strptime(end, "%H:%M")
-            diff = (e - s).total_seconds() / 60 # minutes
-            if diff <= 0: return 0.0
+            diff = (e - s).total_seconds() / 3600 # hours
+            if diff <= 0: diff = 0.016 # Min 1 minute (1/60 hr)
+            
+            # Kg/h
+            if t <= 0: return 0.0
             return round(t / diff, 2)
         except Exception:
             return 0.0

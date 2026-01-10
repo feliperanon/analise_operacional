@@ -2,7 +2,7 @@
 
 {% block content %}
 <div class="p-8 animate-fade-in">
-    <div class="max-w-7xl mx-auto">
+    <div class="max-w-full px-6 mx-auto">
         <!-- Header -->
         <div class="flex items-center justify-between mb-8">
             <div>
@@ -28,102 +28,136 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Form Card -->
-            <div class="lg:col-span-1">
-                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl sticky top-6">
-                    <h2 class="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-                        <div class="p-2 rounded-lg bg-indigo-500/20 text-indigo-400">
-                            <i data-lucide="plus-circle" width="20" height="20"></i>
-                        </div>
-                        Nova Separação
-                    </h2>
+        <div class="space-y-8">
+            <!-- Form Section (Horizontal) -->
+            <form action="/separacao/add" method="post" autocomplete="off" onsubmit="return validateForm()">
+                <input type="hidden" name="date" value="{{ selected_date }}">
+                <input type="hidden" name="shift" value="{{ selected_shift }}">
+                <input type="hidden" name="allocations" id="form-allocations">
 
-                    <form action="/separacao/add" method="post" class="space-y-5" autocomplete="off"
-                        onsubmit="return validateForm()">
-                        <input type="hidden" name="date" value="{{ selected_date }}">
-                        <input type="hidden" name="shift" value="{{ selected_shift }}">
-                        <input type="hidden" name="allocations" id="form-allocations">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Left Card: Configuration & Search -->
+                    <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl h-full">
+                        <h2 class="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+                            <div class="p-2 rounded-lg bg-indigo-500/20 text-indigo-400">
+                                <i data-lucide="settings" class="w-5 h-5"></i>
+                            </div>
+                            Configuração da Rota
+                        </h2>
 
-                        <!-- Employee Searchable -->
-                        <div class="relative group">
-                            <label
-                                class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Colaborador</label>
-                            <input type="hidden" name="employee_id" id="form-employee-id" required>
+                        <div class="space-y-6">
+                            <!-- Employee Searchable -->
+                            <div class="relative group">
+                                <label
+                                    class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Colaborador</label>
+                                <input type="hidden" name="employee_id" id="form-employee-id" required>
 
-                            {% if employees %}
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <i data-lucide="user" class="w-4 h-4 text-slate-500"></i>
-                                </div>
-                                <input type="text" id="employee-search" placeholder="Busque pelo nome..."
-                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-600"
-                                    onfocus="showDropdown('employee-dropdown')"
-                                    oninput="filterDropdown('employee-dropdown', this.value)">
-
-                                <div id="employee-dropdown"
-                                    class="absolute z-20 w- full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl max-h-60 overflow-y-auto hidden">
-                                    {% for emp in employees %}
-                                    <div class="px-4 py-3 hover:bg-slate-700 cursor-pointer text-slate-200 text-sm transition-colors border-b border-slate-700/50 last:border-0"
-                                        onclick="selectItem('employee', '{{ emp.id }}', '{{ emp.name }}')">
-                                        {{ emp.name }}
+                                {% if employees %}
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <i data-lucide="user" class="w-4 h-4 text-slate-500"></i>
                                     </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            {% else %}
-                            <div
-                                class="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-yellow-400 text-sm flex items-start gap-3">
-                                <i data-lucide="alert-triangle" class="shrink-0 mt-0.5"></i>
-                                <span>Nenhum colaborador disponível neste turno.</span>
-                            </div>
-                            {% endif %}
-                        </div>
+                                    <input type="text" id="employee-search" placeholder="Busque pelo nome..."
+                                        class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-600 font-bold text-sm"
+                                        onfocus="showDropdown('employee-dropdown')"
+                                        oninput="filterDropdown('employee-dropdown', this.value)">
 
-                        <!-- Client Search & Add -->
-                        <div class="relative group z-10">
-                            <label
-                                class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Adicionar
-                                Clientes</label>
-
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <i data-lucide="search" class="w-4 h-4 text-slate-500"></i>
-                                </div>
-                                <input type="text" id="client-search" placeholder="Busque e clique para adicionar..."
-                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-600"
-                                    onfocus="showDropdown('client-dropdown')"
-                                    oninput="filterDropdown('client-dropdown', this.value)">
-
-                                <div id="client-dropdown"
-                                    class="absolute z-20 w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl max-h-60 overflow-y-auto hidden">
-                                    {% for client in clients %}
-                                    {% set is_active = client.id in active_client_ids %}
-                                    <div class="px-4 py-2 hover:bg-slate-700 cursor-pointer text-sm transition-colors flex justify-between items-center border-b border-slate-700/50 last:border-0 {{ 'bg-indigo-900/10' if is_active else '' }}"
-                                        onclick="addClient('{{ client.id }}', '{{ client.name }}')">
-                                        <span
-                                            class="{{ 'text-indigo-300 font-semibold' if is_active else 'text-slate-300' }}">{{
-                                            client.name }}</span>
-                                        {% if is_active %}
-                                        <span
-                                            class="text-[10px] bg-indigo-500/20 text-indigo-400 px-1.5 py-0.5 rounded uppercase font-bold border border-indigo-500/30">Em
-                                            Rota</span>
-                                        {% endif %}
+                                    <div id="employee-dropdown"
+                                        class="absolute z-20 w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl max-h-80 overflow-y-auto hidden">
+                                        {% for emp in employees %}
+                                        <div class="px-4 py-3 hover:bg-slate-700 cursor-pointer text-slate-200 text-sm transition-colors border-b border-slate-700/50 last:border-0"
+                                            onclick="selectItem('employee', '{{ emp.id }}', '{{ emp.name }}')">
+                                            {{ emp.name }}
+                                        </div>
+                                        {% endfor %}
                                     </div>
-                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <div
+                                    class="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-yellow-400 text-sm flex items-start gap-3">
+                                    <i data-lucide="alert-triangle" class="shrink-0 mt-0.5"></i>
+                                    <span>Nenhum colaborador disponível.</span>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Times -->
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label
+                                        class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Início</label>
+                                    <input type="time" name="start_time" required id="form-start-time"
+                                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none text-center font-mono font-bold text-sm">
+                                </div>
+                                <div>
+                                    <label
+                                        class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Fim
+                                        (Opcional)</label>
+                                    <input type="time" name="end_time"
+                                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none placeholder-slate-600 text-center font-mono font-bold text-sm">
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Allocations Table -->
-                        <div class="bg-slate-900/50 rounded-xl border border-slate-700 overflow-hidden">
+                            <!-- Client Search -->
+                            <div class="relative group z-10 pt-2 border-t border-slate-700/50">
+                                <label
+                                    class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Adicionar
+                                    Clientes</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <i data-lucide="search" class="w-4 h-4 text-slate-500"></i>
+                                    </div>
+                                    <input type="text" id="client-search"
+                                        placeholder="Busque e clique para adicionar..."
+                                        class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-600 text-sm"
+                                        onfocus="showDropdown('client-dropdown')"
+                                        oninput="filterDropdown('client-dropdown', this.value)">
+
+                                    <div id="client-dropdown"
+                                        class="absolute z-20 w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl max-h-60 overflow-y-auto hidden">
+                                        {% for client in clients %}
+                                        {% set is_active = client.id in active_client_ids %}
+                                        <div class="px-4 py-2 hover:bg-slate-700 cursor-pointer text-sm transition-colors flex justify-between items-center border-b border-slate-700/50 last:border-0 {{ 'bg-indigo-900/10' if is_active else '' }}"
+                                            onclick="addClient('{{ client.id }}', '{{ client.name }}')">
+                                            <span
+                                                class="{{ 'text-indigo-300 font-semibold' if is_active else 'text-slate-300' }}">
+                                                {{ client.name }}
+                                            </span>
+                                            {% if is_active %}
+                                            <span
+                                                class="text-[10px] bg-indigo-500/20 text-indigo-400 px-1.5 py-0.5 rounded uppercase font-bold border border-indigo-500/30">Em
+                                                Rota</span>
+                                            {% endif %}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <p class="text-[10px] text-slate-500 mt-2">
+                                    * Selecione múltiplos clientes para criar uma rota agrupada.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Card: Allocation List -->
+                    <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col h-full">
+                        <h2 class="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+                            <div class="p-2 rounded-lg bg-emerald-500/20 text-emerald-400">
+                                <i data-lucide="list-checks" class="w-5 h-5"></i>
+                            </div>
+                            Lista de Separação
+                        </h2>
+
+                        <div
+                            class="bg-slate-900/50 rounded-xl border border-slate-700 overflow-hidden flex flex-col flex-1 h-full min-h-[300px]">
                             <div
                                 class="px-4 py-2 bg-slate-800/80 border-b border-slate-700 flex justify-between items-center">
-                                <span class="text-xs font-bold text-slate-400 uppercase">Lista de Separação</span>
-                                <span class="text-xs font-medium text-slate-500" id="allocation-count">0 items</span>
+                                <span class="text-xs font-bold text-slate-400 uppercase">Clientes Selecionados</span>
+                                <span class="text-xs font-medium text-slate-500" id="allocation-count">0
+                                    items</span>
                             </div>
 
-                            <div class="max-h-[200px] overflow-y-auto custom-scrollbar">
+                            <div class="flex-1 overflow-y-auto custom-scrollbar">
                                 <table class="w-full text-left border-collapse">
                                     <tbody id="allocation-table-body" class="text-sm">
                                         <!-- Rows injected by JS -->
@@ -138,226 +172,171 @@
 
                             <!-- Total Footer -->
                             <div
-                                class="px-4 py-3 bg-slate-800/50 border-t border-slate-700 flex justify-between items-center">
+                                class="px-4 py-3 bg-slate-800/50 border-t border-slate-700 flex justify-between items-center mt-auto">
                                 <span class="text-xs text-slate-400">Peso Total Previsto:</span>
                                 <span class="text-sm font-bold text-emerald-400 font-mono"
                                     id="total-weight-display">0,00 Kg</span>
                             </div>
                         </div>
 
-
-                        <!-- Times -->
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label
-                                    class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Início</label>
-                                <input type="time" name="start_time" required id="form-start-time"
-                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none text-center font-mono">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Fim
-                                    (Opcional)</label>
-                                <input type="time" name="end_time"
-                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none placeholder-slate-600 text-center font-mono">
-                            </div>
-                        </div>
-
-                        <button type="submit" {% if not employees %}disabled{% endif %}
-                            class="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3.5 rounded-lg font-bold shadow-lg shadow-indigo-900/30 transition-all active:scale-[0.98] mt-4 flex justify-center items-center gap-2 group">
-                            <span>Iniciar Separação</span>
-                            <i data-lucide="arrow-right"
-                                class="w-4 h-4 group-hover:translate-x-1 transition-transform"></i>
-                        </button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- List Card -->
-            <div class="lg:col-span-2">
-                <div
-                    class="bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-hidden min-h-[600px] flex flex-col">
-                    <div
-                        class="px-6 py-5 border-b border-slate-700 bg-slate-800/80 backdrop-blur-sm flex flex-col md:flex-row gap-4 justify-between items-center sticky top-0 z-10">
-                        <div>
-                            <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                                <i data-lucide="list" class="text-slate-400"></i>
-                                Registros
-                                <span
-                                    class="bg-indigo-500/10 text-indigo-400 px-2.5 py-0.5 rounded-md text-xs border border-indigo-500/20">
-                                    {{ selected_date_fmt }} • {{ selected_shift }}
-                                </span>
-                            </h3>
-                        </div>
-                        <div class="relative w-full md:w-72">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <i data-lucide="search" class="w-4 h-4 text-slate-500"></i>
-                            </div>
-                            <input type="text" id="route-list-search" placeholder="Filtrar por nome ou cliente..."
-                                oninput="filterRoutesList(this.value)"
-                                class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:ring-1 focus:ring-indigo-500 outline-none placeholder-slate-500 transition-all">
+                        <!-- Submit Action -->
+                        <div class="mt-6">
+                            <button type="submit" {% if not employees %}disabled{% endif %}
+                                class="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-lg font-bold shadow-lg shadow-indigo-900/30 transition-all active:scale-[0.98] flex justify-center items-center gap-2 group text-sm">
+                                <span>Iniciar Separação</span>
+                                <i data-lucide="arrow-right"
+                                    class="w-5 h-5 group-hover:translate-x-1 transition-transform"></i>
+                            </button>
                         </div>
                     </div>
+                </div>
+            </form>
 
-                    <div class="flex-1 p-6 relative">
-                        {% if routes %}
-                        <div class="space-y-6">
-                            {% for group in grouped_routes %}
+            <!-- List Section (Full Width Grid) -->
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-hidden flex flex-col">
+                <div
+                    class="px-6 py-5 border-b border-slate-700 bg-slate-800/80 backdrop-blur-sm flex flex-col md:flex-row gap-4 justify-between items-center sticky top-0 z-10">
+                    <div>
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i data-lucide="list" class="text-slate-400"></i>
+                            Registros
+                            <span
+                                class="bg-indigo-500/10 text-indigo-400 px-2.5 py-0.5 rounded-md text-xs border border-indigo-500/20">
+                                {{ selected_date_fmt }} • {{ selected_shift }}
+                            </span>
+                        </h3>
+                    </div>
+                    <div class="relative w-full md:w-72">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i data-lucide="search" class="w-4 h-4 text-slate-500"></i>
+                        </div>
+                        <input type="text" id="route-list-search" placeholder="Filtrar por nome ou cliente..."
+                            oninput="filterRoutesList(this.value)"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:ring-1 focus:ring-indigo-500 outline-none placeholder-slate-500 transition-all">
+                    </div>
+                </div>
+
+                <div class="p-6">
+                    {% if routes %}
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {% for group in grouped_routes %}
+                        <div
+                            class="bg-slate-900/30 rounded-xl border border-slate-700/60 overflow-hidden searchable-card hover:border-slate-600 transition-colors flex flex-col h-full">
+                            <!-- Group Header -->
                             <div
-                                class="bg-slate-900/30 rounded-xl border border-slate-700/60 overflow-hidden searchable-card hover:border-slate-600 transition-colors">
-                                <!-- Group Header -->
-                                <div
-                                    class="px-5 py-3 bg-gradient-to-r from-slate-800 to-slate-800/50 border-b border-slate-700 flex justify-between items-center">
-                                    <div class="flex items-center gap-3">
-                                        <div
-                                            class="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-lg shadow-indigo-500/20">
-                                            {{ group.employee_name[:2].upper() }}
-                                        </div>
-                                        <div>
-                                            <h4 class="font-bold text-white text-sm">{{ group.employee_name }}</h4>
-                                            <div class="flex items-center gap-2 text-[10px] text-slate-400">
-                                                <span>{{ group.routes|length }} separações</span>
-                                            </div>
-                                        </div>
+                                class="px-4 py-3 bg-gradient-to-r from-slate-800 to-slate-800/50 border-b border-slate-700 flex justify-between items-center">
+                                <div class="flex items-center gap-3">
+                                    <div
+                                        class="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-[10px] shadow-lg shadow-indigo-500/20 shrink-0">
+                                        {{ group.employee_name[:2].upper() }}
                                     </div>
-                                    <div class="flex flex-col items-end">
-                                        <span
-                                            class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Total
-                                            Acumulado</span>
-                                        <span class="text-emerald-400 font-mono font-bold text-sm">{{
-                                            "%.2f"|format(group.total_tonnage)|replace(".", ",") }} Kg</span>
+                                    <div class="min-w-0">
+                                        <h4 class="font-bold text-white text-xs truncate"
+                                            title="{{ group.employee_name }}">{{ group.employee_name }}</h4>
+                                        <span class="text-[10px] text-slate-400">{{ group.routes|length }} rotas</span>
                                     </div>
                                 </div>
+                                <div class="text-right shrink-0">
+                                    <span class="text-emerald-400 font-mono font-bold text-xs">{{
+                                        "%.2f"|format(group.total_tonnage)|replace(".", ",") }} Kg</span>
+                                </div>
+                            </div>
 
-                                <!-- Active Routes (Grid) -->
+                            <!-- Routes List (Scrollable if too long) -->
+                            <div class="flex-1 flex flex-col">
+                                <!-- Active -->
                                 {% if group.routes_active %}
-                                <div class="p-3 grid grid-cols-1 md:grid-cols-2 gap-3 bg-indigo-900/5 relative">
-                                    <div class="absolute top-0 left-0 w-1 h-full bg-indigo-500/30"></div>
+                                <div class="p-2 bg-indigo-900/5 border-b border-slate-700/50 space-y-2">
                                     {% for route in group.routes_active %}
                                     <div
-                                        class="p-3 bg-slate-800 border border-slate-700 rounded-lg flex flex-col gap-2 relative group hover:border-indigo-500/50 transition-all shadow-sm">
-
-                                        <!-- Header: Time & Client -->
-                                        <div class="flex justify-between items-start">
-                                            <div class="flex items-center gap-2">
-                                                <span
-                                                    class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-300 border border-slate-600">
-                                                    {{ route.start_time }}
-                                                </span>
-                                                <span
-                                                    class="text-[10px] font-mono font-bold text-indigo-400 live-timer animate-pulse"
-                                                    data-start="{{ route.start_time }}">--:--</span>
-                                            </div>
-                                            <!-- Actions (Hidden until hover) -->
-                                            <div
-                                                class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button
-                                                    onclick="editRoute({{ route.id }}, {{ route.employee_id }}, {{ route.client_id }}, '{{ route.start_time }}', '', {{ route.tonnage }})"
-                                                    class="p-1 hover:bg-slate-700 rounded text-slate-400 hover:text-white"
-                                                    title="Editar">
-                                                    <i data-lucide="edit-2" class="w-3 h-3"></i>
-                                                </button>
-                                                <form action="/separacao/delete/{{ route.id }}" method="post"
-                                                    onsubmit="return confirm('Excluir?')" style="display:inline;">
-                                                    <button type="submit"
-                                                        class="p-1 hover:bg-red-500/10 rounded text-slate-400 hover:text-red-400"
-                                                        title="Excluir">
-                                                        <i data-lucide="trash" class="w-3 h-3"></i>
-                                                    </button>
-                                                </form>
-                                            </div>
+                                        class="p-2 bg-slate-800 border border-slate-700 rounded-lg relative group hover:border-indigo-500/50 transition-all">
+                                        <div class="flex justify-between items-center mb-1">
+                                            <span
+                                                class="text-[10px] font-bold text-slate-300 bg-slate-700 px-1.5 rounded">{{
+                                                route.start_time }}</span>
+                                            <span
+                                                class="text-[10px] font-mono font-bold text-indigo-400 live-timer animate-pulse"
+                                                data-start="{{ route.start_time }}">--:--</span>
                                         </div>
-
-                                        <div class="flex items-center gap-2">
-                                            <i data-lucide="package" class="w-4 h-4 text-indigo-400"></i>
-                                            <span class="text-sm font-semibold text-white truncate"
+                                        <div class="flex items-center gap-1.5 mb-2">
+                                            <i data-lucide="package" class="w-3 h-3 text-indigo-400"></i>
+                                            <span class="text-xs font-semibold text-white truncate w-full"
                                                 title="{{ route.client_name }}">{{ route.client_name }}</span>
                                         </div>
-
-                                        <div class="flex justify-between items-end mt-1">
-                                            <span class="text-xs font-mono text-slate-400 flex items-center gap-1">
-                                                <i data-lucide="weight" class="w-3 h-3"></i>
-                                                {{ route.tonnage_fmt }} Kg
-                                            </span>
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-[10px] text-slate-400">{{ route.tonnage_fmt }} Kg</span>
                                             <button
                                                 onclick="openFinishModal({{ route.id }}, {{ route.employee_id }}, {{ route.client_id }}, '{{ route.start_time }}')"
-                                                class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-md shadow-lg transition-all flex items-center gap-1">
+                                                class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] px-2 py-1 rounded transition-colors flex items-center gap-1">
                                                 <i data-lucide="check" class="w-3 h-3"></i> Encerrar
                                             </button>
+                                        </div>
+
+                                        <!-- Hover Actions -->
+                                        <div
+                                            class="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 p-1 rounded-bl-lg">
+                                            <button
+                                                onclick="editRoute({{ route.id }}, {{ route.employee_id }}, {{ route.client_id }}, '{{ route.start_time }}', '', {{ route.tonnage }})"
+                                                class="p-1 hover:text-white text-slate-400"><i data-lucide="edit-2"
+                                                    class="w-3 h-3"></i></button>
+                                            <form action="/separacao/delete/{{ route.id }}" method="post"
+                                                onsubmit="return confirm('Excluir?')" style="display:inline;">
+                                                <button type="submit" class="p-1 hover:text-red-400 text-slate-400"><i
+                                                        data-lucide="trash" class="w-3 h-3"></i></button>
+                                            </form>
                                         </div>
                                     </div>
                                     {% endfor %}
                                 </div>
                                 {% endif %}
 
-                                <!-- Finished Routes Section -->
+                                <!-- Finished -->
                                 {% if group.routes_finished %}
-                                <div class="bg-slate-800/30 border-t border-slate-700/50">
-                                    <div class="px-4 py-1.5 bg-slate-800/40 flex items-center gap-2">
-                                        <i data-lucide="check-circle" class="w-3 h-3 text-emerald-500/70"></i>
-                                        <span class="text-[10px] font-bold text-slate-500 uppercase">Concluídas</span>
-                                    </div>
-                                    <div class="divide-y divide-slate-700/30">
-                                        {% for route in group.routes_finished %}
-                                        <div
-                                            class="px-4 py-2 flex items-center justify-between hover:bg-slate-700/20 transition-colors group">
-                                            <div class="flex items-center gap-4">
-                                                <div
-                                                    class="flex flex-col text-[10px] font-mono text-slate-500 leading-tight w-16">
-                                                    <span>{{ route.start_time }}</span>
-                                                    <span>{{ route.end_time }}</span>
-                                                </div>
-                                                <div class="flex flex-col">
-                                                    <span class="text-xs text-slate-300 font-medium">{{
-                                                        route.client_name }}</span>
-                                                    <span class="text-[10px] text-slate-500">{{ route.duration_fmt
-                                                        }}</span>
-                                                </div>
-                                            </div>
-
-                                            <div class="flex items-center gap-4">
-                                                {% if route.productivity > 0 %}
-                                                <span
-                                                    class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                                                    {{ route.productivity_fmt }} Kg/min
-                                                </span>
-                                                {% endif %}
-
-                                                <span class="text-xs font-mono text-slate-400 w-16 text-right">{{
-                                                    route.tonnage_fmt }} Kg</span>
-
-                                                <!-- Actions -->
-                                                <div
-                                                    class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button
-                                                        onclick="editRoute({{ route.id }}, {{ route.employee_id }}, {{ route.client_id }}, '{{ route.start_time }}', '{{ route.end_time }}', {{ route.tonnage }})"
-                                                        class="p-1 hover:bg-slate-700 rounded text-slate-500 hover:text-white">
-                                                        <i data-lucide="edit-2" class="w-3 h-3"></i>
-                                                    </button>
-                                                    <form action="/separacao/delete/{{ route.id }}" method="post"
-                                                        onsubmit="return confirm('Excluir?')" style="display:inline;">
-                                                        <button type="submit"
-                                                            class="p-1 hover:bg-red-500/10 rounded text-slate-500 hover:text-red-400">
-                                                            <i data-lucide="trash" class="w-3 h-3"></i>
-                                                        </button>
-                                                    </form>
-                                                </div>
-                                            </div>
+                                <div
+                                    class="bg-slate-800/20 p-2 space-y-1 overflow-y-auto max-h-[200px] custom-scrollbar">
+                                    {% for route in group.routes_finished %}
+                                    <div
+                                        class="flex justify-between items-center p-1.5 hover:bg-slate-700/30 rounded transition-colors group">
+                                        <div class="overflow-hidden">
+                                            <p class="text-[10px] text-slate-300 truncate"
+                                                title="{{ route.client_name }}">{{ route.client_name }}</p>
+                                            <p class="text-[10px] text-slate-500 font-mono">{{ route.start_time }} - {{
+                                                route.end_time }}</p>
                                         </div>
-                                        {% endfor %}
+                                        <div class="text-right shrink-0">
+                                            <div class="text-[10px] font-bold text-slate-400">{{ route.tonnage_fmt }} Kg
+                                            </div>
+                                            {% if route.productivity > 0 %}
+                                            <div class="text-[9px] text-emerald-500 font-mono">{{ route.productivity_fmt
+                                                }} Kg/h</div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="hidden group-hover:flex items-center gap-1 ml-2">
+                                            <button
+                                                onclick="editRoute({{ route.id }}, {{ route.employee_id }}, {{ route.client_id }}, '{{ route.start_time }}', '{{ route.end_time }}', {{ route.tonnage }})"
+                                                class="text-slate-500 hover:text-white"><i data-lucide="edit-2"
+                                                    class="w-3 h-3"></i></button>
+                                            <form action="/separacao/delete/{{ route.id }}" method="post"
+                                                onsubmit="return confirm('Excluir?')" style="display:inline;">
+                                                <button type="submit" class="text-slate-500 hover:text-red-400"><i
+                                                        data-lucide="trash" class="w-3 h-3"></i></button>
+                                            </form>
+                                        </div>
                                     </div>
+                                    {% endfor %}
                                 </div>
                                 {% endif %}
                             </div>
-                            {% endfor %}
                         </div>
-                        {% else %}
-                        <div class="absolute inset-0 flex flex-col items-center justify-center text-slate-600">
-                            <i data-lucide="clipboard-x" class="w-16 h-16 mb-4 opacity-50"></i>
-                            <p class="text-lg font-medium">Nenhuma separação registrada.</p>
-                            <p class="text-sm">Selecione um colaborador ao lado para iniciar.</p>
-                        </div>
-                        {% endif %}
+                        {% endfor %}
                     </div>
+                    {% else %}
+                    <div class="flex flex-col items-center justify-center text-slate-600 py-12">
+                        <i data-lucide="clipboard-x" class="w-16 h-16 mb-4 opacity-50"></i>
+                        <p class="text-lg font-medium">Nenhuma separação registrada.</p>
+                        <p class="text-sm">Utilize o formulário acima para iniciar.</p>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
