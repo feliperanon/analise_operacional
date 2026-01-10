@@ -1,4 +1,7 @@
-{% extends "mobile/layout.html" %}
+
+import os
+
+content = r'''{% extends "mobile/layout.html" %}
 
 {% block content %}
 <div x-data="dashboardController()" class="dashboard-grid animate-fade-in relative z-10 w-full h-full pb-24">
@@ -419,4 +422,9 @@
         }
     }
 </script>
-{% endblock %}
+{% endblock %}'''
+
+with open("c:/Projeto/analise_operacional/templates/mobile/dashboard.html", "w", encoding="utf-8") as f:
+    f.write(content)
+
+print(f"File overwritten. Size: {len(content)} bytes.")
