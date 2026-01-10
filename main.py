@@ -392,29 +392,165 @@ async def mobile_dashboard(
     else:
         ai_message = "Pronto para superar seus limites hoje? Vamos lá!"
 
-    # Chart Data (Last 7 days)
+    # --- Clients for Modal ---
+    clients = session.exec(select(models.Client)).all()
+
+    # --- Chart Data (Advanced) ---
     chart_labels = []
-    chart_data = []
+    chart_daily_kg = []
+    chart_daily_kgh = []
+    chart_cumulative_kg = []
+    chart_bg_colors = []
+    
+    running_total = 0
+    
+    # Pre-fetch data to analyze rankings
+    daily_stats = []
+    
     for i in range(6, -1, -1):
         d = today - timedelta(days=i)
         d_str = d.strftime("%Y-%m-%d")
-        chart_labels.append(d.strftime("%d/%m"))
+        label = d.strftime("%d/%m")
         
-        daily_sum = session.exec(
+        # 1. Total Daily Kg
+        daily_kg = session.exec(
             select(func.sum(models.Route.tonnage))
             .where(models.Route.employee_id == employee.id, models.Route.date == d_str)
-        ).one() or 0
-        chart_data.append(daily_sum)
+        ).one() or 0.0
+        
+        # 2. Work Hours (from Routine)
+        routine = session.exec(
+            select(models.EmployeeRoutine)
+            .where(models.EmployeeRoutine.employee_id == employee.id, models.EmployeeRoutine.date == d_str)
+        ).first()
+        
+        hours = 8.0 # fallback
+        if routine and routine.start_time:
+             try:
+                start_dt = datetime.strptime(routine.start_time, "%H:%M")
+                if routine.end_time:
+                     end_dt = datetime.strptime(routine.end_time, "%H:%M")
+                else:
+                     # If today and open, use current time
+                     if d == today:
+                         end_dt = datetime.now()
+                     else:
+                         end_dt = start_dt + timedelta(hours=8)
+                
+                diff = (end_dt - start_dt).total_seconds() / 3600
+                hours = max(0.5, diff) # Avoid div by zero
+             except:
+                pass
+        
+        kgh = daily_kg / hours if hours > 0 else 0
+        running_total += daily_kg
+        
+        daily_stats.append({
+            "label": label,
+            "kg": daily_kg,
+            "kgh": kgh,
+            "cumulative": running_total
+        })
+        
+    # Determine Colors (Top 3 Green, Bottom 3 Red, Middle Blue)
+    # Filter only days with production > 0 for ranking, or rank all?
+    # User said "3 worst days red, 3 best green".
+    # Sort by Kg
+    sorted_by_kg = sorted([(i, s["kg"]) for i, s in enumerate(daily_stats) if s["kg"] > 0], key=lambda x: x[1], reverse=True)
+    
+    nav_map = ["#3b82f6"] * 7 # Default Blue
+    
+    if len(sorted_by_kg) >= 1:
+        # Top 3 Green
+        for idx, _ in sorted_by_kg[:3]:
+             nav_map[idx] = "#10b981" # Emerald 500
+        # Bottom 3 Red (if we have enough data, excluding the top ones if overlap? usually distinct)
+        if len(sorted_by_kg) >= 6:
+             for idx, _ in sorted_by_kg[-3:]:
+                 nav_map[idx] = "#ef4444" # Red 500
+        elif len(sorted_by_kg) >= 2:
+             # If few days, just worst one
+             nav_map[sorted_by_kg[-1][0]] = "#ef4444"
+
+    # Assemble Arrays
+    for i, s in enumerate(daily_stats):
+        chart_labels.append(s["label"])
+        chart_daily_kg.append(s["kg"])
+        chart_daily_kgh.append(round(s["kgh"], 1))
+        chart_cumulative_kg.append(s["cumulative"])
+        chart_bg_colors.append(nav_map[i] if s["kg"] > 0 else "#1e293b") # Dark for 0
 
     context = {
         "request": request,
         "employee": employee,
+        "clients": clients,
         "current_date": datetime.now().strftime("%d/%m/%Y"),
         "ai_message": ai_message,
         "chart_labels": json.dumps(chart_labels),
-        "chart_data": json.dumps(chart_data)
+        "chart_daily_kg": json.dumps(chart_daily_kg),
+        "chart_daily_kgh": json.dumps(chart_daily_kgh),
+        "chart_cumulative_kg": json.dumps(chart_cumulative_kg),
+        "chart_bg_colors": json.dumps(chart_bg_colors)
     }
     return templates.TemplateResponse("mobile/dashboard.html", context)
+
+class MobileAllocationItem(BaseModel):
+    client_id: int
+    weight: float
+
+class MobileStartPayload(BaseModel):
+    allocations: List[MobileAllocationItem]
+
+@app.post("/mobile/routine/start_with_allocation", response_class=JSONResponse)
+async def mobile_routine_start_with_allocation(
+    request: Request,
+    payload: MobileStartPayload,
+    session: Session = Depends(get_session)
+):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    now_time = datetime.now().strftime("%H:%M")
+    
+    # 1. Start Routine (if not exists)
+    stmt = select(models.EmployeeRoutine).where(
+        models.EmployeeRoutine.employee_id == user_id,
+        models.EmployeeRoutine.date == today_str
+    )
+    routine = session.exec(stmt).first()
+    
+    if not routine:
+        routine = models.EmployeeRoutine(
+            date=today_str,
+            shift="Manhã", # Placeholder
+            employee_id=user_id,
+            routine="present",
+            start_time=now_time,
+            status="open"
+        )
+        session.add(routine)
+        session.commit()
+    elif routine.status == "closed":
+         return JSONResponse({"error": "Rotina já encerrada hoje."}, status_code=400)
+         
+    # 2. Add Allocations
+    for item in payload.allocations:
+        if item.weight > 0:
+            route = models.Route(
+                date=today_str,
+                employee_id=user_id,
+                client_id=item.client_id,
+                tonnage=item.weight,
+                start_time=now_time,
+                status="pending" 
+            )
+            session.add(route)
+            
+    session.commit()
+    
+    return JSONResponse({"success": True})
 
 # --- Helpers ---
 def add_xp_transaction(session: Session, employee_id: int, points: float, type: str, reference_id: str = None, note: str = None):
@@ -461,13 +597,13 @@ async def mobile_auth(request: Request, registration_id: str = Form(...), sessio
 @app.get("/mobile/logout")
 async def mobile_logout(request: Request):
     request.session.clear()
-    return RedirectResponse(url="/mobile/login")
+    return RedirectResponse(url="/mobile/login", status_code=303)
 
 @app.post("/mobile/routine/start", response_class=RedirectResponse)
 async def mobile_routine_start(request: Request, session: Session = Depends(get_session)):
     user = require_login(request)
     if not isinstance(user, dict) or user.get("type") != "employee":
-        return RedirectResponse(url="/mobile/login")
+        return RedirectResponse(url="/mobile/login", status_code=303)
         
     user_id = user.get("id")
     today_str = datetime.now().strftime("%Y-%m-%d")
@@ -506,7 +642,7 @@ async def mobile_routine_start(request: Request, session: Session = Depends(get_
 async def mobile_routine_stop(request: Request, session: Session = Depends(get_session)):
     user = require_login(request)
     if not isinstance(user, dict) or user.get("type") != "employee":
-         return RedirectResponse(url="/mobile/login")
+         return RedirectResponse(url="/mobile/login", status_code=303)
          
     user_id = user.get("id")
     today_str = datetime.now().strftime("%Y-%m-%d")

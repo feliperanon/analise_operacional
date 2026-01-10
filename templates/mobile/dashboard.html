@@ -1,7 +1,8 @@
 {% extends "mobile/layout.html" %}
 
 {% block content %}
-<div class="dashboard-grid animate-fade-in relative z-10">
+<!-- Dashboard Mobile 5.0 (Chart Upgrade + Start Workflow) -->
+<div x-data="dashboardController()" class="dashboard-grid animate-fade-in relative z-10 w-full h-full pb-20">
 
     <!-- HEADER Area -->
     <div class="grid-header flex justify-between items-center mb-2">
@@ -13,7 +14,8 @@
                 MATRÍCULA: {{ employee.registration_id }}
             </p>
         </div>
-        <div class="glass-panel px-4 py-2 flex items-center gap-3 border-yellow-500/20 shadow-[0_4px_12px_rgba(234,179,8,0.1)]">
+        <div
+            class="glass-panel px-4 py-2 flex items-center gap-3 border-yellow-500/20 shadow-[0_4px_12px_rgba(234,179,8,0.1)]">
             <div class="p-1.5 rounded-full bg-yellow-500/10 text-yellow-400">
                 <i data-lucide="trophy" width="16" height="16"></i>
             </div>
@@ -40,22 +42,24 @@
 
     <!-- ACTIONS Area -->
     <div class="grid-actions grid grid-cols-2 gap-4">
-        <!-- Start Routine -->
-        <form action="/mobile/routine/start" method="POST" class="w-full h-full">
-            <button type="submit" class="glass-panel action-card w-full group hover:border-green-500/40">
-                <div class="p-4 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/30 group-hover:shadow-green-500/50 transition-shadow">
-                    <i data-lucide="play" fill="currentColor" class="w-6 h-6"></i>
-                </div>
-                <span class="font-bold text-green-400 group-hover:text-green-300">Iniciar Dia</span>
-            </button>
-        </form>
-
-        <!-- Stop Routine -->
-        <button onclick="confirmStop()" class="glass-panel action-card w-full group hover:border-red-500/40">
-            <div class="p-4 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-lg shadow-red-500/30 group-hover:shadow-red-500/50 transition-shadow">
-                <i data-lucide="square" fill="currentColor" class="w-6 h-6"></i>
+        <!-- Start Routine (Opens Modal) -->
+        <button @click="openStartModal()"
+            class="glass-panel action-card w-full group hover:border-green-500/40 transform hover:-translate-y-1 transition-all duration-300">
+            <div
+                class="p-4 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/30 group-hover:shadow-green-500/50 transition-shadow">
+                <i data-lucide="play" fill="currentColor" class="w-7 h-7"></i>
             </div>
-            <span class="font-bold text-red-500 group-hover:text-red-400">Encerrar Dia</span>
+            <span class="font-bold text-lg text-green-400 group-hover:text-green-300">Iniciar Dia</span>
+        </button>
+
+        <!-- Stop Routine (Opens Modal) -->
+        <button @click="openStopModal()"
+            class="glass-panel action-card w-full group hover:border-red-500/40 transform hover:-translate-y-1 transition-all duration-300">
+            <div
+                class="p-4 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-lg shadow-red-500/30 group-hover:shadow-red-500/50 transition-shadow">
+                <i data-lucide="square" fill="currentColor" class="w-7 h-7"></i>
+            </div>
+            <span class="font-bold text-lg text-red-500 group-hover:text-red-400">Encerrar Dia</span>
         </button>
     </div>
 
@@ -63,142 +67,292 @@
     <div class="grid-modules glass-panel p-5 flex flex-col justify-center">
         <h3 class="text-[10px] font-bold text-slate-500 mb-4 uppercase tracking-[0.2em]">Acesso Rápido</h3>
         <div class="grid grid-cols-2 gap-4 h-full">
-            
-            <!-- Separacao -->
-            <a href="/separacao?mobile=1" 
-               class="group relative flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-800/40 border border-slate-700/50 hover:bg-blue-600/10 hover:border-blue-500/40 transition-all duration-300">
-                <div class="p-2 mb-2 rounded-xl bg-blue-500/10 text-blue-400 group-hover:scale-110 transition-transform">
-                    <i data-lucide="package" width="20" height="20"></i>
+            <a href="/separacao?mobile=1"
+                class="group relative flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-800/40 border border-slate-700/50 hover:bg-blue-600/10 hover:border-blue-500/40 hover:scale-[1.02] transition-all duration-300">
+                <div
+                    class="p-2.5 mb-2 rounded-xl bg-blue-500/10 text-blue-400 group-hover:scale-110 transition-transform">
+                    <i data-lucide="package" width="22" height="22"></i>
                 </div>
                 <span class="text-xs font-semibold text-slate-300 group-hover:text-white">Separação</span>
             </a>
-
-            <!-- Selecao (Disabled) -->
-            <div class="relative flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-800/20 border border-slate-700/30 opacity-50 grayscale cursor-not-allowed">
-                <div class="p-2 mb-2 rounded-xl bg-slate-700/30 text-slate-500">
-                    <i data-lucide="search" width="20" height="20"></i>
+            <div
+                class="relative flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-800/20 border border-slate-700/30 opacity-50 grayscale cursor-not-allowed">
+                <div class="p-2.5 mb-2 rounded-xl bg-slate-700/30 text-slate-500">
+                    <i data-lucide="search" width="22" height="22"></i>
                 </div>
                 <span class="text-xs font-semibold text-slate-500">Seleção</span>
             </div>
         </div>
     </div>
 
-    <!-- STATS Area -->
-    <div class="grid-stats glass-panel p-6 relative overflow-hidden min-h-[220px]">
+    <!-- STATS Area (Enhanced Chart) -->
+    <div class="grid-stats glass-panel p-6 relative overflow-hidden min-h-[300px]">
         <div class="flex justify-between items-end mb-4 relative z-10">
             <div>
-                 <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Performance</h3>
-                 <p class="text-xl font-bold text-white mt-1">Últimos 7 Dias</p>
+                <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Performance Semanal</h3>
+                <p class="text-xs text-slate-400 mt-1">Produtividade vs Meta</p>
             </div>
-            <div class="text-xs font-medium text-emerald-400 flex items-center bg-emerald-500/10 px-2 py-1 rounded-md">
-                <i data-lucide="trending-up" width="12" class="mr-1"></i> Produtivo
+            <!-- Legend -->
+            <div class="flex gap-2 text-[10px]">
+                <div class="flex items-center gap-1 text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                    <div class="w-2 h-2 rounded-full bg-emerald-500"></div> Top 3
+                </div>
+                <div class="flex items-center gap-1 text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded">
+                    <div class="w-2 h-2 rounded-full bg-red-500"></div> Low 3
+                </div>
             </div>
-        </div>
-        
-        <div class="relative z-10 h-48 w-full">
-            <canvas id="productivityChart"></canvas>
         </div>
 
-        <!-- Background Decor -->
-        <div class="absolute -bottom-10 -right-10 opacity-5 pointer-events-none">
-            <i data-lucide="bar-chart-2" width="150" height="150" class="text-white"></i>
+        <div class="relative z-10 h-64 w-full">
+            <canvas id="productivityChart"></canvas>
         </div>
     </div>
 
     <!-- FOOTER Area -->
-    <div class="grid-footer flex justify-center pb-8 mt-2">
-        <a href="/mobile/logout" class="group flex items-center gap-2 px-6 py-2 rounded-full border border-slate-700/50 text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 hover:border-slate-600 transition-all">
-            <i data-lucide="log-out" width="14" class="group-hover:-translate-x-0.5 transition-transform"></i> 
+    <div class="grid-footer flex justify-center mt-2">
+        <a href="/mobile/logout"
+            class="group flex items-center gap-2 px-6 py-2 rounded-full border border-slate-700/50 text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 hover:border-slate-600 transition-all">
+            <i data-lucide="log-out" width="14" class="group-hover:-translate-x-0.5 transition-transform"></i>
             Sair da Conta
         </a>
     </div>
 
-</div>
-
-<!-- Confirmation Modal for Stop -->
-<dialog id="stopModal"
-    class="glass-panel p-0 backdrop:bg-black/90 open:animate-fade-in mx-auto mt-auto mb-4 w-[90%] max-w-[400px] rounded-3xl shadow-2xl shadow-black/80 border border-slate-700 overflow-hidden">
-    <div class="bg-gradient-to-b from-slate-800/80 to-slate-900/90 p-8 flex flex-col items-center text-center">
-        <div class="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-6 ring-4 ring-red-500/5">
-            <i data-lucide="power" width="32" height="32" class="text-red-500"></i>
-        </div>
-        <h3 class="text-2xl font-bold text-white mb-2">Encerrar o Dia?</h3>
-        <p class="text-sm text-slate-400 leading-relaxed mb-8">
-            Ao confirmar, sua rotina será fechada e você não poderá registrar novas atividades hoje.
-        </p>
-        <div class="grid grid-cols-2 gap-3 w-full">
-            <button onclick="document.getElementById('stopModal').close()"
-                class="py-3.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 font-semibold hover:bg-slate-700 active:scale-95 transition-all">
-                Voltar
-            </button>
-            <form action="/mobile/routine/stop" method="POST" class="w-full">
-                <button type="submit" 
-                    class="w-full py-3.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold shadow-lg shadow-red-900/40 active:scale-95 transition-all">
-                    Confirmar
-                </button>
-            </form>
+    <!-- STOP ROUTINE MODAL -->
+    <div x-show="showStopModal" x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0 scale-95" class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        x-cloak>
+        <div @click="showStopModal = false" class="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
+        <div
+            class="relative w-full max-w-sm bg-slate-900 border border-slate-700 rounded-3xl overflow-hidden shadow-2xl p-6">
+            <h3 class="text-xl font-bold text-white text-center mb-4">Encerrar Dia?</h3>
+            <div class="grid grid-cols-2 gap-3 mt-6">
+                <button @click="showStopModal = false"
+                    class="py-3 bg-slate-800 rounded-xl text-slate-300">Voltar</button>
+                <form action="/mobile/routine/stop" method="POST" class="w-full">
+                    <button type="submit"
+                        class="w-full py-3 bg-red-600 text-white rounded-xl font-bold">Confirmar</button>
+                </form>
+            </div>
         </div>
     </div>
-</dialog>
+
+    <!-- START ROUTINE MODAL (Allocations) -->
+    <div x-show="showStartModal" x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
+        class="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-none" x-cloak>
+
+        <!-- Backdrop -->
+        <div @click="showStartModal = false" x-show="showStartModal"
+            class="absolute inset-0 bg-black/80 backdrop-blur-sm pointer-events-auto"></div>
+
+        <!-- Sheet/Modal Content -->
+        <div
+            class="bg-slate-900 w-full max-w-md rounded-t-3xl sm:rounded-3xl border-t sm:border border-slate-700 shadow-2xl pointer-events-auto h-[85vh] flex flex-col overflow-hidden">
+
+            <!-- Header -->
+            <div class="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900 z-10">
+                <div>
+                    <h3 class="text-xl font-bold text-white">Iniciar Produção</h3>
+                    <p class="text-xs text-slate-400">Distribua o peso inicial por cliente</p>
+                </div>
+                <button @click="showStartModal = false" class="p-2 bg-slate-800 rounded-full text-slate-400"><i
+                        data-lucide="x" width="18"></i></button>
+            </div>
+
+            <!-- Scrollable Content -->
+            <div class="flex-1 overflow-y-auto p-6 space-y-4">
+                <template x-for="(alloc, index) in allocations" :key="index">
+                    <div class="p-4 rounded-xl bg-slate-800/50 border border-slate-700/50 animate-slide-up">
+                        <div class="flex justify-between mb-2">
+                            <label class="text-xs font-bold text-blue-400 uppercase">Cliente</label>
+                            <button @click="removeAlloc(index)" class="text-xs text-red-500"
+                                x-show="allocations.length > 1">Remover</button>
+                        </div>
+                        <select x-model="alloc.client_id"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white text-sm focus:border-blue-500 focus:outline-none mb-3">
+                            <option value="">Selecione o Cliente...</option>
+                            <template x-for="c in clientsList" :key="c.id">
+                                <option :value="c.id" x-text="c.name"></option>
+                            </template>
+                        </select>
+
+                        <label class="text-xs font-bold text-emerald-400 uppercase">Peso (Kg)</label>
+                        <input type="number" x-model="alloc.weight" placeholder="0"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white text-lg font-mono focus:border-emerald-500 focus:outline-none">
+                    </div>
+                </template>
+
+                <button @click="addAlloc()"
+                    class="w-full py-3 border-2 border-dashed border-slate-700 rounded-xl text-slate-400 text-sm font-semibold hover:border-slate-500 hover:text-white transition-colors">
+                    + Adicionar Cliente
+                </button>
+            </div>
+
+            <!-- Footer Action -->
+            <div class="p-6 border-t border-slate-800 bg-slate-900 z-10">
+                <button @click="submitStart()" :disabled="isLoading"
+                    class="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold text-lg shadow-lg shadow-blue-900/40 disabled:opacity-50 flex items-center justify-center gap-2">
+                    <span x-show="!isLoading">Confirmar e Iniciar</span>
+                    <span x-show="isLoading" class="animate-spin"><i data-lucide="loader-2"></i></span>
+                </button>
+                <div x-show="errorMessage" x-text="errorMessage" class="text-red-400 text-xs text-center mt-2"></div>
+            </div>
+        </div>
+    </div>
+
+</div>
 
 {% endblock %}
 
 {% block scripts %}
 <script src="/static/js/chart.js"></script>
 <script>
-    function confirmStop() {
-        document.getElementById('stopModal').showModal();
-    }
+    function dashboardController() {
+        return {
+            showStopModal: false,
+            showStartModal: false,
+            isLoading: false,
+            errorMessage: '',
+            clientsList: [],
+            allocations: [{ client_id: '', weight: '' }],
 
-    document.addEventListener("DOMContentLoaded", function() {
-        const ctx = document.getElementById('productivityChart');
-        if (ctx) {
-            // FIXED LINES HERE
-            const rawLabels = {{ chart_labels | safe }}; 
-            const rawData = {{ chart_data | safe }};
+            init() {
+                // Initialize Clients List from Jinja
+                this.clientsList = [
+                    {% for c in clients %}
+                        { id: { { c.id } }, name: "{{ c.name }}" },
+        {% endfor %}
+                ];
 
-            new Chart(ctx.getContext('2d'), {
-                type: 'line',
-                data: {
-                    labels: rawLabels,
-                    datasets: [{
-                        label: 'Kg',
-                        data: rawData,
-                        borderColor: '#3b82f6',
-                        backgroundColor: (context) => {
-                            const ctx = context.chart.ctx;
-                            const gradient = ctx.createLinearGradient(0, 0, 0, 200);
-                            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.3)');
-                            gradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
-                            return gradient;
-                        },
-                        borderWidth: 3,
-                        pointBackgroundColor: '#1e293b',
-                        pointBorderColor: '#3b82f6',
-                        pointBorderWidth: 2,
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 4,
-                        pointHoverRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { display: false, beginAtZero: true },
-                        x: { 
-                            display: true, 
-                            grid: { display: false },
-                            ticks: { color: '#64748b', font: { size: 10, family: "'Inter', sans-serif" } } 
-                        } 
-                    },
-                    layout: { padding: { top: 10, bottom: 0, left: -5, right: 0 } },
-                    interaction: { mode: 'index', intersect: false }
-                }
+        this.initChart();
+    },
+
+    openStartModal() {
+        this.allocations = [{ client_id: '', weight: '' }];
+        this.showStartModal = true;
+    },
+
+    openStopModal() {
+        this.showStopModal = true;
+    },
+
+    addAlloc() {
+        this.allocations.push({ client_id: '', weight: '' });
+    },
+
+    removeAlloc(index) {
+        this.allocations.splice(index, 1);
+    },
+
+            async submitStart() {
+        // Validation
+        const valid = this.allocations.filter(a => a.client_id && a.weight > 0);
+        if (valid.length === 0) {
+            this.errorMessage = "Adicione pelo menos um cliente com peso.";
+            return;
+        }
+
+        this.isLoading = true;
+        this.errorMessage = '';
+
+        try {
+            const res = await fetch('/mobile/routine/start_with_allocation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ allocations: valid })
             });
+
+            if (res.ok) {
+                window.location.href = '/separacao';
+            } else {
+                const data = await res.json();
+                this.errorMessage = data.error || "Erro ao iniciar.";
+            }
+        } catch (e) {
+            this.errorMessage = "Erro de conexão.";
+        } finally {
+            this.isLoading = false;
+        }
+    },
+
+    initChart() {
+        const ctx = document.getElementById('productivityChart');
+        if (!ctx) return;
+
+        const labels = {{ chart_labels | safe
+    }};
+    const dailyKg = {{ chart_daily_kg | safe }};
+    const dailyKgh = {{ chart_daily_kgh | safe }};
+    const cumulativeKg = {{ chart_cumulative_kg | safe }};
+    const bgColors = {{ chart_bg_colors | safe }};
+
+    new Chart(ctx.getContext('2d'), {
+        type: 'bar', // Visual Base
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    type: 'line',
+                    label: 'Kg/h',
+                    data: dailyKgh,
+                    borderColor: '#fbbf24', // Amber 400
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    pointBackgroundColor: '#fbbf24',
+                    yAxisID: 'y1',
+                    tension: 0.4
+                },
+                {
+                    type: 'bar',
+                    label: 'Peso (Kg)',
+                    data: dailyKg,
+                    backgroundColor: bgColors,
+                    borderRadius: 4,
+                    yAxisID: 'y',
+                    barPercentage: 0.6
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        afterLabel: function (context) {
+                            // Show Cumulative in Tooltip
+                            const idx = context.dataIndex;
+                            if (context.dataset.type === 'bar') {
+                                return `Acumulado: ${cumulativeKg[idx].toLocaleString('pt-BR')} kg`;
+                            }
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    display: false,
+                    beginAtZero: true,
+                    grid: { display: false }
+                },
+                y1: {
+                    display: false,
+                    beginAtZero: true,
+                    position: 'right',
+                    grid: { display: false }
+                },
+                x: {
+                    display: true,
+                    grid: { display: false },
+                    ticks: { color: '#64748b', font: { size: 10 } }
+                }
+            },
+            layout: { padding: 0 }
         }
     });
+            }
+        }
+    }
 </script>
 {% endblock %}

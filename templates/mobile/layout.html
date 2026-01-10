@@ -1,36 +1,76 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="scroll-smooth">
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
     <title>{% block title %}Portal do Colaborador{% endblock %}</title>
 
-    <!-- Fonts -->
+    <!-- Tailwind CSS (Engine) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: { 800: '#1e293b', 900: '#0f172a' },
+                        gold: { 500: '#eab308' }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out forwards',
+                        'slide-up': 'slideUp 0.3s ease-out forwards'
+                    },
+                    keyframes: {
+                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+                        slideUp: { '0%': { transform: 'translateY(20px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Custom CSS (Overrides & Utilities) -->
+    <link rel="stylesheet" href="{{ url_for('static', path='css/mobile.css') }}?v=4.0">
+
+    <!-- Alpine.js (Reactivity) -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', path='css/mobile.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <!-- Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
-        /* Specific page overrides can go here */
+        [x-cloak] {
+            display: none !important;
+        }
     </style>
 </head>
 
-<body>
-    <main class="mobile-container">
+<body class="bg-slate-900 text-white antialiased select-none">
+    <main class="mobile-container min-h-screen flex flex-col relative overflow-hidden">
+        <!-- Background Ambient Glow -->
+        <div class="fixed inset-0 pointer-events-none z-0">
+            <div class="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/20 rounded-full blur-[100px]"></div>
+            <div class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-600/20 rounded-full blur-[100px]">
+            </div>
+        </div>
+
         {% include 'components/flash_messages.html' ignore missing %}
 
+        <!-- Content -->
         {% block content %}{% endblock %}
     </main>
 
     <script>
-        // Initialize Lucide icons
         lucide.createIcons();
     </script>
     {% block scripts %}{% endblock %}
