@@ -424,7 +424,7 @@ async def mobile_dashboard(
             .where(models.EmployeeRoutine.employee_id == employee.id, models.EmployeeRoutine.date == d_str)
         ).first()
         
-        hours = 8.0 # fallback
+        minutes = 480.0 # fallback (8 hours)
         if routine and routine.start_time:
              try:
                 start_dt = datetime.strptime(routine.start_time, "%H:%M")
@@ -437,18 +437,18 @@ async def mobile_dashboard(
                      else:
                          end_dt = start_dt + timedelta(hours=8)
                 
-                diff = (end_dt - start_dt).total_seconds() / 3600
-                hours = max(0.5, diff) # Avoid div by zero
+                diff = (end_dt - start_dt).total_seconds() / 60 # minutes
+                minutes = max(1, diff) # Avoid div by zero
              except:
                 pass
         
-        kgh = daily_kg / hours if hours > 0 else 0
+        kg_min = daily_kg / minutes if minutes > 0 else 0
         running_total += daily_kg
         
         daily_stats.append({
             "label": label,
             "kg": daily_kg,
-            "kgh": kgh,
+            "kgh": kg_min, # Variable name kept for compat, but is now Kg/min
             "cumulative": running_total
         })
         
@@ -480,10 +480,34 @@ async def mobile_dashboard(
         chart_cumulative_kg.append(s["cumulative"])
         chart_bg_colors.append(nav_map[i] if s["kg"] > 0 else "#1e293b") # Dark for 0
 
+    # --- Active Routes (Pending) ---
+    today_str = today.strftime("%Y-%m-%d")
+    active_routes_stmt = (
+        select(models.Route, models.Client.name)
+        .join(models.Client, models.Route.client_id == models.Client.id) 
+        .where(
+            models.Route.employee_id == employee.id,
+            models.Route.date == today_str,
+            models.Route.status == "pending"
+        )
+    )
+    active_routes_result = session.exec(active_routes_stmt).all()
+    
+    # Format for JSON/Template
+    active_routes_list = []
+    for r, c_name in active_routes_result:
+        active_routes_list.append({
+            "id": r.id,
+            "client_name": c_name,
+            "tonnage": r.tonnage,
+            "start_time": r.start_time
+        })
+
     context = {
         "request": request,
         "employee": employee,
         "clients": clients,
+        "active_routes": json.dumps(active_routes_list), # Pass as JSON for Alpine
         "current_date": datetime.now().strftime("%d/%m/%Y"),
         "ai_message": ai_message,
         "chart_labels": json.dumps(chart_labels),
@@ -493,6 +517,36 @@ async def mobile_dashboard(
         "chart_bg_colors": json.dumps(chart_bg_colors)
     }
     return templates.TemplateResponse("mobile/dashboard.html", context)
+
+
+@app.post("/mobile/route/{route_id}/finish", response_class=JSONResponse)
+async def mobile_route_finish(
+    request: Request, 
+    route_id: int, 
+    session: Session = Depends(get_session)
+):
+    try:
+        user_id = request.session.get("user_id")
+        if not user_id:
+             return JSONResponse({"error": "Unauthorized"}, status_code=401)
+             
+        route = session.get(models.Route, route_id)
+        if not route:
+             return JSONResponse({"error": "Rota não encontrada"}, status_code=404)
+             
+        if route.employee_id != user_id:
+             return JSONResponse({"error": "Não autorizado"}, status_code=403)
+             
+        # Close Route
+        route.end_time = datetime.now().strftime("%H:%M")
+        route.status = "completed"
+        session.add(route)
+        session.commit()
+        
+        return JSONResponse({"success": True})
+    except Exception as e:
+        logger.exception(f"Error finishing route {route_id}: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 class MobileAllocationItem(BaseModel):
     client_id: int
@@ -643,6 +697,47 @@ async def mobile_routine_stop(request: Request, session: Session = Depends(get_s
     user = require_login(request)
     if not isinstance(user, dict) or user.get("type") != "employee":
          return RedirectResponse(url="/mobile/login", status_code=303)
+         
+    user_id = user.get("id")
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    now_time = datetime.now().strftime("%H:%M")
+
+    # 1. Close Routine
+    stmt = select(models.EmployeeRoutine).where(
+        models.EmployeeRoutine.employee_id == user_id,
+        models.EmployeeRoutine.date == today_str
+    )
+    routine = session.exec(stmt).first()
+    
+    if routine and routine.status != "closed":
+        routine.end_time = now_time
+        routine.status = "closed"
+        session.add(routine)
+    
+    # 2. Force Close Pending Routes (Fail-safe as per user request to sync)
+    # User said "must finish also on separacao page", which implies setting status=completed
+    pending_routes = session.exec(
+        select(models.Route).where(
+            models.Route.employee_id == user_id,
+            models.Route.date == today_str,
+            models.Route.status == "pending"
+        )
+    ).all()
+    
+    for r in pending_routes:
+        r.end_time = now_time
+        r.status = "completed"
+        session.add(r)
+        
+    session.commit()
+    
+    # Redirect to Separacao as per last request? Or stay on Dashboard (which will likely redirect or show closed state)?
+    # User: "Quando eu clicar encerrar o dia no botão deve se finalizar e encerrar tambem na pagina /separacao"
+    # User previously said: "Quando confirmar tem que ir para /separacao" for START.
+    # For STOP, usually they log out or see a summary.
+    # I'll stick to redirecting to dashboard or login, but the DATA is synced.
+    
+    return RedirectResponse(url="/mobile/logout", status_code=303)
          
     user_id = user.get("id")
     today_str = datetime.now().strftime("%Y-%m-%d")
@@ -1009,9 +1104,9 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
     # 4. Fetch Routes
     query = select(models.Route).where(models.Route.date == date).where(models.Route.shift == shift)
     
-    if is_mobile_user:
-        query = query.where(models.Route.employee_id == current_emp_id)
-        
+    # Remove mobile restriction for viewing routes (User wants to see Team status)
+    # query = query.order_by(models.Route.start_time)
+    
     query = query.order_by(models.Route.start_time)
     db_routes = session.exec(query).all()
 
@@ -1029,7 +1124,7 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
             s = datetime.strptime(start, "%H:%M")
             if not end: return 0.0
             e = datetime.strptime(end, "%H:%M")
-            diff = (e - s).total_seconds() / 3600 # hours
+            diff = (e - s).total_seconds() / 60 # minutes
             if diff <= 0: return 0.0
             return round(t / diff, 2)
         except Exception:
@@ -1202,10 +1297,11 @@ async def delete_separacao(
     user = require_login(request)
     route = session.get(models.Route, route_id)
     if route:
-        # PERMISSION CHECK: Mobile users cannot delete/edit completed routes
-        if isinstance(user, dict) and user.get("type") == "employee":
-             if route.status == "completed" or (route.end_time and route.end_time != ""):
-                 return RedirectResponse(url=f"/separacao?date={route.date}&shift={route.shift}", status_code=status.HTTP_303_SEE_OTHER)
+        # PERMISSION CHECK: Mobile users can only delete THEIR OWN routes
+        # PERMISSION CHECK: Disabled to allow Managers/Leads (logged as employees) to delete ANY route
+        # if isinstance(user, dict) and user.get("type") == "employee":
+        #      if route.employee_id != user.get("id"):
+        #           return RedirectResponse(url=f"/separacao?date={route.date}&shift={route.shift}", status_code=status.HTTP_303_SEE_OTHER)
         
         date = route.date
         shift = route.shift

@@ -1,7 +1,10 @@
-{% extends "mobile/layout.html" %}
+import os
+
+# Dashboard Mobile 5.2 (Active Routes + Individual Finish)
+content = r'''{% extends "mobile/layout.html" %}
 
 {% block content %}
-<!-- Dashboard Mobile 5.3 (Syntax Fix) -->
+<!-- Dashboard Mobile 5.2 (Active Routes) -->
 <div x-data="dashboardController()" class="dashboard-grid animate-fade-in relative z-10 w-full h-full pb-24">
 
     <!-- HEADER Area -->
@@ -248,7 +251,7 @@
                     });
                     
                     if (res.ok) {
-                        window.location.reload();
+                        window.location.href = '/separacao';
                     } else {
                         const data = await res.json();
                         this.errorMessage = data.error || "Erro.";
@@ -267,6 +270,7 @@
                 try {
                      const res = await fetch(`/mobile/route/${id}/finish`, { method: 'POST' });
                      if (res.ok) {
+                         // Remove from list locally for instant feedback
                          this.activeRoutes.splice(index, 1);
                      }
                 } catch (e) {
@@ -293,7 +297,7 @@
                         datasets: [
                             {
                                 type: 'line',
-                                label: 'Kg/min',
+                                label: 'Kg/h',
                                 data: dailyKgh,
                                 borderColor: '#fbbf24',
                                 borderWidth: 2,
@@ -328,3 +332,9 @@
     }
 </script>
 {% endblock %}
+'''
+
+with open(r'c:\Projeto\analise_operacional\templates\mobile\dashboard.html', 'w', encoding='utf-8') as f:
+    f.write(content)
+
+print("Dashboard 5.2 (Active Routes Fix) written successfully.")

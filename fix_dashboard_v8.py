@@ -1,4 +1,8 @@
-{% extends "mobile/layout.html" %}
+import os
+
+# Dashboard Mobile 5.3 (Syntax Repair)
+# Fixing {{ c.id }} spacing and chart variable line breaks
+content = r'''{% extends "mobile/layout.html" %}
 
 {% block content %}
 <!-- Dashboard Mobile 5.3 (Syntax Fix) -->
@@ -293,7 +297,7 @@
                         datasets: [
                             {
                                 type: 'line',
-                                label: 'Kg/min',
+                                label: 'Kg/h',
                                 data: dailyKgh,
                                 borderColor: '#fbbf24',
                                 borderWidth: 2,
@@ -328,3 +332,9 @@
     }
 </script>
 {% endblock %}
+'''
+
+with open(r'c:\Projeto\analise_operacional\templates\mobile\dashboard.html', 'w', encoding='utf-8') as f:
+    f.write(content)
+
+print("Dashboard 5.3 (Syntax Repair V8) written successfully.")

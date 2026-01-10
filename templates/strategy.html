@@ -42,7 +42,7 @@
                 <p class="text-xs font-bold text-slate-500 uppercase">Produtividade Global</p>
                 <div class="mt-2 flex items-baseline gap-2">
                     <span class="text-3xl font-bold text-white">{{ kpi.global_kgh }}</span>
-                    <span class="text-sm text-slate-400">Kg/h</span>
+                    <span class="text-sm text-slate-400">Kg/min</span>
                 </div>
                 <div class="mt-2 text-xs text-green-400 font-bold">Baseado em todo histórico</div>
             </div>
@@ -161,7 +161,7 @@
                     data: {
                         labels: labels,
                         datasets: [{
-                            label: 'Produtividade Média (Kg/h)',
+                            label: 'Produtividade Média (Kg/min)',
                             data: data,
                             borderColor: '#34d399', // Green-400
                             backgroundColor: 'rgba(52, 211, 153, 0.1)',
@@ -201,7 +201,7 @@
                                 },
                                 title: {
                                     display: true,
-                                    text: 'Kg/h',
+                                    text: 'Kg/min',
                                     color: '#64748b'
                                 }
                             },
@@ -240,7 +240,7 @@
                             <td class="px-6 py-4">
                                 <span
                                     class="font-mono {{ 'text-green-400' if row.kgh > 250 else 'text-red-400' if row.kgh < 150 else 'text-yellow-400' }} font-bold text-lg">
-                                    {{ "%.0f"|format(row.kgh) }} Kg/h
+                                    {{ "%.0f"|format(row.kgh) }} Kg/min
                                 </span>
                             </td>
                             <td class="px-6 py-4 text-slate-300">
