@@ -1,417 +1,527 @@
 {% extends "mobile/layout.html" %}
 
 {% block content %}
-<div x-data="dashboardController()" class="dashboard-grid animate-fade-in relative z-10 w-full h-full pb-24">
-
-    <!-- HEADER Area -->
-    <div class="grid-header flex justify-between items-center mb-2">
-        <div>
-            <h2 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
-                Olá, {{ (employee.name or 'Colaborador').split()[0] }}
-            </h2>
-            <p class="text-xs font-medium text-blue-400 tracking-wide mt-1">
-                MATRÍCULA: {{ employee.registration_id }}
-            </p>
-        </div>
-        <div
-            class="glass-panel px-4 py-2 flex items-center gap-3 border-yellow-500/20 shadow-[0_4px_12px_rgba(234,179,8,0.1)]">
-            <div class="p-1.5 rounded-full bg-yellow-500/10 text-yellow-400">
-                <i data-lucide="trophy" width="16" height="16"></i>
+<div x-data="dashboardController()" class="flex flex-col min-h-screen pb-20">
+    
+    <!-- 1. Header & Gamification Card -->
+    <header class="relative px-6 pt-12 pb-8 bg-gradient-to-b from-slate-900 to-slate-800 rounded-b-[40px] shadow-2xl z-10 border-b border-white/5">
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center space-x-4">
+                <div class="relative">
+                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-yellow-400 to-orange-500 p-[2px] shadow-lg shadow-orange-500/20">
+                        <img src="{{ url_for('static', path='badges/' + gamification.level.badge) }}" 
+                             onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name }}&background=0f172a&color=fff'"
+                             class="w-full h-full rounded-2xl object-cover bg-slate-900" alt="Badge">
+                    </div>
+                    <div class="absolute -bottom-2 -right-2 bg-slate-900 rounded-full p-1 border border-slate-700">
+                        <span class="flex items-center justify-center w-6 h-6 text-xs font-bold text-yellow-400 bg-yellow-400/10 rounded-full">
+                            {{ gamification.level.level }}
+                        </span>
+                    </div>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-white tracking-tight leading-tight">{{ employee.name }}</h1>
+                    <p class="text-sm text-slate-400 font-medium">{{ gamification.level.name }}</p>
+                </div>
             </div>
-            <span class="font-bold text-lg text-yellow-400 font-mono tracking-tight">
-                {{ "{:,.0f}".format(employee.total_xp or 0).replace(",", ".") }}
-            </span>
+            
+            <button @click="logout()" class="p-2 rounded-xl bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white transition-colors backdrop-blur-md">
+                <i data-lucide="log-out" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <div class="relative mt-2">
+            <div class="flex justify-between text-xs font-medium text-slate-400 mb-2">
+                <span>XP: <span class="text-white">{{ "{:,}".format(gamification.total_xp).replace(",", ".") }}</span></span>
+                {% if gamification.next_level %}
+                <span>Próximo: {{ gamification.next_level.name }} ({{ "{:,}".format(gamification.next_level.min_xp).replace(",", ".") }})</span>
+                {% else %}
+                <span class="text-yellow-400">Nível Máximo! 🏆</span>
+                {% endif %}
+            </div>
+            <div class="h-3 w-full bg-slate-700/50 rounded-full overflow-hidden backdrop-blur-sm border border-white/5">
+                <div class="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 shadow-[0_0_15px_rgba(99,102,241,0.5)] transition-all duration-1000 ease-out relative"
+                     style="width: {{ gamification.progress_percent }}%">
+                     <div class="absolute inset-0 bg-white/20 animate-[shimmer_2s_infinite]"></div>
+                </div>
+            </div>
+            <p class="text-xs text-center text-slate-500 mt-2 italic animate-fade-in">{{ ai_message }}</p>
+        </div>
+    </header>
+
+    <!-- 2. Active Route Card -->
+    <div class="px-6 -mt-6 z-20" x-show="hasActiveRoutes" x-cloak>
+        <template x-for="route in activeRoutes" :key="route.id">
+            <div class="bg-slate-800/90 backdrop-blur-xl rounded-3xl p-5 border border-indigo-500/30 shadow-[0_10px_40px_-10px_rgba(79,70,229,0.3)] animate-slide-up bg-[url('/static/grid.svg')] bg-repeat opacity-95">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="p-2.5 bg-indigo-500/20 rounded-xl animate-pulse">
+                            <i data-lucide="truck" class="w-6 h-6 text-indigo-400"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                                Separação Ativa
+                                <span class="w-2 h-2 rounded-full bg-green-500 animate-ping"></span>
+                            </h3>
+                            <p class="text-indigo-300 text-sm font-medium" x-text="route.client_name"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-end justify-between">
+                    <div>
+                        <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Tempo Decorrido</p>
+                        <p class="text-3xl font-mono font-bold text-white tracking-widest tabular-nums" x-text="formatTimer(route.start_time)"></p>
+                    </div>
+                    
+                    <button @click="openStopModal(route)" 
+                            class="mb-1 px-6 py-3 bg-red-500 hover:bg-red-600 active:scale-95 text-white rounded-xl font-bold shadow-lg shadow-red-500/25 transition-all flex items-center gap-2 group">
+                        <i data-lucide="square" class="w-4 h-4 fill-current"></i>
+                        <span>Encerrar</span>
+                    </button>
+                </div>
+                
+                <div class="mt-4 h-1 w-full bg-slate-700/50 rounded-full overflow-hidden">
+                    <div class="h-full bg-indigo-500 animate-[loading_2s_ease-in-out_infinite] w-1/3 rounded-full"></div>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- 3. Primary Actions Grid -->
+    <div class="grid grid-cols-2 gap-4 px-6 mt-8">
+        <!-- Start Button -->
+        <button @click="openStartModal()" 
+                class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-green-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
+            <div class="absolute inset-0 bg-green-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div class="flex flex-col items-center justify-center space-y-3 relative z-10">
+                <div class="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center group-hover:bg-green-500 group-hover:text-white text-green-500 transition-colors">
+                    <i data-lucide="play" class="w-6 h-6 fill-current"></i>
+                </div>
+                <span class="font-semibold text-slate-200">Iniciar Separação</span>
+            </div>
+        </button>
+
+        <button class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-blue-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
+            <div class="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div class="flex flex-col items-center justify-center space-y-3 relative z-10">
+                <div class="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white text-blue-500 transition-colors">
+                    <i data-lucide="star" class="w-6 h-6"></i>
+                </div>
+                <span class="font-semibold text-slate-200">Avaliação</span>
+            </div>
+        </button>
+
+        <button class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-purple-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
+            <div class="absolute inset-0 bg-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div class="flex flex-col items-center justify-center space-y-3 relative z-10">
+                <div class="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center group-hover:bg-purple-500 group-hover:text-white text-purple-500 transition-colors">
+                    <i data-lucide="history" class="w-6 h-6"></i>
+                </div>
+                <span class="font-semibold text-slate-200">Histórico</span>
+            </div>
+        </button>
+
+        <button @click="openEndDayModal()" 
+                class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-red-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
+            <div class="absolute inset-0 bg-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div class="flex flex-col items-center justify-center space-y-3 relative z-10">
+                <div class="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center group-hover:bg-red-500 group-hover:text-white text-red-500 transition-colors">
+                    <i data-lucide="power" class="w-6 h-6"></i>
+                </div>
+                <span class="font-semibold text-slate-200">Encerrar Dia</span>
+            </div>
+        </button>
+    </div>
+
+    <!-- 4. Performance Chart -->
+    <div class="px-6 mt-8" x-show="labels.length > 0">
+        <h2 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
+            <i data-lucide="bar-chart-2" class="w-5 h-5 text-blue-400"></i>
+            Sua Performance Diária
+        </h2>
+        <div class="bg-slate-800/50 border border-white/5 p-4 rounded-3xl shadow-lg h-64 w-full">
+            <canvas id="performanceChart"></canvas>
         </div>
     </div>
 
-    <!-- ACTIVE ROUTES LIST (Rich Detail + Timer) -->
-    <div class="grid-modules flex flex-col gap-4 overflow-visible">
 
-        <!-- Section Title -->
-        <div class="flex justify-between items-center px-1">
-            <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Em Andamento</h3>
-            <span class="text-xs font-bold text-blue-400" x-text="activeRoutes.length + ' Ativas'"></span>
-        </div>
-
-        <!-- Empty State -->
-        <div x-show="activeRoutes.length === 0"
-            class="glass-panel p-8 flex flex-col items-center justify-center text-slate-500 opacity-60">
-            <i data-lucide="coffee" width="32" height="32" class="mb-2"></i>
-            <p class="text-xs">Nenhuma atividade agora.</p>
-        </div>
-
-        <!-- Rich Active Cards -->
-        <div class="space-y-4">
-            <template x-for="(route, index) in activeRoutes" :key="route.id">
-                <div
-                    class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-blue-500/30 shadow-[0_8px_30px_rgb(59,130,246,0.15)] group transition-all hover:scale-[1.01]">
-
-                    <!-- Pulsing Glow Effect -->
-                    <div class="absolute top-0 right-0 p-3">
-                        <span class="relative flex h-3 w-3">
-                            <span
-                                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                            <span class="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
-                        </span>
+    <!-- 5. Recent History -->
+    <div class="px-6 mt-8 mb-24">
+        <h2 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
+            <i data-lucide="check-circle" class="w-5 h-5 text-green-400"></i>
+            Concluídos Hoje
+        </h2>
+        
+        <div class="space-y-3">
+            <template x-if="completedRoutes.length === 0">
+                <div class="text-center py-8 bg-slate-800/30 rounded-3xl border border-white/5 border-dashed">
+                    <p class="text-slate-500 text-sm">Nenhuma separação concluída hoje.</p>
+                </div>
+            </template>
+            
+            <template x-for="route in completedRoutes" :key="route.id">
+                <div class="bg-slate-800/50 border border-slate-700/50 p-4 rounded-2xl flex justify-between items-center group hover:bg-slate-800 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-slate-400 font-bold text-xs group-hover:bg-green-500/20 group-hover:text-green-500 transition-colors">
+                           <i data-lucide="check" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <p class="text-white font-semibold text-sm" x-text="route.client_name"></p>
+                            <p class="text-slate-400 text-xs" x-text="route.duration"></p>
+                        </div>
                     </div>
-
-                    <div class="p-5 relative z-10">
-                        <!-- Client Name -->
-                        <div class="pr-8 mb-4">
-                            <h4 class="text-lg font-bold text-white leading-tight" x-text="route.client_name"></h4>
-                            <p class="text-xs text-blue-400 mt-1 font-medium">Iniciado às <span
-                                    x-text="route.start_time"></span></p>
-                        </div>
-
-                        <!-- Main Stats Grid -->
-                        <div class="grid grid-cols-2 gap-3 mb-4">
-                            <!-- Timer Card -->
-                            <div
-                                class="bg-slate-950/50 rounded-xl p-3 border border-slate-800 flex flex-col items-center justify-center">
-                                <span
-                                    class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Tempo</span>
-                                <div class="text-2xl font-mono font-bold text-white tracking-widest mt-1">
-                                    <span x-text="getElapsed(route.start_time)">00:00:00</span>
-                                </div>
-                            </div>
-
-                            <!-- Weight Card -->
-                            <div
-                                class="bg-slate-950/50 rounded-xl p-3 border border-slate-800 flex flex-col items-center justify-center">
-                                <span class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Peso</span>
-                                <div
-                                    class="text-xl font-mono font-bold text-emerald-400 mt-1 flex items-baseline gap-1">
-                                    <span x-text="route.tonnage"></span> <span
-                                        class="text-xs text-emerald-600">kg</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Action Button (Full Width) -->
-                        <button @click="finishRoute(route.id, index)" :disabled="finishLoading === route.id"
-                            class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-900/30 transition-all active:scale-[0.98]">
-                            <span x-show="finishLoading !== route.id">
-                                <i data-lucide="check-circle-2" width="18"></i> Concluir Atividade
-                            </span>
-                            <span x-show="finishLoading === route.id" class="animate-spin">
-                                <i data-lucide="loader-2" width="18"></i> Processando...
-                            </span>
-                        </button>
+                    <div class="text-right">
+                        <p class="text-white font-bold text-sm" x-text="route.tonnage + ' kg'"></p>
+                        <p class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 inline-block mt-1 border border-slate-600" x-text="route.performance"></p>
                     </div>
                 </div>
             </template>
         </div>
+    </div>
 
-        <!-- HISTORY / COMPLETED ROUTES -->
-        <div x-show="completedRoutes.length > 0" class="mt-6">
-            <div class="flex justify-between items-center px-1 mb-3">
-                <div x-show="completedRoutes.length === 0" class="text-center py-8 text-slate-500 text-sm">
-                    Nenhuma atividade registrada hoje.
+    <!-- Modals -->
+    
+    <!-- Start Modal (Multi-Client) -->
+    <div x-show="showStartModal" 
+         class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm"
+         x-transition.opacity
+         x-cloak>
+        <div class="bg-slate-900 w-full max-w-md rounded-t-3xl sm:rounded-3xl border-t sm:border border-white/10 p-6 pb-12 shadow-2xl h-[85vh] sm:h-auto flex flex-col"
+             @click.away="showStartModal = false"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="translate-y-full opacity-0"
+             x-transition:enter-end="translate-y-0 opacity-100">
+            
+            <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                <div>
+                    <h3 class="text-xl font-bold text-white">Nova Separação</h3>
+                    <p class="text-slate-400 text-xs mt-1">Selecione clientes e defina pesos (opcional)</p>
+                </div>
+                
+                <div class="flex items-center gap-3">
+                     <!-- Start Action Button -->
+                    <button x-show="selectedCount > 0" 
+                            @click="startBatch()"
+                            class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-green-500/20 flex items-center gap-2 animate-fade-in">
+                        <span>Iniciar</span>
+                        <span class="bg-black/20 px-1.5 py-0.5 rounded text-xs" x-text="selectedCount"></span>
+                    </button>
+                    
+                    <button @click="showStartModal = false" class="text-slate-400 hover:text-white p-2">
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
                 </div>
             </div>
-            <!-- Added History List Rendering -->
-            <div class="space-y-3">
-                <template x-for="route in completedRoutes" :key="'hist-'+route.id">
-                    <div class="bg-slate-800 rounded-2xl p-4 border border-slate-700 flex justify-between items-center">
-                        <div class="flex items-center gap-3">
-                            <div
-                                class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center font-bold text-slate-500 text-xs">
-                                <i data-lucide="check" class="w-5 h-5"></i>
-                            </div>
-                            <div>
-                                <h4 class="text-sm font-bold text-white" x-text="route.client_name"></h4>
-                                <p class="text-[10px] text-slate-400" x-text="route.end_time + ' • ' + route.duration">
-                                </p>
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <span class="block text-sm font-bold text-emerald-400"
-                                x-text="route.tonnage + ' Kg'"></span>
-                            <span class="block text-[10px] text-slate-500 font-mono" x-text="route.performance"></span>
-                        </div>
-                    </div>
-                </template>
-            </div>
-        </div>
-
-
-        <!-- MODAL: START ROUTINE -->
-        <div x-show="showStartModal" style="display: none;"
-            class="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
-            x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-full"
-            x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-200"
-            x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 translate-y-full">
-
-            <!-- Backdrop -->
-            <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" @click="showStartModal = false"></div>
-
-            <!-- Sheet/Modal -->
-            <div
-                class="bg-slate-900 w-full max-w-md rounded-t-[2rem] sm:rounded-3xl border-t sm:border border-slate-700 relative z-10 max-h-[90vh] flex flex-col shadow-2xl">
-                <!-- Handle -->
-                <div class="w-full flex justify-center pt-3 pb-1 sm:hidden">
-                    <div class="w-12 h-1.5 bg-slate-700 rounded-full"></div>
+            
+            <div class="space-y-4 flex-1 flex flex-col overflow-hidden">
+                <div class="relative flex-shrink-0">
+                    <i data-lucide="search" class="absolute left-4 top-3.5 w-5 h-5 text-slate-500"></i>
+                    <input type="text" 
+                           x-model="searchClient" 
+                           placeholder="Buscar cliente..." 
+                           class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-12 pr-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
                 </div>
-
-                <div class="p-6 border-b border-slate-800 flex justify-between items-center">
-                    <div>
-                        <h3 class="text-xl font-bold text-white">Nova Carga</h3>
-                        <p class="text-xs text-slate-400">Adicionar clientes à rotina</p>
-                    </div>
-                    <button @click="showStartModal = false"
-                        class="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors"><i
-                            data-lucide="x" class="w-5 h-5"></i></button>
-                </div>
-
-                <div class="flex-1 overflow-y-auto p-6 space-y-4">
-                    <template x-for="(alloc, index) in allocations" :key="index">
-                        <div class="p-4 rounded-xl bg-slate-800/50 border border-slate-700/50 animate-fade-in-up">
-                            <div class="flex justify-between mb-2">
-                                <label class="text-xs font-bold text-blue-400 uppercase">Cliente</label>
-                                <button @click="removeAlloc(index)" class="text-xs text-red-500 font-bold"
-                                    x-show="allocations.length > 1">REMOVER</button>
+                       
+                <div class="flex-1 overflow-y-auto space-y-2 pr-1 pb-4 custom-scrollbar">
+                    <template x-for="client in filteredClients" :key="client.id">
+                        <div @click="toggleClient(client)"
+                             class="w-full flex flex-col p-4 bg-slate-800/50 border rounded-xl transition-all cursor-pointer group active:scale-[0.98]"
+                             :class="isSelected(client.id) ? 'border-green-500 bg-green-500/10' : 'border-slate-700/50 hover:bg-slate-800'">
+                            
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <!-- Custom Checkbox -->
+                                    <div class="w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors"
+                                         :class="isSelected(client.id) ? 'border-green-500 bg-green-500' : 'border-slate-600 bg-slate-900'">
+                                        <i x-show="isSelected(client.id)" data-lucide="check" class="w-4 h-4 text-white"></i>
+                                    </div>
+                                    <span class="text-slate-200 group-hover:text-white font-medium text-lg" x-text="client.name"></span>
+                                </div>
                             </div>
-                            <select x-model="alloc.client_id"
-                                class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white text-sm focus:border-blue-500 focus:outline-none mb-3 appearance-none">
-                                <option value="">Selecione o Cliente...</option>
-                                <template x-for="c in clientsList" :key="c.id">
-                                    <option :value="c.id" x-text="c.name"></option>
-                                </template>
-                            </select>
-                            <label class="text-xs font-bold text-emerald-400 uppercase">Peso (Kg)</label>
-                            <input type="number" x-model="alloc.weight" placeholder="0"
-                                class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white text-lg font-mono focus:border-emerald-500 focus:outline-none">
+                            
+                            <!-- Weight Input (Expanded) -->
+                            <div x-show="isSelected(client.id)" 
+                                 x-transition.opacity 
+                                 class="mt-3 pl-9" 
+                                 @click.stop>
+                                <label class="text-xs text-slate-400 mb-1 block">Peso Planejado (Kg) - Opcional</label>
+                                <input type="number" 
+                                       placeholder="0" 
+                                       @input="updateWeight(client.id, $event.target.value)"
+                                       class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:border-green-500 outline-none text-lg font-mono">
+                            </div>
                         </div>
                     </template>
-                    <button @click="addAlloc()"
-                        class="w-full py-3 border-2 border-dashed border-slate-700 rounded-xl text-slate-400 text-sm font-semibold hover:border-slate-500 hover:text-white transition-colors flex justify-center items-center gap-2">
-                        <i data-lucide="plus" class="w-4 h-4"></i> Adicionar Cliente
-                    </button>
-                </div>
-
-                <div class="p-6 border-t border-slate-800 bg-slate-900 z-10 pb-8 sm:pb-6">
-                    <button @click="submitStart()" :disabled="isLoading"
-                        class="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold text-lg shadow-lg shadow-blue-900/40 disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
-                        <span x-show="!isLoading">Confirmar Início</span>
-                        <span x-show="isLoading" class="animate-spin"><i data-lucide="loader-2"></i></span>
-                    </button>
-                    <div x-show="errorMessage" x-text="errorMessage"
-                        class="text-red-400 text-xs text-center mt-3 font-medium"></div>
                 </div>
             </div>
         </div>
-
-        <!-- MODAL: STOP ROUTINE -->
-        <div x-show="showStopModal" style="display: none;"
-            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-            x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0"
-            x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-200"
-            x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
-
-            <div class="bg-slate-900 w-full max-w-sm rounded-3xl border border-slate-700 p-6 shadow-2xl relative">
-                <div class="text-center mb-6">
-                    <div
-                        class="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto mb-4">
-                        <i data-lucide="check" class="w-8 h-8"></i>
-                    </div>
-                    <h3 class="text-xl font-bold text-white">Finalizar Carga?</h3>
-                    <p class="text-sm text-slate-400 mt-2">Confirma a finalização desta rota de separação?</p>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <button @click="showStopModal = false"
-                        class="py-3 bg-slate-800 rounded-xl text-slate-300 font-bold text-sm hover:bg-slate-700 transition-colors">Cancelar</button>
-                    <button @click="confirmStop()"
-                        class="py-3 bg-emerald-600 rounded-xl text-white font-bold text-sm hover:bg-emerald-500 transition-colors shadow-lg shadow-emerald-900/20">Confirmar</button>
-                </div>
-            </div>
-        </div>
-
     </div>
+
+    <!-- Stop Modal -->
+    <div x-show="showStopModal" 
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+         x-transition.opacity
+         x-cloak>
+        <div class="bg-slate-900 w-full max-w-sm rounded-3xl border border-white/10 p-6 shadow-2xl"
+             @click.away="showStopModal = false">
+             
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
+                    <i data-lucide="check-square" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-xl font-bold text-white">Finalizar Separação</h3>
+                <p class="text-slate-400 text-sm mt-1" x-text="selectedRoute?.client_name"></p>
+            </div>
+            
+            <div class="flex gap-4">
+                <button @click="showStopModal = false" class="flex-1 py-3 rounded-xl bg-slate-800 text-slate-300 font-medium hover:bg-slate-700">
+                    Cancelar
+                </button>
+                <button @click="confirmStop()" class="flex-1 py-3 rounded-xl bg-green-500 text-white font-bold hover:bg-green-600 shadow-lg shadow-green-500/20">
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+    
+     <!-- End Day Modal -->
+    <div x-show="showEndDayModal" 
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
+         x-transition.opacity
+         x-cloak>
+        <div class="bg-slate-900 w-full max-w-sm rounded-3xl border border-red-500/30 p-8 shadow-2xl text-center relative overflow-hidden">
+            <!-- Warning Glow -->
+            <div class="absolute -top-10 -left-10 w-32 h-32 bg-red-600/20 blur-[50px] rounded-full pointer-events-none"></div>
+            
+            <i data-lucide="alert-triangle" class="w-12 h-12 text-red-500 mx-auto mb-4 animate-bounce"></i>
+            
+            <h3 class="text-2xl font-bold text-white mb-2">Encerrar Expediente?</h3>
+            <p class="text-slate-400 text-sm mb-8">
+                Isso fechará todas as rotas pendentes e registrará seu horário de saída.
+            </p>
+            
+            <div class="space-y-3">
+                <button @click="endDay()" 
+                        class="w-full py-4 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-lg shadow-lg shadow-red-500/30 transition-all active:scale-95 flex items-center justify-center gap-2">
+                    <i data-lucide="power" class="w-5 h-5 fill-current"></i>
+                    Encerrar Agora
+                </button>
+                
+                <button @click="showEndDayModal = false" 
+                        class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition-colors">
+                    Voltar ao Trabalho
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     function dashboardController() {
         return {
-            showStopModal: false,
             showStartModal: false,
-            isLoading: false,
-            finishLoading: null,
-            errorMessage: '',
-            clientsList: [],
-            activeRoutes: [],
-            completedRoutes: [],
-            allocations: [{ client_id: '', weight: '' }],
-            routeToFinish: null,
-            now: new Date().getTime(),
-            timer: null,
-
+            showStopModal: false,
+            showEndDayModal: false,
+            searchClient: '',
+            selectedMap: {}, // id -> weight (float)
+            
+            // Data from Jinja2
+            clients: [
+                {% for c in clients %}
+                { id: {{ c.id }}, name: "{{ c.name }}" },
+                {% endfor %}
+            ],
+            
+            activeRoutes: {{ active_routes | safe }},
+            completedRoutes: {{ completed_routes | safe }},
+            
+            // Charts Data
+            labels: {{ chart_labels | safe }},
+            dataKg: {{ chart_daily_kg | safe }},
+            dataKgh: {{ chart_daily_kgh | safe }},
+            bgColors: {{ chart_bg_colors | safe }},
+            
+            selectedRoute: null,
+            
+            get filteredClients() {
+                if (this.searchClient === '') return this.clients;
+                return this.clients.filter(client => 
+                    client.name.toLowerCase().includes(this.searchClient.toLowerCase())
+                );
+            },
+            
+            get hasActiveRoutes() {
+                return this.activeRoutes.length > 0;
+            },
+            
             init() {
-                // Initialize Data from Jinja2
-                this.clientsList = [
-                    {% for c in clients %}
-                        { id: {{ c.id }}, name: "{{ c.name }}" },
-                    {% endfor %}
-                ];
+                console.log("Dashboard Loaded");
+                if (this.labels.length > 0) {
+                   this.initChart();
+                }
                 
-                // Parse pre-dumped JSON strings
-                this.activeRoutes = {{ active_routes | safe }} || [];
-                this.completedRoutes = {{ completed_routes | safe }} || [];
-                
-                try {
-                     this.initChart();
-                } catch(e) { console.error("Chart init error", e); }
-                
-                // Start Timer
-                this.timer = setInterval(() => {
-                    this.now = new Date().getTime();
+                // Timer tick
+                setInterval(() => {
+                    this.tick = Date.now();
                 }, 1000);
             },
             
-            getElapsed(startTimeStr) {
-                if (!startTimeStr) return "00:00:00";
-                const now = new Date();
-                const [hours, minutes] = startTimeStr.split(':').map(Number);
-                const startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0);
-                
-                let diff = this.now - startDate.getTime();
-                if (diff < 0) diff = 0; 
-                
-                const totalSeconds = Math.floor(diff / 1000);
-                const h = Math.floor(totalSeconds / 3600);
-                const m = Math.floor((totalSeconds % 3600) / 60);
-                const s = totalSeconds % 60;
-                
-                const pad = (n) => n.toString().padStart(2, '0');
-                if (h > 0) {
-                    return `${pad(h)}:${pad(m)}:${pad(s)}`;
+            tick: Date.now(),
+            
+            formatTimer(startTimeStr) {
+                 // Trigger reactivity on tick
+                 let _ = this.tick;
+                 if (!startTimeStr) return "00:00:00";
+                 
+                 let parts = startTimeStr.split(':');
+                 let h = parseInt(parts[0]);
+                 let m = parseInt(parts[1]);
+                 if (isNaN(h) || isNaN(m)) return "--:--";
+                 
+                 let now = new Date();
+                 let start = new Date();
+                 start.setHours(h, m, 0, 0);
+                 
+                 if (start > now) {
+                     start.setDate(start.getDate() - 1);
+                 }
+                 
+                 let diff = now - start; 
+                 let totalSeconds = Math.floor(diff / 1000);
+                 
+                 let hours = Math.floor(totalSeconds / 3600);
+                 let minutes = Math.floor((totalSeconds % 3600) / 60);
+                 let seconds = totalSeconds % 60;
+                 return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            },
+
+            logout() {
+                window.location.href = "/mobile/logout";
+            },
+            
+            // Multi-Start Logic
+            openStartModal() {
+                this.showStartModal = true;
+                this.searchClient = '';
+                this.selectedMap = {}; 
+            },
+            
+            toggleClient(client) {
+                if (this.selectedMap.hasOwnProperty(client.id)) {
+                    // Remove from map
+                    let newMap = {...this.selectedMap};
+                    delete newMap[client.id];
+                    this.selectedMap = newMap;
                 } else {
-                    return `${pad(m)}:${pad(s)}`;
-                }
-            },
-
-            addAlloc() {
-                this.allocations.push({ client_id: '', weight: '' });
-            },
-            
-            removeAlloc(index) {
-                if (this.allocations.length > 1) {
-                    this.allocations.splice(index, 1);
+                    // Add with default 0
+                    this.selectedMap = { ...this.selectedMap, [client.id]: 0 };
                 }
             },
             
-            async submitStart() {
-                this.errorMessage = '';
+            isSelected(id) {
+                return this.selectedMap.hasOwnProperty(id);
+            },
+            updateWeight(id, val) {
+                 // Update value in map
+                 let safeVal = parseFloat(val);
+                 if (isNaN(safeVal)) safeVal = 0;
+                 this.selectedMap[id] = safeVal;
+            },
+            
+            get selectedCount() {
+                return Object.keys(this.selectedMap).length;
+            },
+            
+            startBatch() {
+                const ids = Object.keys(this.selectedMap);
+                if (ids.length === 0) return;
                 
-                // Validate
-                const validAllocations = this.allocations.filter(a => a.client_id && a.weight);
-                if (validAllocations.length === 0) {
-                    this.errorMessage = "Selecione pelo menos um cliente e peso.";
-                    return;
-                }
+                const allocations = ids.map(id => ({
+                    client_id: parseInt(id),
+                    weight: this.selectedMap[id]
+                }));
                 
-                this.isLoading = true;
-                
-                try {
-                    const response = await fetch('/mobile/routine/start_with_allocation', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ allocations: validAllocations })
-                    });
-                    
-                    if (response.redirected) {
-                        window.location.href = response.url;
-                    } else if (!response.ok) {
-                         const data = await response.json();
-                         this.errorMessage = data.detail || "Erro ao iniciar.";
+                fetch('/mobile/routine/start_with_allocation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ allocations: allocations })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if(data.success) {
+                        window.location.reload();
                     } else {
-                         window.location.reload();
+                        alert("Erro: " + (data.error || "Falha ao iniciar"));
                     }
-                } catch (e) {
-                    this.errorMessage = "Erro de conexão.";
-                } finally {
-                    this.isLoading = false;
-                }
-            },
-
-            finishRoute(id, index) {
-                // Find route and open confirmation modal
-                this.routeToFinish = this.activeRoutes.find(r => r.id === id);
-                if (this.routeToFinish) {
-                    this.showStopModal = true;
-                }
-            },
-
-            async confirmStop() {
-                if (!this.routeToFinish) return;
-                
-                // Optional: set finishLoading for visual feedback if we used the button directly
-                this.finishLoading = this.routeToFinish.id;
-                
-                try {
-                    const response = await fetch('/mobile/routine/stop', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: `route_id=${this.routeToFinish.id}`
-                    });
-                    
-                    if (response.ok || response.redirected) {
-                         window.location.reload();
-                    } else {
-                         alert("Erro ao finalizar rota.");
-                         this.finishLoading = null;
-                    }
-                } catch (e) {
-                    alert("Erro de conexão.");
-                    this.finishLoading = null;
-                }
+                })
+                .catch(err => alert("Erro de conexão"));
             },
             
+            openStopModal(route) {
+                this.selectedRoute = route;
+                this.showStopModal = true;
+            },
+            
+            confirmStop() {
+                if (!this.selectedRoute) return;
+                
+                fetch(`/mobile/route/${this.selectedRoute.id}/finish`, {
+                    method: 'POST'
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        alert("Erro: " + data.error);
+                    }
+                });
+            },
+            
+            openEndDayModal() {
+                this.showEndDayModal = true;
+            },
+            
+            endDay() {
+                fetch('/mobile/routine/stop', { method: 'POST' })
+                .then(() => {
+                    window.location.href = '/mobile/login';
+                });
+            },
+
             initChart() {
-                const ctx = document.getElementById('productivityChart');
-                if (!ctx) return;
-                
-                const labels = {{ chart_labels | safe }} || [];
-                const dailyKg = {{ chart_daily_kg | safe }} || [];
-                const dailyKgh = {{ chart_daily_kgh | safe }} || [];
-                const bgColors = {{ chart_bg_colors | safe }} || [];
-
-                new Chart(ctx.getContext('2d'), {
+                const ctx = document.getElementById('performanceChart').getContext('2d');
+                new Chart(ctx, {
                     type: 'bar',
                     data: {
-                        labels: labels,
-                        datasets: [
-                            {
-                                type: 'line',
-                                label: 'min/Ton',
-                                data: dailyKgh,
-                                borderColor: '#fbbf24',
-                                borderWidth: 2,
-                                borderDash: [5, 5],
-                                pointBackgroundColor: '#fbbf24',
-                                yAxisID: 'y1',
-                                tension: 0.4
-                            },
-                            {
-                                type: 'bar',
-                                label: 'Peso (Kg)',
-                                data: dailyKg,
-                                backgroundColor: bgColors,
-                                borderRadius: 4,
-                                yAxisID: 'y'
-                            }
-                        ]
+                        labels: this.labels,
+                        datasets: [{
+                            label: 'Produtividade (Kg/h)',
+                            data: this.dataKgh,
+                            backgroundColor: this.bgColors,
+                            borderRadius: 6,
+                            barThickness: 12
+                        }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: { legend: { display: false } },
                         scales: {
-                            x: { display: false },
-                            y: { display: false },
-                            y1: { display: false }
+                            y: {
+                                grid: { color: 'rgba(255,255,255,0.05)' },
+                                ticks: { color: '#94a3b8', font: { size: 10 } }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#94a3b8', font: { size: 10 } }
+                            }
                         }
                     }
                 });

@@ -55,7 +55,7 @@ content = r'''{% extends "mobile/layout.html" %}
     <!-- 2. Active Route Card -->
     <div class="px-6 -mt-6 z-20" x-show="hasActiveRoutes" x-cloak>
         <template x-for="route in activeRoutes" :key="route.id">
-            <div class="bg-slate-800/90 backdrop-blur-xl rounded-3xl p-5 border border-indigo-500/30 shadow-[0_10px_40px_-10px_rgba(79,70,229,0.3)] animate-slide-up bg-[url('/static/grid.svg')] bg-repeat opacity-95">
+            <div class="bg-slate-800/90 backdrop-blur-xl rounded-3xl p-5 border border-indigo-500/30 shadow-[0_10px_40px_-10px_rgba(79,70,229,0.3)] animate-slide-up bg-[url('/static/grid.svg')] bg-repeat opacity-95 mb-4">
                 <div class="flex justify-between items-start mb-4">
                     <div class="flex items-center space-x-3">
                         <div class="p-2.5 bg-indigo-500/20 rounded-xl animate-pulse">
@@ -105,7 +105,8 @@ content = r'''{% extends "mobile/layout.html" %}
             </div>
         </button>
 
-        <button class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-blue-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
+        <button @click="openEvaluationModal()"
+                class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-blue-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
             <div class="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div class="flex flex-col items-center justify-center space-y-3 relative z-10">
                 <div class="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white text-blue-500 transition-colors">
@@ -115,7 +116,8 @@ content = r'''{% extends "mobile/layout.html" %}
             </div>
         </button>
 
-        <button class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-purple-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
+        <button @click="scrollToHistory()"
+                class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-purple-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
             <div class="absolute inset-0 bg-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div class="flex flex-col items-center justify-center space-y-3 relative z-10">
                 <div class="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center group-hover:bg-purple-500 group-hover:text-white text-purple-500 transition-colors">
@@ -150,7 +152,7 @@ content = r'''{% extends "mobile/layout.html" %}
 
 
     <!-- 5. Recent History -->
-    <div class="px-6 mt-8 mb-24">
+    <div id="history-section" class="px-6 mt-8 mb-24">
         <h2 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
             <i data-lucide="check-circle" class="w-5 h-5 text-green-400"></i>
             Concluídos Hoje
@@ -185,78 +187,101 @@ content = r'''{% extends "mobile/layout.html" %}
 
     <!-- Modals -->
     
-    <!-- Start Modal (Multi-Client) -->
+    <!-- Start Modal Flow (Queue System) -->
     <div x-show="showStartModal" 
          class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm"
          x-transition.opacity
          x-cloak>
-        <div class="bg-slate-900 w-full max-w-md rounded-t-3xl sm:rounded-3xl border-t sm:border border-white/10 p-6 pb-12 shadow-2xl h-[85vh] sm:h-auto flex flex-col"
+        <div class="bg-slate-900 w-full max-w-md rounded-t-[40px] sm:rounded-3xl border-t border-white/10 p-6 pb-12 shadow-2xl h-[90vh] sm:h-auto flex flex-col relative"
              @click.away="showStartModal = false"
              x-transition:enter="transition ease-out duration-300"
              x-transition:enter-start="translate-y-full opacity-0"
              x-transition:enter-end="translate-y-0 opacity-100">
             
-            <div class="flex justify-between items-center mb-4 flex-shrink-0">
-                <div>
-                    <h3 class="text-xl font-bold text-white">Nova Separação</h3>
-                    <p class="text-slate-400 text-xs mt-1">Selecione clientes e defina pesos (opcional)</p>
-                </div>
-                
-                <div class="flex items-center gap-3">
-                     <!-- Start Action Button -->
-                    <button x-show="selectedCount > 0" 
-                            @click="startBatch()"
-                            class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-green-500/20 flex items-center gap-2 animate-fade-in">
-                        <span>Iniciar</span>
-                        <span class="bg-black/20 px-1.5 py-0.5 rounded text-xs" x-text="selectedCount"></span>
-                    </button>
-                    
-                    <button @click="showStartModal = false" class="text-slate-400 hover:text-white p-2">
-                        <i data-lucide="x" class="w-6 h-6"></i>
-                    </button>
-                </div>
+            <!-- Sticky Header of Modal -->
+            <div class="flex justify-between items-center mb-6 flex-shrink-0">
+                <h3 class="text-2xl font-bold text-white">Nova Separação</h3>
+                <button @click="showStartModal = false" class="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
             </div>
             
+            <!-- Step 1: Search & Add -->
             <div class="space-y-4 flex-1 flex flex-col overflow-hidden">
                 <div class="relative flex-shrink-0">
                     <i data-lucide="search" class="absolute left-4 top-3.5 w-5 h-5 text-slate-500"></i>
                     <input type="text" 
                            x-model="searchClient" 
-                           placeholder="Buscar cliente..." 
-                           class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-12 pr-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
+                           placeholder="Digite o nome do cliente..." 
+                           class="w-full bg-slate-800 border border-slate-700 rounded-2xl pl-12 pr-4 py-4 text-white text-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none shadow-inner">
                 </div>
-                       
-                <div class="flex-1 overflow-y-auto space-y-2 pr-1 pb-4 custom-scrollbar">
-                    <template x-for="client in filteredClients" :key="client.id">
-                        <div @click="toggleClient(client)"
-                             class="w-full flex flex-col p-4 bg-slate-800/50 border rounded-xl transition-all cursor-pointer group active:scale-[0.98]"
-                             :class="isSelected(client.id) ? 'border-green-500 bg-green-500/10' : 'border-slate-700/50 hover:bg-slate-800'">
-                            
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-3">
-                                    <!-- Custom Checkbox -->
-                                    <div class="w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors"
-                                         :class="isSelected(client.id) ? 'border-green-500 bg-green-500' : 'border-slate-600 bg-slate-900'">
-                                        <i x-show="isSelected(client.id)" data-lucide="check" class="w-4 h-4 text-white"></i>
-                                    </div>
-                                    <span class="text-slate-200 group-hover:text-white font-medium text-lg" x-text="client.name"></span>
-                                </div>
+                
+                <!-- Search Results Area -->
+                <div class="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1" x-show="searchClient.length > 0">
+                     <p class="text-xs text-slate-500 font-medium px-2 py-1 uppercase tracking-wider">Resultados da Busca</p>
+                     
+                     <template x-for="client in filteredClients" :key="client.id">
+                        <button @click="openAddWeightModal(client)" 
+                                class="w-full flex items-center justify-between p-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 rounded-2xl transition-all group active:scale-[0.98]">
+                            <span class="text-slate-200 group-hover:text-white font-medium text-lg text-left" x-text="client.name"></span>
+                            <div class="bg-green-500/10 p-2 rounded-full group-hover:bg-green-500 transition-colors">
+                                <i data-lucide="plus" class="w-5 h-5 text-green-500 group-hover:text-white"></i>
                             </div>
-                            
-                            <!-- Weight Input (Expanded) -->
-                            <div x-show="isSelected(client.id)" 
-                                 x-transition.opacity 
-                                 class="mt-3 pl-9" 
-                                 @click.stop>
-                                <label class="text-xs text-slate-400 mb-1 block">Peso Planejado (Kg) - Opcional</label>
-                                <input type="number" 
-                                       placeholder="0" 
-                                       @input="updateWeight(client.id, $event.target.value)"
-                                       class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:border-green-500 outline-none text-lg font-mono">
-                            </div>
-                        </div>
+                        </button>
                     </template>
+                    <div x-show="filteredClients.length === 0" class="text-center py-4 text-slate-500">
+                        Nenhum cliente encontrado.
+                    </div>
                 </div>
+
+                <!-- Step 2: Queue List (Always visible if items exist) -->
+                <div class="mt-4 flex-shrink-0 bg-slate-800/30 rounded-2xl p-4 border border-white/5" x-show="queue.length > 0">
+                    <div class="flex justify-between items-center mb-3">
+                         <p class="text-xs text-slate-400 uppercase tracking-wider font-bold">Clientes Selecionados</p>
+                         <span class="bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full" x-text="queue.length"></span>
+                    </div>
+                    
+                    <div class="max-h-32 overflow-y-auto space-y-2 mb-4 pr-1 custom-scrollbar">
+                        <template x-for="(item, index) in queue" :key="index">
+                            <div class="flex items-center justify-between bg-slate-900 rounded-xl p-3 border border-slate-700">
+                                <div>
+                                    <p class="text-white font-medium text-sm truncate max-w-[150px]" x-text="item.name"></p>
+                                    <p class="text-slate-400 text-xs" x-text="item.weight > 0 ? item.weight + ' Kg' : 'Sem peso'"></p>
+                                </div>
+                                <button @click="removeFromQueue(index)" class="text-red-400 hover:text-red-300 p-1">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                    
+                    <button @click="startBatch()" 
+                            class="w-full py-4 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold text-lg shadow-lg shadow-green-500/20 active:scale-[0.98] transition-all flex justify-center items-center gap-2">
+                        <span>Iniciar Separação</span>
+                        <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Inline "Add Weight" Overlay (Absolute positioned over the list) -->
+            <div x-show="showWeightInput" 
+                 x-transition.opacity
+                 class="absolute inset-0 bg-slate-900/95 backdrop-blur-md z-20 flex flex-col items-center justify-center p-6 rounded-t-[40px] sm:rounded-3xl">
+                 
+                 <h4 class="text-white text-lg font-bold mb-1 text-center">Peso Planejado</h4>
+                 <p class="text-slate-400 text-sm mb-6 text-center" x-text="tempClient?.name"></p>
+                 
+                 <div class="w-full max-w-[200px] relative mb-8">
+                     <input type="number" x-model="tempWeight" x-ref="weightInput"
+                            class="w-full bg-transparent border-b-2 border-green-500 text-center text-4xl font-bold text-white py-2 focus:outline-none placeholder-slate-700" 
+                            placeholder="0">
+                     <span class="absolute right-0 bottom-4 text-slate-500 font-medium">Kg</span>
+                 </div>
+                 
+                 <div class="flex gap-3 w-full">
+                     <button @click="showWeightInput = false" class="flex-1 py-3 bg-slate-800 text-slate-300 rounded-xl font-medium">Cancelar</button>
+                     <button @click="confirmAddToQueue()" class="flex-1 py-3 bg-green-500 text-white rounded-xl font-bold shadow-lg shadow-green-500/20">Adicionar</button>
+                 </div>
             </div>
         </div>
     </div>
@@ -319,6 +344,29 @@ content = r'''{% extends "mobile/layout.html" %}
         </div>
     </div>
 
+    <!-- Evaluation Modal (Placeholder) -->
+    <div x-show="showEvaluation" 
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+         x-transition.opacity
+         x-cloak>
+        <div class="bg-slate-900 w-full max-w-sm rounded-3xl border border-blue-500/30 p-8 shadow-2xl text-center"
+             @click.away="showEvaluation = false">
+             
+            <div class="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-400">
+                <i data-lucide="construction" class="w-8 h-8"></i>
+            </div>
+            
+            <h3 class="text-xl font-bold text-white mb-2">Em Breve</h3>
+            <p class="text-slate-400 text-sm mb-6">
+                O módulo de avaliação de desempenho estará disponível na próxima atualização.
+            </p>
+            
+            <button @click="showEvaluation = false" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold">
+                Entendi
+            </button>
+        </div>
+    </div>
+
 </div>
 
 {% endblock %}
@@ -331,8 +379,15 @@ content = r'''{% extends "mobile/layout.html" %}
             showStartModal: false,
             showStopModal: false,
             showEndDayModal: false,
+            showEvaluation: false,
+            
             searchClient: '',
-            selectedMap: {}, // id -> weight (float)
+            queue: [], // Array of { id, name, weight }
+            
+            // Temp vars for adding
+            showWeightInput: false,
+            tempClient: null,
+            tempWeight: '',
             
             // Data from Jinja2
             clients: [
@@ -353,10 +408,10 @@ content = r'''{% extends "mobile/layout.html" %}
             selectedRoute: null,
             
             get filteredClients() {
-                if (this.searchClient === '') return this.clients;
+                if (this.searchClient === '') return []; // Only show on search
                 return this.clients.filter(client => 
                     client.name.toLowerCase().includes(this.searchClient.toLowerCase())
-                );
+                ).slice(0, 10); // Limit results
             },
             
             get hasActiveRoutes() {
@@ -383,6 +438,8 @@ content = r'''{% extends "mobile/layout.html" %}
                  if (!startTimeStr) return "00:00:00";
                  
                  let parts = startTimeStr.split(':');
+                 if (parts.length < 2) return "--:--";
+                 
                  let h = parseInt(parts[0]);
                  let m = parseInt(parts[1]);
                  if (isNaN(h) || isNaN(m)) return "--:--";
@@ -391,63 +448,76 @@ content = r'''{% extends "mobile/layout.html" %}
                  let start = new Date();
                  start.setHours(h, m, 0, 0);
                  
+                 // Handle day crossing if needed
                  if (start > now) {
                      start.setDate(start.getDate() - 1);
                  }
                  
                  let diff = now - start; 
-                 let totalSeconds = Math.floor(diff / 1000);
-                 
-                 let hours = Math.floor(totalSeconds / 3600);
-                 let minutes = Math.floor((totalSeconds % 3600) / 60);
-                 let seconds = totalSeconds % 60;
-                 return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                 if (diff < 0) diff = 0;
+                 return new Date(diff).toISOString().substr(11, 8);
             },
 
             logout() {
                 window.location.href = "/mobile/logout";
             },
             
-            // Multi-Start Logic
+            // Navigation
+            scrollToHistory() {
+                document.getElementById('history-section').scrollIntoView({ behavior: 'smooth' });
+            },
+            
+            openEvaluationModal() {
+                this.showEvaluation = true;
+            },
+            
+            // Queue Logic
             openStartModal() {
                 this.showStartModal = true;
                 this.searchClient = '';
-                this.selectedMap = {}; 
+                this.queue = [];
+                this.showWeightInput = false;
             },
             
-            toggleClient(client) {
-                if (this.selectedMap.hasOwnProperty(client.id)) {
-                    // Remove from map
-                    let newMap = {...this.selectedMap};
-                    delete newMap[client.id];
-                    this.selectedMap = newMap;
-                } else {
-                    // Add with default 0
-                    this.selectedMap = { ...this.selectedMap, [client.id]: 0 };
-                }
+            openAddWeightModal(client) {
+                this.tempClient = client;
+                this.tempWeight = '';
+                this.showWeightInput = true;
+                // Focus hack
+                setTimeout(() => this.$refs.weightInput.focus(), 100);
             },
             
-            isSelected(id) {
-                return this.selectedMap.hasOwnProperty(id);
-            },
-            updateWeight(id, val) {
-                 // Update value in map
-                 let safeVal = parseFloat(val);
-                 if (isNaN(safeVal)) safeVal = 0;
-                 this.selectedMap[id] = safeVal;
+            confirmAddToQueue() {
+                 if (!this.tempClient) return;
+                 
+                 let weight = parseFloat(this.tempWeight);
+                 if (isNaN(weight)) weight = 0;
+                 
+                 // Check if already exists?
+                 // Allow duplicates? Maybe not.
+                 if (!this.queue.find(i => i.id === this.tempClient.id)) {
+                     this.queue.push({
+                         id: this.tempClient.id,
+                         name: this.tempClient.name,
+                         weight: weight
+                     });
+                 }
+                 
+                 this.showWeightInput = false;
+                 this.searchClient = ''; // Clear search to allow next
+                 this.tempClient = null;
             },
             
-            get selectedCount() {
-                return Object.keys(this.selectedMap).length;
+            removeFromQueue(index) {
+                this.queue.splice(index, 1);
             },
             
             startBatch() {
-                const ids = Object.keys(this.selectedMap);
-                if (ids.length === 0) return;
+                if (this.queue.length === 0) return;
                 
-                const allocations = ids.map(id => ({
-                    client_id: parseInt(id),
-                    weight: this.selectedMap[id]
+                const allocations = this.queue.map(item => ({
+                    client_id: item.id,
+                    weight: item.weight
                 }));
                 
                 fetch('/mobile/routine/start_with_allocation', {
@@ -539,4 +609,4 @@ path = "c:/Projeto/analise_operacional/templates/mobile/dashboard.html"
 with open(path, "w", encoding="utf-8") as f:
     f.write(content)
 
-print(f"FULL DASHBOARD CLEANED: {path} ({len(content)} bytes).")
+print(f"FULL DASHBOARD V2 UX APPLIED: {path} ({len(content)} bytes).")

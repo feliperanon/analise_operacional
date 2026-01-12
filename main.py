@@ -384,7 +384,6 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
              yesterday = today - timedelta(days=2)
         
         # --- Yesterday's Performance (gamification) ---
-        # TODO: Make this generic for other roles later
         stmt = select(func.sum(models.Route.tonnage)).where(
             models.Route.employee_id == employee.id,
             models.Route.date == yesterday.strftime("%Y-%m-%d")
@@ -413,89 +412,75 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
         
         # Pre-fetch data to analyze rankings
         daily_stats = []
+        now = datetime.now()
+        thirty_days_ago = now - timedelta(days=30)
         
+        # We need daily stats to calculate cumulative and averages
+        # Query for last 30 days
+        # We need daily stats to calculate cumulative and averages
+        # Query for last 30 days - Raw Fetch (DB Agnostic)
+        raw_routes = session.exec(
+            select(models.Route)
+            .where(
+                models.Route.employee_id == employee.id,
+                models.Route.date >= thirty_days_ago.strftime("%Y-%m-%d"),
+                models.Route.status == "completed"
+            )
+        ).all()
+        
+        # Aggregate in Python
+        daily_map = {}
+        for r in raw_routes:
+            if not r.start_time or not r.end_time: continue
+            
+            try:
+                # Calculate Duration
+                s = datetime.strptime(r.start_time, "%H:%M")
+                e = datetime.strptime(r.end_time, "%H:%M")
+                diff_seconds = (e - s).total_seconds()
+                
+                # Update Map
+                current_kg, current_seconds = daily_map.get(r.date, (0, 0))
+                daily_map[r.date] = (current_kg + r.tonnage, current_seconds + diff_seconds)
+            except Exception as e:
+                print(f"Error aggregating route {r.id}: {e}")
+                continue
+        
+        # Generate last 7 days for chart
         for i in range(6, -1, -1):
-            d = today - timedelta(days=i)
+            d = now - timedelta(days=i)
             d_str = d.strftime("%Y-%m-%d")
             label = d.strftime("%d/%m")
             
-            # 1. Total Daily Kg
-            daily_kg = session.exec(
-                select(func.sum(models.Route.tonnage))
-                .where(models.Route.employee_id == employee.id, models.Route.date == d_str)
-            ).one() or 0.0
+            kg, seconds = daily_map.get(d_str, (0, 0))
             
-            # 2. Work Hours (from Routine)
-            routine = session.exec(
-                select(models.EmployeeRoutine)
-                .where(models.EmployeeRoutine.employee_id == employee.id, models.EmployeeRoutine.date == d_str)
-            ).first()
+            # Kgh
+            hours = seconds / 3600.0 if seconds > 0 else 0
+            kgh = kg / hours if hours > 0 else 0
             
-            minutes = 480.0 # fallback (8 hours)
-            if routine and routine.start_time:
-                 try:
-                    start_dt = datetime.strptime(routine.start_time, "%H:%M")
-                    if routine.end_time:
-                         end_dt = datetime.strptime(routine.end_time, "%H:%M")
-                    else:
-                         # If today and open, use current time
-                         if d.date() == today.date():
-                             end_dt = datetime.now()
-                         else:
-                             end_dt = start_dt + timedelta(hours=8)
-                    
-                    diff = (end_dt - start_dt).total_seconds() / 60 # minutes
-                    minutes = max(1, diff) # Avoid div by zero
-                 except:
-                    pass
+            # Cumulative
+            running_total += kg
             
-            # Kg/h = Kg / Hours
-            hours = minutes / 60.0 # Convert minutes back to hours
-            kgh = (daily_kg / hours) if hours > 0 else 0
-            running_total += daily_kg
+            chart_labels.append(label)
+            chart_daily_kg.append(float(f"{kg:.1f}"))
+            chart_daily_kgh.append(float(f"{kgh:.1f}"))
+            chart_cumulative_kg.append(float(f"{running_total:.1f}"))
             
-            daily_stats.append({
-                "label": label,
-                "kg": daily_kg,
-                "kgh": kgh, # Value is Kg/h
-                "cumulative": running_total
-            })
-            
-        # Determine Colors (Top 3 Green, Bottom 3 Red, Middle Blue)
-        # Filter only days with production > 0 for ranking, or rank all?
-        # User said "3 worst days red, 3 best green".
-        # Sort by Kg
-        sorted_by_kg = sorted([(i, s["kg"]) for i, s in enumerate(daily_stats) if s["kg"] > 0], key=lambda x: x[1], reverse=True)
-        
-        nav_map = ["#3b82f6"] * 7 # Default Blue
-        
-        if len(sorted_by_kg) >= 1:
-            # Top 3 Green
-            for idx, _ in sorted_by_kg[:3]:
-                 nav_map[idx] = "#10b981" # Emerald 500
-            # Bottom 3 Red (if we have enough data, excluding the top ones if overlap? usually distinct)
-            if len(sorted_by_kg) >= 6:
-                 for idx, _ in sorted_by_kg[-3:]:
-                     nav_map[idx] = "#ef4444" # Red 500
-            elif len(sorted_by_kg) >= 2:
-                 # If few days, just worst one
-                 nav_map[sorted_by_kg[-1][0]] = "#ef4444"
-
-    # Assemble Arrays
-        for i, s in enumerate(daily_stats):
-            chart_labels.append(s["label"])
-            chart_daily_kg.append(s["kg"])
-            chart_daily_kgh.append(round(s["kgh"], 1))
-            chart_cumulative_kg.append(s["cumulative"])
-            chart_bg_colors.append(nav_map[i] if s["kg"] > 0 else "#1e293b") # Dark for 0
+            # Color logic (Green > 1000kg/h)
+            if kgh >= 1000:
+                chart_bg_colors.append("#10b981") # Emerald 500
+            elif kgh >= 700:
+                 chart_bg_colors.append("#f59e0b") # Amber 500
+            else:
+                 chart_bg_colors.append("#ef4444") # Red 500
 
         # --- Active Routes (Pending) ---
-        today_str = today.strftime("%Y-%m-%d")
+        today_str = datetime.now().strftime("%Y-%m-%d")
         
-        # 1. Active Routes (Pending)
+        # 1. Active Routes
         active_routes_stmt = (
             select(models.Route, models.Client.name)
-            .join(models.Client, models.Route.client_id == models.Client.id) 
+            .join(models.Client, models.Route.client_id == models.Client.id)
             .where(
                 models.Route.employee_id == employee.id,
                 models.Route.date == today_str,
@@ -564,76 +549,70 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
                 "performance": perf_str
             })
 
-            # --- Gamification Logic (XP = Total Tonnage) ---
-            # Calculate total XP (Historical Tonnage)
-            xp_stmt = select(func.sum(models.Route.tonnage)).where(
-                models.Route.employee_id == employee.id,
-                models.Route.end_time.is_not(None)
-            )
-            total_xp = session.exec(xp_stmt).one() or 0
-            
-            # Level Definitions
-            levels = [
-                {"level": 1, "name": "Novato", "min_xp": 0, "badge": "badge_1.png"},
-                {"level": 2, "name": "Aprendiz", "min_xp": 1000, "badge": "badge_2.png"},
-                {"level": 3, "name": "Operador", "min_xp": 5000, "badge": "badge_3.png"},
-                {"level": 4, "name": "Especialista", "min_xp": 10000, "badge": "badge_4.png"},
-                {"level": 5, "name": "Mestre", "min_xp": 25000, "badge": "badge_5.png"},
-                {"level": 6, "name": "Lenda", "min_xp": 50000, "badge": "badge_6.png"},
-            ]
-            
-            current_level = levels[0]
-            next_level = None
-            
-            for i, lvl in enumerate(levels):
-                if total_xp >= lvl["min_xp"]:
-                    current_level = lvl
-                    if i + 1 < len(levels):
-                        next_level = levels[i+1]
-                    else:
-                        next_level = None # Max level
-            
-            # Progress to next level
-            if next_level:
-                xp_needed = next_level["min_xp"] - current_level["min_xp"]
-                xp_progress = total_xp - current_level["min_xp"]
-                progress_percent = int((xp_progress / xp_needed) * 100)
-            else:
-                progress_percent = 100 # Max level reached
+        # --- Gamification Logic (XP = Total Tonnage) ---
+        # Calculate total XP (Historical Tonnage)
+        xp_stmt = select(func.sum(models.Route.tonnage)).where(
+            models.Route.employee_id == employee.id,
+            models.Route.end_time.is_not(None)
+        )
+        total_xp = session.exec(xp_stmt).one() or 0
+        
+        # Level Definitions
+        levels = [
+            {"level": 1, "name": "Novato", "min_xp": 0, "badge": "badge_1.png"},
+            {"level": 2, "name": "Aprendiz", "min_xp": 1000, "badge": "badge_2.png"},
+            {"level": 3, "name": "Operador", "min_xp": 5000, "badge": "badge_3.png"},
+            {"level": 4, "name": "Especialista", "min_xp": 10000, "badge": "badge_4.png"},
+            {"level": 5, "name": "Mestre", "min_xp": 25000, "badge": "badge_5.png"},
+            {"level": 6, "name": "Lenda", "min_xp": 50000, "badge": "badge_6.png"},
+        ]
+        
+        current_level = levels[0]
+        next_level = None
+        
+        for i, lvl in enumerate(levels):
+            if total_xp >= lvl["min_xp"]:
+                current_level = lvl
+                if i + 1 < len(levels):
+                    next_level = levels[i+1]
+                else:
+                    next_level = None # Max level
+        
+        # Progress to next level
+        if next_level:
+            xp_needed = next_level["min_xp"] - current_level["min_xp"]
+            xp_progress = total_xp - current_level["min_xp"]
+            progress_percent = int((xp_progress / xp_needed) * 100)
+        else:
+            progress_percent = 100 # Max level reached
 
-            context = {
-                "request": request,
-                "employee": employee,
-                "clients": clients,
-                "active_routes": json.dumps(active_routes_list), # JSON for Alpine
-                "completed_routes": json.dumps(completed_routes_list), # JSON for Alpine History
-                "current_date": datetime.now().strftime("%d/%m/%Y"),
-                "ai_message": ai_message,
-                # Gamification Data
-                "gamification": {
-                    "level": current_level,
-                    "next_level": next_level,
-                    "total_xp": int(total_xp),
-                    "progress_percent": progress_percent
-                },
-                "chart_labels": json.dumps(chart_labels),
-                "chart_daily_kg": json.dumps(chart_daily_kg),
-                "chart_daily_kgh": json.dumps(chart_daily_kgh),
-                "chart_cumulative_kg": json.dumps(chart_cumulative_kg),
-                "chart_bg_colors": json.dumps(chart_bg_colors)
-            }
-            return templates.TemplateResponse("mobile/dashboard.html", context)
-    
+        context = {
+            "request": request,
+            "employee": employee,
+            "clients": clients,
+            "active_routes": json.dumps(active_routes_list), # JSON for Alpine
+            "completed_routes": json.dumps(completed_routes_list), # JSON for Alpine History
+            "current_date": datetime.now().strftime("%d/%m/%Y"),
+            "ai_message": ai_message,
+            # Gamification Data
+            "gamification": {
+                "level": current_level,
+                "next_level": next_level,
+                "total_xp": int(total_xp),
+                "progress_percent": progress_percent
+            },
+            "chart_labels": json.dumps(chart_labels),
+            "chart_daily_kg": json.dumps(chart_daily_kg),
+            "chart_daily_kgh": json.dumps(chart_daily_kgh),
+            "chart_cumulative_kg": json.dumps(chart_cumulative_kg),
+            "chart_bg_colors": json.dumps(chart_bg_colors)
+        }
+        return templates.TemplateResponse("mobile/dashboard.html", context)
+
     except Exception as e:
         import traceback
         error_msg = f"Error in mobile_dashboard: {str(e)}\n{traceback.format_exc()}"
         print(error_msg) # Log to console
-        # Return a friendly error page or JSON
-        return JSONResponse(status_code=500, content={"error": "Internal Server Error", "details": str(e), "trace": traceback.format_exc()})
-        import traceback
-        error_msg = f"Error in mobile_dashboard: {str(e)}\n{traceback.format_exc()}"
-        print(error_msg) # Log to console
-        # Return a friendly error page or JSON
         return JSONResponse(status_code=500, content={"error": "Internal Server Error", "details": str(e), "trace": traceback.format_exc()})
 
 
@@ -705,20 +684,25 @@ async def mobile_routine_start_with_allocation(
         session.add(routine)
         session.commit()
     elif routine.status == "closed":
-         return JSONResponse({"error": "Rotina já encerrada hoje."}, status_code=400)
+         # Auto-Reopen routine requested by user
+         routine.status = "open"
+         routine.end_time = None # Clear end time
+         session.add(routine)
+         session.commit()
+         # return JSONResponse({"error": "Rotina já encerrada hoje."}, status_code=400) # Removed limitation
          
     # 2. Add Allocations
     for item in payload.allocations:
-        if item.weight > 0:
-            route = models.Route(
-                date=today_str,
-                employee_id=user_id,
-                client_id=item.client_id,
-                tonnage=item.weight,
-                start_time=now_time,
-                status="pending" 
-            )
-            session.add(route)
+        # Allow checking in without weight (placeholder) or with weight
+        route = models.Route(
+            date=today_str,
+            employee_id=user_id,
+            client_id=item.client_id,
+            tonnage=item.weight,
+            start_time=now_time,
+            status="pending" 
+        )
+        session.add(route)
             
     session.commit()
     
