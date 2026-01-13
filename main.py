@@ -795,6 +795,7 @@ async def admin_game_settings(request: Request, session: Session = Depends(get_s
 async def api_save_settings(request: Request, session: Session = Depends(get_session)):
     data = await request.json()
     
+    for key, val in data.items():
         # Update or Insert
         conf = session.get(models.GameConfiguration, key)
         if conf:

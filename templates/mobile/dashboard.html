@@ -544,6 +544,31 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // Robust Data Injection
+    try {
+        window.INITIAL_DATA = {
+            clients: [
+                {% for c in clients %}
+        { id: {{ c.id }}, name: "{{ c.name | replace('"', '\\"') }}" },
+        {% endfor %}
+            ],
+        activeRoutes: {{ active_routes | safe }},
+        completedRoutes: {{ completed_routes | safe }},
+        dailyXp: {{ daily_xp_gain }},
+        labels: {{ chart_labels | safe }},
+        dataKg: {{ chart_daily_kg | safe }},
+        dataKgh: {{ chart_daily_kgh | safe }},
+        bgColors: {{ chart_bg_colors | safe }}
+    };
+    } catch (e) {
+        console.error("Critical: Failed to parse initial data", e);
+        window.INITIAL_DATA = {
+            clients: [], activeRoutes: [], completedRoutes: [], dailyXp: 0,
+            labels: [], dataKg: [], dataKgh: [], bgColors: []
+        };
+    }
+</script>
+<script>
     function dashboardController() {
         console.log("Dashboard Controller V3 Loaded");
         return {
@@ -561,217 +586,213 @@
             tempClient: null,
             tempWeight: '',
 
-            // Data from Jinja2
-            clients: [
-                {% for c in clients %}
-        { id: { { c.id } }, name: "{{ c.name }}" },
-        {% endfor %}
-            ],
+            // Data from Global Initial Data
+            clients: window.INITIAL_DATA.clients || [],
+            activeRoutes: window.INITIAL_DATA.activeRoutes || [],
+            completedRoutes: window.INITIAL_DATA.completedRoutes || [],
+            dailyXp: window.INITIAL_DATA.dailyXp || 0,
 
-        activeRoutes: { { active_routes | safe } },
-        completedRoutes: { { completed_routes | safe } },
-        dailyXp: { { daily_xp_gain } },
+            // Charts Data
+            labels: window.INITIAL_DATA.labels || [],
+            dataKg: window.INITIAL_DATA.dataKg || [],
+            dataKgh: window.INITIAL_DATA.dataKgh || [],
+            bgColors: window.INITIAL_DATA.bgColors || [],
 
-        // Charts Data
-        labels: { { chart_labels | safe } },
-        dataKg: { { chart_daily_kg | safe } },
-        dataKgh: { { chart_daily_kgh | safe } },
-        bgColors: { { chart_bg_colors | safe } },
-
-        selectedRoute: null,
+            selectedRoute: null,
 
             get filteredClients() {
-            if (this.searchClient === '') return []; // Only show on search
-            return this.clients.filter(client =>
-                client.name.toLowerCase().includes(this.searchClient.toLowerCase())
-            ).slice(0, 10); // Limit results
-        },
-            
+                if (this.searchClient === '') return []; // Only show on search
+                return this.clients.filter(client =>
+                    client.name.toLowerCase().includes(this.searchClient.toLowerCase())
+                ).slice(0, 10); // Limit results
+            },
+
             get hasActiveRoutes() {
-            return this.activeRoutes.length > 0;
-        },
+                return this.activeRoutes.length > 0;
+            },
 
-        init() {
-            console.log("Dashboard Loaded");
-            if (this.labels.length > 0) {
-                this.initChart();
-            }
+            init() {
+                console.log("Dashboard Loaded");
+                lucide.createIcons();
+                if (this.labels.length > 0) {
+                    this.initChart();
+                }
 
-            // Timer tick
-            setInterval(() => {
-                this.tick = Date.now();
-            }, 1000);
-        },
+                // Timer tick
+                setInterval(() => {
+                    this.tick = Date.now();
+                }, 1000);
+            },
 
-        tick: Date.now(),
+            tick: Date.now(),
 
             formatTimer(startTimeStr) {
-            // Trigger reactivity on tick
-            let _ = this.tick;
-            if (!startTimeStr) return "00:00:00";
+                // Trigger reactivity on tick
+                let _ = this.tick;
+                if (!startTimeStr) return "00:00:00";
 
-            let parts = startTimeStr.split(':');
-            if (parts.length < 2) return "--:--";
+                let parts = startTimeStr.split(':');
+                if (parts.length < 2) return "--:--";
 
-            let h = parseInt(parts[0]);
-            let m = parseInt(parts[1]);
-            if (isNaN(h) || isNaN(m)) return "--:--";
+                let h = parseInt(parts[0]);
+                let m = parseInt(parts[1]);
+                if (isNaN(h) || isNaN(m)) return "--:--";
 
-            let now = new Date();
-            let start = new Date();
-            start.setHours(h, m, 0, 0);
+                let now = new Date();
+                let start = new Date();
+                start.setHours(h, m, 0, 0);
 
-            // Handle day crossing if needed
-            if (start > now) {
-                start.setDate(start.getDate() - 1);
-            }
+                // Handle day crossing if needed
+                if (start > now) {
+                    start.setDate(start.getDate() - 1);
+                }
 
-            let diff = now - start;
-            if (diff < 0) diff = 0;
-            return new Date(diff).toISOString().substr(11, 8);
-        },
+                let diff = now - start;
+                if (diff < 0) diff = 0;
+                return new Date(diff).toISOString().substr(11, 8);
+            },
 
-        logout() {
-            window.location.href = "/mobile/logout";
-        },
+            logout() {
+                window.location.href = "/mobile/logout";
+            },
 
-        // Navigation
-        scrollToHistory() {
-            document.getElementById('history-section').scrollIntoView({ behavior: 'smooth' });
-        },
+            // Navigation
+            scrollToHistory() {
+                document.getElementById('history-section').scrollIntoView({ behavior: 'smooth' });
+            },
 
-        openEvaluationModal() {
-            this.showEvaluation = true;
-        },
+            openEvaluationModal() {
+                this.showEvaluation = true;
+            },
 
-        // Queue Logic
-        openStartModal() {
-            this.showStartModal = true;
-            this.searchClient = '';
-            this.queue = [];
-            this.showWeightInput = false;
-        },
+            // Queue Logic
+            openStartModal() {
+                this.showStartModal = true;
+                this.searchClient = '';
+                this.queue = [];
+                this.showWeightInput = false;
+            },
 
-        openAddWeightModal(client) {
-            this.tempClient = client;
-            this.tempWeight = '';
-            this.showWeightInput = true;
-            // Focus hack
-            setTimeout(() => this.$refs.weightInput.focus(), 100);
-        },
+            openAddWeightModal(client) {
+                this.tempClient = client;
+                this.tempWeight = '';
+                this.showWeightInput = true;
+                // Focus hack
+                setTimeout(() => this.$refs.weightInput.focus(), 100);
+            },
 
-        confirmAddToQueue() {
-            if (!this.tempClient) return;
-            let weight = parseFloat(this.tempWeight);
-            if (isNaN(weight)) weight = 0;
-            if (!this.queue.find(i => i.id === this.tempClient.id)) {
-                this.queue.push({ id: this.tempClient.id, name: this.tempClient.name, weight: weight });
-            }
-            this.showWeightInput = false;
-            this.searchClient = '';
-            this.tempClient = null;
-        },
+            confirmAddToQueue() {
+                if (!this.tempClient) return;
+                let weight = parseFloat(this.tempWeight);
+                if (isNaN(weight)) weight = 0;
+                if (!this.queue.find(i => i.id === this.tempClient.id)) {
+                    this.queue.push({ id: this.tempClient.id, name: this.tempClient.name, weight: weight });
+                }
+                this.showWeightInput = false;
+                this.searchClient = '';
+                this.tempClient = null;
+            },
 
-        removeFromQueue(index) {
-            this.queue.splice(index, 1);
-        },
+            removeFromQueue(index) {
+                this.queue.splice(index, 1);
+            },
 
-        startBatch() {
-            // REWRITE OF START BATCH
-            if (this.queue.length === 0) return;
+            startBatch() {
+                // REWRITE OF START BATCH
+                if (this.queue.length === 0) return;
 
-            let allocations = [];
-            for (let i = 0; i < this.queue.length; i++) {
-                allocations.push({
-                    client_id: this.queue[i].id,
-                    weight: this.queue[i].weight
-                });
-            }
+                let allocations = [];
+                for (let i = 0; i < this.queue.length; i++) {
+                    allocations.push({
+                        client_id: this.queue[i].id,
+                        weight: this.queue[i].weight
+                    });
+                }
 
-            fetch('/mobile/routine/start_with_allocation', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ allocations: allocations })
-            })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success) {
-                        window.location.reload();
-                    } else {
-                        alert("Erro: " + (data.error || "Falha ao iniciar"));
-                    }
+                fetch('/mobile/routine/start_with_allocation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ allocations: allocations })
                 })
-                .catch(err => alert("Erro de conexão"));
-        },
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            window.location.reload();
+                        } else {
+                            alert("Erro: " + (data.error || "Falha ao iniciar"));
+                        }
+                    })
+                    .catch(err => alert("Erro de conexão"));
+            },
 
-        openStopModal(route) {
-            this.selectedRoute = route;
-            this.showStopModal = true;
-        },
+            openStopModal(route) {
+                this.selectedRoute = route;
+                this.showStopModal = true;
+            },
 
-        confirmStop() {
-            if (!this.selectedRoute) return;
+            confirmStop() {
+                if (!this.selectedRoute) return;
 
-            fetch(`/mobile/route/${this.selectedRoute.id}/finish`, {
-                method: 'POST'
-            })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success) {
-                        window.location.reload();
-                    } else {
-                        alert("Erro: " + data.error);
-                    }
-                });
-        },
+                fetch(`/mobile/route/${this.selectedRoute.id}/finish`, {
+                    method: 'POST'
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            window.location.reload();
+                        } else {
+                            alert("Erro: " + data.error);
+                        }
+                    });
+            },
 
-        openEndDayModal() {
-            this.showEndDayModal = true;
-        },
+            openEndDayModal() {
+                this.showEndDayModal = true;
+            },
 
-        openHelpModal() {
-            this.showHelpModal = true;
-        },
+            openHelpModal() {
+                this.showHelpModal = true;
+            },
 
-        endDay() {
-            fetch('/mobile/routine/stop', { method: 'POST' })
-                .then(() => {
-                    window.location.href = '/mobile/login';
-                });
-        },
+            endDay() {
+                fetch('/mobile/routine/stop', { method: 'POST' })
+                    .then(() => {
+                        window.location.href = '/mobile/login';
+                    });
+            },
 
-        initChart() {
-            const ctx = document.getElementById('performanceChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: this.labels,
-                    datasets: [{
-                        label: 'Produtividade (Kg/h)',
-                        data: this.dataKgh,
-                        backgroundColor: this.bgColors,
-                        borderRadius: 6,
-                        barThickness: 12
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: {
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#94a3b8', font: { size: 10 } }
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: { color: '#ffffff', font: { size: 10 } } /* Forced White Text */
+            initChart() {
+                const ctx = document.getElementById('performanceChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: this.labels,
+                        datasets: [{
+                            label: 'Produtividade (Kg/h)',
+                            data: this.dataKgh,
+                            backgroundColor: this.bgColors,
+                            borderRadius: 6,
+                            barThickness: 12
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false }},
+                        scales: {
+                            y: {
+                                grid: { color: 'rgba(255,255,255,0.05)' },
+                                ticks: { color: '#94a3b8', font: { size: 10 }}
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#ffffff', font: { size: 10 }} /* Forced White Text */
+                            }
                         }
                     }
-                }
-            });
+                });
+            }
         }
-    }
     }
 </script>
 {% endblock %}

@@ -124,7 +124,8 @@
 
     function gameSettings() {
         return {
-            config: {{ config_json | safe }},
+            config: {{ config_json | safe }
+    },
 
     saveAll() {
         // Post to API
