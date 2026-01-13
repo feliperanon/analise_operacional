@@ -240,7 +240,8 @@ async def global_exception_handler(request: Request, call_next):
     except Exception as e:
         # If it is a Starlette/FastAPI HTTPException, let it propagate (handles redirects/404s)
         from starlette.exceptions import HTTPException as StarletteHTTPException
-        if isinstance(e, StarletteHTTPException):
+        from fastapi import HTTPException as FastAPIHTTPException
+        if isinstance(e, (StarletteHTTPException, FastAPIHTTPException)):
             raise e
             
         import traceback
@@ -291,10 +292,27 @@ def get_current_user(request: Request):
 
 def require_login(request: Request):
     user = get_current_user(request)
+    path = request.url.path
+
+    # Not logged in at all
     if not user:
-        if request.url.path.startswith("/mobile"):
+        if path.startswith("/mobile"):
              raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/mobile/login"})
         raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/login"})
+
+    # Logged in, check permissions
+    # User is Admin (str) -> Can access everything (or maybe restrict from mobile specific logic if needed, but usually fine)
+    if isinstance(user, str):
+        return user
+
+    # User is Employee (dict) -> RESTRICTED TO /mobile ONLY
+    if isinstance(user, dict) and user.get("type") == "employee":
+        if not path.startswith("/mobile") and not path.startswith("/static") and not path.startswith("/api"):
+            # Trying to access Desktop/Admin page -> Redirect to Mobile Dashboard
+            # e.g. /smart-flow, /employees, /
+            print(f"🔒 Access Denied: Mobile User {user.get('id')} tried to access {path}")
+            raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/mobile/dashboard"})
+
     return user
 # --- Routes ---
 @app.get("/")
@@ -550,41 +568,58 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
             })
 
         # --- Gamification Logic (XP = Total Tonnage) ---
-        # Calculate total XP (Historical Tonnage)
-        xp_stmt = select(func.sum(models.Route.tonnage)).where(
-            models.Route.employee_id == employee.id,
-            models.Route.end_time.is_not(None)
-        )
-        total_xp = session.exec(xp_stmt).one() or 0
+# --- Gamification V2 Engine ---
+        from gamification_engine import get_employee_progress
         
-        # Level Definitions
-        levels = [
-            {"level": 1, "name": "Novato", "min_xp": 0, "badge": "badge_1.png"},
-            {"level": 2, "name": "Aprendiz", "min_xp": 1000, "badge": "badge_2.png"},
-            {"level": 3, "name": "Operador", "min_xp": 5000, "badge": "badge_3.png"},
-            {"level": 4, "name": "Especialista", "min_xp": 10000, "badge": "badge_4.png"},
-            {"level": 5, "name": "Mestre", "min_xp": 25000, "badge": "badge_5.png"},
-            {"level": 6, "name": "Lenda", "min_xp": 50000, "badge": "badge_6.png"},
-        ]
+        # Calculate Progress (Respecting Time Caps & DB Levels)
+        progress_data = get_employee_progress(session, employee.id)
         
-        current_level = levels[0]
-        next_level = None
-        
-        for i, lvl in enumerate(levels):
-            if total_xp >= lvl["min_xp"]:
-                current_level = lvl
-                if i + 1 < len(levels):
-                    next_level = levels[i+1]
-                else:
-                    next_level = None # Max level
-        
-        # Progress to next level
-        if next_level:
-            xp_needed = next_level["min_xp"] - current_level["min_xp"]
-            xp_progress = total_xp - current_level["min_xp"]
-            progress_percent = int((xp_progress / xp_needed) * 100)
+        if progress_data:
+            current_level = progress_data["level"]
+            next_level = progress_data["next_level"]
+            progress_percent = progress_data["progress"]
         else:
-            progress_percent = 100 # Max level reached
+            # Fallback if critical failure
+            current_level = {"name": "N/A", "level": 0, "badge_image": "badge_1.png"}
+            next_level = None
+            progress_percent = 0
+
+        # Process XP History
+        raw_history = session.exec(select(GameXPTransaction)
+            .where(GameXPTransaction.employee_id == employee.id)
+            .where(GameXPTransaction.status == "confirmed")
+            .order_by(desc(GameXPTransaction.created_at))
+            .limit(20)
+        ).all()
+
+        xp_history_list = []
+        for tx in raw_history:
+            title = tx.reason
+            details = ""
+            
+            # Format "Produtividade" entries
+            if "Produtividade" in tx.reason and "|" in tx.reason:
+                try:
+                    parts = tx.reason.split("|")
+                    # parts[0] = "Produtividade 2026-01-08 (ref...)"
+                    date_part = parts[0].split(" ")[1] # 2026-01-08
+                    pt_date = date_part.split("-")
+                    formatted_date = f"{pt_date[2]}/{pt_date[1]}" # 08/01
+                    
+                    kg_val = parts[1].strip()
+                    uo_val = parts[2].strip()
+                    
+                    title = f"Produção {formatted_date}"
+                    details = f"{kg_val} • {uo_val}"
+                except:
+                    pass # Fallback to raw reason
+            
+            xp_history_list.append({
+                "amount": tx.amount,
+                "reason": title,
+                "details": details,  # New field
+                "type": tx.source_type
+            })
 
         context = {
             "request": request,
@@ -598,9 +633,18 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
             "gamification": {
                 "level": current_level,
                 "next_level": next_level,
-                "total_xp": int(total_xp),
-                "progress_percent": progress_percent
+                "total_xp": int(employee.total_xp), # Use confirmed XP from DB
+                "progress_percent": progress_percent,
+                "time_in_company": progress_data["months_tenure"] if progress_data else 0
             },
+            # XP Extract Data
+            "daily_xp_gain": int(session.exec(select(func.sum(GameXPTransaction.amount))
+                .where(GameXPTransaction.employee_id == employee.id)
+                .where(func.date(GameXPTransaction.created_at) == datetime.now().date())
+                .where(GameXPTransaction.status == "confirmed")
+            ).one() or 0),
+            
+            "xp_history": xp_history_list,
             "chart_labels": json.dumps(chart_labels),
             "chart_daily_kg": json.dumps(chart_daily_kg),
             "chart_daily_kgh": json.dumps(chart_daily_kgh),
@@ -614,6 +658,159 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
         error_msg = f"Error in mobile_dashboard: {str(e)}\n{traceback.format_exc()}"
         print(error_msg) # Log to console
         return JSONResponse(status_code=500, content={"error": "Internal Server Error", "details": str(e), "trace": traceback.format_exc()})
+
+# --- Gamification V2 API & Admin ---
+from gamification_engine import calculate_daily_xp, confirm_pending_xp
+from models import GameLevel, GameXPTransaction, GameAchievement
+from sqlmodel import desc
+
+@app.post("/api/game/calc-daily/{date_str}")
+async def api_calc_xp(date_str: str, session: Session = Depends(get_session)):
+    """Trigger Daily XP Calculation Manually"""
+    count = calculate_daily_xp(session, date_str)
+    return {"success": True, "created_transactions": count}
+
+@app.post("/api/game/confirm-xp")
+async def api_confirm_xp(session: Session = Depends(get_session)):
+    """Trigger Confirmation of Pending XP"""
+    count = confirm_pending_xp(session)
+    return {"success": True, "confirmed_transactions": count}
+
+@app.get("/admin/game", response_class=HTMLResponse)
+async def admin_game_dashboard(request: Request, session: Session = Depends(get_session)):
+    """Manager Dashboard for Gamification Control"""
+    # 1. Fetch Provisional Transactions
+    pending_txs = session.exec(
+        select(GameXPTransaction, models.Employee)
+        .join(models.Employee)
+        .where(GameXPTransaction.status == "provisional")
+        .order_by(desc(GameXPTransaction.created_at))
+    ).all()
+    
+    # Format for template
+    pending_list = []
+    for tx, emp in pending_txs:
+        pending_list.append({
+            "id": tx.id,
+            "employee_name": emp.name,
+            "amount": tx.amount,
+            "reason": tx.reason,
+            "date": tx.created_at.strftime("%d/%m %H:%M")
+        })
+
+    # 2. Fetch Recent Ledger (Audit)
+    history_txs = session.exec(
+        select(GameXPTransaction, models.Employee)
+        .join(models.Employee)
+        .order_by(desc(GameXPTransaction.created_at))
+        .limit(50)
+    ).all()
+    
+    formatted_history = []
+    for tx, emp in history_txs:
+        formatted_history.append({
+             "id": tx.id,
+             "employee_name": emp.name,
+             "amount": tx.amount,
+             "status": tx.status,
+             "reason": tx.reason,
+             "date": tx.created_at.strftime("%d/%m %H:%M")
+        })
+        
+    return templates.TemplateResponse("admin_game.html", {
+        "request": request,
+        "pending_txs": pending_list
+        # History removed from dashboard, moved to exclusive page
+    })
+
+@app.get("/admin/game/audit", response_class=HTMLResponse)
+async def admin_game_audit(request: Request, session: Session = Depends(get_session)):
+    """Exclusive Audit Log Page"""
+    history_txs = session.exec(
+        select(GameXPTransaction, models.Employee)
+        .join(models.Employee)
+        .order_by(desc(GameXPTransaction.created_at))
+        .limit(200) # Load more history
+    ).all()
+    
+    formatted_history = []
+    for tx, emp in history_txs:
+        formatted_history.append({
+             "id": tx.id,
+             "employee_name": emp.name,
+             "amount": tx.amount,
+             "status": tx.status,
+             "reason": tx.reason,
+             "date": tx.created_at.strftime("%d/%m/%Y %H:%M")
+        })
+        
+    return templates.TemplateResponse("admin_game_audit.html", {
+        "request": request,
+        "history_txs": formatted_history
+    })
+
+@app.post("/api/game/transaction/{tx_id}/{action}")
+async def api_manage_tx(tx_id: int, action: str, session: Session = Depends(get_session)):
+    """Approve/Reject Provisional Transaction"""
+    tx = session.get(GameXPTransaction, tx_id)
+    if not tx: return {"error": "Transaction not found"}
+    
+    
+    if action == "approve":
+        tx.status = "confirmed"
+        tx.confirmed_at = datetime.now()
+        # Add to Employee Total
+        emp = session.get(models.Employee, tx.employee_id)
+        if emp:
+            emp.total_xp += tx.amount
+            session.add(emp)
+    elif action == "reject":
+        tx.status = "rejected"
+    
+    session.add(tx)
+    session.commit()
+    return {"success": True, "status": tx.status}
+
+@app.get("/admin/game/settings", response_class=HTMLResponse)
+async def admin_game_settings(request: Request, session: Session = Depends(get_session)):
+    """Configuration Page"""
+    try:
+        require_login(request) # Admin Only
+        
+        configs = session.exec(select(models.GameConfiguration)).all()
+        # Convert list to dict for frontend
+        config_dict = {c.key: c.value for c in configs}
+        
+        import json
+        return templates.TemplateResponse("admin_game_settings.html", {
+            "request": request,
+            "config_json": json.dumps(config_dict)
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return HTMLResponse(f"<h1>Erro 500 Debug</h1><pre>{traceback.format_exc()}</pre>", status_code=500)
+
+@app.post("/api/game/settings")
+async def api_save_settings(request: Request, session: Session = Depends(get_session)):
+    data = await request.json()
+    
+        # Update or Insert
+        conf = session.get(models.GameConfiguration, key)
+        if conf:
+            conf.value = str(val)
+            conf.updated_at = datetime.now()
+            session.add(conf)
+        else:
+            # Create new config if not exists
+            new_conf = models.GameConfiguration(key=key, value=str(val), updated_at=datetime.now())
+            session.add(new_conf)
+            
+    session.commit()
+    return {"success": True}
+
+
+# --- END Gamification V2 ---
 
 
 @app.post("/mobile/route/{route_id}/finish", response_class=JSONResponse)

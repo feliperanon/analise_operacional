@@ -12,7 +12,7 @@ content = r'''{% extends "mobile/layout.html" %}
             <div class="flex items-center space-x-4">
                 <div class="relative">
                     <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-yellow-400 to-orange-500 p-[2px] shadow-lg shadow-orange-500/20">
-                        <img src="{{ url_for('static', path='badges/' + gamification.level.badge) }}" 
+                        <img src="{{ url_for('static', path='badges/' + gamification.level.badge_image) }}" 
                              onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name }}&background=0f172a&color=fff'"
                              class="w-full h-full rounded-2xl object-cover bg-slate-900" alt="Badge">
                     </div>
@@ -25,6 +25,9 @@ content = r'''{% extends "mobile/layout.html" %}
                 <div>
                     <h1 class="text-xl font-bold text-white tracking-tight leading-tight">{{ employee.name }}</h1>
                     <p class="text-sm text-slate-400 font-medium">{{ gamification.level.name }}</p>
+                    {% if gamification.time_in_company < gamification.level.min_months %}
+                         <span class="text-[10px] text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded ml-1">Nível Travado (Tempo)</span>
+                    {% endif %}
                 </div>
             </div>
             
@@ -593,7 +596,7 @@ content = r'''{% extends "mobile/layout.html" %}
                             },
                             x: {
                                 grid: { display: false },
-                                ticks: { color: '#94a3b8', font: { size: 10 } }
+                                ticks: { color: '#ffffff', font: { size: 10 } } /* Forced White Text */
                             }
                         }
                     }
@@ -609,4 +612,4 @@ path = "c:/Projeto/analise_operacional/templates/mobile/dashboard.html"
 with open(path, "w", encoding="utf-8") as f:
     f.write(content)
 
-print(f"FULL DASHBOARD V2 UX APPLIED: {path} ({len(content)} bytes).")
+print(f"FULL DASHBOARD V3 GAMIFICATION APPLIED: {path} ({len(content)} bytes).")
