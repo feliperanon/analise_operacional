@@ -119,44 +119,70 @@
     </main>
 </div>
 
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="//unpkg.com/alpinejs" defer></script>
+<style>
+    [x-cloak] {
+        display: none !important;
+    }
+</style>
 <script>
     lucide.createIcons();
 
+    // Robust Data Injection
+    try {
+        window.GAME_CONFIG = {{ config_json | safe }};
+    } catch (e) {
+        console.error("Critical: Failed to parse game config", e);
+        window.GAME_CONFIG = {};
+    }
+
     function gameSettings() {
         return {
-            config: {{ config_json | safe }},
+            config: window.GAME_CONFIG || {},
 
-    saveAll() {
-        // Post to API
-        fetch('/api/game/settings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(this.config)
-        })
-            .then(async r => {
-                if (!r.ok) {
-                    let msg = 'Erro desconhecido';
-                    try {
-                        const err = await r.json();
-                        msg = err.detail || err.error || msg;
-                    } catch (e) { }
-                    throw new Error(`Erro ao salvar: ${msg} (${r.status})`);
-                }
-                return r.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    alert('Configurações Salvas com Sucesso! 🎉');
-                } else {
-                    alert('Erro lógico ao salvar: ' + JSON.stringify(data));
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                alert(err.message);
-            });
+            saveAll() {
+                // Post to API
+                fetch('/api/game/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.config)
+                })
+                    .then(async r => {
+                        if (!r.ok) {
+                            let msg = 'Erro desconhecido';
+                            try {
+                                const err = await r.json();
+                                msg = err.detail || err.error || msg;
+                            } catch (e) { }
+                            throw new Error(`Erro ao salvar: ${msg} (${r.status})`);
+                        }
+                        return r.json();
+                    })
+                    .then(data => {
+                        if (data.success) {
+                            alert('Configurações Salvas com Sucesso! 🎉');
+                        } else {
+                            alert('Erro lógico ao salvar: ' + JSON.stringify(data));
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert(err.message);
+                    });
+            }
+        }
     }
-        };
-    }
+</script>
+alert('Erro lógico ao salvar: ' + JSON.stringify(data));
+}
+})
+.catch(err => {
+console.error(err);
+alert(err.message);
+});
+}
+};
+}
 </script>
 {% endblock %}
