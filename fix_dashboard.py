@@ -1,0 +1,542 @@
+
+import os
+
+content = r'''{% extends "mobile/layout.html" %}
+
+{% block content %}
+<div x-data="dashboardController()" class="flex flex-col min-h-screen pb-20">
+    
+    <!-- 1. Header & Gamification Card -->
+    <header class="relative px-6 pt-12 pb-8 bg-gradient-to-b from-slate-900 to-slate-800 rounded-b-[40px] shadow-2xl z-10 border-b border-white/5">
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center space-x-4">
+                <div class="relative">
+                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-yellow-400 to-orange-500 p-[2px] shadow-lg shadow-orange-500/20">
+                        <img src="{{ url_for('static', path='badges/' + gamification.level.badge) }}" 
+                             onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name }}&background=0f172a&color=fff'"
+                             class="w-full h-full rounded-2xl object-cover bg-slate-900" alt="Badge">
+                    </div>
+                    <div class="absolute -bottom-2 -right-2 bg-slate-900 rounded-full p-1 border border-slate-700">
+                        <span class="flex items-center justify-center w-6 h-6 text-xs font-bold text-yellow-400 bg-yellow-400/10 rounded-full">
+                            {{ gamification.level.level }}
+                        </span>
+                    </div>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-white tracking-tight leading-tight">{{ employee.name }}</h1>
+                    <p class="text-sm text-slate-400 font-medium">{{ gamification.level.name }}</p>
+                </div>
+            </div>
+            
+            <button @click="logout()" class="p-2 rounded-xl bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white transition-colors backdrop-blur-md">
+                <i data-lucide="log-out" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <div class="relative mt-2">
+            <div class="flex justify-between text-xs font-medium text-slate-400 mb-2">
+                <span>XP: <span class="text-white">{{ "{:,}".format(gamification.total_xp).replace(",", ".") }}</span></span>
+                {% if gamification.next_level %}
+                <span>Próximo: {{ gamification.next_level.name }} ({{ "{:,}".format(gamification.next_level.min_xp).replace(",", ".") }})</span>
+                {% else %}
+                <span class="text-yellow-400">Nível Máximo! 🏆</span>
+                {% endif %}
+            </div>
+            <div class="h-3 w-full bg-slate-700/50 rounded-full overflow-hidden backdrop-blur-sm border border-white/5">
+                <div class="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 shadow-[0_0_15px_rgba(99,102,241,0.5)] transition-all duration-1000 ease-out relative"
+                     style="width: {{ gamification.progress_percent }}%">
+                     <div class="absolute inset-0 bg-white/20 animate-[shimmer_2s_infinite]"></div>
+                </div>
+            </div>
+            <p class="text-xs text-center text-slate-500 mt-2 italic animate-fade-in">{{ ai_message }}</p>
+        </div>
+    </header>
+
+    <!-- 2. Active Route Card -->
+    <div class="px-6 -mt-6 z-20" x-show="hasActiveRoutes" x-cloak>
+        <template x-for="route in activeRoutes" :key="route.id">
+            <div class="bg-slate-800/90 backdrop-blur-xl rounded-3xl p-5 border border-indigo-500/30 shadow-[0_10px_40px_-10px_rgba(79,70,229,0.3)] animate-slide-up bg-[url('/static/grid.svg')] bg-repeat opacity-95">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="p-2.5 bg-indigo-500/20 rounded-xl animate-pulse">
+                            <i data-lucide="truck" class="w-6 h-6 text-indigo-400"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                                Separação Ativa
+                                <span class="w-2 h-2 rounded-full bg-green-500 animate-ping"></span>
+                            </h3>
+                            <p class="text-indigo-300 text-sm font-medium" x-text="route.client_name"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-end justify-between">
+                    <div>
+                        <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Tempo Decorrido</p>
+                        <p class="text-3xl font-mono font-bold text-white tracking-widest tabular-nums" x-text="formatTimer(route.start_time)"></p>
+                    </div>
+                    
+                    <button @click="openStopModal(route)" 
+                            class="mb-1 px-6 py-3 bg-red-500 hover:bg-red-600 active:scale-95 text-white rounded-xl font-bold shadow-lg shadow-red-500/25 transition-all flex items-center gap-2 group">
+                        <i data-lucide="square" class="w-4 h-4 fill-current"></i>
+                        <span>Encerrar</span>
+                    </button>
+                </div>
+                
+                <div class="mt-4 h-1 w-full bg-slate-700/50 rounded-full overflow-hidden">
+                    <div class="h-full bg-indigo-500 animate-[loading_2s_ease-in-out_infinite] w-1/3 rounded-full"></div>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- 3. Primary Actions Grid -->
+    <div class="grid grid-cols-2 gap-4 px-6 mt-8">
+        <!-- Start Button -->
+        <button @click="openStartModal()" 
+                class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-green-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
+            <div class="absolute inset-0 bg-green-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div class="flex flex-col items-center justify-center space-y-3 relative z-10">
+                <div class="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center group-hover:bg-green-500 group-hover:text-white text-green-500 transition-colors">
+                    <i data-lucide="play" class="w-6 h-6 fill-current"></i>
+                </div>
+                <span class="font-semibold text-slate-200">Iniciar Separação</span>
+            </div>
+        </button>
+
+        <button class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-blue-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
+            <div class="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div class="flex flex-col items-center justify-center space-y-3 relative z-10">
+                <div class="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white text-blue-500 transition-colors">
+                    <i data-lucide="star" class="w-6 h-6"></i>
+                </div>
+                <span class="font-semibold text-slate-200">Avaliação</span>
+            </div>
+        </button>
+
+        <button class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-purple-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
+            <div class="absolute inset-0 bg-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div class="flex flex-col items-center justify-center space-y-3 relative z-10">
+                <div class="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center group-hover:bg-purple-500 group-hover:text-white text-purple-500 transition-colors">
+                    <i data-lucide="history" class="w-6 h-6"></i>
+                </div>
+                <span class="font-semibold text-slate-200">Histórico</span>
+            </div>
+        </button>
+
+        <button @click="openEndDayModal()" 
+                class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-red-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
+            <div class="absolute inset-0 bg-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div class="flex flex-col items-center justify-center space-y-3 relative z-10">
+                <div class="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center group-hover:bg-red-500 group-hover:text-white text-red-500 transition-colors">
+                    <i data-lucide="power" class="w-6 h-6"></i>
+                </div>
+                <span class="font-semibold text-slate-200">Encerrar Dia</span>
+            </div>
+        </button>
+    </div>
+
+    <!-- 4. Performance Chart -->
+    <div class="px-6 mt-8" x-show="labels.length > 0">
+        <h2 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
+            <i data-lucide="bar-chart-2" class="w-5 h-5 text-blue-400"></i>
+            Sua Performance Diária
+        </h2>
+        <div class="bg-slate-800/50 border border-white/5 p-4 rounded-3xl shadow-lg h-64 w-full">
+            <canvas id="performanceChart"></canvas>
+        </div>
+    </div>
+
+
+    <!-- 5. Recent History -->
+    <div class="px-6 mt-8 mb-24">
+        <h2 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
+            <i data-lucide="check-circle" class="w-5 h-5 text-green-400"></i>
+            Concluídos Hoje
+        </h2>
+        
+        <div class="space-y-3">
+            <template x-if="completedRoutes.length === 0">
+                <div class="text-center py-8 bg-slate-800/30 rounded-3xl border border-white/5 border-dashed">
+                    <p class="text-slate-500 text-sm">Nenhuma separação concluída hoje.</p>
+                </div>
+            </template>
+            
+            <template x-for="route in completedRoutes" :key="route.id">
+                <div class="bg-slate-800/50 border border-slate-700/50 p-4 rounded-2xl flex justify-between items-center group hover:bg-slate-800 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-slate-400 font-bold text-xs group-hover:bg-green-500/20 group-hover:text-green-500 transition-colors">
+                           <i data-lucide="check" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <p class="text-white font-semibold text-sm" x-text="route.client_name"></p>
+                            <p class="text-slate-400 text-xs" x-text="route.duration"></p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-white font-bold text-sm" x-text="route.tonnage + ' kg'"></p>
+                        <p class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 inline-block mt-1 border border-slate-600" x-text="route.performance"></p>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    
+    <!-- Start Modal (Multi-Client) -->
+    <div x-show="showStartModal" 
+         class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm"
+         x-transition.opacity
+         x-cloak>
+        <div class="bg-slate-900 w-full max-w-md rounded-t-3xl sm:rounded-3xl border-t sm:border border-white/10 p-6 pb-12 shadow-2xl h-[85vh] sm:h-auto flex flex-col"
+             @click.away="showStartModal = false"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="translate-y-full opacity-0"
+             x-transition:enter-end="translate-y-0 opacity-100">
+            
+            <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                <div>
+                    <h3 class="text-xl font-bold text-white">Nova Separação</h3>
+                    <p class="text-slate-400 text-xs mt-1">Selecione clientes e defina pesos (opcional)</p>
+                </div>
+                
+                <div class="flex items-center gap-3">
+                     <!-- Start Action Button -->
+                    <button x-show="selectedCount > 0" 
+                            @click="startBatch()"
+                            class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-green-500/20 flex items-center gap-2 animate-fade-in">
+                        <span>Iniciar</span>
+                        <span class="bg-black/20 px-1.5 py-0.5 rounded text-xs" x-text="selectedCount"></span>
+                    </button>
+                    
+                    <button @click="showStartModal = false" class="text-slate-400 hover:text-white p-2">
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="space-y-4 flex-1 flex flex-col overflow-hidden">
+                <div class="relative flex-shrink-0">
+                    <i data-lucide="search" class="absolute left-4 top-3.5 w-5 h-5 text-slate-500"></i>
+                    <input type="text" 
+                           x-model="searchClient" 
+                           placeholder="Buscar cliente..." 
+                           class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-12 pr-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
+                </div>
+                       
+                <div class="flex-1 overflow-y-auto space-y-2 pr-1 pb-4 custom-scrollbar">
+                    <template x-for="client in filteredClients" :key="client.id">
+                        <div @click="toggleClient(client)"
+                             class="w-full flex flex-col p-4 bg-slate-800/50 border rounded-xl transition-all cursor-pointer group active:scale-[0.98]"
+                             :class="isSelected(client.id) ? 'border-green-500 bg-green-500/10' : 'border-slate-700/50 hover:bg-slate-800'">
+                            
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <!-- Custom Checkbox -->
+                                    <div class="w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors"
+                                         :class="isSelected(client.id) ? 'border-green-500 bg-green-500' : 'border-slate-600 bg-slate-900'">
+                                        <i x-show="isSelected(client.id)" data-lucide="check" class="w-4 h-4 text-white"></i>
+                                    </div>
+                                    <span class="text-slate-200 group-hover:text-white font-medium text-lg" x-text="client.name"></span>
+                                </div>
+                            </div>
+                            
+                            <!-- Weight Input (Expanded) -->
+                            <div x-show="isSelected(client.id)" 
+                                 x-transition.opacity 
+                                 class="mt-3 pl-9" 
+                                 @click.stop>
+                                <label class="text-xs text-slate-400 mb-1 block">Peso Planejado (Kg) - Opcional</label>
+                                <input type="number" 
+                                       placeholder="0" 
+                                       @input="updateWeight(client.id, $event.target.value)"
+                                       class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:border-green-500 outline-none text-lg font-mono">
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stop Modal -->
+    <div x-show="showStopModal" 
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+         x-transition.opacity
+         x-cloak>
+        <div class="bg-slate-900 w-full max-w-sm rounded-3xl border border-white/10 p-6 shadow-2xl"
+             @click.away="showStopModal = false">
+             
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
+                    <i data-lucide="check-square" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-xl font-bold text-white">Finalizar Separação</h3>
+                <p class="text-slate-400 text-sm mt-1" x-text="selectedRoute?.client_name"></p>
+            </div>
+            
+            <div class="flex gap-4">
+                <button @click="showStopModal = false" class="flex-1 py-3 rounded-xl bg-slate-800 text-slate-300 font-medium hover:bg-slate-700">
+                    Cancelar
+                </button>
+                <button @click="confirmStop()" class="flex-1 py-3 rounded-xl bg-green-500 text-white font-bold hover:bg-green-600 shadow-lg shadow-green-500/20">
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+    
+     <!-- End Day Modal -->
+    <div x-show="showEndDayModal" 
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
+         x-transition.opacity
+         x-cloak>
+        <div class="bg-slate-900 w-full max-w-sm rounded-3xl border border-red-500/30 p-8 shadow-2xl text-center relative overflow-hidden">
+            <!-- Warning Glow -->
+            <div class="absolute -top-10 -left-10 w-32 h-32 bg-red-600/20 blur-[50px] rounded-full pointer-events-none"></div>
+            
+            <i data-lucide="alert-triangle" class="w-12 h-12 text-red-500 mx-auto mb-4 animate-bounce"></i>
+            
+            <h3 class="text-2xl font-bold text-white mb-2">Encerrar Expediente?</h3>
+            <p class="text-slate-400 text-sm mb-8">
+                Isso fechará todas as rotas pendentes e registrará seu horário de saída.
+            </p>
+            
+            <div class="space-y-3">
+                <button @click="endDay()" 
+                        class="w-full py-4 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-lg shadow-lg shadow-red-500/30 transition-all active:scale-95 flex items-center justify-center gap-2">
+                    <i data-lucide="power" class="w-5 h-5 fill-current"></i>
+                    Encerrar Agora
+                </button>
+                
+                <button @click="showEndDayModal = false" 
+                        class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition-colors">
+                    Voltar ao Trabalho
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    function dashboardController() {
+        return {
+            showStartModal: false,
+            showStopModal: false,
+            showEndDayModal: false,
+            searchClient: '',
+            selectedMap: {}, // id -> weight (float)
+            
+            // Data from Jinja2
+            clients: [
+                {% for c in clients %}
+                { id: {{ c.id }}, name: "{{ c.name }}" },
+                {% endfor %}
+            ],
+            
+            activeRoutes: {{ active_routes | safe }},
+            completedRoutes: {{ completed_routes | safe }},
+            
+            // Charts Data
+            labels: {{ chart_labels | safe }},
+            dataKg: {{ chart_daily_kg | safe }},
+            dataKgh: {{ chart_daily_kgh | safe }},
+            bgColors: {{ chart_bg_colors | safe }},
+            
+            selectedRoute: null,
+            
+            get filteredClients() {
+                if (this.searchClient === '') return this.clients;
+                return this.clients.filter(client => 
+                    client.name.toLowerCase().includes(this.searchClient.toLowerCase())
+                );
+            },
+            
+            get hasActiveRoutes() {
+                return this.activeRoutes.length > 0;
+            },
+            
+            init() {
+                console.log("Dashboard Loaded");
+                if (this.labels.length > 0) {
+                   this.initChart();
+                }
+                
+                // Timer tick
+                setInterval(() => {
+                    this.tick = Date.now();
+                }, 1000);
+            },
+            
+            tick: Date.now(),
+            
+            formatTimer(startTimeStr) {
+                 // Trigger reactivity on tick
+                 let _ = this.tick;
+                 if (!startTimeStr) return "00:00:00";
+                 
+                 let parts = startTimeStr.split(':');
+                 let h = parseInt(parts[0]);
+                 let m = parseInt(parts[1]);
+                 if (isNaN(h) || isNaN(m)) return "--:--";
+                 
+                 let now = new Date();
+                 let start = new Date();
+                 start.setHours(h, m, 0, 0);
+                 
+                 if (start > now) {
+                     start.setDate(start.getDate() - 1);
+                 }
+                 
+                 let diff = now - start; 
+                 let totalSeconds = Math.floor(diff / 1000);
+                 
+                 let hours = Math.floor(totalSeconds / 3600);
+                 let minutes = Math.floor((totalSeconds % 3600) / 60);
+                 let seconds = totalSeconds % 60;
+                 return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            },
+
+            logout() {
+                window.location.href = "/mobile/logout";
+            },
+            
+            // Multi-Start Logic
+            openStartModal() {
+                this.showStartModal = true;
+                this.searchClient = '';
+                this.selectedMap = {}; 
+            },
+            
+            toggleClient(client) {
+                if (this.selectedMap.hasOwnProperty(client.id)) {
+                    // Remove from map
+                    let newMap = {...this.selectedMap};
+                    delete newMap[client.id];
+                    this.selectedMap = newMap;
+                } else {
+                    // Add with default 0
+                    this.selectedMap = { ...this.selectedMap, [client.id]: 0 };
+                }
+            },
+            
+            isSelected(id) {
+                return this.selectedMap.hasOwnProperty(id);
+            },
+            updateWeight(id, val) {
+                 // Update value in map
+                 let safeVal = parseFloat(val);
+                 if (isNaN(safeVal)) safeVal = 0;
+                 this.selectedMap[id] = safeVal;
+            },
+            
+            get selectedCount() {
+                return Object.keys(this.selectedMap).length;
+            },
+            
+            startBatch() {
+                const ids = Object.keys(this.selectedMap);
+                if (ids.length === 0) return;
+                
+                const allocations = ids.map(id => ({
+                    client_id: parseInt(id),
+                    weight: this.selectedMap[id]
+                }));
+                
+                fetch('/mobile/routine/start_with_allocation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ allocations: allocations })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if(data.success) {
+                        window.location.reload();
+                    } else {
+                        alert("Erro: " + (data.error || "Falha ao iniciar"));
+                    }
+                })
+                .catch(err => alert("Erro de conexão"));
+            },
+            
+            openStopModal(route) {
+                this.selectedRoute = route;
+                this.showStopModal = true;
+            },
+            
+            confirmStop() {
+                if (!this.selectedRoute) return;
+                
+                fetch(`/mobile/route/${this.selectedRoute.id}/finish`, {
+                    method: 'POST'
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        alert("Erro: " + data.error);
+                    }
+                });
+            },
+            
+            openEndDayModal() {
+                this.showEndDayModal = true;
+            },
+            
+            endDay() {
+                fetch('/mobile/routine/stop', { method: 'POST' })
+                .then(() => {
+                    window.location.href = '/mobile/login';
+                });
+            },
+
+            initChart() {
+                const ctx = document.getElementById('performanceChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: this.labels,
+                        datasets: [{
+                            label: 'Produtividade (Kg/h)',
+                            data: this.dataKgh,
+                            backgroundColor: this.bgColors,
+                            borderRadius: 6,
+                            barThickness: 12
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: {
+                                grid: { color: 'rgba(255,255,255,0.05)' },
+                                ticks: { color: '#94a3b8', font: { size: 10 } }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#94a3b8', font: { size: 10 } }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    }
+</script>
+{% endblock %}
+'''
+
+path = "c:/Projeto/analise_operacional/templates/mobile/dashboard.html"
+with open(path, "w", encoding="utf-8") as f:
+    f.write(content)
+
+print(f"FULL DASHBOARD CLEANED: {path} ({len(content)} bytes).")

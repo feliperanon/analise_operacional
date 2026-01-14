@@ -199,3 +199,56 @@ class XPLedger(SQLModel, table=True):
     points: float
     reference_id: Optional[str] = None # e.g. "shift_123", "job_456"
     note: Optional[str] = None
+
+# --- Gamification V2 Models ---
+
+class GameLevel(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    level: int = Field(index=True, unique=True)
+    name: str
+    min_xp: int
+    min_months: int = Field(default=0) # Time in company requirement
+    badge_image: str = Field(default="badge_default.png")
+
+class GameXPTransaction(SQLModel, table=True):
+    """
+    Robust Ledger for XP Audit.
+    Replaces simple XPLedger with Approval Status.
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    employee_id: int = Field(foreign_key="employee.id", index=True)
+    amount: float
+    source_type: str = Field(index=True) # shift_auto, manager_adjustment, achievement_grant
+    status: str = Field(default="provisional", index=True) # provisional, confirmed, rejected
+    reason: str
+    manager_id: Optional[str] = None # Username/ID of manager who approved
+    created_at: datetime = Field(default_factory=datetime.now)
+    confirmed_at: Optional[datetime] = None
+
+class GameAchievement(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    slug: str = Field(index=True, unique=True) # e.g. "marathon_100t"
+    name: str
+    description: str
+    icon: str # lucide icon name or image path
+    xp_reward: int = Field(default=0)
+    trigger_rule: Optional[str] = None # JSON or key for logic
+    is_manual: bool = Field(default=False) # If true, only managers can grant
+
+class EmployeeAchievement(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    employee_id: int = Field(foreign_key="employee.id", index=True)
+    achievement_id: int = Field(foreign_key="gameachievement.id", index=True)
+    earned_at: datetime = Field(default_factory=datetime.now)
+    status: str = Field(default="pending") # pending, approved
+    approved_at: Optional[datetime] = None
+    approved_by: Optional[str] = None
+
+
+class GameConfiguration(SQLModel, table=True):
+    key: str = Field(primary_key=True)
+    value: str 
+    description: str
+    category: str 
+    updated_at: datetime = Field(default_factory=datetime.now)
+

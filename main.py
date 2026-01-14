@@ -240,7 +240,8 @@ async def global_exception_handler(request: Request, call_next):
     except Exception as e:
         # If it is a Starlette/FastAPI HTTPException, let it propagate (handles redirects/404s)
         from starlette.exceptions import HTTPException as StarletteHTTPException
-        if isinstance(e, StarletteHTTPException):
+        from fastapi import HTTPException as FastAPIHTTPException
+        if isinstance(e, (StarletteHTTPException, FastAPIHTTPException)):
             raise e
             
         import traceback
@@ -291,10 +292,27 @@ def get_current_user(request: Request):
 
 def require_login(request: Request):
     user = get_current_user(request)
+    path = request.url.path
+
+    # Not logged in at all
     if not user:
-        if request.url.path.startswith("/mobile"):
+        if path.startswith("/mobile"):
              raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/mobile/login"})
         raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/login"})
+
+    # Logged in, check permissions
+    # User is Admin (str) -> Can access everything (or maybe restrict from mobile specific logic if needed, but usually fine)
+    if isinstance(user, str):
+        return user
+
+    # User is Employee (dict) -> RESTRICTED TO /mobile ONLY
+    if isinstance(user, dict) and user.get("type") == "employee":
+        if not path.startswith("/mobile") and not path.startswith("/static") and not path.startswith("/api"):
+            # Trying to access Desktop/Admin page -> Redirect to Mobile Dashboard
+            # e.g. /smart-flow, /employees, /
+            print(f"🔒 Access Denied: Mobile User {user.get('id')} tried to access {path}")
+            raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/mobile/dashboard"})
+
     return user
 # --- Routes ---
 @app.get("/")
@@ -346,6 +364,9 @@ async def mobile_auth(
             {"request": request, "error": "Acesso não autorizado."}
         )
 
+    # Clear any existing session (e.g. Admin login) to prevent conflicts
+    request.session.clear()
+    
     request.session["user_id"] = employee.id
     request.session["user_role"] = "employee"
     return RedirectResponse(url="/mobile/dashboard", status_code=303)
@@ -356,65 +377,534 @@ async def mobile_logout(request: Request):
     return RedirectResponse(url="/mobile/login", status_code=303)
 
 @app.get("/mobile/dashboard", response_class=HTMLResponse)
-async def mobile_dashboard(
+async def mobile_dashboard(request: Request, current_user: dict = Depends(get_current_user), session: Session = Depends(get_session)):
+    try:
+        # Validate User Type (Must be dict from mobile login)
+        if not isinstance(current_user, dict):
+             # Logged in as Admin/User but trying to access Mobile Dashboard
+             # Redirect to mobile login to identify as Employee
+             return RedirectResponse(url="/mobile/login", status_code=303)
+
+        # Find Employee linked to User
+        # The existing get_current_user returns a dict with 'id' for employee
+        user_id = current_user.get("id")
+        if not user_id:
+            return RedirectResponse(url="/mobile/login", status_code=303)
+
+        employee = session.get(models.Employee, user_id)
+        if not employee:
+            request.session.clear()
+            return RedirectResponse(url="/mobile/login", status_code=303)
+
+        today = datetime.now()
+        yesterday = today - timedelta(days=1)
+        if yesterday.weekday() == 6: # If Sunday, check Saturday
+             yesterday = today - timedelta(days=2)
+        
+        # --- Yesterday's Performance (gamification) ---
+        stmt = select(func.sum(models.Route.tonnage)).where(
+            models.Route.employee_id == employee.id,
+            models.Route.date == yesterday.strftime("%Y-%m-%d")
+        )
+        yesterday_kg = session.exec(stmt).one() or 0.0
+
+        # Build Message
+        ai_message = None
+        if yesterday_kg > 0:
+            target = yesterday_kg * 1.05 # 5% increase challenge
+            ai_message = f"Ontem você fez {yesterday_kg:,.0f}kg. Hoje sua meta é {target:,.0f}kg (+5% 🚀). Se bater o recorde ganha +100 XP!"
+        else:
+            ai_message = "Pronto para superar seus limites hoje? Vamos lá!"
+
+        # --- Clients for Modal ---
+        clients = session.exec(select(models.Client)).all()
+
+        # --- Chart Data (Advanced) ---
+        chart_labels = []
+        chart_daily_kg = []
+        chart_daily_kgh = []
+        chart_cumulative_kg = []
+        chart_bg_colors = []
+        
+        running_total = 0
+        
+        # Pre-fetch data to analyze rankings
+        daily_stats = []
+        now = datetime.now()
+        thirty_days_ago = now - timedelta(days=30)
+        
+        # We need daily stats to calculate cumulative and averages
+        # Query for last 30 days
+        # We need daily stats to calculate cumulative and averages
+        # Query for last 30 days - Raw Fetch (DB Agnostic)
+        raw_routes = session.exec(
+            select(models.Route)
+            .where(
+                models.Route.employee_id == employee.id,
+                models.Route.date >= thirty_days_ago.strftime("%Y-%m-%d"),
+                models.Route.status == "completed"
+            )
+        ).all()
+        
+        # Aggregate in Python
+        daily_map = {}
+        for r in raw_routes:
+            if not r.start_time or not r.end_time: continue
+            
+            try:
+                # Calculate Duration
+                s = datetime.strptime(r.start_time, "%H:%M")
+                e = datetime.strptime(r.end_time, "%H:%M")
+                diff_seconds = (e - s).total_seconds()
+                
+                # Update Map
+                current_kg, current_seconds = daily_map.get(r.date, (0, 0))
+                daily_map[r.date] = (current_kg + r.tonnage, current_seconds + diff_seconds)
+            except Exception as e:
+                print(f"Error aggregating route {r.id}: {e}")
+                continue
+        
+        # Generate last 7 days for chart
+        for i in range(6, -1, -1):
+            d = now - timedelta(days=i)
+            d_str = d.strftime("%Y-%m-%d")
+            label = d.strftime("%d/%m")
+            
+            kg, seconds = daily_map.get(d_str, (0, 0))
+            
+            # Kgh
+            hours = seconds / 3600.0 if seconds > 0 else 0
+            kgh = kg / hours if hours > 0 else 0
+            
+            # Cumulative
+            running_total += kg
+            
+            chart_labels.append(label)
+            chart_daily_kg.append(float(f"{kg:.1f}"))
+            chart_daily_kgh.append(float(f"{kgh:.1f}"))
+            chart_cumulative_kg.append(float(f"{running_total:.1f}"))
+            
+            # Color logic (Green > 1000kg/h)
+            if kgh >= 1000:
+                chart_bg_colors.append("#10b981") # Emerald 500
+            elif kgh >= 700:
+                 chart_bg_colors.append("#f59e0b") # Amber 500
+            else:
+                 chart_bg_colors.append("#ef4444") # Red 500
+
+        # --- Active Routes (Pending) ---
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        
+        # 1. Active Routes
+        active_routes_stmt = (
+            select(models.Route, models.Client.name)
+            .join(models.Client, models.Route.client_id == models.Client.id)
+            .where(
+                models.Route.employee_id == employee.id,
+                models.Route.date == today_str,
+                models.Route.status == "pending"
+            )
+        )
+        active_routes_result = session.exec(active_routes_stmt).all()
+        
+        active_routes_list = []
+        for r, c_name in active_routes_result:
+            active_routes_list.append({
+                "id": r.id,
+                "client_name": c_name,
+                "tonnage": r.tonnage,
+                "start_time": r.start_time
+            })
+
+        # 2. Completed Routes (History Today)
+        completed_routes_stmt = (
+            select(models.Route, models.Client.name)
+            .join(models.Client, models.Route.client_id == models.Client.id) 
+            .where(
+                models.Route.employee_id == employee.id,
+                models.Route.date == today_str,
+                models.Route.status == "completed"
+            )
+            .order_by(models.Route.end_time.desc())
+        )
+        completed_routes_result = session.exec(completed_routes_stmt).all()
+        
+        completed_routes_list = []
+        for r, c_name in completed_routes_result:
+            # Calculate duration/productivity for display
+            duration_str = "00:00"
+            perf_str = "0,00 Kg/h"
+            
+            if r.start_time and r.end_time:
+                try:
+                    s = datetime.strptime(r.start_time, "%H:%M")
+                    e = datetime.strptime(r.end_time, "%H:%M")
+                    diff_sec = (e - s).total_seconds()
+                    
+                    # Duration
+                    h_dur = int(diff_sec // 3600)
+                    m_dur = int((diff_sec % 3600) // 60)
+                    duration_str = f"{h_dur:02d}h {m_dur:02d}m"
+                    
+                    # Metric: Kg/h
+                    t = r.tonnage if r.tonnage else 0
+                    hours_decimal = diff_sec / 3600.0
+                    if hours_decimal <= 0: hours_decimal = 0.016 # 1 min
+                    
+                    kgh = t / hours_decimal
+                    perf_str = f"{kgh:,.2f} Kg/h".replace(",", "X").replace(".", ",").replace("X", ".")
+                except Exception as ex:
+                    print(f"Error calc history: {ex}")
+                    pass
+
+            completed_routes_list.append({
+                "id": r.id,
+                "client_name": c_name,
+                "tonnage": r.tonnage,
+                "start_time": r.start_time,
+                "end_time": r.end_time,
+                "duration": duration_str,
+                "performance": perf_str
+            })
+
+        # --- Gamification Logic (XP = Total Tonnage) ---
+# --- Gamification V2 Engine ---
+        from gamification_engine import get_employee_progress
+        
+        # Calculate Progress (Respecting Time Caps & DB Levels)
+        progress_data = get_employee_progress(session, employee.id)
+        
+        if progress_data:
+            current_level = progress_data["level"]
+            next_level = progress_data["next_level"]
+            progress_percent = progress_data["progress"]
+        else:
+            # Fallback if critical failure
+            current_level = {"name": "N/A", "level": 0, "badge_image": "badge_1.png"}
+            next_level = None
+            progress_percent = 0
+
+        # Process XP History
+        raw_history = session.exec(select(GameXPTransaction)
+            .where(GameXPTransaction.employee_id == employee.id)
+            .where(GameXPTransaction.status == "confirmed")
+            .order_by(desc(GameXPTransaction.created_at))
+            .limit(20)
+        ).all()
+
+        xp_history_list = []
+        for tx in raw_history:
+            title = tx.reason
+            details = ""
+            
+            # Format "Produtividade" entries
+            if "Produtividade" in tx.reason and "|" in tx.reason:
+                try:
+                    parts = tx.reason.split("|")
+                    # parts[0] = "Produtividade 2026-01-08 (ref...)"
+                    date_part = parts[0].split(" ")[1] # 2026-01-08
+                    pt_date = date_part.split("-")
+                    formatted_date = f"{pt_date[2]}/{pt_date[1]}" # 08/01
+                    
+                    kg_val = parts[1].strip()
+                    uo_val = parts[2].strip()
+                    
+                    title = f"Produção {formatted_date}"
+                    details = f"{kg_val} • {uo_val}"
+                except:
+                    pass # Fallback to raw reason
+            
+            xp_history_list.append({
+                "amount": tx.amount,
+                "reason": title,
+                "details": details,  # New field
+                "type": tx.source_type
+            })
+
+        context = {
+            "request": request,
+            "employee": employee,
+            "clients": [{"id": c.id, "name": c.name} for c in clients],
+            "active_routes": active_routes_list,
+            "completed_routes": completed_routes_list,
+            "current_date": datetime.now().strftime("%d/%m/%Y"),
+            "ai_message": ai_message,
+            # Gamification Data
+            "gamification": {
+                "level": current_level,
+                "next_level": next_level,
+                "total_xp": int(employee.total_xp), # Use confirmed XP from DB
+                "progress_percent": progress_percent,
+                "time_in_company": progress_data["months_tenure"] if progress_data else 0
+            },
+            # XP Extract Data
+            "daily_xp_gain": int(session.exec(select(func.sum(GameXPTransaction.amount))
+                .where(GameXPTransaction.employee_id == employee.id)
+                .where(func.date(GameXPTransaction.created_at) == datetime.now().date())
+                .where(GameXPTransaction.status == "confirmed")
+            ).one() or 0),
+            
+            "xp_history": xp_history_list,
+            "chart_labels": chart_labels,
+            "chart_daily_kg": chart_daily_kg,
+            "chart_daily_kgh": chart_daily_kgh,
+            "chart_cumulative_kg": chart_cumulative_kg,
+            "chart_bg_colors": chart_bg_colors
+        }
+        return templates.TemplateResponse("mobile/dashboard.html", context)
+
+    except Exception as e:
+        import traceback
+        error_msg = f"Error in mobile_dashboard: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg) # Log to console
+        return JSONResponse(status_code=500, content={"error": "Internal Server Error", "details": str(e), "trace": traceback.format_exc()})
+
+# --- Gamification V2 API & Admin ---
+from gamification_engine import calculate_daily_xp, confirm_pending_xp
+from models import GameLevel, GameXPTransaction, GameAchievement
+from sqlmodel import desc
+
+@app.post("/api/game/calc-daily/{date_str}")
+async def api_calc_xp(date_str: str, session: Session = Depends(get_session)):
+    """Trigger Daily XP Calculation Manually"""
+    count = calculate_daily_xp(session, date_str)
+    return {"success": True, "created_transactions": count}
+
+@app.post("/api/game/confirm-xp")
+async def api_confirm_xp(session: Session = Depends(get_session)):
+    """Trigger Confirmation of Pending XP"""
+    count = confirm_pending_xp(session)
+    return {"success": True, "confirmed_transactions": count}
+
+@app.get("/admin/game", response_class=HTMLResponse)
+async def admin_game_dashboard(request: Request, session: Session = Depends(get_session)):
+    """Manager Dashboard for Gamification Control"""
+    # 1. Fetch Provisional Transactions
+    pending_txs = session.exec(
+        select(GameXPTransaction, models.Employee)
+        .join(models.Employee)
+        .where(GameXPTransaction.status == "provisional")
+        .order_by(desc(GameXPTransaction.created_at))
+    ).all()
+    
+    # Format for template
+    pending_list = []
+    for tx, emp in pending_txs:
+        pending_list.append({
+            "id": tx.id,
+            "employee_name": emp.name,
+            "amount": tx.amount,
+            "reason": tx.reason,
+            "date": tx.created_at.strftime("%d/%m %H:%M")
+        })
+
+    # 2. Fetch Recent Ledger (Audit)
+    history_txs = session.exec(
+        select(GameXPTransaction, models.Employee)
+        .join(models.Employee)
+        .order_by(desc(GameXPTransaction.created_at))
+        .limit(50)
+    ).all()
+    
+    formatted_history = []
+    for tx, emp in history_txs:
+        formatted_history.append({
+             "id": tx.id,
+             "employee_name": emp.name,
+             "amount": tx.amount,
+             "status": tx.status,
+             "reason": tx.reason,
+             "date": tx.created_at.strftime("%d/%m %H:%M")
+        })
+        
+    return templates.TemplateResponse("admin_game.html", {
+        "request": request,
+        "pending_txs": pending_list
+        # History removed from dashboard, moved to exclusive page
+    })
+
+@app.get("/admin/game/audit", response_class=HTMLResponse)
+async def admin_game_audit(request: Request, session: Session = Depends(get_session)):
+    """Exclusive Audit Log Page"""
+    history_txs = session.exec(
+        select(GameXPTransaction, models.Employee)
+        .join(models.Employee)
+        .order_by(desc(GameXPTransaction.created_at))
+        .limit(200) # Load more history
+    ).all()
+    
+    formatted_history = []
+    for tx, emp in history_txs:
+        formatted_history.append({
+             "id": tx.id,
+             "employee_name": emp.name,
+             "amount": tx.amount,
+             "status": tx.status,
+             "reason": tx.reason,
+             "date": tx.created_at.strftime("%d/%m/%Y %H:%M")
+        })
+        
+    return templates.TemplateResponse("admin_game_audit.html", {
+        "request": request,
+        "history_txs": formatted_history
+    })
+
+@app.post("/api/game/transaction/{tx_id}/{action}")
+async def api_manage_tx(tx_id: int, action: str, session: Session = Depends(get_session)):
+    """Approve/Reject Provisional Transaction"""
+    tx = session.get(GameXPTransaction, tx_id)
+    if not tx: return {"error": "Transaction not found"}
+    
+    
+    if action == "approve":
+        tx.status = "confirmed"
+        tx.confirmed_at = datetime.now()
+        # Add to Employee Total
+        emp = session.get(models.Employee, tx.employee_id)
+        if emp:
+            emp.total_xp += tx.amount
+            session.add(emp)
+    elif action == "reject":
+        tx.status = "rejected"
+    
+    session.add(tx)
+    session.commit()
+    return {"success": True, "status": tx.status}
+
+@app.get("/admin/game/settings", response_class=HTMLResponse)
+async def admin_game_settings(request: Request, session: Session = Depends(get_session)):
+    """Configuration Page"""
+    try:
+        require_login(request) # Admin Only
+        
+        configs = session.exec(select(models.GameConfiguration)).all()
+        # Convert list to dict for frontend
+        config_dict = {c.key: c.value for c in configs}
+        
+        import json
+        return templates.TemplateResponse("admin_game_settings.html", {
+            "request": request,
+            "config_json": json.dumps(config_dict)
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return HTMLResponse(f"<h1>Erro 500 Debug</h1><pre>{traceback.format_exc()}</pre>", status_code=500)
+
+@app.post("/api/game/settings")
+async def api_save_settings(request: Request, session: Session = Depends(get_session)):
+    data = await request.json()
+    
+    for key, val in data.items():
+        # Update or Insert
+        conf = session.get(models.GameConfiguration, key)
+        if conf:
+            conf.value = str(val)
+            conf.updated_at = datetime.now()
+            session.add(conf)
+        else:
+            # Create new config if not exists
+            new_conf = models.GameConfiguration(key=key, value=str(val), updated_at=datetime.now())
+            session.add(new_conf)
+            
+    session.commit()
+    return {"success": True}
+
+
+# --- END Gamification V2 ---
+
+
+@app.post("/mobile/route/{route_id}/finish", response_class=JSONResponse)
+async def mobile_route_finish(
+    request: Request, 
+    route_id: int, 
+    session: Session = Depends(get_session)
+):
+    try:
+        user_id = request.session.get("user_id")
+        if not user_id:
+             return JSONResponse({"error": "Unauthorized"}, status_code=401)
+             
+        route = session.get(models.Route, route_id)
+        if not route:
+             return JSONResponse({"error": "Rota não encontrada"}, status_code=404)
+             
+        if route.employee_id != user_id:
+             return JSONResponse({"error": "Não autorizado"}, status_code=403)
+             
+        # Close Route
+        route.end_time = datetime.now().strftime("%H:%M")
+        route.status = "completed"
+        session.add(route)
+        session.commit()
+        
+        return JSONResponse({"success": True})
+    except Exception as e:
+        logger.exception(f"Error finishing route {route_id}: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+class MobileAllocationItem(BaseModel):
+    client_id: int
+    weight: float
+
+class MobileStartPayload(BaseModel):
+    allocations: List[MobileAllocationItem]
+
+@app.post("/mobile/routine/start_with_allocation", response_class=JSONResponse)
+async def mobile_routine_start_with_allocation(
     request: Request,
+    payload: MobileStartPayload,
     session: Session = Depends(get_session)
 ):
     user_id = request.session.get("user_id")
     if not user_id:
-        return RedirectResponse(url="/mobile/login", status_code=303)
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
         
-    employee = session.get(models.Employee, user_id)
-    if not employee:
-        request.session.clear()
-        return RedirectResponse(url="/mobile/login", status_code=303)
-
-    # --- AI / Gamification Logic ---
-    today = datetime.now().date()
-    yesterday = today - timedelta(days=1)
-    if yesterday.weekday() == 6: # If Sunday, check Saturday
-         yesterday = today - timedelta(days=2)
-
-    # Stats: Yesterday's Production
-    # Assuming production is tied to Routes for now (Separacao)
-    # TODO: Make this generic for other roles later
-    stmt = select(func.sum(models.Route.tonnage)).where(
-        models.Route.employee_id == employee.id,
-        models.Route.date == yesterday.strftime("%Y-%m-%d")
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    now_time = datetime.now().strftime("%H:%M")
+    
+    # 1. Start Routine (if not exists)
+    stmt = select(models.EmployeeRoutine).where(
+        models.EmployeeRoutine.employee_id == user_id,
+        models.EmployeeRoutine.date == today_str
     )
-    yesterday_kg = session.exec(stmt).one() or 0.0
-
-    # Build Message
-    ai_message = None
-    if yesterday_kg > 0:
-        target = yesterday_kg * 1.05 # 5% increase challenge
-        ai_message = f"Ontem você fez {yesterday_kg:,.0f}kg. Hoje sua meta é {target:,.0f}kg (+5% 🚀). Se bater o recorde ganha +100 XP!"
-    else:
-        ai_message = "Pronto para superar seus limites hoje? Vamos lá!"
-
-    # Chart Data (Last 7 days)
-    chart_labels = []
-    chart_data = []
-    for i in range(6, -1, -1):
-        d = today - timedelta(days=i)
-        d_str = d.strftime("%Y-%m-%d")
-        chart_labels.append(d.strftime("%d/%m"))
-        
-        daily_sum = session.exec(
-            select(func.sum(models.Route.tonnage))
-            .where(models.Route.employee_id == employee.id, models.Route.date == d_str)
-        ).one() or 0
-        chart_data.append(daily_sum)
-
-    context = {
-        "request": request,
-        "employee": employee,
-        "current_date": datetime.now().strftime("%d/%m/%Y"),
-        "ai_message": ai_message,
-        "chart_labels": json.dumps(chart_labels),
-        "chart_data": json.dumps(chart_data)
-    }
-    return templates.TemplateResponse("mobile/dashboard.html", context)
+    routine = session.exec(stmt).first()
+    
+    if not routine:
+        routine = models.EmployeeRoutine(
+            date=today_str,
+            shift="Manhã", # Placeholder
+            employee_id=user_id,
+            routine="present",
+            start_time=now_time,
+            status="open"
+        )
+        session.add(routine)
+        session.commit()
+    elif routine.status == "closed":
+         # Auto-Reopen routine requested by user
+         routine.status = "open"
+         routine.end_time = None # Clear end time
+         session.add(routine)
+         session.commit()
+         # return JSONResponse({"error": "Rotina já encerrada hoje."}, status_code=400) # Removed limitation
+         
+    # 2. Add Allocations
+    for item in payload.allocations:
+        # Allow checking in without weight (placeholder) or with weight
+        route = models.Route(
+            date=today_str,
+            employee_id=user_id,
+            client_id=item.client_id,
+            tonnage=item.weight,
+            start_time=now_time,
+            status="pending" 
+        )
+        session.add(route)
+            
+    session.commit()
+    
+    return JSONResponse({"success": True})
 
 # --- Helpers ---
 def add_xp_transaction(session: Session, employee_id: int, points: float, type: str, reference_id: str = None, note: str = None):
@@ -461,13 +951,13 @@ async def mobile_auth(request: Request, registration_id: str = Form(...), sessio
 @app.get("/mobile/logout")
 async def mobile_logout(request: Request):
     request.session.clear()
-    return RedirectResponse(url="/mobile/login")
+    return RedirectResponse(url="/mobile/login", status_code=303)
 
 @app.post("/mobile/routine/start", response_class=RedirectResponse)
 async def mobile_routine_start(request: Request, session: Session = Depends(get_session)):
     user = require_login(request)
     if not isinstance(user, dict) or user.get("type") != "employee":
-        return RedirectResponse(url="/mobile/login")
+        return RedirectResponse(url="/mobile/login", status_code=303)
         
     user_id = user.get("id")
     today_str = datetime.now().strftime("%Y-%m-%d")
@@ -506,7 +996,48 @@ async def mobile_routine_start(request: Request, session: Session = Depends(get_
 async def mobile_routine_stop(request: Request, session: Session = Depends(get_session)):
     user = require_login(request)
     if not isinstance(user, dict) or user.get("type") != "employee":
-         return RedirectResponse(url="/mobile/login")
+         return RedirectResponse(url="/mobile/login", status_code=303)
+         
+    user_id = user.get("id")
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    now_time = datetime.now().strftime("%H:%M")
+
+    # 1. Close Routine
+    stmt = select(models.EmployeeRoutine).where(
+        models.EmployeeRoutine.employee_id == user_id,
+        models.EmployeeRoutine.date == today_str
+    )
+    routine = session.exec(stmt).first()
+    
+    if routine and routine.status != "closed":
+        routine.end_time = now_time
+        routine.status = "closed"
+        session.add(routine)
+    
+    # 2. Force Close Pending Routes (Fail-safe as per user request to sync)
+    # User said "must finish also on separacao page", which implies setting status=completed
+    pending_routes = session.exec(
+        select(models.Route).where(
+            models.Route.employee_id == user_id,
+            models.Route.date == today_str,
+            models.Route.status == "pending"
+        )
+    ).all()
+    
+    for r in pending_routes:
+        r.end_time = now_time
+        r.status = "completed"
+        session.add(r)
+        
+    session.commit()
+    
+    # Redirect to Separacao as per last request? Or stay on Dashboard (which will likely redirect or show closed state)?
+    # User: "Quando eu clicar encerrar o dia no botão deve se finalizar e encerrar tambem na pagina /separacao"
+    # User previously said: "Quando confirmar tem que ir para /separacao" for START.
+    # For STOP, usually they log out or see a summary.
+    # I'll stick to redirecting to dashboard or login, but the DATA is synced.
+    
+    return RedirectResponse(url="/mobile/logout", status_code=303)
          
     user_id = user.get("id")
     today_str = datetime.now().strftime("%Y-%m-%d")
@@ -873,9 +1404,9 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
     # 4. Fetch Routes
     query = select(models.Route).where(models.Route.date == date).where(models.Route.shift == shift)
     
-    if is_mobile_user:
-        query = query.where(models.Route.employee_id == current_emp_id)
-        
+    # Remove mobile restriction for viewing routes (User wants to see Team status)
+    # query = query.order_by(models.Route.start_time)
+    
     query = query.order_by(models.Route.start_time)
     db_routes = session.exec(query).all()
 
@@ -894,7 +1425,10 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
             if not end: return 0.0
             e = datetime.strptime(end, "%H:%M")
             diff = (e - s).total_seconds() / 3600 # hours
-            if diff <= 0: return 0.0
+            if diff <= 0: diff = 0.016 # Min 1 minute (1/60 hr)
+            
+            # Kg/h
+            if t <= 0: return 0.0
             return round(t / diff, 2)
         except Exception:
             return 0.0
@@ -992,81 +1526,70 @@ async def add_separacao(
     date: str = Form(...),
     shift: str = Form(...),
     employee_id: int = Form(...),
-    client_ids: str = Form(None), # JSON string of IDs
+    allocations: str = Form(None), # JSON string: [{"client_id": 1, "tonnage": 100}, ...]
+    client_ids: str = Form(None), # Legacy fallback
     client_id: int = Form(None), # Legacy fallback
     start_time: str = Form(...),
     end_time: str = Form(None),
-    tonnage: float = Form(0.0),
+    tonnage: float = Form(0.0), # Legacy fallback
     session: Session = Depends(get_session)
 ):
     require_login(request)
     import json
     
-    # Resolve target clients
-    target_clients = []
-    if client_ids:
+    # 1. Parse Allocations
+    items = []
+    
+    if allocations:
         try:
-            target_clients = json.loads(client_ids)
+            items = json.loads(allocations)
+        except Exception as e:
+            print(f"Error parsing allocations: {e}")
+            items = []
+            
+    # Fallback: Legacy Client IDs (List)
+    elif client_ids:
+        try:
+            c_ids = json.loads(client_ids)
+            # Legacy assumption: 1st client gets tonnage, others get 0
+            for idx, cid in enumerate(c_ids):
+                items.append({
+                    "client_id": cid,
+                    "tonnage": tonnage if idx == 0 else 0.0
+                })
         except:
             pass
-            
-    if not target_clients and client_id:
-        target_clients = [client_id]
-        
-    if not target_clients:
-        # Should not happen with frontend validation, but safety check
+
+    # Fallback: Single Client
+    elif client_id:
+        items.append({
+            "client_id": client_id,
+            "tonnage": tonnage
+        })
+
+    if not items:
+        # Error? Just redirect back
         return RedirectResponse(url=f"/separacao?date={date}&shift={shift}", status_code=status.HTTP_303_SEE_OTHER)
 
-    try:
-        # Split tonnage across clients? Or apply to first? 
-        # Requirement says "Create multiple routes". 
-        # Usually tonnage is entered PER route or total? 
-        # If user enters 1000kg and selects 2 clients, usually it implies 1000kg TOTAL split?
-        # OR 1000kg EACH?
-        # Given the UI "Peso (Kg)" field appears once, let's assume it is TOTAL weight to be split 
-        # OR replicated. Let's replicate for now (most flexible) OR assumes 0 for others.
-        # BETTER UX: Set tonnage for the FIRST one, or 0 for all if not specified.
-        # User request: "Selecionar varios clientes". 
-        # Implementation: Create one route entry per client.
-        # Tonnage: Since the input is singular, we will assign the tonnage to the FIRST route 
-        # and 0 to others, OR split it. 
-        # PROPOSED: Assign 0 to all except the first one? Or assign to each?
-        # Let's assign to EACH if it's likely they picked homogenous pallets. 
-        # SAFETY: Let's assign the tonnage to the first one and 0 to the rest to avoid creating "fake productivity".
+    # 2. Create Routes
+    for item in items:
+        cid = int(item.get('client_id'))
+        weight = float(item.get('tonnage') or 0.0)
         
-        for i, c_id in enumerate(target_clients):
-            # Only apply tonnage to the first one to avoid double counting productivity
-            # unless user intends otherwise. 
-            # Actually, usually multi-sep means a "batch".
-            # Let's assign the full tonnage to the first one 
-            # and 0 to the rest? Or split evenly?
-            # Splitting evenly is safer for "Total" stats.
-            
-            final_tonnage = 0.0
-            if i == 0:
-                final_tonnage = tonnage # Assign all to first for now
-            else:
-                final_tonnage = 0.0 # Others get 0
-            
-            # If we want to split:
-            # final_tonnage = tonnage / len(target_clients) 
-            
-            new_route = models.Route(
-                date=date,
-                shift=shift,
-                employee_id=employee_id,
-                client_id=int(c_id),
-                start_time=start_time,
-                end_time=end_time,
-                tonnage=final_tonnage,
-                status="pending"
-            )
-            session.add(new_route)
-            
-        session.commit()
-    except Exception as e:
-        print(f"Error adding separation: {e}")
-        
+        route = models.Route(
+            date=date,
+            shift=shift,
+            employee_id=employee_id,
+            client_id=cid,
+            start_time=start_time,
+            end_time=end_time if end_time else None,
+            tonnage=weight,
+            type="separation"
+        )
+        session.add(route)
+    
+    session.commit()
+    
     return RedirectResponse(url=f"/separacao?date={date}&shift={shift}", status_code=status.HTTP_303_SEE_OTHER)
 @app.post("/separacao/delete/{route_id}", response_class=RedirectResponse)
 async def delete_separacao(
@@ -1077,10 +1600,11 @@ async def delete_separacao(
     user = require_login(request)
     route = session.get(models.Route, route_id)
     if route:
-        # PERMISSION CHECK: Mobile users cannot delete/edit completed routes
-        if isinstance(user, dict) and user.get("type") == "employee":
-             if route.status == "completed" or (route.end_time and route.end_time != ""):
-                 return RedirectResponse(url=f"/separacao?date={route.date}&shift={route.shift}", status_code=status.HTTP_303_SEE_OTHER)
+        # PERMISSION CHECK: Mobile users can only delete THEIR OWN routes
+        # PERMISSION CHECK: Disabled to allow Managers/Leads (logged as employees) to delete ANY route
+        # if isinstance(user, dict) and user.get("type") == "employee":
+        #      if route.employee_id != user.get("id"):
+        #           return RedirectResponse(url=f"/separacao?date={route.date}&shift={route.shift}", status_code=status.HTTP_303_SEE_OTHER)
         
         date = route.date
         shift = route.shift

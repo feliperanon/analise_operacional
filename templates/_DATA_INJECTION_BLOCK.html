@@ -1,0 +1,29 @@
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // ULTRA-SAFE DATA INJECTION usando tojson
+    window.INITIAL_DATA = {
+        clients: {{ clients | tojson | safe }},
+    activeRoutes: { { active_routes | tojson | safe } },
+    completedRoutes: { { completed_routes | tojson | safe } },
+    dailyXp: { { daily_xp_gain | tojson | safe } },
+    labels: { { chart_labels | tojson | safe } },
+    dataKg: { { chart_daily_kg | tojson | safe } },
+    dataKgh: { { chart_daily_kgh | safe } },
+    bgColors: { { chart_bg_colors | tojson | safe } }
+};
+
+    // Validação e fallback
+    if (!window.INITIAL_DATA || typeof window.INITIAL_DATA !== 'object') {
+        console.error('❌ Dados não carregados!');
+        window.INITIAL_DATA = {
+            clients: [], activeRoutes: [], completedRoutes: [],
+            dailyXp: 0, labels: [], dataKg: [], dataKgh: [], bgColors: []
+        };
+    } else {
+        console.log('✅ Dados OK:', {
+            clientes: window.INITIAL_DATA.clients?.length || 0,
+            rotasAtivas: window.INITIAL_DATA.activeRoutes?.length || 0
+        });
+    }
+</script>

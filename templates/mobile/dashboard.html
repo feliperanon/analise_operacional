@@ -1,244 +1,804 @@
 {% extends "mobile/layout.html" %}
 
 {% block content %}
-<div class="flex flex-col gap-6 animate-fade-in relative z-10">
+<div x-data="dashboardController()" class="flex flex-col min-h-screen pb-20">
 
-    <!-- Header / User Info -->
-    <div class="flex justify-between items-center mb-2">
-        <div>
-            <h2 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
-                Olá, {{ (employee.name or 'Colaborador').split()[0] }}
-            </h2>
-            <p class="text-xs font-medium text-blue-400 tracking-wide">
-                MATRÍCULA: {{ employee.registration_id }}
-            </p>
-        </div>
-        <div
-            class="glass-panel px-4 py-2 flex items-center gap-3 border-yellow-500/20 shadow-[0_4px_12px_rgba(234,179,8,0.1)]">
-            <div class="p-1.5 rounded-full bg-yellow-500/10 text-yellow-400">
-                <i data-lucide="trophy" width="16" height="16"></i>
-            </div>
-            <span class="font-bold text-lg text-yellow-400 font-mono tracking-tight">
-                {{ "{:,.0f}".format(employee.total_xp or 0).replace(",", ".") }}
-            </span>
-        </div>
-    </div>
-
-    <!-- AI Insight / Message -->
-    {% if ai_message %}
-    <div class="glass-panel p-5 border-l-4 border-l-blue-500 relative overflow-hidden group">
-        <div class="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-        <div class="flex gap-4 items-start relative z-10">
-            <div class="p-2 rounded-lg bg-blue-500/20 text-blue-400 shrink-0 mt-0.5">
-                <i data-lucide="bot" width="20" height="20"></i>
-            </div>
-            <div>
-                <p class="text-sm text-slate-200 leading-relaxed font-medium">"{{ ai_message }}"</p>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Main Actions -->
-    <div class="grid grid-cols-2 gap-4">
-        <!-- Start Routine -->
-        <form action="/mobile/api/routine/start" method="POST" class="w-full h-full">
-            <button type="submit"
-                class="glass-panel w-full h-full p-5 flex flex-col items-center justify-center gap-3 hover:bg-green-500/10 hover:border-green-500/40 active:scale-95 transition-all group">
-                <div
-                    class="p-4 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/30 group-hover:shadow-green-500/50 transition-shadow">
-                    <i data-lucide="play" fill="currentColor" class="w-6 h-6"></i>
+    <!-- 1. Header & Gamification Card -->
+    <header
+        class="relative px-6 pt-12 pb-8 bg-gradient-to-b from-slate-900 to-slate-800 rounded-b-[40px] shadow-2xl z-10 border-b border-white/5">
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center space-x-4">
+                <div class="relative">
+                    <div
+                        class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-yellow-400 to-orange-500 p-[2px] shadow-lg shadow-orange-500/20">
+                        <img src="{{ url_for('static', path='badges/' + gamification.level.badge_image) }}"
+                            onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name }}&background=0f172a&color=fff'"
+                            class="w-full h-full rounded-2xl object-cover bg-slate-900" alt="Badge">
+                    </div>
+                    <div class="absolute -bottom-2 -right-2 bg-slate-900 rounded-full p-1 border border-slate-700">
+                        <span
+                            class="flex items-center justify-center w-6 h-6 text-xs font-bold text-yellow-400 bg-yellow-400/10 rounded-full">
+                            {{ gamification.level.level }}
+                        </span>
+                    </div>
                 </div>
-                <span class="font-bold text-green-400 group-hover:text-green-300">Iniciar Dia</span>
-            </button>
-        </form>
-
-        <!-- Stop Routine -->
-        <button onclick="confirmStop()"
-            class="glass-panel w-full h-full p-5 flex flex-col items-center justify-center gap-3 hover:bg-red-500/10 hover:border-red-500/40 active:scale-95 transition-all group">
-            <div
-                class="p-4 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-lg shadow-red-500/30 group-hover:shadow-red-500/50 transition-shadow">
-                <i data-lucide="square" fill="currentColor" class="w-6 h-6"></i>
+                <div>
+                    <h1 class="text-xl font-bold text-white tracking-tight leading-tight">{{ employee.name }}</h1>
+                    <p class="text-sm text-slate-400 font-medium">{{ gamification.level.name }}</p>
+                    {% if gamification.time_in_company < gamification.level.min_months %} <span
+                        class="text-[10px] text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded ml-1">Nível Travado
+                        (Tempo)</span>
+                        {% endif %}
+                </div>
             </div>
-            <span class="font-bold text-red-500 group-hover:text-red-400">Encerrar Dia</span>
+
+            <button @click="logout()"
+                class="p-2 rounded-xl bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white transition-colors backdrop-blur-md">
+                <i data-lucide="log-out" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <div class="relative mt-2">
+            <div class="flex justify-between text-xs font-medium text-slate-400 mb-2">
+                <div class="flex flex-col">
+                    <div class="flex items-center">
+                        <span>XP Total: <span class="text-white">{{ "{:,}".format(gamification.total_xp).replace(",",
+                                ".")
+                                }}</span></span>
+                        <button @click="openHelpModal()"
+                            class="ml-2 w-5 h-5 rounded-full bg-yellow-400/20 text-yellow-400 flex items-center justify-center animate-pulse hover:bg-yellow-400 hover:text-black transition-colors">
+                            <i data-lucide="lightbulb" class="w-3 h-3"></i>
+                        </button>
+                    </div>
+                    <span class="text-[10px] text-green-400 font-bold mt-0.5" x-show="dailyXp > 0">
+                        +<span x-text="dailyXp"></span> hoje
+                    </span>
+                </div>
+
+                {% if gamification.next_level %}
+                <span>Próximo: {{ gamification.next_level.name }} ({{
+                    "{:,}".format(gamification.next_level.min_xp).replace(",", ".") }})</span>
+                {% else %}
+                <span class="text-yellow-400">Nível Máximo! 🏆</span>
+                {% endif %}
+            </div>
+            <div class="h-3 w-full bg-slate-700/50 rounded-full overflow-hidden backdrop-blur-sm border border-white/5">
+                <div class="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 shadow-[0_0_15px_rgba(99,102,241,0.5)] transition-all duration-1000 ease-out relative"
+                    style="width: {{ gamification.progress_percent }}%">
+                    <div class="absolute inset-0 bg-white/20 animate-[shimmer_2s_infinite]"></div>
+                </div>
+            </div>
+            <p class="text-xs text-center text-slate-500 mt-2 italic animate-fade-in">{{ ai_message }}</p>
+        </div>
+    </header>
+
+    <!-- 2. Active Route Card -->
+    <div class="px-6 -mt-6 z-20" x-show="hasActiveRoutes" x-cloak>
+        <template x-for="route in activeRoutes" :key="route.id">
+            <div
+                class="bg-slate-800/90 backdrop-blur-xl rounded-3xl p-5 border border-indigo-500/30 shadow-[0_10px_40px_-10px_rgba(79,70,229,0.3)] animate-slide-up bg-[url('/static/grid.svg')] bg-repeat opacity-95 mb-4">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="p-2.5 bg-indigo-500/20 rounded-xl animate-pulse">
+                            <i data-lucide="truck" class="w-6 h-6 text-indigo-400"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                                Separação Ativa
+                                <span class="w-2 h-2 rounded-full bg-green-500 animate-ping"></span>
+                            </h3>
+                            <p class="text-indigo-300 text-sm font-medium" x-text="route.client_name"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-end justify-between">
+                    <div>
+                        <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Tempo Decorrido
+                        </p>
+                        <p class="text-3xl font-mono font-bold text-white tracking-widest tabular-nums"
+                            x-text="formatTimer(route.start_time)"></p>
+                    </div>
+
+                    <button @click="openStopModal(route)"
+                        class="mb-1 px-6 py-3 bg-red-500 hover:bg-red-600 active:scale-95 text-white rounded-xl font-bold shadow-lg shadow-red-500/25 transition-all flex items-center gap-2 group">
+                        <i data-lucide="square" class="w-4 h-4 fill-current"></i>
+                        <span>Encerrar</span>
+                    </button>
+                </div>
+
+                <div class="mt-4 h-1 w-full bg-slate-700/50 rounded-full overflow-hidden">
+                    <div class="h-full bg-indigo-500 animate-[loading_2s_ease-in-out_infinite] w-1/3 rounded-full">
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- 3. Primary Actions Grid -->
+    <div class="grid grid-cols-2 gap-4 px-6 mt-8">
+        <!-- Start Button -->
+        <button @click="openStartModal()"
+            class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-green-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
+            <div
+                class="absolute inset-0 bg-green-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            </div>
+            <div class="flex flex-col items-center justify-center space-y-3 relative z-10">
+                <div
+                    class="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center group-hover:bg-green-500 group-hover:text-white text-green-500 transition-colors">
+                    <i data-lucide="play" class="w-6 h-6 fill-current"></i>
+                </div>
+                <span class="font-semibold text-slate-200">Iniciar Separação</span>
+            </div>
+        </button>
+
+        <button @click="openEvaluationModal()"
+            class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-blue-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
+            <div
+                class="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            </div>
+            <div class="flex flex-col items-center justify-center space-y-3 relative z-10">
+                <div
+                    class="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white text-blue-500 transition-colors">
+                    <i data-lucide="star" class="w-6 h-6"></i>
+                </div>
+                <span class="font-semibold text-slate-200">Avaliação</span>
+            </div>
+        </button>
+
+        <button @click="scrollToHistory()"
+            class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-purple-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
+            <div
+                class="absolute inset-0 bg-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            </div>
+            <div class="flex flex-col items-center justify-center space-y-3 relative z-10">
+                <div
+                    class="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center group-hover:bg-purple-500 group-hover:text-white text-purple-500 transition-colors">
+                    <i data-lucide="history" class="w-6 h-6"></i>
+                </div>
+                <span class="font-semibold text-slate-200">Histórico</span>
+            </div>
+        </button>
+
+        <button @click="openEndDayModal()"
+            class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-red-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
+            <div
+                class="absolute inset-0 bg-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            </div>
+            <div class="flex flex-col items-center justify-center space-y-3 relative z-10">
+                <div
+                    class="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center group-hover:bg-red-500 group-hover:text-white text-red-500 transition-colors">
+                    <i data-lucide="power" class="w-6 h-6"></i>
+                </div>
+                <span class="font-semibold text-slate-200">Encerrar Dia</span>
+            </div>
         </button>
     </div>
 
-    <!-- Module Links -->
-    <div class="glass-panel p-5">
-        <h3 class="text-[10px] font-bold text-slate-500 mb-4 uppercase tracking-[0.2em]">Módulos Operacionais</h3>
-        <div class="grid grid-cols-2 gap-4">
+    <!-- 4. Performance Chart -->
+    <div class="px-6 mt-8" x-show="labels.length > 0">
+        <h2 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
+            <i data-lucide="bar-chart-2" class="w-5 h-5 text-blue-400"></i>
+            Sua Performance Diária
+        </h2>
+        <div class="bg-slate-800/50 border border-white/5 p-4 rounded-3xl shadow-lg h-64 w-full">
+            <canvas id="performanceChart"></canvas>
+        </div>
+    </div>
 
-            <!-- Separacao -->
-            <a href="/separacao?mobile=1"
-                class="group relative flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50 hover:bg-blue-600/10 hover:border-blue-500/40 transition-all duration-300">
-                <div
-                    class="p-3 mb-2 rounded-xl bg-blue-500/10 text-blue-400 group-hover:scale-110 transition-transform">
-                    <i data-lucide="package" width="22" height="22"></i>
-                </div>
-                <span class="text-sm font-semibold text-slate-300 group-hover:text-white">Separação</span>
-            </a>
-
-            <!-- Selecao (Disabled) -->
+    <!-- 5. XP History (New) -->
+    <div class="px-6 mt-8">
+        <h2 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
+            <i data-lucide="scroll" class="w-5 h-5 text-yellow-400"></i>
+            Extrato de XP
+        </h2>
+        <div class="bg-slate-800/50 rounded-3xl border border-white/5 overflow-hidden">
+            {% for item in xp_history %}
             <div
-                class="relative flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-800/20 border border-slate-700/30 opacity-50 grayscale cursor-not-allowed">
-                <div class="p-3 mb-2 rounded-xl bg-slate-700/30 text-slate-500">
-                    <i data-lucide="search" width="22" height="22"></i>
+                class="p-4 border-b border-white/5 flex items-center justify-between hover:bg-white/5 transition-colors last:border-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-slate-700/50 flex items-center justify-center text-slate-300">
+                        {% if item.type == 'daily_auto' %}
+                        <i data-lucide="truck" class="w-5 h-5"></i>
+                        {% elif 'penalty' in item.type or item.amount < 0 %} <i data-lucide="alert-circle"
+                            class="w-5 h-5 text-red-400"></i>
+                            {% else %}
+                            <i data-lucide="star" class="w-5 h-5 text-yellow-400"></i>
+                            {% endif %}
+                    </div>
+                    <div>
+                        <p class="text-sm font-bold text-white">{{ item.reason }}</p>
+                        <p class="text-xs text-slate-400" x-show="'{{ item.details }}' !== ''">{{ item.details }}</p>
+                    </div>
                 </div>
-                <span class="text-sm font-semibold text-slate-500">Seleção</span>
+                <div class="text-right">
+                    <span class="text-sm font-bold {{ 'text-green-400' if item.amount > 0 else 'text-red-400' }}">
+                        {{ "+" if item.amount > 0 else "" }}{{ item.amount }} XP
+                    </span>
+                </div>
+            </div>
+            {% else %}
+            <div class="p-6 text-center text-slate-500 text-sm">Nenhum registro recente</div>
+            {% endfor %}
+
+            <div class="bg-slate-900/50 p-3 text-center">
+                <button class="text-xs text-indigo-400 font-bold hover:text-indigo-300 uppercase tracking-wider">Ver
+                    Histórico Completo</button>
             </div>
         </div>
     </div>
 
-    <!-- Stats Chart -->
-    <div class="glass-panel p-6 relative overflow-hidden">
-        <div class="flex justify-between items-end mb-4 relative z-10">
-            <div>
-                <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Performance</h3>
-                <p class="text-xl font-bold text-white mt-1">Últimos 7 Dias</p>
-            </div>
-            <!-- Trend Indicator (Fake for visual) -->
-            <div class="text-xs font-medium text-emerald-400 flex items-center bg-emerald-500/10 px-2 py-1 rounded-md">
-                <i data-lucide="trending-up" width="12" class="mr-1"></i> Produtivo
-            </div>
-        </div>
 
-        <div class="relative z-10 h-48 w-full">
-            <canvas id="productivityChart"></canvas>
-        </div>
+    <!-- 6. Recent History (Completed Routes) -->
+    <div id="history-section" class="px-6 mt-6 mb-24">
+        <h2 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
+            <i data-lucide="check-circle" class="w-5 h-5 text-green-400"></i>
+            Concluídos Hoje
+        </h2>
 
-        <!-- Background Decor -->
-        <div class="absolute -bottom-10 -right-10 opacity-5 pointer-events-none">
-            <i data-lucide="bar-chart-2" width="150" height="150" class="text-white"></i>
+        <div class="space-y-3">
+            <template x-if="completedRoutes.length === 0">
+                <div class="text-center py-8 bg-slate-800/30 rounded-3xl border border-white/5 border-dashed">
+                    <p class="text-slate-500 text-sm">Nenhuma separação concluída hoje.</p>
+                </div>
+            </template>
+
+            <template x-for="route in completedRoutes" :key="route.id">
+                <div
+                    class="bg-slate-800/50 border border-slate-700/50 p-4 rounded-2xl flex justify-between items-center group hover:bg-slate-800 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-slate-400 font-bold text-xs group-hover:bg-green-500/20 group-hover:text-green-500 transition-colors">
+                            <i data-lucide="check" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <p class="text-white font-semibold text-sm" x-text="route.client_name"></p>
+                            <p class="text-slate-400 text-xs" x-text="route.duration"></p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-white font-bold text-sm" x-text="route.tonnage + ' kg'"></p>
+                        <p class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 inline-block mt-1 border border-slate-600"
+                            x-text="route.performance"></p>
+                    </div>
+                </div>
+            </template>
         </div>
     </div>
 
-    <!-- Logout -->
-    <div class="flex justify-center mt-4 pb-8">
-        <a href="/mobile/logout"
-            class="group flex items-center gap-2 px-6 py-2 rounded-full border border-slate-700/50 text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 hover:border-slate-600 transition-all">
-            <i data-lucide="log-out" width="14" class="group-hover:-translate-x-0.5 transition-transform"></i>
-            Sair da Conta
-        </a>
+    <!-- Modals -->
+
+    <!-- Start Modal Flow (Queue System) -->
+    <div x-show="showStartModal"
+        class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm"
+        x-transition.opacity x-cloak>
+        <div class="bg-slate-900 w-full max-w-md rounded-t-[40px] sm:rounded-3xl border-t border-white/10 p-6 pb-12 shadow-2xl h-[90vh] sm:h-auto flex flex-col relative"
+            @click.away="showStartModal = false" x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="translate-y-full opacity-0" x-transition:enter-end="translate-y-0 opacity-100">
+
+            <!-- Sticky Header of Modal -->
+            <div class="flex justify-between items-center mb-6 flex-shrink-0">
+                <h3 class="text-2xl font-bold text-white">Nova Separação</h3>
+                <button @click="showStartModal = false"
+                    class="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <!-- Step 1: Search & Add -->
+            <div class="space-y-4 flex-1 flex flex-col overflow-hidden">
+                <div class="relative flex-shrink-0">
+                    <i data-lucide="search" class="absolute left-4 top-3.5 w-5 h-5 text-slate-500"></i>
+                    <input type="text" x-model="searchClient" placeholder="Digite o nome do cliente..."
+                        class="w-full bg-slate-800 border border-slate-700 rounded-2xl pl-12 pr-4 py-4 text-white text-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none shadow-inner">
+                </div>
+
+                <!-- Search Results Area -->
+                <div class="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1" x-show="searchClient.length > 0">
+                    <p class="text-xs text-slate-500 font-medium px-2 py-1 uppercase tracking-wider">Resultados da Busca
+                    </p>
+
+                    <template x-for="client in filteredClients" :key="client.id">
+                        <button @click="openAddWeightModal(client)"
+                            class="w-full flex items-center justify-between p-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 rounded-2xl transition-all group active:scale-[0.98]">
+                            <span class="text-slate-200 group-hover:text-white font-medium text-lg text-left"
+                                x-text="client.name"></span>
+                            <div class="bg-green-500/10 p-2 rounded-full group-hover:bg-green-500 transition-colors">
+                                <i data-lucide="plus" class="w-5 h-5 text-green-500 group-hover:text-white"></i>
+                            </div>
+                        </button>
+                    </template>
+                    <div x-show="filteredClients.length === 0" class="text-center py-4 text-slate-500">
+                        Nenhum cliente encontrado.
+                    </div>
+                </div>
+
+                <!-- Step 2: Queue List (Always visible if items exist) -->
+                <div class="mt-4 flex-shrink-0 bg-slate-800/30 rounded-2xl p-4 border border-white/5"
+                    x-show="queue.length > 0">
+                    <div class="flex justify-between items-center mb-3">
+                        <p class="text-xs text-slate-400 uppercase tracking-wider font-bold">Clientes Selecionados</p>
+                        <span class="bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full"
+                            x-text="queue.length"></span>
+                    </div>
+
+                    <div class="max-h-32 overflow-y-auto space-y-2 mb-4 pr-1 custom-scrollbar">
+                        <template x-for="(item, index) in queue" :key="index">
+                            <div
+                                class="flex items-center justify-between bg-slate-900 rounded-xl p-3 border border-slate-700">
+                                <div>
+                                    <p class="text-white font-medium text-sm truncate max-w-[150px]" x-text="item.name">
+                                    </p>
+                                    <p class="text-slate-400 text-xs"
+                                        x-text="item.weight > 0 ? item.weight + ' Kg' : 'Sem peso'"></p>
+                                </div>
+                                <button @click="removeFromQueue(index)" class="text-red-400 hover:text-red-300 p-1">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+
+                    <button @click="startBatch()"
+                        class="w-full py-4 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold text-lg shadow-lg shadow-green-500/20 active:scale-[0.98] transition-all flex justify-center items-center gap-2">
+                        <span>Iniciar Separação</span>
+                        <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Inline "Add Weight" Overlay (Absolute positioned over the list) -->
+            <div x-show="showWeightInput" x-transition.opacity
+                class="absolute inset-0 bg-slate-900/95 backdrop-blur-md z-20 flex flex-col items-center justify-center p-6 rounded-t-[40px] sm:rounded-3xl">
+
+                <h4 class="text-white text-lg font-bold mb-1 text-center">Peso Planejado</h4>
+                <p class="text-slate-400 text-sm mb-6 text-center" x-text="tempClient?.name"></p>
+
+                <div class="w-full max-w-[200px] relative mb-8">
+                    <input type="number" x-model="tempWeight" x-ref="weightInput"
+                        class="w-full bg-transparent border-b-2 border-green-500 text-center text-4xl font-bold text-white py-2 focus:outline-none placeholder-slate-700"
+                        placeholder="0">
+                    <span class="absolute right-0 bottom-4 text-slate-500 font-medium">Kg</span>
+                </div>
+
+                <div class="flex gap-3 w-full">
+                    <button @click="showWeightInput = false"
+                        class="flex-1 py-3 bg-slate-800 text-slate-300 rounded-xl font-medium">Cancelar</button>
+                    <button @click="confirmAddToQueue()"
+                        class="flex-1 py-3 bg-green-500 text-white rounded-xl font-bold shadow-lg shadow-green-500/20">Adicionar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stop Modal -->
+    <div x-show="showStopModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+        x-transition.opacity x-cloak>
+        <div class="bg-slate-900 w-full max-w-sm rounded-3xl border border-white/10 p-6 shadow-2xl"
+            @click.away="showStopModal = false">
+
+            <div class="text-center mb-6">
+                <div
+                    class="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
+                    <i data-lucide="check-square" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-xl font-bold text-white">Finalizar Separação</h3>
+                <p class="text-slate-400 text-sm mt-1" x-text="selectedRoute?.client_name"></p>
+            </div>
+
+            <div class="flex gap-4">
+                <button @click="showStopModal = false"
+                    class="flex-1 py-3 rounded-xl bg-slate-800 text-slate-300 font-medium hover:bg-slate-700">
+                    Cancelar
+                </button>
+                <button @click="confirmStop()"
+                    class="flex-1 py-3 rounded-xl bg-green-500 text-white font-bold hover:bg-green-600 shadow-lg shadow-green-500/20">
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- End Day Modal -->
+    <div x-show="showEndDayModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
+        x-transition.opacity x-cloak>
+        <div
+            class="bg-slate-900 w-full max-w-sm rounded-3xl border border-red-500/30 p-8 shadow-2xl text-center relative overflow-hidden">
+            <!-- Warning Glow -->
+            <div class="absolute -top-10 -left-10 w-32 h-32 bg-red-600/20 blur-[50px] rounded-full pointer-events-none">
+            </div>
+
+            <i data-lucide="alert-triangle" class="w-12 h-12 text-red-500 mx-auto mb-4 animate-bounce"></i>
+
+            <h3 class="text-2xl font-bold text-white mb-2">Encerrar Expediente?</h3>
+            <p class="text-slate-400 text-sm mb-8">
+                Isso fechará todas as rotas pendentes e registrará seu horário de saída.
+            </p>
+
+            <div class="space-y-3">
+                <button @click="endDay()"
+                    class="w-full py-4 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-lg shadow-lg shadow-red-500/30 transition-all active:scale-95 flex items-center justify-center gap-2">
+                    <i data-lucide="power" class="w-5 h-5 fill-current"></i>
+                    Encerrar Agora
+                </button>
+
+                <button @click="showEndDayModal = false"
+                    class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition-colors">
+                    Voltar ao Trabalho
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Evaluation Modal (Placeholder) -->
+    <div x-show="showEvaluation"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+        x-transition.opacity x-cloak>
+        <div class="bg-slate-900 w-full max-w-sm rounded-3xl border border-blue-500/30 p-8 shadow-2xl text-center"
+            @click.away="showEvaluation = false">
+
+            <div
+                class="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-400">
+                <i data-lucide="construction" class="w-8 h-8"></i>
+            </div>
+
+            <h3 class="text-xl font-bold text-white mb-2">Em Breve</h3>
+            <p class="text-slate-400 text-sm mb-6">
+                O módulo de avaliação de desempenho estará disponível na próxima atualização.
+            </p>
+
+            <button @click="showEvaluation = false"
+                class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold">
+                Entendi
+            </button>
+        </div>
     </div>
 
 </div>
 
-<!-- Confirmation Modal for Stop -->
-<dialog id="stopModal"
-    class="glass-panel p-0 backdrop:bg-black/90 open:animate-fade-in mx-auto mt-auto mb-4 w-[90%] max-w-[400px] rounded-3xl shadow-2xl shadow-black/80 border border-slate-700 overflow-hidden">
+<!-- XP Explanation Modal -->
+<div x-show="showHelpModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
+    x-transition.opacity x-cloak>
+    <div class="bg-slate-900 w-full max-w-sm rounded-[32px] border border-yellow-500/20 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+        @click.away="showHelpModal = false">
 
-    <div class="bg-gradient-to-b from-slate-800/80 to-slate-900/90 p-8 flex flex-col items-center text-center">
-        <div class="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-6 ring-4 ring-red-500/5">
-            <i data-lucide="power" width="32" height="32" class="text-red-500"></i>
+        <!-- Header -->
+        <div class="bg-yellow-500/10 p-6 text-center border-b border-yellow-500/10 shrink-0">
+            <div
+                class="w-16 h-16 bg-gradient-to-tr from-yellow-400 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-yellow-500/20">
+                <i data-lucide="lightbulb" class="w-8 h-8 text-white"></i>
+            </div>
+            <h3 class="text-xl font-bold text-white">Segredos do XP 🤫</h3>
+            <p class="text-slate-400 text-xs">Entenda como subir de nível mais rápido!</p>
         </div>
 
-        <h3 class="text-2xl font-bold text-white mb-2">Encerrar o Dia?</h3>
-        <p class="text-sm text-slate-400 leading-relaxed mb-8">
-            Ao confirmar, sua rotina será fechada e você não poderá registrar novas atividades hoje.
-        </p>
+        <!-- Content -->
+        <div class="p-6 overflow-y-auto space-y-4 custom-scrollbar">
 
-        <div class="grid grid-cols-2 gap-3 w-full">
-            <button onclick="document.getElementById('stopModal').close()"
-                class="py-3.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 font-semibold hover:bg-slate-700 active:scale-95 transition-all">
-                Voltar
+            <!-- Cards -->
+            <div class="bg-slate-800/50 p-4 rounded-2xl border border-white/5 relative overflow-hidden group">
+                <div
+                    class="absolute right-0 top-0 w-20 h-20 bg-blue-500/10 rounded-bl-[100px] transition-transform group-hover:scale-110">
+                </div>
+                <div class="relative z-10">
+                    <h4 class="text-blue-400 font-bold text-sm mb-1 flex items-center gap-2">
+                        <i data-lucide="truck" class="w-4 h-4"></i> Produção
+                    </h4>
+                    <p class="text-slate-300 text-xs leading-relaxed">
+                        <strong class="text-white">Peso + Velocidade = XP</strong><br>
+                        Não adianta só pegar peso!
+                        <span class="block mt-1 pl-2 border-l-2 border-blue-500/30 text-slate-400 italic">
+                            1000kg em 30min = <span class="text-green-400">Muito XP</span> 🚀<br>
+                            1000kg em 2h = <span class="text-red-400">Pouco XP</span> 🐢
+                        </span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-800/50 p-4 rounded-2xl border border-white/5 relative overflow-hidden group">
+                <div
+                    class="absolute right-0 top-0 w-20 h-20 bg-red-500/10 rounded-bl-[100px] transition-transform group-hover:scale-110">
+                </div>
+                <div class="relative z-10">
+                    <h4 class="text-red-400 font-bold text-sm mb-1 flex items-center gap-2">
+                        <i data-lucide="alert-triangle" class="w-4 h-4"></i> Cuidado com Faltas!
+                    </h4>
+                    <p class="text-slate-300 text-xs leading-relaxed">
+                        Faltas injustificadas tiram pontos na hora!
+                        Isso pode <strong class="text-red-400">travar seu nível</strong> e diminuir seus ganhos.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-800/50 p-4 rounded-2xl border border-white/5 relative overflow-hidden group">
+                <div
+                    class="absolute right-0 top-0 w-20 h-20 bg-purple-500/10 rounded-bl-[100px] transition-transform group-hover:scale-110">
+                </div>
+                <div class="relative z-10">
+                    <h4 class="text-purple-400 font-bold text-sm mb-1 flex items-center gap-2">
+                        <i data-lucide="crown" class="w-4 h-4"></i> Tempo de Casa
+                    </h4>
+                    <p class="text-slate-300 text-xs leading-relaxed">
+                        Sua lealdade vale ouro. Você ganha um <strong class="text-purple-400">bônus fixo diário</strong>
+                        por cada ano completo de empresa.
+                    </p>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="p-4 border-t border-white/5 shrink-0">
+            <button @click="showHelpModal = false"
+                class="w-full py-3 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-500/20 transition-all active:scale-95">
+                Saquei! 👍
             </button>
-            <form action="/mobile/api/routine/stop" method="POST" class="w-full">
-                <button type="submit"
-                    class="w-full py-3.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold shadow-lg shadow-red-900/40 active:scale-95 transition-all">
-                    Confirmar
-                </button>
-            </form>
         </div>
     </div>
-</dialog>
+</div>
 
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    function confirmStop() {
-        document.getElementById('stopModal').showModal();
-    }
-
-    document.addEventListener("DOMContentLoaded", function () {
-        const ctx = document.getElementById('productivityChart');
-        if (ctx) {
-            // Backend sends raw JSON strings (json.dumps), so we inject them directly
-            // No need for | tojson filter because the backend already sent a JSON string!
-            const rawLabels = {{ chart_labels | safe
-        }
+    // ============================================
+    // INJEÇÃO DE DADOS USANDO TOJSON (ULTRA-SAFE)
+    // ============================================
+    window.INITIAL_DATA = {
+        clients: {{ clients | tojson | safe }},
+    activeRoutes: { { active_routes | tojson | safe } },
+    completedRoutes: { { completed_routes | tojson | safe } },
+    dailyXp: { { daily_xp_gain | tojson | safe } },
+    labels: { { chart_labels | tojson | safe } },
+    dataKg: { { chart_daily_kg | tojson | safe } },
+    dataKgh: { { chart_daily_kgh | tojson | safe } },
+    bgColors: { { chart_bg_colors | tojson | safe } }
     };
-    const rawData = {{ chart_data | safe }};
 
-    new Chart(ctx.getContext('2d'), {
-        type: 'line',
-        data: {
-            labels: rawLabels,
-            datasets: [{
-                label: 'Kg',
-                data: rawData,
-                borderColor: '#60a5fa', // Blue-400
-                backgroundColor: (context) => {
-                    const ctx = context.chart.ctx;
-                    const gradient = ctx.createLinearGradient(0, 0, 0, 200);
-                    gradient.addColorStop(0, 'rgba(96, 165, 250, 0.3)');
-                    gradient.addColorStop(1, 'rgba(96, 165, 250, 0.0)');
-                    return gradient;
-                },
-                borderWidth: 3,
-                pointBackgroundColor: '#1e293b',
-                pointBorderColor: '#60a5fa',
-                pointBorderWidth: 2,
-                fill: true,
-                tension: 0.4,
-                pointRadius: 4,
-                pointHoverRadius: 6
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                    titleColor: '#e2e8f0',
-                    bodyColor: '#fff',
-                    borderColor: 'rgba(255,255,255,0.1)',
-                    borderWidth: 1,
-                    padding: 10,
-                    displayColors: false,
-                    callbacks: {
-                        label: function (context) {
-                            return context.parsed.y + ' kg';
+    // Validação e fallback
+    if (!window.INITIAL_DATA || typeof window.INITIAL_DATA !== 'object') {
+        console.error('❌ Erro ao carregar dados!');
+        window.INITIAL_DATA = {
+            clients: [], activeRoutes: [], completedRoutes: [],
+            dailyXp: 0, labels: [], dataKg: [], dataKgh: [], bgColors: []
+        };
+    } else {
+        console.log('✅ Dados carregados:', {
+            clientes: (window.INITIAL_DATA.clients || []).length,
+            rotasAtivas: (window.INITIAL_DATA.activeRoutes || []).length,
+            rotasConcluidas: (window.INITIAL_DATA.completedRoutes || []).length,
+            xpHoje: window.INITIAL_DATA.dailyXp || 0
+        });
+    }
+</script>
+<script>
+    function dashboardController() {
+        console.log("Dashboard Controller V3 Loaded");
+        return {
+            showStartModal: false,
+            showStopModal: false,
+            showEndDayModal: false,
+            showEvaluation: false,
+            showHelpModal: false,
+
+            searchClient: '',
+            queue: [], // Array of { id, name, weight }
+
+            // Temp vars for adding
+            showWeightInput: false,
+            tempClient: null,
+            tempWeight: '',
+
+            // Data from Global Initial Data
+            clients: window.INITIAL_DATA.clients || [],
+            activeRoutes: window.INITIAL_DATA.activeRoutes || [],
+            completedRoutes: window.INITIAL_DATA.completedRoutes || [],
+            dailyXp: window.INITIAL_DATA.dailyXp || 0,
+
+            // Charts Data
+            labels: window.INITIAL_DATA.labels || [],
+            dataKg: window.INITIAL_DATA.dataKg || [],
+            dataKgh: window.INITIAL_DATA.dataKgh || [],
+            bgColors: window.INITIAL_DATA.bgColors || [],
+
+            selectedRoute: null,
+
+            get filteredClients() {
+                if (this.searchClient === '') return []; // Only show on search
+                return this.clients.filter(client =>
+                    client.name.toLowerCase().includes(this.searchClient.toLowerCase())
+                ).slice(0, 10); // Limit results
+            },
+
+            get hasActiveRoutes() {
+                return this.activeRoutes.length > 0;
+            },
+
+            init() {
+                console.log("Dashboard Loaded");
+                lucide.createIcons();
+                if (this.labels.length > 0) {
+                    this.initChart();
+                }
+
+                // Timer tick
+                setInterval(() => {
+                    this.tick = Date.now();
+                }, 1000);
+            },
+
+            tick: Date.now(),
+
+            formatTimer(startTimeStr) {
+                // Trigger reactivity on tick
+                let _ = this.tick;
+                if (!startTimeStr) return "00:00:00";
+
+                let parts = startTimeStr.split(':');
+                if (parts.length < 2) return "--:--";
+
+                let h = parseInt(parts[0]);
+                let m = parseInt(parts[1]);
+                if (isNaN(h) || isNaN(m)) return "--:--";
+
+                let now = new Date();
+                let start = new Date();
+                start.setHours(h, m, 0, 0);
+
+                // Handle day crossing if needed
+                if (start > now) {
+                    start.setDate(start.getDate() - 1);
+                }
+
+                let diff = now - start;
+                if (diff < 0) diff = 0;
+                return new Date(diff).toISOString().substr(11, 8);
+            },
+
+            logout() {
+                window.location.href = "/mobile/logout";
+            },
+
+            // Navigation
+            scrollToHistory() {
+                document.getElementById('history-section').scrollIntoView({ behavior: 'smooth' });
+            },
+
+            openEvaluationModal() {
+                this.showEvaluation = true;
+            },
+
+            // Queue Logic
+            openStartModal() {
+                this.showStartModal = true;
+                this.searchClient = '';
+                this.queue = [];
+                this.showWeightInput = false;
+            },
+
+            openAddWeightModal(client) {
+                this.tempClient = client;
+                this.tempWeight = '';
+                this.showWeightInput = true;
+                // Focus hack
+                setTimeout(() => this.$refs.weightInput.focus(), 100);
+            },
+
+            confirmAddToQueue() {
+                if (!this.tempClient) return;
+                let weight = parseFloat(this.tempWeight);
+                if (isNaN(weight)) weight = 0;
+                if (!this.queue.find(i => i.id === this.tempClient.id)) {
+                    this.queue.push({ id: this.tempClient.id, name: this.tempClient.name, weight: weight });
+                }
+                this.showWeightInput = false;
+                this.searchClient = '';
+                this.tempClient = null;
+            },
+
+            removeFromQueue(index) {
+                this.queue.splice(index, 1);
+            },
+
+            startBatch() {
+                // REWRITE OF START BATCH
+                if (this.queue.length === 0) return;
+
+                let allocations = [];
+                for (let i = 0; i < this.queue.length; i++) {
+                    allocations.push({
+                        client_id: this.queue[i].id,
+                        weight: this.queue[i].weight
+                    });
+                }
+
+                fetch('/mobile/routine/start_with_allocation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ allocations: allocations })
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            window.location.reload();
+                        } else {
+                            alert("Erro: " + (data.error || "Falha ao iniciar"));
+                        }
+                    })
+                    .catch(err => alert("Erro de conexão"));
+            },
+
+            openStopModal(route) {
+                this.selectedRoute = route;
+                this.showStopModal = true;
+            },
+
+            confirmStop() {
+                if (!this.selectedRoute) return;
+
+                fetch(`/mobile/route/${this.selectedRoute.id}/finish`, {
+                    method: 'POST'
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            window.location.reload();
+                        } else {
+                            alert("Erro: " + data.error);
+                        }
+                    });
+            },
+
+            openEndDayModal() {
+                this.showEndDayModal = true;
+            },
+
+            openHelpModal() {
+                this.showHelpModal = true;
+            },
+
+            endDay() {
+                fetch('/mobile/routine/stop', { method: 'POST' })
+                    .then(() => {
+                        window.location.href = '/mobile/login';
+                    });
+            },
+
+            initChart() {
+                const ctx = document.getElementById('performanceChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: this.labels,
+                        datasets: [{
+                            label: 'Produtividade (Kg/h)',
+                            data: this.dataKgh,
+                            backgroundColor: this.bgColors,
+                            borderRadius: 6,
+                            barThickness: 12
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: {
+                                grid: { color: 'rgba(255,255,255,0.05)' },
+                                ticks: { color: '#94a3b8', font: { size: 10 } }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#ffffff', font: { size: 10 } } /* Forced White Text */
+                            }
                         }
                     }
-                }
-            },
-            scales: {
-                y: {
-                    display: false, // Cleaner look
-                    beginAtZero: true
-                },
-                x: {
-                    display: true,
-                    grid: { display: false },
-                    ticks: {
-                        color: '#64748b',
-                        font: { size: 10, family: "'Inter', sans-serif" }
-                    }
-                }
-            },
-            layout: { padding: { top: 10, bottom: 0, left: -5, right: 0 } },
-            interaction: {
-                mode: 'index',
-                intersect: false
+                });
             }
         }
-    });
-        }
-    });
+    }
 </script>
 {% endblock %}
