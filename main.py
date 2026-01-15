@@ -210,15 +210,28 @@ def sync_sectors_on_startup():
 async def lifespan(app: FastAPI):
     create_db_and_tables()
     try:
+        from database import engine
+        print(f"🌍 DATABASE URL DETECTADA: {engine.url}")
         sync_sectors_on_startup()
     except Exception as e:
         print(f"❌ Erro ao iniciar sync: {e}")
     yield
 
+    yield
+
 app = FastAPI(title="Análise Operacional", version="2.0.0", lifespan=lifespan)
 
-# Add Session Middleware
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+# Determine if running in Production (Render sets RENDER=true)
+IS_PROD = os.environ.get("RENDER", "false").lower() == "true"
+
+# Add Session Middleware with Production Settings
+app.add_middleware(
+    SessionMiddleware, 
+    secret_key=SECRET_KEY,
+    https_only=IS_PROD, # True only in production to work on localhost too
+    same_site="lax",    # Best for normal top-level navigation
+    max_age=86400 * 30  # 30 Days persistence
+)
 
 # --- Middleware: Anti-Cache (Force Fresh Data) ---
 @app.middleware("http")
