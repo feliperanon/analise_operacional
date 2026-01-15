@@ -18,7 +18,7 @@ try:
         else:
             print(f"✅ Encontrados {len(employees)} colaboradores (amostra):")
             for emp in employees:
-                print(f"   - {emp.name} (Matrícula: {emp.registration_id}) Status: {emp.status}")
+                print(f"   - {emp.name} | Mat: {emp.registration_id} | Status: {emp.status} | ReplacedBy: {emp.replaced_by}")
 
 except Exception as e:
     print(f"❌ Erro de conexão: {e}")
