@@ -659,6 +659,71 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
         print(error_msg) # Log to console
         return JSONResponse(status_code=500, content={"error": "Internal Server Error", "details": str(e), "trace": traceback.format_exc()})
 
+# --- Conquistas Route ---
+@app.get("/mobile/achievements", response_class=HTMLResponse)
+async def mobile_achievements(request: Request, current_user: dict = Depends(get_current_user), session: Session = Depends(get_session)):
+    try:
+        user_id = current_user.get("id")
+        if not user_id: return RedirectResponse(url="/mobile/login", status_code=303)
+        employee = session.get(models.Employee, user_id)
+        if not employee: return RedirectResponse(url="/mobile/login", status_code=303)
+
+        # Gamification Data
+        from gamification_engine import get_employee_progress
+        progress_data = get_employee_progress(session, employee.id)
+        
+        # Achievements Data
+        all_achievements = session.exec(select(models.GameAchievement).order_by(models.GameAchievement.xp_reward)).all()
+        my_achievements = session.exec(select(models.EmployeeAchievement).where(models.EmployeeAchievement.employee_id == employee.id)).all()
+        
+        my_unlocked_ids = {a.achievement_id: a.earned_at for a in my_achievements}
+        
+        achievements_list = []
+        unlocked_count = 0
+        total_bonus_xp = 0
+        
+        for ach in all_achievements:
+            is_unlocked = ach.id in my_unlocked_ids
+            if is_unlocked:
+                unlocked_count += 1
+                total_bonus_xp += ach.xp_reward
+                
+            achievements_list.append({
+                "name": ach.name,
+                "description": ach.description,
+                "xp_reward": ach.xp_reward,
+                "icon": ach.icon,
+                "unlocked": is_unlocked,
+                "earned_at": my_unlocked_ids.get(ach.id)
+            })
+            
+        # Full XP History (Limit 100)
+        xp_history_full = session.exec(select(models.GameXPTransaction)
+            .where(models.GameXPTransaction.employee_id == employee.id)
+            .where(models.GameXPTransaction.status == "confirmed")
+            .order_by(desc(models.GameXPTransaction.created_at))
+            .limit(100)
+        ).all()
+
+        return templates.TemplateResponse("mobile/achievements.html", {
+            "request": request,
+            "employee": employee,
+            "gamification": {
+                "level": progress_data["level"],
+                "next_level": progress_data["next_level"],
+                "total_xp": int(employee.total_xp),
+                "progress_percent": progress_data["progress"]
+            },
+            "achievements": achievements_list,
+            "unlocked_count": unlocked_count,
+            "total_achievements": len(all_achievements),
+            "total_bonus_xp": total_bonus_xp,
+            "xp_history_full": xp_history_full
+        })
+    except Exception as e:
+        print(traceback.format_exc())
+        return RedirectResponse(url="/mobile/dashboard", status_code=303)
+
 # --- Gamification V2 API & Admin ---
 from gamification_engine import calculate_daily_xp, confirm_pending_xp
 from models import GameLevel, GameXPTransaction, GameAchievement
@@ -781,11 +846,12 @@ async def admin_game_settings(request: Request, session: Session = Depends(get_s
         # Convert list to dict for frontend
         config_dict = {c.key: c.value for c in configs}
         
-        import json
         return templates.TemplateResponse("admin_game_settings.html", {
             "request": request,
             "config_json": json.dumps(config_dict)
         })
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -3898,21 +3964,24 @@ async def routine_report(
         # Prepare People List for Report
         people_list = []
         
-        # Helper to get daily entry
-        def get_daily_status(reg_id):
-            return log.get(str(reg_id), {})
-            
+        # Helper for Shift Normalization (Defined earlier for use in filtering)
+        def normalize_str(s):
+            if not s: return ""
+            return unicodedata.normalize('NFD', str(s)).encode('ascii', 'ignore').decode('utf-8').lower().strip()
+
+        target_shift_norm = normalize_str(shift)
+
+        # Track processed IDs to merge log and DB
         total_present = 0
+        processed_ids = set()
         
-        # Iterar sobre o log reconstruído
+        # 1. Process via Log (Prioritize Daily Routine/Allocation)
+        # This catches everyone who was interacted with today (even if shift changed, or if fired but worked today)
         for reg_id_str, entry in log.items():
-            # Buscar colaborador por registration_id
             employee = emp_map.get(reg_id_str)
             if not employee:
-                print(f"⚠️ Colaborador com matrícula {reg_id_str} não encontrado no banco")
                 continue
             
-            # Determine effective status for today
             daily_status = entry.get('status', 'present')
             sector_key = entry.get('sector')
             
@@ -3920,7 +3989,7 @@ async def routine_report(
             if daily_status == 'present':
                 total_present += 1
                 
-            # Check if Substituted (Only relevant if Away/Vacation?)
+            # Check Subst
             is_substituted = False
             if daily_status in ['away', 'vacation']:
                  has_sub_evt = session.exec(select(models.Event).where(
@@ -3934,6 +4003,54 @@ async def routine_report(
                 "name": employee.name,
                 "status_daily": daily_status,
                 "sector_daily": sector_key,
+                "is_substituted": is_substituted
+            })
+            processed_ids.add(employee.id)
+
+        # 2. Process Remaining Employees (Same Shift, No Routine Today)
+        # This catches "Away", "Vacation" people who didn't get a routine entry today
+        for emp in all_employees:
+            if emp.id in processed_ids:
+                continue
+                
+            if emp.status == 'fired': 
+                continue # Fired and no routine = ignored
+                
+            # Check Shift
+            emp_shift_norm = normalize_str(emp.work_shift)
+            if target_shift_norm not in emp_shift_norm:
+                continue # Wrong shift
+                
+            # Determine Status from DB Profile
+            db_status = emp.status
+            report_status = 'present' # Default assumption if active
+            
+            if db_status == 'away':
+                report_status = 'away'
+            elif db_status == 'vacation':
+                report_status = 'vacation'
+            elif db_status == 'active':
+                # Active but no routine... Assume present (unallocated) or just list them?
+                # If we assume present, we might increase "Presentes" count.
+                # If they are truly absent, they should have been marked 'absent'.
+                # Assumption: Active = Present
+                report_status = 'present'
+                total_present += 1
+            
+            # Substituted Check (Duplicate logic, could functionality extract)
+            is_substituted = False
+            if report_status in ['away', 'vacation']:
+                 has_sub_evt = session.exec(select(models.Event).where(
+                    models.Event.employee_id == emp.id,
+                    models.Event.text.like("%Substituído por%")
+                 )).first()
+                 if has_sub_evt:
+                     is_substituted = True
+
+            people_list.append({
+                "name": emp.name,
+                "status_daily": report_status,
+                "sector_daily": None, # Unallocated
                 "is_substituted": is_substituted
             })
         
@@ -4031,7 +4148,24 @@ async def routine_report(
         # Não usar total_target_real (colaboradores ativos) pois isso causa divergência
         
         total_gap = sum(s['gap'] for s in sectors_detailed)
-        total_vacancies = sum(s['vacancies'] for s in sectors_detailed)
+        
+        # Operational Vacancies (Sum of Sector Vacancies)
+        total_operational_vacancies = sum(s['vacancies'] for s in sectors_detailed)
+
+        # HR Vacancies (UI Def) = Total Demitidos no Turno
+        # A UI considera "Vagas" como o número de demitidos.
+        # Para bater 100% com a UI, contaremos os demitidos do turno.
+        fired_in_shift = 0
+        for emp in all_employees:
+            if emp.status == 'fired':
+                 emp_shift_norm = normalize_str(emp.work_shift)
+                 if target_shift_norm in emp_shift_norm:
+                     fired_in_shift += 1
+                     
+        hr_vacancies = fired_in_shift
+        
+        # total_vacancies used for Sector breakdown remains 'Operational Gap'
+        # But for Top KPI used in "Vagas" card, we should use HR Vacancies to match UI
         
         prod_per_person = round(tonnage / total_present, 2) if total_present > 0 else 0
         present_pct = int((total_present / total_target * 100)) if total_target > 0 else 0
@@ -4045,20 +4179,21 @@ async def routine_report(
         
         snapshot = {
             "kpis": {
-                "total_target": total_target,  # CORRIGIDO: Usar soma das metas configuradas
+                "total_target": total_target,
                 "total_allocated": total_allocated_sum,
                 "total_present": total_present,
                 "present_pct": present_pct,
-                "total_gap": total_vacancies,  # Vagas = diferença entre meta e alocados
-                "total_vacancies": total_vacancies,
+                "total_gap": total_gap,  # Gap Operacional (Meta - Alocados)
+                "total_vacancies": hr_vacancies, # CORREÇÃO: Vagas RH (Meta - Headcount) para bater com UI
+                "operational_gap": total_operational_vacancies, # Mantendo o valor antigo com outro nome se precisar
                 "tonnage": f"{tonnage:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
                 "prod_per_person": f"{prod_per_person:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
-                "count_absent": daily_absent,  # Faltas apenas
-                "count_sick": daily_sick,  # Atestados separado
-                "count_vacation": daily_vacation,  # Férias separado
-                "count_away": daily_away,  # Afastados separado
-                "count_dayoff": daily_dayoff,  # Folgas separado
-                "count_vacation_away": daily_vacation + daily_away,  # Combinado para compatibilidade
+                "count_absent": daily_absent,
+                "count_sick": daily_sick,
+                "count_vacation": daily_vacation,
+                "count_away": daily_away,
+                "count_dayoff": daily_dayoff,
+                "count_vacation_away": daily_vacation + daily_away,
                 "count_substitutions": count_substitutions
             },
             "sectors": sectors_detailed,
