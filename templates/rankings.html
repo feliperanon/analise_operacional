@@ -1,238 +1,319 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="p-8 pb-32">
-    <div class="max-w-7xl mx-auto">
+<div class="min-h-screen bg-slate-900 pb-20 p-4 sm:p-8">
+    <div class="max-w-7xl mx-auto space-y-8">
 
-        <div class="flex flex-col md:flex-row items-center justify-between mb-12 gap-6">
-            <div>
+        <!-- Header e Filtros -->
+        <div class="flex flex-col lg:flex-row items-center justify-between gap-6">
+            <div class="text-center lg:text-left">
                 <h1
-                    class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 mb-2">
-                    Arena de Lendas 🏆
+                    class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 mb-2 drop-shadow-sm">
+                    Arena de Lendas
                 </h1>
-                <p class="text-slate-400 font-medium">Rankings diários e conquistas épicas.</p>
+                <p class="text-slate-400 font-medium text-lg">Onde a performance vira história.</p>
             </div>
 
-            <div class="flex md:flex-row flex-col items-center gap-4">
-                <!-- Date Picker -->
-                <form action="/rankings" method="get">
-                    <input type="date" name="date" value="{{ selected_date }}" onchange="this.form.submit()"
-                        class="bg-slate-800 border-slate-700 text-white rounded-lg px-4 py-2 focus:ring-0 focus:border-indigo-500 shadow-lg font-bold">
-                    {% if current_shift != 'Geral' %}
-                    <input type="hidden" name="shift" value="{{ current_shift }}">
-                    {% endif %}
-                </form>
-
-                <!-- Shift Tabs -->
-                <div class="flex bg-slate-800 p-1 rounded-xl border border-slate-700">
-                    <a href="/rankings?date={{ selected_date }}&shift=Geral"
-                        class="px-6 py-2 rounded-lg font-bold shadow-lg text-sm transition-colors {{ 'bg-indigo-600 text-white' if current_shift == 'Geral' else 'text-slate-400 hover:text-white' }}">Geral</a>
-                    <a href="/rankings?date={{ selected_date }}&shift=Manhã"
-                        class="px-6 py-2 rounded-lg font-bold shadow-lg text-sm transition-colors {{ 'bg-indigo-600 text-white' if current_shift == 'Manhã' else 'text-slate-400 hover:text-white' }}">Manhã</a>
-                    <a href="/rankings?date={{ selected_date }}&shift=Tarde"
-                        class="px-6 py-2 rounded-lg font-bold shadow-lg text-sm transition-colors {{ 'bg-indigo-600 text-white' if current_shift == 'Tarde' else 'text-slate-400 hover:text-white' }}">Tarde</a>
-                    <a href="/rankings?date={{ selected_date }}&shift=Noite"
-                        class="px-6 py-2 rounded-lg font-bold shadow-lg text-sm transition-colors {{ 'bg-indigo-600 text-white' if current_shift == 'Noite' else 'text-slate-400 hover:text-white' }}">Noite</a>
+            <div
+                class="flex flex-col items-center gap-4 bg-slate-800/50 p-4 rounded-3xl border border-white/5 backdrop-blur-sm">
+                <!-- Tabs Período -->
+                <div class="flex p-1 bg-slate-900 rounded-xl border border-white/5">
+                    <a href="/rankings?period=daily&date={{ selected_date }}&shift={{ current_shift }}"
+                        class="px-6 py-2 rounded-lg font-bold text-sm transition-all {{ 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/25' if current_period == 'daily' else 'text-slate-400 hover:text-white' }}">
+                        Dia
+                    </a>
+                    <a href="/rankings?period=weekly&date={{ selected_date }}&shift={{ current_shift }}"
+                        class="px-6 py-2 rounded-lg font-bold text-sm transition-all {{ 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/25' if current_period == 'weekly' else 'text-slate-400 hover:text-white' }}">
+                        Semana
+                    </a>
+                    <a href="/rankings?period=monthly&date={{ selected_date }}&shift={{ current_shift }}"
+                        class="px-6 py-2 rounded-lg font-bold text-sm transition-all {{ 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/25' if current_period == 'monthly' else 'text-slate-400 hover:text-white' }}">
+                        Mês
+                    </a>
                 </div>
+
+                <!-- Date Picker & Shifter -->
+                <form action="/rankings" method="get" class="flex items-center gap-2" id="filterForm">
+                    <input type="hidden" name="period" value="{{ current_period }}">
+                    <input type="hidden" name="shift" value="{{ current_shift }}">
+
+                    <!-- Prev -->
+                    <button type="button" onclick="changeDate(-1)"
+                        class="p-2 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
+                            </path>
+                        </svg>
+                    </button>
+
+                    <input type="date" name="date" value="{{ selected_date }}" onchange="this.form.submit()"
+                        class="bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-2 font-mono font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
+
+                    <!-- Next -->
+                    <button type="button" onclick="changeDate(1)"
+                        class="p-2 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                            </path>
+                        </svg>
+                    </button>
+                </form>
             </div>
         </div>
 
-        <!-- Badges Section (Hall of Fame) -->
-        <style>
-            @keyframes levitate {
-                0% {
-                    transform: translateY(0px) scale(1);
-                }
-
-                50% {
-                    transform: translateY(-5px) scale(1.02);
-                }
-
-                100% {
-                    transform: translateY(0px) scale(1);
-                }
-            }
-
-            .badge-card:hover .badge-img {
-                animation: levitate 2s infinite ease-in-out;
-            }
-
-            .badge-glow-flash {
-                box-shadow: 0 0 20px rgba(234, 179, 8, 0.4);
-            }
-
-            .badge-glow-hulk {
-                box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
-            }
-
-            .badge-glow-mara {
-                box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
-            }
-        </style>
-
-        <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
-            <span class="text-2xl">🎖️</span> Badges do Turno
-        </h2>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+        <!-- Badges (Conquistas do Período) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 animate-slide-up">
             {% for badge in badges %}
-            <div
-                class="badge-card bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-1 rounded-2xl border transition-all duration-300 relative overflow-hidden group hover:scale-[1.05] hover:z-10 {{ badge.class }}">
-
-                <!-- Background Effects -->
+            <div class="relative group cursor-default">
                 <div
-                    class="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none group-hover:bg-white/10 transition-colors">
+                    class="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500">
                 </div>
-
-                <div class="h-full rounded-xl p-6 relative z-10 flex flex-col items-center text-center">
-
-                    <!-- Hero Image -->
-                    <div class="w-32 h-32 mb-4 relative flex items-center justify-center">
-                        <div class="absolute inset-0 bg-white/5 blur-xl rounded-full opacity-50 badge-img"></div>
-                        <img src="{{ badge.image }}"
-                            class="w-full h-full object-contain badge-img drop-shadow-2xl filter brightness-110"
-                            alt="{{ badge.title }}">
+                <div
+                    class="bg-slate-800/80 border border-white/5 p-6 rounded-3xl flex items-center gap-6 {{ badge.class }} hover:scale-[1.02] transition-transform duration-300">
+                    <div class="w-20 h-20 shrink-0 relative">
+                        <div class="absolute inset-0 bg-current opacity-20 blur-xl rounded-full text-current"></div>
+                        <img src="{{ badge.image }}" class="w-full h-full object-contain relative z-10 drop-shadow-xl">
                     </div>
-
-                    <h3 class="text-2xl font-black text-white italic tracking-wider mb-1 uppercase"
-                        style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">{{ badge.title }}</h3>
-                    <p class="text-slate-400 text-xs font-medium text-center mb-6 h-8 flex items-center justify-center">
-                        {{ badge.desc }}</p>
-
-                    <div class="w-full bg-slate-950/80 rounded-lg p-3 border border-slate-700/50 backdrop-blur-sm">
-                        <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">Campeão Atual</p>
-                        <p class="text-lg font-bold text-white truncate w-full">{{ badge.winner }}</p>
-                        <p class="text-sm font-mono text-yellow-500 font-bold mt-1">{{ badge.value }}</p>
+                    <div>
+                        <h3 class="font-black text-xl text-white uppercase tracking-wider mb-1">{{ badge.title }}</h3>
+                        <p class="text-xs text-slate-400 mb-3">{{ badge.desc }}</p>
+                        <div
+                            class="text-sm font-bold text-white bg-slate-900/50 px-3 py-1.5 rounded-lg inline-block border border-white/5">
+                            {{ badge.winner }} <span class="text-yellow-500 ml-1">{{ badge.value }}</span>
+                        </div>
                     </div>
                 </div>
             </div>
             {% else %}
-            <div class="col-span-3 text-center py-12 bg-slate-800/50 rounded-2xl border border-dashed border-slate-700">
-                <p class="text-slate-500">Nenhuma conquista desbloqueada neste turno ainda... Acelere! 🚀</p>
+            <div class="col-span-3 text-center py-10 bg-slate-800/30 rounded-3xl border border-dashed border-slate-700">
+                <p class="text-slate-500 font-medium">Nenhum recorde quebrado neste período ainda. 🐢</p>
             </div>
             {% endfor %}
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+        <!-- Rankings Section -->
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
 
-            <!-- Volumetry Ranking -->
-            <div>
-                <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                    <span class="text-blue-400">📊</span> Top Volume (Kg)
+            <!-- Volume Ranking -->
+            <div class="bg-slate-800/50 rounded-[40px] border border-white/5 p-8 relative overflow-hidden">
+                <div
+                    class="absolute top-0 right-0 w-64 h-64 bg-yellow-500/5 rounded-full blur-[100px] pointer-events-none">
+                </div>
+
+                <h2 class="text-2xl font-black text-white mb-8 flex items-center gap-3">
+                    <span class="p-2 rounded-xl bg-yellow-500/10 text-yellow-500"><i data-lucide="package"
+                            class="w-6 h-6"></i></span>
+                    Titãs de Carga
                 </h2>
-                <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-lg">
-                    {% for item in rank_volume %}
-                    <div
-                        class="p-4 flex items-center gap-4 hover:bg-slate-700/40 transition-colors border-b border-slate-700/50 last:border-0 relative">
-                        <div
-                            class="font-black text-xl w-8 text-center {{ 'text-yellow-400' if loop.index == 1 else 'text-slate-600' }}">
-                            #{{ loop.index }}
+
+                <!-- Podium Top 3 -->
+                <div class="flex items-end justify-center gap-4 mb-12 h-64 px-4">
+                    {% if rank_volume|length >= 2 %}
+                    <!-- Prata (2nd) -->
+                    <div class="flex flex-col items-center w-1/3 animate-slide-up" style="animation-delay: 100ms">
+                        <div class="text-center mb-2">
+                            <p class="font-bold text-white text-sm truncate w-full">{{ rank_volume[1].name.split()[0] }}
+                            </p>
+                            <p class="text-[10px] text-slate-400">{{ "{:,.0f}".format(rank_volume[1].tonnage) }}kg</p>
                         </div>
                         <div
-                            class="w-12 h-12 rounded-full bg-slate-700 border-2 {{ 'border-yellow-500' if loop.index == 1 else 'border-slate-600' }} overflow-hidden flex items-center justify-center">
-                            {% if item.photo %}
-                            <img src="{{ item.photo }}" class="w-full h-full object-cover">
+                            class="w-full bg-slate-700/50 rounded-t-2xl border border-slate-600 border-b-0 relative group h-40 flex items-end justify-center pb-4">
+                            <div
+                                class="w-12 h-12 rounded-full border-4 border-slate-300 absolute -top-6 bg-slate-800 overflow-hidden shadow-lg">
+                                <img src="{{ rank_volume[1].photo or 'https://ui-avatars.com/api/?background=random&name=' + rank_volume[1].name }}"
+                                    class="w-full h-full object-cover">
+                            </div>
+                            <span
+                                class="text-4xl font-black text-slate-500/20 group-hover:text-slate-300/50 transition-colors">2</span>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if rank_volume|length >= 1 %}
+                    <!-- Ouro (1st) -->
+                    <div class="flex flex-col items-center w-1/3 z-10 animate-slide-up">
+                        <div class="text-center mb-2">
+                            <div class="text-yellow-400 mb-1"><i data-lucide="crown"
+                                    class="w-6 h-6 mx-auto fill-current"></i></div>
+                            <p class="font-bold text-white text-base truncate w-full">{{ rank_volume[0].name.split()[0]
+                                }}</p>
+                            <p class="text-xs text-yellow-500 font-bold">{{ "{:,.0f}".format(rank_volume[0].tonnage)
+                                }}kg</p>
+                        </div>
+                        <div
+                            class="w-full bg-gradient-to-b from-yellow-500/20 to-slate-800/50 rounded-t-2xl border border-yellow-500/30 border-b-0 relative group h-52 flex items-end justify-center pb-4 shadow-[0_0_30px_rgba(234,179,8,0.1)]">
+                            <div
+                                class="w-16 h-16 rounded-full border-4 border-yellow-400 absolute -top-8 bg-slate-800 overflow-hidden shadow-xl shadow-yellow-500/20">
+                                <img src="{{ rank_volume[0].photo or 'https://ui-avatars.com/api/?background=random&name=' + rank_volume[0].name }}"
+                                    class="w-full h-full object-cover">
+                            </div>
+                            <span
+                                class="text-5xl font-black text-yellow-500/20 group-hover:text-yellow-400/50 transition-colors">1</span>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if rank_volume|length >= 3 %}
+                    <!-- Bronze (3rd) -->
+                    <div class="flex flex-col items-center w-1/3 animate-slide-up" style="animation-delay: 200ms">
+                        <div class="text-center mb-2">
+                            <p class="font-bold text-white text-sm truncate w-full">{{ rank_volume[2].name.split()[0] }}
+                            </p>
+                            <p class="text-[10px] text-slate-400">{{ "{:,.0f}".format(rank_volume[2].tonnage) }}kg</p>
+                        </div>
+                        <div
+                            class="w-full bg-slate-800/80 rounded-t-2xl border border-orange-700/50 border-b-0 relative group h-32 flex items-end justify-center pb-4">
+                            <div
+                                class="w-12 h-12 rounded-full border-4 border-orange-600 absolute -top-6 bg-slate-800 overflow-hidden shadow-lg">
+                                <img src="{{ rank_volume[2].photo or 'https://ui-avatars.com/api/?background=random&name=' + rank_volume[2].name }}"
+                                    class="w-full h-full object-cover">
+                            </div>
+                            <span
+                                class="text-4xl font-black text-orange-700/20 group-hover:text-orange-600/50 transition-colors">3</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Rest of List -->
+                <div class="space-y-3">
+                    {% for item in rank_volume[3:] %}
+                    <div
+                        class="flex items-center gap-4 p-3 rounded-xl bg-slate-900/50 border border-slate-700/50 hover:bg-slate-800 transition-colors">
+                        <span class="font-bold text-slate-500 w-6 text-center">{{ loop.index + 3 }}</span>
+                        <div class="w-8 h-8 rounded-full bg-slate-700 overflow-hidden">
+                            <img src="{{ item.photo or 'https://ui-avatars.com/api/?background=random&name=' + item.name }}"
+                                class="w-full h-full object-cover">
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-white font-medium text-sm">{{ item.name }}</p>
+                        </div>
+                        <p class="text-white font-bold font-mono">{{ "{:,.0f}".format(item.tonnage) }} <span
+                                class="text-xs text-slate-500 font-sans">kg</span></p>
+                    </div>
+                    {% endfor %}
+                    {% if rank_volume|length == 0 %}
+                    <div class="text-center py-10 text-slate-500">Sem dados de volume.</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Efficiency Ranking -->
+            <div class="bg-slate-800/50 rounded-[40px] border border-white/5 p-8 relative overflow-hidden">
+                <div
+                    class="absolute top-0 right-0 w-64 h-64 bg-green-500/5 rounded-full blur-[100px] pointer-events-none">
+                </div>
+
+                <h2 class="text-2xl font-black text-white mb-8 flex items-center gap-3">
+                    <span class="p-2 rounded-xl bg-green-500/10 text-green-500"><i data-lucide="zap"
+                            class="w-6 h-6"></i></span>
+                    Velocidade Pura
+                </h2>
+
+                <!-- List View (Efficiency fits better in list for precision) -->
+                <div class="space-y-3">
+                    {% for item in rank_speed %}
+                    <div class="group relative overflow-hidden flex items-center gap-4 p-4 rounded-2xl bg-slate-900 border transition-all duration-300
+                      {{ 'border-green-500/30 bg-green-500/5 shadow-[0_0_20px_rgba(34,197,94,0.1)]' if loop.index == 1 else 
+                         'border-slate-700/50 hover:border-slate-600' }}">
+
+                        <!-- Rank Number/Icon -->
+                        <div class="w-10 flex justify-center shrink-0">
+                            {% if loop.index == 1 %}
+                            <i data-lucide="trophy" class="w-6 h-6 text-yellow-400 fill-current"></i>
+                            {% elif loop.index == 2 %}
+                            <i data-lucide="medal" class="w-6 h-6 text-slate-300"></i>
+                            {% elif loop.index == 3 %}
+                            <i data-lucide="medal" class="w-6 h-6 text-orange-600"></i>
                             {% else %}
-                            <span class="text-xs font-bold text-slate-400">{{ item.name[:2] }}</span>
+                            <span class="font-bold text-slate-500 text-lg">#{{ loop.index }}</span>
                             {% endif %}
                         </div>
-                        <div class="flex-1">
-                            <h4 class="font-bold text-white">{{ item.name }}</h4>
-                            <div class="text-xs text-slate-400">{{ item.count }} viagens hoje</div>
-                        </div>
-                        <div class="text-right">
-                            <span class="block text-xl font-bold text-white">{{
-                                "{:,.0f}".format(item.tonnage).replace(",", ".") }} <span
-                                    class="text-sm text-slate-500 font-normal">Kg</span></span>
-                        </div>
-                        {% if loop.index == 1 %}
-                        <div class="absolute right-0 top-0 text-3xl opacity-10">👑</div>
-                        {% endif %}
-                    </div>
-                    {% endfor %}
-                    {% if not rank_volume %}
-                    <div class="p-10 text-center text-slate-500">Sem dados ainda.</div>
-                    {% endif %}
-                </div>
-            </div>
 
-            <!-- Productivity Ranking -->
-            <div>
-                <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                    <span class="text-green-400">⚡</span> Top Velocidade (Kg/h)
-                </h2>
-                <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-lg">
-                    {% for item in rank_speed %}
-                    <div
-                        class="p-4 flex items-center gap-4 hover:bg-slate-700/40 transition-colors border-b border-slate-700/50 last:border-0">
+                        <!-- Avatar -->
                         <div
-                            class="font-black text-xl w-8 text-center {{ 'text-yellow-400' if loop.index == 1 else 'text-slate-600' }}">
-                            #{{ loop.index }}
+                            class="w-10 h-10 rounded-full bg-slate-800 border {{ 'border-green-500' if loop.index == 1 else 'border-slate-700' }} overflow-hidden shrink-0">
+                            <img src="{{ item.photo or 'https://ui-avatars.com/api/?background=random&name=' + item.name }}"
+                                class="w-full h-full object-cover">
                         </div>
-                        <div
-                            class="w-12 h-12 rounded-full bg-slate-700 border-2 {{ 'border-green-500' if loop.index == 1 else 'border-slate-600' }} overflow-hidden flex items-center justify-center">
-                            <span class="text-xs font-bold text-slate-400">{{ item.name[:2] }}</span>
+
+                        <!-- Info -->
+                        <div class="flex-1 min-w-0">
+                            <h4 class="text-white font-bold truncate">{{ item.name }}</h4>
+                            {% if loop.index == 1 %}
+                            <p class="text-[10px] text-green-400 font-bold uppercase tracking-wider">Líder de Agilidade
+                            </p>
+                            {% endif %}
                         </div>
-                        <div class="flex-1">
-                            <h4 class="font-bold text-white">{{ item.name }}</h4>
-                            <div class="flex items-center gap-1 text-xs text-green-400">
-                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                                </svg>
-                                Alta Performance
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <span class="block text-xl font-bold text-white">{{ "{:,.0f}".format(item.kgh).replace(",",
-                                ".") }} <span class="text-sm text-slate-500 font-normal">Kg/h</span></span>
+
+                        <!-- Value -->
+                        <div class="text-right shrink-0">
+                            <p class="text-2xl font-black text-white font-mono leading-none tracking-tight">{{
+                                "{:,.0f}".format(item.kgh) }}</p>
+                            <p class="text-[10px] text-slate-500 font-bold uppercase">Kg/Hora</p>
                         </div>
                     </div>
                     {% endfor %}
-                    {% if not rank_speed %}
-                    <div class="p-10 text-center text-slate-500">Sem dados ainda.</div>
+                    {% if rank_speed|length == 0 %}
+                    <div class="text-center py-10 text-slate-500">Sem dados de eficiência.</div>
                     {% endif %}
                 </div>
             </div>
 
         </div>
 
-        <!-- Levels Progression -->
-        <div class="mt-16">
-            <h2 class="text-xl font-bold text-white mb-6">Níveis Global (XP)</h2>
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {% for level in levels %}
-                    {% if level.xp > 0 %}
-                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 flex items-center gap-4">
-                        <div class="relative">
-                            <svg class="w-14 h-14" viewBox="0 0 36 36">
-                                <path class="text-slate-700"
-                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                    fill="none" stroke="currentColor" stroke-width="3" />
-                                <path class="text-indigo-500" stroke-dasharray="{{ level.progress }}, 100"
-                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                    fill="none" stroke="currentColor" stroke-width="3" />
-                            </svg>
+        <!-- Global Levels -->
+        <div class="mt-8">
+            <h2 class="text-2xl font-black text-white mb-6 flex items-center gap-3">
+                <span class="p-2 rounded-xl bg-purple-500/10 text-purple-500"><i data-lucide="gamepad-2"
+                        class="w-6 h-6"></i></span>
+                Níveis Globais (Top 12)
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {% for level in levels %}
+                <div
+                    class="bg-slate-800 rounded-2xl p-4 border border-slate-700 flex items-center gap-4 hover:bg-slate-750 transition-colors">
+                    <div class="relative shrink-0 w-12 h-12">
+                        <svg class="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                            <path class="text-slate-700"
+                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                fill="none" stroke="currentColor" stroke-width="4" />
+                            <path
+                                class="{{ 'text-yellow-500' if level.level == 'Ouro' else 'text-slate-300' if level.level == 'Prata' else 'text-orange-600' if level.level == 'Bronze' else 'text-cyan-400' }}"
+                                stroke-dasharray="{{ level.progress }}, 100"
+                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <span class="text-[10px] font-bold text-slate-300">{{ level.progress|int }}%</span>
+                        </div>
+                    </div>
+                    <div class="min-w-0">
+                        <h4 class="text-white font-bold truncate">{{ level.name }}</h4>
+                        <div class="flex items-center gap-2">
                             <span
-                                class="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white">Lvl
-                                {{ 1 if level.level == 'Júnior' else 2 if level.level == 'Pleno' else 3 }}</span>
-                        </div>
-                        <div class="flex-1">
-                            <h4 class="text-white font-bold">{{ level.name }}</h4>
-                            <p class="text-xs text-indigo-400 font-bold uppercase">{{ level.level }}</p>
-                            <div class="w-full bg-slate-800 h-1.5 mt-2 rounded-full overflow-hidden">
-                                <div class="bg-indigo-500 h-full" style="width: {{ level.progress }}%"></div>
-                            </div>
-                            <p class="text-[10px] text-slate-500 mt-1 text-right">{{ level.xp }} XP</p>
+                                class="px-1.5 py-0.5 rounded text-[10px] uppercase font-bold bg-slate-900 border border-slate-700
+                             {{ 'text-yellow-500' if level.level == 'Ouro' else 'text-slate-300' if level.level == 'Prata' else 'text-orange-600' if level.level == 'Bronze' else 'text-cyan-400' }}">
+                                {{ level.level }}
+                            </span>
+                            <span class="text-xs text-slate-500 font-mono">{{ "{:,}".format(level.xp) }} XP</span>
                         </div>
                     </div>
-                    {% endif %}
-                    {% endfor %}
                 </div>
+                {% endfor %}
             </div>
         </div>
-
     </div>
 </div>
+
+<script>
+    function changeDate(days) {
+        const input = document.querySelector('input[name="date"]');
+        const current = new Date(input.value + "T12:00:00"); // Avoid timezone issues
+        current.setDate(current.getDate() + days);
+        input.value = current.toISOString().split('T')[0];
+        document.getElementById('filterForm').submit();
+    }
+</script>
 {% endblock %}

@@ -47,7 +47,15 @@
                     <span class="text-emerald-400 text-xs font-medium bg-emerald-500/10 px-1.5 py-0.5 rounded">
                         {{ "+" if stats.vacancies > 0 else "" }}{{ stats.vacancies }}
                     </span>
-                    <!-- Removido botão de editar Target pois o modal não existe nesta página -->
+                    <button onclick="openTargetModal()"
+                        class="text-xs text-blue-400 hover:text-white hover:underline transition-colors flex items-center gap-1">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                            </path>
+                        </svg>
+                        Metas
+                    </button>
                 </div>
             </div>
         </div>
@@ -402,6 +410,108 @@
         </form>
     </div>
 </div>
+
+<!-- Fire Modal -->
+<div id="fireModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="bg-slate-800 rounded-2xl w-full max-w-sm border border-slate-700 shadow-2xl p-6">
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h3 class="text-lg font-bold text-white">Confirmar Demissão</h3>
+                <p class="text-sm text-slate-400" id="fire-employee-name"></p>
+            </div>
+            <button onclick="document.getElementById('fireModal').classList.add('hidden')"
+                class="text-slate-400 hover:text-white">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                    </path>
+                </svg>
+            </button>
+        </div>
+
+        <form id="fire-form" method="POST" action="">
+            <input type="hidden" name="status_action" value="fired">
+            <p class="text-white mb-4 text-sm">Tem certeza que deseja marcar este colaborador como demitido? <br>Essa
+                ação irá gerar uma vaga.</p>
+
+            <div class="flex justify-end gap-3">
+                <button type="button" onclick="document.getElementById('fireModal').classList.add('hidden')"
+                    class="px-4 py-2 text-slate-300 hover:text-white text-sm">Cancelar</button>
+                <button type="submit"
+                    class="px-6 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-medium">Confirmar
+                    Demissão</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Target Edit Modal -->
+<div id="targetModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="bg-slate-800 rounded-2xl w-full max-w-sm border border-slate-700 shadow-2xl p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-lg font-bold text-white">Metas de Headcount</h3>
+            <button onclick="document.getElementById('targetModal').classList.add('hidden')"
+                class="text-slate-400 hover:text-white">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                    </path>
+                </svg>
+            </button>
+        </div>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Manhã</label>
+                <input type="number" id="target-manha" value="{{ stats.targets_map.get('Manhã', 0) }}"
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tarde</label>
+                <input type="number" id="target-tarde" value="{{ stats.targets_map.get('Tarde', 0) }}"
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Noite</label>
+                <input type="number" id="target-noite" value="{{ stats.targets_map.get('Noite', 0) }}"
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500">
+            </div>
+
+            <button onclick="saveTargets()"
+                class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg shadow-lg shadow-blue-500/20 transition-all mt-4">
+                Salvar Metas
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openTargetModal() {
+        document.getElementById('targetModal').classList.remove('hidden');
+    }
+
+    function saveTargets() {
+        const payload = {
+            targets: {
+                "Manhã": parseInt(document.getElementById('target-manha').value) || 0,
+                "Tarde": parseInt(document.getElementById('target-tarde').value) || 0,
+                "Noite": parseInt(document.getElementById('target-noite').value) || 0
+            }
+        };
+
+        fetch('/api/employees/targets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Erro ao salvar: ' + JSON.stringify(data));
+                }
+            })
+            .catch(err => alert('Erro de conexão'));
+    }
+</script>
 
 <!-- Modal Added -->
 <div id="addModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">

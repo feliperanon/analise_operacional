@@ -19,6 +19,7 @@ const Store = {
             status: 'all' // all, present, missing
         },
         tonnage: 0,
+        targets: {},        // Metas de Headcount por turno
         isDirty: false      // Se houve alteração não salva
     },
 
@@ -41,7 +42,8 @@ const Store = {
         this.state.employees = initialData.employees || [];
         // Converte setores string em objetos se vierem simples, ou usa config
         this.state.sectors = initialData.sectors || [];
-        console.log('Store initialized:', this.state.employees.length, 'employees');
+        this.state.targets = initialData.targets || {};
+        console.log('Store initialized:', this.state.employees.length, 'employees, Targets:', this.state.targets);
     },
 
     // Carregar dados completos
@@ -50,6 +52,7 @@ const Store = {
         this.state.allocations = data.allocations || {};
         this.state.routines = data.routines || {};
         this.state.tonnage = data.tonnage || 0;
+        if (data.targets) this.state.targets = data.targets; // Update targets if provided
         this.state.isDirty = false;
         this.notify(); // Importante: notificar mudanças!
     },
@@ -175,7 +178,15 @@ const Store = {
             return s === 'fired' || s === 'demitido';
         }).length;
 
-        const totalTarget = shiftEmps.length - firedCount;
+        // Use defined target for the current shift, fallback to calculated if not set (legacy behavior)
+        // Normalized shift name for key lookup
+        let shiftKey = currentShift;
+        if (currentShift.toLowerCase() === 'manhã') shiftKey = 'Manhã';
+        if (currentShift.toLowerCase() === 'tarde') shiftKey = 'Tarde';
+        if (currentShift.toLowerCase() === 'noite') shiftKey = 'Noite';
+
+        const definedTarget = this.state.targets[shiftKey];
+        const totalTarget = definedTarget !== undefined ? definedTarget : (shiftEmps.length - firedCount);
 
         console.group('KPI Debug');
         console.log('Shift:', currentShift);

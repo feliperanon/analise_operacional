@@ -19,7 +19,9 @@ import pydantic
 from logging.handlers import RotatingFileHandler
 import unicodedata
 import os
+from dotenv import load_dotenv
 
+load_dotenv()
 # Performance: Use INFO level in production, DEBUG only when explicitly enabled
 LOG_LEVEL = logging.DEBUG if os.getenv("DEBUG", "false").lower() == "true" else logging.INFO
 
@@ -39,8 +41,8 @@ logger.addHandler(handler)
 
 # --- Config ---
 SECRET_KEY = "your-secret-key-change-in-production"
-ALLOWED_USER = "feliperanon"
-ALLOWED_PASS = "571232ce"
+ALLOWED_USER = os.getenv("ADMIN_USER", "admin")
+ALLOWED_PASS = os.getenv("ADMIN_PASS", "admin")
 
 # --- Helper Functions ---
 def calculate_expected_work_days(
@@ -2018,33 +2020,46 @@ async def strategy_page(request: Request, date: Optional[str] = None, shift: Opt
         return HTMLResponse(content=f"<pre>{traceback.format_exc()}</pre>", status_code=500)
 
 @app.get("/rankings", response_class=HTMLResponse)
-async def rankings_page(request: Request, shift: Optional[str] = None, date: Optional[str] = None, session: Session = Depends(get_session)):
+async def rankings_page(request: Request, shift: Optional[str] = None, date: Optional[str] = None, period: str = "daily", session: Session = Depends(get_session)):
     import traceback
     try:
         user = require_login(request)
         if not date:
             date = datetime.now().strftime("%Y-%m-%d")
         
-        # --- Leaderboards (Selected Date) ---
-        # Relaxed query: any route with tonnage is considered "rankable" even if status flag missed
-        query = select(models.Route).where(models.Route.date == date).where(models.Route.tonnage > 0)
+        target_date = datetime.strptime(date, "%Y-%m-%d")
+        start_date_str = date
+        end_date_str = date
+        
+        if period == "weekly":
+            start_date_obj = target_date - timedelta(days=6)
+            start_date_str = start_date_obj.strftime("%Y-%m-%d")
+        elif period == "monthly":
+            start_date_obj = target_date - timedelta(days=29)
+            start_date_str = start_date_obj.strftime("%Y-%m-%d")
+            
+        # --- Leaderboards (Selected Period) ---
+        query = select(models.Route).where(models.Route.tonnage > 0)
+        
+        # Date Filter
+        query = query.where(models.Route.date >= start_date_str)
+        query = query.where(models.Route.date <= end_date_str)
         
         if shift and shift != 'Geral':
             query = query.where(models.Route.shift == shift)
             
-        routes_today = session.exec(query).all()
+        routes_period = session.exec(query).all()
         
         emp_stats = {} # id -> {original_obj, tonnage, duration_secs, count, max_tonnage, max_kgh}
         
         emp_map = {e.id: e for e in session.exec(select(models.Employee)).all()}
         
-        for r in routes_today:
+        for r in routes_period:
             eid = r.employee_id
             if eid not in emp_stats:
                 emp_stats[eid] = {'emp': emp_map.get(eid), 'tonnage': 0, 'secs': 0, 'count': 0, 'max_tonnage': 0, 'max_kgh': 0}
                 
             stats = emp_stats[eid]
-            # Safeguard: treat None tonnage as 0.0
             t = r.tonnage or 0.0
             stats['tonnage'] += t
             stats['count'] += 1
@@ -2053,15 +2068,16 @@ async def rankings_page(request: Request, shift: Optional[str] = None, date: Opt
                 
             # Duration
             try:
-                s = datetime.strptime(r.start_time, "%H:%M")
-                if r.end_time:
+                if r.start_time and r.end_time:
+                    s = datetime.strptime(r.start_time, "%H:%M")
                     e = datetime.strptime(r.end_time, "%H:%M")
                     diff = (e-s).total_seconds()
                     if diff > 0:
                         stats['secs'] += diff
-                        kgh = (t / (diff/3600))
-                        if kgh > stats['max_kgh']:
-                            stats['max_kgh'] = kgh
+                        # Max Kgh only counts single route peak
+                        current_kgh = (t / (diff/3600))
+                        if current_kgh > stats['max_kgh']:
+                            stats['max_kgh'] = current_kgh
             except:
                 pass
                 
@@ -2069,9 +2085,6 @@ async def rankings_page(request: Request, shift: Optional[str] = None, date: Opt
         ranking_list = []
         for eid, s in emp_stats.items():
             if not s['emp']: continue
-            # Filter out inactive employees from RANKINGS too if requested, 
-            # but technically if they worked today (route exists), they should show. 
-            # However, for "Levels" user was specific. Let's keeping "worked today" as criteria for ranking.
             
             avg_kgh = 0
             if s['secs'] > 0:
@@ -2088,13 +2101,13 @@ async def rankings_page(request: Request, shift: Optional[str] = None, date: Opt
             })
             
         # Sorters
-        rank_volume = sorted(ranking_list, key=lambda x: x['tonnage'], reverse=True)[:5]
-        rank_speed = sorted(ranking_list, key=lambda x: x['kgh'], reverse=True)[:5]
+        rank_volume = sorted(ranking_list, key=lambda x: x['tonnage'], reverse=True)[:10] # Top 10
+        rank_speed = sorted(ranking_list, key=lambda x: x['kgh'], reverse=True)[:10] # Top 10
         
         # --- Badges Logic ---
         badges = []
         
-        # Flash (Maior Kgh único do dia)
+        # Flash (Maior Kgh único do dia/periodo)
         if ranking_list:
             flash_winner = max(ranking_list, key=lambda x: x['max_kgh'])
             if flash_winner['max_kgh'] > 0:
@@ -2128,58 +2141,59 @@ async def rankings_page(request: Request, shift: Optional[str] = None, date: Opt
                     "image": "/static/badges/marathon.png", 
                     "title": "Maratonista", 
                     "class": "shadow-blue-500/50 border-blue-500/50",
-                    "desc": "Maior número de viagens completas",
+                    "desc": "Maior número de viagens total",
                     "winner": mara_winner['name'],
                     "value": f"{mara_winner['count']} viagens"
                 })
                 
         # --- Global Levels (All Employees) ---
-        # Filter only ACTIVE employees
         query_levels = select(models.Employee).where(models.Employee.status == 'active')
-        
         if shift and shift != 'Geral':
             query_levels = query_levels.where(models.Employee.work_shift == shift)
             
-        all_emps = session.exec(query_levels.order_by(models.Employee.total_xp.desc()).limit(10)).all()
+        all_emps = session.exec(query_levels.order_by(models.Employee.total_xp.desc()).limit(12)).all()
         
         level_list = []
         for e in all_emps:
             xp = e.total_xp or 0.0
-            lvl = "Júnior"
+            lvl_name = "Júnior"
             progress = 0
             
-            if xp < 500:
-                lvl = "Júnior"
-                progress = (xp / 500) * 100
-            elif xp < 2000:
-                lvl = "Pleno"
-                progress = ((xp - 500) / 1500) * 100
-            elif xp < 5000:
-                lvl = "Sênior"
-                progress = ((xp - 2000) / 3000) * 100
+            # Simple level logic (can be replaced by DB levels if needed)
+            if xp < 5000:
+                lvl_name = "Bronze"
+                progress = (xp / 5000) * 100
+            elif xp < 15000:
+                lvl_name = "Prata"
+                progress = ((xp - 5000) / 10000) * 100
+            elif xp < 50000:
+                lvl_name = "Ouro"
+                progress = ((xp - 15000) / 35000) * 100
             else:
-                lvl = "Mestre"
+                lvl_name = "Diamante"
                 progress = 100
-                
+
             level_list.append({
                 "name": e.name,
+                "level": lvl_name,
                 "xp": int(xp),
-                "level": lvl,
-                "progress": int(progress)
+                "progress": progress
             })
 
         return templates.TemplateResponse("rankings.html", {
-            "request": request, 
-            "user": user,
+            "request": request,
             "rank_volume": rank_volume,
             "rank_speed": rank_speed,
             "badges": badges,
             "levels": level_list,
+            "selected_date": date,
             "current_shift": shift or 'Geral',
-            "selected_date": date
+            "current_period": period
         })
-    except Exception:
-        return HTMLResponse(content=f"<pre>{traceback.format_exc()}</pre>", status_code=500)        # Base Query
+
+    except Exception as e:
+        traceback.print_exc()
+        return HTMLResponse(f"<h1>Erro 500</h1><pre>{traceback.format_exc()}</pre>", status_code=500)        # Base Query
         query = select(models.Employee).where(models.Employee.status == 'active')
         
         # Apply Shift Filter (if specific shift selected)
@@ -4368,18 +4382,18 @@ async def _employees_page_impl(request: Request, session: Session):
     for e in employees:
         if e.status == "fired":
             continue
-                    # Count towards total if not fired
+        # Count towards total if not fired
         total_real_active += 1
-                # Determine shift
+        # Determine shift
         s_name = get_shift_name(e.work_shift)
-                # Increment specific status counter for that shift
+        # Increment specific status counter for that shift
         if e.status == "active":
             shift_data[s_name]["active"] += 1
         elif e.status == "vacation":
             shift_data[s_name]["vacation"] += 1
         elif e.status == "away":
             shift_data[s_name]["away"] += 1
-        # If there are other statuses (unlikely per current logic), they are counted in total but not specifically in shift 'active'
+        
     for s in shifts:
         data = shift_data.get(s, {"active":0, "vacation":0, "away":0})
         active_count = data["active"]
@@ -4408,11 +4422,33 @@ async def _employees_page_impl(request: Request, session: Session):
             "total_target": total_target,
             "vacancies": total_target - total_real_active,
             "shifts": shift_stats,
-            "statuses": status_stats
+            "statuses": status_stats,
+            "targets_map": target_map # Pass map for editing logic
         },
         "error": request.query_params.get("error"),
         "success": request.query_params.get("success")
     })
+
+class HeadcountTargetUpdate(BaseModel):
+    targets: dict[str, int] # e.g. {"Manhã": 50, "Tarde": 40}
+
+@app.post("/api/employees/targets")
+async def update_headcount_targets(data: HeadcountTargetUpdate, session: Session = Depends(get_session)):
+    try:
+        # Update or Create
+        for shift_name, val in data.targets.items():
+            db_target = session.exec(select(models.HeadcountTarget).where(models.HeadcountTarget.shift_name == shift_name)).first()
+            if db_target:
+                db_target.target_value = val
+                session.add(db_target)
+            else:
+                session.add(models.HeadcountTarget(shift_name=shift_name, target_value=val))
+        
+        session.commit()
+        return {"success": True}
+    except Exception as e:
+        print(f"Error updating targets: {e}")
+        return JSONResponse(content={"error": str(e)}, status_code=500)
 @app.get("/employees/candidates", response_class=JSONResponse)
 async def get_candidates(request: Request, status: str, session: Session = Depends(get_session)):
     require_login(request)
