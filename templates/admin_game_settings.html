@@ -6,6 +6,11 @@
     <header
         class='bg-slate-950/50 backdrop-blur-md border-b border-slate-800 px-8 py-6 flex justify-between items-center sticky top-0 z-20'>
         <div class='flex items-center gap-4'>
+            <a href="/admin/game"
+                class="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all mr-2"
+                title="Voltar ao Menu">
+                <i data-lucide="arrow-left" class="w-6 h-6"></i>
+            </a>
             <div
                 class='p-3 bg-gradient-to-br from-purple-500 to-fuchsia-600 rounded-xl text-white shadow-lg shadow-purple-500/20'>
                 <i data-lucide='sliders' class='w-6 h-6'></i>
@@ -115,48 +120,135 @@
                 </div>
             </div>
 
+            <!-- Section: Diagnostic Tools (Auto-Fix) -->
+            <div class='bg-slate-800/50 rounded-2xl border border-slate-700/50 p-8 shadow-xl mt-8'>
+                <div class='flex items-center gap-3 mb-6'>
+                    <div class='p-2 bg-yellow-500/10 rounded-lg text-yellow-400'>
+                        <i data-lucide='wrench' class='w-5 h-5'></i>
+                    </div>
+                    <h2 class='text-lg font-bold text-white'>Ferramentas de Diagnóstico</h2>
+                </div>
+
+                <div class='grid grid-cols-1 md:grid-cols-2 gap-6 items-end'>
+                    <div class='space-y-2'>
+                        <label class='block text-xs font-bold text-slate-500 uppercase'>Data para Recálculo</label>
+                        <input type='date' x-model='recalcDate'
+                            class='w-full bg-slate-950 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-yellow-500 outline-none'>
+                        <p class='text-xs text-slate-500'>Use se o XP não foi gerado automaticamente.</p>
+                    </div>
+
+                    <button @click='forceRecalc()' :disabled="loadingRecalc"
+                        class='w-full py-2.5 rounded-lg bg-yellow-600 hover:bg-yellow-500 text-slate-900 font-bold shadow-lg shadow-yellow-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed'>
+                        <i data-lucide='refresh-cw' class='w-4 h-4' :class="{'animate-spin': loadingRecalc}"></i>
+                        <span x-text="loadingRecalc ? 'Recalculando...' : 'Forçar Recálculo de XP'"></span>
+                    </button>
+                </div>
+            </div>
+
         </div>
     </main>
 </div>
 
+<script id="server-config" type="application/json">
+    {{ config_json | safe }}
+</script>
+
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="//unpkg.com/alpinejs" defer></script>
+<style>
+    [x-cloak] {
+        display: none !important;
+    }
+</style>
 <script>
     lucide.createIcons();
 
+    // Robust Data Injection
+    try {
+        const rawConfig = document.getElementById('server-config').textContent;
+        window.GAME_CONFIG = JSON.parse(rawConfig);
+    } catch (e) {
+        console.error("Critical: Failed to parse game config", e);
+        window.GAME_CONFIG = {};
+    }
+
     function gameSettings() {
         return {
-            config: {{ config_json | safe }},
+            config: window.GAME_CONFIG || {},
+            recalcDate: '',
+            loadingRecalc: false,
 
-    saveAll() {
-        // Post to API
-        fetch('/api/game/settings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(this.config)
-        })
-            .then(async r => {
-                if (!r.ok) {
-                    let msg = 'Erro desconhecido';
-                    try {
-                        const err = await r.json();
-                        msg = err.detail || err.error || msg;
-                    } catch (e) { }
-                    throw new Error(`Erro ao salvar: ${msg} (${r.status})`);
+            saveAll() {
+                // Post to API
+                fetch('/api/game/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.config)
+                })
+                    .then(async r => {
+                        if (!r.ok) {
+                            let msg = 'Erro desconhecido';
+                            try {
+                                const err = await r.json();
+                                msg = err.detail || err.error || msg;
+                            } catch (e) { }
+                            throw new Error(`Erro ao salvar: ${msg} (${r.status})`);
+                        }
+                        return r.json();
+                    })
+                    .then(data => {
+                        if (data.success) {
+                            alert('Configurações Salvas com Sucesso! 🎉');
+                        } else {
+                            alert('Erro lógico ao salvar: ' + JSON.stringify(data));
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert(err.message);
+                    });
+            },
+
+            forceRecalc() {
+                if (!this.recalcDate) {
+                    alert('Por favor, selecione uma data.');
+                    return;
                 }
-                return r.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    alert('Configurações Salvas com Sucesso! 🎉');
-                } else {
-                    alert('Erro lógico ao salvar: ' + JSON.stringify(data));
+
+                if (!confirm(`Tem certeza que deseja recalcular o XP para ${this.recalcDate.split('-').reverse().join('/')}? \nIsso recalculará o XP baseado nas rotas concluídas deste dia.`)) {
+                    return;
                 }
-            })
-            .catch(err => {
-                console.error(err);
-                alert(err.message);
-            });
-    }
-        };
+
+                this.loadingRecalc = true;
+
+                fetch(`/api/game/calc-daily/${this.recalcDate}`, {
+                    method: 'POST'
+                })
+                    .then(async r => {
+                        if (!r.ok) {
+                            let msg = 'Erro desconhecido';
+                            try {
+                                const err = await r.json();
+                                msg = err.detail || err.error || msg;
+                            } catch (e) { }
+                            throw new Error(`Erro: ${msg}`);
+                        }
+                        return r.json();
+                    })
+                    .then(data => {
+                        this.loadingRecalc = false;
+                        if (data.success || data.created_transactions !== undefined) {
+                            alert(`Sucesso! ✅\n${data.created_transactions || 0} novas transações geradas.`);
+                        } else {
+                            alert('Erro: ' + (data.error || 'Falha no processamento'));
+                        }
+                    })
+                    .catch(err => {
+                        this.loadingRecalc = false;
+                        alert('Erro de conexão: ' + err.message);
+                    });
+            }
+        }
     }
 </script>
 {% endblock %}

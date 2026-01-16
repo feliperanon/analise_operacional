@@ -1,4 +1,0 @@
-Checking routines for Employee ID: 415
-Total entries found: 150
-Dates with duplicates: 0
-Routine Type Counts: Counter({'sick': 136, 'absent': 14})

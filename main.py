@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import traceback
 import os
 from starlette.middleware.sessions import SessionMiddleware
-from sqlmodel import Session, select, col, delete, text
+from sqlmodel import Session, select, col, delete, text, or_, desc
 from sqlalchemy import func
 from typing import List
 from database import create_db_and_tables, get_session, engine
@@ -210,15 +210,28 @@ def sync_sectors_on_startup():
 async def lifespan(app: FastAPI):
     create_db_and_tables()
     try:
+        from database import engine
+        print(f"🌍 DATABASE URL DETECTADA: {engine.url}")
         sync_sectors_on_startup()
     except Exception as e:
         print(f"❌ Erro ao iniciar sync: {e}")
     yield
 
+    yield
+
 app = FastAPI(title="Análise Operacional", version="2.0.0", lifespan=lifespan)
 
-# Add Session Middleware
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+# Determine if running in Production (Render sets RENDER=true)
+IS_PROD = os.environ.get("RENDER", "false").lower() == "true"
+
+# Add Session Middleware with Production Settings
+app.add_middleware(
+    SessionMiddleware, 
+    secret_key=SECRET_KEY,
+    https_only=IS_PROD, # True only in production to work on localhost too
+    same_site="lax",    # Best for normal top-level navigation
+    max_age=86400 * 30  # 30 Days persistence
+)
 
 # --- Middleware: Anti-Cache (Force Fresh Data) ---
 @app.middleware("http")
@@ -621,12 +634,15 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
                 "type": tx.source_type
             })
 
+        # Serialize Clients using JSON (Prevent JS Syntax Errors)
+        clients_list = [{"id": c.id, "name": c.name} for c in clients]
+        
         context = {
             "request": request,
             "employee": employee,
-            "clients": [{"id": c.id, "name": c.name} for c in clients],
-            "active_routes": active_routes_list,
-            "completed_routes": completed_routes_list,
+            "clients_json": json.dumps(clients_list), # SAFE JSON
+            "active_routes": json.dumps(active_routes_list), # JSON for Alpine
+            "completed_routes": json.dumps(completed_routes_list), # JSON for Alpine History
             "current_date": datetime.now().strftime("%d/%m/%Y"),
             "ai_message": ai_message,
             # Gamification Data
@@ -645,11 +661,11 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
             ).one() or 0),
             
             "xp_history": xp_history_list,
-            "chart_labels": chart_labels,
-            "chart_daily_kg": chart_daily_kg,
-            "chart_daily_kgh": chart_daily_kgh,
-            "chart_cumulative_kg": chart_cumulative_kg,
-            "chart_bg_colors": chart_bg_colors
+            "chart_labels": json.dumps(chart_labels),
+            "chart_daily_kg": json.dumps(chart_daily_kg),
+            "chart_daily_kgh": json.dumps(chart_daily_kgh),
+            "chart_cumulative_kg": json.dumps(chart_cumulative_kg),
+            "chart_bg_colors": json.dumps(chart_bg_colors)
         }
         return templates.TemplateResponse("mobile/dashboard.html", context)
 
@@ -658,6 +674,71 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
         error_msg = f"Error in mobile_dashboard: {str(e)}\n{traceback.format_exc()}"
         print(error_msg) # Log to console
         return JSONResponse(status_code=500, content={"error": "Internal Server Error", "details": str(e), "trace": traceback.format_exc()})
+
+# --- Conquistas Route ---
+@app.get("/mobile/achievements", response_class=HTMLResponse)
+async def mobile_achievements(request: Request, current_user: dict = Depends(get_current_user), session: Session = Depends(get_session)):
+    try:
+        user_id = current_user.get("id")
+        if not user_id: return RedirectResponse(url="/mobile/login", status_code=303)
+        employee = session.get(models.Employee, user_id)
+        if not employee: return RedirectResponse(url="/mobile/login", status_code=303)
+
+        # Gamification Data
+        from gamification_engine import get_employee_progress
+        progress_data = get_employee_progress(session, employee.id)
+        
+        # Achievements Data
+        all_achievements = session.exec(select(models.GameAchievement).order_by(models.GameAchievement.xp_reward)).all()
+        my_achievements = session.exec(select(models.EmployeeAchievement).where(models.EmployeeAchievement.employee_id == employee.id)).all()
+        
+        my_unlocked_ids = {a.achievement_id: a.earned_at for a in my_achievements}
+        
+        achievements_list = []
+        unlocked_count = 0
+        total_bonus_xp = 0
+        
+        for ach in all_achievements:
+            is_unlocked = ach.id in my_unlocked_ids
+            if is_unlocked:
+                unlocked_count += 1
+                total_bonus_xp += ach.xp_reward
+                
+            achievements_list.append({
+                "name": ach.name,
+                "description": ach.description,
+                "xp_reward": ach.xp_reward,
+                "icon": ach.icon,
+                "unlocked": is_unlocked,
+                "earned_at": my_unlocked_ids.get(ach.id)
+            })
+            
+        # Full XP History (Limit 100)
+        xp_history_full = session.exec(select(models.GameXPTransaction)
+            .where(models.GameXPTransaction.employee_id == employee.id)
+            .where(models.GameXPTransaction.status == "confirmed")
+            .order_by(desc(models.GameXPTransaction.created_at))
+            .limit(100)
+        ).all()
+
+        return templates.TemplateResponse("mobile/achievements.html", {
+            "request": request,
+            "employee": employee,
+            "gamification": {
+                "level": progress_data["level"],
+                "next_level": progress_data["next_level"],
+                "total_xp": int(employee.total_xp),
+                "progress_percent": progress_data["progress"]
+            },
+            "achievements": achievements_list,
+            "unlocked_count": unlocked_count,
+            "total_achievements": len(all_achievements),
+            "total_bonus_xp": total_bonus_xp,
+            "xp_history_full": xp_history_full
+        })
+    except Exception as e:
+        print(traceback.format_exc())
+        return RedirectResponse(url="/mobile/dashboard", status_code=303)
 
 # --- Gamification V2 API & Admin ---
 from gamification_engine import calculate_daily_xp, confirm_pending_xp
@@ -781,11 +862,12 @@ async def admin_game_settings(request: Request, session: Session = Depends(get_s
         # Convert list to dict for frontend
         config_dict = {c.key: c.value for c in configs}
         
-        import json
         return templates.TemplateResponse("admin_game_settings.html", {
             "request": request,
             "config_json": json.dumps(config_dict)
         })
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -3898,21 +3980,24 @@ async def routine_report(
         # Prepare People List for Report
         people_list = []
         
-        # Helper to get daily entry
-        def get_daily_status(reg_id):
-            return log.get(str(reg_id), {})
-            
+        # Helper for Shift Normalization (Defined earlier for use in filtering)
+        def normalize_str(s):
+            if not s: return ""
+            return unicodedata.normalize('NFD', str(s)).encode('ascii', 'ignore').decode('utf-8').lower().strip()
+
+        target_shift_norm = normalize_str(shift)
+
+        # Track processed IDs to merge log and DB
         total_present = 0
+        processed_ids = set()
         
-        # Iterar sobre o log reconstruído
+        # 1. Process via Log (Prioritize Daily Routine/Allocation)
+        # This catches everyone who was interacted with today (even if shift changed, or if fired but worked today)
         for reg_id_str, entry in log.items():
-            # Buscar colaborador por registration_id
             employee = emp_map.get(reg_id_str)
             if not employee:
-                print(f"⚠️ Colaborador com matrícula {reg_id_str} não encontrado no banco")
                 continue
             
-            # Determine effective status for today
             daily_status = entry.get('status', 'present')
             sector_key = entry.get('sector')
             
@@ -3920,7 +4005,7 @@ async def routine_report(
             if daily_status == 'present':
                 total_present += 1
                 
-            # Check if Substituted (Only relevant if Away/Vacation?)
+            # Check Subst
             is_substituted = False
             if daily_status in ['away', 'vacation']:
                  has_sub_evt = session.exec(select(models.Event).where(
@@ -3934,6 +4019,54 @@ async def routine_report(
                 "name": employee.name,
                 "status_daily": daily_status,
                 "sector_daily": sector_key,
+                "is_substituted": is_substituted
+            })
+            processed_ids.add(employee.id)
+
+        # 2. Process Remaining Employees (Same Shift, No Routine Today)
+        # This catches "Away", "Vacation" people who didn't get a routine entry today
+        for emp in all_employees:
+            if emp.id in processed_ids:
+                continue
+                
+            if emp.status == 'fired': 
+                continue # Fired and no routine = ignored
+                
+            # Check Shift
+            emp_shift_norm = normalize_str(emp.work_shift)
+            if target_shift_norm not in emp_shift_norm:
+                continue # Wrong shift
+                
+            # Determine Status from DB Profile
+            db_status = emp.status
+            report_status = 'present' # Default assumption if active
+            
+            if db_status == 'away':
+                report_status = 'away'
+            elif db_status == 'vacation':
+                report_status = 'vacation'
+            elif db_status == 'active':
+                # Active but no routine... Assume present (unallocated) or just list them?
+                # If we assume present, we might increase "Presentes" count.
+                # If they are truly absent, they should have been marked 'absent'.
+                # Assumption: Active = Present
+                report_status = 'present'
+                total_present += 1
+            
+            # Substituted Check (Duplicate logic, could functionality extract)
+            is_substituted = False
+            if report_status in ['away', 'vacation']:
+                 has_sub_evt = session.exec(select(models.Event).where(
+                    models.Event.employee_id == emp.id,
+                    models.Event.text.like("%Substituído por%")
+                 )).first()
+                 if has_sub_evt:
+                     is_substituted = True
+
+            people_list.append({
+                "name": emp.name,
+                "status_daily": report_status,
+                "sector_daily": None, # Unallocated
                 "is_substituted": is_substituted
             })
         
@@ -4031,7 +4164,24 @@ async def routine_report(
         # Não usar total_target_real (colaboradores ativos) pois isso causa divergência
         
         total_gap = sum(s['gap'] for s in sectors_detailed)
-        total_vacancies = sum(s['vacancies'] for s in sectors_detailed)
+        
+        # Operational Vacancies (Sum of Sector Vacancies)
+        total_operational_vacancies = sum(s['vacancies'] for s in sectors_detailed)
+
+        # HR Vacancies (UI Def) = Total Demitidos no Turno
+        # A UI considera "Vagas" como o número de demitidos.
+        # Para bater 100% com a UI, contaremos os demitidos do turno.
+        fired_in_shift = 0
+        for emp in all_employees:
+            if emp.status == 'fired':
+                 emp_shift_norm = normalize_str(emp.work_shift)
+                 if target_shift_norm in emp_shift_norm:
+                     fired_in_shift += 1
+                     
+        hr_vacancies = fired_in_shift
+        
+        # total_vacancies used for Sector breakdown remains 'Operational Gap'
+        # But for Top KPI used in "Vagas" card, we should use HR Vacancies to match UI
         
         prod_per_person = round(tonnage / total_present, 2) if total_present > 0 else 0
         present_pct = int((total_present / total_target * 100)) if total_target > 0 else 0
@@ -4045,20 +4195,21 @@ async def routine_report(
         
         snapshot = {
             "kpis": {
-                "total_target": total_target,  # CORRIGIDO: Usar soma das metas configuradas
+                "total_target": total_target,
                 "total_allocated": total_allocated_sum,
                 "total_present": total_present,
                 "present_pct": present_pct,
-                "total_gap": total_vacancies,  # Vagas = diferença entre meta e alocados
-                "total_vacancies": total_vacancies,
+                "total_gap": total_gap,  # Gap Operacional (Meta - Alocados)
+                "total_vacancies": hr_vacancies, # CORREÇÃO: Vagas RH (Meta - Headcount) para bater com UI
+                "operational_gap": total_operational_vacancies, # Mantendo o valor antigo com outro nome se precisar
                 "tonnage": f"{tonnage:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
                 "prod_per_person": f"{prod_per_person:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
-                "count_absent": daily_absent,  # Faltas apenas
-                "count_sick": daily_sick,  # Atestados separado
-                "count_vacation": daily_vacation,  # Férias separado
-                "count_away": daily_away,  # Afastados separado
-                "count_dayoff": daily_dayoff,  # Folgas separado
-                "count_vacation_away": daily_vacation + daily_away,  # Combinado para compatibilidade
+                "count_absent": daily_absent,
+                "count_sick": daily_sick,
+                "count_vacation": daily_vacation,
+                "count_away": daily_away,
+                "count_dayoff": daily_dayoff,
+                "count_vacation_away": daily_vacation + daily_away,
                 "count_substitutions": count_substitutions
             },
             "sectors": sectors_detailed,
@@ -5376,3 +5527,158 @@ async def smart_flow_load(request: Request, shift: str = "Manhã", date: Optiona
     except Exception as e:
         logger.error(f"Error in smart_flow_load: {e}")
         return JSONResponse(content={"error": str(e)}, status_code=500)
+
+# --- Operational History Routes ---
+
+@app.get("/operational/history", response_class=HTMLResponse)
+async def operational_history_page(request: Request):
+    """Render the Operational History Page"""
+    try:
+        require_login(request)
+        return templates.TemplateResponse("operational_history.html", {"request": request})
+    except Exception as e:
+        logger.exception("Error rendering operational history")
+        return HTMLResponse(content=f"Error: {e}", status_code=500)
+
+from gamification_engine import calculate_daily_xp # Import for recalculation
+
+@app.get("/api/operational/routes")
+async def api_operational_routes(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    search: Optional[str] = None,
+    sort_by: Optional[str] = 'date',
+    status: Optional[str] = None,
+    session: Session = Depends(get_session)
+):
+    try:
+        query = select(models.Route, models.Employee.name, models.Client.name).join(models.Employee).join(models.Client)
+        
+        # Filtering
+        if start_date:
+            query = query.where(models.Route.date >= start_date)
+        if end_date:
+            query = query.where(models.Route.date <= end_date)
+            
+        if status:
+            query = query.where(models.Route.status == status)
+            
+        if search:
+            search_pattern = f"%{search}%"
+            query = query.where(
+                or_(
+                    models.Employee.name.ilike(search_pattern),
+                    models.Client.name.ilike(search_pattern),
+                    models.Route.date.ilike(search_pattern)
+                )
+            )
+
+        # Sorting
+        # Simple Logic: Only Sort by Date desc by default
+        query = query.order_by(desc(models.Route.date), desc(models.Route.id))
+        
+        results = session.exec(query).all()
+        
+        data = []
+        for r, emp_name, client_name in results:
+            data.append({
+                "id": r.id,
+                "date": r.date,
+                "employee_name": emp_name,
+                "employee_id": r.employee_id,
+                "client_name": client_name,
+                "client_id": r.client_id,
+                "start_time": r.start_time,
+                "end_time": r.end_time,
+                "tonnage": r.tonnage,
+                "status": r.status
+            })
+            
+            # Calculate Duration
+            duration_str = "-"
+            if r.start_time and r.end_time:
+                try:
+                    s = datetime.strptime(r.start_time, "%H:%M")
+                    e = datetime.strptime(r.end_time, "%H:%M")
+                    diff = (e - s).total_seconds()
+                    if diff < 0: diff += 86400 # Handle overnight if needed
+                    
+                    dh = int(diff // 3600)
+                    dm = int((diff % 3600) // 60)
+                    duration_str = f"{dh:02d}:{dm:02d}"
+                except:
+                    pass
+            
+            data[-1]["duration"] = duration_str
+            
+            # Est. XP (Approx 100 XP per 1500kg)
+            est_xp = int((r.tonnage / 1500.0) * 100)
+            data[-1]["est_xp"] = est_xp
+            
+        return {"routes": data}
+        
+    except Exception as e:
+        logger.exception("Error fetching routes")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+class RouteUpdateModel(BaseModel):
+    tonnage: Optional[float] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    status: Optional[str] = None
+
+@app.put("/api/operational/routes/{route_id}")
+async def api_update_route(
+    route_id: int, 
+    payload: RouteUpdateModel, 
+    session: Session = Depends(get_session)
+):
+    try:
+        route = session.get(models.Route, route_id)
+        if not route:
+            return JSONResponse({"error": "Rota não encontrada"}, status_code=404)
+            
+        if payload.tonnage is not None:
+            route.tonnage = payload.tonnage
+        if payload.start_time is not None:
+            route.start_time = payload.start_time
+        if payload.end_time is not None:
+            route.end_time = payload.end_time
+        if payload.status is not None:
+            route.status = payload.status
+            
+        session.add(route)
+        session.commit()
+        
+        # Recalculate Daily XP
+        try:
+            calculate_daily_xp(session, route.date)
+        except Exception as e:
+            logger.error(f"Error recalculating XP on update: {e}")
+            
+        return {"success": True}
+    except Exception as e:
+        logger.exception(f"Error updating route {route_id}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.delete("/api/operational/routes/{route_id}")
+async def api_delete_route(route_id: int, session: Session = Depends(get_session)):
+    try:
+        route = session.get(models.Route, route_id)
+        if not route:
+            return JSONResponse({"error": "Rota não encontrada"}, status_code=404)
+        
+        target_date = route.date # Save date before delete
+        session.delete(route)
+        session.commit()
+        
+        # Recalculate Daily XP
+        try:
+            calculate_daily_xp(session, target_date)
+        except Exception as e:
+            logger.error(f"Error recalculating XP on delete: {e}")
+
+        return {"success": True}
+    except Exception as e:
+        logger.exception(f"Error deleting route {route_id}")
+        return JSONResponse({"error": str(e)}, status_code=500)

@@ -7,7 +7,7 @@ load_dotenv()
 
 # Check for DATABASE_URL env var (Production) or use local sqlite (Development)
 sqlite_file_name = "database.db"
-sqlite_url = os.environ.get("DATABASE_URL", f"sqlite:///{sqlite_file_name}")
+sqlite_url = os.environ.get("DATABASE_URL", f"sqlite:///{sqlite_file_name}").strip()
 
 # Fix for Render/Heroku using postgres:// instead of postgresql://
 if sqlite_url and sqlite_url.startswith("postgres://"):

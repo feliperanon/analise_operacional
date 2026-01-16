@@ -1,0 +1,321 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div x-data="historyController()" x-init="init()" class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-white">Histórico Operacional</h1>
+            <p class="text-gray-400 text-sm">Gerencie todas as rotinas de separação.</p>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="flex flex-wrap gap-2 items-center">
+            <!-- Search -->
+            <div class="relative">
+                <input type="text" x-model="filters.search" @input.debounce.500ms="fetchData()"
+                    placeholder="Buscar (Nome, Cliente...)"
+                    class="bg-gray-800 text-sm text-white rounded-lg pl-9 pr-4 py-2 border border-gray-700 focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none w-64">
+                <i data-lucide="search" class="absolute left-3 top-2.5 text-gray-400 w-4 h-4"></i>
+            </div>
+
+            <!-- Date Range -->
+            <input type="date" x-model="filters.startDate" @change="fetchData()"
+                class="bg-gray-800 text-sm text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-green-500 outline-none">
+            <span class="text-gray-500">-</span>
+            <input type="date" x-model="filters.endDate" @change="fetchData()"
+                class="bg-gray-800 text-sm text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-green-500 outline-none">
+
+            <!-- Status Filter -->
+            <select x-model="filters.status" @change="fetchData()"
+                class="bg-gray-800 text-sm text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-green-500 outline-none">
+                <option value="">Todos Status</option>
+                <option value="completed">Concluído</option>
+                <option value="pending">Pendente</option>
+            </select>
+
+            <button @click="fetchData()"
+                class="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-lg transition-colors">
+                <i data-lucide="refresh-cw" class="w-4 h-4" :class="{'animate-spin': loading}"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-900/50 text-gray-400 text-xs uppercase tracking-wider border-b border-gray-700">
+                        <th class="p-4 font-medium">Data</th>
+                        <th class="p-4 font-medium">Colaborador</th>
+                        <th class="p-4 font-medium">Cliente</th>
+                        <th class="p-4 font-medium">Início</th>
+                        <th class="p-4 font-medium">Fim</th>
+                        <th class="p-4 font-medium">Duração</th>
+                        <th class="p-4 font-medium text-right">XP (Est.)</th>
+                        <th class="p-4 font-medium text-right">Tonelagem</th>
+                        <th class="p-4 font-medium text-center">Status</th>
+                        <th class="p-4 font-medium text-right">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700/50">
+                    <template x-for="item in items" :key="item.id">
+                        <tr class="hover:bg-gray-700/30 transition-colors group">
+                            <td class="p-4 text-sm text-gray-300 font-mono" x-text="formatDate(item.date)"></td>
+                            <td class="p-4">
+                                <div class="flex items-center gap-3">
+                                    <div
+                                        class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-400">
+                                        <span x-text="getInitials(item.employee_name)"></span>
+                                    </div>
+                                    <div>
+                                        <a :href="'/employees/' + item.employee_id"
+                                            class="text-sm font-medium text-white hover:text-blue-400 hover:underline transition-colors"
+                                            x-text="item.employee_name"></a>
+                                        <div class="text-xs text-gray-500">ID: <span x-text="item.employee_id"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="p-4">
+                                <a :href="'/clients/' + item.client_id"
+                                    class="text-sm text-green-400 font-medium hover:text-green-300 hover:underline transition-colors"
+                                    x-text="item.client_name"></a>
+                            </td>
+                            <td class="p-4 text-sm text-gray-300 font-mono" x-text="item.start_time"></td>
+                            <td class="p-4 text-sm text-gray-300 font-mono" x-text="item.end_time || '-'"></td>
+                            <td class="p-4 text-sm text-blue-300 font-mono font-bold" x-text="item.duration || '-'">
+                            </td>
+                            <td class="p-4 text-right">
+                                <span class="font-bold text-yellow-400" x-text="'+ ' + item.est_xp + ' XP'"></span>
+                            </td>
+                            <td class="p-4 text-right">
+                                <span class="font-bold text-white" x-text="item.tonnage + ' kg'"></span>
+                            </td>
+                            <td class="p-4 text-center">
+                                <span class="px-2 py-1 rounded text-xs font-bold uppercase tracking-wide" :class="{
+                                          'bg-green-900 text-green-300': item.status === 'completed',
+                                          'bg-yellow-900 text-yellow-300': item.status === 'pending'
+                                      }" x-text="item.status === 'completed' ? 'Concluído' : 'Pendente'">
+                                </span>
+                            </td>
+                            <td class="p-4 text-right">
+                                <div class="flex justify-end gap-2">
+                                    <button @click="openEdit(item)"
+                                        class="text-blue-400 hover:bg-blue-900/30 p-2 rounded transition-colors"
+                                        title="Editar">
+                                        <i data-lucide="pencil" class="w-4 h-4"></i>
+                                    </button>
+                                    <button @click="confirmDelete(item)"
+                                        class="text-red-400 hover:bg-red-900/30 p-2 rounded transition-colors"
+                                        title="Excluir">
+                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+
+                    <!-- Empty State -->
+                    <tr x-show="items.length === 0 && !loading">
+                        <td colspan="9" class="p-12 text-center">
+                            <i data-lucide="package-open"
+                                class="text-gray-600 w-12 h-12 mb-3 mx-auto block opacity-50"></i>
+                            <span class="text-gray-500">Nenhuma rotina encontrada.</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Loading State -->
+        <div x-show="loading"
+            class="p-4 text-center text-gray-400 text-sm border-t border-gray-700 bg-gray-800/50 flex justify-center items-center gap-2">
+            <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Carregando dados...
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div x-show="editModal.open" x-transition.opacity
+        class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl w-full max-w-md p-6"
+            @click.outside="closeEdit()">
+
+            <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                <i data-lucide="pencil" class="text-blue-500 w-5 h-5"></i> Editar Rota
+            </h3>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Colaborador</label>
+                    <input type="text" :value="editModal.data.employee_name" disabled
+                        class="w-full bg-gray-900 text-gray-500 rounded border border-gray-700 px-3 py-2 cursor-not-allowed">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Início</label>
+                        <input type="time" x-model="editModal.data.start_time"
+                            class="w-full bg-gray-900 text-white rounded border border-gray-700 px-3 py-2 focus:border-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Fim</label>
+                        <input type="time" x-model="editModal.data.end_time"
+                            class="w-full bg-gray-900 text-white rounded border border-gray-700 px-3 py-2 focus:border-blue-500 outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Tonelagem (Kg)</label>
+                    <input type="number" x-model="editModal.data.tonnage" step="0.1"
+                        class="w-full bg-gray-900 text-white rounded border border-gray-700 px-3 py-2 focus:border-blue-500 outline-none text-xl font-mono">
+                </div>
+
+                <div>
+                    <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Status</label>
+                    <select x-model="editModal.data.status"
+                        class="w-full bg-gray-900 text-white rounded border border-gray-700 px-3 py-2 focus:border-blue-500 outline-none">
+                        <option value="pending">Pendente</option>
+                        <option value="completed">Concluído</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-8">
+                <button @click="closeEdit()"
+                    class="px-4 py-2 rounded text-gray-400 hover:bg-gray-700 hover:text-white transition-colors">Cancelar</button>
+                <button @click="saveEdit()"
+                    class="px-6 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold transition-colors flex items-center gap-2">
+                    <span x-show="!editModal.saving">Salvar Alterações</span>
+                    <span x-show="editModal.saving" class="flex items-center gap-2"><i data-lucide="loader-2"
+                            class="w-4 h-4 animate-spin"></i> Salvando...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function historyController() {
+        return {
+            items: [],
+            loading: false,
+            filters: {
+                search: '',
+                startDate: '',
+                endDate: '',
+                status: ''
+            },
+            editModal: {
+                open: false,
+                data: {}, // Clone of item
+                saving: false
+            },
+
+            init() {
+                // Set default dates (Current Month)
+                const date = new Date();
+                // this.filters.startDate = new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0];
+                // this.filters.endDate = new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0];
+                // No, user might check old data, default to empty to show all or recent
+                this.fetchData();
+            },
+
+            async fetchData() {
+                this.loading = true;
+                try {
+                    const params = new URLSearchParams();
+                    if (this.filters.search) params.append('search', this.filters.search);
+                    if (this.filters.startDate) params.append('start_date', this.filters.startDate);
+                    if (this.filters.endDate) params.append('end_date', this.filters.endDate);
+                    if (this.filters.status) params.append('status', this.filters.status);
+
+                    const res = await fetch(`/api/operational/routes?${params.toString()}`);
+                    const data = await res.json();
+                    this.items = data.routes || [];
+                    this.$nextTick(() => lucide.createIcons()); // Refresh Icons
+                } catch (error) {
+                    console.error("Fetch error:", error);
+                    alert("Erro ao carregar dados.");
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            getInitials(name) {
+                return (name || '?').split(' ').map(n => n[0]).slice(0, 2).join('');
+            },
+
+            formatDate(dateStr) {
+                if (!dateStr) return '-';
+                const [y, m, d] = dateStr.split('-');
+                return `${d}/${m}/${y}`;
+            },
+
+            // --- Edit Logic ---
+            openEdit(item) {
+                this.editModal.data = JSON.parse(JSON.stringify(item));
+                this.editModal.open = true;
+            },
+
+            closeEdit() {
+                this.editModal.open = false;
+                this.editModal.saving = false;
+            },
+
+            async saveEdit() {
+                this.editModal.saving = true;
+                try {
+                    const payload = {
+                        tonnage: parseFloat(this.editModal.data.tonnage),
+                        start_time: this.editModal.data.start_time,
+                        end_time: this.editModal.data.end_time,
+                        status: this.editModal.data.status
+                    };
+
+                    const res = await fetch(`/api/operational/routes/${this.editModal.data.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (res.ok) {
+                        this.closeEdit();
+                        this.fetchData(); // Refresh
+                        alert("Rota atualizada com sucesso!");
+                    } else {
+                        const err = await res.json();
+                        alert("Erro ao salvar: " + err.error);
+                    }
+                } catch (e) {
+                    alert("Erro de conexão.");
+                } finally {
+                    this.editModal.saving = false;
+                }
+            },
+
+            // --- Delete Logic ---
+            async confirmDelete(item) {
+                if (confirm(`Tem certeza que deseja EXCLUIR a rota de ${item.tonnage}kg de ${item.employee_name}?
+AVISO: Isso apagará o registro em todos os locais.`)) {
+                    try {
+                        const res = await fetch(`/api/operational/routes/${item.id}`, {
+                            method: 'DELETE'
+                        });
+
+                        if (res.ok) {
+                            this.fetchData();
+                        } else {
+                            alert("Erro ao excluir.");
+                        }
+                    } catch (e) {
+                        alert("Erro de conexão.");
+                    }
+                }
+            }
+        }
+    }
+</script>
+{% endblock %}

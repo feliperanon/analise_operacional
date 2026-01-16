@@ -38,7 +38,7 @@
             </button>
         </div>
 
-        <div class="relative mt-2">
+        <div class="relative mt-2 z-30">
             <div class="flex justify-between text-xs font-medium text-slate-400 mb-2">
                 <div class="flex flex-col">
                     <div class="flex items-center">
@@ -92,7 +92,7 @@
                     </div>
                 </div>
 
-                <div class="flex items-end justify-between">
+                <div class="flex flex-wrap items-end justify-between gap-4">
                     <div>
                         <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Tempo Decorrido
                         </p>
@@ -101,7 +101,7 @@
                     </div>
 
                     <button @click="openStopModal(route)"
-                        class="mb-1 px-6 py-3 bg-red-500 hover:bg-red-600 active:scale-95 text-white rounded-xl font-bold shadow-lg shadow-red-500/25 transition-all flex items-center gap-2 group">
+                        class="mb-1 px-5 py-2.5 bg-red-500 hover:bg-red-600 active:scale-95 text-white rounded-xl font-bold shadow-lg shadow-red-500/25 transition-all flex items-center gap-2 group text-sm">
                         <i data-lucide="square" class="w-4 h-4 fill-current"></i>
                         <span>Encerrar</span>
                     </button>
@@ -132,19 +132,19 @@
             </div>
         </button>
 
-        <button @click="openEvaluationModal()"
-            class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-blue-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
+        <a href="/mobile/achievements"
+            class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-yellow-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg flex flex-col items-center justify-center">
             <div
-                class="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                class="absolute inset-0 bg-yellow-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             </div>
             <div class="flex flex-col items-center justify-center space-y-3 relative z-10">
                 <div
-                    class="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white text-blue-500 transition-colors">
-                    <i data-lucide="star" class="w-6 h-6"></i>
+                    class="w-12 h-12 rounded-full bg-yellow-500/10 flex items-center justify-center group-hover:bg-yellow-500 group-hover:text-white text-yellow-500 transition-colors">
+                    <i data-lucide="trophy" class="w-6 h-6"></i>
                 </div>
-                <span class="font-semibold text-slate-200">Avaliação</span>
+                <span class="font-semibold text-slate-200">Conquistas</span>
             </div>
-        </button>
+        </a>
 
         <button @click="scrollToHistory()"
             class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-purple-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
@@ -543,35 +543,30 @@
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    // ============================================
-    // INJEÇÃO DE DADOS USANDO TOJSON (ULTRA-SAFE)
-    // ============================================
-    window.INITIAL_DATA = {
-        clients: {{ clients | tojson | safe }},
-    activeRoutes: { { active_routes | tojson | safe } },
-    completedRoutes: { { completed_routes | tojson | safe } },
-    dailyXp: { { daily_xp_gain | tojson | safe } },
-    labels: { { chart_labels | tojson | safe } },
-    dataKg: { { chart_daily_kg | tojson | safe } },
-    dataKgh: { { chart_daily_kgh | tojson | safe } },
-    bgColors: { { chart_bg_colors | tojson | safe } }
-    };
+<script id="server-data" type="application/json">
+        {
+            "clients": {{ clients_json | safe }},
+        "activeRoutes": {{ active_routes | safe}},
+        "completedRoutes": {{ completed_routes | safe}},
+        "dailyXp": {{ daily_xp_gain }},
+        "labels": {{ chart_labels | safe}},
+        "dataKg": {{ chart_daily_kg | safe}},
+        "dataKgh": {{ chart_daily_kgh | safe}},
+        "bgColors": {{ chart_bg_colors | safe}}
+}
+</script>
 
-    // Validação e fallback
-    if (!window.INITIAL_DATA || typeof window.INITIAL_DATA !== 'object') {
-        console.error('❌ Erro ao carregar dados!');
+<script>
+    // Robust Data Injection
+    try {
+        const rawData = document.getElementById('server-data').textContent;
+        window.INITIAL_DATA = JSON.parse(rawData);
+    } catch (e) {
+        console.error("Critical: Failed to parse initial data", e);
         window.INITIAL_DATA = {
-            clients: [], activeRoutes: [], completedRoutes: [],
-            dailyXp: 0, labels: [], dataKg: [], dataKgh: [], bgColors: []
+            clients: [], activeRoutes: [], completedRoutes: [], dailyXp: 0,
+            labels: [], dataKg: [], dataKgh: [], bgColors: []
         };
-    } else {
-        console.log('✅ Dados carregados:', {
-            clientes: (window.INITIAL_DATA.clients || []).length,
-            rotasAtivas: (window.INITIAL_DATA.activeRoutes || []).length,
-            rotasConcluidas: (window.INITIAL_DATA.completedRoutes || []).length,
-            xpHoje: window.INITIAL_DATA.dailyXp || 0
-        });
     }
 </script>
 <script>
@@ -585,7 +580,7 @@
             showHelpModal: false,
 
             searchClient: '',
-            queue: [], // Array of { id, name, weight }
+            queue: [], // Array of {id, name, weight}
 
             // Temp vars for adding
             showWeightInput: false,
@@ -655,7 +650,14 @@
 
                 let diff = now - start;
                 if (diff < 0) diff = 0;
-                return new Date(diff).toISOString().substr(11, 8);
+
+                let totalSeconds = Math.floor(diff / 1000);
+                let hh = Math.floor(totalSeconds / 3600);
+                let mm = Math.floor((totalSeconds % 3600) / 60);
+                let ss = totalSeconds % 60;
+
+                const pad = (n) => n.toString().padStart(2, '0');
+                return `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
             },
 
             logout() {
