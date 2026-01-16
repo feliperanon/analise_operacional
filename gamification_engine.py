@@ -77,7 +77,12 @@ def calculate_daily_xp(session: Session, target_date_str: str):
         )).first()
         
         if existing:
-            # Update? For now, skip or log.
+            print(f"   🔄 Updating existing XP for {emp_id}: {existing.amount} -> {final_xp}")
+            existing.amount = final_xp
+            existing.reason = f"Produtividade {target_date_str} (ref: {reference_id}) | {kg:.0f}kg | {uo:.2f} UO"
+            existing.updated_at = datetime.now()
+            session.add(existing)
+            created_count += 1
             continue
             
         # Create Transaction

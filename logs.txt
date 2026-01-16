@@ -6099,3 +6099,41 @@ Traceback (most recent call last):
   File "C:\Projeto\analise_operacional\main.py", line 301, in require_login
     raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/login"})
 fastapi.exceptions.HTTPException: 303: See Other
+2026-01-15 11:13:27,604 | ERROR    | main | Error in smart_flow_page
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 2337, in smart_flow_page
+    user = require_login(request)
+  File "C:\Projeto\analise_operacional\main.py", line 327, in require_login
+    raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/mobile/dashboard"})
+fastapi.exceptions.HTTPException: 303: See Other
+2026-01-16 13:13:50,806 | ERROR    | main | Error in smart_flow_page
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 2337, in smart_flow_page
+    user = require_login(request)
+  File "C:\Projeto\analise_operacional\main.py", line 327, in require_login
+    raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/mobile/dashboard"})
+fastapi.exceptions.HTTPException: 303: See Other
+2026-01-16 14:12:05,954 | ERROR    | main | Error rendering operational history
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 5537, in operational_history_page
+    require_login(request)
+    ~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Projeto\analise_operacional\main.py", line 327, in require_login
+    raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/mobile/dashboard"})
+fastapi.exceptions.HTTPException: 303: See Other
+2026-01-16 14:12:27,472 | ERROR    | main | Error rendering operational history
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 5537, in operational_history_page
+    require_login(request)
+    ~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Projeto\analise_operacional\main.py", line 327, in require_login
+    raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/mobile/dashboard"})
+fastapi.exceptions.HTTPException: 303: See Other
+2026-01-16 14:12:41,503 | ERROR    | main | Error rendering operational history
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 5537, in operational_history_page
+    require_login(request)
+    ~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Projeto\analise_operacional\main.py", line 327, in require_login
+    raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/mobile/dashboard"})
+fastapi.exceptions.HTTPException: 303: See Other

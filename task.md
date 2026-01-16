@@ -1,7 +1,16 @@
 # Task: Bulk Absence Import
 
 - [x] Design Import Logic (Columns: Matricula, Data, Ocorrencia) <!-- id: 0 -->
-- [x] Implement Backend Endpoint `/api/import/occurrences` <!-- id: 1 -->
+- [x] Fix Missing Imports in main.py `api_operational_routes`
+- [ ] Add Duration/Hours column to Operational History
+    - [x] Backend: Calculate duration in `api_operational_routes`
+    - [x] Frontend: Add Duration column to table in `operational_history.html`
+    - [x] Frontend: Fix "invisible" buttons by switching to Lucide Icons
+    - [x] Frontend: Add links to Employee and Client details
+    - [x] Frontend: Standardize styling
+- [ ] Fix Mobile Dashboard Issues
+    - [x] Timer Logic: Use manual math instead of Date object (Fix "21:00")
+    - [x] Layout: Fix "Broken" appearance (responsive card)
 - [x] Add Import Button/Modal to `employees.html` <!-- id: 2 -->
 - [x] Test with sample data <!-- id: 3 -->
 

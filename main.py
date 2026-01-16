@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import traceback
 import os
 from starlette.middleware.sessions import SessionMiddleware
-from sqlmodel import Session, select, col, delete, text
+from sqlmodel import Session, select, col, delete, text, or_, desc
 from sqlalchemy import func
 from typing import List
 from database import create_db_and_tables, get_session, engine
@@ -634,10 +634,13 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
                 "type": tx.source_type
             })
 
+        # Serialize Clients using JSON (Prevent JS Syntax Errors)
+        clients_list = [{"id": c.id, "name": c.name} for c in clients]
+        
         context = {
             "request": request,
             "employee": employee,
-            "clients": clients,
+            "clients_json": json.dumps(clients_list), # SAFE JSON
             "active_routes": json.dumps(active_routes_list), # JSON for Alpine
             "completed_routes": json.dumps(completed_routes_list), # JSON for Alpine History
             "current_date": datetime.now().strftime("%d/%m/%Y"),
@@ -5524,3 +5527,158 @@ async def smart_flow_load(request: Request, shift: str = "Manhã", date: Optiona
     except Exception as e:
         logger.error(f"Error in smart_flow_load: {e}")
         return JSONResponse(content={"error": str(e)}, status_code=500)
+
+# --- Operational History Routes ---
+
+@app.get("/operational/history", response_class=HTMLResponse)
+async def operational_history_page(request: Request):
+    """Render the Operational History Page"""
+    try:
+        require_login(request)
+        return templates.TemplateResponse("operational_history.html", {"request": request})
+    except Exception as e:
+        logger.exception("Error rendering operational history")
+        return HTMLResponse(content=f"Error: {e}", status_code=500)
+
+from gamification_engine import calculate_daily_xp # Import for recalculation
+
+@app.get("/api/operational/routes")
+async def api_operational_routes(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    search: Optional[str] = None,
+    sort_by: Optional[str] = 'date',
+    status: Optional[str] = None,
+    session: Session = Depends(get_session)
+):
+    try:
+        query = select(models.Route, models.Employee.name, models.Client.name).join(models.Employee).join(models.Client)
+        
+        # Filtering
+        if start_date:
+            query = query.where(models.Route.date >= start_date)
+        if end_date:
+            query = query.where(models.Route.date <= end_date)
+            
+        if status:
+            query = query.where(models.Route.status == status)
+            
+        if search:
+            search_pattern = f"%{search}%"
+            query = query.where(
+                or_(
+                    models.Employee.name.ilike(search_pattern),
+                    models.Client.name.ilike(search_pattern),
+                    models.Route.date.ilike(search_pattern)
+                )
+            )
+
+        # Sorting
+        # Simple Logic: Only Sort by Date desc by default
+        query = query.order_by(desc(models.Route.date), desc(models.Route.id))
+        
+        results = session.exec(query).all()
+        
+        data = []
+        for r, emp_name, client_name in results:
+            data.append({
+                "id": r.id,
+                "date": r.date,
+                "employee_name": emp_name,
+                "employee_id": r.employee_id,
+                "client_name": client_name,
+                "client_id": r.client_id,
+                "start_time": r.start_time,
+                "end_time": r.end_time,
+                "tonnage": r.tonnage,
+                "status": r.status
+            })
+            
+            # Calculate Duration
+            duration_str = "-"
+            if r.start_time and r.end_time:
+                try:
+                    s = datetime.strptime(r.start_time, "%H:%M")
+                    e = datetime.strptime(r.end_time, "%H:%M")
+                    diff = (e - s).total_seconds()
+                    if diff < 0: diff += 86400 # Handle overnight if needed
+                    
+                    dh = int(diff // 3600)
+                    dm = int((diff % 3600) // 60)
+                    duration_str = f"{dh:02d}:{dm:02d}"
+                except:
+                    pass
+            
+            data[-1]["duration"] = duration_str
+            
+            # Est. XP (Approx 100 XP per 1500kg)
+            est_xp = int((r.tonnage / 1500.0) * 100)
+            data[-1]["est_xp"] = est_xp
+            
+        return {"routes": data}
+        
+    except Exception as e:
+        logger.exception("Error fetching routes")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+class RouteUpdateModel(BaseModel):
+    tonnage: Optional[float] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    status: Optional[str] = None
+
+@app.put("/api/operational/routes/{route_id}")
+async def api_update_route(
+    route_id: int, 
+    payload: RouteUpdateModel, 
+    session: Session = Depends(get_session)
+):
+    try:
+        route = session.get(models.Route, route_id)
+        if not route:
+            return JSONResponse({"error": "Rota não encontrada"}, status_code=404)
+            
+        if payload.tonnage is not None:
+            route.tonnage = payload.tonnage
+        if payload.start_time is not None:
+            route.start_time = payload.start_time
+        if payload.end_time is not None:
+            route.end_time = payload.end_time
+        if payload.status is not None:
+            route.status = payload.status
+            
+        session.add(route)
+        session.commit()
+        
+        # Recalculate Daily XP
+        try:
+            calculate_daily_xp(session, route.date)
+        except Exception as e:
+            logger.error(f"Error recalculating XP on update: {e}")
+            
+        return {"success": True}
+    except Exception as e:
+        logger.exception(f"Error updating route {route_id}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.delete("/api/operational/routes/{route_id}")
+async def api_delete_route(route_id: int, session: Session = Depends(get_session)):
+    try:
+        route = session.get(models.Route, route_id)
+        if not route:
+            return JSONResponse({"error": "Rota não encontrada"}, status_code=404)
+        
+        target_date = route.date # Save date before delete
+        session.delete(route)
+        session.commit()
+        
+        # Recalculate Daily XP
+        try:
+            calculate_daily_xp(session, target_date)
+        except Exception as e:
+            logger.error(f"Error recalculating XP on delete: {e}")
+
+        return {"success": True}
+    except Exception as e:
+        logger.exception(f"Error deleting route {route_id}")
+        return JSONResponse({"error": str(e)}, status_code=500)
