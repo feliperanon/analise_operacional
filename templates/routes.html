@@ -606,13 +606,33 @@
             document.querySelectorAll('.live-timer').forEach(el => {
                 const startStr = el.dataset.start;
                 if (!startStr) return;
+
                 const now = new Date();
                 const [startH, startM] = startStr.split(':').map(Number);
                 const startDate = new Date();
                 startDate.setHours(startH, startM, 0, 0);
-                if (startDate > now) startDate.setDate(startDate.getDate() - 1);
+
+                // Logic Fix 2.0: Handle Timezone Mismatches (UTC vs Local)
+                if (startDate > now) {
+                    const diffFuture = startDate - now;
+
+                    // 1. If start is 0-4 hours in future, assume UTC->Local Mismatch (e.g. 09:00 vs 06:00)
+                    if (diffFuture < 4 * 3600 * 1000) {
+                        startDate.setHours(startDate.getHours() - 3);
+                    }
+                    // 2. If more than 12 hours ahead, assume it started yesterday (e.g. 23:00 vs 01:00)
+                    else if (diffFuture > 12 * 3600 * 1000) {
+                        startDate.setDate(startDate.getDate() - 1);
+                    }
+                    // Else: Genuine future (e.g. 6 hours ahead), keeps startDate > now, diff negative -> 00:00:00
+                }
+
                 const diff = now - startDate;
-                if (diff < 0) return;
+                if (diff < 0) {
+                    el.innerText = "00:00:00"; // Or "--:--:--"
+                    return;
+                }
+
                 const diffHrs = Math.floor(diff / 3600000);
                 const diffMins = Math.floor((diff % 3600000) / 60000);
                 const diffSecs = Math.floor((diff % 60000) / 1000);

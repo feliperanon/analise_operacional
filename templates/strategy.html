@@ -3,6 +3,7 @@
 {% block content %}
 <div class="p-8">
     <div class="max-w-7xl mx-auto">
+        <!-- Header & Filters -->
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
                 <h1 class="text-3xl font-bold text-white mb-2">Estratégia & Inteligência 🧠</h1>
@@ -12,47 +13,45 @@
             <!-- Filters -->
             <div class="bg-slate-800 p-2 rounded-xl flex items-center gap-3 border border-slate-700 shadow-lg">
                 <!-- Date -->
-                <input type="date" id="strategy-date" value="{{ selected_date }}" onchange="applyStrategyFilters()"
+                <input type="date" id="strategy-date"
                     class="bg-transparent text-white text-sm font-bold border-none focus:ring-0 cursor-pointer outline-none">
 
                 <div class="w-px h-6 bg-slate-600"></div>
 
                 <!-- Shift -->
-                <select id="strategy-shift" onchange="applyStrategyFilters()"
+                <select id="strategy-shift"
                     class="bg-transparent text-white text-sm font-bold border-none focus:ring-0 cursor-pointer outline-none [&>option]:bg-slate-800">
-                    <option value="Todos" {% if selected_shift=='Todos' %}selected{% endif %}>Todos os Turnos</option>
-                    <option value="Manhã" {% if selected_shift=='Manhã' %}selected{% endif %}>Manhã</option>
-                    <option value="Tarde" {% if selected_shift=='Tarde' %}selected{% endif %}>Tarde</option>
-                    <option value="Noite" {% if selected_shift=='Noite' %}selected{% endif %}>Noite</option>
+                    <option value="Todos">Todos os Turnos</option>
+                    <option value="Manhã">Manhã</option>
+                    <option value="Tarde">Tarde</option>
+                    <option value="Noite">Noite</option>
                 </select>
             </div>
         </div>
 
-        <script>
-            function applyStrategyFilters() {
-                const date = document.getElementById('strategy-date').value;
-                const shift = document.getElementById('strategy-shift').value;
-                window.location.href = `/strategy?date=${date}&shift=${shift}`;
-            }
-        </script>
-
         <!-- Global KPIs (Micro Efficiency) -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg">
-                <p class="text-xs font-bold text-slate-500 uppercase">Produtividade Global</p>
-                <div class="mt-2 flex items-baseline gap-2">
-                    <span class="text-3xl font-bold text-white">{{ kpi.global_kgh }}</span>
+            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg relative overflow-hidden group">
+                <div
+                    class="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                </div>
+                <p class="text-xs font-bold text-slate-500 uppercase relative z-10">Produtividade Global</p>
+                <div class="mt-2 flex items-baseline gap-2 relative z-10">
+                    <span id="kpi-global-kgh" class="text-3xl font-bold text-white">...</span>
                     <span class="text-sm text-slate-400">Kg/h</span>
                 </div>
-                <div class="mt-2 text-xs text-green-400 font-bold">Baseado em todo histórico</div>
+                <div class="mt-2 text-xs text-green-400 font-bold relative z-10">Média Sistema</div>
             </div>
 
-            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg">
-                <p class="text-xs font-bold text-slate-500 uppercase">Ociosidade Média</p>
-                <div class="mt-2 flex items-baseline gap-2">
-                    <span class="text-3xl font-bold text-white">{{ kpi.avg_idle }}</span>
+            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg relative overflow-hidden group">
+                <div
+                    class="absolute inset-0 bg-gradient-to-br from-red-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                 </div>
-                <p class="text-xs text-slate-400 mt-2">Intervalo médio entre tarefas</p>
+                <p class="text-xs font-bold text-slate-500 uppercase relative z-10">Ociosidade Média</p>
+                <div class="mt-2 flex items-baseline gap-2 relative z-10">
+                    <span id="kpi-avg-idle" class="text-3xl font-bold text-white">...</span>
+                </div>
+                <p class="text-xs text-slate-400 mt-2 relative z-10">Por turno (hoje)</p>
             </div>
 
             <!-- Cost Calculator -->
@@ -62,15 +61,15 @@
                     <div class="flex-1 w-full">
                         <label class="text-xs text-slate-400 mb-1 block">Folha Mensal (R$)</label>
                         <input type="number" id="payroll-input" placeholder="Ex: 50000"
-                            class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
+                            class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors"
                             onkeyup="calcCost()">
                     </div>
                     <div class="flex-1 w-full">
                         <p class="text-xs text-slate-400 mb-1">Volume Total (Ref.)</p>
                         <p class="text-lg font-mono text-slate-300 border-b border-slate-700 pb-1" id="total-vol"
-                            data-val="{{ kpi.total_vol }}">{{ kpi.total_vol }} kg</p>
+                            data-val="0">...</p>
                     </div>
-                    <div class="flex-1 bg-slate-700/50 p-2 rounded text-center w-full">
+                    <div class="flex-1 bg-slate-700/50 p-2 rounded text-center w-full border border-slate-600">
                         <p class="text-xs text-slate-400">Custo por Tonelada</p>
                         <p class="text-xl font-bold text-green-400" id="cost-result">R$ -</p>
                     </div>
@@ -78,31 +77,18 @@
             </div>
         </div>
 
-        <script>
-            function calcCost() {
-                const payroll = parseFloat(document.getElementById('payroll-input').value) || 0;
-                // Remove dots/commas from formatted string to get float
-                const volStr = document.getElementById('total-vol').innerText.replace(/\./g, '').replace(/,/g, '.');
-                const vol = parseFloat(volStr) || 1;
-
-                // Convert Kg to Ton
-                const tons = vol / 1000;
-
-                if (tons > 0 && payroll > 0) {
-                    const cost = payroll / tons;
-                    document.getElementById('cost-result').innerText = "R$ " + cost.toFixed(2);
-                } else {
-                    document.getElementById('cost-result').innerText = "R$ -";
-                }
-            }
-        </script>
-
-        <!-- ABC Curve Section -->
-        <h2 class="text-xl font-bold text-white mb-4">1. Curva ABC de Clientes (Pareto)</h2>
+        <!-- 1. ABC Curve -->
+        <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <span>1. Curva ABC de Clientes</span>
+            <span
+                class="text-xs font-normal text-slate-500 bg-slate-800 px-2 py-1 rounded border border-slate-700">Pareto
+                80/20</span>
+        </h2>
         <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden mb-8">
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto max-h-96 custom-scrollbar">
                 <table class="w-full text-left">
-                    <thead class="bg-slate-900/50 text-xs uppercase text-slate-400 font-bold">
+                    <thead
+                        class="bg-slate-900/80 text-xs uppercase text-slate-400 font-bold sticky top-0 backdrop-blur-sm z-10">
                         <tr>
                             <th class="px-6 py-4">Classificação</th>
                             <th class="px-6 py-4">Cliente</th>
@@ -111,37 +97,17 @@
                             <th class="px-6 py-4">Visual</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-700 text-sm">
-                        {% for row in abc_data %}
-                        <tr class="hover:bg-slate-700/30 transition-colors">
-                            <td class="px-6 py-4">
-                                <span class="px-3 py-1 rounded-full font-bold text-xs
-                                    {% if row.class == 'A' %}bg-green-500/20 text-green-400 border border-green-500/30
-                                    {% elif row.class == 'B' %}bg-yellow-500/20 text-yellow-400 border border-yellow-500/30
-                                    {% else %}bg-slate-600/20 text-slate-400 border border-slate-600/30{% endif %}">
-                                    Classe {{ row.class }}
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 font-medium text-white">{{ row.name }}</td>
-                            <td class="px-6 py-4 text-slate-300">{{ "{:,.2f}".format(row.total).replace('.',',') }}</td>
-                            <td class="px-6 py-4 text-slate-400">{{ "{:.1f}%".format(row.pct) }}</td>
-                            <td class="px-6 py-4 w-48">
-                                <div class="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
-                                    <div class="h-full {% if row.class == 'A' %}bg-green-500{% elif row.class == 'B' %}bg-yellow-500{% else %}bg-slate-500{% endif %}"
-                                        style="width: {{ row.pct }}%"></div>
-                                </div>
-                            </td>
+                    <tbody id="abc-table-body" class="divide-y divide-slate-700 text-sm">
+                        <!-- JS Rendered -->
+                        <tr>
+                            <td colspan="5" class="p-8 text-center text-slate-500">Carregando...</td>
                         </tr>
-                        {% endfor %}
                     </tbody>
                 </table>
             </div>
-            {% if not abc_data %}
-            <div class="p-8 text-center text-slate-500">Sem dados suficientes para análise ABC.</div>
-            {% endif %}
         </div>
 
-        <!-- Productivity Chart Section -->
+        <!-- 2. Productivity Chart -->
         <h2 class="text-xl font-bold text-white mb-4">2. Evolução de Produtividade (30 dias) 📈</h2>
         <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg p-6 mb-8">
             <div class="relative h-80 w-full">
@@ -149,78 +115,8 @@
             </div>
         </div>
 
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <script>
-            document.addEventListener('DOMContentLoaded', function () {
-                const ctx = document.getElementById('prodChart').getContext('2d');
-                const labels = JSON.parse('{{ prod_chart_labels | safe }}');
-                const data = JSON.parse('{{ prod_chart_data | safe }}');
-
-                new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: 'Produtividade Média (Kg/h)',
-                            data: data,
-                            borderColor: '#34d399', // Green-400
-                            backgroundColor: 'rgba(52, 211, 153, 0.1)',
-                            borderWidth: 2,
-                            tension: 0.4,
-                            pointBackgroundColor: '#10b981',
-                            pointRadius: 4,
-                            pointHoverRadius: 6,
-                            fill: true
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                display: false
-                            },
-                            tooltip: {
-                                mode: 'index',
-                                intersect: false,
-                                backgroundColor: '#1e293b',
-                                titleColor: '#fff',
-                                bodyColor: '#cbd5e1',
-                                borderColor: '#334155',
-                                borderWidth: 1
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                grid: {
-                                    color: '#334155'
-                                },
-                                ticks: {
-                                    color: '#94a3b8'
-                                },
-                                title: {
-                                    display: true,
-                                    text: 'Kg/h',
-                                    color: '#64748b'
-                                }
-                            },
-                            x: {
-                                grid: {
-                                    color: 'transparent'
-                                },
-                                ticks: {
-                                    color: '#94a3b8'
-                                }
-                            }
-                        }
-                    }
-                });
-            });
-        </script>
-
-        <!-- Productivity & Idle Section -->
-        <h2 class="text-xl font-bold text-white mb-4 mt-8">2. Produtividade Individual & Ociosidade ⏱️</h2>
+        <!-- 3. Individual Productivity -->
+        <h2 class="text-xl font-bold text-white mb-4 mt-8">3. Produtividade Individual & Ociosidade ⏱️</h2>
         <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden mb-8">
             <div class="overflow-x-auto">
                 <table class="w-full text-left">
@@ -233,87 +129,311 @@
                             <th class="px-6 py-4">Status</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-700 text-sm">
-                        {% for row in productivity %}
-                        <tr class="hover:bg-slate-700/30 transition-colors">
-                            <td class="px-6 py-4 font-medium text-white">{{ row.name }}</td>
-                            <td class="px-6 py-4">
-                                <span
-                                    class="font-mono {{ 'text-green-400' if row.kgh > 250 else 'text-red-400' if row.kgh < 150 else 'text-yellow-400' }} font-bold text-lg">
-                                    {{ "%.0f"|format(row.kgh) }} Kg/h
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 text-slate-300">
-                                {{ row.active_hours|int }}h {{ ((row.active_hours - row.active_hours|int)*60)|int }}m
-                                <span class="text-xs text-slate-500">/ {{ row.shift_duration|int }}h {{
-                                    ((row.shift_duration - row.shift_duration|int)*60)|int }}m</span>
-                            </td>
-                            <td class="px-6 py-4">
-                                <span
-                                    class="font-mono {{ 'text-red-400' if row.idle_hours > 2.0 else 'text-green-400' }} font-bold">
-                                    {{ row.idle_hours|int }}h {{ ((row.idle_hours - row.idle_hours|int)*60)|int }}m
-                                </span>
-                            </td>
-                            <td class="px-6 py-4">
-                                {% if row.kgh > 300 %}
-                                <span
-                                    class="bg-green-500/10 text-green-400 px-2 py-1 rounded text-xs border border-green-500/20">🚀
-                                    Elite</span>
-                                {% elif row.idle_hours > 2.0 %}
-                                <span
-                                    class="bg-red-500/10 text-red-400 px-2 py-1 rounded text-xs border border-red-500/20">⚠️
-                                    Ocioso</span>
-                                {% else %}
-                                <span class="bg-slate-700/50 text-slate-400 px-2 py-1 rounded text-xs">Normal</span>
-                                {% endif %}
-                            </td>
+                    <tbody id="productivity-table-body" class="divide-y divide-slate-700 text-sm">
+                        <!-- JS Rendered -->
+                        <tr>
+                            <td colspan="5" class="p-8 text-center text-slate-500">Carregando...</td>
                         </tr>
-                        {% endfor %}
                     </tbody>
                 </table>
             </div>
-            {% if not productivity %}
-            <div class="p-8 text-center text-slate-500">Sem dados de movimentação.</div>
-            {% endif %}
         </div>
 
-        <!-- SLA / Service Time Section -->
-        <h2 class="text-xl font-bold text-white mb-4 mt-8">3. SLA de Atendimento (Gargalos) ⏱️</h2>
+        <!-- 4. SLA Ranking -->
+        <h2 class="text-xl font-bold text-white mb-4 mt-8">4. SLA de Atendimento (Gargalos) ⏱️</h2>
         <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full text-left">
                     <thead class="bg-slate-900/50 text-xs uppercase text-slate-400 font-bold">
                         <tr>
                             <th class="px-6 py-4">Cliente</th>
-                            <th class="px-6 py-4">Tempo Médio de Separação (SLA)</th>
+                            <th class="px-6 py-4">Tempo Médio (SLA)</th>
                             <th class="px-6 py-4">Impacto</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-700 text-sm">
-                        {% for row in sla_ranking %}
-                        <tr class="hover:bg-slate-700/30 transition-colors">
-                            <td class="px-6 py-4 font-medium text-white">{{ row.name }}</td>
-                            <td class="px-6 py-4">
-                                <span class="font-mono text-slate-300">{{ row.sla_fmt }}</span>
-                            </td>
-                            <td class="px-6 py-4">
-                                {% if row.sla_min > 60 %}
-                                <span class="text-red-400 font-bold flex items-center gap-1">⚠️ Crítico (>1h)</span>
-                                {% elif row.sla_min > 30 %}
-                                <span class="text-yellow-400 font-bold">⚠️ Atenção</span>
-                                {% else %}
-                                <span class="text-green-400 font-bold">✅ OK</span>
-                                {% endif %}
-                            </td>
+                    <tbody id="sla-table-body" class="divide-y divide-slate-700 text-sm">
+                        <!-- JS Rendered -->
+                        <tr>
+                            <td colspan="3" class="p-8 text-center text-slate-500">Carregando...</td>
                         </tr>
-                        {% endfor %}
                     </tbody>
                 </table>
             </div>
-            {% if not sla_ranking %}
-            <div class="p-8 text-center text-slate-500">Sem dados de tempo suficientes.</div>
-            {% endif %}
         </div>
     </div>
 </div>
+
+<!-- Dependencies -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Logic -->
+<script>
+    let prodChartInstance = null;
+    let currentData = null;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Set Today's Date default
+        const dateInput = document.getElementById('strategy-date');
+        if (!dateInput.value) {
+            dateInput.value = new Date().toISOString().split('T')[0];
+        }
+
+        // Attach listeners
+        document.getElementById('strategy-date').addEventListener('change', loadStrategyData);
+        document.getElementById('strategy-shift').addEventListener('change', loadStrategyData);
+
+        // Initial Load
+        loadStrategyData();
+    });
+
+    async function loadStrategyData() {
+        const date = document.getElementById('strategy-date').value;
+        const shift = document.getElementById('strategy-shift').value;
+
+        // Visual Feedback (Loading state if needed, or simple opacity drop)
+        document.body.style.cursor = 'wait';
+
+        try {
+            const response = await fetch(`/api/strategy?date=${date}&shift=${shift}`);
+            if (!response.ok) throw new Error("Falha ao carregar dados");
+
+            const data = await response.json();
+            currentData = data;
+            renderAll(data);
+        } catch (error) {
+            console.error(error);
+            alert("Erro ao carregar dados da API.");
+        } finally {
+            document.body.style.cursor = 'default';
+        }
+    }
+
+    function renderAll(data) {
+        renderKPIs(data.kpi);
+        renderABC(data.abc_data);
+        renderChart(data.prod_chart_labels, data.prod_chart_data);
+        renderProductivity(data.productivity);
+        renderSLA(data.sla_ranking);
+    }
+
+    function renderKPIs(kpi) {
+        document.getElementById('kpi-global-kgh').innerText = kpi.global_kgh;
+        document.getElementById('kpi-avg-idle').innerText = kpi.avg_idle;
+        document.getElementById('total-vol').innerText = kpi.total_vol + " kg";
+        document.getElementById('total-vol').dataset.val = kpi.total_vol;
+
+        // Retrigger calc cost if user typed something before
+        calcCost();
+    }
+
+    function renderABC(abcData) {
+        const tbody = document.getElementById('abc-table-body');
+        if (!abcData || abcData.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-500">Sem dados suficientes.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = abcData.map(row => {
+            let badgeClass = "bg-slate-600/20 text-slate-400 border border-slate-600/30";
+            let barColor = "bg-slate-500";
+
+            if (row.class === 'A') {
+                badgeClass = "bg-green-500/20 text-green-400 border border-green-500/30";
+                barColor = "bg-green-500";
+            } else if (row.class === 'B') {
+                badgeClass = "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30";
+                barColor = "bg-yellow-500";
+            }
+
+            // Fix: API returns 'tonnage' and 'share', not 'total' and 'pct'
+            const val = row.tonnage || 0;
+            const share = row.share || 0;
+            const name = row.name || "Desconhecido";
+
+            return `
+                <tr class="hover:bg-slate-700/30 transition-colors">
+                    <td class="px-6 py-4">
+                        <span class="px-3 py-1 rounded-full font-bold text-xs ${badgeClass}">Client ${row.class}</span>
+                    </td>
+                    <td class="px-6 py-4 font-medium text-white">${name}</td>
+                    <td class="px-6 py-4 text-slate-300 font-mono">${fmt(val)}</td>
+                    <td class="px-6 py-4 text-slate-400">${share.toFixed(1)}%</td>
+                    <td class="px-6 py-4 w-48">
+                        <div class="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                            <div class="h-full ${barColor}" style="width: ${share}%"></div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function renderChart(labels, values) {
+        const ctx = document.getElementById('prodChart').getContext('2d');
+
+        if (prodChartInstance) {
+            prodChartInstance.destroy();
+        }
+
+        prodChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Produtividade Média (Kg/h)',
+                    data: values,
+                    borderColor: '#34d399',
+                    backgroundColor: 'rgba(52, 211, 153, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    pointBackgroundColor: '#10b981',
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        mode: 'index', intersect: false,
+                        backgroundColor: '#1e293b', titleColor: '#fff', bodyColor: '#cbd5e1',
+                        borderColor: '#334155', borderWidth: 1
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#334155' },
+                        ticks: { color: '#94a3b8' },
+                        title: { display: true, text: 'Kg/h', color: '#64748b' }
+                    },
+                    x: {
+                        grid: { color: 'transparent' },
+                        ticks: { color: '#94a3b8' }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderProductivity(prodList) {
+        const tbody = document.getElementById('productivity-table-body');
+        if (!prodList || prodList.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-500">Sem dados de movimentação.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = prodList.map(row => {
+            const kgh = row.kgh;
+            let kghClass = kgh > 250 ? "text-green-400" : (kgh < 150 ? "text-red-400" : "text-yellow-400");
+
+            const idleH = Math.floor(row.idle_hours);
+            const idleM = Math.floor((row.idle_hours - idleH) * 60);
+            const idleClass = row.idle_hours > 2.0 ? "text-red-400" : "text-green-400";
+
+            const activeH = Math.floor(row.active_hours);
+            const activeM = Math.floor((row.active_hours - activeH) * 60);
+
+            let statusBadge = `<span class="bg-slate-700/50 text-slate-400 px-2 py-1 rounded text-xs">Normal</span>`;
+            if (kgh > 300) statusBadge = `<span class="bg-green-500/10 text-green-400 px-2 py-1 rounded text-xs border border-green-500/20">🚀 Elite</span>`;
+            else if (row.idle_hours > 2.0) statusBadge = `<span class="bg-red-500/10 text-red-400 px-2 py-1 rounded text-xs border border-red-500/20">⚠️ Ocioso</span>`;
+
+            return `
+                 <tr class="hover:bg-slate-700/30 transition-colors">
+                    <td class="px-6 py-4 font-medium text-white">${row.name}</td>
+                    <td class="px-6 py-4">
+                        <span class="font-mono ${kghClass} font-bold text-lg">${Math.round(kgh)} Kg/h</span>
+                    </td>
+                    <td class="px-6 py-4 text-slate-300">
+                        ${activeH}h ${activeM}m
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="font-mono ${idleClass} font-bold">
+                            ${idleH}h ${idleM}m
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">${statusBadge}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function renderSLA(slaList) {
+        const tbody = document.getElementById('sla-table-body');
+        if (!slaList || slaList.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3" class="p-8 text-center text-slate-500">Sem dados.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = slaList.map(row => {
+            let impact = `<span class="text-green-400 font-bold">✅ OK</span>`;
+            if (row.sla_min > 60) impact = `<span class="text-red-400 font-bold flex items-center gap-1">⚠️ Crítico (>1h)</span>`;
+            else if (row.sla_min > 30) impact = `<span class="text-yellow-400 font-bold">⚠️ Atenção</span>`;
+
+            return `
+                <tr class="hover:bg-slate-700/30 transition-colors">
+                    <td class="px-6 py-4 font-medium text-white">${row.name}</td>
+                    <td class="px-6 py-4">
+                        <span class="font-mono text-slate-300">${row.sla_fmt}</span>
+                    </td>
+                    <td class="px-6 py-4">${impact}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function calcCost() {
+        const payroll = parseFloat(document.getElementById('payroll-input').value) || 0;
+        // The data-val attribute contains raw float from python (converted to string? actually python sends generic string number, lets trust data attribute or parse text)
+        // Actually, Python kpi.total_vol was formatted. 
+        // Best to use raw value.
+        // I will use regex to parse the visual string if data-val is not perfectly updated or rely on data-val if generic.
+        // Let's rely on string replacement similar to Python logic
+
+        let volStr = document.getElementById('total-vol').innerText;
+        // Remove dots (thousands)
+        volStr = volStr.replace(/\./g, '').replace(' kg', '');
+        // Replace comma with dot
+        volStr = volStr.replace(',', '.');
+
+        const vol = parseFloat(volStr) || 1;
+        const tons = vol / 1000;
+
+        if (tons > 0 && payroll > 0) {
+            const cost = payroll / tons;
+            document.getElementById('cost-result').innerText = "R$ " + cost.toFixed(2).replace('.', ',');
+        } else {
+            document.getElementById('cost-result').innerText = "R$ -";
+        }
+    }
+
+    function fmt(n) {
+        if (n === null || n === undefined) return "0,00";
+        return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+</script>
+
+<!-- Custom Scrollbar -->
+<style>
+    .custom-scrollbar::-webkit-scrollbar {
+        height: 6px;
+        width: 6px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: #1e293b;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #475569;
+        border-radius: 3px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #64748b;
+    }
+</style>
 {% endblock %}

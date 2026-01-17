@@ -370,7 +370,9 @@ def get_dashboard_data(session: Session, shift_filter: str):
     # Refined: Active Tonnage / Active Time
     # Let's use a simple heuristic for now: Avg of completed routes performance
     kgh_values = []
-    active_routes = []
+    
+    # Refactor: Group Active Routes by Employee
+    active_employees = {} # eid -> {name, photo, routes: []}
     
     for r in todays_routes:
         # Check if active (started but not ended)
@@ -381,7 +383,15 @@ def get_dashboard_data(session: Session, shift_filter: str):
                  start_dt = datetime.strptime(r.start_time, fmt).replace(year=today.year, month=today.month, day=today.day)
                  now_dt = datetime.now()
                  if start_dt > now_dt: # Handle edge case
-                     start_dt = now_dt
+                     # Heuristic: If start time is 0-4 hours in future, it's likely UTC vs Local mistmatch (stored UTC)
+                     # Convert it back to roughly local by subtracting 3h
+                     from datetime import timedelta
+                     diff_sec = (start_dt - now_dt).total_seconds()
+                     if diff_sec < 4 * 3600:
+                         start_dt = start_dt - timedelta(hours=3)
+                     else:
+                         start_dt = now_dt # Cap at now if way off
+                 
                  duration_mins = int((now_dt - start_dt).total_seconds() / 60)
                  
                  # Fetch extra info
@@ -394,14 +404,21 @@ def get_dashboard_data(session: Session, shift_filter: str):
                  emp_name = emp.name if emp else "..."
                  emp_photo = emp.photo_url if emp else None
                  
-                 active_routes.append({
-                     "employee_name": emp_name.split()[0], # First name only
-                     "photo_url": emp_photo,
+                 eid = r.employee_id
+                 if eid not in active_employees:
+                     active_employees[eid] = {
+                         "employee_name": emp_name.split()[0],
+                         "photo_url": emp_photo,
+                         "routes": []
+                     }
+                 
+                 active_employees[eid]['routes'].append({
                      "client": client_name,
                      "duration_mins": duration_mins,
                      "start_time": r.start_time,
-                     "status": "separating"
+                     "tonnage": r.tonnage or 0.0
                  })
+                 
              except Exception as e:
                  print(f"Error parsing active route: {e}")
         
@@ -439,9 +456,10 @@ def get_dashboard_data(session: Session, shift_filter: str):
         targets = session.exec(select(models.HeadcountTarget)).all()
         if targets: target_val = sum(t.target_value for t in targets)
 
-    # --- 3. HR Condensed ---
-    # Re-use existing helpers logic later or fetch minimal needed
-    # (Leaving placeholder for template injection)
+    # HR Condensed (Placeholder)
+    
+    # Flatten for template
+    active_routes = list(active_employees.values())
 
     return {
         "kpi": {
@@ -1119,7 +1137,8 @@ async def mobile_route_finish(
              return JSONResponse({"error": "Não autorizado"}, status_code=403)
              
         # Close Route
-        route.end_time = datetime.now().strftime("%H:%M")
+        from zoneinfo import ZoneInfo
+        route.end_time = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
         route.status = "completed"
         session.add(route)
         session.commit()
@@ -1146,8 +1165,13 @@ async def mobile_routine_start_with_allocation(
     if not user_id:
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
         
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    now_time = datetime.now().strftime("%H:%M")
+    # FORCE TIMEZONE to prevent UTC/Server mismatches
+    from zoneinfo import ZoneInfo
+    br_tz = ZoneInfo("America/Sao_Paulo")
+    now_br = datetime.now(br_tz)
+    
+    today_str = now_br.strftime("%Y-%m-%d")
+    now_time = now_br.strftime("%H:%M")
     
     # 1. Start Routine (if not exists)
     stmt = select(models.EmployeeRoutine).where(
@@ -1246,8 +1270,13 @@ async def mobile_routine_start(request: Request, session: Session = Depends(get_
         return RedirectResponse(url="/mobile/login", status_code=303)
         
     user_id = user.get("id")
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    now_time = datetime.now().strftime("%H:%M")
+    
+    from zoneinfo import ZoneInfo
+    br_tz = ZoneInfo("America/Sao_Paulo")
+    now_br = datetime.now(br_tz)
+    
+    today_str = now_br.strftime("%Y-%m-%d")
+    now_time = now_br.strftime("%H:%M")
     
     # Check if already exists
     stmt = select(models.EmployeeRoutine).where(
@@ -1285,8 +1314,13 @@ async def mobile_routine_stop(request: Request, session: Session = Depends(get_s
          return RedirectResponse(url="/mobile/login", status_code=303)
          
     user_id = user.get("id")
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    now_time = datetime.now().strftime("%H:%M")
+    
+    from zoneinfo import ZoneInfo
+    br_tz = ZoneInfo("America/Sao_Paulo")
+    now_br = datetime.now(br_tz)
+    
+    today_str = now_br.strftime("%Y-%m-%d")
+    now_time = now_br.strftime("%H:%M")
 
     # 1. Close Routine
     stmt = select(models.EmployeeRoutine).where(
@@ -1971,50 +2005,35 @@ async def backfill_xp(request: Request, session: Session = Depends(get_session))
 
 # --- Strategy & Gamification Routes ---
 
-@app.get("/strategy", response_class=HTMLResponse)
-async def strategy_page(request: Request, date: Optional[str] = None, shift: Optional[str] = None, session: Session = Depends(get_session)):
-    import traceback
+@app.get("/api/strategy")
+async def api_strategy_data(request: Request, date: Optional[str] = None, shift: Optional[str] = None, session: Session = Depends(get_session)):
     try:
         user = require_login(request)
         if not date:
             date = datetime.now().strftime("%Y-%m-%d")
         
         # Fetch all *completed* routes for analysis
-        # Optimize: Maybe we only need last 30 days? But for now keep as is for ABC curve (global)
         all_routes = session.exec(select(models.Route).where(models.Route.tonnage > 0).order_by(models.Route.date.desc())).all()
         clients = session.exec(select(models.Client)).all()
         client_map = {c.id: c.name for c in clients}
 
-        # 1. ABC Curve (Clients) - GLOBAL (All Time) or SELECTED DATE? 
-        # Usually ABC is historical or monthly. Let's keep ABC as ALL TIME for now, or maybe current month?
-        # User didn't complain about ABC. Let's stick to fixing the "Daily Idle".
-        
-        client_stats = {} # id -> {tonnage, count}
-        
-        # 2. PRODUCTIVITY CHART (30 Days)
+        # 1. ABC Curve
+        client_stats = {} 
         today = datetime.now().date()
         start_date = today - timedelta(days=30)
-        
-        # Initialize map: date -> {tonnage: 0.0, duration_seconds: 0.0}
-        daily_stats = {}
-        for i in range(31): # 0 to 30
-            d = start_date + timedelta(days=i)
-            daily_stats[d] = {'tonnage': 0.0, 'duration_seconds': 0.0}
-
+        daily_stats = {start_date + timedelta(days=i): {'tonnage': 0.0, 'duration_seconds': 0.0} for i in range(31)}
         total_sys_tonnage = 0.0
 
-        # --- Re-implement Detailed Aggregation (Duration/Idle) ---
-        # NOW FILTERED BY SINGLE DATE
-        emp_stats = {} # id -> {ton, dur, gaps_sum, gaps_count}
-        client_dur_stats = {} # cid -> {dur_sum, count}
-        emp_day_intervals = {} # (emp_id, date) -> list of (start, end)
+        emp_stats = {} 
+        client_dur_stats = {} 
+        emp_day_intervals = {} 
         
         all_emps = {e.id: e.name for e in session.exec(select(models.Employee)).all()}
         
         for r in all_routes:
             t = r.tonnage or 0.0
             
-            # ABC Logic (Keep Global)
+            # ABC Logic
             total_sys_tonnage += t
             cid = r.client_id
             if cid not in client_stats:
@@ -2022,12 +2041,12 @@ async def strategy_page(request: Request, date: Optional[str] = None, shift: Opt
             client_stats[cid]['tonnage'] += t
             client_stats[cid]['count'] += 1
             
-            # Chart Logic (Last 30 Days)
+            # Chart Logic
             try:
                 if r.date:
                     r_date_obj = datetime.strptime(r.date, "%Y-%m-%d").date()
                     if start_date <= r_date_obj <= today:
-                        if r.start_time and r.end_time: # Valid duration
+                        if r.start_time and r.end_time: 
                             s = datetime.strptime(r.start_time, "%H:%M")
                             e = datetime.strptime(r.end_time, "%H:%M")
                             diff = (e - s).total_seconds()
@@ -2037,9 +2056,8 @@ async def strategy_page(request: Request, date: Optional[str] = None, shift: Opt
             except:
                 pass
             
-            # --- INDIVIDUAL STATS (SELECTED DATE ONLY) ---
+            # Individual Stats (Selected Date)
             if r.date == date:
-                # Filter by shift if provided (optional)
                 if shift and shift != "Todos" and r.shift != shift:
                      continue
                      
@@ -2049,45 +2067,37 @@ async def strategy_page(request: Request, date: Optional[str] = None, shift: Opt
                         e = datetime.strptime(r.end_time, "%H:%M")
                         dur = (e - s).total_seconds()
                         
-                        # Client Duration (for SLA) - also daily filtered now
                         if r.client_id:
                             if r.client_id not in client_dur_stats:
                                 client_dur_stats[r.client_id] = {'sum': 0, 'count': 0}
                             client_dur_stats[r.client_id]['sum'] += dur
                             client_dur_stats[r.client_id]['count'] += 1
                         
-                        # Emp Stats
                         eid = r.employee_id
                         if eid not in emp_stats: emp_stats[eid] = {'ton': 0, 'dur': 0}
                         emp_stats[eid]['ton'] += (r.tonnage or 0)
                         emp_stats[eid]['dur'] += dur
                         
-                        # Idle prep
                         key = (eid, r.date)
                         if key not in emp_day_intervals: emp_day_intervals[key] = []
                         emp_day_intervals[key].append((s, e))
                     except:
                         pass
                     
-        # Prepare Chart Data
+        # Chart Data
         prod_chart_labels = []
-        prod_chart_data = [] # Kg/h
+        prod_chart_data = [] 
         
-        sorted_dates = sorted(daily_stats.keys())
-        for d in sorted_dates:
+        for d in sorted(daily_stats.keys()):
             stats = daily_stats[d]
             t = stats['tonnage']
             sec = stats['duration_seconds']
             hours = sec / 3600
-            
-            kgh = 0.0
-            if hours > 0:
-                kgh = t / hours
-            
+            kgh = (t / hours) if hours > 0 else 0.0
             prod_chart_labels.append(d.strftime("%d/%m"))
             prod_chart_data.append(round(kgh, 1))
 
-        # Process ABC (Must be done after loop populated client_stats)
+        # ABC Data
         abc_data = sorted(client_stats.values(), key=lambda x: x['tonnage'], reverse=True)
         cumulative = 0.0
         for item in abc_data:
@@ -2095,35 +2105,15 @@ async def strategy_page(request: Request, date: Optional[str] = None, shift: Opt
             item['share'] = (item['tonnage'] / total_sys_tonnage * 100) if total_sys_tonnage else 0
             item['cumulative_share'] = (cumulative / total_sys_tonnage * 100) if total_sys_tonnage else 0
             
-            # Template Compatibility Keys
-            item['total'] = item['tonnage']
-            item['pct'] = item['share']
-            
-            if item['cumulative_share'] <= 80:
-                item['class'] = 'A'
-            elif item['cumulative_share'] <= 95:
-                item['class'] = 'B'
-            else:
-                item['class'] = 'C'
+            item['class'] = 'A' if item['cumulative_share'] <= 80 else 'B' if item['cumulative_share'] <= 95 else 'C'
 
-        # Finalize SLA Ranking
+        # SLA Ranking
         final_sla = []
-        for item in abc_data:
-            # Match back with duration stats
-            cid = [k for k, v in client_map.items() if v == item['name']] # Inverse lookup tricky if name not unique
-            # Better: use original logic or mapping. 
-            # Simplification: Let's assume we can match by client_id if we preserved it.
-            # Actually, `client_stats` was keyed by ID. `abc_data` lost ID.
-            # Let's rebuild abc_data with ID to be safe or just use client_dur_stats directly.
-            pass
-            
-        # Better approach: Iterate client_dur_stats and map to names
         for cid, stats in client_dur_stats.items():
             if stats['count'] > 0:
                 avg_sec = stats['sum'] / stats['count']
                 avg_min = int(avg_sec / 60)
                 fmt = f"{int(avg_sec//3600)}h {int((avg_sec%3600)//60)}m"
-                
                 final_sla.append({
                     "name": client_map.get(cid, "Client"),
                     "sla_min": avg_min,
@@ -2132,22 +2122,15 @@ async def strategy_page(request: Request, date: Optional[str] = None, shift: Opt
                 })
         sla_ranking = sorted(final_sla, key=lambda x: x['sla_min'], reverse=True)[:10]
         
-        # Finalize Productivity & Idle
+        # Productivity & Idle
         productivity = []
-        
-        # Idle Calculation (Daily Idle based on Shift)
-        # Strategy: 
-        # 1. Get Shift Start/End from Employee.work_schedule (e.g. "12:00 - 20:20")
-        # 2. Daily Shift Duration = End - Start
-        # 3. Active Time = Sum(Route Durations)
-        # 4. Idle Time = Daily Shift Duration - Active Time
-        
-        
-        # Calculate Active/Idle using Merged Intervals
         emp_objs = {e.id: e for e in session.exec(select(models.Employee)).all()}
         
+        total_kgh_sum = 0
+        total_kgh_count = 0
+        total_idle_sum = 0
+        
         for eid, s in emp_stats.items():
-            # Calculate Real Active Duration (Merged Intervals)
             real_active_hours = 0.0
             intervals = emp_day_intervals.get((eid, date), [])
             if intervals:
@@ -2158,37 +2141,29 @@ async def strategy_page(request: Request, date: Optional[str] = None, shift: Opt
                         merged.append([start, end])
                     else:
                         merged[-1][1] = max(merged[-1][1], end)
-                
-                real_active_sec = sum((m[1] - m[0]).total_seconds() for m in merged)
-                real_active_hours = real_active_sec / 3600
+                real_active_hours = sum((m[1] - m[0]).total_seconds() for m in merged) / 3600
 
-            # KGH Calculation: Use Real Active Time or Summed Time?
-            # Metric Standard: Productivity = Output / Input Hours (Time on Floor)
-            # If I sort 200kg in 1h (even if 2 routes overlap), I did 200kg/h.
-            # So Real Active Hours is the correct denominator.
-            
             kgh = (s['ton'] / real_active_hours) if real_active_hours > 0 else 0
             
+            if kgh > 0:
+                total_kgh_sum += kgh
+                total_kgh_count += 1
+                
             emp = emp_objs.get(eid)
-            shift_duration_hours = 8.0 # Default
-            
+            shift_duration_hours = 8.0 
             if emp and emp.work_schedule:
                 try:
-                    # Parse "HH:MM - HH:MM"
                     parts = emp.work_schedule.split('-')
                     if len(parts) == 2:
                         h_start = datetime.strptime(parts[0].strip(), "%H:%M")
                         h_end = datetime.strptime(parts[1].strip(), "%H:%M")
-                        
-                        # Handle crossing midnight
-                        if h_end < h_start:
-                            h_end += timedelta(days=1)
-                            
+                        if h_end < h_start: h_end += timedelta(days=1)
                         shift_duration_hours = (h_end - h_start).total_seconds() / 3600
                 except:
                     pass
             
             idle_hours = max(0, shift_duration_hours - real_active_hours)
+            total_idle_sum += idle_hours
             
             productivity.append({
                 "name": all_emps.get(eid, "Unknown"),
@@ -2197,29 +2172,36 @@ async def strategy_page(request: Request, date: Optional[str] = None, shift: Opt
                 "idle_hours": idle_hours,
                 "shift_duration": shift_duration_hours
             })
+            
         productivity.sort(key=lambda x: x['kgh'], reverse=True)
 
-        import json
-        return templates.TemplateResponse("strategy.html", {
-            "request": request,
-            "user": user,
+        # KPI Summaries
+        avg_sys_kgh = (total_kgh_sum / total_kgh_count) if total_kgh_count > 0 else 0
+        avg_sys_idle = (total_idle_sum / len(productivity)) if productivity else 0
+
+        return {
             "abc_data": abc_data,
-            "prod_chart_labels": json.dumps(prod_chart_labels),
-            "prod_chart_data": json.dumps(prod_chart_data),
+            "prod_chart_labels": prod_chart_labels,
+            "prod_chart_data": prod_chart_data,
             "total_tonnage": total_sys_tonnage,
             "kpi": {
-                "global_kgh": "0", 
-                "avg_idle": "0", 
+                "global_kgh": f"{avg_sys_kgh:,.1f}".replace(".", ","),
+                "avg_idle": f"{avg_sys_idle:,.1f}h".replace(".", ","),
                 "total_vol": f"{total_sys_tonnage:,.0f}".replace(",", ".")
             },
-            "productivity": productivity,
             "productivity": productivity,
             "sla_ranking": sla_ranking,
             "selected_date": date,
             "selected_shift": shift or "Todos"
-        })
-    except Exception:
-        return HTMLResponse(content=f"<pre>{traceback.format_exc()}</pre>", status_code=500)
+        }
+    except Exception as e:
+        logger.exception(f"Error in API Strategy: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.get("/strategy", response_class=HTMLResponse)
+async def strategy_page(request: Request):
+    # Static Skeleton - Data loaded via API
+    return templates.TemplateResponse("strategy.html", {"request": request})
 
 @app.get("/rankings", response_class=HTMLResponse)
 async def rankings_page(request: Request, shift: Optional[str] = None, date: Optional[str] = None, period: str = "daily", session: Session = Depends(get_session)):
