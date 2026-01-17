@@ -118,22 +118,46 @@
         </div>
 
         <!-- Faltas Card -->
-        <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+        <div onclick="openOverviewModal('falta', 'Detalhamento de Faltas')"
+            class="bg-slate-800 rounded-xl border border-slate-700 p-4 cursor-pointer hover:bg-slate-750 hover:border-red-500/50 transition group relative overflow-hidden">
             <h3 class="text-slate-400 text-xs font-semibold uppercase mb-2">Faltas</h3>
             <p class="text-2xl font-bold text-red-400">{{ overview.total_absences }}</p>
             <p class="text-xs text-slate-500 mt-1">Média: {{ overview.avg_absence_per_emp }}</p>
+            <div class="absolute right-2 top-2 opacity-0 group-hover:opacity-10 text-red-500 transition">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+            </div>
         </div>
 
         <!-- Atestados Card -->
-        <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+        <div onclick="openOverviewModal('atestado', 'Detalhamento de Atestados')"
+            class="bg-slate-800 rounded-xl border border-slate-700 p-4 cursor-pointer hover:bg-slate-750 hover:border-amber-500/50 transition group relative overflow-hidden">
             <h3 class="text-slate-400 text-xs font-semibold uppercase mb-2">Atestados</h3>
             <p class="text-2xl font-bold text-amber-400">{{ overview.total_sick }}</p>
+            <div class="absolute right-2 top-2 opacity-0 group-hover:opacity-10 text-amber-500 transition">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+            </div>
         </div>
 
         <!-- Afastados Card -->
-        <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+        <div onclick="openOverviewModal('afastado', 'Detalhamento de Afastados')"
+            class="bg-slate-800 rounded-xl border border-slate-700 p-4 cursor-pointer hover:bg-slate-750 hover:border-indigo-500/50 transition group relative overflow-hidden">
             <h3 class="text-slate-400 text-xs font-semibold uppercase mb-2">Afastados</h3>
             <p class="text-2xl font-bold text-indigo-400">{{ overview.total_away }}</p>
+            <div class="absolute right-2 top-2 opacity-0 group-hover:opacity-10 text-indigo-500 transition">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+            </div>
         </div>
 
         <!-- Presença Card -->
@@ -547,6 +571,117 @@
 
     function closeOffendersModal() {
         document.getElementById('offendersModal').classList.add('hidden');
+    }
+</script>
+
+<!-- Overview Drill-Down Modal -->
+<div id="overviewModal"
+    class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div
+        class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
+        <div class="p-6 border-b border-slate-800 flex justify-between items-center">
+            <h3 id="overviewModalTitle" class="text-xl font-bold text-white flex items-center gap-2">
+                <!-- Icon -->
+                <span id="overviewModalTitleText">Detalhes</span>
+            </h3>
+            <button onclick="closeOverviewModal()" class="text-slate-400 hover:text-white transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                    </path>
+                </svg>
+            </button>
+        </div>
+
+        <div class="p-0 overflow-y-auto flex-1">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-slate-800/50 sticky top-0 backdrop-blur-md">
+                    <tr class="text-xs text-slate-400 uppercase border-b border-slate-700">
+                        <th class="px-6 py-4">Colaborador</th>
+                        <th class="px-6 py-4">Setor</th>
+                        <th class="px-6 py-4 text-center">Quantidade</th>
+                        <th class="px-6 py-4 text-right">Tempo de Casa</th>
+                    </tr>
+                </thead>
+                <tbody id="overviewModalBody" class="text-sm divide-y divide-slate-800">
+                    <!-- Content injected via JS -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="p-4 border-t border-slate-800 bg-slate-900/50 rounded-b-2xl flex justify-end">
+            <button onclick="closeOverviewModal()"
+                class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+                Fechar
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Serialize data from Jinja
+    const ALL_ABSENT = {{ all_absent | default ([]) | tojson }};
+    const ALL_SICK = {{ all_sick | default ([]) | tojson }};
+    const ALL_AWAY = {{ all_away | default ([]) | tojson }};
+
+    function openOverviewModal(type, title) {
+        const modal = document.getElementById('overviewModal');
+        const titleEl = document.getElementById('overviewModalTitleText');
+        const bodyEl = document.getElementById('overviewModalBody');
+
+        titleEl.textContent = title;
+        bodyEl.innerHTML = '';
+
+        let data = [];
+        let valueKey = '';
+        let colorClass = '';
+
+        if (type === 'falta') {
+            data = ALL_ABSENT;
+            valueKey = 'falta';
+            colorClass = 'text-red-400 bg-red-500/10';
+        } else if (type === 'atestado') {
+            data = ALL_SICK;
+            valueKey = 'atestado';
+            colorClass = 'text-amber-400 bg-amber-500/10';
+        } else if (type === 'afastado') {
+            data = ALL_AWAY;
+            valueKey = 'afastamento';
+            colorClass = 'text-indigo-400 bg-indigo-500/10';
+        }
+
+        if (data.length === 0) {
+            bodyEl.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-slate-500 italic">Nenhum registro encontrado.</td></tr>`;
+        } else {
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-slate-800/50 transition group';
+
+                row.innerHTML = `
+                    <td class="px-6 py-4 font-medium">
+                        <a href="/employees/${item.employee_id}" class="text-white hover:text-indigo-400 transition flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
+                                ${item.name.substring(0, 2).toUpperCase()}
+                            </div>
+                            ${item.name}
+                        </a>
+                    </td>
+                    <td class="px-6 py-4 text-slate-400">${item.sector}</td>
+                    <td class="px-6 py-4 text-center">
+                        <span class="inline-block px-3 py-1 rounded font-bold ${colorClass}">
+                            ${item[valueKey]}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-right text-slate-500 font-mono">${item.tenure_months} meses</td>
+                `;
+                bodyEl.appendChild(row);
+            });
+        }
+
+        modal.classList.remove('hidden');
+    }
+
+    function closeOverviewModal() {
+        document.getElementById('overviewModal').classList.add('hidden');
     }
 </script>
 {% endblock %}

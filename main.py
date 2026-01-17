@@ -1021,14 +1021,20 @@ async def api_save_settings(request: Request, session: Session = Depends(get_ses
     
     for key, val in data.items():
         # Update or Insert
+        # Ensure complex types are valid JSON strings
+        if isinstance(val, (dict, list)):
+            val_str = json.dumps(val)
+        else:
+            val_str = str(val)
+
         conf = session.get(models.GameConfiguration, key)
         if conf:
-            conf.value = str(val)
+            conf.value = val_str
             conf.updated_at = datetime.now()
             session.add(conf)
         else:
             # Create new config if not exists
-            new_conf = models.GameConfiguration(key=key, value=str(val), updated_at=datetime.now())
+            new_conf = models.GameConfiguration(key=key, value=val_str, updated_at=datetime.now())
             session.add(new_conf)
             
     session.commit()
@@ -5561,7 +5567,9 @@ def get_people_intelligence_metrics(session: Session, shift: str, start_date: Op
             
     # Sorts - Only show employees with actual data
     top_absent = sorted([r for r in ranking_data if r['falta'] > 0], key=lambda x: x['falta'], reverse=True)
+    top_absent = sorted([r for r in ranking_data if r['falta'] > 0], key=lambda x: x['falta'], reverse=True)
     top_sick = sorted([r for r in ranking_data if r['atestado'] > 0], key=lambda x: x['atestado'], reverse=True)
+    top_away = sorted([r for r in ranking_data if r['afastamento'] > 0], key=lambda x: x['afastamento'], reverse=True)
     
     # Define Map for later use
     emp_map = {e.id: e for e in employees}
@@ -5660,7 +5668,9 @@ def get_people_intelligence_metrics(session: Session, shift: str, start_date: Op
             "chronic_count": len(chronic_offenders)
         },
         "top_absent": top_absent,
+        "top_absent": top_absent,
         "top_sick": top_sick,
+        "top_away": top_away,
         "sectors": sector_list,
         "chronic_offenders": chronic_offenders,
         "emp_map": emp_map,
@@ -5691,7 +5701,10 @@ async def people_intelligence_page(
         "top_sick": data['top_sick'][:10],
         "sectors": data['sectors'],
         "chronic_offenders": data['chronic_offenders'][:10],
-        "emp_map": data['emp_map']
+        "emp_map": data['emp_map'],
+        "all_absent": data['top_absent'],
+        "all_sick": data['top_sick'],
+        "all_away": data['top_away']
     })
 
 @app.get("/api/people-intelligence/offenders")

@@ -60,12 +60,56 @@ def calculate_daily_xp(session: Session, target_date_str: str):
         # Efficiency Bonus (Multiplier)
         # If UO/h > 1.0 (1500kg/h) -> +10% bonus
         bonus_mult = 1.0
+        reason_parts = []
+        
+        # 1. Native Efficiency Bonus
         if uo_per_hour >= 1.0:
-            bonus_mult = 1.10
+            bonus_mult += 0.10
+            reason_parts.append("Eff +10%")
         elif uo_per_hour >= 1.5:
-            bonus_mult = 1.25
+            bonus_mult += 0.25
+            reason_parts.append("Turbo +25%")
             
-        final_xp = int(base_xp * bonus_mult)
+        # 2. Configurable Time Rules (Bonus per Route End Time)
+        # Fetch Config (Cached/Optimized in real app, here fetch per call or passed arg)
+        # TODO: Pass config as arg to optimize. For now fetch.
+        from models import GameConfiguration
+        import json
+        
+        config_rules_json = session.get(GameConfiguration, "xp_time_rules")
+        time_rules = json.loads(config_rules_json.value) if config_rules_json else []
+        
+        if r.end_time:
+            try:
+                end_dt = datetime.strptime(r.end_time, "%H:%M")
+                for rule in time_rules:
+                    limit = datetime.strptime(rule['stop_time'], "%H:%M")
+                    if end_dt <= limit:
+                        bonus_pct = float(rule.get('bonus_percent', 0)) / 100.0
+                        bonus_mult += bonus_pct
+                        reason_parts.append(f"Early {rule['stop_time']} (+{rule['bonus_percent']}%)")
+                        break # Apply best rule only? or cumulative? Assume one rule matches or first best.
+            except:
+                pass
+
+        # 3. Special Event Multiplier (Date-based)
+        config_events_json = session.get(GameConfiguration, "xp_special_events")
+        special_events = json.loads(config_events_json.value) if config_events_json else []
+        
+        event_mult = 1.0
+        for evt in special_events:
+            if evt.get('date') == target_date_str:
+                m = float(evt.get('multiplier', 1.0))
+                if m > 1.0:
+                    event_mult = m
+                    reason_parts.append(f"Event: {evt.get('name')} ({m}x)")
+        
+        # Final Calc: Base * (Sum of Efficiency/Time Bonuses) * Event Multiplier
+        final_xp = int(base_xp * bonus_mult * event_mult)
+        
+        extra_info = " | ".join(reason_parts) if reason_parts else ""
+        if extra_info:
+             extra_info = "| " + extra_info
         
         reference_id = f"daily_{target_date_str}"
         
@@ -79,7 +123,7 @@ def calculate_daily_xp(session: Session, target_date_str: str):
         if existing:
             print(f"   🔄 Updating existing XP for {emp_id}: {existing.amount} -> {final_xp}")
             existing.amount = final_xp
-            existing.reason = f"Produtividade {target_date_str} (ref: {reference_id}) | {kg:.0f}kg | {uo:.2f} UO"
+            existing.reason = f"Produtividade {target_date_str} (ref: {reference_id}) | {kg:.0f}kg | {uo:.2f} UO {extra_info}"
             # existing.updated_at = datetime.now() # Removed: Field does not exist in model
             session.add(existing)
             created_count += 1
@@ -91,7 +135,7 @@ def calculate_daily_xp(session: Session, target_date_str: str):
             amount=final_xp,
             source_type="daily_auto",
             status="provisional", # Requires confirmation
-            reason=f"Produtividade {target_date_str} (ref: {reference_id}) | {kg:.0f}kg | {uo:.2f} UO",
+            reason=f"Produtividade {target_date_str} (ref: {reference_id}) | {kg:.0f}kg | {uo:.2f} UO {extra_info}",
             created_at=datetime.now()
         )
         session.add(tx)
