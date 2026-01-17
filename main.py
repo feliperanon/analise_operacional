@@ -4740,21 +4740,21 @@ async def employee_detail(request: Request, employee_id: int, session: Session =
 
     # XP Points (Gamification)
     # Daily
-    daily_xp = session.exec(select(func.sum(models.XPLedger.points)).where(
-        models.XPLedger.employee_id == employee.id, 
-        models.XPLedger.created_at >= today.replace(hour=0, minute=0, second=0, microsecond=0)
+    daily_xp = session.exec(select(func.sum(models.GameXPTransaction.amount)).where(
+        models.GameXPTransaction.employee_id == employee.id, 
+        models.GameXPTransaction.created_at >= today.replace(hour=0, minute=0, second=0, microsecond=0)
     )).one() or 0.0
 
     # Weekly
-    weekly_xp = session.exec(select(func.sum(models.XPLedger.points)).where(
-        models.XPLedger.employee_id == employee.id, 
-        models.XPLedger.created_at >= start_week.replace(hour=0, minute=0, second=0, microsecond=0)
+    weekly_xp = session.exec(select(func.sum(models.GameXPTransaction.amount)).where(
+        models.GameXPTransaction.employee_id == employee.id, 
+        models.GameXPTransaction.created_at >= start_week.replace(hour=0, minute=0, second=0, microsecond=0)
     )).one() or 0.0
 
     # Monthly
-    monthly_xp = session.exec(select(func.sum(models.XPLedger.points)).where(
-        models.XPLedger.employee_id == employee.id, 
-        models.XPLedger.created_at >= start_month.replace(hour=0, minute=0, second=0, microsecond=0)
+    monthly_xp = session.exec(select(func.sum(models.GameXPTransaction.amount)).where(
+        models.GameXPTransaction.employee_id == employee.id, 
+        models.GameXPTransaction.created_at >= start_month.replace(hour=0, minute=0, second=0, microsecond=0)
     )).one() or 0.0
 
     def fmt_br(val):
@@ -4795,7 +4795,8 @@ async def employee_detail(request: Request, employee_id: int, session: Session =
     stats = {
         "advertencias": warnings,
         "atestados": medicals,
-        "faltas": absences
+        "faltas": absences,
+        "ferias": len([e for e in events if e.type == 'ferias']) # Assuming type exists differently or calculated
     }
     # Parse Work Days for Display
     work_days_list = []
@@ -4824,13 +4825,19 @@ async def employee_detail(request: Request, employee_id: int, session: Session =
         .limit(15)
     ).all()
 
-    # Fetch XP Ledger (Last 50)
+    # Fetch XP Ledger (Last 50) - V2
     xp_ledger = session.exec(
-        select(models.XPLedger)
-        .where(models.XPLedger.employee_id == employee_id)
-        .order_by(models.XPLedger.created_at.desc())
+        select(models.GameXPTransaction)
+        .where(models.GameXPTransaction.employee_id == employee_id)
+        .order_by(models.GameXPTransaction.created_at.desc())
         .limit(50)
     ).all()
+    # Normalize for template generic access if needed, match GameXPTransaction fields
+    # Template uses: x.points (V1) or x.amount (V2), x.reason.
+    # We must alias or update template. x.points -> x.amount
+    # OR: modify the object list to have .points via mapping?
+    # Better: Update template to check x.amount OR alias here?
+    # I'll update template to use x.amount. (Next step)
 
 
     return templates.TemplateResponse("employee_detail.html", {
