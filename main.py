@@ -305,6 +305,115 @@ def get_current_user(request: Request):
         return {"type": "employee", "id": user_id}
     return None
 
+def get_dashboard_data(session: Session, shift_filter: str):
+    """
+    Fetches data for the Command Center Dashboard (Nexus).
+    """
+    today = datetime.now()
+    today_str = today.strftime("%Y-%m-%d")
+    
+    # --- 1. Operations Pulse (KPIs) ---
+    
+    # Query today's routes
+    query = select(models.Route).where(models.Route.date == today_str)
+    if shift_filter != "Todos":
+        query = query.where(models.Route.shift == shift_filter)
+    
+    todays_routes = session.exec(query).all()
+    
+    total_tonnage = sum(r.tonnage for r in todays_routes if r.tonnage)
+    total_routes_count = len(todays_routes)
+    
+    # Calculate Kg/h (Instant or Average)
+    # Simple approach: Total Tonnage / Hours elapsed today (or shift duration)
+    # Refined: Active Tonnage / Active Time
+    # Let's use a simple heuristic for now: Avg of completed routes performance
+    kgh_values = []
+    active_routes = []
+    
+    for r in todays_routes:
+        # Check if active (started but not ended)
+        if r.start_time and not r.end_time:
+             # Calculate active duration
+             try:
+                 fmt = "%H:%M"
+                 start_dt = datetime.strptime(r.start_time, fmt).replace(year=today.year, month=today.month, day=today.day)
+                 now_dt = datetime.now()
+                 if start_dt > now_dt: # Handle edge case
+                     start_dt = now_dt
+                 duration_mins = int((now_dt - start_dt).total_seconds() / 60)
+                 
+                 # Fetch extra info
+                 client_name = "Cliente"
+                 if r.client_id:
+                     client = session.get(models.Client, r.client_id)
+                     client_name = client.name if client else "Desconhecido"
+                 
+                 emp = session.get(models.Employee, r.employee_id)
+                 emp_name = emp.name if emp else "..."
+                 emp_photo = emp.photo_url if emp else None
+                 
+                 active_routes.append({
+                     "employee_name": emp_name.split()[0], # First name only
+                     "photo_url": emp_photo,
+                     "client": client_name,
+                     "duration_mins": duration_mins,
+                     "start_time": r.start_time,
+                     "status": "separating"
+                 })
+             except Exception as e:
+                 print(f"Error parsing active route: {e}")
+        
+        # Calculate Kg/h for completed
+        elif r.start_time and r.end_time and r.tonnage:
+             try:
+                 s = datetime.strptime(r.start_time, "%H:%M")
+                 e = datetime.strptime(r.end_time, "%H:%M")
+                 seconds = (e - s).total_seconds()
+                 if seconds > 0:
+                     kgh = (r.tonnage / seconds) * 3600
+                     kgh_values.append(kgh)
+             except: pass
+
+    avg_kgh = sum(kgh_values) / len(kgh_values) if kgh_values else 0
+    
+    # --- 2. Headcount ---
+    # Count active employees in 'EmployeeRoutine' for today
+    base_hc_query = select(models.EmployeeRoutine).where(
+        models.EmployeeRoutine.date == today_str,
+        models.EmployeeRoutine.routine == 'present'
+    )
+    if shift_filter != "Todos":
+        base_hc_query = base_hc_query.where(models.EmployeeRoutine.shift == shift_filter)
+    
+    present_count = len(session.exec(base_hc_query).all())
+    
+    # Get Target (Meta)
+    target_val = 45 # Default
+    if shift_filter != "Todos":
+        t = session.exec(select(models.HeadcountTarget).where(models.HeadcountTarget.shift_name == shift_filter)).first()
+        if t: target_val = t.target_value
+    else:
+        # Sum all targets
+        targets = session.exec(select(models.HeadcountTarget)).all()
+        if targets: target_val = sum(t.target_value for t in targets)
+
+    # --- 3. HR Condensed ---
+    # Re-use existing helpers logic later or fetch minimal needed
+    # (Leaving placeholder for template injection)
+
+    return {
+        "kpi": {
+            "tonnage": total_tonnage,
+            "routes_count": total_routes_count,
+            "avg_kgh": round(avg_kgh, 1),
+            "headcount": present_count,
+            "target_headcount": target_val
+        },
+        "live_separation": active_routes,
+        "active_separators_count": len(active_routes)
+    }
+
 def require_login(request: Request):
     user = get_current_user(request)
     path = request.url.path
