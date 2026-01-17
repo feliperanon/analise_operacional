@@ -219,8 +219,6 @@ async def lifespan(app: FastAPI):
         print(f"❌ Erro ao iniciar sync: {e}")
     yield
 
-    yield
-
 app = FastAPI(title="Análise Operacional", version="2.0.0", lifespan=lifespan)
 
 # Determine if running in Production (Render sets RENDER=true)
@@ -4705,22 +4703,49 @@ async def add_employee(
     
     return RedirectResponse(url="/employees?success=Colaborador adicionado com sucesso", status_code=status.HTTP_303_SEE_OTHER)
 @app.get("/employees/{employee_id}", response_class=HTMLResponse)
-async def read_employee(request: Request, employee_id: int, session: Session = Depends(get_session)):
-    user = get_current_user(request)
-    if not user:
-        return RedirectResponse(url="/login")
+async def employee_detail(request: Request, employee_id: int, session: Session = Depends(get_session)):
+    user = require_login(request)
     employee = session.get(models.Employee, employee_id)
     if not employee:
-        # Handle 404
         return RedirectResponse(url="/employees")
-        
-    # Stats
-    today_date = datetime.now()
     
+    today = datetime.now()
+    today_date = today
+
+    # --- XP Stats Calculation ---
+    # Daily (Today)
+    daily_xp = session.exec(select(func.sum(models.Route.tonnage)).where(
+        models.Route.employee_id == employee.id, 
+        models.Route.date == today.strftime("%Y-%m-%d"),
+        models.Route.tonnage > 0
+    )).one() or 0.0
+    
+    # Weekly (Last 7 days)
+    start_week = today - timedelta(days=6)
+    weekly_xp = session.exec(select(func.sum(models.Route.tonnage)).where(
+        models.Route.employee_id == employee.id, 
+        models.Route.date >= start_week.strftime("%Y-%m-%d"),
+        models.Route.tonnage > 0
+    )).one() or 0.0
+    
+    # Monthly (Current Month)
+    start_month = today.replace(day=1)
+    monthly_xp = session.exec(select(func.sum(models.Route.tonnage)).where(
+        models.Route.employee_id == employee.id, 
+        models.Route.date >= start_month.strftime("%Y-%m-%d"),
+        models.Route.tonnage > 0
+    )).one() or 0.0
+    
+    xp_stats = {
+        "daily": round(daily_xp, 2),
+        "weekly": round(weekly_xp, 2),
+        "monthly": round(monthly_xp, 2)
+    }
+
     # Calculate Tenure
     tenure_str = "-"
     if employee.admission_date:
-        delta = today_date.date() - employee.admission_date.date()
+        delta = today.date() - employee.admission_date.date()
         years = delta.days // 365
         months = (delta.days % 365) // 30
         tenure_str = f"{years} anos, {months} meses"
@@ -4772,7 +4797,8 @@ async def read_employee(request: Request, employee_id: int, session: Session = D
         "stats": stats,
         "tenure": tenure_str,
         "work_days_display": work_days_display,
-        "routines": routines
+        "routines": routines,
+        "xp_stats": xp_stats
     })
 @app.post("/employees/{emp_id}/status")
 async def update_employee_status(
