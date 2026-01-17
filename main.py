@@ -4713,33 +4713,68 @@ async def employee_detail(request: Request, employee_id: int, session: Session =
     today_date = today
 
     # --- XP Stats Calculation ---
-    # Daily (Today)
-    daily_xp = session.exec(select(func.sum(models.Route.tonnage)).where(
+    # --- XP Stats Calculation ---
+    # Tonnage (Production)
+    # Daily
+    daily_tonnage = session.exec(select(func.sum(models.Route.tonnage)).where(
         models.Route.employee_id == employee.id, 
         models.Route.date == today.strftime("%Y-%m-%d"),
         models.Route.tonnage > 0
     )).one() or 0.0
     
-    # Weekly (Last 7 days)
+    # Weekly
     start_week = today - timedelta(days=6)
-    weekly_xp = session.exec(select(func.sum(models.Route.tonnage)).where(
+    weekly_tonnage = session.exec(select(func.sum(models.Route.tonnage)).where(
         models.Route.employee_id == employee.id, 
         models.Route.date >= start_week.strftime("%Y-%m-%d"),
         models.Route.tonnage > 0
     )).one() or 0.0
     
-    # Monthly (Current Month)
+    # Monthly
     start_month = today.replace(day=1)
-    monthly_xp = session.exec(select(func.sum(models.Route.tonnage)).where(
+    monthly_tonnage = session.exec(select(func.sum(models.Route.tonnage)).where(
         models.Route.employee_id == employee.id, 
         models.Route.date >= start_month.strftime("%Y-%m-%d"),
         models.Route.tonnage > 0
     )).one() or 0.0
+
+    # XP Points (Gamification)
+    # Daily
+    daily_xp = session.exec(select(func.sum(models.XPLedger.points)).where(
+        models.XPLedger.employee_id == employee.id, 
+        models.XPLedger.created_at >= today.replace(hour=0, minute=0, second=0, microsecond=0)
+    )).one() or 0.0
+
+    # Weekly
+    weekly_xp = session.exec(select(func.sum(models.XPLedger.points)).where(
+        models.XPLedger.employee_id == employee.id, 
+        models.XPLedger.created_at >= start_week.replace(hour=0, minute=0, second=0, microsecond=0)
+    )).one() or 0.0
+
+    # Monthly
+    monthly_xp = session.exec(select(func.sum(models.XPLedger.points)).where(
+        models.XPLedger.employee_id == employee.id, 
+        models.XPLedger.created_at >= start_month.replace(hour=0, minute=0, second=0, microsecond=0)
+    )).one() or 0.0
+
+    def fmt_br(val):
+        return f"{val:,.1f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    
+    def fmt_br_int(val):
+        return f"{val:,.0f}".replace(",", ".")
     
     xp_stats = {
-        "daily": round(daily_xp, 2),
-        "weekly": round(weekly_xp, 2),
-        "monthly": round(monthly_xp, 2)
+        "tonnage": {
+            "daily": fmt_br(daily_tonnage),
+            "weekly": fmt_br(weekly_tonnage),
+            "monthly": fmt_br(monthly_tonnage)
+        },
+        "points": {
+            "daily": fmt_br_int(daily_xp),
+            "weekly": fmt_br_int(weekly_xp),
+            "monthly": fmt_br_int(monthly_xp),
+            "total": fmt_br_int(employee.total_xp or 0.0)
+        }
     }
 
     # Calculate Tenure
@@ -4789,6 +4824,15 @@ async def employee_detail(request: Request, employee_id: int, session: Session =
         .limit(15)
     ).all()
 
+    # Fetch XP Ledger (Last 50)
+    xp_ledger = session.exec(
+        select(models.XPLedger)
+        .where(models.XPLedger.employee_id == employee_id)
+        .order_by(models.XPLedger.created_at.desc())
+        .limit(50)
+    ).all()
+
+
     return templates.TemplateResponse("employee_detail.html", {
         "request": request, 
         "emp": employee, 
@@ -4798,7 +4842,8 @@ async def employee_detail(request: Request, employee_id: int, session: Session =
         "tenure": tenure_str,
         "work_days_display": work_days_display,
         "routines": routines,
-        "xp_stats": xp_stats
+        "xp_stats": xp_stats,
+        "xp_ledger": xp_ledger
     })
 @app.post("/employees/{emp_id}/status")
 async def update_employee_status(

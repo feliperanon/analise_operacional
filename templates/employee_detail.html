@@ -117,7 +117,25 @@
     {% endif %}
 
     <!-- Stats Grid -->
-    <div class="grid grid-cols-4 gap-4">
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <!-- XP Card -->
+        <div onclick="openHistory('xp', 'Extrato de XP')"
+            class="bg-slate-800 p-4 rounded-xl border border-slate-700 cursor-pointer hover:bg-slate-750 hover:border-purple-500/50 transition group relative overflow-hidden">
+            <div class="absolute right-2 top-2 opacity-10 group-hover:opacity-20 text-purple-500 transition">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path
+                        d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z">
+                    </path>
+                </svg>
+            </div>
+            <div class="text-slate-400 text-sm mb-1 font-bold uppercase tracking-wider">Performance</div>
+            <div class="flex flex-col">
+                <span class="text-2xl font-bold text-white group-hover:text-purple-400 transition">{{
+                    xp_stats.points.total }} XP</span>
+                <span class="text-xs text-slate-500">{{ xp_stats.tonnage.monthly }}t (Mês)</span>
+            </div>
+        </div>
+
         <div onclick="openHistory('advertencia', 'Advertências')"
             class="bg-slate-800 p-4 rounded-xl border border-slate-700 cursor-pointer hover:bg-slate-750 hover:border-blue-500/50 transition group relative overflow-hidden">
             <div class="absolute right-2 top-2 opacity-10 group-hover:opacity-20 text-blue-500 transition">
@@ -243,6 +261,93 @@
                             </button>
                         </form>
                     </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- XP History -->
+        <div id="list-xp">
+            <!-- XP Overview -->
+            <h4
+                class="text-xs font-bold text-purple-400 uppercase tracking-widest mb-3 border-b border-purple-500/20 pb-1">
+                Pontuação XP</h4>
+            <div class="grid grid-cols-4 gap-3 mb-6">
+                <div class="bg-slate-900/50 p-2 rounded-lg border border-slate-700/50 flex flex-col items-center">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Diário</span>
+                    <span class="text-lg font-bold text-purple-400">{{ xp_stats.points.daily }}</span>
+                </div>
+                <div class="bg-slate-900/50 p-2 rounded-lg border border-slate-700/50 flex flex-col items-center">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Semanal</span>
+                    <span class="text-lg font-bold text-blue-400">{{ xp_stats.points.weekly }}</span>
+                </div>
+                <div class="bg-slate-900/50 p-2 rounded-lg border border-slate-700/50 flex flex-col items-center">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Mensal</span>
+                    <span class="text-lg font-bold text-emerald-400">{{ xp_stats.points.monthly }}</span>
+                </div>
+                <div class="bg-slate-900/50 p-2 rounded-lg border border-slate-700/50 flex flex-col items-center">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total</span>
+                    <span class="text-lg font-bold text-orange-400">{{ xp_stats.points.total }}</span>
+                </div>
+            </div>
+
+            <!-- Tonnage Overview -->
+            <h4 class="text-xs font-bold text-blue-400 uppercase tracking-widest mb-3 border-b border-blue-500/20 pb-1">
+                Produção (Toneladas)</h4>
+            <div class="grid grid-cols-3 gap-3 mb-6">
+                <div class="bg-slate-900/50 p-2 rounded-lg border border-slate-700/50 flex flex-col items-center">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Diário</span>
+                    <span class="text-lg font-bold text-slate-300">{{ xp_stats.tonnage.daily }}t</span>
+                </div>
+                <div class="bg-slate-900/50 p-2 rounded-lg border border-slate-700/50 flex flex-col items-center">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Semanal</span>
+                    <span class="text-lg font-bold text-slate-300">{{ xp_stats.tonnage.weekly }}t</span>
+                </div>
+                <div class="bg-slate-900/50 p-2 rounded-lg border border-slate-700/50 flex flex-col items-center">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Mensal</span>
+                    <span class="text-lg font-bold text-slate-300">{{ xp_stats.tonnage.monthly }}t</span>
+                </div>
+            </div>
+
+            <!-- Transaction List -->
+            <h4
+                class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-700/50 pb-1">
+                Extrato Recente</h4>
+            {% if xp_ledger|length == 0 %}
+            <div class="text-center py-8 text-slate-500">Nenhum registro de XP encontrado.</div>
+            {% else %}
+            <div class="space-y-2">
+                {% for x in xp_ledger %}
+                <div
+                    class="bg-slate-900/50 p-3 rounded-lg border border-slate-700 flex justify-between items-center group hover:border-slate-600 transition">
+                    <div class="flex items-center gap-3">
+                        {% if x.points > 0 %}
+                        <div
+                            class="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                            </svg>
+                        </div>
+                        {% else %}
+                        <div class="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center text-red-500">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path>
+                            </svg>
+                        </div>
+                        {% endif %}
+
+                        <div>
+                            <p class="text-white text-sm font-medium">{{ x.reason }}</p>
+                            <p class="text-xs text-slate-500 font-mono">{{ x.created_at.strftime('%d/%m/%Y %H:%M') }}
+                            </p>
+                        </div>
+                    </div>
+                    <span class="font-bold text-sm {{ 'text-emerald-400' if x.points > 0 else 'text-red-400' }}">
+                        {{ '+' if x.points > 0 else '' }}{{ x.points }} XP
+                    </span>
                 </div>
                 {% endfor %}
             </div>
@@ -669,33 +774,7 @@
         });
     </script>
 
-    <!-- XP Stats Card -->
-    <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
-        <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
-            <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z">
-                </path>
-            </svg>
-            Performance XP
-        </h3>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <!-- Daily -->
-            <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 flex flex-col items-center">
-                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Diário (Hoje)</span>
-                <span class="text-2xl font-bold text-purple-400">{{ xp_stats.daily }} XP</span>
-            </div>
-            <!-- Weekly -->
-            <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 flex flex-col items-center">
-                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Semanal (7 dias)</span>
-                <span class="text-2xl font-bold text-blue-400">{{ xp_stats.weekly }} XP</span>
-            </div>
-            <!-- Monthly -->
-            <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 flex flex-col items-center">
-                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Mensal</span>
-                <span class="text-2xl font-bold text-emerald-400">{{ xp_stats.monthly }} XP</span>
-            </div>
-        </div>
-    </div>
+
 
 
     <!-- Reopen Modal -->
