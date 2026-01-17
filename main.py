@@ -1,3 +1,4 @@
+# Force Reload for TZDATA
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, UploadFile, File
 from fastapi.templating import Jinja2Templates
@@ -5,7 +6,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from typing import Optional, List
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 import traceback
 import os
 from starlette.middleware.sessions import SessionMiddleware
@@ -120,6 +121,13 @@ def calculate_expected_work_days(
 # API Models
 from pydantic import BaseModel
 from typing import Optional, List
+
+class ManualXPRequest(BaseModel):
+    employee_id: int
+    amount: int
+    reason: str
+    status: Optional[str] = "confirmed"  # confirmed | provisional
+
 class DailyRoutineUpdate(BaseModel):
     date: str
     shift: str
@@ -379,22 +387,37 @@ def get_dashboard_data(session: Session, shift_filter: str):
         if r.start_time and not r.end_time:
              # Calculate active duration
              try:
-                 fmt = "%H:%M"
-                 start_dt = datetime.strptime(r.start_time, fmt).replace(year=today.year, month=today.month, day=today.day)
-                 now_dt = datetime.now()
-                 if start_dt > now_dt: # Handle edge case
-                     # Heuristic: If start time is 0-4 hours in future, it's likely UTC vs Local mistmatch (stored UTC)
-                     # Convert it back to roughly local by subtracting 3h
-                     from datetime import timedelta
-                     diff_sec = (start_dt - now_dt).total_seconds()
-                     if diff_sec < 4 * 3600:
-                         start_dt = start_dt - timedelta(hours=3)
-                     else:
-                         start_dt = now_dt # Cap at now if way off
+                 # Use robust aware datetime
+                 from zoneinfo import ZoneInfo
+                 now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
                  
-                 duration_mins = int((now_dt - start_dt).total_seconds() / 60)
+                 # Parse start_time (assuming naive HH:MM is UTC-3 or UTC)
+                 # If stored as UTC naive (08:50 for 05:50), and we act as Sao Paulo:
+                 fmt = "%H:%M:%S" if len(r.start_time.split(":")) == 3 else "%H:%M"
+                 start_dt = datetime.strptime(r.start_time, fmt).replace(
+                     year=now_br.year, month=now_br.month, day=now_br.day,
+                     tzinfo=ZoneInfo("America/Sao_Paulo")
+                 )
                  
-                 # Fetch extra info
+                 # Heuristic Check
+                 # If start_dt is 0-4 hours AHEAD of now, it's likely a UTC->Local mismatch (e.g. 09:00 vs 06:00)
+                 diff_sec = (start_dt - now_br).total_seconds()
+                 
+                 display_time = r.start_time # Default to raw
+                 
+                 if diff_sec > 0 and diff_sec < 4 * 3600:
+                     # Correct it: Subtract 3 hours
+                     start_dt = start_dt - timedelta(hours=3)
+                     display_time = start_dt.strftime("%H:%M")
+                 elif diff_sec > 12 * 3600:
+                     # Started yesterday? (e.g. 23:00 vs 01:00)
+                     start_dt = start_dt - timedelta(days=1)
+                     # display_time remains same HH:MM usually, but context matters.
+                 
+                 duration_mins = int((now_br - start_dt).total_seconds() / 60)
+                 if duration_mins < 0: duration_mins = 0
+                 
+                 # ... fetch client/emp ...
                  client_name = "Cliente"
                  if r.client_id:
                      client = session.get(models.Client, r.client_id)
@@ -407,7 +430,8 @@ def get_dashboard_data(session: Session, shift_filter: str):
                  eid = r.employee_id
                  if eid not in active_employees:
                      active_employees[eid] = {
-                         "employee_name": emp_name.split()[0],
+                         "employee_name": emp_name.split()[0], # First name
+                         "employee_full_name": emp_name,
                          "photo_url": emp_photo,
                          "routes": []
                      }
@@ -415,8 +439,9 @@ def get_dashboard_data(session: Session, shift_filter: str):
                  active_employees[eid]['routes'].append({
                      "client": client_name,
                      "duration_mins": duration_mins,
-                     "start_time": r.start_time,
-                     "tonnage": r.tonnage or 0.0
+                     "start_time": display_time, # <--- FIXED
+                     "tonnage": r.tonnage or 0.0,
+                     "tonnage_fmt": f"{r.tonnage:,.3f}".replace(",", "X").replace(".", ",").replace("X", ".") if r.tonnage else "0,000"
                  })
                  
              except Exception as e:
@@ -723,13 +748,33 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
         )
         active_routes_result = session.exec(active_routes_stmt).all()
         
+        from zoneinfo import ZoneInfo
+        now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+
         active_routes_list = []
         for r, c_name in active_routes_result:
+            s_time = r.start_time
+            # Heuristic Timezone Fix
+            if s_time:
+                try:
+                    # Support HH:MM and HH:MM:SS
+                    fmt = "%H:%M:%S" if len(s_time.split(":")) == 3 else "%H:%M"
+                    s_dt = datetime.strptime(s_time, fmt).replace(
+                        year=now_br.year, month=now_br.month, day=now_br.day, 
+                        tzinfo=ZoneInfo("America/Sao_Paulo")
+                    )
+                    
+                    diff = (s_dt - now_br).total_seconds()
+                    if diff > 0 and diff < 4 * 3600:
+                        s_time = (s_dt - timedelta(hours=3)).strftime("%H:%M")
+                except Exception as e:
+                    pass
+
             active_routes_list.append({
                 "id": r.id,
                 "client_name": c_name,
                 "tonnage": r.tonnage,
-                "start_time": r.start_time
+                "start_time": s_time
             })
 
         # 2. Completed Routes (History Today)
@@ -751,7 +796,36 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
             duration_str = "00:00"
             perf_str = "0,00 Kg/h"
             
-            if r.start_time and r.end_time:
+            s_time_fixed = r.start_time
+            e_time_fixed = r.end_time
+            
+            # Fix Start Time
+            if s_time_fixed:
+                try:
+                    fmt = "%H:%M:%S" if len(s_time_fixed.split(":")) == 3 else "%H:%M"
+                    s_dt = datetime.strptime(s_time_fixed, fmt).replace(
+                        year=now_br.year, month=now_br.month, day=now_br.day, 
+                        tzinfo=ZoneInfo("America/Sao_Paulo")
+                    )
+                    if (s_dt - now_br).total_seconds() > 0 and (s_dt - now_br).total_seconds() < 4 * 3600:
+                         s_time_fixed = (s_dt - timedelta(hours=3)).strftime("%H:%M")
+                except: pass
+
+            # Fix End Time
+            if e_time_fixed:
+                try:
+                    fmt = "%H:%M:%S" if len(e_time_fixed.split(":")) == 3 else "%H:%M"
+                    e_dt = datetime.strptime(e_time_fixed, fmt).replace(
+                        year=now_br.year, month=now_br.month, day=now_br.day, 
+                        tzinfo=ZoneInfo("America/Sao_Paulo")
+                    )
+                    if (e_dt - now_br).total_seconds() > 0 and (e_dt - now_br).total_seconds() < 4 * 3600:
+                         e_time_fixed = (e_dt - timedelta(hours=3)).strftime("%H:%M")
+                except: pass
+
+            if r.start_time and r.end_time: # Calc duration using ORIGINAL logic but fixed might be better visually?
+                # Actually for calculation we should use the corrected times OR just raw delta if they are consistent
+                # Let's keep existing calc logic but use FIXED for display
                 try:
                     s = datetime.strptime(r.start_time, "%H:%M")
                     e = datetime.strptime(r.end_time, "%H:%M")
@@ -777,8 +851,8 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
                 "id": r.id,
                 "client_name": c_name,
                 "tonnage": r.tonnage,
-                "start_time": r.start_time,
-                "end_time": r.end_time,
+                "start_time": s_time_fixed,
+                "end_time": e_time_fixed,
                 "duration": duration_str,
                 "performance": perf_str
             })
@@ -959,6 +1033,258 @@ async def api_confirm_xp(session: Session = Depends(get_session)):
     """Trigger Confirmation of Pending XP"""
     count = confirm_pending_xp(session)
     return {"success": True, "confirmed_transactions": count}
+
+@app.get("/api/game/audit")
+async def api_game_audit(
+    request: Request,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    status: Optional[str] = None,
+    employee_id: Optional[int] = None,
+    limit: int = 200,
+    session: Session = Depends(get_session)
+):
+    """Auditoria estruturada de XP (para telas sem depender de parse de texto)."""
+    require_login(request)
+
+    q = (
+        select(models.GameXPTransaction, models.Employee)
+        .join(models.Employee)
+        .order_by(models.GameXPTransaction.created_at.desc())
+        .limit(min(max(limit, 1), 500))
+    )
+
+    if status:
+        q = q.where(models.GameXPTransaction.status == status)
+    if employee_id:
+        q = q.where(models.GameXPTransaction.employee_id == employee_id)
+
+    # Filtro por data via created_at
+    if start_date:
+        try:
+            sdt = datetime.strptime(start_date, "%Y-%m-%d")
+            q = q.where(models.GameXPTransaction.created_at >= sdt)
+        except:
+            pass
+    if end_date:
+        try:
+            edt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+            q = q.where(models.GameXPTransaction.created_at < edt)
+        except:
+            pass
+
+    rows = session.exec(q).all()
+
+    def parse_reason(reason: str):
+        # Extrai ref, kg, uo, evento, regra horario (quando existir no texto)
+        ref = None
+        kg = None
+        uo = None
+        evento = None
+        regra_horario = None
+
+        if not reason:
+            return {"ref": ref, "kg": kg, "uo": uo, "evento": evento, "regra_horario": regra_horario}
+
+        if "ref:" in reason:
+            try:
+                ref = reason.split("ref:")[1].split(")")[0].strip()
+            except:
+                ref = None
+
+        parts = [p.strip() for p in reason.split("|")]
+        for p in parts:
+            if p.endswith("kg") and kg is None:
+                # ex: "2591kg" ou "2591 kg"
+                try:
+                    num = "".join(ch for ch in p if (ch.isdigit() or ch in ".,"))
+                    kg = float(num.replace(".", "").replace(",", ".")) if num else None
+                except:
+                    pass
+            if " UO" in p and uo is None:
+                try:
+                    num = p.split("UO")[0].strip()
+                    uo = float(num.replace(",", "."))
+                except:
+                    pass
+            if p.startswith("Event:"):
+                evento = p.replace("Event:", "").strip()
+            if p.startswith("Early"):
+                regra_horario = p
+
+        return {"ref": ref, "kg": kg, "uo": uo, "evento": evento, "regra_horario": regra_horario}
+
+    data = []
+    for tx, emp in rows:
+        parsed = parse_reason(tx.reason)
+        data.append({
+            "id": tx.id,
+            "employee_id": tx.employee_id,
+            "employee_name": emp.name,
+            "created_at": tx.created_at.isoformat() if tx.created_at else None,
+            "amount": int(tx.amount) if tx.amount is not None else 0,
+            "status": tx.status,
+            "source_type": tx.source_type,
+            "reason": tx.reason,
+            "ref": parsed["ref"],
+            "kg": parsed["kg"],
+            "uo": parsed["uo"],
+            "evento": parsed["evento"],
+            "regra_horario": parsed["regra_horario"],
+        })
+
+    return {"success": True, "items": data}
+
+
+@app.get("/api/game/audit/routes")
+async def api_game_audit_routes(
+    request: Request,
+    date: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    employee_id: Optional[int] = None,
+    status: Optional[str] = "completed",
+    limit: int = 500,
+    session: Session = Depends(get_session)
+):
+    """Detalhamento por rota (rotina) com XP estimado por rota, para auditoria/explicação."""
+    require_login(request)
+
+    q = (
+        select(models.Route, models.Employee.name, models.Client.name)
+        .join(models.Employee)
+        .join(models.Client)
+        .order_by(desc(models.Route.date), desc(models.Route.id))
+        .limit(min(max(limit, 1), 2000))
+    )
+
+    if status:
+        q = q.where(models.Route.status == status)
+    if employee_id:
+        q = q.where(models.Route.employee_id == employee_id)
+
+    if date:
+        q = q.where(models.Route.date == date)
+    else:
+        if start_date:
+            q = q.where(models.Route.date >= start_date)
+        if end_date:
+            q = q.where(models.Route.date <= end_date)
+
+    rows = session.exec(q).all()
+
+    # Regra base (espelha gamification_engine: 1500kg -> 1 UO, 100 XP por UO)
+    KG_PER_UO = 1500.0
+    XP_PER_UO = 100
+
+    def parse_hhmm_to_minutes(t: Optional[str]):
+        if not t:
+            return None
+        try:
+            parts = str(t).split(":")
+            if len(parts) < 2:
+                return None
+            return int(parts[0]) * 60 + int(parts[1])
+        except:
+            return None
+
+    items = []
+    for r, emp_name, client_name in rows:
+        kg = float(r.tonnage or 0.0)
+        uo = (kg / KG_PER_UO) if kg > 0 else 0.0
+        xp_est = int(uo * XP_PER_UO)
+
+        start_m = parse_hhmm_to_minutes(r.start_time)
+        end_m = parse_hhmm_to_minutes(r.end_time)
+        dur_min = None
+        dur_hhmm = None
+        kgh = None
+        if start_m is not None and end_m is not None and end_m > start_m:
+            dur_min = end_m - start_m
+            hh = dur_min // 60
+            mm = dur_min % 60
+            dur_hhmm = f"{hh:02d}:{mm:02d}"
+            hours = dur_min / 60.0
+            if hours > 0:
+                kgh = kg / hours
+
+        items.append({
+            "route_id": r.id,
+            "date": r.date,
+            "employee_id": r.employee_id,
+            "employee_name": emp_name,
+            "client_id": r.client_id,
+            "client_name": client_name,
+            "start_time": r.start_time,
+            "end_time": r.end_time,
+            "duration": dur_hhmm,
+            "duration_minutes": dur_min,
+            "kg": kg,
+            "uo": round(uo, 2),
+            "kgh": round(kgh, 1) if kgh is not None else None,
+            "xp_estimado": xp_est,
+            "status": r.status,
+        })
+
+    return {"success": True, "items": items}
+
+
+@app.post("/api/game/manual-xp")
+async def api_manual_xp(payload: ManualXPRequest, request: Request, session: Session = Depends(get_session)):
+    """Cria uma transação manual de XP (bonificação/penalidade)."""
+    require_login(request)
+
+    emp = session.get(models.Employee, payload.employee_id)
+    if not emp:
+        return JSONResponse({"success": False, "error": "Colaborador não encontrado."}, status_code=404)
+
+    # Validação básica
+    if not payload.reason or not payload.reason.strip():
+        return JSONResponse({"success": False, "error": "Informe um motivo (reason)."}, status_code=400)
+
+    try:
+        amount = int(payload.amount)
+    except Exception:
+        return JSONResponse({"success": False, "error": "amount inválido."}, status_code=400)
+
+    if amount == 0:
+        return JSONResponse({"success": False, "error": "amount não pode ser 0."}, status_code=400)
+
+    status_val = (payload.status or "confirmed").strip().lower()
+    if status_val not in ("confirmed", "provisional"):
+        return JSONResponse({"success": False, "error": "status inválido (use confirmed ou provisional)."}, status_code=400)
+
+    now = datetime.now()
+    tx = GameXPTransaction(
+        employee_id=payload.employee_id,
+        amount=amount,
+        source_type="manual_admin",
+        status=status_val,
+        reason=f"Ajuste manual | {payload.reason.strip()}",
+        created_at=now,
+        confirmed_at=now if status_val == "confirmed" else None
+    )
+
+    session.add(tx)
+
+    # Atualiza total_xp somente se confirmado
+    if status_val == "confirmed":
+        emp.total_xp += amount
+        session.add(emp)
+
+    session.commit()
+
+    return {
+        "success": True,
+        "transaction": {
+            "id": tx.id,
+            "employee_id": tx.employee_id,
+            "amount": tx.amount,
+            "status": tx.status,
+            "reason": tx.reason,
+            "created_at": tx.created_at.isoformat()
+        }
+    }
 
 @app.get("/admin/game", response_class=HTMLResponse)
 async def admin_game_dashboard(request: Request, session: Session = Depends(get_session)):
@@ -5909,8 +6235,40 @@ async def api_operational_routes(
         
         results = session.exec(query).all()
         
+        # Prepare Response
+        from zoneinfo import ZoneInfo
+        now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+
         data = []
         for r, emp_name, client_name in results:
+            s_time = r.start_time
+            e_time = r.end_time
+            
+            # Strategy: If time is in the future relative to NOW, assume it's UTC and subtract 3h.
+            # Additional Context: If route is 'pending' or 'completed', it CANNOT be in the future.
+            # NEW Context: If Start > End (and End exists), likely Start is UTC and End is Local.
+            
+            def clean_time_str(time_val):
+                if time_val is None: return None
+                time_str = ""
+                # Handle datetime.time
+                if isinstance(time_val, (time, type(datetime.now().time()))):
+                    time_str = time_val.strftime("%H:%M:%S")
+                else:
+                    time_str = str(time_val).strip()
+                
+                try:
+                    clean = time_str.split(".")[0]
+                    parts = clean.split(":")
+                    if len(parts) >= 2:
+                        return f"{parts[0]}:{parts[1]}"
+                    return clean
+                except:
+                    return time_str
+
+            s_time = clean_time_str(s_time)
+            e_time = clean_time_str(e_time)
+
             data.append({
                 "id": r.id,
                 "date": r.date,
@@ -5918,18 +6276,19 @@ async def api_operational_routes(
                 "employee_id": r.employee_id,
                 "client_name": client_name,
                 "client_id": r.client_id,
-                "start_time": r.start_time,
-                "end_time": r.end_time,
+                "start_time": s_time,
+                "end_time": e_time,
                 "tonnage": r.tonnage,
                 "status": r.status
             })
             
             # Calculate Duration
             duration_str = "-"
-            if r.start_time and r.end_time:
+            if s_time and e_time:
                 try:
-                    s = datetime.strptime(r.start_time, "%H:%M")
-                    e = datetime.strptime(r.end_time, "%H:%M")
+                    # Parse HH:MM (returned by heuristic)
+                    s = datetime.strptime(s_time, "%H:%M")
+                    e = datetime.strptime(e_time, "%H:%M")
                     diff = (e - s).total_seconds()
                     if diff < 0: diff += 86400 # Handle overnight if needed
                     

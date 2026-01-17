@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="flex flex-col h-full bg-slate-900" x-data="auditLog()">
+<div class="flex flex-col h-full bg-slate-900" x-data="auditLog()" x-init="init()">
 
     <!-- Top Bar -->
     <header
@@ -20,8 +20,8 @@
         <div class="flex items-center gap-4">
             <!-- Search -->
             <div class="relative group">
-                <input type="text" x-model="search" placeholder="Buscar colaborador..."
-                    class="bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-64 pl-10 p-2.5 transition-all group-hover:border-slate-600">
+                <input type="text" x-model="search" placeholder="Buscar colaborador, cliente, data..."
+                    class="bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-72 pl-10 p-2.5 transition-all group-hover:border-slate-600">
                 <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                     <i data-lucide="search"
                         class="w-4 h-4 text-slate-500 group-hover:text-blue-400 transition-colors"></i>
@@ -74,98 +74,67 @@
 
             <!-- Table Card -->
             <div class="bg-slate-800/80 backdrop-blur rounded-2xl border border-slate-700 shadow-xl overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
+                <div class="overflow-hidden">
+                    <table class="w-full text-left border-collapse table-fixed">
                         <thead>
                             <tr
                                 class="bg-slate-900/80 text-slate-400 text-xs uppercase tracking-wider font-bold border-b border-slate-700">
-                                <th class="p-5 pl-8">Data & Hora</th>
-                                <th class="p-5">Colaborador</th>
-                                <th class="p-5">Motivo</th>
-                                <th class="p-5">Ref / Origem</th>
-                                <th class="p-5 text-center">Valor</th>
-                                <th class="p-5 text-center">Status</th>
-                                <th class="p-5 text-right pr-8">ID</th>
+                                <th class="p-3 pl-6 w-[28%]">Colaborador</th>
+                                <th class="p-3 w-[44%]">Detalhes</th>
+                                <th class="p-3 text-center w-[14%]">XP</th>
+                                <th class="p-3 text-center w-[14%]">Status</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-700/50 text-sm">
-                            {% for tx in history_txs %}
-                            <tr class="hover:bg-slate-700/30 transition-colors group"
-                                x-show="matchesSearch('{{ tx.employee_name }}', '{{ tx.reason }}')">
-                                <td class="p-5 pl-8">
-                                    <div class="flex items-center gap-3">
-                                        <div
-                                            class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center text-slate-500">
-                                            <i data-lucide="calendar" class="w-4 h-4"></i>
+                        <tbody class="divide-y divide-slate-700/50 text-xs">
+                            <template x-for="item in items" :key="item.key">
+                                <tr class="hover:bg-slate-700/30 transition-colors group" x-show="matchesItem(item)">
+                                    <td class="p-3 pl-6">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-full bg-slate-700/50 flex items-center justify-center text-xs font-bold text-slate-300 border border-slate-600 flex-shrink-0" x-text="initials(item.employee_name)"></div>
+                                            <div class="min-w-0">
+                                                <div class="font-bold text-white truncate" x-text="item.employee_name"></div>
+                                                <div class="text-[11px] text-slate-500 font-mono truncate" x-text="formatDateTime(item.date_time)"></div>
+                                            </div>
                                         </div>
-                                        <span class="font-mono text-slate-300">{{ tx.date }}</span>
-                                    </div>
-                                </td>
+                                    </td>
 
-                                <td class="p-5">
-                                    <div class="flex items-center gap-3">
-                                        <div
-                                            class="w-8 h-8 rounded-full bg-slate-700/50 flex items-center justify-center text-xs font-bold text-slate-300 border border-slate-600">
-                                            {{ tx.employee_name[:2] }}
+                                    <td class="p-3">
+                                        <div class="text-sm font-semibold text-slate-200 break-words leading-snug" x-text="item.title"></div>
+                                        <div class="mt-1 text-[11px] text-slate-400 break-words leading-snug">
+                                            <span class="text-slate-500">Cliente:</span> <span x-text="item.client_name || '—'"></span>
+                                            <span class="text-slate-600">•</span>
+                                            <span class="text-slate-500">Produção:</span> <span x-text="item.kg_display || '—'"></span>
+                                            <span class="text-slate-600">•</span>
+                                            <span class="text-slate-500">UO:</span> <span x-text="item.uo_display || '—'"></span>
                                         </div>
-                                        <span class="font-bold text-white">{{ tx.employee_name }}</span>
-                                    </div>
-                                </td>
+                                        <div class="mt-1 text-[11px] text-slate-500 break-words leading-snug">
+                                            <span class="text-slate-500">Tempo:</span> <span x-text="item.duration || '—'"></span>
+                                            <template x-if="item.regra_horario">
+                                                <span><span class="text-slate-600">•</span> <span x-text="item.regra_horario"></span></span>
+                                            </template>
+                                            <template x-if="item.evento">
+                                                <span><span class="text-slate-600">•</span> <span x-text="item.evento"></span></span>
+                                            </template>
+                                        </div>
+                                    </td>
 
-                                <td class="p-5">
-                                    {% set reason_clean = tx.reason.split('(ref:')[0] %}
-                                    <div class="max-w-xs truncate text-slate-300" title="{{ tx.reason }}">
-                                        {{ reason_clean }}
-                                    </div>
-                                </td>
+                                    <td class="p-3 text-center">
+                                        <div class="inline-flex items-center gap-1 font-bold font-mono" :class="item.amount >= 0 ? 'text-emerald-400' : 'text-rose-400'">
+                                            <i data-lucide="plus" class="w-3 h-3" x-show="item.amount >= 0"></i>
+                                            <i data-lucide="minus" class="w-3 h-3" x-show="item.amount < 0"></i>
+                                            <span x-text="Math.abs(item.amount)"></span>
+                                        </div>
+                                    </td>
 
-                                <td class="p-5">
-                                    {% set ref_str = '-' %}
-                                    {% if 'ref:' in tx.reason %}
-                                    {% set ref_str = tx.reason.split('ref:')[1].split(')')[0].strip() %}
-                                    {% endif %}
-                                    <span
-                                        class="font-mono text-xs text-slate-500 bg-slate-900 border border-slate-700 px-2 py-1 rounded">
-                                        {{ ref_str }}
-                                    </span>
-                                </td>
-
-                                <td class="p-5 text-center">
-                                    <div
-                                        class="inline-flex items-center gap-1 font-bold font-mono {{ 'text-emerald-400' if tx.amount > 0 else 'text-rose-400' }}">
-                                        {% if tx.amount > 0 %}
-                                        <i data-lucide="plus" class="w-3 h-3"></i>
-                                        {% else %}
-                                        <i data-lucide="minus" class="w-3 h-3"></i>
-                                        {% endif %}
-                                        {{ tx.amount|int|abs }}
-                                    </div>
-                                </td>
-
-                                <td class="p-5 text-center">
-                                    {% if tx.status == 'confirmed' %}
-                                    <span
-                                        class="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full text-xs font-bold border border-emerald-500/20">
-                                        <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> Confirmado
-                                    </span>
-                                    {% elif tx.status == 'rejected' %}
-                                    <span
-                                        class="inline-flex items-center gap-1.5 bg-rose-500/10 text-rose-400 px-3 py-1 rounded-full text-xs font-bold border border-rose-500/20">
-                                        <div class="w-1.5 h-1.5 rounded-full bg-rose-500"></div> Rejeitado
-                                    </span>
-                                    {% else %}
-                                    <span
-                                        class="inline-flex items-center gap-1.5 bg-amber-500/10 text-amber-400 px-3 py-1 rounded-full text-xs font-bold border border-amber-500/20">
-                                        <div class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div> Pendente
-                                    </span>
-                                    {% endif %}
-                                </td>
-
-                                <td class="p-5 pr-8 text-right text-slate-600 font-mono text-xs">
-                                    #{{ tx.id }}
-                                </td>
-                            </tr>
-                            {% endfor %}
+                                    <td class="p-3 text-center">
+                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border"
+                                            :class="statusClass(item.status)">
+                                            <span class="w-1.5 h-1.5 rounded-full" :class="statusDotClass(item.status)"></span>
+                                            <span x-text="statusLabel(item.status)"></span>
+                                        </span>
+                                    </td>
+                                </tr>
+                            </template>
                         </tbody>
                     </table>
                     <!-- Empty Search State -->
@@ -186,13 +155,142 @@
     function auditLog() {
         return {
             search: '',
-            matchesSearch(name, reason) {
+            items: [],
+
+            init() {
+                this.fetchAudit();
+            },
+
+            initials(name) {
+                return (name || '?').split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('');
+            },
+
+            formatDateTime(dt) {
+                return dt || '-';
+            },
+
+            statusLabel(s) {
+                if (s === 'confirmed') return 'Confirmado';
+                if (s === 'rejected') return 'Rejeitado';
+                return 'Pendente';
+            },
+
+            statusClass(s) {
+                if (s === 'confirmed') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+                if (s === 'rejected') return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+                return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+            },
+
+            statusDotClass(s) {
+                if (s === 'confirmed') return 'bg-emerald-500';
+                if (s === 'rejected') return 'bg-rose-500';
+                return 'bg-amber-500 animate-pulse';
+            },
+
+            matchesItem(item) {
                 if (!this.search) return true;
                 const q = this.search.toLowerCase();
-                return name.toLowerCase().includes(q) || reason.toLowerCase().includes(q);
+                return (item.employee_name || '').toLowerCase().includes(q)
+                    || (item.client_name || '').toLowerCase().includes(q)
+                    || (item.title || '').toLowerCase().includes(q)
+                    || (item.raw_reason || '').toLowerCase().includes(q);
             },
+
+            async fetchAudit() {
+                try {
+                    const [auditRes, routesRes] = await Promise.all([
+                        fetch('/api/game/audit?limit=200'),
+                        fetch('/api/game/audit/routes?limit=2000')
+                    ]);
+
+                    const auditJson = await auditRes.json().catch(() => ({}));
+                    const routesJson = await routesRes.json().catch(() => ({}));
+
+                    const auditItems = (auditJson && auditJson.items) ? auditJson.items : [];
+                    const routeItems = (routesJson && routesJson.items) ? routesJson.items : [];
+
+                    // Index: (employee_id + date) -> aggregate details
+                    const routeIndex = {};
+                    for (const r of routeItems) {
+                        const key = `${r.employee_id}__${r.date}`;
+                        if (!routeIndex[key]) {
+                            routeIndex[key] = {
+                                employee_id: r.employee_id,
+                                date: r.date,
+                                kg: 0,
+                                uo: 0,
+                                clients: new Set(),
+                                durations: [],
+                                xp_est: 0
+                            };
+                        }
+                        routeIndex[key].kg += Number(r.kg || 0);
+                        routeIndex[key].uo += Number(r.uo || 0);
+                        if (r.client_name) routeIndex[key].clients.add(r.client_name);
+                        if (r.duration) routeIndex[key].durations.push(r.duration);
+                        routeIndex[key].xp_est += Number(r.xp_estimado || 0);
+                    }
+
+                    const items = [];
+                    for (const a of auditItems) {
+                        const created = a.created_at || '';
+                        const day = (a.ref && typeof a.ref === 'string' && a.ref.startsWith('daily_'))
+                            ? a.ref.replace('daily_', '')
+                            : null;
+
+                        const key = day ? `${a.employee_id}__${day}` : null;
+                        const agg = key ? routeIndex[key] : null;
+
+                        let client_name = null;
+                        if (agg && agg.clients && agg.clients.size > 0) {
+                            // Mostra até 2 clientes, depois “+N”
+                            const arr = Array.from(agg.clients);
+                            client_name = arr.slice(0, 2).join(', ');
+                            if (arr.length > 2) client_name += ` +${arr.length - 2}`;
+                        }
+
+                        const kg_display = agg ? `${Math.round(agg.kg)}kg` : (a.kg != null ? `${Math.round(a.kg)}kg` : null);
+                        const uo_display = agg ? `${agg.uo.toFixed(2)} UO` : (a.uo != null ? `${Number(a.uo).toFixed(2)} UO` : null);
+
+                        // Tempo: se agregou rotas, exibe “N rotas” e a maior duração como referência
+                        let duration = null;
+                        if (agg && agg.durations && agg.durations.length > 0) {
+                            duration = `${agg.durations.length} rotas`;
+                        }
+
+                        let title = 'Ajuste manual';
+                        if (day) {
+                            const dp = day.split('-');
+                            title = (dp.length === 3) ? `Separação • ${dp[2]}/${dp[1]}` : 'Separação';
+                        }
+
+                        items.push({
+                            key: `tx_${a.id}`,
+                            employee_id: a.employee_id,
+                            employee_name: a.employee_name,
+                            date_time: created ? created.replace('T', ' ').slice(0, 16) : '-',
+                            title,
+                            client_name,
+                            kg_display,
+                            uo_display,
+                            duration,
+                            regra_horario: a.regra_horario || null,
+                            evento: a.evento ? `Evento: ${a.evento}` : null,
+                            amount: Number(a.amount || 0),
+                            status: a.status,
+                            raw_reason: a.reason || ''
+                        });
+                    }
+
+                    this.items = items;
+                    this.$nextTick(() => lucide.createIcons());
+                } catch (e) {
+                    console.error(e);
+                }
+            },
+
             isEmpty() {
-                return false; // Simplification (reactive empty state is trickier without explicit iterators in JS, keeping simple)
+                return false;
             }
         }
     }

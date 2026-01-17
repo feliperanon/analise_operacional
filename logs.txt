@@ -8449,3 +8449,35 @@ Traceback (most recent call last):
     return getattr(obj, attribute)
 jinja2.exceptions.UndefinedError: 'kpi' is undefined
 
+2026-01-17 09:29:06,613 | ERROR    | main | Error fetching routes
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 6050, in api_operational_routes
+    s_time = apply_heuristic(s_time, r.status, e_time, is_start_time=True)
+  File "C:\Projeto\analise_operacional\main.py", line 5996, in apply_heuristic
+    if isinstance(time_val, (datetime.time, type(datetime.now().time()))):
+       ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: isinstance() arg 2 must be a type, a tuple of types, or a union
+2026-01-17 09:29:08,674 | ERROR    | main | Error fetching routes
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 6050, in api_operational_routes
+    s_time = apply_heuristic(s_time, r.status, e_time, is_start_time=True)
+  File "C:\Projeto\analise_operacional\main.py", line 5996, in apply_heuristic
+    if isinstance(time_val, (datetime.time, type(datetime.now().time()))):
+       ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: isinstance() arg 2 must be a type, a tuple of types, or a union
+2026-01-17 09:29:11,917 | ERROR    | main | Error fetching routes
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 6050, in api_operational_routes
+    s_time = apply_heuristic(s_time, r.status, e_time, is_start_time=True)
+  File "C:\Projeto\analise_operacional\main.py", line 5996, in apply_heuristic
+    if isinstance(time_val, (datetime.time, type(datetime.now().time()))):
+       ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: isinstance() arg 2 must be a type, a tuple of types, or a union
+2026-01-17 09:29:12,831 | ERROR    | main | Error fetching routes
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 6050, in api_operational_routes
+    s_time = apply_heuristic(s_time, r.status, e_time, is_start_time=True)
+  File "C:\Projeto\analise_operacional\main.py", line 5996, in apply_heuristic
+    if isinstance(time_val, (datetime.time, type(datetime.now().time()))):
+       ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: isinstance() arg 2 must be a type, a tuple of types, or a union

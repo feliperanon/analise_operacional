@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="flex flex-col h-full" x-data="gameMaster()">
+<div class="flex flex-col h-full" x-data="gameMaster()" x-init="init()">
 
     <!-- Header -->
     <header class="bg-slate-950 border-b border-slate-800 px-8 py-6 flex justify-between items-center">
@@ -115,30 +115,69 @@
         <!-- Right: Actions & Mini-Stats -->
         <div class="col-span-12 lg:col-span-4 space-y-6">
             <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
-                <h3 class="font-bold text-white mb-4 flex items-center gap-2">
+                <h3 class="font-bold text-white mb-2 flex items-center gap-2">
                     <i data-lucide="sliders" class="w-5 h-5 text-blue-400"></i>
-                    Ajuste Manual
+                    Ajuste manual de XP
                 </h3>
-                <p class="text-sm text-slate-400 mb-6">Ações rápidas para gestão de pontuação e correções.</p>
+                <p class="text-sm text-slate-400 mb-5">Bonifique ou penalize com registro de motivo/observação.</p>
 
-                <div class="space-y-3">
-                    <button
-                        class="w-full p-4 bg-slate-900 border border-slate-700 rounded-xl hover:border-green-500/50 hover:bg-slate-800 text-left group transition-all flex items-center justify-between">
-                        <div>
-                            <span class="block text-xs uppercase text-slate-500 font-bold mb-1">Bonificação</span>
-                            <span class="text-white font-bold">Dar XP Extra</span>
-                        </div>
-                        <i data-lucide="plus-circle"
-                            class="w-5 h-5 text-slate-600 group-hover:text-green-500 transition-colors"></i>
+                <!-- Toggle -->
+                <div class="grid grid-cols-2 gap-2 mb-4">
+                    <button type="button" @click="manual.form.type='add'" :class="manual.form.type==='add' ? 'bg-green-600 text-white border-green-500/40' : 'bg-slate-900 text-slate-200 border-slate-700'"
+                        class="px-3 py-2 rounded-xl border text-xs font-bold transition-colors">
+                        + XP
                     </button>
-                    <button
-                        class="w-full p-4 bg-slate-900 border border-slate-700 rounded-xl hover:border-red-500/50 hover:bg-slate-800 text-left group transition-all flex items-center justify-between">
-                        <div>
-                            <span class="block text-xs uppercase text-slate-500 font-bold mb-1">Penalidade</span>
-                            <span class="text-white font-bold">Remover XP</span>
+                    <button type="button" @click="manual.form.type='remove'" :class="manual.form.type==='remove' ? 'bg-red-600 text-white border-red-500/40' : 'bg-slate-900 text-slate-200 border-slate-700'"
+                        class="px-3 py-2 rounded-xl border text-xs font-bold transition-colors">
+                        - XP
+                    </button>
+                </div>
+
+                <!-- Form -->
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 mb-1">Colaborador</label>
+                        <select x-model.number="manual.form.employee_id" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-blue-500">
+                            <option value="0">Selecione...</option>
+                            <template x-for="e in manual.employees" :key="e.id">
+                                <option :value="e.id" x-text="e.name"></option>
+                            </template>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 mb-1">Quantidade (XP)</label>
+                        <input type="number" min="1" step="1" x-model="manual.form.amount"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                            placeholder="Ex: 50">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 mb-1">Motivo / Observação</label>
+                        <textarea rows="3" x-model="manual.form.reason"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                            placeholder="Ex: Bonificação por meta batida / Ajuste por correção de lançamento"></textarea>
+                    </div>
+
+                    <div x-show="manual.error" x-transition.opacity class="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-sm text-red-200">
+                        <div class="flex items-start gap-2">
+                            <i data-lucide="alert-triangle" class="w-4 h-4 mt-0.5"></i>
+                            <div x-text="manual.error"></div>
                         </div>
-                        <i data-lucide="minus-circle"
-                            class="w-5 h-5 text-slate-600 group-hover:text-red-500 transition-colors"></i>
+                    </div>
+
+                    <div x-show="manual.success" x-transition.opacity class="bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-sm text-green-200">
+                        <div class="flex items-start gap-2">
+                            <i data-lucide="check-circle" class="w-4 h-4 mt-0.5"></i>
+                            <div x-text="manual.success"></div>
+                        </div>
+                    </div>
+
+                    <button type="button" @click="submitManual()" :disabled="manual.saving"
+                        class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-colors"
+                        :class="manual.form.type==='add' ? 'bg-green-600 hover:bg-green-500 disabled:bg-green-900/40' : 'bg-red-600 hover:bg-red-500 disabled:bg-red-900/40'">
+                        <i data-lucide="loader-2" class="w-4 h-4 animate-spin" x-show="manual.saving"></i>
+                        <span x-text="manual.form.type==='add' ? (manual.saving ? 'Aplicando...' : 'Aplicar bonificação') : (manual.saving ? 'Aplicando...' : 'Aplicar penalidade')"></span>
                     </button>
                 </div>
             </div>
@@ -158,12 +197,114 @@
     lucide.createIcons();
     function gameMaster() {
         return {
+            manual: {
+                employees: [],
+                saving: false,
+                error: '',
+                success: '',
+                form: {
+                    type: 'add',
+                    employee_id: 0,
+                    amount: '',
+                    reason: ''
+                }
+            },
+
+            init() {
+                this.loadEmployees();
+            },
+
             approve(id) {
                 this.sendAction(id, 'approve');
             },
             reject(id) {
                 this.sendAction(id, 'reject');
             },
+
+            async loadEmployees() {
+                try {
+                    const res = await fetch('/api/employees');
+                    const data = await res.json();
+                    // Esperado: { employees: [{id, name}, ...] }
+                    this.manual.employees = (data && (data.employees || data.data || data)) || [];
+                } catch (e) {
+                    // Se não existir endpoint ainda, evita quebrar a página
+                    this.manual.employees = [];
+                } finally {
+                    this.$nextTick(() => lucide.createIcons());
+                }
+            },
+
+            validateManual() {
+                this.manual.error = '';
+                this.manual.success = '';
+
+                const employee_id = Number(this.manual.form.employee_id);
+                const amount = Number(this.manual.form.amount);
+                const reason = (this.manual.form.reason || '').trim();
+
+                if (!Number.isFinite(employee_id) || employee_id <= 0) {
+                    return 'Selecione um colaborador.';
+                }
+                if (!Number.isFinite(amount) || amount <= 0) {
+                    return 'Informe uma quantidade válida (maior que 0).';
+                }
+                if (!reason) {
+                    return 'Informe o motivo/observação.';
+                }
+                return '';
+            },
+
+            async submitManual() {
+                const v = this.validateManual();
+                if (v) {
+                    this.manual.error = v;
+                    this.$nextTick(() => lucide.createIcons());
+                    return;
+                }
+
+                this.manual.saving = true;
+                this.manual.error = '';
+                this.manual.success = '';
+
+                let amount = parseInt(this.manual.form.amount, 10);
+                if (this.manual.form.type === 'remove') {
+                    amount = -Math.abs(amount);
+                }
+
+                try {
+                    const res = await fetch('/api/game/manual-xp', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            employee_id: Number(this.manual.form.employee_id),
+                            amount,
+                            reason: (this.manual.form.reason || '').trim(),
+                            status: 'confirmed'
+                        })
+                    });
+
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok || !data.success) {
+                        this.manual.error = (data && data.error) ? data.error : 'Falha ao criar transação.';
+                        this.$nextTick(() => lucide.createIcons());
+                        return;
+                    }
+
+                    this.manual.success = 'Ajuste aplicado com sucesso!';
+                    this.manual.form.amount = '';
+                    this.manual.form.reason = '';
+
+                    // Atualiza lista de pendências/histórico sem depender de reload total
+                    setTimeout(() => window.location.reload(), 500);
+                } catch (e) {
+                    this.manual.error = 'Erro de conexão.';
+                } finally {
+                    this.manual.saving = false;
+                    this.$nextTick(() => lucide.createIcons());
+                }
+            },
+
             sendAction(id, action) {
                 fetch(`/api/game/transaction/${id}/${action}`, { method: 'POST' })
                     .then(r => r.json())

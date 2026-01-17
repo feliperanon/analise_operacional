@@ -3,114 +3,183 @@
 {% block content %}
 <div x-data="historyController()" x-init="init()" class="space-y-6">
     <!-- Header -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-            <h1 class="text-2xl font-bold text-white">Histórico Operacional</h1>
-            <p class="text-gray-400 text-sm">Gerencie todas as rotinas de separação.</p>
-        </div>
-
-        <!-- Toolbar -->
-        <div class="flex flex-wrap gap-2 items-center">
-            <!-- Search -->
-            <div class="relative">
-                <input type="text" x-model="filters.search" @input.debounce.500ms="fetchData()"
-                    placeholder="Buscar (Nome, Cliente...)"
-                    class="bg-gray-800 text-sm text-white rounded-lg pl-9 pr-4 py-2 border border-gray-700 focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none w-64">
-                <i data-lucide="search" class="absolute left-3 top-2.5 text-gray-400 w-4 h-4"></i>
+    <div class="bg-slate-900/40 border border-slate-800 rounded-2xl p-4 md:p-5">
+        <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+            <div class="min-w-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                        <i data-lucide="archive" class="w-5 h-5 text-blue-300"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h1 class="text-xl md:text-2xl font-bold text-white truncate">Histórico Operacional</h1>
+                        <p class="text-slate-400 text-sm">Gerencie todas as rotinas de separação.</p>
+                    </div>
+                </div>
             </div>
 
-            <!-- Date Range -->
-            <input type="date" x-model="filters.startDate" @change="fetchData()"
-                class="bg-gray-800 text-sm text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-green-500 outline-none">
-            <span class="text-gray-500">-</span>
-            <input type="date" x-model="filters.endDate" @change="fetchData()"
-                class="bg-gray-800 text-sm text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-green-500 outline-none">
+            <!-- Toolbar -->
+            <div class="w-full xl:w-auto">
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:flex xl:flex-wrap gap-2 items-stretch">
+                    <!-- Search -->
+                    <div class="relative md:col-span-2 xl:col-span-1">
+                        <input type="text" x-model="filters.search" @input.debounce.500ms="fetchData()" aria-label="Buscar por nome, cliente ou outros campos"
+                            placeholder="Buscar (Nome, Cliente...)"
+                            class="bg-slate-900 text-sm text-white rounded-xl pl-10 pr-4 py-2.5 border border-slate-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none w-full xl:w-[320px]">
+                        <i data-lucide="search" class="absolute left-3 top-3 text-slate-400 w-4 h-4"></i>
+                    </div>
 
-            <!-- Status Filter -->
-            <select x-model="filters.status" @change="fetchData()"
-                class="bg-gray-800 text-sm text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-green-500 outline-none">
-                <option value="">Todos Status</option>
-                <option value="completed">Concluído</option>
-                <option value="pending">Em Andamento</option>
-            </select>
+                    <!-- Date Range -->
+                    <div class="flex items-center gap-2">
+                        <input type="date" x-model="filters.startDate" @change="fetchData()" aria-label="Data inicial"
+                            class="bg-slate-900 text-sm text-white rounded-xl px-3 py-2.5 border border-slate-800 focus:border-blue-500 outline-none w-full">
+                        <span class="text-slate-600">-</span>
+                        <input type="date" x-model="filters.endDate" @change="fetchData()" aria-label="Data final"
+                            class="bg-slate-900 text-sm text-white rounded-xl px-3 py-2.5 border border-slate-800 focus:border-blue-500 outline-none w-full">
+                    </div>
 
-            <button @click="fetchData()"
-                class="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-lg transition-colors">
-                <i data-lucide="refresh-cw" class="w-4 h-4" :class="{'animate-spin': loading}"></i>
-            </button>
+                    <!-- Status Filter -->
+                    <select x-model="filters.status" @change="fetchData()" aria-label="Filtrar por status"
+                        class="bg-slate-900 text-sm text-white rounded-xl px-3 py-2.5 border border-slate-800 focus:border-blue-500 outline-none">
+                        <option value="">Todos Status</option>
+                        <option value="completed">Concluído</option>
+                        <option value="pending">Em Andamento</option>
+                    </select>
+
+                    <!-- Presets -->
+                    <div class="flex flex-wrap gap-2">
+                        <button @click="applyPreset('today')" type="button"
+                            class="bg-white/5 hover:bg-white/10 text-white text-xs px-3 py-2.5 rounded-xl border border-slate-800 transition-colors">Hoje</button>
+                        <button @click="applyPreset('last7')" type="button"
+                            class="bg-white/5 hover:bg-white/10 text-white text-xs px-3 py-2.5 rounded-xl border border-slate-800 transition-colors">Últimos 7 dias</button>
+                        <button @click="applyPreset('month')" type="button"
+                            class="bg-white/5 hover:bg-white/10 text-white text-xs px-3 py-2.5 rounded-xl border border-slate-800 transition-colors">Mês</button>
+                        <button @click="clearFilters()" type="button"
+                            class="bg-slate-900 hover:bg-white/5 text-slate-200 text-xs px-3 py-2.5 rounded-xl border border-slate-800 transition-colors">Limpar</button>
+
+                        <button @click="fetchData()" type="button" aria-label="Atualizar"
+                            class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2.5 rounded-xl transition-colors inline-flex items-center gap-2">
+                            <i data-lucide="refresh-cw" class="w-4 h-4" :class="{'animate-spin': loading}"></i>
+                            <span class="text-xs font-semibold">Atualizar</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inline Alerts -->
+    <div x-show="ui.error" x-transition.opacity class="bg-red-900/30 border border-red-800 rounded-lg p-3 text-sm text-red-200">
+        <div class="flex items-start gap-2">
+            <i data-lucide="alert-triangle" class="w-4 h-4 mt-0.5 text-red-300"></i>
+            <div>
+                <div class="font-bold">Erro</div>
+                <div x-text="ui.error"></div>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="ui.notice" x-transition.opacity class="bg-green-900/20 border border-green-800 rounded-lg p-3 text-sm text-green-200">
+        <div class="flex items-start gap-2">
+            <i data-lucide="check-circle" class="w-4 h-4 mt-0.5 text-green-300"></i>
+            <div x-text="ui.notice"></div>
+        </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-4">
+            <div class="text-xs text-gray-400 uppercase tracking-wider">Rotas</div>
+            <div class="text-2xl font-bold text-white" x-text="kpis.totalRoutes"></div>
+        </div>
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-4">
+            <div class="text-xs text-gray-400 uppercase tracking-wider">Tonelagem</div>
+            <div class="text-2xl font-bold text-white"><span x-text="formatNumber(kpis.totalKg)"></span> <span class="text-sm text-gray-400">kg</span></div>
+        </div>
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-4">
+            <div class="text-xs text-gray-400 uppercase tracking-wider">XP estimado</div>
+            <div class="text-2xl font-bold text-yellow-400"><span x-text="formatNumber(kpis.totalXp)"></span> <span class="text-sm text-yellow-200/70">XP</span></div>
+        </div>
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-4">
+            <div class="text-xs text-gray-400 uppercase tracking-wider">Concluídas</div>
+            <div class="text-2xl font-bold text-green-400"><span x-text="kpis.completedPct"></span><span class="text-sm text-green-200/70">%</span></div>
         </div>
     </div>
 
     <!-- Data Table -->
     <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg">
-        <div class="overflow-x-auto">
+        <div class="max-h-[70vh] overflow-auto">
             <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="bg-gray-900/50 text-gray-400 text-xs uppercase tracking-wider border-b border-gray-700">
-                        <th class="p-4 font-medium">Data</th>
-                        <th class="p-4 font-medium">Colaborador</th>
-                        <th class="p-4 font-medium">Cliente</th>
-                        <th class="p-4 font-medium">Início</th>
-                        <th class="p-4 font-medium">Fim</th>
-                        <th class="p-4 font-medium">Duração</th>
-                        <th class="p-4 font-medium text-right">XP (Est.)</th>
-                        <th class="p-4 font-medium text-right">Tonelagem</th>
-                        <th class="p-4 font-medium text-center">Status</th>
-                        <th class="p-4 font-medium text-right">Ações</th>
+                <thead class="sticky top-0 z-20">
+                    <tr class="bg-gray-900 text-gray-400 text-xs uppercase tracking-wider border-b border-gray-700">
+                        <th class="p-3 font-medium whitespace-nowrap sticky left-0 z-30 bg-gray-900">Data</th>
+                        <th class="p-3 font-medium whitespace-nowrap sticky left-[92px] z-30 bg-gray-900">Colaborador</th>
+                        <th class="p-3 font-medium whitespace-nowrap hidden xl:table-cell">Cliente</th>
+                        <th class="p-3 font-medium whitespace-nowrap hidden lg:table-cell">Início</th>
+                        <th class="p-3 font-medium whitespace-nowrap hidden lg:table-cell">Fim</th>
+                        <th class="p-3 font-medium whitespace-nowrap hidden lg:table-cell">Duração</th>
+                        <th class="p-3 font-medium text-right whitespace-nowrap">XP</th>
+                        <th class="p-3 font-medium text-right whitespace-nowrap">Kg</th>
+                        <th class="p-3 font-medium text-right whitespace-nowrap hidden md:table-cell">Kg/h</th>
+                        <th class="p-3 font-medium text-center whitespace-nowrap hidden sm:table-cell">Status</th>
+                        <th class="p-3 font-medium text-right whitespace-nowrap sticky right-0 z-30 bg-gray-900">Ações</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-700/50">
                     <template x-for="item in items" :key="item.id">
                         <tr class="hover:bg-gray-700/30 transition-colors group">
-                            <td class="p-4 text-sm text-gray-300 font-mono" x-text="formatDate(item.date)"></td>
-                            <td class="p-4">
-                                <div class="flex items-center gap-3">
-                                    <div
-                                        class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-400">
+                            <td class="p-3 text-xs text-gray-300 font-mono whitespace-nowrap sticky left-0 z-10 bg-gray-800" x-text="formatDate(item.date)"></td>
+                            <td class="p-3 sticky left-[92px] z-10 bg-gray-800">
+                                <div class="flex items-center gap-2 min-w-[220px]">
+                                    <div class="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center text-[11px] font-bold text-gray-300">
                                         <span x-text="getInitials(item.employee_name)"></span>
                                     </div>
-                                    <div>
+                                    <div class="min-w-0">
                                         <a :href="'/employees/' + item.employee_id"
-                                            class="text-sm font-medium text-white hover:text-blue-400 hover:underline transition-colors"
+                                            class="text-xs font-semibold text-white hover:text-blue-400 hover:underline transition-colors block truncate max-w-[240px]"
+                                            :title="item.employee_name"
                                             x-text="item.employee_name"></a>
-                                        <div class="text-xs text-gray-500">ID: <span x-text="item.employee_id"></span>
-                                        </div>
+                                        <div class="text-[11px] text-gray-500">ID: <span x-text="item.employee_id"></span></div>
                                     </div>
                                 </div>
                             </td>
-                            <td class="p-4">
+                            <td class="p-3 min-w-[180px] hidden xl:table-cell">
                                 <a :href="'/clients/' + item.client_id"
-                                    class="text-sm text-green-400 font-medium hover:text-green-300 hover:underline transition-colors"
+                                    class="text-xs text-green-400 font-semibold hover:text-green-300 hover:underline transition-colors block truncate max-w-[260px]"
+                                    :title="item.client_name"
                                     x-text="item.client_name"></a>
                             </td>
-                            <td class="p-4 text-sm text-gray-300 font-mono" x-text="item.start_time"></td>
-                            <td class="p-4 text-sm text-gray-300 font-mono" x-text="item.end_time || '-'"></td>
-                            <td class="p-4 text-sm text-blue-300 font-mono font-bold" x-text="item.duration || '-'">
+                            <td class="p-3 text-xs text-gray-300 font-mono whitespace-nowrap hidden lg:table-cell" x-text="item.start_time || '-' "></td>
+                            <td class="p-3 text-xs text-gray-300 font-mono whitespace-nowrap hidden lg:table-cell" x-text="item.end_time || '-' "></td>
+                            <td class="p-3 text-xs text-blue-300 font-mono font-bold whitespace-nowrap hidden lg:table-cell" x-text="getDuration(item)"></td>
+                            <td class="p-3 text-right whitespace-nowrap">
+                                <span class="font-bold text-yellow-400 text-xs" x-text="'+ ' + getEstXp(item) + ' XP'"></span>
                             </td>
-                            <td class="p-4 text-right">
-                                <span class="font-bold text-yellow-400" x-text="'+ ' + item.est_xp + ' XP'"></span>
+                            <td class="p-3 text-right whitespace-nowrap">
+                                <span class="font-bold text-white text-xs" x-text="formatNumber(item.tonnage || 0)"></span>
+                                <span class="text-[11px] text-gray-400">kg</span>
                             </td>
-                            <td class="p-4 text-right">
-                                <span class="font-bold text-white" x-text="item.tonnage + ' kg'"></span>
+                            <td class="p-3 text-right whitespace-nowrap hidden md:table-cell">
+                                <span class="font-bold text-white text-xs" x-text="formatNumber(getKgPerHour(item))"></span>
+                                <span class="text-[11px] text-gray-400">kg/h</span>
                             </td>
-                            <td class="p-4 text-center">
-                                <span class="px-2 py-1 rounded text-xs font-bold uppercase tracking-wide" :class="{
+                            <td class="p-3 text-center whitespace-nowrap hidden sm:table-cell">
+                                <span class="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide" :class="{
                                           'bg-green-900 text-green-300': item.status === 'completed',
                                           'bg-yellow-900 text-yellow-300': item.status === 'pending'
                                       }" x-text="item.status === 'completed' ? 'Concluído' : 'Em Andamento'"
                                     title="Rota não finalizada. Edite para concluir e gerar XP.">
                                 </span>
                             </td>
-                            <td class="p-4 text-right">
-                                <div class="flex justify-end gap-2">
+                            <td class="p-3 text-right whitespace-nowrap sticky right-0 z-10 bg-gray-800">
+                                <div class="flex justify-end gap-1">
                                     <button @click="openEdit(item)"
                                         class="text-blue-400 hover:bg-blue-900/30 p-2 rounded transition-colors"
-                                        title="Editar">
+                                        title="Editar" aria-label="Editar rota">
                                         <i data-lucide="pencil" class="w-4 h-4"></i>
                                     </button>
-                                    <button @click="confirmDelete(item)"
+                                    <button @click="openDelete(item)"
                                         class="text-red-400 hover:bg-red-900/30 p-2 rounded transition-colors"
-                                        title="Excluir">
+                                        title="Excluir" aria-label="Excluir rota">
                                         <i data-lucide="trash-2" class="w-4 h-4"></i>
                                     </button>
                                 </div>
@@ -120,19 +189,33 @@
 
                     <!-- Empty State -->
                     <tr x-show="items.length === 0 && !loading">
-                        <td colspan="9" class="p-12 text-center">
+                        <td colspan="11" class="p-12 text-center">
                             <i data-lucide="package-open"
                                 class="text-gray-600 w-12 h-12 mb-3 mx-auto block opacity-50"></i>
                             <span class="text-gray-500">Nenhuma rotina encontrada.</span>
                         </td>
                     </tr>
+
+                    <!-- Skeleton Loading -->
+                    <template x-if="loading">
+                        <tr>
+                            <td colspan="11" class="p-0">
+                                <div class="p-4 border-t border-gray-700 bg-gray-800/50">
+                                    <div class="space-y-2">
+                                        <div class="h-3 bg-gray-700/60 rounded w-11/12 animate-pulse"></div>
+                                        <div class="h-3 bg-gray-700/60 rounded w-9/12 animate-pulse"></div>
+                                        <div class="h-3 bg-gray-700/60 rounded w-10/12 animate-pulse"></div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
                 </tbody>
             </table>
         </div>
 
-        <!-- Loading State -->
-        <div x-show="loading"
-            class="p-4 text-center text-gray-400 text-sm border-t border-gray-700 bg-gray-800/50 flex justify-center items-center gap-2">
+        <!-- Loading State (fallback) -->
+        <div x-show="loading" class="p-4 text-center text-gray-400 text-sm border-t border-gray-700 bg-gray-800/50 flex justify-center items-center gap-2">
             <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Carregando dados...
         </div>
     </div>
@@ -143,9 +226,17 @@
         <div class="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl w-full max-w-md p-6"
             @click.outside="closeEdit()">
 
-            <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+            <h3 class="text-xl font-bold text-white mb-2 flex items-center gap-2">
                 <i data-lucide="pencil" class="text-blue-500 w-5 h-5"></i> Editar Rota
             </h3>
+            <p class="text-xs text-gray-500 mb-6">Validações: tonelagem &gt; 0 e fim &ge; início.</p>
+
+            <div x-show="editModal.error" x-transition.opacity class="bg-red-900/30 border border-red-800 rounded-lg p-3 text-sm text-red-200 mb-4">
+                <div class="flex items-start gap-2">
+                    <i data-lucide="alert-triangle" class="w-4 h-4 mt-0.5 text-red-300"></i>
+                    <div x-text="editModal.error"></div>
+                </div>
+            </div>
 
             <div class="space-y-4">
                 <div>
@@ -169,7 +260,7 @@
 
                 <div>
                     <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Tonelagem (Kg)</label>
-                    <input type="number" x-model="editModal.data.tonnage" step="0.1"
+                    <input type="number" x-model="editModal.data.tonnage" step="0.1" min="0"
                         class="w-full bg-gray-900 text-white rounded border border-gray-700 px-3 py-2 focus:border-blue-500 outline-none text-xl font-mono">
                 </div>
 
@@ -177,20 +268,58 @@
                     <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Status</label>
                     <select x-model="editModal.data.status"
                         class="w-full bg-gray-900 text-white rounded border border-gray-700 px-3 py-2 focus:border-blue-500 outline-none">
-                        <option value="pending">Pendente</option>
+                        <option value="pending">Em Andamento</option>
                         <option value="completed">Concluído</option>
                     </select>
                 </div>
             </div>
 
             <div class="flex justify-end gap-3 mt-8">
-                <button @click="closeEdit()"
+                <button @click="closeEdit()" type="button"
                     class="px-4 py-2 rounded text-gray-400 hover:bg-gray-700 hover:text-white transition-colors">Cancelar</button>
-                <button @click="saveEdit()"
-                    class="px-6 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold transition-colors flex items-center gap-2">
+                <button @click="saveEdit()" type="button" :disabled="editModal.saving"
+                    class="px-6 py-2 rounded bg-blue-600 hover:bg-blue-500 disabled:bg-blue-900/40 disabled:text-gray-300 disabled:cursor-not-allowed text-white font-bold transition-colors flex items-center gap-2">
                     <span x-show="!editModal.saving">Salvar Alterações</span>
                     <span x-show="editModal.saving" class="flex items-center gap-2"><i data-lucide="loader-2"
                             class="w-4 h-4 animate-spin"></i> Salvando...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Modal -->
+    <div x-show="deleteModal.open" x-transition.opacity
+        class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl w-full max-w-md p-6"
+            @click.outside="closeDelete()">
+
+            <h3 class="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                <i data-lucide="trash-2" class="text-red-500 w-5 h-5"></i> Confirmar exclusão
+            </h3>
+            <p class="text-sm text-gray-300 mb-4">Você está prestes a excluir uma rota. Esta ação não pode ser desfeita.</p>
+
+            <div class="bg-gray-900/40 border border-gray-700 rounded-lg p-3 text-sm text-gray-200">
+                <div><span class="text-gray-400">Colaborador:</span> <span class="font-semibold" x-text="deleteModal.data.employee_name"></span></div>
+                <div><span class="text-gray-400">Cliente:</span> <span class="font-semibold" x-text="deleteModal.data.client_name"></span></div>
+                <div><span class="text-gray-400">Data:</span> <span class="font-mono" x-text="formatDate(deleteModal.data.date)"></span></div>
+                <div><span class="text-gray-400">Tonelagem:</span> <span class="font-mono" x-text="formatNumber(deleteModal.data.tonnage || 0) + ' kg'"></span></div>
+            </div>
+
+            <div x-show="deleteModal.error" x-transition.opacity class="bg-red-900/30 border border-red-800 rounded-lg p-3 text-sm text-red-200 mt-4">
+                <div class="flex items-start gap-2">
+                    <i data-lucide="alert-triangle" class="w-4 h-4 mt-0.5 text-red-300"></i>
+                    <div x-text="deleteModal.error"></div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-8">
+                <button @click="closeDelete()" type="button"
+                    class="px-4 py-2 rounded text-gray-400 hover:bg-gray-700 hover:text-white transition-colors">Cancelar</button>
+                <button @click="confirmDelete()" type="button" :disabled="deleteModal.deleting"
+                    class="px-6 py-2 rounded bg-red-600 hover:bg-red-500 disabled:bg-red-900/40 disabled:text-gray-300 disabled:cursor-not-allowed text-white font-bold transition-colors flex items-center gap-2">
+                    <span x-show="!deleteModal.deleting">Excluir</span>
+                    <span x-show="deleteModal.deleting" class="flex items-center gap-2"><i data-lucide="loader-2"
+                            class="w-4 h-4 animate-spin"></i> Excluindo...</span>
                 </button>
             </div>
         </div>
@@ -203,50 +332,176 @@
         return {
             items: [],
             loading: false,
+            abortController: null,
+
             filters: {
                 search: '',
                 startDate: '',
                 endDate: '',
                 status: ''
             },
+
+            ui: {
+                error: '',
+                notice: ''
+            },
+
+            kpis: {
+                totalRoutes: 0,
+                totalKg: 0,
+                totalXp: 0,
+                completedPct: 0
+            },
+
             editModal: {
                 open: false,
                 data: {}, // Clone of item
-                saving: false
+                saving: false,
+                error: ''
+            },
+
+            deleteModal: {
+                open: false,
+                data: {},
+                deleting: false,
+                error: ''
             },
 
             init() {
-                // Set default dates (Current Month)
-                const date = new Date();
-                // this.filters.startDate = new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0];
-                // this.filters.endDate = new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0];
-                // No, user might check old data, default to empty to show all or recent
+                // Padrão: carregar apenas o dia atual (os demais dias ficam disponíveis via pesquisa/filtro)
+                const now = new Date();
+                const yyyy = now.getFullYear();
+                const mm = String(now.getMonth() + 1).padStart(2, '0');
+                const dd = String(now.getDate()).padStart(2, '0');
+                const today = `${yyyy}-${mm}-${dd}`;
+                this.filters.startDate = today;
+                this.filters.endDate = today;
+
+                this.fetchData();
+            },
+
+            setError(message) {
+                this.ui.error = message || '';
+                this.ui.notice = '';
+                this.$nextTick(() => lucide.createIcons());
+            },
+
+            setNotice(message) {
+                this.ui.notice = message || '';
+                this.ui.error = '';
+                this.$nextTick(() => lucide.createIcons());
+            },
+
+            clearMessages() {
+                this.ui.error = '';
+                this.ui.notice = '';
+            },
+
+            clearFilters() {
+                this.filters.search = '';
+                this.filters.startDate = '';
+                this.filters.endDate = '';
+                this.filters.status = '';
+                this.fetchData();
+            },
+
+            applyPreset(preset) {
+                const now = new Date();
+                const yyyy = now.getFullYear();
+                const mm = String(now.getMonth() + 1).padStart(2, '0');
+                const dd = String(now.getDate()).padStart(2, '0');
+                const today = `${yyyy}-${mm}-${dd}`;
+
+                if (preset === 'today') {
+                    this.filters.startDate = today;
+                    this.filters.endDate = today;
+                } else if (preset === 'last7') {
+                    const start = new Date(now);
+                    start.setDate(start.getDate() - 6);
+                    this.filters.startDate = start.toISOString().split('T')[0];
+                    this.filters.endDate = today;
+                } else if (preset === 'month') {
+                    const start = new Date(yyyy, now.getMonth(), 1);
+                    const end = new Date(yyyy, now.getMonth() + 1, 0);
+                    this.filters.startDate = start.toISOString().split('T')[0];
+                    this.filters.endDate = end.toISOString().split('T')[0];
+                }
+
                 this.fetchData();
             },
 
             async fetchData() {
                 this.loading = true;
+                this.clearMessages();
+
+                // Cancel previous request if still running
+                if (this.abortController) {
+                    this.abortController.abort();
+                }
+                this.abortController = new AbortController();
+
                 try {
                     const params = new URLSearchParams();
                     if (this.filters.search) params.append('search', this.filters.search);
                     if (this.filters.startDate) params.append('start_date', this.filters.startDate);
                     if (this.filters.endDate) params.append('end_date', this.filters.endDate);
                     if (this.filters.status) params.append('status', this.filters.status);
+                    params.append('_t', new Date().getTime()); // Cache Buster
 
-                    const res = await fetch(`/api/operational/routes?${params.toString()}`);
+                    const res = await fetch(`/api/operational/routes?${params.toString()}`, {
+                        signal: this.abortController.signal
+                    });
+
+                    if (!res.ok) {
+                        const errText = await res.text();
+                        throw new Error(errText || `HTTP ${res.status}`);
+                    }
+
                     const data = await res.json();
                     this.items = data.routes || [];
+                    this.computeKpis();
+
                     this.$nextTick(() => lucide.createIcons()); // Refresh Icons
                 } catch (error) {
+                    if (error && error.name === 'AbortError') {
+                        return;
+                    }
                     console.error("Fetch error:", error);
-                    alert("Erro ao carregar dados.");
+                    this.setError("Erro ao carregar dados. Verifique sua conexão e tente novamente.");
                 } finally {
                     this.loading = false;
                 }
             },
 
+            computeKpis() {
+                const totalRoutes = this.items.length;
+                let totalKg = 0;
+                let totalXp = 0;
+                let completed = 0;
+
+                for (const it of this.items) {
+                    const kg = Number(it.tonnage || 0);
+                    totalKg += kg;
+                    totalXp += Number(this.getEstXp(it) || 0);
+                    if (it.status === 'completed') completed += 1;
+                }
+
+                this.kpis.totalRoutes = totalRoutes;
+                this.kpis.totalKg = Math.round(totalKg);
+                this.kpis.totalXp = Math.round(totalXp);
+                this.kpis.completedPct = totalRoutes > 0 ? Math.round((completed / totalRoutes) * 100) : 0;
+            },
+
+            formatNumber(n) {
+                try {
+                    return new Intl.NumberFormat('pt-BR').format(Number(n || 0));
+                } catch {
+                    return String(n || 0);
+                }
+            },
+
             getInitials(name) {
-                return (name || '?').split(' ').map(n => n[0]).slice(0, 2).join('');
+                return (name || '?').split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('');
             },
 
             formatDate(dateStr) {
@@ -255,26 +510,128 @@
                 return `${d}/${m}/${y}`;
             },
 
+            parseTimeToMinutes(t) {
+                if (!t || typeof t !== 'string') return null;
+                const parts = t.split(':');
+                if (parts.length < 2) return null;
+                const hh = Number(parts[0]);
+                const mm = Number(parts[1]);
+                if (Number.isNaN(hh) || Number.isNaN(mm)) return null;
+                return (hh * 60) + mm;
+            },
+
+            formatMinutesToHhmm(mins) {
+                const m = Math.max(0, Math.round(mins));
+                const hh = Math.floor(m / 60);
+                const mm = m % 60;
+                return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+            },
+
+            getDuration(item) {
+                // Use API-provided duration if present
+                if (item && item.duration) return item.duration;
+
+                const start = this.parseTimeToMinutes(item?.start_time);
+                const end = this.parseTimeToMinutes(item?.end_time);
+                if (start == null || end == null) return '-';
+
+                const diff = end - start;
+                if (diff <= 0) return '-';
+
+                return this.formatMinutesToHhmm(diff);
+            },
+
+            getEstXp(item) {
+                // Use API-provided estimate if present
+                if (item && (item.est_xp !== undefined && item.est_xp !== null) && item.est_xp !== '') {
+                    const v = Number(item.est_xp);
+                    return Number.isFinite(v) ? Math.round(v) : 0;
+                }
+
+                // Fallback: base XP = (kg/1500) * 100
+                const kg = Number(item?.tonnage || 0);
+                if (!Number.isFinite(kg) || kg <= 0) return 0;
+                const uo = kg / 1500.0;
+                return Math.round(uo * 100);
+            },
+
+            getKgPerHour(item) {
+                const kg = Number(item?.tonnage || 0);
+                if (!Number.isFinite(kg) || kg <= 0) return 0;
+
+                const start = this.parseTimeToMinutes(item?.start_time);
+                const end = this.parseTimeToMinutes(item?.end_time);
+                if (start == null || end == null) return 0;
+
+                const diffMinutes = end - start;
+                if (diffMinutes <= 0) return 0;
+
+                const hours = diffMinutes / 60.0;
+                const v = kg / hours;
+                return Number.isFinite(v) ? Math.round(v) : 0;
+            },
+
             // --- Edit Logic ---
             openEdit(item) {
                 this.editModal.data = JSON.parse(JSON.stringify(item));
+                this.editModal.error = '';
                 this.editModal.open = true;
+                this.$nextTick(() => lucide.createIcons());
             },
 
             closeEdit() {
                 this.editModal.open = false;
                 this.editModal.saving = false;
+                this.editModal.error = '';
+            },
+
+            validateEdit() {
+                const tonnage = Number(this.editModal.data.tonnage);
+                if (!Number.isFinite(tonnage) || tonnage <= 0) {
+                    return 'Informe uma tonelagem válida (maior que 0).';
+                }
+
+                const start = this.parseTimeToMinutes(this.editModal.data.start_time);
+                const end = this.parseTimeToMinutes(this.editModal.data.end_time);
+
+                // If one is filled, require both
+                if ((start != null && end == null) || (start == null && end != null)) {
+                    return 'Preencha horário de início e fim, ou deixe ambos em branco.';
+                }
+
+                if (start != null && end != null && end < start) {
+                    return 'O horário de fim não pode ser menor que o horário de início.';
+                }
+
+                return '';
             },
 
             async saveEdit() {
+                this.editModal.error = '';
+                const validation = this.validateEdit();
+                if (validation) {
+                    this.editModal.error = validation;
+                    this.$nextTick(() => lucide.createIcons());
+                    return;
+                }
+
                 this.editModal.saving = true;
                 try {
+                    const status = this.editModal.data.status;
                     const payload = {
                         tonnage: parseFloat(this.editModal.data.tonnage),
-                        start_time: this.editModal.data.start_time,
-                        end_time: this.editModal.data.end_time,
-                        status: this.editModal.data.status
+                        start_time: this.editModal.data.start_time || null,
+                        end_time: this.editModal.data.end_time || null,
+                        status
                     };
+
+                    // Fail-safe: se marcou como concluído, garantir end_time preenchido
+                    if (status === 'completed' && (!payload.end_time || String(payload.end_time).trim() === '')) {
+                        const now = new Date();
+                        const hh = String(now.getHours()).padStart(2, '0');
+                        const mm = String(now.getMinutes()).padStart(2, '0');
+                        payload.end_time = `${hh}:${mm}`;
+                    }
 
                     const res = await fetch(`/api/operational/routes/${this.editModal.data.id}`, {
                         method: 'PUT',
@@ -284,36 +641,64 @@
 
                     if (res.ok) {
                         this.closeEdit();
-                        this.fetchData(); // Refresh
-                        alert("Rota atualizada com sucesso!");
+                        await this.fetchData(); // Refresh
+                        this.setNotice("Rota atualizada com sucesso!");
                     } else {
-                        const err = await res.json();
-                        alert("Erro ao salvar: " + err.error);
+                        let msg = 'Erro ao salvar.';
+                        try {
+                            const err = await res.json();
+                            msg = (err && (err.error || err.message)) ? (err.error || err.message) : msg;
+                        } catch {
+                            // ignore
+                        }
+                        this.editModal.error = msg;
+                        this.$nextTick(() => lucide.createIcons());
                     }
                 } catch (e) {
-                    alert("Erro de conexão.");
+                    this.editModal.error = "Erro de conexão.";
+                    this.$nextTick(() => lucide.createIcons());
                 } finally {
                     this.editModal.saving = false;
                 }
             },
 
             // --- Delete Logic ---
-            async confirmDelete(item) {
-                if (confirm(`Tem certeza que deseja EXCLUIR a rota de ${item.tonnage}kg de ${item.employee_name}?
-AVISO: Isso apagará o registro em todos os locais.`)) {
-                    try {
-                        const res = await fetch(`/api/operational/routes/${item.id}`, {
-                            method: 'DELETE'
-                        });
+            openDelete(item) {
+                this.deleteModal.data = JSON.parse(JSON.stringify(item));
+                this.deleteModal.error = '';
+                this.deleteModal.deleting = false;
+                this.deleteModal.open = true;
+                this.$nextTick(() => lucide.createIcons());
+            },
 
-                        if (res.ok) {
-                            this.fetchData();
-                        } else {
-                            alert("Erro ao excluir.");
-                        }
-                    } catch (e) {
-                        alert("Erro de conexão.");
+            closeDelete() {
+                this.deleteModal.open = false;
+                this.deleteModal.deleting = false;
+                this.deleteModal.error = '';
+            },
+
+            async confirmDelete() {
+                this.deleteModal.error = '';
+                this.deleteModal.deleting = true;
+
+                try {
+                    const res = await fetch(`/api/operational/routes/${this.deleteModal.data.id}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (res.ok) {
+                        this.closeDelete();
+                        await this.fetchData();
+                        this.setNotice('Rota excluída com sucesso.');
+                    } else {
+                        this.deleteModal.error = 'Erro ao excluir.';
+                        this.$nextTick(() => lucide.createIcons());
                     }
+                } catch (e) {
+                    this.deleteModal.error = 'Erro de conexão.';
+                    this.$nextTick(() => lucide.createIcons());
+                } finally {
+                    this.deleteModal.deleting = false;
                 }
             }
         }

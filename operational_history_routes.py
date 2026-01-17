@@ -1,7 +1,7 @@
 
 
 # --- Operational History Routes ---
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import HTMLResponse, JSONResponse
     """Render the Operational History Page"""
@@ -50,28 +50,83 @@ async def api_operational_routes(
         results = session.exec(query).all()
         
         # Prepare Response
-        now = datetime.now()
+        from zoneinfo import ZoneInfo
+        now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
         
         data = []
         for r, emp_name, client_name in results:
             s_time = r.start_time
             e_time = r.end_time
             
-            # Heuristic Fix for UTC (Start Time)
-            if s_time:
-                try:
-                    s_dt = datetime.strptime(s_time, "%H:%M").replace(year=now.year, month=now.month, day=now.day)
-                    if (s_dt - now).total_seconds() > 0 and (s_dt - now).total_seconds() < 4 * 3600:
-                        s_time = (s_dt - timedelta(hours=3)).strftime("%H:%M")
-                except: pass
+            # Strategy: If time is in the future relative to NOW, assume it's UTC and subtract 3h.
+            # Additional Context: If route is 'pending' or 'completed', it CANNOT be in the future.
+            # NEW Context: If Start > End (and End exists), likely Start is UTC and End is Local.
+            
+            def apply_heuristic(time_val, route_status, other_time_val=None, is_start_time=True):
+                if time_val is None: return None
+                
+                # DEBUG Input
+                # print(f"DEBUG INPUT: Val={time_val} ({type(time_val)}), Other={other_time_val} ({type(other_time_val)})")
+                
+                time_str = ""
+                if isinstance(time_val, (datetime.time, time)):
+                    time_str = time_val.strftime("%H:%M:%S")
+                else:
+                    time_str = str(time_val).strip()
 
-            # Heuristic Fix for UTC (End Time)
-            if e_time:
                 try:
-                    e_dt = datetime.strptime(e_time, "%H:%M").replace(year=now.year, month=now.month, day=now.day)
-                    if (e_dt - now).total_seconds() > 0 and (e_dt - now).total_seconds() < 4 * 3600:
-                        e_time = (e_dt - timedelta(hours=3)).strftime("%H:%M")
-                except: pass
+                    # Clean input
+                    clean_time = time_str.split(".")[0] 
+                    parts = clean_time.split(":")
+                    if len(parts) == 3: fmt = "%H:%M:%S"
+                    elif len(parts) == 2: fmt = "%H:%M"
+                    else: return time_str
+
+                    # 2. Construct Aware Datetime
+                    dt_obj = datetime.strptime(clean_time, fmt).replace(
+                        year=now_br.year, month=now_br.month, day=now_br.day, 
+                        tzinfo=ZoneInfo("America/Sao_Paulo")
+                    )
+                    
+                    # 3. Check Consistency with Other Time (Start vs End)
+                    force_fix = False
+                    if other_time_val:
+                        # Parse other time
+                        other_str = ""
+                        if isinstance(other_time_val, (datetime.time, time)): other_str = other_time_val.strftime("%H:%M:%S")
+                        else: other_str = str(other_time_val).strip()
+                        o_clean = other_str.split(".")[0]
+                        o_parts = o_clean.split(":")
+                        o_fmt = "%H:%M:%S" if len(o_parts) == 3 else "%H:%M"
+                        dt_other = datetime.strptime(o_clean, o_fmt).replace(year=now_br.year, month=now_br.month, day=now_br.day, tzinfo=ZoneInfo("America/Sao_Paulo"))
+
+                        # Logic: If Start > End (09:00 > 07:53) AND (Start-3h < End) (06:00 < 07:53) -> Fix Start
+                        if is_start_time and dt_obj > dt_other:
+                            dt_fix = dt_obj - timedelta(hours=3)
+                            if dt_fix < dt_other:
+                                force_fix = True
+                                print(f"DEBUG CONSISTENCY: Fixed Start {clean_time} -> {dt_fix.strftime('%H:%M')} because > End {o_clean}")
+
+                    # 4. Check Window (Future)
+                    diff = (dt_obj - now_br).total_seconds()
+                    is_future = diff > 0
+                    is_started = route_status in ['pending', 'completed']
+                    
+                    if force_fix or (is_future and (diff < 4 * 3600 or is_started)):
+                        new_dt = dt_obj - timedelta(hours=3)
+                        res = new_dt.strftime("%H:%M")
+                        # print(f"DEBUG FIX: {time_str} -> {res}")
+                        return res
+                    
+                    print(f"DEBUG PASS: {time_str} -> {dt_obj.strftime('%H:%M')} (Diff: {diff})")
+                    return dt_obj.strftime("%H:%M")
+                    
+                except Exception as e:
+                    print(f"Timezone Heuristic Error: {e}")
+                    return time_str
+
+            s_time = apply_heuristic(s_time, r.status, e_time, is_start_time=True)
+            e_time = apply_heuristic(e_time, r.status, None, is_start_time=False)
 
             data.append({
                 "id": r.id,

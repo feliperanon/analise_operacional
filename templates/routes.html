@@ -197,12 +197,23 @@
                 <div
                     class="px-6 py-5 border-b border-slate-700 bg-slate-800/80 backdrop-blur-sm flex flex-col md:flex-row gap-4 justify-between items-center sticky top-0 z-10">
                     <div>
+                        {% set ns = namespace(total_sys_tonnage=0) %}
+                        {% if routes %}
+                        {% for r in routes %}
+                        {% set ns.total_sys_tonnage = ns.total_sys_tonnage + (r.tonnage if r.tonnage else 0) %}
+                        {% endfor %}
+                        {% endif %}
                         <h3 class="text-lg font-bold text-white flex items-center gap-2">
                             <i data-lucide="list" class="text-slate-400"></i>
                             Registros
                             <span
                                 class="bg-indigo-500/10 text-indigo-400 px-2.5 py-0.5 rounded-md text-xs border border-indigo-500/20">
                                 {{ selected_date_fmt }} • {{ selected_shift }}
+                            </span>
+                            <span
+                                class="bg-emerald-500/10 text-emerald-400 px-2.5 py-0.5 rounded-md text-xs border border-emerald-500/20 font-mono ml-2">
+                                Total: {{ "{:,.2f}".format(ns.total_sys_tonnage).replace(",", "X").replace(".",
+                                ",").replace("X", ".") }} Kg
                             </span>
                         </h3>
                     </div>
