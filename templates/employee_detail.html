@@ -320,33 +320,43 @@
             <div class="space-y-2">
                 {% for x in xp_ledger %}
                 <div
-                    class="bg-slate-900/50 p-3 rounded-lg border border-slate-700 flex justify-between items-center group hover:border-slate-600 transition">
+                    class="bg-slate-900/50 p-3 rounded-lg border border-slate-700 flex justify-between items-center group hover:border-slate-600 transition {{ 'opacity-50 grayscale' if x.status == 'rejected' else '' }}">
                     <div class="flex items-center gap-3">
-                        {% if x.amount > 0 %}
+                        {% if x.amount > 0 and x.status != 'rejected' %}
                         <div
                             class="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-                            </svg>
+                            <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                        </div>
+                        {% elif x.status == 'rejected' %}
+                        <div class="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center text-red-500">
+                            <i data-lucide="x" class="w-4 h-4"></i>
                         </div>
                         {% else %}
                         <div class="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center text-red-500">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path>
-                            </svg>
+                            <i data-lucide="arrow-down-right" class="w-4 h-4"></i>
                         </div>
                         {% endif %}
 
                         <div>
-                            <p class="text-white text-sm font-medium">{{ x.reason }}</p>
-                            <p class="text-xs text-slate-500 font-mono">{{ x.created_at.strftime('%d/%m/%Y %H:%M') }}
-                            </p>
+                            <p
+                                class="text-white text-sm font-medium {{ 'line-through text-slate-500' if x.status == 'rejected' else '' }}">
+                                {{ x.reason }}</p>
+                            <div class="flex items-center gap-2">
+                                <p class="text-xs text-slate-500 font-mono">{{ x.created_at.strftime('%d/%m/%Y %H:%M')
+                                    }}</p>
+                                {% if x.status == 'provisional' %}
+                                <span
+                                    class="text-[10px] bg-yellow-500/10 text-yellow-500 px-1.5 rounded border border-yellow-500/20 uppercase font-bold">Pendente</span>
+                                {% elif x.status == 'rejected' %}
+                                <span
+                                    class="text-[10px] bg-red-500/10 text-red-500 px-1.5 rounded border border-red-500/20 uppercase font-bold">Rejeitado</span>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
-                    <span class="font-bold text-sm {{ 'text-emerald-400' if x.amount > 0 else 'text-red-400' }}">
-                        {{ '+' if x.amount > 0 else '' }}{{ x.amount | int }} XP
+                    <span
+                        class="font-bold text-sm {{ 'text-red-500 line-through' if x.status == 'rejected' else ('text-emerald-400' if x.amount > 0 else 'text-red-400') }}">
+                        {{ '+' if x.amount > 0 and x.status != 'rejected' else '' }}{{ x.amount | fmt_br_int }} XP
                     </span>
                 </div>
                 {% endfor %}

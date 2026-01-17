@@ -31,7 +31,7 @@
                 class="bg-gray-800 text-sm text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-green-500 outline-none">
                 <option value="">Todos Status</option>
                 <option value="completed">Concluído</option>
-                <option value="pending">Pendente</option>
+                <option value="pending">Em Andamento</option>
             </select>
 
             <button @click="fetchData()"
@@ -97,7 +97,8 @@
                                 <span class="px-2 py-1 rounded text-xs font-bold uppercase tracking-wide" :class="{
                                           'bg-green-900 text-green-300': item.status === 'completed',
                                           'bg-yellow-900 text-yellow-300': item.status === 'pending'
-                                      }" x-text="item.status === 'completed' ? 'Concluído' : 'Pendente'">
+                                      }" x-text="item.status === 'completed' ? 'Concluído' : 'Em Andamento'"
+                                    title="Rota não finalizada. Edite para concluir e gerar XP.">
                                 </span>
                             </td>
                             <td class="p-4 text-right">

@@ -81,7 +81,8 @@
                                 class="bg-slate-900/80 text-slate-400 text-xs uppercase tracking-wider font-bold border-b border-slate-700">
                                 <th class="p-5 pl-8">Data & Hora</th>
                                 <th class="p-5">Colaborador</th>
-                                <th class="p-5">Motivo / Origem</th>
+                                <th class="p-5">Motivo</th>
+                                <th class="p-5">Ref / Origem</th>
                                 <th class="p-5 text-center">Valor</th>
                                 <th class="p-5 text-center">Status</th>
                                 <th class="p-5 text-right pr-8">ID</th>
@@ -112,9 +113,21 @@
                                 </td>
 
                                 <td class="p-5">
+                                    {% set reason_clean = tx.reason.split('(ref:')[0] %}
                                     <div class="max-w-xs truncate text-slate-300" title="{{ tx.reason }}">
-                                        {{ tx.reason }}
+                                        {{ reason_clean }}
                                     </div>
+                                </td>
+
+                                <td class="p-5">
+                                    {% set ref_str = '-' %}
+                                    {% if 'ref:' in tx.reason %}
+                                    {% set ref_str = tx.reason.split('ref:')[1].split(')')[0].strip() %}
+                                    {% endif %}
+                                    <span
+                                        class="font-mono text-xs text-slate-500 bg-slate-900 border border-slate-700 px-2 py-1 rounded">
+                                        {{ ref_str }}
+                                    </span>
                                 </td>
 
                                 <td class="p-5 text-center">

@@ -289,6 +289,49 @@ async def global_exception_handler(request: Request, call_next):
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
+# --- Custom Filters ---
+def fmt_br(val):
+    if val is None: return "0,0"
+    try:
+        return f"{float(val):,.1f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except:
+        return str(val)
+
+def fmt_br_int(val):
+    if val is None: return "0"
+    try:
+        return f"{int(val):,.0f}".replace(",", ".")
+    except:
+        return str(val)
+
+templates.env.filters["fmt_br"] = fmt_br
+templates.env.filters["fmt_br_int"] = fmt_br_int
+
+# --- Admin Tools ---
+@app.post("/api/admin/sync-xp-totals")
+async def api_sync_xp_totals(request: Request, session: Session = Depends(get_session)):
+    try:
+        require_login(request) # Safety
+        employees = session.exec(select(models.Employee)).all()
+        count = 0
+        for emp in employees:
+            # Sum all non-rejected transactions
+            total = session.exec(
+                select(func.sum(models.GameXPTransaction.amount))
+                .where(models.GameXPTransaction.employee_id == emp.id)
+                .where(models.GameXPTransaction.status != "rejected")
+            ).one() or 0
+            
+            if emp.total_xp != int(total):
+                emp.total_xp = int(total)
+                session.add(emp)
+                count += 1
+        
+        session.commit()
+        return {"success": True, "updated": count}
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
 # --- Auth Dependencies ---
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
@@ -1034,7 +1077,20 @@ async def api_save_settings(request: Request, session: Session = Depends(get_ses
             session.add(conf)
         else:
             # Create new config if not exists
-            new_conf = models.GameConfiguration(key=key, value=val_str, updated_at=datetime.now())
+            # Determine defaults
+            cat = "general"
+            desc = "Auto-generated setting"
+            if "xp_" in key:
+                cat = "gamification"
+                desc = f"Gamification Setting for {key}"
+                
+            new_conf = models.GameConfiguration(
+                key=key, 
+                value=val_str, 
+                updated_at=datetime.now(),
+                category=cat,
+                description=desc
+            )
             session.add(new_conf)
             
     session.commit()
@@ -3222,7 +3278,7 @@ async def update_routine(
                             
                             if not existing:
                                 # Create
-                                evt_text = f"Registro: {status.upper()} em {data.date}"
+                                evt_text = f"Registro: {status.upper()} em {op_date_dt.strftime('%d/%m/%Y')}"
                                 new_event = models.Event(
                                     timestamp=datetime.now(), # Logged NOW, but text refers to date
                                     text=evt_text,
@@ -4715,7 +4771,9 @@ async def employee_detail(request: Request, employee_id: int, session: Session =
     if not employee:
         return RedirectResponse(url="/employees")
     
-    today = datetime.now()
+    # Adjust for Timezone (UTC to BRT approx or Shift logic)
+    # If server is UTC, now() might be tomorrow. If server is BRT, -3h is still same day (usually).
+    today = datetime.now() - timedelta(hours=3)
     today_date = today
 
     # --- XP Stats Calculation ---
@@ -4748,19 +4806,22 @@ async def employee_detail(request: Request, employee_id: int, session: Session =
     # Daily
     daily_xp = session.exec(select(func.sum(models.GameXPTransaction.amount)).where(
         models.GameXPTransaction.employee_id == employee.id, 
-        models.GameXPTransaction.created_at >= today.replace(hour=0, minute=0, second=0, microsecond=0)
+        models.GameXPTransaction.created_at >= today.replace(hour=0, minute=0, second=0, microsecond=0),
+        models.GameXPTransaction.status == 'confirmed'
     )).one() or 0.0
 
     # Weekly
     weekly_xp = session.exec(select(func.sum(models.GameXPTransaction.amount)).where(
         models.GameXPTransaction.employee_id == employee.id, 
-        models.GameXPTransaction.created_at >= start_week.replace(hour=0, minute=0, second=0, microsecond=0)
+        models.GameXPTransaction.created_at >= start_week.replace(hour=0, minute=0, second=0, microsecond=0),
+        models.GameXPTransaction.status == 'confirmed'
     )).one() or 0.0
 
     # Monthly
     monthly_xp = session.exec(select(func.sum(models.GameXPTransaction.amount)).where(
         models.GameXPTransaction.employee_id == employee.id, 
-        models.GameXPTransaction.created_at >= start_month.replace(hour=0, minute=0, second=0, microsecond=0)
+        models.GameXPTransaction.created_at >= start_month.replace(hour=0, minute=0, second=0, microsecond=0),
+        models.GameXPTransaction.status == 'confirmed'
     )).one() or 0.0
 
     def fmt_br(val):
@@ -4894,10 +4955,10 @@ async def update_employee_status(
                 text_desc = "Colaborador Reativado (Retorno)"
             elif status_action == "falta":
                 event_type = "falta"
-                text_desc = "Registrou Falta"
+                text_desc = f"Registrou Falta em {datetime.now().strftime('%d/%m/%Y')}"
             elif status_action == "atestado":
                 event_type = "atestado"
-                text_desc = "Apresentou Atestado"
+                text_desc = f"Apresentou Atestado em {datetime.now().strftime('%d/%m/%Y')}"
             
             # Translate Routine Change log
             if event_type == "ocorrencia" and "Status alterado" in text_desc:
@@ -4910,7 +4971,7 @@ async def update_employee_status(
                      "day_off": "Folga"
                  }
                  pt_status = status_map.get(status_action, status_action)
-                 text_desc = f"Alteração de Rotina: {pt_status}"
+                 text_desc = f"Alteração de Rotina ({datetime.now().strftime('%d/%m/%Y')}): {pt_status}"
                  
             new_event = models.Event(
                 text=text_desc,

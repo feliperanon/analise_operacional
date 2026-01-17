@@ -82,7 +82,15 @@ def calculate_daily_xp(session: Session, target_date_str: str):
         if r.end_time:
             try:
                 end_dt = datetime.strptime(r.end_time, "%H:%M")
+                current_date_obj = datetime.strptime(r.date, "%Y-%m-%d")
+                weekday = current_date_obj.weekday() # 0=Mon, 6=Sun
+                
                 for rule in time_rules:
+                    # Check Days Constraint (if exists and not empty)
+                    if "days" in rule and rule["days"] and len(rule["days"]) > 0:
+                        if weekday not in rule["days"]:
+                            continue
+                    
                     limit = datetime.strptime(rule['stop_time'], "%H:%M")
                     if end_dt <= limit:
                         bonus_pct = float(rule.get('bonus_percent', 0)) / 100.0
