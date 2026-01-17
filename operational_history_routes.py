@@ -1,8 +1,9 @@
 
-# --- Operational History Routes ---
 
-@app.get("/operational/history", response_class=HTMLResponse)
-async def operational_history_page(request: Request):
+# --- Operational History Routes ---
+from datetime import datetime, timedelta
+from fastapi import APIRouter, Request, Depends, Form
+from fastapi.responses import HTMLResponse, JSONResponse
     """Render the Operational History Page"""
     try:
         require_login(request)
@@ -48,8 +49,30 @@ async def api_operational_routes(
         
         results = session.exec(query).all()
         
+        # Prepare Response
+        now = datetime.now()
+        
         data = []
         for r, emp_name, client_name in results:
+            s_time = r.start_time
+            e_time = r.end_time
+            
+            # Heuristic Fix for UTC (Start Time)
+            if s_time:
+                try:
+                    s_dt = datetime.strptime(s_time, "%H:%M").replace(year=now.year, month=now.month, day=now.day)
+                    if (s_dt - now).total_seconds() > 0 and (s_dt - now).total_seconds() < 4 * 3600:
+                        s_time = (s_dt - timedelta(hours=3)).strftime("%H:%M")
+                except: pass
+
+            # Heuristic Fix for UTC (End Time)
+            if e_time:
+                try:
+                    e_dt = datetime.strptime(e_time, "%H:%M").replace(year=now.year, month=now.month, day=now.day)
+                    if (e_dt - now).total_seconds() > 0 and (e_dt - now).total_seconds() < 4 * 3600:
+                        e_time = (e_dt - timedelta(hours=3)).strftime("%H:%M")
+                except: pass
+
             data.append({
                 "id": r.id,
                 "date": r.date,
@@ -57,8 +80,8 @@ async def api_operational_routes(
                 "employee_id": r.employee_id,
                 "client_name": client_name,
                 "client_id": r.client_id,
-                "start_time": r.start_time,
-                "end_time": r.end_time,
+                "start_time": s_time,
+                "end_time": e_time,
                 "tonnage": r.tonnage,
                 "status": r.status
             })

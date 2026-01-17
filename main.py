@@ -1772,15 +1772,33 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
 
     for r in db_routes:
         prod = calc_productivity(r.start_time, r.end_time, r.tonnage)
+        
+        # Heuristic Fix for UTC Display
+        display_start = r.start_time
+        if r.start_time:
+            try:
+                # Assuming r.date is today for live view or using date from route
+                # But start_time is just HH:MM. Let's assume today's date if date matches context
+                # Simple check: current time vs start time
+                now = datetime.now()
+                s_dt = datetime.strptime(r.start_time, "%H:%M").replace(year=now.year, month=now.month, day=now.day)
+                
+                # If start time is 0-4h in future, correct it
+                diff = (s_dt - now).total_seconds()
+                if 0 < diff < 4 * 3600:
+                    new_s = s_dt - timedelta(hours=3)
+                    display_start = new_s.strftime("%H:%M")
+            except: pass
+
         routes_view.append({
             "id": r.id,
-            "start_time": r.start_time,
+            "start_time": display_start,
             "end_time": r.end_time,
             "tonnage": r.tonnage if r.tonnage is not None else 0.0,
             "tonnage_fmt": fmt_num(r.tonnage),
             "productivity": prod,
             "productivity_fmt": fmt_num(prod),
-            "duration_fmt": calc_duration_str(r.start_time, r.end_time),
+            "duration_fmt": calc_duration_str(display_start, r.end_time),
             "employee_name": emp_map_id.get(r.employee_id, models.Employee(name="Desconhecido")).name,
             "client_name": cli_map.get(r.client_id, "Desconhecido"),
             "employee_id": r.employee_id,
