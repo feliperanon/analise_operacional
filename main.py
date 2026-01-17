@@ -439,9 +439,42 @@ def require_login(request: Request):
 
     return user
 # --- Routes ---
-@app.get("/")
-async def root():
-    return RedirectResponse(url="/smart-flow")
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request, shift: str = "Todos", session: Session = Depends(get_session)):
+    user = require_login(request)
+    # Redirect mobile users
+    if isinstance(user, dict) and user.get("type") == "employee":
+        return RedirectResponse(url="/mobile/dashboard", status_code=status.HTTP_303_SEE_OTHER)
+
+    # 1. Fetch Dashboard Data (KPIs + Live Separation)
+    data = get_dashboard_data(session, shift)
+    
+    # 2. Add HR Data (Compact) for Carousel
+    # Fetching simplified lists for the template
+    today = datetime.now()
+    employees = session.exec(select(models.Employee).where(models.Employee.status != 'fired')).all()
+    
+    # Birthdays (Month)
+    birthdays = []
+    for emp in employees:
+        if emp.birthday and emp.birthday.month == today.month:
+            birthdays.append(emp)
+    
+    # Vacation (Active)
+    on_vacation = [e for e in employees if e.status == 'vacation']
+    
+    # Attach to data object
+    data["hr"] = {
+        "birthdays": [{"name": e.name.split()[0], "day": e.birthday.day, "photo": e.photo_url} for e in birthdays],
+        "vacation": [{"name": e.name.split()[0], "photo": e.photo_url} for e in on_vacation]
+    }
+
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "user": user,
+        "dashboard": data,
+        "current_shift": shift
+    })
 
 @app.get("/mobile", response_class=RedirectResponse)
 async def mobile_root():
