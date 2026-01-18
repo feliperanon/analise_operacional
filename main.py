@@ -2,10 +2,12 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, UploadFile, File
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from typing import Optional, List
 import json
+import csv
+import io
 from datetime import datetime, timedelta, time
 import traceback
 import os
@@ -317,6 +319,7 @@ templates.env.filters["fmt_br"] = fmt_br
 templates.env.filters["fmt_br_int"] = fmt_br_int
 
 # --- Admin Tools ---
+# --- Admin Tools ---
 @app.post("/api/admin/sync-xp-totals")
 async def api_sync_xp_totals(request: Request, session: Session = Depends(get_session)):
     try:
@@ -340,6 +343,82 @@ async def api_sync_xp_totals(request: Request, session: Session = Depends(get_se
         return {"success": True, "updated": count}
     except Exception as e:
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+@app.post("/api/admin/reset-data")
+async def api_reset_data(
+    request: Request, 
+    reset_routes: bool = Form(False),
+    reset_xp: bool = Form(False),
+    reset_all: bool = Form(False),
+    session: Session = Depends(get_session)
+):
+    try:
+        user = require_login(request)
+        # Extra security: Ensure only admin
+        if user != ALLOWED_USER:
+             return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+
+        import shutil
+        import time
+        
+        # 1. Create Backup
+        if reset_routes or reset_xp or reset_all:
+             timestamp = time.strftime("%Y%m%d_%H%M%S")
+             try:
+                 shutil.copy("database.db", f"database.db.reset_backup_{timestamp}")
+                 print(f"✅ Backup created: database.db.reset_backup_{timestamp}")
+             except Exception as e:
+                 print(f"⚠️ Backup failed: {e}")
+        
+        count_deleted = 0
+        
+        # 2. Reset Logic
+        if reset_all:
+            # Nuclear Option: Clear everything operational
+            tables = [
+                models.Route, models.DailyOperation, models.Event, 
+                models.EmployeeRoutine, models.EmployeeAllocation, 
+                models.XPLedger, models.GameXPTransaction, 
+                models.EmployeeAchievement
+            ]
+            for table in tables:
+                session.exec(delete(table))
+            
+            # Reset Employee XP
+            session.exec(text("UPDATE employee SET total_xp = 0"))
+            
+            # Reset Shift Data? Usually yes for factory reset
+            session.exec(delete(models.Shift))
+            
+            print("☢️ FACTORY RESET COMPLETED")
+            
+        else:
+            # Granular
+            if reset_routes:
+                # Clear client history / routes
+                session.exec(delete(models.Route))
+                session.exec(delete(models.DailyOperation)) # Ops log usually tied to routes
+                print("🧹 Routes & DailyOps cleared")
+                
+            if reset_xp:
+                # Clear Gamification
+                session.exec(delete(models.XPLedger))
+                session.exec(delete(models.GameXPTransaction))
+                session.exec(delete(models.EmployeeAchievement))
+                # Reset field
+                employees = session.exec(select(models.Employee)).all()
+                for e in employees:
+                    e.total_xp = 0
+                    session.add(e)
+                print("🎮 XP History cleared")
+
+        session.commit()
+        return {"success": True, "message": "Dados resetados com sucesso."}
+
+    except Exception as e:
+        logger.error(f"Reset Failed: {e}")
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
 # --- Auth Dependencies ---
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
@@ -1075,45 +1154,6 @@ async def api_game_audit(
 
     rows = session.exec(q).all()
 
-    def parse_reason(reason: str):
-        # Extrai ref, kg, uo, evento, regra horario (quando existir no texto)
-        ref = None
-        kg = None
-        uo = None
-        evento = None
-        regra_horario = None
-
-        if not reason:
-            return {"ref": ref, "kg": kg, "uo": uo, "evento": evento, "regra_horario": regra_horario}
-
-        if "ref:" in reason:
-            try:
-                ref = reason.split("ref:")[1].split(")")[0].strip()
-            except:
-                ref = None
-
-        parts = [p.strip() for p in reason.split("|")]
-        for p in parts:
-            if p.endswith("kg") and kg is None:
-                # ex: "2591kg" ou "2591 kg"
-                try:
-                    num = "".join(ch for ch in p if (ch.isdigit() or ch in ".,"))
-                    kg = float(num.replace(".", "").replace(",", ".")) if num else None
-                except:
-                    pass
-            if " UO" in p and uo is None:
-                try:
-                    num = p.split("UO")[0].strip()
-                    uo = float(num.replace(",", "."))
-                except:
-                    pass
-            if p.startswith("Event:"):
-                evento = p.replace("Event:", "").strip()
-            if p.startswith("Early"):
-                regra_horario = p
-
-        return {"ref": ref, "kg": kg, "uo": uo, "evento": evento, "regra_horario": regra_horario}
-
     data = []
     for tx, emp in rows:
         parsed = parse_reason(tx.reason)
@@ -1134,6 +1174,49 @@ async def api_game_audit(
         })
 
     return {"success": True, "items": data}
+
+
+def parse_reason(reason: str):
+    """Helper to parse raw reason strings into structured data."""
+    # Extrai ref, kg, uo, evento, regra horario (quando existir no texto)
+    ref = None
+    kg = None
+    uo = None
+    evento = None
+    regra_horario = None
+
+    if not reason:
+        return {"ref": ref, "kg": kg, "uo": uo, "evento": evento, "regra_horario": regra_horario}
+
+    if "ref:" in reason:
+        try:
+            ref = reason.split("ref:")[1].split(")")[0].strip()
+        except:
+            ref = None
+
+    parts = [p.strip() for p in reason.split("|")]
+    for p in parts:
+        if p.endswith("kg") and kg is None:
+            # ex: "2591kg" ou "2591 kg"
+            try:
+                num = "".join(ch for ch in p if (ch.isdigit() or ch in ".,"))
+                kg = float(num.replace(".", "").replace(",", ".")) if num else None
+            except:
+                pass
+        if " UO" in p and uo is None:
+            try:
+                num = p.split("UO")[0].strip()
+                uo = float(num.replace(",", "."))
+            except:
+                pass
+        if p.startswith("Event:"):
+            evento = p.replace("Event:", "").strip()
+        if p.startswith("Early"):
+            regra_horario = p
+
+    return {"ref": ref, "kg": kg, "uo": uo, "evento": evento, "regra_horario": regra_horario}
+
+
 
 
 @app.get("/api/game/audit/routes")
@@ -1227,6 +1310,138 @@ async def api_game_audit_routes(
         })
 
     return {"success": True, "items": items}
+
+@app.get("/api/game/export/xp")
+async def api_game_export_xp(
+    request: Request,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    status: Optional[str] = None,
+    employee_id: Optional[int] = None,
+    session: Session = Depends(get_session)
+):
+    """Exporta histórico de XP para CSV (Streaming)."""
+    require_login(request)
+    
+    # Reutiliza lógica de filtro (query base)
+    q = (
+        select(models.GameXPTransaction, models.Employee)
+        .join(models.Employee)
+        .order_by(desc(models.GameXPTransaction.created_at))
+    )
+    
+    if status:
+        q = q.where(models.GameXPTransaction.status == status)
+    if employee_id:
+        q = q.where(models.GameXPTransaction.employee_id == employee_id)
+        
+    if start_date:
+        try:
+            sdt = datetime.strptime(start_date, "%Y-%m-%d")
+            q = q.where(models.GameXPTransaction.created_at >= sdt)
+        except: pass
+            
+    if end_date:
+        try:
+            edt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+            q = q.where(models.GameXPTransaction.created_at < edt)
+        except: pass
+        
+    # Stream Generator (Memory Efficient)
+    async def iter_csv():
+        # Header
+        yield "ID,Data,Horario,Colaborador,Matricula,Quantidade XP,Status,Tipo,Motivo,Detalhes\n"
+        
+        # Rows
+        # Stream chunks from DB if needed, or iterate all (assuming < 100k rows fits in memory/generator)
+        # For simplicity and robust lock handling, we fetch all. 
+        # If massive, we should paginate. Assuming manageable scale for now.
+        records = session.exec(q).all()
+        
+        for tx, emp in records:
+            dt_str = tx.created_at.strftime("%d/%m/%Y")
+            hr_str = tx.created_at.strftime("%H:%M:%S")
+            # Parse reason basics
+            reason_clean = tx.reason.replace("\n", " ").replace(",", ";")
+            
+            row = [
+                str(tx.id),
+                dt_str,
+                hr_str,
+                emp.name,
+                str(emp.registration_id),
+                str(int(tx.amount)),
+                tx.status,
+                tx.source_type,
+                reason_clean,
+                "" # Extra
+            ]
+            yield ",".join(row) + "\n"
+
+    filename = f"xp_export_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
+    return StreamingResponse(
+        iter_csv(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@app.get("/api/game/audit/summary")
+async def api_game_audit_summary(
+    request: Request,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    status: Optional[str] = "confirmed",
+    session: Session = Depends(get_session)
+):
+    """Retorna sumário agregado de XP por colaborador no período."""
+    require_login(request)
+    
+    q = select(models.GameXPTransaction).where(models.GameXPTransaction.status == status)
+    
+    if start_date:
+        try:
+            sdt = datetime.strptime(start_date, "%Y-%m-%d")
+            q = q.where(models.GameXPTransaction.created_at >= sdt)
+        except: pass
+    if end_date:
+        try:
+            edt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+            q = q.where(models.GameXPTransaction.created_at < edt)
+        except: pass
+        
+    transactions = session.exec(q).all()
+    
+    # Aggregate logic
+    summary = {} # emp_id -> {amount: 0, count: 0}
+    
+    for tx in transactions:
+        eid = tx.employee_id
+        if eid not in summary:
+            summary[eid] = {"amount": 0, "count": 0}
+        summary[eid]["amount"] += tx.amount
+        summary[eid]["count"] += 1
+            
+    # Enrich with Employee Names
+    result = []
+    if summary:
+        emps = session.exec(select(models.Employee).where(col(models.Employee.id).in_(summary.keys()))).all()
+        emp_map = {e.id: e for e in emps}
+        
+        for eid, stats in summary.items():
+            emp = emp_map.get(eid)
+            if emp:
+                result.append({
+                    "employee_id": eid,
+                    "employee_name": emp.name,
+                    "photo_url": emp.photo_url,
+                    "total_xp": int(stats["amount"]),
+                    "tx_count": stats["count"]
+                })
+    
+    # Sort by XP Desc
+    result.sort(key=lambda x: x["total_xp"], reverse=True)
+    
+    return {"success": True, "summary": result}
 
 
 @app.post("/api/game/manual-xp")
@@ -1347,6 +1562,7 @@ async def admin_game_audit(request: Request, session: Session = Depends(get_sess
     for tx, emp in history_txs:
         formatted_history.append({
              "id": tx.id,
+             "employee_id": emp.id,
              "employee_name": emp.name,
              "amount": tx.amount,
              "status": tx.status,
@@ -1358,6 +1574,212 @@ async def admin_game_audit(request: Request, session: Session = Depends(get_sess
         "request": request,
         "history_txs": formatted_history
     })
+
+@app.get("/admin/game/audit/employee/{employee_id}", response_class=HTMLResponse)
+async def admin_game_employee_detail_page(
+    request: Request, 
+    employee_id: int, 
+    session: Session = Depends(get_session)
+):
+    """Employee Detail Page (HTML)"""
+    require_login(request)
+    emp = session.get(models.Employee, employee_id)
+    if not emp:
+        return HTMLResponse("Employee not found", status_code=404)
+        
+    return templates.TemplateResponse("admin_game_employee_detail.html", {
+        "request": request,
+        "employee": emp
+    })
+
+@app.get("/api/game/audit/employee/{employee_id}")
+async def api_game_audit_employee_history(
+    employee_id: int, 
+    session: Session = Depends(get_session)
+):
+    """
+    Fetch full XP history for a specific employee, including rejected/pending items.
+    """
+    # 1. Get Employee Info
+    emp = session.get(models.Employee, employee_id)
+    if not emp:
+        return {"error": "Employee not found"}
+
+    # 2. Get All Transactions (History)
+    #    Order by newest first
+    txs = session.exec(
+        select(GameXPTransaction)
+        .where(GameXPTransaction.employee_id == employee_id)
+        .order_by(desc(GameXPTransaction.created_at))
+    ).all()
+
+    # 3. Collect Dates for enrichment (Produtividade YYYY-MM-DD)
+    import re
+    date_map = {} # tx_id -> date_str
+    dates_to_fetch = set()
+    
+    for tx in txs:
+        # Check for pattern "Produtividade YYYY-MM-DD"
+        match = re.search(r"Produtividade (\d{4}-\d{2}-\d{2})", tx.reason)
+        if match:
+            d = match.group(1)
+            date_map[tx.id] = d
+            dates_to_fetch.add(d)
+            
+    # 4. Fetch Routes for these dates
+    routes_by_date = {} # date_str -> list of route dicts
+    
+    if dates_to_fetch:
+        # Helper duration
+        def calc_duration(start, end):
+            if not start or not end: return None
+            try:
+                sh, sm = map(int, start.split(':'))
+                eh, em = map(int, end.split(':'))
+                start_mins = sh * 60 + sm
+                end_mins = eh * 60 + em
+                if end_mins > start_mins:
+                    diff = end_mins - start_mins
+                    return f"{diff // 60:02d}:{diff % 60:02d}"
+            except: pass
+            return None
+
+        # Fetch
+        r_rows = session.exec(
+            select(models.Route, models.Client.name)
+            .join(models.Client, isouter=True)
+            .where(
+                models.Route.employee_id == employee_id,
+                col(models.Route.date).in_(dates_to_fetch)
+            )
+            .order_by(models.Route.start_time)
+        ).all()
+        
+        for r, cname in r_rows:
+            if r.date not in routes_by_date:
+                routes_by_date[r.date] = []
+            
+            duration = calc_duration(r.start_time, r.end_time)
+            routes_by_date[r.date].append({
+                "id": r.id,
+                "client_name": cname or "Cliente Desconhecido",
+                "start_time": r.start_time,
+                "end_time": r.end_time,
+                "duration": duration,
+                "kg": r.tonnage
+            })
+
+    # 5. Format Response
+    history = []
+    for tx in txs:
+        parsed = parse_reason(tx.reason) # Use local or global parse_reason
+        
+        # Enrich
+        route_info = None
+        tx_date = date_map.get(tx.id)
+        if tx_date and tx_date in routes_by_date:
+            route_info = {
+                "date": tx_date,
+                "routes": routes_by_date[tx_date]
+            }
+            
+        history.append({
+            "id": tx.id,
+            "amount": tx.amount,
+            "status": tx.status,
+            "source_type": tx.source_type,
+            "reason": tx.reason,
+            "created_at": tx.created_at.isoformat() if tx.created_at else None,
+            "confirmed_at": tx.confirmed_at.isoformat() if tx.confirmed_at else None,
+            "details": parsed,
+            "route_info": route_info
+        })
+    
+    return {
+        "employee": {
+            "id": emp.id,
+            "name": emp.name,
+            "registration_id": emp.registration_id,
+            "total_xp": emp.total_xp
+        },
+        "history": history
+    }
+
+class LevelsPayload(BaseModel):
+    levels: List[models.GameLevel]
+
+@app.post("/api/game/levels")
+async def api_save_levels(payload: LevelsPayload, session: Session = Depends(get_session)):
+    """Sync Levels: Update existing, Create new, Delete missing"""
+    try:
+        incoming = payload.levels
+        incoming_ids = {l.id for l in incoming if l.id is not None}
+        
+        # 1. Delete missing
+        existing = session.exec(select(models.GameLevel)).all()
+        for ex in existing:
+            if ex.id not in incoming_ids:
+                session.delete(ex)
+        
+        # 2. Update or Create
+        for item in incoming:
+            if item.id:
+                # Update
+                db_item = session.get(models.GameLevel, item.id)
+                if db_item:
+                    db_item.level = item.level
+                    db_item.name = item.name
+                    db_item.min_xp = item.min_xp
+                    db_item.min_months = item.min_months
+                    db_item.badge_image = item.badge_image
+                    session.add(db_item)
+            else:
+                # Create
+                # ensure id is None so DB auto-increments
+                item.id = None 
+                session.add(item)
+                
+        session.commit()
+        return {"success": True}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+class AchievementsPayload(BaseModel):
+    achievements: List[models.GameAchievement]
+
+@app.post("/api/game/achievements")
+async def api_save_achievements(payload: AchievementsPayload, session: Session = Depends(get_session)):
+    """Sync Achievements: Update existing, Create new, Delete missing"""
+    try:
+        incoming = payload.achievements
+        incoming_ids = {a.id for a in incoming if a.id is not None}
+        
+        # 1. Delete missing
+        existing = session.exec(select(models.GameAchievement)).all()
+        for ex in existing:
+            if ex.id not in incoming_ids:
+                session.delete(ex)
+        
+        # 2. Update or Create
+        for item in incoming:
+            if item.id:
+                db_item = session.get(models.GameAchievement, item.id)
+                if db_item:
+                    db_item.slug = item.slug
+                    db_item.name = item.name
+                    db_item.description = item.description
+                    db_item.icon = item.icon
+                    db_item.xp_reward = item.xp_reward
+                    db_item.is_manual = item.is_manual
+                    session.add(db_item)
+            else:
+                item.id = None
+                session.add(item)
+                
+        session.commit()
+        return {"success": True}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 @app.post("/api/game/transaction/{tx_id}/{action}")
 async def api_manage_tx(tx_id: int, action: str, session: Session = Depends(get_session)):
@@ -1391,9 +1813,19 @@ async def admin_game_settings(request: Request, session: Session = Depends(get_s
         # Convert list to dict for frontend
         config_dict = {c.key: c.value for c in configs}
         
+        # Fetch Levels
+        levels = session.exec(select(models.GameLevel).order_by(models.GameLevel.level)).all()
+        levels_data = [l.model_dump() for l in levels]
+        
+        # Fetch Achievements
+        achievements = session.exec(select(models.GameAchievement)).all()
+        achievements_data = [a.model_dump() for a in achievements]
+        
         return templates.TemplateResponse("admin_game_settings.html", {
             "request": request,
-            "config_json": json.dumps(config_dict)
+            "config_json": json.dumps(config_dict),
+            "levels_json": json.dumps(levels_data),
+            "achievements_json": json.dumps(achievements_data)
         })
     except HTTPException:
         raise

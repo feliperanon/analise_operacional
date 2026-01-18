@@ -5,23 +5,44 @@
 
     <!-- Top Bar -->
     <header
-        class="bg-slate-950/50 backdrop-blur-md border-b border-slate-800 px-8 py-6 flex justify-between items-center sticky top-0 z-20">
-        <div class="flex items-center gap-4">
+        class="bg-slate-950/50 backdrop-blur-md border-b border-slate-800 px-8 py-6 flex flex-col md:flex-row justify-between items-center sticky top-0 z-20 gap-4">
+        <div class="flex items-center gap-4 w-full md:w-auto">
             <div
                 class="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl text-white shadow-lg shadow-blue-500/20">
                 <i data-lucide="list-checks" class="w-6 h-6"></i>
             </div>
             <div>
-                <h1 class="text-2xl font-bold text-white tracking-tight">Auditoria de Gamificação</h1>
-                <p class="text-sm text-slate-400">Rastreabilidade completa de XP e Eventos</p>
+                <h1 class="text-2xl font-bold text-white tracking-tight">Histórico de XP</h1>
+                <p class="text-sm text-slate-400">Auditoria, Filtros e Exportação</p>
             </div>
         </div>
 
-        <div class="flex items-center gap-4">
+        <div class="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
+
+            <!-- Date Filters -->
+            <div class="flex items-center gap-2 bg-slate-800/50 p-1.5 rounded-lg border border-slate-700">
+                <input type="date" x-model="startDate"
+                    class="bg-slate-900 border-none text-slate-300 text-sm rounded focus:ring-1 focus:ring-blue-500 px-2 py-1.5">
+                <span class="text-slate-500 text-xs">até</span>
+                <input type="date" x-model="endDate"
+                    class="bg-slate-900 border-none text-slate-300 text-sm rounded focus:ring-1 focus:ring-blue-500 px-2 py-1.5">
+                <button @click="fetchAudit()"
+                    class="p-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors" title="Filtrar">
+                    <i data-lucide="filter" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Export -->
+            <button @click="exportCSV()"
+                class="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition-colors shadow-lg shadow-emerald-500/20">
+                <i data-lucide="download" class="w-4 h-4"></i>
+                Exportar CSV
+            </button>
+
             <!-- Search -->
-            <div class="relative group">
-                <input type="text" x-model="search" placeholder="Buscar colaborador, cliente, data..."
-                    class="bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-72 pl-10 p-2.5 transition-all group-hover:border-slate-600">
+            <div class="relative group hidden md:block">
+                <input type="text" x-model="search" placeholder="Buscar..."
+                    class="bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-48 pl-9 p-2 transition-all group-hover:border-slate-600">
                 <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                     <i data-lucide="search"
                         class="w-4 h-4 text-slate-500 group-hover:text-blue-400 transition-colors"></i>
@@ -29,123 +50,184 @@
             </div>
 
             <a href="/admin/game"
-                class="text-sm font-medium text-slate-400 hover:text-white transition-colors flex items-center gap-2 px-4 py-2 hover:bg-white/5 rounded-lg">
+                class="text-sm font-medium text-slate-400 hover:text-white transition-colors flex items-center gap-2 px-3 py-2 hover:bg-white/5 rounded-lg">
                 <i data-lucide="arrow-left" class="w-4 h-4"></i>
                 Voltar
             </a>
         </div>
     </header>
 
-    <main class="flex-1 p-8 overflow-y-auto">
-        <div class="max-w-7xl mx-auto space-y-6">
+    <main class="flex-1 overflow-hidden flex">
 
-            <!-- Summary Stats -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <!-- Total Transactions -->
-                <div class="bg-slate-800/50 rounded-2xl p-5 border border-slate-700/50">
-                    <div class="flex justify-between items-start mb-4">
-                        <div class="p-2 bg-blue-500/10 text-blue-400 rounded-lg">
-                            <i data-lucide="activity" class="w-5 h-5"></i>
-                        </div>
-                        <span class="text-xs font-bold text-slate-500 uppercase">Total</span>
-                    </div>
-                    <div class="text-2xl font-bold text-white mb-1">{{ history_txs|length }}</div>
-                    <p class="text-xs text-slate-500">Registros exibidos</p>
-                </div>
+        <!-- Left: Main List -->
+        <div class="flex-1 p-6 overflow-y-auto">
+            <div class="max-w-6xl mx-auto space-y-6">
 
-                <!-- XP Granted -->
-                <div class="bg-slate-800/50 rounded-2xl p-5 border border-slate-700/50">
-                    <div class="flex justify-between items-start mb-4">
-                        <div class="p-2 bg-green-500/10 text-green-400 rounded-lg">
-                            <i data-lucide="trending-up" class="w-5 h-5"></i>
-                        </div>
-                        <span class="text-xs font-bold text-slate-500 uppercase">XP Concedido</span>
-                    </div>
-                    <div class="text-2xl font-bold text-white mb-1">
-                        {% set total_xp = namespace(value=0) %}
-                        {% for tx in history_txs if tx.amount > 0 and tx.status == 'confirmed' %}
-                        {% set total_xp.value = total_xp.value + tx.amount %}
-                        {% endfor %}
-                        {{ total_xp.value|int }}
-                    </div>
-                    <p class="text-xs text-slate-500">Pontos confirmados</p>
-                </div>
-            </div>
-
-            <!-- Table Card -->
-            <div class="bg-slate-800/80 backdrop-blur rounded-2xl border border-slate-700 shadow-xl overflow-hidden">
-                <div class="overflow-hidden">
-                    <table class="w-full text-left border-collapse table-fixed">
-                        <thead>
-                            <tr
-                                class="bg-slate-900/80 text-slate-400 text-xs uppercase tracking-wider font-bold border-b border-slate-700">
-                                <th class="p-3 pl-6 w-[28%]">Colaborador</th>
-                                <th class="p-3 w-[44%]">Detalhes</th>
-                                <th class="p-3 text-center w-[14%]">XP</th>
-                                <th class="p-3 text-center w-[14%]">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-700/50 text-xs">
-                            <template x-for="item in items" :key="item.key">
-                                <tr class="hover:bg-slate-700/30 transition-colors group" x-show="matchesItem(item)">
-                                    <td class="p-3 pl-6">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-8 h-8 rounded-full bg-slate-700/50 flex items-center justify-center text-xs font-bold text-slate-300 border border-slate-600 flex-shrink-0" x-text="initials(item.employee_name)"></div>
-                                            <div class="min-w-0">
-                                                <div class="font-bold text-white truncate" x-text="item.employee_name"></div>
-                                                <div class="text-[11px] text-slate-500 font-mono truncate" x-text="formatDateTime(item.date_time)"></div>
-                                            </div>
-                                        </div>
-                                    </td>
-
-                                    <td class="p-3">
-                                        <div class="text-sm font-semibold text-slate-200 break-words leading-snug" x-text="item.title"></div>
-                                        <div class="mt-1 text-[11px] text-slate-400 break-words leading-snug">
-                                            <span class="text-slate-500">Cliente:</span> <span x-text="item.client_name || '—'"></span>
-                                            <span class="text-slate-600">•</span>
-                                            <span class="text-slate-500">Produção:</span> <span x-text="item.kg_display || '—'"></span>
-                                            <span class="text-slate-600">•</span>
-                                            <span class="text-slate-500">UO:</span> <span x-text="item.uo_display || '—'"></span>
-                                        </div>
-                                        <div class="mt-1 text-[11px] text-slate-500 break-words leading-snug">
-                                            <span class="text-slate-500">Tempo:</span> <span x-text="item.duration || '—'"></span>
-                                            <template x-if="item.regra_horario">
-                                                <span><span class="text-slate-600">•</span> <span x-text="item.regra_horario"></span></span>
-                                            </template>
-                                            <template x-if="item.evento">
-                                                <span><span class="text-slate-600">•</span> <span x-text="item.evento"></span></span>
-                                            </template>
-                                        </div>
-                                    </td>
-
-                                    <td class="p-3 text-center">
-                                        <div class="inline-flex items-center gap-1 font-bold font-mono" :class="item.amount >= 0 ? 'text-emerald-400' : 'text-rose-400'">
-                                            <i data-lucide="plus" class="w-3 h-3" x-show="item.amount >= 0"></i>
-                                            <i data-lucide="minus" class="w-3 h-3" x-show="item.amount < 0"></i>
-                                            <span x-text="Math.abs(item.amount)"></span>
-                                        </div>
-                                    </td>
-
-                                    <td class="p-3 text-center">
-                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border"
-                                            :class="statusClass(item.status)">
-                                            <span class="w-1.5 h-1.5 rounded-full" :class="statusDotClass(item.status)"></span>
-                                            <span x-text="statusLabel(item.status)"></span>
-                                        </span>
-                                    </td>
+                <!-- Table Card -->
+                <div
+                    class="bg-slate-800/80 backdrop-blur rounded-2xl border border-slate-700 shadow-xl overflow-hidden min-h-[500px]">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr
+                                    class="bg-slate-900/80 text-slate-400 text-xs uppercase tracking-wider font-bold border-b border-slate-700">
+                                    <th class="p-4 pl-6">Colaborador</th>
+                                    <th class="p-4">Motivo / Detalhes</th>
+                                    <th class="p-4 text-center">XP</th>
+                                    <th class="p-4 text-center">Status</th>
                                 </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                    <!-- Empty Search State -->
-                    <div x-show="isEmpty()" class="p-12 text-center text-slate-500 hidden">
-                        <i data-lucide="search-x" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
-                        <p>Nenhum registro encontrado para "<span x-text="search"></span>"</p>
+                            </thead>
+                            <tbody class="divide-y divide-slate-700/50 text-xs text-slate-300">
+                                <template x-for="item in items" :key="item.key">
+                                    <tr class="hover:bg-slate-700/30 transition-colors group"
+                                        x-show="matchesItem(item)">
+                                        <td class="p-4 pl-6">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-9 h-9 rounded-full bg-slate-700/50 flex items-center justify-center text-xs font-bold text-slate-300 border border-slate-600 flex-shrink-0"
+                                                    x-text="initials(item.employee_name)"></div>
+                                                <div class="min-w-0">
+                                                    <a :href="'/admin/game/audit/employee/' + item.employee_id"
+                                                        class="font-bold text-white truncate text-sm hover:text-blue-400 hover:underline cursor-pointer"
+                                                        x-text="item.employee_name">
+                                                    </a>
+                                                    <div class="text-[11px] text-slate-500 font-mono truncate"
+                                                        x-text="item.date_time"></div>
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        <td class="p-4 min-w-[300px]">
+                                            <div class="text-sm font-semibold text-slate-200 break-words leading-snug"
+                                                x-text="item.title"></div>
+
+                                            <!-- Normal Operations (Not Manual) -->
+                                            <template x-if="item.title !== 'Ajuste manual'">
+                                                <div class="mt-1 space-y-0.5">
+                                                    <div class="text-[11px] text-slate-400 break-words leading-snug">
+                                                        <span x-show="item.client_name">
+                                                            <span class="text-slate-500">Cli:</span>
+                                                            <span x-text="item.client_name"></span>
+                                                        </span>
+                                                        <span x-show="item.kg_display">
+                                                            <span class="text-slate-600 mx-1">•</span>
+                                                            <span x-text="item.kg_display"></span>
+                                                        </span>
+                                                        <span x-show="item.uo_display">
+                                                            <span class="text-slate-600 mx-1">•</span>
+                                                            <span x-text="item.uo_display"></span>
+                                                        </span>
+                                                    </div>
+                                                    <div class="text-[11px] text-slate-500 break-words leading-snug">
+                                                        <span x-show="item.duration">
+                                                            <span x-text="item.duration"></span>
+                                                        </span>
+                                                        <template x-if="item.regra_horario">
+                                                            <span><span class="text-slate-600 mx-1">•</span> <span
+                                                                    x-text="item.regra_horario"></span></span>
+                                                        </template>
+                                                        <template x-if="item.evento">
+                                                            <span><span class="text-slate-600 mx-1">•</span> <span
+                                                                    x-text="item.evento"></span></span>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </template>
+
+                                            <!-- Manual Adjustment (Reason) -->
+                                            <template x-if="item.title === 'Ajuste manual'">
+                                                <div
+                                                    class="mt-2 text-xs text-slate-300 bg-slate-800/50 p-2 rounded border border-slate-700/50">
+                                                    <span
+                                                        class="text-slate-500 font-medium block text-[10px] uppercase mb-0.5">Obs:</span>
+                                                    <span x-text="item.raw_reason || 'Sem observação'"></span>
+                                                </div>
+                                            </template>
+                                        </td>
+
+                                        <td class="p-4 text-center">
+                                            <div class="inline-flex items-center gap-1 font-bold font-mono text-sm"
+                                                :class="item.amount >= 0 ? 'text-emerald-400' : 'text-rose-400'">
+                                                <i data-lucide="plus" class="w-3 h-3" x-show="item.amount >= 0"></i>
+                                                <i data-lucide="minus" class="w-3 h-3" x-show="item.amount < 0"></i>
+                                                <span x-text="Math.abs(item.amount)"></span>
+                                            </div>
+                                        </td>
+
+                                        <td class="p-4 text-center">
+                                            <span
+                                                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border"
+                                                :class="statusClass(item.status)">
+                                                <span class="w-1.5 h-1.5 rounded-full"
+                                                    :class="statusDotClass(item.status)"></span>
+                                                <span x-text="statusLabel(item.status)"></span>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+
+                        <!-- Empty State -->
+                        <div x-show="items.length === 0" class="p-16 text-center text-slate-500">
+                            <div class="inline-flex p-4 rounded-full bg-slate-800/50 mb-4">
+                                <i data-lucide="filter-x" class="w-8 h-8 opacity-50"></i>
+                            </div>
+                            <p class="text-lg font-medium text-slate-400">Nenhum registro encontrado</p>
+                            <p class="text-sm">Tente ajustar os filtros de data.</p>
+                        </div>
                     </div>
                 </div>
             </div>
-
         </div>
+
+        <!-- Right: Summary Sidebar -->
+        <aside class="w-80 bg-slate-900 border-l border-slate-800 overflow-y-auto hidden xl:block p-6">
+            <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Resumo do Período</h3>
+
+            <!-- Overall Stats -->
+            <div class="space-y-4 mb-8">
+                <div class="bg-slate-800 rounded-xl p-4 border border-slate-700/50">
+                    <span class="text-xs text-slate-400 block mb-1">Total de Registros</span>
+                    <span class="text-2xl font-bold text-white" x-text="items.length"></span>
+                </div>
+                <div class="bg-slate-800 rounded-xl p-4 border border-slate-700/50">
+                    <span class="text-xs text-slate-400 block mb-1">XP Concedido (Total)</span>
+                    <span class="text-2xl font-bold text-emerald-400" x-text="totalXpPeriod"></span>
+                </div>
+            </div>
+
+            <h3
+                class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex justify-between items-center">
+                <span>Top Colaboradores</span>
+                <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-400">No Período</span>
+            </h3>
+
+            <div class="space-y-3">
+                <template x-for="(emp, index) in summary" :key="emp.employee_id">
+                    <div
+                        class="flex items-center gap-3 p-3 rounded-lg bg-slate-800/40 border border-slate-800 hover:border-slate-700 transition-colors">
+                        <div
+                            class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300 border border-slate-600 relative">
+                            <span x-text="initials(emp.employee_name)"></span>
+                            <!-- Rank Badge -->
+                            <div class="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white border border-slate-900"
+                                :class="index === 0 ? 'bg-amber-400' : (index === 1 ? 'bg-slate-400' : (index === 2 ? 'bg-amber-700' : 'bg-slate-600'))"
+                                x-text="index + 1">
+                            </div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-xs font-bold text-white truncate" x-text="emp.employee_name"></div>
+                            <div class="text-[10px] text-slate-500" x-text="emp.tx_count + ' registros'"></div>
+                        </div>
+                        <div class="text-sm font-bold text-emerald-400 font-mono" x-text="'+' + emp.total_xp"></div>
+                    </div>
+                </template>
+                <div x-show="summary.length === 0" class="text-center py-6 text-slate-600 text-xs italic">
+                    Nenhum dado para exibir.
+                </div>
+            </div>
+        </aside>
+
     </main>
 </div>
 
@@ -155,18 +237,29 @@
     function auditLog() {
         return {
             search: '',
+            startDate: '',
+            endDate: '',
             items: [],
+            summary: [],
+            totalXpPeriod: 0,
 
             init() {
+                // Default: Current Month
+                const date = new Date();
+                const y = date.getFullYear();
+                const m = date.getMonth();
+                const firstDay = new Date(y, m, 1);
+                const lastDay = new Date(y, m + 1, 0);
+
+                // Format YYYY-MM-DD
+                this.startDate = firstDay.toISOString().split('T')[0];
+                this.endDate = lastDay.toISOString().split('T')[0];
+
                 this.fetchAudit();
             },
 
             initials(name) {
                 return (name || '?').split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('');
-            },
-
-            formatDateTime(dt) {
-                return dt || '-';
             },
 
             statusLabel(s) {
@@ -196,20 +289,38 @@
                     || (item.raw_reason || '').toLowerCase().includes(q);
             },
 
+            exportCSV() {
+                let url = `/api/game/export/xp?status=confirmed`;
+                if (this.startDate) url += `&start_date=${this.startDate}`;
+                if (this.endDate) url += `&end_date=${this.endDate}`;
+                window.location.href = url;
+            },
+
             async fetchAudit() {
                 try {
-                    const [auditRes, routesRes] = await Promise.all([
-                        fetch('/api/game/audit?limit=200'),
-                        fetch('/api/game/audit/routes?limit=2000')
+                    // Build Query Params
+                    let params = `limit=500`;
+                    if (this.startDate) params += `&start_date=${this.startDate}`;
+                    if (this.endDate) params += `&end_date=${this.endDate}`;
+
+                    const [auditRes, routesRes, summaryRes] = await Promise.all([
+                        fetch(`/api/game/audit?${params}`),
+                        fetch(`/api/game/audit/routes?limit=2000`), // Note: Routes doesn't strictly follow same date filter unless passed, but used for enrichment
+                        fetch(`/api/game/audit/summary?${params}`)
                     ]);
 
                     const auditJson = await auditRes.json().catch(() => ({}));
                     const routesJson = await routesRes.json().catch(() => ({}));
+                    const summaryJson = await summaryRes.json().catch(() => ({}));
+
+                    this.summary = summaryJson.summary || [];
+                    this.totalXpPeriod = this.summary.reduce((acc, curr) => acc + curr.total_xp, 0);
 
                     const auditItems = (auditJson && auditJson.items) ? auditJson.items : [];
                     const routeItems = (routesJson && routesJson.items) ? routesJson.items : [];
 
                     // Index: (employee_id + date) -> aggregate details
+                    // Only used for enrichment of specific Separation logs
                     const routeIndex = {};
                     for (const r of routeItems) {
                         const key = `${r.employee_id}__${r.date}`;
@@ -234,6 +345,9 @@
                     const items = [];
                     for (const a of auditItems) {
                         const created = a.created_at || '';
+                        const dateOnly = created.split('T')[0];
+
+                        // Parse Ref for daily aggregation logic
                         const day = (a.ref && typeof a.ref === 'string' && a.ref.startsWith('daily_'))
                             ? a.ref.replace('daily_', '')
                             : null;
@@ -243,16 +357,15 @@
 
                         let client_name = null;
                         if (agg && agg.clients && agg.clients.size > 0) {
-                            // Mostra até 2 clientes, depois “+N”
                             const arr = Array.from(agg.clients);
                             client_name = arr.slice(0, 2).join(', ');
                             if (arr.length > 2) client_name += ` +${arr.length - 2}`;
+                        } else if (a.client_name) {
+                            client_name = a.client_name;
                         }
 
                         const kg_display = agg ? `${Math.round(agg.kg)}kg` : (a.kg != null ? `${Math.round(a.kg)}kg` : null);
                         const uo_display = agg ? `${agg.uo.toFixed(2)} UO` : (a.uo != null ? `${Number(a.uo).toFixed(2)} UO` : null);
-
-                        // Tempo: se agregou rotas, exibe “N rotas” e a maior duração como referência
                         let duration = null;
                         if (agg && agg.durations && agg.durations.length > 0) {
                             duration = `${agg.durations.length} rotas`;
@@ -262,6 +375,9 @@
                         if (day) {
                             const dp = day.split('-');
                             title = (dp.length === 3) ? `Separação • ${dp[2]}/${dp[1]}` : 'Separação';
+                        } else if (a.reason && !a.reason.includes('Ajuste manual')) {
+                            // Clean up reason title
+                            title = a.reason.split('|')[0].trim();
                         }
 
                         items.push({
@@ -287,10 +403,6 @@
                 } catch (e) {
                     console.error(e);
                 }
-            },
-
-            isEmpty() {
-                return false;
             }
         }
     }
