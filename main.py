@@ -209,10 +209,10 @@ def sync_sectors_on_startup():
                              cs['target'] = s.max_employees
                              changed = True
                 
-                 if changed:
-                     config_db.config_json = data
-                     config_db.updated_at = datetime.now()
-                     session.add(config_db)
+                    if changed:
+                        config_db.config_json = data
+                        config_db.updated_at = datetime.now(ZoneInfo("America/Sao_Paulo"))
+                        session.add(config_db)
             
             session.commit()
         print("✅ Sincronização de startup concluída.")
@@ -616,7 +616,7 @@ async def index(request: Request, shift: str = "Todos", session: Session = Depen
     
     # 2. Add HR Data (Compact) for Carousel
     # Fetching simplified lists for the template
-    today = datetime.now()
+    today = datetime.now(ZoneInfo("America/Sao_Paulo"))
     employees = session.exec(select(models.Employee).where(models.Employee.status != 'fired')).all()
     
     # Birthdays (Month)
@@ -718,7 +718,7 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
             request.session.clear()
             return RedirectResponse(url="/mobile/login", status_code=303)
 
-        today = datetime.now()
+        today = datetime.now(ZoneInfo("America/Sao_Paulo"))
         yesterday = today - timedelta(days=1)
         if yesterday.weekday() == 6: # If Sunday, check Saturday
              yesterday = today - timedelta(days=2)
@@ -752,7 +752,7 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
         
         # Pre-fetch data to analyze rankings
         daily_stats = []
-        now = datetime.now()
+        now = datetime.now(ZoneInfo("America/Sao_Paulo"))
         thirty_days_ago = now - timedelta(days=30)
         
         # We need daily stats to calculate cumulative and averages
@@ -815,7 +815,7 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
                  chart_bg_colors.append("#ef4444") # Red 500
 
         # --- Active Routes (Pending) ---
-        today_str = datetime.now().strftime("%Y-%m-%d")
+        today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
         
         # 1. Active Routes
         active_routes_stmt = (
@@ -6783,7 +6783,7 @@ async def api_operational_routes(
                 if time_val is None: return None
                 time_str = ""
                 # Handle datetime.time
-                if isinstance(time_val, (time, type(datetime.now().time()))):
+                if isinstance(time_val, (time, type(datetime.now(ZoneInfo("America/Sao_Paulo")).time()))):
                     time_str = time_val.strftime("%H:%M:%S")
                 else:
                     time_str = str(time_val).strip()
