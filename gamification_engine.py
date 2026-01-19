@@ -113,9 +113,40 @@ def calculate_daily_xp(session: Session, target_date_str: str):
                 if m > 1.0:
                     event_mult = m
                     reason_parts.append(f"Event: {evt.get('name')} ({m}x)")
+
+        # 4. Productivity Challenge Bonus (NEW)
+        # Compare with yesterday
+        productivity_bonus = 0
+        try:
+            target_date_obj = datetime.strptime(target_date_str, "%Y-%m-%d")
+            yesterday_obj = target_date_obj - timedelta(days=1)
+            if yesterday_obj.weekday() == 6: # Sunday -> Saturday
+                yesterday_obj -= timedelta(days=1)
+            yesterday_str = yesterday_obj.strftime("%Y-%m-%d")
+
+            y_routes = session.exec(
+                select(Route).where(Route.employee_id == emp_id, Route.date == yesterday_str, Route.status == "completed")
+            ).all()
+            
+            y_kg = sum([r.tonnage for r in y_routes if r.tonnage]) or 0.0
+            y_seconds = 0
+            for yr in y_routes:
+                if yr.start_time and yr.end_time:
+                    try:
+                        ys = datetime.strptime(yr.start_time, "%H:%M")
+                        ye = datetime.strptime(yr.end_time, "%H:%M")
+                        y_seconds += (ye - ys).total_seconds()
+                    except: pass
+            
+            # If today did more weight (or same) in less time
+            if y_kg > 0 and kg >= y_kg and seconds < y_seconds and seconds > 0:
+                productivity_bonus = 100
+                reason_parts.append("Desafio Lucro +100XP")
+        except Exception as e:
+            print(f"Error calc productivity bonus: {e}")
         
-        # Final Calc: Base * (Sum of Efficiency/Time Bonuses) * Event Multiplier
-        final_xp = int(base_xp * bonus_mult * event_mult)
+        # Final Calc: Base * (Sum of Efficiency/Time Bonuses) * Event Multiplier + Fixed Productivity Bonus
+        final_xp = int(base_xp * bonus_mult * event_mult) + productivity_bonus
         
         extra_info = " | ".join(reason_parts) if reason_parts else ""
         if extra_info:

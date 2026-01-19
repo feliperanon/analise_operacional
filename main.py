@@ -442,6 +442,7 @@ def get_dashboard_data(session: Session, shift_filter: str):
     """
     Fetches data for the Command Center Dashboard (Nexus).
     """
+    from zoneinfo import ZoneInfo
     tz = ZoneInfo("America/Sao_Paulo")
     today = datetime.now(tz)
     today_str = today.strftime("%Y-%m-%d")
@@ -725,6 +726,18 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
         yesterday = today - timedelta(days=1)
         if yesterday.weekday() == 6: # If Sunday, check Saturday
              yesterday = today - timedelta(days=2)
+             
+        thirty_days_ago = today - timedelta(days=30)
+        
+        # Fetch raw routes for the last 30 days (needed for productivity challenge and charts)
+        raw_routes = session.exec(
+            select(models.Route)
+            .where(
+                models.Route.employee_id == employee.id,
+                models.Route.date >= thirty_days_ago.strftime("%Y-%m-%d"),
+                models.Route.status == "completed"
+            )
+        ).all()
         
         # --- Yesterday's Performance (gamification) ---
         stmt = select(func.sum(models.Route.tonnage)).where(
@@ -733,13 +746,35 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
         )
         yesterday_kg = session.exec(stmt).one() or 0.0
 
-        # Build Message
-        ai_message = None
-        if yesterday_kg > 0:
-            target = yesterday_kg * 1.05 # 5% increase challenge
-            ai_message = f"Ontem você fez {yesterday_kg:,.0f}kg. Hoje sua meta é {target:,.0f}kg (+5% 🚀). Se bater o recorde ganha +100 XP!"
-        else:
-            ai_message = "Pronto para superar seus limites hoje? Vamos lá!"
+        # --- Productivity Challenge (NEW) ---
+        # Fetch yesterday's stats
+        yesterday_str = yesterday.strftime("%Y-%m-%d")
+        y_routes = [r for r in raw_routes if r.date == yesterday_str]
+        y_kg = sum([r.tonnage for r in y_routes if r.tonnage]) or 0.0
+        
+        y_seconds = 0
+        for r in y_routes:
+            if r.start_time and r.end_time:
+                try:
+                    s = datetime.strptime(r.start_time, "%H:%M")
+                    e = datetime.strptime(r.end_time, "%H:%M")
+                    y_seconds += (e - s).total_seconds()
+                except: pass
+        
+        y_hours = y_seconds / 3600.0 if y_seconds > 0 else 0
+        y_kgh = y_kg / y_hours if y_hours > 0 else 0
+        
+        # Challenge Logic
+        ai_message = "Pronto para superar seus limites hoje? Vamos lá!"
+        if y_kg > 0 and y_kgh > 0:
+            target_kgh = y_kgh * 1.1 # 10% more efficiency
+            # "Yesterday you did 1000kg in 1h (1000kg/h). If you do it in 54min (1100kg/h) or more, you gain +100XP"
+            # We'll simplify the message for the user's specific request
+            target_time_min = int((y_kg / target_kgh) * 60) if target_kgh > 0 else 0
+            
+            y_time_str = f"{int(y_hours)}h {int((y_hours*60)%60)}min" if y_hours >= 1 else f"{int(y_hours*60)}min"
+            
+            ai_message = f"Ontem você fez {y_kg:,.0f}kg em {y_time_str}. Se hoje fizer o mesmo peso (ou mais) em menos tempo, ganha +100 XP!"
 
         # --- Clients for Modal ---
         clients = session.exec(select(models.Client)).all()
@@ -755,21 +790,6 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
         
         # Pre-fetch data to analyze rankings
         daily_stats = []
-        now = datetime.now(ZoneInfo("America/Sao_Paulo"))
-        thirty_days_ago = now - timedelta(days=30)
-        
-        # We need daily stats to calculate cumulative and averages
-        # Query for last 30 days
-        # We need daily stats to calculate cumulative and averages
-        # Query for last 30 days - Raw Fetch (DB Agnostic)
-        raw_routes = session.exec(
-            select(models.Route)
-            .where(
-                models.Route.employee_id == employee.id,
-                models.Route.date >= thirty_days_ago.strftime("%Y-%m-%d"),
-                models.Route.status == "completed"
-            )
-        ).all()
         
         # Aggregate in Python
         daily_map = {}
@@ -791,7 +811,7 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
         
         # Generate last 7 days for chart
         for i in range(6, -1, -1):
-            d = now - timedelta(days=i)
+            d = today - timedelta(days=i)
             d_str = d.strftime("%Y-%m-%d")
             label = d.strftime("%d/%m")
             
@@ -1028,30 +1048,34 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
             print(f"Error calculating streak: {e}")
             streak_days = 0
 
-        # --- Calculate Daily Goal & Progress ---
-        # Goal = average of last 7 days + 10% or minimum 500kg
+        # --- Special Events (NEW) ---
+        upcoming_events = []
+        try:
+            config_events = session.get(models.GameConfiguration, "xp_special_events")
+            if config_events:
+                all_events = json.loads(config_events.value)
+                # Filter active and future (next 7 days)
+                for ev in all_events:
+                    if not ev.get('date'): continue
+                    ev_date = datetime.strptime(ev['date'], "%Y-%m-%d").date()
+                    if ev_date >= today.date() and ev_date <= (today + timedelta(days=7)).date():
+                        upcoming_events.append(ev)
+        except Exception as e:
+            print(f"Error fetching special events: {e}")
+
+        # --- Calculate Daily Goal & Progress (Legacy replaced by Productivity in AI Message) ---
+        # We'll keep daily_goal for the UI if needed, but the focus is events
         daily_goal = 500.0
         daily_current_kg = 0.0
         try:
             # Sum of today's completed tonnage
             daily_current_kg = sum([r.tonnage for r in raw_routes if r.date == today_str and r.tonnage]) or 0.0
             
-            # Calculate average from last 7 working days
-            recent_totals = []
-            for i in range(1, 15):  # Look back up to 14 days to get 7 work days
-                d = now - timedelta(days=i)
-                if d.weekday() >= 5:  # Skip weekends
-                    continue
-                d_str = d.strftime("%Y-%m-%d")
-                day_kg = sum([r.tonnage for r in raw_routes if r.date == d_str and r.tonnage]) or 0.0
-                if day_kg > 0:
-                    recent_totals.append(day_kg)
-                if len(recent_totals) >= 7:
-                    break
-            
-            if recent_totals:
-                avg = sum(recent_totals) / len(recent_totals)
-                daily_goal = max(500.0, avg * 1.1)  # +10% challenge
+            # Use yesterday's KG as goal for the visual bar if available
+            if y_kg > 0:
+                daily_goal = y_kg
+            else:
+                daily_goal = 500.0
         except Exception as e:
             print(f"Error calculating daily goal: {e}")
         
@@ -1087,7 +1111,8 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
             "chart_daily_kg": json.dumps(chart_daily_kg),
             "chart_daily_kgh": json.dumps(chart_daily_kgh),
             "chart_cumulative_kg": json.dumps(chart_cumulative_kg),
-            "chart_bg_colors": json.dumps(chart_bg_colors)
+            "chart_bg_colors": json.dumps(chart_bg_colors),
+            "upcoming_events": upcoming_events
         }
         return templates.TemplateResponse("mobile/dashboard.html", context)
 

@@ -14,8 +14,10 @@
 </div>
 
 <!-- XP Popup Animation -->
-<div id="xp-popup" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[100] pointer-events-none hidden">
-    <div class="bg-gradient-to-r from-yellow-400 to-orange-500 text-slate-900 font-black text-4xl px-8 py-4 rounded-2xl shadow-2xl xp-pop">
+<div id="xp-popup"
+    class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[100] pointer-events-none hidden">
+    <div
+        class="bg-gradient-to-r from-yellow-400 to-orange-500 text-slate-900 font-black text-4xl px-8 py-4 rounded-2xl shadow-2xl xp-pop">
         +<span id="xp-amount">0</span> XP!
     </div>
 </div>
@@ -226,26 +228,51 @@
         </button>
     </div>
 
-    <!-- 4. Daily Goal Progress -->
-    {% if daily_goal %}
+    <!-- 4. Special Events (NEW) -->
+    {% if upcoming_events %}
     <div class="px-6 mt-8">
-        <div class="bg-gradient-to-r from-indigo-900/50 to-purple-900/50 rounded-3xl p-5 border border-indigo-500/20">
-            <div class="flex justify-between items-center mb-3">
-                <h3 class="text-white font-bold flex items-center gap-2">
-                    <i data-lucide="target" class="w-5 h-5 text-indigo-400"></i>
-                    Meta do Dia
-                </h3>
-                <span class="text-xs text-slate-400">{{ daily_current_kg|int }} / {{ daily_goal|int }} kg</span>
+        <h2 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
+            <i data-lucide="sparkles" class="w-5 h-5 text-indigo-400"></i>
+            Próximos Eventos
+        </h2>
+        <div class="flex overflow-x-auto gap-4 pb-4 no-scrollbar -mx-2 px-2">
+            {% for event in upcoming_events %}
+            <div
+                class="flex-shrink-0 w-72 bg-gradient-to-br from-indigo-900/40 to-slate-800 rounded-3xl p-5 border border-indigo-500/20 relative overflow-hidden group">
+                <!-- Highlight Glow -->
+                <div class="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 blur-[40px] rounded-full"></div>
+
+                <div class="flex items-center gap-4 mb-4">
+                    <div
+                        class="w-14 h-14 rounded-2xl bg-indigo-600/20 flex items-center justify-center text-3xl shadow-inner border border-indigo-500/10">
+                        {% if event.image_url %}
+                        <img src="{{ event.image_url }}" class="w-full h-full object-cover rounded-2xl">
+                        {% else %}
+                        {{ event.emoji or '🎉' }}
+                        {% endif %}
+                    </div>
+                    <div>
+                        <h3 class="text-white font-bold text-sm leading-tight">{{ event.name }}</h3>
+                        <p class="text-indigo-300 text-[10px] font-bold uppercase tracking-widest mt-1">
+                            {{ event.date.split('-')[2] }}/{{ event.date.split('-')[1] }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between mt-auto">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] text-slate-500 font-bold uppercase">Bônus</span>
+                        <span class="text-green-400 font-black text-sm">+{{ event.bonus_xp }} XP</span>
+                    </div>
+                    {% if event.multiplier and event.multiplier > 1 %}
+                    <div class="flex flex-col text-right">
+                        <span class="text-[10px] text-slate-500 font-bold uppercase">Multiplicador</span>
+                        <span class="text-yellow-400 font-black text-sm">{{ event.multiplier }}x</span>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
-            <div class="h-4 w-full bg-slate-700/50 rounded-full overflow-hidden">
-                <div class="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
-                    style="width: {{ [100, (daily_current_kg / daily_goal * 100)|int]|min }}%"></div>
-            </div>
-            {% if daily_current_kg >= daily_goal %}
-            <p class="text-center text-green-400 text-sm mt-2 font-bold">🎉 Meta batida! +50 XP bônus</p>
-            {% else %}
-            <p class="text-center text-slate-400 text-xs mt-2">Faltam {{ (daily_goal - daily_current_kg)|int }} kg</p>
-            {% endif %}
+            {% endfor %}
         </div>
     </div>
     {% endif %}
@@ -256,10 +283,12 @@
             <i data-lucide="bar-chart-2" class="w-5 h-5 text-blue-400"></i>
             Sua Performance Diária
         </h2>
-        <div class="bg-slate-800/50 border border-white/5 p-4 rounded-3xl shadow-lg h-64 w-full" x-show="labels.length > 0">
+        <div class="bg-slate-800/50 border border-white/5 p-4 rounded-3xl shadow-lg h-64 w-full"
+            x-show="labels.length > 0">
             <canvas id="performanceChart"></canvas>
         </div>
-        <div class="bg-slate-800/50 border border-white/5 p-6 rounded-3xl text-center" x-show="labels.length === 0" x-cloak>
+        <div class="bg-slate-800/50 border border-white/5 p-6 rounded-3xl text-center" x-show="labels.length === 0"
+            x-cloak>
             <i data-lucide="bar-chart-2" class="w-12 h-12 text-slate-600 mx-auto mb-3"></i>
             <p class="text-slate-500 text-sm">Nenhum dado de performance ainda.</p>
             <p class="text-slate-600 text-xs mt-1">Complete separações para ver seu gráfico.</p>
@@ -302,7 +331,8 @@
             {% endfor %}
 
             <div class="bg-slate-900/50 p-3 text-center">
-                <a href="/mobile/achievements" class="text-xs text-indigo-400 font-bold hover:text-indigo-300 uppercase tracking-wider">Ver
+                <a href="/mobile/achievements"
+                    class="text-xs text-indigo-400 font-bold hover:text-indigo-300 uppercase tracking-wider">Ver
                     Histórico Completo</a>
             </div>
         </div>
@@ -324,8 +354,7 @@
             </template>
 
             <template x-for="route in completedRoutes" :key="route.id">
-                <div
-                    class="bg-slate-800/50 border border-slate-700/50 p-4 rounded-2xl flex justify-between items-center group hover:bg-slate-800 transition-colors relative overflow-hidden"
+                <div class="bg-slate-800/50 border border-slate-700/50 p-4 rounded-2xl flex justify-between items-center group hover:bg-slate-800 transition-colors relative overflow-hidden"
                     @touchstart="route._touchStartX = $event.touches[0].clientX"
                     @touchend="if(route._touchStartX - $event.changedTouches[0].clientX > 60) route._expanded = true; else if($event.changedTouches[0].clientX - route._touchStartX > 60) route._expanded = false">
                     <div class="flex items-center gap-3">
@@ -338,7 +367,8 @@
                             <p class="text-slate-400 text-xs" x-text="route.duration"></p>
                             <!-- Expanded details on swipe -->
                             <div x-show="route._expanded" x-transition class="mt-2 text-xs text-slate-500 space-y-1">
-                                <p><span class="text-slate-400">Início:</span> <span x-text="route.start_time"></span></p>
+                                <p><span class="text-slate-400">Início:</span> <span x-text="route.start_time"></span>
+                                </p>
                                 <p><span class="text-slate-400">Fim:</span> <span x-text="route.end_time"></span></p>
                             </div>
                         </div>
@@ -705,7 +735,7 @@
 
             init() {
                 console.log("Dashboard Loaded");
-                
+
                 // Mark as initialized after a brief delay to show skeleton
                 setTimeout(() => {
                     this.initialized = true;
@@ -724,7 +754,7 @@
 
                 // Setup offline detection
                 this.setupOfflineDetection();
-                
+
                 // Setup pull to refresh
                 this.setupPullToRefresh();
             },
@@ -764,7 +794,7 @@
                 let pulling = false;
                 const indicator = document.getElementById('pull-indicator');
                 const container = this.$refs.mainContainer;
-                
+
                 if (!container) return;
 
                 container.addEventListener('touchstart', (e) => {
@@ -889,7 +919,7 @@
 
             startBatch() {
                 if (this.queue.length === 0 || this.isLoading) return;
-                
+
                 this.haptic('medium');
                 this.isLoading = true;
 
