@@ -2,7 +2,8 @@
 from typing import List, Optional
 from datetime import datetime, timedelta
 from sqlmodel import Session, select, func
-from models import Employee, Route, GameXPTransaction, GameLevel, GameAchievement, EmployeeAchievement
+from models import Employee, Route, GameXPTransaction, GameLevel, GameAchievement, EmployeeAchievement, Event
+import json
 
 # --- Config ---
 XP_PER_UO = 100 # 1 UO = 1500kg -> 100 XP
@@ -178,6 +179,9 @@ def confirm_pending_xp(session: Session):
             emp.total_xp += tx.amount
             session.add(emp)
             
+            # Check for Achievements after XP confirmation
+            check_and_award_achievements(session, tx.employee_id)
+            
         confirmed_count += 1
         
     session.commit()
@@ -236,3 +240,170 @@ def get_employee_progress(session: Session, employee_id: int):
         "progress": progress,
         "months_tenure": months_in_company
     }
+
+def check_and_award_achievements(session: Session, employee_id: int):
+    """
+    Evaluates all automatic achievement triggers for an employee.
+    Called after XP confirmation or specific events.
+    """
+    emp = session.get(Employee, employee_id)
+    if not emp: return
+    
+    # 1. Get all achievements already earned by this employee
+    earned_ids = session.exec(select(EmployeeAchievement.achievement_id).where(
+        EmployeeAchievement.employee_id == employee_id
+    )).all()
+    
+    # 2. Get all available automatic achievements NOT yet earned
+    available = session.exec(select(GameAchievement).where(
+        GameAchievement.trigger_type != "manual",
+        ~GameAchievement.id.in_(earned_ids) if earned_ids else True
+    )).all()
+    
+    if not available: return
+    
+    # Pre-fetch some generic stats for performance
+    now = datetime.now()
+    months_tenure = 0
+    if emp.admission_date:
+        months_tenure = (now.year - emp.admission_date.year) * 12 + (now.month - emp.admission_date.month)
+
+    # 3. Evaluate each achievement
+    for ach in available:
+        rules = {}
+        try:
+            if ach.trigger_value:
+                rules = json.loads(ach.trigger_value)
+        except:
+            continue
+            
+        is_triggered = False
+        
+        # --- LOGIC BY TRIGGER TYPE ---
+        
+        if ach.trigger_type == "auto_production":
+            # Check cumulative_kg
+            if "cumulative_kg" in rules:
+                # Sum of all confirmed XP from productivity (proxy for tonnage if we don't have a direct tonnage ledger)
+                # Or better: check confirmed productivity transactions
+                total_kg = session.exec(select(func.sum(Route.tonnage)).where(
+                    Route.employee_id == employee_id,
+                    Route.status == "completed"
+                )).one() or 0.0
+                if total_kg >= rules["cumulative_kg"]:
+                    is_triggered = True
+            
+            # Check daily_kg (Ever reached this in a single day?)
+            if "daily_kg" in rules:
+                max_daily = session.exec(select(func.max(Route.tonnage)).where(
+                    Route.employee_id == employee_id,
+                    Route.status == "completed"
+                )).one() or 0.0
+                if max_daily >= rules["daily_kg"]:
+                    is_triggered = True
+
+            # Check kgh_min (Efficiency)
+            if "kgh_min" in rules:
+                # Need to calculate kg/h for all routes and find max
+                # This is more complex, let's check recent routes
+                routes = session.exec(select(Route).where(
+                    Route.employee_id == employee_id,
+                    Route.status == "completed"
+                )).all()
+                for r in routes:
+                    if r.start_time and r.end_time:
+                        try:
+                            s = datetime.strptime(r.start_time, "%H:%M")
+                            e = datetime.strptime(r.end_time, "%H:%M")
+                            h = (e-s).total_seconds() / 3600.0
+                            if h > 0 and (r.tonnage / h) >= rules["kgh_min"]:
+                                is_triggered = True
+                                break
+                        except: pass
+
+        elif ach.trigger_type == "auto_tenure":
+            if "months" in rules:
+                if months_tenure >= rules["months"]:
+                    is_triggered = True
+
+        elif ach.trigger_type == "auto_health":
+            # Days without certificates
+            if "days_without_certificate" in rules:
+                days = rules["days_without_certificate"]
+                limit_date = now - timedelta(days=days)
+                # Check for 'atestado' events in this period
+                exists = session.exec(select(Event).where(
+                    Event.employee_id == employee_id,
+                    Event.type == "atestado",
+                    Event.timestamp >= limit_date
+                )).first()
+                # If no atestado found AND enough time passed since admission
+                if not exists and emp.admission_date and emp.admission_date <= limit_date:
+                    is_triggered = True
+
+        elif ach.trigger_type == "auto_attendance":
+            # Perfect week/month logic would require checking daily records
+            # For now, let's check for 'falta' events
+            if "perfect_month" in rules:
+                limit_date = now - timedelta(days=30)
+                exists = session.exec(select(Event).where(
+                    Event.employee_id == employee_id,
+                    Event.type == "falta",
+                    Event.timestamp >= limit_date
+                )).first()
+                if not exists and emp.admission_date and emp.admission_date <= limit_date:
+                    is_triggered = True
+            
+            if "perfect_week" in rules:
+                limit_date = now - timedelta(days=7)
+                exists = session.exec(select(Event).where(
+                    Event.employee_id == employee_id,
+                    Event.type == "falta",
+                    Event.timestamp >= limit_date
+                )).first()
+                if not exists and emp.admission_date and emp.admission_date <= limit_date:
+                    is_triggered = True
+
+        elif ach.trigger_type == "auto_time":
+            # Finish before
+            if "finish_before" in rules:
+                limit_time = rules["finish_before"]
+                # Ever finished a route before this time?
+                exists = session.exec(select(Route).where(
+                    Route.employee_id == employee_id,
+                    Route.status == "completed",
+                    Route.end_time <= limit_time
+                )).first()
+                if exists:
+                    is_triggered = True
+
+        # 4. Award Achievement
+        if is_triggered:
+            print(f"   🏆 AWARDED: {ach.name} to {emp.name}!")
+            
+            # Create link
+            ea = EmployeeAchievement(
+                employee_id=employee_id,
+                achievement_id=ach.id,
+                earned_at=datetime.now(),
+                status="approved" # Auto-achievements are auto-approved
+            )
+            session.add(ea)
+            
+            # Create XP Transaction
+            tx = GameXPTransaction(
+                employee_id=employee_id,
+                amount=ach.xp_reward,
+                source_type="achievement_grant",
+                status="confirmed",
+                reason=f"Conquista Desbloqueada: {ach.name} {ach.icon}",
+                created_at=datetime.now(),
+                confirmed_at=datetime.now()
+            )
+            session.add(tx)
+            
+            # Add XP directly
+            emp.total_xp += ach.xp_reward
+            session.add(emp)
+    
+    session.commit()

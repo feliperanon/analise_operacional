@@ -83,7 +83,8 @@
                         <!-- Absence Penalty -->
                         <div
                             class="bg-slate-900/50 p-5 rounded-xl border border-slate-700 hover:border-blue-500/50 transition-colors">
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Penalidade
+                            <label
+                                class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Penalidade
                                 por Falta</label>
                             <div class="flex items-center gap-3">
                                 <input type="number" x-model.number="config.xp_absence_penalty"
@@ -96,7 +97,8 @@
                         <!-- Tenure Bonus -->
                         <div
                             class="bg-slate-900/50 p-5 rounded-xl border border-slate-700 hover:border-blue-500/50 transition-colors">
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Bônus Anual
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Bônus
+                                Anual
                                 (Casa)</label>
                             <div class="flex items-center gap-3">
                                 <input type="number" x-model.number="config.xp_tenure_bonus_per_year"
@@ -109,19 +111,22 @@
                         <!-- Daily Cap -->
                         <div
                             class="bg-slate-900/50 p-5 rounded-xl border border-slate-700 hover:border-blue-500/50 transition-colors">
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Limite Diário de XP</label>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Limite
+                                Diário de XP</label>
                             <div class="flex items-center gap-3">
                                 <input type="number" x-model.number="config.xp_daily_cap"
                                     class="bg-slate-950 border border-slate-600 rounded-lg px-4 py-2 text-white font-mono w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
                                 <span class="text-slate-400 text-sm font-bold">XP</span>
                             </div>
-                            <p class="text-xs text-slate-400 mt-2">Máximo de XP que um colaborador pode ganhar por dia.</p>
+                            <p class="text-xs text-slate-400 mt-2">Máximo de XP que um colaborador pode ganhar por dia.
+                            </p>
                         </div>
 
                         <!-- Base XP per Kg -->
                         <div
                             class="bg-slate-900/50 p-5 rounded-xl border border-slate-700 hover:border-blue-500/50 transition-colors">
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">XP Base por Kg</label>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">XP Base
+                                por Kg</label>
                             <div class="flex items-center gap-3">
                                 <input type="number" step="0.01" x-model.number="config.xp_base_per_kg"
                                     class="bg-slate-950 border border-slate-600 rounded-lg px-4 py-2 text-white font-mono w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
@@ -133,7 +138,8 @@
                 </div>
 
                 <!-- Section: Special Events (Multiple) -->
-                <div class="bg-gradient-to-br from-indigo-900/20 to-purple-900/20 rounded-2xl border border-indigo-500/30 p-8 shadow-xl relative overflow-hidden mb-8">
+                <div
+                    class="bg-gradient-to-br from-indigo-900/20 to-purple-900/20 rounded-2xl border border-indigo-500/30 p-8 shadow-xl relative overflow-hidden mb-8">
                     <div class="absolute top-0 right-0 p-3 opacity-10">
                         <i data-lucide="sparkles" class="w-32 h-32 text-indigo-400"></i>
                     </div>
@@ -174,57 +180,67 @@
                                 <div class="flex gap-5">
                                     <div class="w-24 h-24 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-4xl shrink-0 overflow-hidden"
                                         :class="event.image_url ? '' : 'p-4'">
-                                        <img x-show="event.image_url" :src="event.image_url" class="w-full h-full object-cover" alt="">
+                                        <img x-show="event.image_url" :src="event.image_url"
+                                            class="w-full h-full object-cover" alt="">
                                         <span x-show="!event.image_url" x-text="event.emoji || '🎉'"></span>
                                     </div>
 
                                     <div class="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                         <!-- Event Name -->
                                         <div class="space-y-1 md:col-span-2">
-                                            <label class="block text-[10px] font-bold text-indigo-300 uppercase">Nome do Evento</label>
-                                            <input type="text" x-model="event.name" placeholder="Ex: Black Friday, Natal, Aniversário..."
+                                            <label class="block text-[10px] font-bold text-indigo-300 uppercase">Nome do
+                                                Evento</label>
+                                            <input type="text" x-model="event.name"
+                                                placeholder="Ex: Black Friday, Natal, Aniversário..."
                                                 class="w-full bg-slate-950 border border-indigo-500/30 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none">
                                         </div>
 
                                         <!-- Emoji Picker -->
                                         <div class="space-y-1">
-                                            <label class="block text-[10px] font-bold text-indigo-300 uppercase">Emoji</label>
+                                            <label
+                                                class="block text-[10px] font-bold text-indigo-300 uppercase">Emoji</label>
                                             <input type="text" x-model="event.emoji" placeholder="🎉"
                                                 class="w-full bg-slate-950 border border-indigo-500/30 rounded-lg px-3 py-2 text-white text-center text-xl focus:ring-2 focus:ring-indigo-500 outline-none">
                                         </div>
 
                                         <!-- Image URL -->
                                         <div class="space-y-1">
-                                            <label class="block text-[10px] font-bold text-indigo-300 uppercase">URL Imagem</label>
+                                            <label class="block text-[10px] font-bold text-indigo-300 uppercase">URL
+                                                Imagem</label>
                                             <input type="text" x-model="event.image_url" placeholder="https://..."
                                                 class="w-full bg-slate-950 border border-indigo-500/30 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                                         </div>
 
                                         <!-- Date -->
                                         <div class="space-y-1">
-                                            <label class="block text-[10px] font-bold text-indigo-300 uppercase">Data</label>
+                                            <label
+                                                class="block text-[10px] font-bold text-indigo-300 uppercase">Data</label>
                                             <input type="date" x-model="event.date"
                                                 class="w-full bg-slate-950 border border-indigo-500/30 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none">
                                         </div>
 
                                         <!-- End Date (Optional) -->
                                         <div class="space-y-1">
-                                            <label class="block text-[10px] font-bold text-indigo-300 uppercase">Até (Opcional)</label>
+                                            <label class="block text-[10px] font-bold text-indigo-300 uppercase">Até
+                                                (Opcional)</label>
                                             <input type="date" x-model="event.end_date"
                                                 class="w-full bg-slate-950 border border-indigo-500/30 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none">
                                         </div>
 
                                         <!-- Bonus XP -->
                                         <div class="space-y-1">
-                                            <label class="block text-[10px] font-bold text-indigo-300 uppercase">Bônus XP</label>
+                                            <label class="block text-[10px] font-bold text-indigo-300 uppercase">Bônus
+                                                XP</label>
                                             <input type="number" x-model.number="event.bonus_xp" placeholder="100"
                                                 class="w-full bg-slate-950 border border-indigo-500/30 rounded-lg px-3 py-2 text-white font-mono focus:ring-2 focus:ring-indigo-500 outline-none">
                                         </div>
 
                                         <!-- Multiplier -->
                                         <div class="space-y-1">
-                                            <label class="block text-[10px] font-bold text-indigo-300 uppercase">Multiplicador</label>
-                                            <input type="number" step="0.1" x-model.number="event.multiplier" placeholder="1.5"
+                                            <label
+                                                class="block text-[10px] font-bold text-indigo-300 uppercase">Multiplicador</label>
+                                            <input type="number" step="0.1" x-model.number="event.multiplier"
+                                                placeholder="1.5"
                                                 class="w-full bg-slate-950 border border-indigo-500/30 rounded-lg px-3 py-2 text-white font-mono focus:ring-2 focus:ring-indigo-500 outline-none">
                                         </div>
                                     </div>
@@ -233,18 +249,21 @@
                                 <!-- Status Badge -->
                                 <div class="mt-3 flex items-center gap-2">
                                     <template x-if="isEventActive(event)">
-                                        <span class="inline-flex items-center gap-1 px-2 py-1 bg-green-500/20 text-green-400 text-xs font-bold rounded-full">
+                                        <span
+                                            class="inline-flex items-center gap-1 px-2 py-1 bg-green-500/20 text-green-400 text-xs font-bold rounded-full">
                                             <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
                                             Ativo Agora
                                         </span>
                                     </template>
                                     <template x-if="isEventPast(event)">
-                                        <span class="inline-flex items-center gap-1 px-2 py-1 bg-slate-700/50 text-slate-400 text-xs font-medium rounded-full">
+                                        <span
+                                            class="inline-flex items-center gap-1 px-2 py-1 bg-slate-700/50 text-slate-400 text-xs font-medium rounded-full">
                                             Encerrado
                                         </span>
                                     </template>
                                     <template x-if="isEventFuture(event)">
-                                        <span class="inline-flex items-center gap-1 px-2 py-1 bg-indigo-500/20 text-indigo-300 text-xs font-medium rounded-full">
+                                        <span
+                                            class="inline-flex items-center gap-1 px-2 py-1 bg-indigo-500/20 text-indigo-300 text-xs font-medium rounded-full">
                                             <i data-lucide="clock" class="w-3 h-3"></i>
                                             Programado
                                         </span>
@@ -254,14 +273,17 @@
                         </template>
                     </div>
 
-                    <div class="mt-6 p-4 bg-indigo-500/10 rounded-xl border border-indigo-500/20 text-indigo-200 text-sm flex gap-3 items-center relative z-10">
+                    <div
+                        class="mt-6 p-4 bg-indigo-500/10 rounded-xl border border-indigo-500/20 text-indigo-200 text-sm flex gap-3 items-center relative z-10">
                         <i data-lucide="info" class="w-5 h-5 flex-shrink-0"></i>
-                        <p>Crie eventos especiais para datas comemorativas. O bônus XP é adicionado e o multiplicador é aplicado à produção do dia.</p>
+                        <p>Crie eventos especiais para datas comemorativas. O bônus XP é adicionado e o multiplicador é
+                            aplicado à produção do dia.</p>
                     </div>
                 </div>
 
                 <!-- Section: Time-Based Bonus Events -->
-                <div class="bg-gradient-to-br from-amber-900/20 to-orange-900/20 rounded-2xl border border-amber-500/30 p-8 shadow-xl relative overflow-hidden">
+                <div
+                    class="bg-gradient-to-br from-amber-900/20 to-orange-900/20 rounded-2xl border border-amber-500/30 p-8 shadow-xl relative overflow-hidden">
                     <div class="absolute top-0 right-0 p-3 opacity-10">
                         <i data-lucide="clock" class="w-32 h-32 text-amber-400"></i>
                     </div>
@@ -291,35 +313,41 @@
 
                         <!-- Time Bonus Cards -->
                         <template x-for="(bonus, index) in timeBonuses" :key="index">
-                            <div class="bg-slate-900/70 rounded-xl border border-amber-500/20 p-4 flex items-center gap-4 group">
+                            <div
+                                class="bg-slate-900/70 rounded-xl border border-amber-500/20 p-4 flex items-center gap-4 group">
                                 <!-- Icon -->
-                                <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white shrink-0">
+                                <div
+                                    class="w-12 h-12 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white shrink-0">
                                     <i data-lucide="clock" class="w-6 h-6"></i>
                                 </div>
 
                                 <!-- Fields -->
                                 <div class="flex-1 grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
                                     <div class="space-y-1">
-                                        <label class="block text-[10px] font-bold text-amber-300 uppercase">Nome da Regra</label>
+                                        <label class="block text-[10px] font-bold text-amber-300 uppercase">Nome da
+                                            Regra</label>
                                         <input type="text" x-model="bonus.name" placeholder="Ex: Hora Extra Noturna"
                                             class="w-full bg-slate-950 border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-amber-500 outline-none">
                                     </div>
 
                                     <div class="space-y-1">
-                                        <label class="block text-[10px] font-bold text-amber-300 uppercase">Trabalhar Até</label>
+                                        <label class="block text-[10px] font-bold text-amber-300 uppercase">Trabalhar
+                                            Até</label>
                                         <input type="time" x-model="bonus.until_time"
                                             class="w-full bg-slate-950 border border-amber-500/30 rounded-lg px-3 py-2 text-white font-mono focus:ring-2 focus:ring-amber-500 outline-none">
                                     </div>
 
                                     <div class="space-y-1">
-                                        <label class="block text-[10px] font-bold text-amber-300 uppercase">Bônus XP</label>
+                                        <label class="block text-[10px] font-bold text-amber-300 uppercase">Bônus
+                                            XP</label>
                                         <input type="number" x-model.number="bonus.bonus_xp" placeholder="50"
                                             class="w-full bg-slate-950 border border-amber-500/30 rounded-lg px-3 py-2 text-white font-mono focus:ring-2 focus:ring-amber-500 outline-none">
                                     </div>
 
                                     <div class="flex items-center gap-2">
                                         <label class="flex items-center gap-2 cursor-pointer">
-                                            <input type="checkbox" x-model="bonus.active" class="w-4 h-4 rounded bg-slate-900 border-amber-500/50 text-amber-500 focus:ring-amber-500">
+                                            <input type="checkbox" x-model="bonus.active"
+                                                class="w-4 h-4 rounded bg-slate-900 border-amber-500/50 text-amber-500 focus:ring-amber-500">
                                             <span class="text-sm text-slate-300">Ativo</span>
                                         </label>
                                     </div>
@@ -334,9 +362,11 @@
                         </template>
                     </div>
 
-                    <div class="mt-6 p-4 bg-amber-500/10 rounded-xl border border-amber-500/20 text-amber-200 text-sm flex gap-3 items-center relative z-10">
+                    <div
+                        class="mt-6 p-4 bg-amber-500/10 rounded-xl border border-amber-500/20 text-amber-200 text-sm flex gap-3 items-center relative z-10">
                         <i data-lucide="info" class="w-5 h-5 flex-shrink-0"></i>
-                        <p>Configure bônus para funcionários que trabalham até determinado horário. Exemplo: quem bate o ponto após 18:00 ganha +50 XP.</p>
+                        <p>Configure bônus para funcionários que trabalham até determinado horário. Exemplo: quem bate o
+                            ponto após 18:00 ganha +50 XP.</p>
                     </div>
                 </div>
             </div>
@@ -400,30 +430,103 @@
                             <div class="p-2 bg-orange-500/10 rounded-lg text-orange-400">
                                 <i data-lucide="award" class="w-5 h-5"></i>
                             </div>
-                            <h2 class="text-lg font-bold text-white">Conquistas</h2>
+                            <h2 class="text-lg font-bold text-white">Gerenciador de Conquistas</h2>
                         </div>
+                        <button @click="addAchievement()"
+                            class="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-orange-500/20 active:scale-95">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                            Nova Conquista
+                        </button>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
                         <template x-for="(ach, index) in achievements" :key="index">
-                            <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700 hover:border-orange-500/30 transition-colors">
-                                <div class="flex items-center gap-3 mb-3">
-                                    <span class="text-2xl" x-text="ach.icon || '🏆'"></span>
-                                    <input type="text" x-model="ach.name"
-                                        class="bg-transparent border-b border-slate-700 text-white font-bold focus:border-orange-500 outline-none flex-1 pb-1">
-                                </div>
-                                <textarea x-model="ach.description" rows="2"
-                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-300 text-sm focus:ring-2 focus:ring-orange-500 outline-none resize-none"></textarea>
-                                <div class="flex gap-3 mt-3">
-                                    <div class="flex-1">
-                                        <label class="text-[10px] text-slate-500 uppercase">XP Reward</label>
-                                        <input type="number" x-model.number="ach.xp_reward"
-                                            class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white font-mono text-sm">
+                            <div
+                                class="bg-slate-900/60 p-5 rounded-2xl border border-slate-700/50 hover:border-orange-500/40 hover:bg-slate-900/80 transition-all group relative">
+                                <!-- Delete Button -->
+                                <button @click="removeAchievement(index)"
+                                    class="absolute top-4 right-4 p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all opacity-0 group-hover:opacity-100">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+
+                                <div class="flex items-start gap-4">
+                                    <!-- Icon Pick -->
+                                    <div class="flex flex-col items-center gap-2">
+                                        <div class="w-14 h-14 bg-slate-950 border border-slate-700 rounded-2xl flex items-center justify-center text-3xl shadow-inner shadow-black/50"
+                                            x-text="ach.icon || '🏆'"></div>
+                                        <input type="text" x-model="ach.icon" placeholder="Emoji"
+                                            class="w-12 text-center bg-slate-950 border border-slate-700 rounded text-xs py-1 text-white focus:ring-1 focus:ring-orange-500 outline-none">
                                     </div>
-                                    <div class="flex-1">
-                                        <label class="text-[10px] text-slate-500 uppercase">Ícone</label>
-                                        <input type="text" x-model="ach.icon"
-                                            class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white text-sm">
+
+                                    <div class="flex-1 space-y-4">
+                                        <!-- Title & Desc -->
+                                        <div class="space-y-2">
+                                            <input type="text" x-model="ach.name" placeholder="Nome da Conquista"
+                                                class="w-full bg-transparent border-b border-slate-700 text-white font-bold text-base focus:border-orange-500 outline-none pb-1">
+                                            <textarea x-model="ach.description" rows="2"
+                                                placeholder="Descreva como ganhar..."
+                                                class="w-full bg-slate-950/50 border border-slate-700/50 rounded-lg px-3 py-2 text-slate-400 text-xs focus:ring-2 focus:ring-orange-500 outline-none resize-none"></textarea>
+                                        </div>
+
+                                        <!-- Meta Grid -->
+                                        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                            <div class="space-y-1">
+                                                <label
+                                                    class="block text-[10px] font-bold text-slate-500 uppercase">Categoria</label>
+                                                <select x-model="ach.category"
+                                                    class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-white text-xs focus:ring-1 focus:ring-orange-500 outline-none">
+                                                    <option value="production">Produção</option>
+                                                    <option value="attendance">Assiduidade</option>
+                                                    <option value="health">Saúde</option>
+                                                    <option value="tenure">Tempo Casa</option>
+                                                    <option value="speed">Velocidade</option>
+                                                    <option value="streak">Sequências</option>
+                                                    <option value="social">Social</option>
+                                                    <option value="special">Especial</option>
+                                                    <option value="general">Geral</option>
+                                                </select>
+                                            </div>
+
+                                            <div class="space-y-1">
+                                                <label
+                                                    class="block text-[10px] font-bold text-slate-500 uppercase">Gatilho</label>
+                                                <select x-model="ach.trigger_type"
+                                                    class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-white text-xs focus:ring-1 focus:ring-orange-500 outline-none">
+                                                    <option value="manual">Manual (Pelo Admin)</option>
+                                                    <option value="auto_production">Auto: Produção (kg)</option>
+                                                    <option value="auto_attendance">Auto: Presença</option>
+                                                    <option value="auto_health">Auto: Saúde</option>
+                                                    <option value="auto_tenure">Auto: Tempo</option>
+                                                    <option value="auto_time">Auto: Horário</option>
+                                                    <option value="auto_streak">Auto: Sequência</option>
+                                                </select>
+                                            </div>
+
+                                            <div class="space-y-1">
+                                                <label
+                                                    class="block text-[10px] font-bold text-slate-500 uppercase">Prêmio
+                                                    XP</label>
+                                                <div class="relative">
+                                                    <input type="number" x-model.number="ach.xp_reward"
+                                                        class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-orange-400 font-mono text-sm focus:ring-1 focus:ring-orange-500 outline-none pl-8">
+                                                    <span
+                                                        class="absolute left-2.5 top-1.5 text-xs text-orange-500/50">XP</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Trigger Value (Auto Only) -->
+                                        <div x-show="ach.trigger_type !== 'manual'" x-transition
+                                            class="p-3 bg-orange-500/5 border border-orange-500/10 rounded-xl">
+                                            <label
+                                                class="block text-[10px] font-bold text-orange-500/70 uppercase mb-1">Regra
+                                                (JSON)</label>
+                                            <input type="text" x-model="ach.trigger_value"
+                                                placeholder='{"daily_kg": 5000}'
+                                                class="w-full bg-slate-950 border border-orange-500/20 rounded px-3 py-1.5 text-white font-mono text-[11px] focus:ring-1 focus:ring-orange-500 outline-none">
+                                            <p class="mt-1 text-[9px] text-slate-500">Ex: {"daily_kg": 5000}, {"months":
+                                                12}, {"days_without_certificate": 30}</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -444,134 +547,154 @@
             activeTab: 'rules',
             saving: false,
             toast: { visible: false, message: '', type: 'success' },
-            
+
             config: {{ config_json | safe }},
-            levels: {{ levels_json | safe }},
-            achievements: {{ achievements_json | safe }},
-            
-            // Multiple events support
-            specialEvents: {{ special_events_json | safe }},
-            timeBonuses: {{ time_bonuses_json | safe }},
+    levels: {{ levels_json | safe }},
+    achievements: {{ achievements_json | safe }},
 
-            showToast(message, type = 'success') {
-                this.toast = { visible: true, message, type };
-                setTimeout(() => this.toast.visible = false, 3000);
-            },
+    // Multiple events support
+    specialEvents: {{ special_events_json | safe }},
+    timeBonuses: {{ time_bonuses_json | safe }},
 
-            // Special Events CRUD
-            addSpecialEvent() {
-                this.specialEvents.push({
-                    name: '',
-                    emoji: '🎉',
-                    image_url: '',
-                    date: '',
-                    end_date: '',
-                    bonus_xp: 100,
-                    multiplier: 1.5
-                });
-                this.$nextTick(() => lucide.createIcons());
-            },
+    showToast(message, type = 'success') {
+        this.toast = { visible: true, message, type };
+        setTimeout(() => this.toast.visible = false, 3000);
+    },
 
-            removeSpecialEvent(index) {
-                if (confirm('Excluir este evento?')) {
-                    this.specialEvents.splice(index, 1);
-                }
-            },
+    // Special Events CRUD
+    addSpecialEvent() {
+        this.specialEvents.push({
+            name: '',
+            emoji: '🎉',
+            image_url: '',
+            date: '',
+            end_date: '',
+            bonus_xp: 100,
+            multiplier: 1.5
+        });
+        this.$nextTick(() => lucide.createIcons());
+    },
 
-            // Time Bonuses CRUD
-            addTimeBonus() {
-                this.timeBonuses.push({
-                    name: '',
-                    until_time: '18:00',
-                    bonus_xp: 50,
-                    active: true
-                });
-                this.$nextTick(() => lucide.createIcons());
-            },
+    removeSpecialEvent(index) {
+        if (confirm('Excluir este evento?')) {
+            this.specialEvents.splice(index, 1);
+        }
+    },
 
-            removeTimeBonus(index) {
-                if (confirm('Excluir esta regra de horário?')) {
-                    this.timeBonuses.splice(index, 1);
-                }
-            },
+    // Achievements CRUD
+    addAchievement() {
+        this.achievements.push({
+            name: 'Nova Conquista',
+            description: 'Descrição da conquista...',
+            icon: '🏆',
+            xp_reward: 100,
+            category: 'general',
+            trigger_type: 'manual',
+            trigger_value: '{}'
+        });
+        this.$nextTick(() => lucide.createIcons());
+    },
 
-            // Event Status Helpers
-            isEventActive(event) {
-                if (!event.date) return false;
-                const today = new Date().toISOString().split('T')[0];
-                const start = event.date;
-                const end = event.end_date || event.date;
-                return today >= start && today <= end;
-            },
+    removeAchievement(index) {
+        if (confirm('Deseja excluir permanentemente esta conquista?')) {
+            this.achievements.splice(index, 1);
+        }
+    },
 
-            isEventPast(event) {
-                if (!event.date) return false;
-                const today = new Date().toISOString().split('T')[0];
-                const end = event.end_date || event.date;
-                return today > end;
-            },
+    // Time Bonuses CRUD
+    addTimeBonus() {
+        this.timeBonuses.push({
+            name: '',
+            until_time: '18:00',
+            bonus_xp: 50,
+            active: true
+        });
+        this.$nextTick(() => lucide.createIcons());
+    },
 
-            isEventFuture(event) {
-                if (!event.date) return false;
-                const today = new Date().toISOString().split('T')[0];
-                return today < event.date;
-            },
+    removeTimeBonus(index) {
+        if (confirm('Excluir esta regra de horário?')) {
+            this.timeBonuses.splice(index, 1);
+        }
+    },
+
+    // Event Status Helpers
+    isEventActive(event) {
+        if (!event.date) return false;
+        const today = new Date().toISOString().split('T')[0];
+        const start = event.date;
+        const end = event.end_date || event.date;
+        return today >= start && today <= end;
+    },
+
+    isEventPast(event) {
+        if (!event.date) return false;
+        const today = new Date().toISOString().split('T')[0];
+        const end = event.end_date || event.date;
+        return today > end;
+    },
+
+    isEventFuture(event) {
+        if (!event.date) return false;
+        const today = new Date().toISOString().split('T')[0];
+        return today < event.date;
+    },
 
             async saveAll() {
-                if (this.saving) return;
-                this.saving = true;
+        if (this.saving) return;
+        this.saving = true;
 
-                try {
-                    // Save config (includes special events and time bonuses as JSON strings)
-                    const configToSave = {
-                        ...this.config,
-                        xp_special_events: JSON.stringify(this.specialEvents),
-                        xp_time_rules: JSON.stringify(this.timeBonuses)
-                    };
+        try {
+            // Save config (includes special events and time bonuses as JSON strings)
+            const configToSave = {
+                ...this.config,
+                xp_special_events: JSON.stringify(this.specialEvents),
+                xp_time_rules: JSON.stringify(this.timeBonuses)
+            };
 
-                    const configRes = await fetch('/api/game/settings', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(configToSave)
-                    });
-                    
-                    if (!configRes.ok) {
-                        const err = await configRes.json();
-                        throw new Error(err.detail || err.error || 'Erro ao salvar configurações');
-                    }
+            const configRes = await fetch('/api/game/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(configToSave)
+            });
 
-                    // Save levels
-                    const levelsRes = await fetch('/api/game/levels', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ levels: this.levels })
-                    });
-                    
-                    if (!levelsRes.ok) {
-                        const err = await levelsRes.json();
-                        throw new Error(err.detail || err.error || 'Erro ao salvar níveis');
-                    }
-
-                    // Save achievements
-                    const achRes = await fetch('/api/game/achievements', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ achievements: this.achievements })
-                    });
-                    
-                    if (!achRes.ok) {
-                        const err = await achRes.json();
-                        throw new Error(err.detail || err.error || 'Erro ao salvar conquistas');
-                    }
-
-                    this.showToast('Configurações salvas com sucesso! 🎉', 'success');
-                } catch (err) {
-                    console.error(err);
-                    this.showToast(err.message, 'error');
-                } finally {
-                    this.saving = false;
-                }
+            if (!configRes.ok) {
+                const err = await configRes.json();
+                throw new Error(err.detail || err.error || 'Erro ao salvar configurações');
             }
+
+            // Save levels
+            const levelsRes = await fetch('/api/game/levels', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ levels: this.levels })
+            });
+
+            if (!levelsRes.ok) {
+                const err = await levelsRes.json();
+                throw new Error(err.detail || err.error || 'Erro ao salvar níveis');
+            }
+
+            // Save achievements
+            const achRes = await fetch('/api/game/achievements', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ achievements: this.achievements })
+            });
+
+            if (!achRes.ok) {
+                const err = await achRes.json();
+                throw new Error(err.detail || err.error || 'Erro ao salvar conquistas');
+            }
+
+            this.showToast('Configurações salvas com sucesso! 🎉', 'success');
+        } catch (err) {
+            console.error(err);
+            this.showToast(err.message, 'error');
+        } finally {
+            this.saving = false;
+        }
+    }
         };
     }
 </script>
