@@ -26,9 +26,21 @@ def calculate_daily_xp(session: Session, target_date_str: str):
     employee_stats = {}
     for r in routes:
         if r.employee_id not in employee_stats:
-            employee_stats[r.employee_id] = {"kg": 0.0, "seconds": 0.0}
+            employee_stats[r.employee_id] = {
+                "kg": 0.0, 
+                "seconds": 0.0,
+                "earliest_end_time": None,  # Para verificar bônus por horário
+                "latest_end_time": None     # Última rota concluída
+            }
         
         employee_stats[r.employee_id]["kg"] += r.tonnage
+        
+        # Track earliest and latest end times for bonus calculation
+        if r.end_time:
+            if employee_stats[r.employee_id]["earliest_end_time"] is None or r.end_time < employee_stats[r.employee_id]["earliest_end_time"]:
+                employee_stats[r.employee_id]["earliest_end_time"] = r.end_time
+            if employee_stats[r.employee_id]["latest_end_time"] is None or r.end_time > employee_stats[r.employee_id]["latest_end_time"]:
+                employee_stats[r.employee_id]["latest_end_time"] = r.end_time
         
         # Duration calc
         if r.start_time and r.end_time:
@@ -81,10 +93,12 @@ def calculate_daily_xp(session: Session, target_date_str: str):
         config_rules_json = session.get(GameConfiguration, "xp_time_rules")
         time_rules = json.loads(config_rules_json.value) if config_rules_json else []
         
-        if r.end_time:
+        # Usar latest_end_time do funcionário (não a variável r do loop anterior!)
+        emp_latest_end = stats.get("latest_end_time")
+        if emp_latest_end:
             try:
-                end_dt = datetime.strptime(r.end_time, "%H:%M")
-                current_date_obj = datetime.strptime(r.date, "%Y-%m-%d")
+                end_dt = datetime.strptime(emp_latest_end, "%H:%M")
+                current_date_obj = datetime.strptime(target_date_str, "%Y-%m-%d")
                 weekday = current_date_obj.weekday() # 0=Mon, 6=Sun
                 
                 for rule in time_rules:
@@ -98,9 +112,10 @@ def calculate_daily_xp(session: Session, target_date_str: str):
                         bonus_pct = float(rule.get('bonus_percent', 0)) / 100.0
                         bonus_mult += bonus_pct
                         reason_parts.append(f"Early {rule['stop_time']} (+{rule['bonus_percent']}%)")
-                        break # Apply best rule only? or cumulative? Assume one rule matches or first best.
-            except:
-                pass
+                        print(f"   ✅ Time Bonus applied for {emp_id}: finished at {emp_latest_end}, limit {rule['stop_time']}")
+                        break # Apply best rule only
+            except Exception as e:
+                print(f"   ⚠️ Error checking time bonus: {e}")
 
         # 3. Special Event Multiplier (Date-based)
         config_events_json = session.get(GameConfiguration, "xp_special_events")
@@ -148,11 +163,29 @@ def calculate_daily_xp(session: Session, target_date_str: str):
         # Final Calc: Base * (Sum of Efficiency/Time Bonuses) * Event Multiplier + Fixed Productivity Bonus
         final_xp = int(base_xp * bonus_mult * event_mult) + productivity_bonus
         
+        # --- Build Detailed Breakdown ---
+        xp_base = int(base_xp)
+        xp_efficiency = int(base_xp * (bonus_mult - 1.0)) if bonus_mult > 1.0 else 0
+        xp_event = int(base_xp * bonus_mult * (event_mult - 1.0)) if event_mult > 1.0 else 0
+        
+        breakdown_parts = [f"Base: {xp_base}"]
+        if xp_efficiency > 0:
+            breakdown_parts.append(f"Eficiência: +{xp_efficiency}")
+        if xp_event > 0:
+            breakdown_parts.append(f"Evento ({event_mult}x): +{xp_event}")
+        if productivity_bonus > 0:
+            breakdown_parts.append(f"Desafio: +{productivity_bonus}")
+            
+        breakdown_str = " | ".join(breakdown_parts)
+        
         extra_info = " | ".join(reason_parts) if reason_parts else ""
         if extra_info:
              extra_info = "| " + extra_info
         
         reference_id = f"daily_{target_date_str}"
+        
+        # Build final reason with breakdown
+        reason_text = f"Produtividade {target_date_str} (ref: {reference_id}) | {kg:.0f}kg | {uo:.2f} UO | [{breakdown_str}] = {final_xp} XP {extra_info}"
         
         # Check if already exists to avoid duplicates
         existing = session.exec(select(GameXPTransaction).where(
@@ -164,7 +197,7 @@ def calculate_daily_xp(session: Session, target_date_str: str):
         if existing:
             print(f"   🔄 Updating existing XP for {emp_id}: {existing.amount} -> {final_xp}")
             existing.amount = final_xp
-            existing.reason = f"Produtividade {target_date_str} (ref: {reference_id}) | {kg:.0f}kg | {uo:.2f} UO {extra_info}"
+            existing.reason = reason_text
             # existing.updated_at = datetime.now() # Removed: Field does not exist in model
             session.add(existing)
             created_count += 1
@@ -176,7 +209,7 @@ def calculate_daily_xp(session: Session, target_date_str: str):
             amount=final_xp,
             source_type="daily_auto",
             status="provisional", # Requires confirmation
-            reason=f"Produtividade {target_date_str} (ref: {reference_id}) | {kg:.0f}kg | {uo:.2f} UO {extra_info}",
+            reason=reason_text,
             created_at=datetime.now(ZoneInfo("America/Sao_Paulo"))
         )
         session.add(tx)

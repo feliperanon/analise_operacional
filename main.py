@@ -1009,13 +1009,20 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
                     category = "producao"
                     icon = "truck"
                     
-                    # Verificar if tem evento ou bônus horário
-                    if len(parts) > 3:
-                        for p in parts[3:]:
-                            if "Event:" in p:
-                                details += f" | 🎉 {p.replace('Event:', '').strip()}"
-                            if "Early" in p:
-                                details += f" | ⏰ Bônus Horário"
+                    # Extrair breakdown [Base: X | Eficiência: +Y | Evento: +Z] = Total XP
+                    for p in parts:
+                        if p.strip().startswith("[") and "]" in p:
+                            # Parse breakdown: [Base: 123 | Eficiência: +12 | Evento (1.5x): +61]
+                            breakdown = p.strip()[1:p.strip().index("]")]  # Remove [ e ]
+                            details = breakdown.replace(" | ", "\n")  # Cada item em nova linha
+                            break
+                    
+                    # Verificar if tem evento ou bônus horário nas partes extras
+                    for p in parts:
+                        if "Event:" in p:
+                            title += f" 🎉"
+                        if "Early" in p:
+                            title += f" ⏰"
                 except:
                     pass # Fallback to raw reason
             elif "Ajuste manual" in tx.reason:
