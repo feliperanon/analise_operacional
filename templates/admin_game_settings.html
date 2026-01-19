@@ -61,6 +61,12 @@
                     <i data-lucide="award" class="w-4 h-4 inline-block mr-1"></i>
                     Conquistas
                 </button>
+                <button @click="activeTab = 'data'"
+                    :class="activeTab === 'data' ? 'text-white border-b-2 border-red-500' : 'text-slate-400 hover:text-white'"
+                    class="px-4 py-3 text-sm font-medium transition-colors">
+                    <i data-lucide="database" class="w-4 h-4 inline-block mr-1"></i>
+                    Dados
+                </button>
             </nav>
         </div>
     </div>
@@ -535,6 +541,59 @@
                 </div>
             </div>
 
+            <!-- TAB: DATA MANAGEMENT -->
+            <div x-show="activeTab === 'data'" x-transition.opacity>
+                <div class="bg-slate-800/50 rounded-2xl border border-red-500/20 p-8 shadow-xl">
+                    <div class="flex items-center gap-3 mb-8">
+                        <div class="p-2 bg-red-500/10 rounded-lg text-red-400">
+                            <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-bold text-white">Zona de Perigo: Gestão de Dados</h2>
+                            <p class="text-xs text-slate-400">Ações irreversíveis de limpeza do sistema</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Reset Routes -->
+                        <div
+                            class="p-6 bg-slate-900/50 rounded-2xl border border-slate-700 hover:border-red-500/30 transition-all group">
+                            <h3 class="text-sm font-bold text-white mb-2">Limpar Histórico de Operação</h3>
+                            <p class="text-xs text-slate-500 mb-6">Remove todas as rotas (entregas) e o log de presença
+                                diário. Não afeta o XP.</p>
+                            <button @click="resetData('routes')"
+                                class="w-full py-2.5 text-xs font-bold bg-slate-800 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition-all">
+                                Executar Limpeza
+                            </button>
+                        </div>
+
+                        <!-- Reset XP -->
+                        <div
+                            class="p-6 bg-slate-900/50 rounded-2xl border border-slate-700 hover:border-red-500/30 transition-all group">
+                            <h3 class="text-sm font-bold text-white mb-2">Resetar Gamificação (XP)</h3>
+                            <p class="text-xs text-slate-500 mb-6">Zera o XP de todos os funcionários e remove histórico
+                                de transações e conquistas.</p>
+                            <button @click="resetData('xp')"
+                                class="w-full py-2.5 text-xs font-bold bg-slate-800 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition-all">
+                                Zerar Gamificação
+                            </button>
+                        </div>
+
+                        <!-- Factory Reset -->
+                        <div
+                            class="md:col-span-2 p-6 bg-red-500/5 rounded-2xl border border-red-500/20 hover:border-red-500/40 transition-all">
+                            <h3 class="text-sm font-bold text-white mb-2">Zerar Tudo (Factory Reset)</h3>
+                            <p class="text-xs text-slate-500 mb-6 uppercase tracking-widest font-bold">⚠️ CUIDADO: Limpa
+                                absolutamente todos os dados operacionais, configurações e auditorias.</p>
+                            <button @click="resetData('all')"
+                                class="w-full py-3 text-sm font-black bg-red-600/20 text-red-500 rounded-lg border border-red-500/50 hover:bg-red-600 hover:text-white transition-all">
+                                EXPLODIR TUDO (RESTART)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </main>
 </div>
@@ -577,9 +636,7 @@
 
     removeSpecialEvent(index) {
         if (confirm('Excluir este evento?')) {
-            this.specialEvents.splice(index, 1);
-        }
-    },
+            this.specialEvents.splice(index, 1); }},
 
     // Achievements CRUD
     addAchievement() {
@@ -597,9 +654,7 @@
 
     removeAchievement(index) {
         if (confirm('Deseja excluir permanentemente esta conquista?')) {
-            this.achievements.splice(index, 1);
-        }
-    },
+            this.achievements.splice(index, 1); }},
 
     // Time Bonuses CRUD
     addTimeBonus() {
@@ -614,9 +669,7 @@
 
     removeTimeBonus(index) {
         if (confirm('Excluir esta regra de horário?')) {
-            this.timeBonuses.splice(index, 1);
-        }
-    },
+            this.timeBonuses.splice(index, 1); }},
 
     // Event Status Helpers
     isEventActive(event) {
@@ -640,7 +693,41 @@
         return today < event.date;
     },
 
-            async saveAll() {
+    async resetData(type) {
+        const messages = {
+            'routes': 'Deseja realmente apagar todo o histórico de rotas e presenças? Isso não afetará o XP atual.',
+            'xp': 'CUIDADO: Isso irá zerar o XP de TODOS os funcionários e apagar o histórico de conquistas. Confirmar?',
+            'all': 'ALERTA MÁXIMO: Isso apagará absolutamente TUDO no sistema. Tem certeza absoluta?'
+        };
+
+        if (!confirm(messages[type])) return;
+
+        // Form data for the API as per main.py Form parameters
+        const formData = new FormData();
+        if (type === 'routes') formData.append('reset_routes', 'true');
+        if (type === 'xp') formData.append('reset_xp', 'true');
+        if (type === 'all') formData.append('reset_all', 'true');
+
+        try {
+            this.saving = true;
+            const res = await fetch('/api/admin/reset-data', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!res.ok) throw new Error('Falha ao resetar dados.');
+
+            const data = await res.json();
+            if (data.success) {
+                this.showToast('Sistema resetado com sucesso! 🔄', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                throw new Error(data.error || 'Erro desconhecido'); }} catch (err) {
+            this.showToast(err.message, 'error');
+        } finally {
+            this.saving = false; }},
+
+    async saveAll() {
         if (this.saving) return;
         this.saving = true;
 
@@ -692,9 +779,7 @@
             console.error(err);
             this.showToast(err.message, 'error');
         } finally {
-            this.saving = false;
-        }
-    }
+            this.saving = false; }}
         };
     }
 </script>
