@@ -346,14 +346,20 @@
             <div
                 class="p-4 border-b border-white/5 flex items-center justify-between hover:bg-white/5 transition-colors last:border-0">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-slate-700/50 flex items-center justify-center text-slate-300">
-                        {% if item.type == 'daily_auto' %}
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center
+                        {% if item.category == 'producao' %}bg-blue-500/20 text-blue-400
+                        {% elif item.category == 'penalty' %}bg-red-500/20 text-red-400
+                        {% elif item.category == 'manual' %}bg-yellow-500/20 text-yellow-400
+                        {% else %}bg-slate-700/50 text-slate-300{% endif %}">
+                        {% if item.icon == 'truck' %}
                         <i data-lucide="truck" class="w-5 h-5"></i>
-                        {% elif 'penalty' in item.type or item.amount < 0 %} <i data-lucide="alert-circle"
-                            class="w-5 h-5 text-red-400"></i>
-                            {% else %}
-                            <i data-lucide="star" class="w-5 h-5 text-yellow-400"></i>
-                            {% endif %}
+                        {% elif item.icon == 'alert-circle' %}
+                        <i data-lucide="alert-circle" class="w-5 h-5"></i>
+                        {% elif item.icon == 'edit' %}
+                        <i data-lucide="edit" class="w-5 h-5"></i>
+                        {% else %}
+                        <i data-lucide="star" class="w-5 h-5 text-yellow-400"></i>
+                        {% endif %}
                     </div>
                     <div>
                         <p class="text-sm font-bold text-white">{{ item.reason }}</p>
@@ -404,13 +410,15 @@
                         </div>
                         <div>
                             <p class="text-white font-semibold text-sm" x-text="route.client_name"></p>
-                            <p class="text-slate-400 text-xs" x-text="route.duration"></p>
-                            <!-- Expanded details on swipe -->
-                            <div x-show="route._expanded" x-transition class="mt-2 text-xs text-slate-500 space-y-1">
-                                <p><span class="text-slate-400">Início:</span> <span x-text="route.start_time"></span>
-                                </p>
-                                <p><span class="text-slate-400">Fim:</span> <span x-text="route.end_time"></span></p>
-                            </div>
+                            <!-- Horário sempre visível -->
+                            <p class="text-slate-400 text-xs">
+                                <span class="text-slate-500">⏱️</span>
+                                <span x-text="route.start_time"></span>
+                                <span class="text-slate-500">→</span>
+                                <span x-text="route.end_time"></span>
+                                <span class="text-slate-600 mx-1">•</span>
+                                <span x-text="route.duration"></span>
+                            </p>
                         </div>
                     </div>
                     <div class="text-right">

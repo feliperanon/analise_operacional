@@ -989,6 +989,8 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
         for tx in raw_history:
             title = tx.reason
             details = ""
+            category = "other"  # produção, evento, bônus, manual, other
+            icon = "star"
             
             # Format "Produtividade" entries
             if "Produtividade" in tx.reason and "|" in tx.reason:
@@ -1004,14 +1006,34 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
                     
                     title = f"Produção {formatted_date}"
                     details = f"{kg_val} • {uo_val}"
+                    category = "producao"
+                    icon = "truck"
+                    
+                    # Verificar if tem evento ou bônus horário
+                    if len(parts) > 3:
+                        for p in parts[3:]:
+                            if "Event:" in p:
+                                details += f" | 🎉 {p.replace('Event:', '').strip()}"
+                            if "Early" in p:
+                                details += f" | ⏰ Bônus Horário"
                 except:
                     pass # Fallback to raw reason
+            elif "Ajuste manual" in tx.reason:
+                category = "manual"
+                icon = "edit"
+                title = "Ajuste Manual"
+                details = tx.reason.replace("Ajuste manual:", "").strip() if ":" in tx.reason else ""
+            elif tx.amount < 0:
+                category = "penalty"
+                icon = "alert-circle"
             
             xp_history_list.append({
                 "amount": tx.amount,
                 "reason": title,
                 "details": details,  # New field
-                "type": tx.source_type
+                "type": tx.source_type,
+                "category": category,
+                "icon": icon
             })
 
         # Serialize Clients using JSON (Prevent JS Syntax Errors)
