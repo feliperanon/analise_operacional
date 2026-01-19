@@ -185,39 +185,43 @@ def sync_sectors_on_startup():
             sectors = session.exec(select(models.Sector)).all()
             shifts = {}
             for s in sectors:
-                if s.shift not in shifts: shifts[s.shift] = []
+                if s.shift not in shifts:
+                    shifts[s.shift] = []
                 shifts[s.shift].append(s)
                 
             for shift, sector_list in shifts.items():
-                 config_db = session.exec(select(models.SectorConfiguration).where(models.SectorConfiguration.shift_name == shift)).first()
-                 if not config_db: continue
-                 
-                 data = config_db.config_json
-                 if isinstance(data, str):
-                     import json
-                     data = json.loads(data)
-                 
-                 if not data: continue
-                 
-                 config_sectors = data.get('sectors', [])
-                 changed = False
-                 
-                 for s in sector_list:
-                     for cs in config_sectors:
-                         if cs.get('label') == s.name and cs.get('target') != s.max_employees:
-                             print(f"   🔧 Auto-Corrigindo {s.name} ({shift}): {cs.get('target')} -> {s.max_employees}")
-                             cs['target'] = s.max_employees
-                             changed = True
+                config_db = session.exec(select(models.SectorConfiguration).where(models.SectorConfiguration.shift_name == shift)).first()
+                if not config_db:
+                    continue
                 
-                 if changed:
-                 config_db.config_json = data
-                 config_db.updated_at = datetime.now(ZoneInfo("America/Sao_Paulo"))
-                 session.add(config_db)
+                data = config_db.config_json
+                if isinstance(data, str):
+                    import json
+                    data = json.loads(data)
+                
+                if not data:
+                    continue
+                
+                config_sectors = data.get('sectors', [])
+                changed = False
+                
+                for s in sector_list:
+                    for cs in config_sectors:
+                        if cs.get('label') == s.name and cs.get('target') != s.max_employees:
+                            print(f"   🔧 Auto-Corrigindo {s.name} ({shift}): {cs.get('target')} -> {s.max_employees}")
+                            cs['target'] = s.max_employees
+                            changed = True
+                
+                if changed:
+                    config_db.config_json = data
+                    config_db.updated_at = datetime.now(ZoneInfo("America/Sao_Paulo"))
+                    session.add(config_db)
             
             session.commit()
         print("✅ Sincronização de startup concluída.")
     except Exception as e:
         print(f"❌ Erro no sync de startup: {e}")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
