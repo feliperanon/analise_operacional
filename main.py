@@ -1996,7 +1996,6 @@ async def mobile_route_finish(
              return JSONResponse({"error": "Não autorizado"}, status_code=403)
              
         # Close Route
-        from zoneinfo import ZoneInfo
         route.end_time = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
         route.status = "completed"
         session.add(route)
@@ -2129,7 +2128,6 @@ async def mobile_routine_start(request: Request, session: Session = Depends(get_
         
     user_id = user.get("id")
     
-    from zoneinfo import ZoneInfo
     br_tz = ZoneInfo("America/Sao_Paulo")
     now_br = datetime.now(br_tz)
     
@@ -2173,7 +2171,6 @@ async def mobile_routine_stop(request: Request, session: Session = Depends(get_s
          
     user_id = user.get("id")
     
-    from zoneinfo import ZoneInfo
     br_tz = ZoneInfo("America/Sao_Paulo")
     now_br = datetime.now(br_tz)
     
@@ -3685,7 +3682,6 @@ async def import_medical_certificates(
     import uuid
     import io
     import pandas as pd
-    from zoneinfo import ZoneInfo
     
     trace_id = str(uuid.uuid4())[:8]
     logger.info(f"[{trace_id}] Iniciando importação de atestados - arquivo: {file.filename}")
