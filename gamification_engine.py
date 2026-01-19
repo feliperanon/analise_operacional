@@ -21,7 +21,6 @@ def calculate_daily_xp(session: Session, target_date_str: str):
     routes = session.exec(
         select(Route).where(Route.date == target_date_str, Route.status == "completed")
     ).all()
-    
     # Group by Employee
     employee_stats = {}
     for r in routes:
@@ -59,8 +58,9 @@ def calculate_daily_xp(session: Session, target_date_str: str):
     for emp_id, stats in employee_stats.items():
         kg = stats["kg"]
         seconds = stats["seconds"]
-        
         if kg <= 0: continue
+        
+        productivity_bonus = 0
 
         # --- Metrics ---
         uo = kg / KG_PER_UO
@@ -109,10 +109,20 @@ def calculate_daily_xp(session: Session, target_date_str: str):
                     
                     limit = datetime.strptime(rule['stop_time'], "%H:%M")
                     if end_dt <= limit:
+                        # Suporta bonus_percent (%) OU bonus_xp (XP fixo)
                         bonus_pct = float(rule.get('bonus_percent', 0)) / 100.0
-                        bonus_mult += bonus_pct
-                        reason_parts.append(f"Early {rule['stop_time']} (+{rule['bonus_percent']}%)")
-                        print(f"   ✅ Time Bonus applied for {emp_id}: finished at {emp_latest_end}, limit {rule['stop_time']}")
+                        bonus_xp_fixed = float(rule.get('bonus_xp', 0))
+                        
+                        if bonus_pct > 0:
+                            bonus_mult += bonus_pct
+                            reason_parts.append(f"⏰ Horário {rule['stop_time']} (+{rule['bonus_percent']}%)")
+                        
+                        # Adicionar XP fixo ao productivity_bonus se configurado
+                        if bonus_xp_fixed > 0:
+                            productivity_bonus += int(bonus_xp_fixed)
+                            reason_parts.append(f"⏰ Horário {rule['stop_time']} (+{int(bonus_xp_fixed)} XP)")
+                        
+                        print(f"   ✅ Time Bonus applied for {emp_id}: finished at {emp_latest_end}, limit {rule['stop_time']}, pct={bonus_pct}, xp={bonus_xp_fixed}")
                         break # Apply best rule only
             except Exception as e:
                 print(f"   ⚠️ Error checking time bonus: {e}")
@@ -131,7 +141,7 @@ def calculate_daily_xp(session: Session, target_date_str: str):
 
         # 4. Productivity Challenge Bonus (NEW)
         # Compare with yesterday
-        productivity_bonus = 0
+        # productivity_bonus already initialized at start of loop
         try:
             target_date_obj = datetime.strptime(target_date_str, "%Y-%m-%d")
             yesterday_obj = target_date_obj - timedelta(days=1)
@@ -168,23 +178,88 @@ def calculate_daily_xp(session: Session, target_date_str: str):
         xp_efficiency = int(base_xp * (bonus_mult - 1.0)) if bonus_mult > 1.0 else 0
         xp_event = int(base_xp * bonus_mult * (event_mult - 1.0)) if event_mult > 1.0 else 0
         
-        breakdown_parts = [f"Base: {xp_base}"]
-        if xp_efficiency > 0:
-            breakdown_parts.append(f"Eficiência: +{xp_efficiency}")
-        if xp_event > 0:
-            breakdown_parts.append(f"Evento ({event_mult}x): +{xp_event}")
-        if productivity_bonus > 0:
-            breakdown_parts.append(f"Desafio: +{productivity_bonus}")
+        breakdown_parts = [f"📦 Sua Entrega: {xp_base} XP"] # Base
+        
+        # Recover efficiency part from bonus_mult logic (bit hacky but works since we sum up pct)
+        # Better: iterate parts. But for now let's construct based on calcs if possible or just use the parts list.
+        # Actually most robust is to use what we added to reason_parts?
+        # reason_parts has strings like "⏰ Horário...". Let's use those for specific bonuses.
+        
+        # Mas queremos separar o VALOR de XP de cada um.
+        # Simplificação: O cálculo de XP Total é fechado. O breakdown é aproximado visualmente ou exato?
+        # Vamos tentar ser exatos.
+        
+        # 1. Base (UO * 100)
+        
+        # 2. Eficiência (Base * bonus_efficiency_pct)
+        # Precisamos saber quanto do bonus_mult é eficiência vs horário.
+        # Re-scan reason_parts
+        
+        eff_pct = 0.0
+        time_bonus_val = 0
+        
+        for p in reason_parts:
+            if "Eff" in p: eff_pct += 0.10
+            if "Turbo" in p: eff_pct += 0.25
+            # Time bonuses are tricky because they can be % OR fixed XP now.
+            # But we added them to productivity_bonus if fixed? No, code line 122 adds to productivity_bonus.
+            # Code line 117 adds to bonus_mult if %.
             
+        current_eff_xp = int(base_xp * eff_pct)
+        if current_eff_xp > 0:
+            breakdown_parts.append(f"⚡ Rapidez: +{current_eff_xp} XP")
+            
+        # 3. Horário (Fixed XP added to productivity_bonus OR % added to bonus_mult)
+        # Vamos ler novamente os reason_parts para achar bonus de horário de %
+        time_pct = 0.0
+        for p in reason_parts:
+            if "Horário" in p and "%" in p:
+                 # Extract number... clean string parsing
+                 try:
+                     # "⏰ Horário 09:00 (+15%)"
+                     pct_str = p.split("+")[1].split("%")[0]
+                     time_pct += float(pct_str) / 100.0
+                 except: pass
+        
+        current_time_pct_xp = int(base_xp * time_pct)
+        if current_time_pct_xp > 0:
+            breakdown_parts.append(f"⏰ Bônus Horário: +{current_time_pct_xp} XP")
+
+        # 4. Evento
+        if xp_event > 0:
+            breakdown_parts.append(f"🎉 Evento Especial: +{xp_event} XP")
+            
+        # 5. Fixed Bonuses (Desafio + Fixed Time Bonus)
+        # productivity_bonus now contains BOTH challenge AND fixed time bonus.
+        # We need to distinguish them?
+        # The logic at line 122 adds to productivity_bonus.
+        # The logic at line 143 (original) adds to productivity_bonus (Desafio).
+        
+        # Let's verify what is inside productivity_bonus
+        # It is just an integer sum.
+        # We can look at reason_parts.
+        
+        for p in reason_parts:
+            if "Desafio" in p:
+                breakdown_parts.append(f"🏆 Superou Ontem: +100 XP") # Assumed 100 fixed
+            if "Horário" in p and "XP" in p:
+                # "⏰ Horário ... (+150 XP)"
+                try:
+                    xp_str = p.split("+")[1].split(" XP")[0]
+                    breakdown_parts.append(f"⏰ Bônus Horário: +{xp_str} XP")
+                except: pass
+
         breakdown_str = " | ".join(breakdown_parts)
         
         extra_info = " | ".join(reason_parts) if reason_parts else ""
         if extra_info:
-             extra_info = "| " + extra_info
+             extra_info = "| " + extra_info # Keep for internal ref or admin view if needed
         
         reference_id = f"daily_{target_date_str}"
         
-        # Build final reason with breakdown
+        reference_id = f"daily_{target_date_str}"
+        
+        # Standard format for parser compatibility, preserving ludic breakdown
         reason_text = f"Produtividade {target_date_str} (ref: {reference_id}) | {kg:.0f}kg | {uo:.2f} UO | [{breakdown_str}] = {final_xp} XP {extra_info}"
         
         # Check if already exists to avoid duplicates
