@@ -1062,6 +1062,19 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
                         upcoming_events.append(ev)
         except Exception as e:
             print(f"Error fetching special events: {e}")
+        
+        # --- Time Bonuses (Bônus por Horário) ---
+        time_bonuses = []
+        try:
+            config_time = session.get(models.GameConfiguration, "xp_time_rules")
+            if config_time:
+                all_bonuses = json.loads(config_time.value)
+                # Filter only active bonuses
+                for bonus in all_bonuses:
+                    if bonus.get('active', True):  # Default to active if not specified
+                        time_bonuses.append(bonus)
+        except Exception as e:
+            print(f"Error fetching time bonuses: {e}")
 
         # --- Calculate Daily Goal & Progress (Legacy replaced by Productivity in AI Message) ---
         # We'll keep daily_goal for the UI if needed, but the focus is events
@@ -1112,7 +1125,8 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
             "chart_daily_kgh": json.dumps(chart_daily_kgh),
             "chart_cumulative_kg": json.dumps(chart_cumulative_kg),
             "chart_bg_colors": json.dumps(chart_bg_colors),
-            "upcoming_events": upcoming_events
+            "upcoming_events": upcoming_events,
+            "time_bonuses": time_bonuses
         }
         return templates.TemplateResponse("mobile/dashboard.html", context)
 
