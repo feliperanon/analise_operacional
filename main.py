@@ -5571,8 +5571,12 @@ async def update_headcount_targets(data: HeadcountTargetUpdate, session: Session
 @app.get("/employees/candidates", response_class=JSONResponse)
 async def get_candidates(request: Request, status: str, session: Session = Depends(get_session)):
     require_login(request)
-    # Filter by status (fired or away)
-    employees = session.exec(select(models.Employee).where(models.Employee.status == status)).all()
+    # Filter by status (fired or away) AND not already replaced
+    employees = session.exec(
+        select(models.Employee)
+        .where(models.Employee.status == status)
+        .where(models.Employee.replaced_by == None)  # Exclude already replaced
+    ).all()
     return [{
         "id": e.id,
         "name": e.name,
