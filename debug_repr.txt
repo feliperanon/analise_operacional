@@ -1,0 +1,7 @@
+201: '                 \n'
+202: "                 config_sectors = data.get('sectors', [])\n"
+203: '                 changed = False\n'
+204: '                 \n'
+205: '                 for s in sector_list:\n'
+206: '                     for cs in config_sectors:\n'
+207: "                         if cs.get('label') == s.name and cs.get('target') != s.max_employees:\n"
