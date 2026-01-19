@@ -1269,14 +1269,28 @@ async def api_game_audit(
 
     rows = session.exec(q).all()
 
+    # Timezone BR
+    from zoneinfo import ZoneInfo
+    tz_br = ZoneInfo("America/Sao_Paulo")
+
     data = []
     for tx, emp in rows:
         parsed = parse_reason(tx.reason)
+        
+        # Converter created_at para timezone BR
+        created_at_br = None
+        if tx.created_at:
+            # Se for naive, assumir UTC
+            if tx.created_at.tzinfo is None:
+                created_at_br = tx.created_at.replace(tzinfo=ZoneInfo("UTC")).astimezone(tz_br)
+            else:
+                created_at_br = tx.created_at.astimezone(tz_br)
+        
         data.append({
             "id": tx.id,
             "employee_id": tx.employee_id,
             "employee_name": emp.name,
-            "created_at": tx.created_at.isoformat() if tx.created_at else None,
+            "created_at": created_at_br.strftime("%Y-%m-%d %H:%M") if created_at_br else None,
             "amount": int(tx.amount) if tx.amount is not None else 0,
             "status": tx.status,
             "source_type": tx.source_type,

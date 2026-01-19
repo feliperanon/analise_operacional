@@ -102,7 +102,8 @@
 
                                             <!-- Normal Operations (Not Manual) -->
                                             <template x-if="item.title !== 'Ajuste manual'">
-                                                <div class="mt-1 space-y-0.5">
+                                                <div class="mt-1 space-y-1">
+                                                    <!-- Linha 1: Cliente, Peso, UO -->
                                                     <div class="text-[11px] text-slate-400 break-words leading-snug">
                                                         <span x-show="item.client_name">
                                                             <span class="text-slate-500">Cli:</span>
@@ -117,16 +118,53 @@
                                                             <span x-text="item.uo_display"></span>
                                                         </span>
                                                     </div>
+
+                                                    <!-- Linha 2: Horários e Duração -->
                                                     <div class="text-[11px] text-slate-500 break-words leading-snug">
+                                                        <span x-show="item.start_time">
+                                                            <span class="text-slate-600">⏱️</span>
+                                                            <span x-text="item.start_time"></span>
+                                                            <span x-show="item.end_time"> → <span
+                                                                    x-text="item.end_time"></span></span>
+                                                        </span>
                                                         <span x-show="item.duration">
+                                                            <span class="text-slate-600 mx-1">•</span>
                                                             <span x-text="item.duration"></span>
                                                         </span>
+                                                    </div>
+
+                                                    <!-- Linha 3: Detalhes de XP -->
+                                                    <div class="text-[10px] text-slate-500 flex flex-wrap gap-2 mt-1"
+                                                        x-show="item.xp_breakdown">
+                                                        <template x-if="item.xp_rota > 0">
+                                                            <span
+                                                                class="bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/20">
+                                                                Rota: +<span x-text="item.xp_rota"></span> XP
+                                                            </span>
+                                                        </template>
+                                                        <template x-if="item.xp_evento > 0">
+                                                            <span
+                                                                class="bg-purple-500/10 text-purple-400 px-1.5 py-0.5 rounded border border-purple-500/20">
+                                                                Evento: +<span x-text="item.xp_evento"></span> XP
+                                                            </span>
+                                                        </template>
+                                                        <template x-if="item.xp_horario > 0">
+                                                            <span
+                                                                class="bg-green-500/10 text-green-400 px-1.5 py-0.5 rounded border border-green-500/20">
+                                                                Horário: +<span x-text="item.xp_horario"></span> XP
+                                                            </span>
+                                                        </template>
+                                                    </div>
+
+                                                    <!-- Linha 4: Evento/Regra Horário (Legado) -->
+                                                    <div class="text-[11px] text-slate-500 break-words leading-snug"
+                                                        x-show="item.regra_horario || item.evento">
                                                         <template x-if="item.regra_horario">
-                                                            <span><span class="text-slate-600 mx-1">•</span> <span
+                                                            <span class="text-green-400"><span
                                                                     x-text="item.regra_horario"></span></span>
                                                         </template>
                                                         <template x-if="item.evento">
-                                                            <span><span class="text-slate-600 mx-1">•</span> <span
+                                                            <span class="text-purple-400 ml-2"><span
                                                                     x-text="item.evento"></span></span>
                                                         </template>
                                                     </div>
@@ -330,7 +368,10 @@
                                 uo: 0,
                                 clients: new Set(),
                                 durations: [],
-                                xp_est: 0
+                                xp_est: 0,
+                                start_time: null,
+                                end_time: null,
+                                route_count: 0
                             };
                         }
                         routeIndex[key].kg += Number(r.kg || 0);
@@ -338,6 +379,14 @@
                         if (r.client_name) routeIndex[key].clients.add(r.client_name);
                         if (r.duration) routeIndex[key].durations.push(r.duration);
                         routeIndex[key].xp_est += Number(r.xp_estimado || 0);
+                        routeIndex[key].route_count++;
+                        // Guardar primeiro início e último fim
+                        if (r.start_time && (!routeIndex[key].start_time || r.start_time < routeIndex[key].start_time)) {
+                            routeIndex[key].start_time = r.start_time;
+                        }
+                        if (r.end_time && (!routeIndex[key].end_time || r.end_time > routeIndex[key].end_time)) {
+                            routeIndex[key].end_time = r.end_time;
+                        }
                     }
 
                     const items = [];
@@ -382,12 +431,20 @@
                             key: `tx_${a.id}`,
                             employee_id: a.employee_id,
                             employee_name: a.employee_name,
-                            date_time: created ? created.replace('T', ' ').slice(0, 16) : '-',
+                            date_time: created || '-',
                             title,
                             client_name,
                             kg_display,
                             uo_display,
                             duration,
+                            // Horários de início e fim (do agregado de rotas)
+                            start_time: agg ? agg.start_time : null,
+                            end_time: agg ? agg.end_time : null,
+                            // XP Detalhado
+                            xp_rota: agg ? agg.xp_est : 0,
+                            xp_evento: a.evento ? Math.round(Number(a.amount || 0) * 0.3) : 0, // Aproximação baseada no multiplicador
+                            xp_horario: a.regra_horario ? 150 : 0, // Valor padrão do bônus horário
+                            xp_breakdown: agg || a.evento || a.regra_horario,
                             regra_horario: a.regra_horario || null,
                             evento: a.evento ? `Evento: ${a.evento}` : null,
                             amount: Number(a.amount || 0),
