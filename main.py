@@ -209,10 +209,10 @@ def sync_sectors_on_startup():
                              cs['target'] = s.max_employees
                              changed = True
                 
-                    if changed:
-                        config_db.config_json = data
-                        config_db.updated_at = datetime.now(ZoneInfo("America/Sao_Paulo"))
-                        session.add(config_db)
+                  if changed:
+                      config_db.config_json = data
+                      config_db.updated_at = datetime.now(ZoneInfo("America/Sao_Paulo"))
+                      session.add(config_db)
             
             session.commit()
         print("✅ Sincronização de startup concluída.")
