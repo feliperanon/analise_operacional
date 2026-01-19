@@ -514,7 +514,9 @@
                 <p class="text-slate-400 text-sm mb-6 text-center" x-text="tempClient?.name"></p>
 
                 <div class="w-full max-w-[200px] relative mb-8">
-                    <input type="number" x-model="tempWeight" x-ref="weightInput"
+                    <input type="text" inputmode="numeric" pattern="[0-9]*" x-model="tempWeight" x-ref="weightInput"
+                        @keypress="if ([',', '.', '-', '+', 'e', 'E'].includes($event.key)) $event.preventDefault()"
+                        @input="tempWeight = $event.target.value.replace(/[^0-9]/g, '')"
                         class="w-full bg-transparent border-b-2 border-green-500 text-center text-4xl font-bold text-white py-2 focus:outline-none placeholder-slate-700"
                         placeholder="0">
                     <span class="absolute right-0 bottom-4 text-slate-500 font-medium">Kg</span>
