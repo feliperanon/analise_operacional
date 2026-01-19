@@ -473,7 +473,6 @@ def get_dashboard_data(session: Session, shift_filter: str):
              # Calculate active duration
              try:
                  # Use robust aware datetime
-                 from zoneinfo import ZoneInfo
                  now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
                  
                  # Parse start_time (assuming naive HH:MM is UTC-3 or UTC)
@@ -833,7 +832,6 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
         )
         active_routes_result = session.exec(active_routes_stmt).all()
         
-        from zoneinfo import ZoneInfo
         now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
 
         active_routes_list = []
@@ -2027,7 +2025,6 @@ async def mobile_routine_start_with_allocation(
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
         
     # FORCE TIMEZONE to prevent UTC/Server mismatches
-    from zoneinfo import ZoneInfo
     br_tz = ZoneInfo("America/Sao_Paulo")
     now_br = datetime.now(br_tz)
     
@@ -6771,7 +6768,6 @@ async def api_operational_routes(
         results = session.exec(query).all()
         
         # Prepare Response
-        from zoneinfo import ZoneInfo
         now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
 
         data = []
