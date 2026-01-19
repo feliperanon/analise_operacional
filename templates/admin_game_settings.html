@@ -1,534 +1,578 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class='flex flex-col h-full bg-slate-900' x-data='gameSettings()'>
+<div class="flex flex-col h-full bg-slate-900" x-data="gameSettings()" x-cloak>
 
-    <!-- Toast Notification -->
-    <div x-show="toast.visible" x-transition:enter="transition ease-out duration-300"
-        x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
-        x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0"
-        x-transition:leave-end="opacity-0 translate-y-2"
-        class="fixed bottom-6 right-6 z-50 px-6 py-3 rounded-lg shadow-2xl flex items-center gap-3 border"
+    <!-- Toast -->
+    <div x-show="toast.visible" x-transition
+        class="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl border backdrop-blur-sm"
         :class="toast.type === 'success' ? 'bg-emerald-900/90 text-emerald-100 border-emerald-500/50' : 'bg-red-900/90 text-red-100 border-red-500/50'">
-        <i :class="toast.type === 'success' ? 'check-circle' : 'alert-circle'" data-lucide-init class="w-5 h-5"></i>
+        <i :data-lucide="toast.type === 'success' ? 'check-circle' : 'alert-circle'" class="w-5 h-5"></i>
         <span x-text="toast.message" class="font-medium"></span>
     </div>
 
     <!-- Top Bar -->
     <header
-        class='bg-slate-950/50 backdrop-blur-md border-b border-slate-800 px-8 py-6 flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-0 z-20'>
-        <div class='flex items-center gap-4'>
-            <a href="/admin/game"
-                class="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all" title="Voltar">
-                <i data-lucide="arrow-left" class="w-6 h-6"></i>
-            </a>
+        class="bg-slate-950/50 backdrop-blur-md border-b border-slate-800 px-8 py-6 flex justify-between items-center sticky top-0 z-20">
+        <div class="flex items-center gap-4">
             <div
-                class='p-3 bg-gradient-to-br from-purple-500 to-fuchsia-600 rounded-xl text-white shadow-lg shadow-purple-500/20'>
-                <i data-lucide='sliders' class='w-6 h-6'></i>
+                class="p-3 bg-gradient-to-br from-purple-500 to-fuchsia-600 rounded-xl text-white shadow-lg shadow-purple-500/20">
+                <i data-lucide="sliders" class="w-6 h-6"></i>
             </div>
             <div>
-                <h1 class='text-2xl font-bold text-white tracking-tight'>Configurações do Jogo</h1>
-                <p class='text-sm text-slate-400'>Gerencie regras, níveis e conquistas</p>
+                <h1 class="text-2xl font-bold text-white tracking-tight">Configurações do Jogo</h1>
+                <p class="text-sm text-slate-400">Regras dinâmicas e eventos especiais</p>
             </div>
         </div>
 
-        <!-- Navigation Tabs -->
-        <div class="flex p-1 bg-slate-900 rounded-lg border border-slate-800">
-            <button @click="activeTab = 'rules'" class="px-4 py-2 rounded-md text-sm font-bold transition-all"
-                :class="activeTab === 'rules' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'">
-                Regras
-            </button>
-            <button @click="activeTab = 'levels'" class="px-4 py-2 rounded-md text-sm font-bold transition-all"
-                :class="activeTab === 'levels' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'">
-                Níveis
-            </button>
-            <button @click="activeTab = 'achievements'" class="px-4 py-2 rounded-md text-sm font-bold transition-all"
-                :class="activeTab === 'achievements' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'">
-                Conquistas
-            </button>
-        </div>
-
-        <!-- Action Button (Contextual) -->
         <div class="flex gap-3">
-            <button @click="saveCurrentTab()"
-                class="flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white bg-green-600 rounded-lg hover:bg-green-500 shadow-lg shadow-green-500/20 transition-all active:scale-95"
-                :disabled="loading">
-                <i data-lucide='save' class='w-4 h-4'></i>
-                <span x-text="loading ? 'Salvando...' : 'Salvar Alterações'"></span>
+            <button @click="saveAll()" :disabled="saving"
+                class="flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white bg-green-600 rounded-lg hover:bg-green-500 shadow-lg shadow-green-500/20 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">
+                <i data-lucide="save" class="w-4 h-4" x-show="!saving"></i>
+                <i data-lucide="loader-2" class="w-4 h-4 animate-spin" x-show="saving" x-cloak></i>
+                <span x-text="saving ? 'Salvando...' : 'Salvar Regras'"></span>
             </button>
+            <a href="/admin/game"
+                class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors">
+                <i data-lucide="x" class="w-4 h-4"></i>
+                Cancelar
+            </a>
         </div>
     </header>
 
-    <main class='flex-1 p-8 overflow-y-auto custom-scrollbar'>
-        <div class='max-w-6xl mx-auto space-y-8'>
+    <!-- Tabs -->
+    <div class="border-b border-slate-800 bg-slate-950/30">
+        <div class="max-w-4xl mx-auto px-8">
+            <nav class="flex gap-1">
+                <button @click="activeTab = 'rules'"
+                    :class="activeTab === 'rules' ? 'text-white border-b-2 border-purple-500' : 'text-slate-400 hover:text-white'"
+                    class="px-4 py-3 text-sm font-medium transition-colors">
+                    <i data-lucide="gavel" class="w-4 h-4 inline-block mr-1"></i>
+                    Regras
+                </button>
+                <button @click="activeTab = 'levels'"
+                    :class="activeTab === 'levels' ? 'text-white border-b-2 border-purple-500' : 'text-slate-400 hover:text-white'"
+                    class="px-4 py-3 text-sm font-medium transition-colors">
+                    <i data-lucide="trophy" class="w-4 h-4 inline-block mr-1"></i>
+                    Níveis
+                </button>
+                <button @click="activeTab = 'achievements'"
+                    :class="activeTab === 'achievements' ? 'text-white border-b-2 border-purple-500' : 'text-slate-400 hover:text-white'"
+                    class="px-4 py-3 text-sm font-medium transition-colors">
+                    <i data-lucide="award" class="w-4 h-4 inline-block mr-1"></i>
+                    Conquistas
+                </button>
+            </nav>
+        </div>
+    </div>
 
-            <!-- TAB 1: RULES -->
-            <div x-show="activeTab === 'rules'" x-transition.opacity class="space-y-8">
+    <main class="flex-1 p-8 overflow-y-auto">
+        <div class="max-w-4xl mx-auto space-y-8">
 
-                <!-- Base Rules -->
-                <section class='bg-slate-800/50 rounded-2xl border border-slate-700/50 p-8 shadow-xl'>
-                    <div class='flex items-center gap-3 mb-6'>
-                        <div class='p-2 bg-blue-500/10 rounded-lg text-blue-400'>
-                            <i data-lucide='gavel' class='w-5 h-5'></i>
+            <!-- TAB: RULES -->
+            <div x-show="activeTab === 'rules'" x-transition.opacity>
+                <!-- Section: Rules -->
+                <div class="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-8 shadow-xl mb-8">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="p-2 bg-blue-500/10 rounded-lg text-blue-400">
+                            <i data-lucide="gavel" class="w-5 h-5"></i>
                         </div>
-                        <h2 class='text-lg font-bold text-white'>Regras Base</h2>
+                        <h2 class="text-lg font-bold text-white">Regras de Pontuação</h2>
                     </div>
-                    <div class='grid grid-cols-1 md:grid-cols-2 gap-6'>
-                        <div class='bg-slate-900/50 p-5 rounded-xl border border-slate-700'>
-                            <label
-                                class='block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2'>Penalidade
-                                Falta</label>
-                            <div class='flex items-center gap-3'>
-                                <input type='number' x-model='config.xp_absence_penalty' class='input-dark flex-1'>
-                                <span class='text-slate-400 text-sm font-bold'>XP</span>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Absence Penalty -->
+                        <div
+                            class="bg-slate-900/50 p-5 rounded-xl border border-slate-700 hover:border-blue-500/50 transition-colors">
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Penalidade
+                                por Falta</label>
+                            <div class="flex items-center gap-3">
+                                <input type="number" x-model.number="config.xp_absence_penalty"
+                                    class="bg-slate-950 border border-slate-600 rounded-lg px-4 py-2 text-white font-mono w-full focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all">
+                                <span class="text-slate-400 text-sm font-bold">XP</span>
                             </div>
+                            <p class="text-xs text-slate-400 mt-2">Valor descontado por falta injustificada.</p>
                         </div>
-                        <div class='bg-slate-900/50 p-5 rounded-xl border border-slate-700'>
-                            <label class='block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2'>Bônus
-                                Anual (Casa)</label>
-                            <div class='flex items-center gap-3'>
-                                <input type='number' x-model='config.xp_tenure_bonus_per_year'
-                                    class='input-dark flex-1'>
-                                <span class='text-slate-400 text-sm font-bold'>XP</span>
+
+                        <!-- Tenure Bonus -->
+                        <div
+                            class="bg-slate-900/50 p-5 rounded-xl border border-slate-700 hover:border-blue-500/50 transition-colors">
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Bônus Anual
+                                (Casa)</label>
+                            <div class="flex items-center gap-3">
+                                <input type="number" x-model.number="config.xp_tenure_bonus_per_year"
+                                    class="bg-slate-950 border border-slate-600 rounded-lg px-4 py-2 text-white font-mono w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                                <span class="text-slate-400 text-sm font-bold">XP</span>
                             </div>
+                            <p class="text-xs text-slate-400 mt-2">Prêmio por cada ano de empresa completo.</p>
+                        </div>
+
+                        <!-- Daily Cap -->
+                        <div
+                            class="bg-slate-900/50 p-5 rounded-xl border border-slate-700 hover:border-blue-500/50 transition-colors">
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Limite Diário de XP</label>
+                            <div class="flex items-center gap-3">
+                                <input type="number" x-model.number="config.xp_daily_cap"
+                                    class="bg-slate-950 border border-slate-600 rounded-lg px-4 py-2 text-white font-mono w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                                <span class="text-slate-400 text-sm font-bold">XP</span>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-2">Máximo de XP que um colaborador pode ganhar por dia.</p>
+                        </div>
+
+                        <!-- Base XP per Kg -->
+                        <div
+                            class="bg-slate-900/50 p-5 rounded-xl border border-slate-700 hover:border-blue-500/50 transition-colors">
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">XP Base por Kg</label>
+                            <div class="flex items-center gap-3">
+                                <input type="number" step="0.01" x-model.number="config.xp_base_per_kg"
+                                    class="bg-slate-950 border border-slate-600 rounded-lg px-4 py-2 text-white font-mono w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                                <span class="text-slate-400 text-sm font-bold">XP</span>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-2">XP ganho por cada Kg separado.</p>
                         </div>
                     </div>
-                </section>
+                </div>
 
-                <!-- Time Bonuses -->
-                <section class='bg-slate-800/50 rounded-2xl border border-slate-700/50 p-8 shadow-xl'>
-                    <div class='flex items-center gap-3 mb-6'>
-                        <div class='p-2 bg-emerald-500/10 rounded-lg text-emerald-400'>
-                            <i data-lucide='clock' class='w-5 h-5'></i>
-                        </div>
-                        <div>
-                            <h2 class='text-lg font-bold text-white'>Bônus por Horário</h2>
-                            <p class="text-xs text-slate-400">Recompensas por término antecipado de rota.</p>
-                        </div>
+                <!-- Section: Special Events (Multiple) -->
+                <div class="bg-gradient-to-br from-indigo-900/20 to-purple-900/20 rounded-2xl border border-indigo-500/30 p-8 shadow-xl relative overflow-hidden mb-8">
+                    <div class="absolute top-0 right-0 p-3 opacity-10">
+                        <i data-lucide="sparkles" class="w-32 h-32 text-indigo-400"></i>
                     </div>
 
-                    <div class="space-y-3">
-                        <template x-for="(rule, index) in timeRules" :key="index">
-                            <div
-                                class="bg-slate-900/50 p-4 rounded-xl border border-slate-700 flex flex-col gap-4 relative group">
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="text-[10px] text-slate-500 uppercase font-bold">Limite</label>
-                                        <input type="time" x-model="rule.stop_time" class="input-dark w-full">
+                    <div class="flex items-center justify-between mb-6 relative z-10">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 bg-purple-500/10 rounded-lg text-purple-400">
+                                <i data-lucide="calendar-heart" class="w-5 h-5"></i>
+                            </div>
+                            <h2 class="text-lg font-bold text-white">Eventos Especiais</h2>
+                        </div>
+                        <button @click="addSpecialEvent()"
+                            class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-500 transition-all">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                            Novo Evento
+                        </button>
+                    </div>
+
+                    <!-- Events List -->
+                    <div class="space-y-4 relative z-10">
+                        <!-- Empty State -->
+                        <div x-show="specialEvents.length === 0" class="text-center py-8 text-slate-400">
+                            <i data-lucide="calendar-off" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
+                            <p>Nenhum evento programado</p>
+                            <p class="text-sm text-slate-500">Clique em "Novo Evento" para criar</p>
+                        </div>
+
+                        <!-- Event Cards -->
+                        <template x-for="(event, index) in specialEvents" :key="index">
+                            <div class="bg-slate-900/70 rounded-xl border border-indigo-500/20 p-5 relative group">
+                                <!-- Delete Button -->
+                                <button @click="removeSpecialEvent(index)"
+                                    class="absolute top-3 right-3 p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+
+                                <!-- Event Image Preview -->
+                                <div class="flex gap-5">
+                                    <div class="w-24 h-24 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-4xl shrink-0 overflow-hidden"
+                                        :class="event.image_url ? '' : 'p-4'">
+                                        <img x-show="event.image_url" :src="event.image_url" class="w-full h-full object-cover" alt="">
+                                        <span x-show="!event.image_url" x-text="event.emoji || '🎉'"></span>
                                     </div>
-                                    <div>
-                                        <label class="text-[10px] text-slate-500 uppercase font-bold">Bônus %</label>
-                                        <input type="number" x-model="rule.bonus_percent" class="input-dark w-full">
+
+                                    <div class="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                        <!-- Event Name -->
+                                        <div class="space-y-1 md:col-span-2">
+                                            <label class="block text-[10px] font-bold text-indigo-300 uppercase">Nome do Evento</label>
+                                            <input type="text" x-model="event.name" placeholder="Ex: Black Friday, Natal, Aniversário..."
+                                                class="w-full bg-slate-950 border border-indigo-500/30 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                        </div>
+
+                                        <!-- Emoji Picker -->
+                                        <div class="space-y-1">
+                                            <label class="block text-[10px] font-bold text-indigo-300 uppercase">Emoji</label>
+                                            <input type="text" x-model="event.emoji" placeholder="🎉"
+                                                class="w-full bg-slate-950 border border-indigo-500/30 rounded-lg px-3 py-2 text-white text-center text-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                                        </div>
+
+                                        <!-- Image URL -->
+                                        <div class="space-y-1">
+                                            <label class="block text-[10px] font-bold text-indigo-300 uppercase">URL Imagem</label>
+                                            <input type="text" x-model="event.image_url" placeholder="https://..."
+                                                class="w-full bg-slate-950 border border-indigo-500/30 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                                        </div>
+
+                                        <!-- Date -->
+                                        <div class="space-y-1">
+                                            <label class="block text-[10px] font-bold text-indigo-300 uppercase">Data</label>
+                                            <input type="date" x-model="event.date"
+                                                class="w-full bg-slate-950 border border-indigo-500/30 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                        </div>
+
+                                        <!-- End Date (Optional) -->
+                                        <div class="space-y-1">
+                                            <label class="block text-[10px] font-bold text-indigo-300 uppercase">Até (Opcional)</label>
+                                            <input type="date" x-model="event.end_date"
+                                                class="w-full bg-slate-950 border border-indigo-500/30 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                        </div>
+
+                                        <!-- Bonus XP -->
+                                        <div class="space-y-1">
+                                            <label class="block text-[10px] font-bold text-indigo-300 uppercase">Bônus XP</label>
+                                            <input type="number" x-model.number="event.bonus_xp" placeholder="100"
+                                                class="w-full bg-slate-950 border border-indigo-500/30 rounded-lg px-3 py-2 text-white font-mono focus:ring-2 focus:ring-indigo-500 outline-none">
+                                        </div>
+
+                                        <!-- Multiplier -->
+                                        <div class="space-y-1">
+                                            <label class="block text-[10px] font-bold text-indigo-300 uppercase">Multiplicador</label>
+                                            <input type="number" step="0.1" x-model.number="event.multiplier" placeholder="1.5"
+                                                class="w-full bg-slate-950 border border-indigo-500/30 rounded-lg px-3 py-2 text-white font-mono focus:ring-2 focus:ring-indigo-500 outline-none">
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="border-t border-slate-800 pt-3">
-                                    <label class="text-[10px] text-slate-500 uppercase font-bold block mb-1">Dias
-                                        Válidos</label>
-                                    <div class="flex gap-1 flex-wrap">
-                                        <template x-for="(d, i) in ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom']">
-                                            <button @click="toggleDay(rule, i)"
-                                                class="w-8 h-8 rounded text-[10px] font-bold border transition-colors"
-                                                :class="isDaySelected(rule, i) ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-500 hover:bg-slate-800'">
-                                                <span x-text="d"></span>
-                                            </button>
-                                        </template>
+
+                                <!-- Status Badge -->
+                                <div class="mt-3 flex items-center gap-2">
+                                    <template x-if="isEventActive(event)">
+                                        <span class="inline-flex items-center gap-1 px-2 py-1 bg-green-500/20 text-green-400 text-xs font-bold rounded-full">
+                                            <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                                            Ativo Agora
+                                        </span>
+                                    </template>
+                                    <template x-if="isEventPast(event)">
+                                        <span class="inline-flex items-center gap-1 px-2 py-1 bg-slate-700/50 text-slate-400 text-xs font-medium rounded-full">
+                                            Encerrado
+                                        </span>
+                                    </template>
+                                    <template x-if="isEventFuture(event)">
+                                        <span class="inline-flex items-center gap-1 px-2 py-1 bg-indigo-500/20 text-indigo-300 text-xs font-medium rounded-full">
+                                            <i data-lucide="clock" class="w-3 h-3"></i>
+                                            Programado
+                                        </span>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="mt-6 p-4 bg-indigo-500/10 rounded-xl border border-indigo-500/20 text-indigo-200 text-sm flex gap-3 items-center relative z-10">
+                        <i data-lucide="info" class="w-5 h-5 flex-shrink-0"></i>
+                        <p>Crie eventos especiais para datas comemorativas. O bônus XP é adicionado e o multiplicador é aplicado à produção do dia.</p>
+                    </div>
+                </div>
+
+                <!-- Section: Time-Based Bonus Events -->
+                <div class="bg-gradient-to-br from-amber-900/20 to-orange-900/20 rounded-2xl border border-amber-500/30 p-8 shadow-xl relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-3 opacity-10">
+                        <i data-lucide="clock" class="w-32 h-32 text-amber-400"></i>
+                    </div>
+
+                    <div class="flex items-center justify-between mb-6 relative z-10">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 bg-amber-500/10 rounded-lg text-amber-400">
+                                <i data-lucide="timer" class="w-5 h-5"></i>
+                            </div>
+                            <h2 class="text-lg font-bold text-white">Bônus por Horário</h2>
+                        </div>
+                        <button @click="addTimeBonus()"
+                            class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-amber-600 rounded-lg hover:bg-amber-500 transition-all">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                            Nova Regra
+                        </button>
+                    </div>
+
+                    <!-- Time Bonus List -->
+                    <div class="space-y-3 relative z-10">
+                        <!-- Empty State -->
+                        <div x-show="timeBonuses.length === 0" class="text-center py-8 text-slate-400">
+                            <i data-lucide="alarm-clock-off" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
+                            <p>Nenhum bônus por horário configurado</p>
+                            <p class="text-sm text-slate-500">Ex: "Trabalhar até 18h = +50 XP"</p>
+                        </div>
+
+                        <!-- Time Bonus Cards -->
+                        <template x-for="(bonus, index) in timeBonuses" :key="index">
+                            <div class="bg-slate-900/70 rounded-xl border border-amber-500/20 p-4 flex items-center gap-4 group">
+                                <!-- Icon -->
+                                <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white shrink-0">
+                                    <i data-lucide="clock" class="w-6 h-6"></i>
+                                </div>
+
+                                <!-- Fields -->
+                                <div class="flex-1 grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
+                                    <div class="space-y-1">
+                                        <label class="block text-[10px] font-bold text-amber-300 uppercase">Nome da Regra</label>
+                                        <input type="text" x-model="bonus.name" placeholder="Ex: Hora Extra Noturna"
+                                            class="w-full bg-slate-950 border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+                                    </div>
+
+                                    <div class="space-y-1">
+                                        <label class="block text-[10px] font-bold text-amber-300 uppercase">Trabalhar Até</label>
+                                        <input type="time" x-model="bonus.until_time"
+                                            class="w-full bg-slate-950 border border-amber-500/30 rounded-lg px-3 py-2 text-white font-mono focus:ring-2 focus:ring-amber-500 outline-none">
+                                    </div>
+
+                                    <div class="space-y-1">
+                                        <label class="block text-[10px] font-bold text-amber-300 uppercase">Bônus XP</label>
+                                        <input type="number" x-model.number="bonus.bonus_xp" placeholder="50"
+                                            class="w-full bg-slate-950 border border-amber-500/30 rounded-lg px-3 py-2 text-white font-mono focus:ring-2 focus:ring-amber-500 outline-none">
+                                    </div>
+
+                                    <div class="flex items-center gap-2">
+                                        <label class="flex items-center gap-2 cursor-pointer">
+                                            <input type="checkbox" x-model="bonus.active" class="w-4 h-4 rounded bg-slate-900 border-amber-500/50 text-amber-500 focus:ring-amber-500">
+                                            <span class="text-sm text-slate-300">Ativo</span>
+                                        </label>
                                     </div>
                                 </div>
-                                <button @click="removeTimeRule(index)"
-                                    class="absolute top-2 right-2 text-slate-500 hover:text-red-400 transition-colors">
+
+                                <!-- Delete -->
+                                <button @click="removeTimeBonus(index)"
+                                    class="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100">
                                     <i data-lucide="trash-2" class="w-4 h-4"></i>
                                 </button>
                             </div>
                         </template>
-                        <button @click="addTimeRule()" class="btn-secondary w-full py-2 text-xs border-dashed">
-                            <i data-lucide="plus" class="w-3 h-3 mr-2"></i> Adicionar Regra
-                        </button>
                     </div>
-                </section>
 
-                <!-- Special Events -->
-                <section class='bg-slate-800/50 rounded-2xl border border-slate-700/50 p-8 shadow-xl'>
-                    <div class='flex items-center gap-3 mb-6'>
-                        <div class='p-2 bg-purple-500/10 rounded-lg text-purple-400'>
-                            <i data-lucide='calendar-heart' class='w-5 h-5'></i>
-                        </div>
-                        <div>
-                            <h2 class='text-lg font-bold text-white'>Eventos Especiais</h2>
-                            <p class="text-xs text-purple-300/60">Multiplicadores de XP por data.</p>
-                        </div>
+                    <div class="mt-6 p-4 bg-amber-500/10 rounded-xl border border-amber-500/20 text-amber-200 text-sm flex gap-3 items-center relative z-10">
+                        <i data-lucide="info" class="w-5 h-5 flex-shrink-0"></i>
+                        <p>Configure bônus para funcionários que trabalham até determinado horário. Exemplo: quem bate o ponto após 18:00 ganha +50 XP.</p>
                     </div>
-                    <div class="space-y-3">
-                        <template x-for="(evt, index) in specialEvents" :key="index">
-                            <div
-                                class="grid grid-cols-12 gap-3 bg-slate-900/50 p-3 rounded-lg border border-slate-700 items-center">
-                                <div class="col-span-3">
-                                    <label class="label-xs">Data</label>
-                                    <input type="date" x-model="evt.date" class="input-dark w-full text-xs">
-                                </div>
-                                <div class="col-span-6">
-                                    <label class="label-xs">Nome do Evento</label>
-                                    <input type="text" x-model="evt.name" placeholder="Ex: Natal"
-                                        class="input-dark w-full text-xs">
-                                </div>
-                                <div class="col-span-2">
-                                    <label class="label-xs">Mult.</label>
-                                    <div class="flex items-center gap-1">
-                                        <span class="text-xs text-slate-500">x</span>
-                                        <input type="number" step="0.1" x-model="evt.multiplier"
-                                            class="input-dark w-full text-xs text-center font-bold text-purple-400">
-                                    </div>
-                                </div>
-                                <div class="col-span-1 flex justify-end mt-4">
-                                    <button @click="removeEvent(index)"
-                                        class="text-slate-500 hover:text-red-400 p-2 transition-colors">
-                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </template>
-                        <button @click="addEvent()"
-                            class="btn-secondary w-full py-2 text-xs border-dashed text-purple-300 border-purple-500/30 hover:bg-purple-500/10">
-                            <i data-lucide="plus" class="w-3 h-3 mr-2"></i> Adicionar Evento
-                        </button>
-                    </div>
-                </section>
+                </div>
             </div>
 
-            <!-- TAB 2: LEVELS -->
-            <div x-show="activeTab === 'levels'" x-transition.opacity>
-                <section class='bg-slate-800/50 rounded-2xl border border-slate-700/50 p-8 shadow-xl'>
-                    <div class="flex justify-between items-end mb-6">
-                        <div class='flex items-center gap-3'>
-                            <div class='p-2 bg-yellow-500/10 rounded-lg text-yellow-400'>
-                                <i data-lucide='milestone' class='w-5 h-5'></i>
+            <!-- TAB: LEVELS -->
+            <div x-show="activeTab === 'levels'" x-transition.opacity x-cloak>
+                <div class="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-8 shadow-xl">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 bg-yellow-500/10 rounded-lg text-yellow-400">
+                                <i data-lucide="trophy" class="w-5 h-5"></i>
                             </div>
-                            <div>
-                                <h2 class='text-lg font-bold text-white'>Níveis de Progressão</h2>
-                                <p class="text-xs text-slate-400">Defina os requisitos para cada nível.</p>
-                            </div>
+                            <h2 class="text-lg font-bold text-white">Níveis e Progressão</h2>
                         </div>
-                        <button @click="addLevel()"
-                            class="btn-primary text-xs px-3 py-1.5 bg-yellow-600 hover:bg-yellow-500 text-white">
-                            <i data-lucide="plus" class="w-3 h-3 mr-1"></i> Novo Nível
-                        </button>
                     </div>
 
-                    <div class="overflow-x-auto rounded-xl border border-slate-700">
-                        <table class="w-full text-left text-sm text-slate-400">
-                            <thead class="bg-slate-900/80 text-xs uppercase font-bold text-slate-500">
-                                <tr>
-                                    <th class="px-4 py-3">Nível</th>
-                                    <th class="px-4 py-3">Nome</th>
-                                    <th class="px-4 py-3">XP Mínimo</th>
-                                    <th class="px-4 py-3">Meses (Tempo Casa)</th>
-                                    <th class="px-4 py-3">Badge (URL)</th>
-                                    <th class="px-4 py-3 w-10"></th>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="border-b border-slate-700">
+                                    <th class="pb-3 text-xs font-bold text-slate-500 uppercase">Nível</th>
+                                    <th class="pb-3 text-xs font-bold text-slate-500 uppercase">Nome</th>
+                                    <th class="pb-3 text-xs font-bold text-slate-500 uppercase">XP Mínimo</th>
+                                    <th class="pb-3 text-xs font-bold text-slate-500 uppercase">Meses Mínimos</th>
+                                    <th class="pb-3 text-xs font-bold text-slate-500 uppercase">Badge</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-800 bg-slate-900/30">
-                                <template x-for="(lvl, index) in levels" :key="index">
-                                    <tr class="hover:bg-slate-800/50 transition">
-                                        <td class="px-4 py-2">
-                                            <input type="number" x-model.number="lvl.level"
-                                                class="input-dark w-16 text-center">
+                            <tbody>
+                                <template x-for="(level, index) in levels" :key="index">
+                                    <tr class="border-b border-slate-800 hover:bg-slate-800/50">
+                                        <td class="py-3 text-white font-bold" x-text="level.level"></td>
+                                        <td class="py-3">
+                                            <input type="text" x-model="level.name"
+                                                class="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white text-sm w-full focus:ring-2 focus:ring-purple-500 outline-none">
                                         </td>
-                                        <td class="px-4 py-2">
-                                            <input type="text" x-model="lvl.name" class="input-dark w-full">
+                                        <td class="py-3">
+                                            <input type="number" x-model.number="level.min_xp"
+                                                class="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white font-mono text-sm w-24 focus:ring-2 focus:ring-purple-500 outline-none">
                                         </td>
-                                        <td class="px-4 py-2">
-                                            <input type="number" x-model.number="lvl.min_xp" class="input-dark w-24">
+                                        <td class="py-3">
+                                            <input type="number" x-model.number="level.min_months"
+                                                class="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white font-mono text-sm w-20 focus:ring-2 focus:ring-purple-500 outline-none">
                                         </td>
-                                        <td class="px-4 py-2">
-                                            <input type="number" x-model.number="lvl.min_months"
-                                                class="input-dark w-20">
-                                        </td>
-                                        <td class="px-4 py-2">
-                                            <input type="text" x-model="lvl.badge_image"
-                                                class="input-dark w-full text-xs text-slate-500">
-                                        </td>
-                                        <td class="px-4 py-2 text-center">
-                                            <button @click="removeLevel(index)"
-                                                class="text-slate-500 hover:text-red-400 p-1">
-                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                            </button>
+                                        <td class="py-3">
+                                            <input type="text" x-model="level.badge_image"
+                                                class="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white text-sm w-32 focus:ring-2 focus:ring-purple-500 outline-none">
                                         </td>
                                     </tr>
                                 </template>
                             </tbody>
                         </table>
-                        <div x-show="levels.length === 0" class="p-8 text-center text-slate-500 italic">
-                            Nenhum nível definido.
-                        </div>
                     </div>
-                </section>
+                </div>
             </div>
 
-            <!-- TAB 3: ACHIEVEMENTS -->
-            <div x-show="activeTab === 'achievements'" x-transition.opacity>
-                <section class='bg-slate-800/50 rounded-2xl border border-slate-700/50 p-8 shadow-xl'>
-                    <div class="flex justify-between items-end mb-6">
-                        <div class='flex items-center gap-3'>
-                            <div class='p-2 bg-pink-500/10 rounded-lg text-pink-400'>
-                                <i data-lucide='medal' class='w-5 h-5'></i>
+            <!-- TAB: ACHIEVEMENTS -->
+            <div x-show="activeTab === 'achievements'" x-transition.opacity x-cloak>
+                <div class="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-8 shadow-xl">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 bg-orange-500/10 rounded-lg text-orange-400">
+                                <i data-lucide="award" class="w-5 h-5"></i>
                             </div>
-                            <div>
-                                <h2 class='text-lg font-bold text-white'>Conquistas & Badges</h2>
-                                <p class="text-xs text-slate-400">Recompensas especiais e manuais.</p>
-                            </div>
+                            <h2 class="text-lg font-bold text-white">Conquistas</h2>
                         </div>
-                        <button @click="addAchievement()"
-                            class="btn-primary text-xs px-3 py-1.5 bg-pink-600 hover:bg-pink-500 text-white">
-                            <i data-lucide="plus" class="w-3 h-3 mr-1"></i> Nova Conquista
-                        </button>
                     </div>
 
-                    <div class="grid grid-cols-1 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <template x-for="(ach, index) in achievements" :key="index">
-                            <div
-                                class="bg-slate-900/50 p-4 rounded-xl border border-slate-700 hover:border-pink-500/30 transition flex flex-col md:flex-row gap-4 items-start md:items-center">
-                                <!-- Icon Preview -->
-                                <div
-                                    class="w-12 h-12 bg-slate-950 rounded-lg flex items-center justify-center border border-slate-800 shrink-0">
-                                    <i :data-lucide="ach.icon || 'trophy'" class="w-6 h-6 text-pink-500"></i>
+                            <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700 hover:border-orange-500/30 transition-colors">
+                                <div class="flex items-center gap-3 mb-3">
+                                    <span class="text-2xl" x-text="ach.icon || '🏆'"></span>
+                                    <input type="text" x-model="ach.name"
+                                        class="bg-transparent border-b border-slate-700 text-white font-bold focus:border-orange-500 outline-none flex-1 pb-1">
                                 </div>
-
-                                <div class="flex-1 grid grid-cols-1 md:grid-cols-4 gap-3 w-full">
-                                    <div class="col-span-1">
-                                        <label class="label-xs">Nome</label>
-                                        <input type="text" x-model="ach.name" class="input-dark w-full font-bold">
-                                    </div>
-                                    <div class="col-span-1">
-                                        <label class="label-xs">Slug (ID Único)</label>
-                                        <input type="text" x-model="ach.slug"
-                                            class="input-dark w-full font-mono text-xs text-slate-400">
-                                    </div>
-                                    <div class="col-span-1">
-                                        <label class="label-xs">Ícone (Lucide)</label>
-                                        <input type="text" x-model="ach.icon" class="input-dark w-full text-xs">
-                                    </div>
-                                    <div class="col-span-1">
-                                        <label class="label-xs">XP Recompensa</label>
+                                <textarea x-model="ach.description" rows="2"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-300 text-sm focus:ring-2 focus:ring-orange-500 outline-none resize-none"></textarea>
+                                <div class="flex gap-3 mt-3">
+                                    <div class="flex-1">
+                                        <label class="text-[10px] text-slate-500 uppercase">XP Reward</label>
                                         <input type="number" x-model.number="ach.xp_reward"
-                                            class="input-dark w-full text-emerald-400 font-mono">
+                                            class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white font-mono text-sm">
                                     </div>
-                                    <div class="col-span-4">
-                                        <label class="label-xs">Descrição</label>
-                                        <input type="text" x-model="ach.description" class="input-dark w-full">
-                                    </div>
-                                    <div class="col-span-4 flex items-center gap-2 mt-2">
-                                        <input type="checkbox" x-model="ach.is_manual"
-                                            class="rounded bg-slate-800 border-slate-600 text-pink-500 focus:ring-purple-500">
-                                        <span class="text-xs text-slate-400 font-medium">Apenas Manual (Concedido por
-                                            Gestores)</span>
+                                    <div class="flex-1">
+                                        <label class="text-[10px] text-slate-500 uppercase">Ícone</label>
+                                        <input type="text" x-model="ach.icon"
+                                            class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white text-sm">
                                     </div>
                                 </div>
-
-                                <button @click="removeAchievement(index)"
-                                    class="text-slate-600 hover:text-red-400 p-2 md:self-start">
-                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                </button>
                             </div>
                         </template>
-                        <div x-show="achievements.length === 0"
-                            class="p-8 text-center text-slate-500 italic border border-dashed border-slate-700 rounded-xl">
-                            Nenhuma conquista cadastrada.
-                        </div>
                     </div>
-                </section>
+                </div>
             </div>
 
         </div>
     </main>
 </div>
 
-<style>
-    .input-dark {
-        @apply bg-slate-950 border border-slate-800 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors text-sm;
-        color-scheme: dark;
-        /* Fixes date/time picker icons in dark mode */
-    }
-
-    .input-dark::placeholder {
-        @apply text-slate-600;
-    }
-
-    .card-item {
-        @apply bg-slate-900/80 p-4 rounded-xl border border-slate-700 hover:border-slate-600 transition-all shadow-sm;
-    }
-
-    .label-xs {
-        @apply block text-[10px] uppercase font-bold text-slate-500 mb-1 tracking-wider;
-    }
-
-    .btn-primary {
-        @apply rounded-lg shadow-lg font-bold transition-transform active:scale-95 flex items-center justify-center;
-    }
-
-    .btn-secondary {
-        @apply bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors font-medium border border-slate-700;
-    }
-
-    /* Custom Scrollbar for Main Area */
-    .custom-scrollbar::-webkit-scrollbar {
-        width: 8px;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-track {
-        background: #0f172a;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #334155;
-        border-radius: 4px;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: #475569;
-    }
-</style>
-
 <script>
-    document.addEventListener('alpine:init', () => {
-        Alpine.data('gameSettings', () => ({
+    lucide.createIcons();
+
+    function gameSettings() {
+        return {
             activeTab: 'rules',
-            loading: false,
-            config: {},
-            levels: [],
-            achievements: [],
-            timeRules: [],
-            specialEvents: [],
-
+            saving: false,
             toast: { visible: false, message: '', type: 'success' },
+            
+            config: {{ config_json | safe }},
+            levels: {{ levels_json | safe }},
+            achievements: {{ achievements_json | safe }},
+            
+            // Multiple events support
+            specialEvents: {{ special_events_json | safe }},
+            timeBonuses: {{ time_bonuses_json | safe }},
 
-            init() {
-                // Parse injected JSON from backend
-                try {
-                    // Direct injection of JSON objects (no single quotes wrapper)
-                    this.config = {{ config_json | safe }
-                };
-                this.levels = {{ levels_json | safe }
-            };
-            this.achievements = {{ achievements_json| safe }};
-
-    // Parse sub-configs (stored as JSON strings in DB)
-    this.timeRules = JSON.parse(this.config.xp_time_rules || '[]');
-    this.specialEvents = JSON.parse(this.config.xp_special_events || '[]');
-                } catch (e) {
-        console.error("Data Load Error", e);
-        this.showToast('Erro ao carregar dados iniciais', 'error');
-    }
-
-    // Refresh icons when tabs switch or data changes
-    this.$watch('activeTab', () => setTimeout(() => lucide.createIcons(), 50));
-    this.$watch('levels', () => setTimeout(() => lucide.createIcons(), 50));
-    this.$watch('achievements', () => setTimeout(() => lucide.createIcons(), 50));
+            showToast(message, type = 'success') {
+                this.toast = { visible: true, message, type };
+                setTimeout(() => this.toast.visible = false, 3000);
             },
 
-    showToast(msg, type = 'success') {
-        this.toast.message = msg;
-        this.toast.type = type;
-        this.toast.visible = true;
-        setTimeout(() => this.toast.visible = false, 3000);
-    },
+            // Special Events CRUD
+            addSpecialEvent() {
+                this.specialEvents.push({
+                    name: '',
+                    emoji: '🎉',
+                    image_url: '',
+                    date: '',
+                    end_date: '',
+                    bonus_xp: 100,
+                    multiplier: 1.5
+                });
+                this.$nextTick(() => lucide.createIcons());
+            },
 
-    // --- Rules Methods ---
-    addTimeRule() {
-        this.timeRules.push({ stop_time: '12:00', bonus_percent: 10, days: [] });
-    },
-    removeTimeRule(idx) {
-        this.timeRules.splice(idx, 1);
-    },
-    toggleDay(rule, dayIndex) {
-        if (!rule.days) rule.days = [];
-        const idx = rule.days.indexOf(dayIndex);
-        if (idx === -1) rule.days.push(dayIndex);
-        else rule.days.splice(idx, 1);
-    },
-    isDaySelected(rule, dayIndex) {
-        if (!rule.days || rule.days.length === 0) return true; // Empty means all
-        return rule.days.includes(dayIndex);
-    },
-    addEvent() {
-        this.specialEvents.push({ date: new Date().toISOString().split('T')[0], name: 'Novo Evento', multiplier: 1.5 });
-    },
-    removeEvent(idx) {
-        this.specialEvents.splice(idx, 1);
-    },
+            removeSpecialEvent(index) {
+                if (confirm('Excluir este evento?')) {
+                    this.specialEvents.splice(index, 1);
+                }
+            },
 
-    // --- Level Methods ---
-    addLevel() {
-        const nextLvl = this.levels.length > 0 ? Math.max(...this.levels.map(l => l.level)) + 1 : 1;
-        this.levels.push({ level: nextLvl, name: 'Novo Nível', min_xp: 0, min_months: 0, badge_image: 'default.png' });
-    },
-    removeLevel(idx) {
-        this.levels.splice(idx, 1);
-    },
+            // Time Bonuses CRUD
+            addTimeBonus() {
+                this.timeBonuses.push({
+                    name: '',
+                    until_time: '18:00',
+                    bonus_xp: 50,
+                    active: true
+                });
+                this.$nextTick(() => lucide.createIcons());
+            },
 
-    // --- Achievement Methods ---
-    addAchievement() {
-        this.achievements.push({
-            slug: 'new_badge_' + Date.now(),
-            name: 'Nova Conquista',
-            description: 'Descrição',
-            icon: 'medal',
-            xp_reward: 500,
-            is_manual: false
-        });
-    },
-    removeAchievement(idx) {
-        this.achievements.splice(idx, 1);
-    },
+            removeTimeBonus(index) {
+                if (confirm('Excluir esta regra de horário?')) {
+                    this.timeBonuses.splice(index, 1);
+                }
+            },
 
-            // --- SAVE ---
-            async saveCurrentTab() {
-        this.loading = true;
-        try {
-            if (this.activeTab === 'rules') {
-                await this.saveRules();
-            } else if (this.activeTab === 'levels') {
-                await this.saveLevels();
-            } else if (this.activeTab === 'achievements') {
-                await this.saveAchievements();
+            // Event Status Helpers
+            isEventActive(event) {
+                if (!event.date) return false;
+                const today = new Date().toISOString().split('T')[0];
+                const start = event.date;
+                const end = event.end_date || event.date;
+                return today >= start && today <= end;
+            },
+
+            isEventPast(event) {
+                if (!event.date) return false;
+                const today = new Date().toISOString().split('T')[0];
+                const end = event.end_date || event.date;
+                return today > end;
+            },
+
+            isEventFuture(event) {
+                if (!event.date) return false;
+                const today = new Date().toISOString().split('T')[0];
+                return today < event.date;
+            },
+
+            async saveAll() {
+                if (this.saving) return;
+                this.saving = true;
+
+                try {
+                    // Save config (includes special events and time bonuses as JSON strings)
+                    const configToSave = {
+                        ...this.config,
+                        xp_special_events: JSON.stringify(this.specialEvents),
+                        xp_time_rules: JSON.stringify(this.timeBonuses)
+                    };
+
+                    const configRes = await fetch('/api/game/settings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(configToSave)
+                    });
+                    
+                    if (!configRes.ok) {
+                        const err = await configRes.json();
+                        throw new Error(err.detail || err.error || 'Erro ao salvar configurações');
+                    }
+
+                    // Save levels
+                    const levelsRes = await fetch('/api/game/levels', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ levels: this.levels })
+                    });
+                    
+                    if (!levelsRes.ok) {
+                        const err = await levelsRes.json();
+                        throw new Error(err.detail || err.error || 'Erro ao salvar níveis');
+                    }
+
+                    // Save achievements
+                    const achRes = await fetch('/api/game/achievements', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ achievements: this.achievements })
+                    });
+                    
+                    if (!achRes.ok) {
+                        const err = await achRes.json();
+                        throw new Error(err.detail || err.error || 'Erro ao salvar conquistas');
+                    }
+
+                    this.showToast('Configurações salvas com sucesso! 🎉', 'success');
+                } catch (err) {
+                    console.error(err);
+                    this.showToast(err.message, 'error');
+                } finally {
+                    this.saving = false;
+                }
             }
-            this.showToast('Alterações salvas com sucesso!');
-        } catch (e) {
-            console.error(e);
-            this.showToast('Erro ao salvar: ' + e.message, 'error');
-        } finally {
-            this.loading = false;
-        }
-    },
-
-            async saveRules() {
-        // Prepare config dict
-        this.config.xp_time_rules = JSON.stringify(this.timeRules);
-        this.config.xp_special_events = JSON.stringify(this.specialEvents);
-
-        const resp = await fetch('/api/game/settings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(this.config)
-        });
-        if (!resp.ok) throw new Error('Falha API Regras');
-    },
-
-            async saveLevels() {
-        const resp = await fetch('/api/game/levels', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ levels: this.levels })
-        });
-        if (!resp.ok) throw new Error('Falha API Níveis');
-    },
-
-            async saveAchievements() {
-        const resp = await fetch('/api/game/achievements', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ achievements: this.achievements })
-        });
-        if (!resp.ok) throw new Error('Falha API Conquistas');
+        };
     }
-        }));
-    });
 </script>
 {% endblock %}

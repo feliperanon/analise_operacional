@@ -993,6 +993,64 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
         # Serialize Clients using JSON (Prevent JS Syntax Errors)
         clients_list = [{"id": c.id, "name": c.name} for c in clients]
         
+        # --- Calculate Streak (consecutive work days) ---
+        streak_days = 0
+        try:
+            # Get last 30 days of work
+            work_dates = set()
+            for r in raw_routes:
+                if r.date:
+                    work_dates.add(r.date)
+            
+            # Count consecutive days backwards from today
+            check_date = now.date()
+            while True:
+                # Skip weekends
+                if check_date.weekday() >= 5:  # Saturday or Sunday
+                    check_date -= timedelta(days=1)
+                    continue
+                
+                date_str = check_date.strftime("%Y-%m-%d")
+                if date_str in work_dates or check_date == now.date():
+                    if date_str in work_dates:
+                        streak_days += 1
+                    check_date -= timedelta(days=1)
+                else:
+                    break
+                
+                if streak_days > 30:  # Safety limit
+                    break
+        except Exception as e:
+            print(f"Error calculating streak: {e}")
+            streak_days = 0
+
+        # --- Calculate Daily Goal & Progress ---
+        # Goal = average of last 7 days + 10% or minimum 500kg
+        daily_goal = 500.0
+        daily_current_kg = 0.0
+        try:
+            # Sum of today's completed tonnage
+            daily_current_kg = sum([r.tonnage for r in raw_routes if r.date == today_str and r.tonnage]) or 0.0
+            
+            # Calculate average from last 7 working days
+            recent_totals = []
+            for i in range(1, 15):  # Look back up to 14 days to get 7 work days
+                d = now - timedelta(days=i)
+                if d.weekday() >= 5:  # Skip weekends
+                    continue
+                d_str = d.strftime("%Y-%m-%d")
+                day_kg = sum([r.tonnage for r in raw_routes if r.date == d_str and r.tonnage]) or 0.0
+                if day_kg > 0:
+                    recent_totals.append(day_kg)
+                if len(recent_totals) >= 7:
+                    break
+            
+            if recent_totals:
+                avg = sum(recent_totals) / len(recent_totals)
+                daily_goal = max(500.0, avg * 1.1)  # +10% challenge
+        except Exception as e:
+            print(f"Error calculating daily goal: {e}")
+        
         context = {
             "request": request,
             "employee": employee,
@@ -1009,6 +1067,10 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
                 "progress_percent": progress_percent,
                 "time_in_company": progress_data["months_tenure"] if progress_data else 0
             },
+            # New: Streak & Daily Goal
+            "streak_days": streak_days,
+            "daily_goal": daily_goal,
+            "daily_current_kg": daily_current_kg,
             # XP Extract Data
             "daily_xp_gain": int(session.exec(select(func.sum(GameXPTransaction.amount))
                 .where(GameXPTransaction.employee_id == employee.id)
@@ -1613,16 +1675,26 @@ async def api_game_audit_employee_history(
         .order_by(desc(GameXPTransaction.created_at))
     ).all()
 
-    # 3. Collect Dates for enrichment (Produtividade YYYY-MM-DD)
+    # 3. Collect Dates for enrichment (Produtividade YYYY-MM-DD or ref: daily_YYYY-MM-DD in reason)
     import re
     date_map = {} # tx_id -> date_str
     dates_to_fetch = set()
     
     for tx in txs:
-        # Check for pattern "Produtividade YYYY-MM-DD"
-        match = re.search(r"Produtividade (\d{4}-\d{2}-\d{2})", tx.reason)
+        d = None
+        reason = tx.reason or ''
+        
+        # Check for pattern "Produtividade YYYY-MM-DD" in reason
+        match = re.search(r"Produtividade (\d{4}-\d{2}-\d{2})", reason)
         if match:
             d = match.group(1)
+        else:
+            # Fallback: Check for "ref: daily_YYYY-MM-DD" pattern in reason
+            match2 = re.search(r"daily_(\d{4}-\d{2}-\d{2})", reason)
+            if match2:
+                d = match2.group(1)
+        
+        if d:
             date_map[tx.id] = d
             dates_to_fetch.add(d)
             
@@ -1677,10 +1749,11 @@ async def api_game_audit_employee_history(
         # Enrich
         route_info = None
         tx_date = date_map.get(tx.id)
-        if tx_date and tx_date in routes_by_date:
+        if tx_date:
+            # Always include route_info with the date, even if no routes found
             route_info = {
                 "date": tx_date,
-                "routes": routes_by_date[tx_date]
+                "routes": routes_by_date.get(tx_date, [])
             }
             
         history.append({
@@ -1695,6 +1768,13 @@ async def api_game_audit_employee_history(
             "route_info": route_info
         })
     
+    # Debug info
+    debug = {
+        "dates_extracted": list(dates_to_fetch),
+        "dates_with_routes": list(routes_by_date.keys()),
+        "route_counts": {d: len(routes_by_date[d]) for d in routes_by_date}
+    }
+    
     return {
         "employee": {
             "id": emp.id,
@@ -1702,7 +1782,8 @@ async def api_game_audit_employee_history(
             "registration_id": emp.registration_id,
             "total_xp": emp.total_xp
         },
-        "history": history
+        "history": history,
+        "debug": debug
     }
 
 class LevelsPayload(BaseModel):
@@ -1821,11 +1902,27 @@ async def admin_game_settings(request: Request, session: Session = Depends(get_s
         achievements = session.exec(select(models.GameAchievement)).all()
         achievements_data = [a.model_dump() for a in achievements]
         
+        # Parse special events and time bonuses from config (stored as JSON strings)
+        special_events = []
+        time_bonuses = []
+        try:
+            special_events_str = config_dict.get("xp_special_events", "[]")
+            special_events = json.loads(special_events_str) if special_events_str else []
+        except:
+            special_events = []
+        try:
+            time_bonuses_str = config_dict.get("xp_time_rules", "[]")
+            time_bonuses = json.loads(time_bonuses_str) if time_bonuses_str else []
+        except:
+            time_bonuses = []
+        
         return templates.TemplateResponse("admin_game_settings.html", {
             "request": request,
             "config_json": json.dumps(config_dict),
             "levels_json": json.dumps(levels_data),
-            "achievements_json": json.dumps(achievements_data)
+            "achievements_json": json.dumps(achievements_data),
+            "special_events_json": json.dumps(special_events),
+            "time_bonuses_json": json.dumps(time_bonuses)
         })
     except HTTPException:
         raise

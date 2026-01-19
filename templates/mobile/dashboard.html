@@ -1,11 +1,54 @@
 {% extends "mobile/layout.html" %}
 
 {% block content %}
-<div x-data="dashboardController()" class="flex flex-col min-h-screen pb-20">
+<!-- Offline Banner -->
+<div id="offline-banner" class="offline-banner">
+    <i data-lucide="wifi-off" class="w-4 h-4 inline-block mr-1"></i>
+    Você está offline. Algumas funções podem não funcionar.
+</div>
+
+<!-- Pull to Refresh Indicator -->
+<div id="pull-indicator" class="pull-indicator bg-slate-800 px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
+    <i data-lucide="refresh-cw" class="w-4 h-4 text-blue-400 animate-spin"></i>
+    <span class="text-xs text-slate-300">Atualizando...</span>
+</div>
+
+<!-- XP Popup Animation -->
+<div id="xp-popup" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[100] pointer-events-none hidden">
+    <div class="bg-gradient-to-r from-yellow-400 to-orange-500 text-slate-900 font-black text-4xl px-8 py-4 rounded-2xl shadow-2xl xp-pop">
+        +<span id="xp-amount">0</span> XP!
+    </div>
+</div>
+
+<div x-data="dashboardController()" class="flex flex-col min-h-screen pb-safe" x-ref="mainContainer" x-cloak>
+
+    <!-- Skeleton Loading (shown briefly on initial load) -->
+    <template x-if="!initialized">
+        <div class="animate-pulse">
+            <!-- Header Skeleton -->
+            <div class="px-6 pt-12 pb-8 bg-slate-800 rounded-b-[40px]">
+                <div class="flex items-center gap-4 mb-6">
+                    <div class="w-16 h-16 rounded-2xl skeleton"></div>
+                    <div class="flex-1">
+                        <div class="h-5 w-32 skeleton rounded mb-2"></div>
+                        <div class="h-4 w-24 skeleton rounded"></div>
+                    </div>
+                </div>
+                <div class="h-3 w-full skeleton rounded-full"></div>
+            </div>
+            <!-- Actions Skeleton -->
+            <div class="grid grid-cols-2 gap-4 px-6 mt-8">
+                <div class="h-28 skeleton rounded-3xl"></div>
+                <div class="h-28 skeleton rounded-3xl"></div>
+                <div class="h-28 skeleton rounded-3xl"></div>
+                <div class="h-28 skeleton rounded-3xl"></div>
+            </div>
+        </div>
+    </template>
 
     <!-- 1. Header & Gamification Card -->
-    <header
-        class="relative px-6 pt-12 pb-8 bg-gradient-to-b from-slate-900 to-slate-800 rounded-b-[40px] shadow-2xl z-10 border-b border-white/5">
+    <header x-show="initialized"
+        class="relative px-6 pt-safe pb-8 bg-gradient-to-b from-slate-900 to-slate-800 rounded-b-[40px] shadow-2xl z-10 border-b border-white/5">
         <div class="flex items-center justify-between mb-6">
             <div class="flex items-center space-x-4">
                 <div class="relative">
@@ -24,7 +67,15 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-bold text-white tracking-tight leading-tight">{{ employee.name }}</h1>
-                    <p class="text-sm text-slate-400 font-medium">{{ gamification.level.name }}</p>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <p class="text-sm text-slate-400 font-medium">{{ gamification.level.name }}</p>
+                        {% if streak_days and streak_days >= 3 %}
+                        <span class="streak-badge">
+                            <i data-lucide="flame" class="w-3 h-3"></i>
+                            {{ streak_days }} dias
+                        </span>
+                        {% endif %}
+                    </div>
                     {% if gamification.time_in_company < gamification.level.min_months %} <span
                         class="text-[10px] text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded ml-1">Nível Travado
                         (Tempo)</span>
@@ -73,7 +124,7 @@
     </header>
 
     <!-- 2. Active Route Card -->
-    <div class="px-6 -mt-6 z-20" x-show="hasActiveRoutes" x-cloak>
+    <div class="px-6 -mt-6 z-20" x-show="initialized && hasActiveRoutes" x-cloak>
         <template x-for="route in activeRoutes" :key="route.id">
             <div
                 class="bg-slate-800/90 backdrop-blur-xl rounded-3xl p-5 border border-indigo-500/30 shadow-[0_10px_40px_-10px_rgba(79,70,229,0.3)] animate-slide-up bg-[url('/static/grid.svg')] bg-repeat opacity-95 mb-4">
@@ -116,7 +167,7 @@
     </div>
 
     <!-- 3. Primary Actions Grid -->
-    <div class="grid grid-cols-2 gap-4 px-6 mt-8">
+    <div class="grid grid-cols-2 gap-4 px-6 mt-8" x-show="initialized">
         <!-- Start Button -->
         <button @click="openStartModal()"
             class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-green-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
@@ -175,18 +226,47 @@
         </button>
     </div>
 
-    <!-- 4. Performance Chart -->
-    <div class="px-6 mt-8" x-show="labels.length > 0">
+    <!-- 4. Daily Goal Progress -->
+    {% if daily_goal %}
+    <div class="px-6 mt-8">
+        <div class="bg-gradient-to-r from-indigo-900/50 to-purple-900/50 rounded-3xl p-5 border border-indigo-500/20">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-white font-bold flex items-center gap-2">
+                    <i data-lucide="target" class="w-5 h-5 text-indigo-400"></i>
+                    Meta do Dia
+                </h3>
+                <span class="text-xs text-slate-400">{{ daily_current_kg|int }} / {{ daily_goal|int }} kg</span>
+            </div>
+            <div class="h-4 w-full bg-slate-700/50 rounded-full overflow-hidden">
+                <div class="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
+                    style="width: {{ [100, (daily_current_kg / daily_goal * 100)|int]|min }}%"></div>
+            </div>
+            {% if daily_current_kg >= daily_goal %}
+            <p class="text-center text-green-400 text-sm mt-2 font-bold">🎉 Meta batida! +50 XP bônus</p>
+            {% else %}
+            <p class="text-center text-slate-400 text-xs mt-2">Faltam {{ (daily_goal - daily_current_kg)|int }} kg</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 5. Performance Chart -->
+    <div class="px-6 mt-8">
         <h2 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
             <i data-lucide="bar-chart-2" class="w-5 h-5 text-blue-400"></i>
             Sua Performance Diária
         </h2>
-        <div class="bg-slate-800/50 border border-white/5 p-4 rounded-3xl shadow-lg h-64 w-full">
+        <div class="bg-slate-800/50 border border-white/5 p-4 rounded-3xl shadow-lg h-64 w-full" x-show="labels.length > 0">
             <canvas id="performanceChart"></canvas>
+        </div>
+        <div class="bg-slate-800/50 border border-white/5 p-6 rounded-3xl text-center" x-show="labels.length === 0" x-cloak>
+            <i data-lucide="bar-chart-2" class="w-12 h-12 text-slate-600 mx-auto mb-3"></i>
+            <p class="text-slate-500 text-sm">Nenhum dado de performance ainda.</p>
+            <p class="text-slate-600 text-xs mt-1">Complete separações para ver seu gráfico.</p>
         </div>
     </div>
 
-    <!-- 5. XP History (New) -->
+    <!-- 6. XP History -->
     <div class="px-6 mt-8">
         <h2 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
             <i data-lucide="scroll" class="w-5 h-5 text-yellow-400"></i>
@@ -208,7 +288,7 @@
                     </div>
                     <div>
                         <p class="text-sm font-bold text-white">{{ item.reason }}</p>
-                        <p class="text-xs text-slate-400" x-show="'{{ item.details }}' !== ''">{{ item.details }}</p>
+                        {% if item.details %}<p class="text-xs text-slate-400">{{ item.details }}</p>{% endif %}
                     </div>
                 </div>
                 <div class="text-right">
@@ -222,8 +302,8 @@
             {% endfor %}
 
             <div class="bg-slate-900/50 p-3 text-center">
-                <button class="text-xs text-indigo-400 font-bold hover:text-indigo-300 uppercase tracking-wider">Ver
-                    Histórico Completo</button>
+                <a href="/mobile/achievements" class="text-xs text-indigo-400 font-bold hover:text-indigo-300 uppercase tracking-wider">Ver
+                    Histórico Completo</a>
             </div>
         </div>
     </div>
@@ -245,7 +325,9 @@
 
             <template x-for="route in completedRoutes" :key="route.id">
                 <div
-                    class="bg-slate-800/50 border border-slate-700/50 p-4 rounded-2xl flex justify-between items-center group hover:bg-slate-800 transition-colors">
+                    class="bg-slate-800/50 border border-slate-700/50 p-4 rounded-2xl flex justify-between items-center group hover:bg-slate-800 transition-colors relative overflow-hidden"
+                    @touchstart="route._touchStartX = $event.touches[0].clientX"
+                    @touchend="if(route._touchStartX - $event.changedTouches[0].clientX > 60) route._expanded = true; else if($event.changedTouches[0].clientX - route._touchStartX > 60) route._expanded = false">
                     <div class="flex items-center gap-3">
                         <div
                             class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-slate-400 font-bold text-xs group-hover:bg-green-500/20 group-hover:text-green-500 transition-colors">
@@ -254,6 +336,11 @@
                         <div>
                             <p class="text-white font-semibold text-sm" x-text="route.client_name"></p>
                             <p class="text-slate-400 text-xs" x-text="route.duration"></p>
+                            <!-- Expanded details on swipe -->
+                            <div x-show="route._expanded" x-transition class="mt-2 text-xs text-slate-500 space-y-1">
+                                <p><span class="text-slate-400">Início:</span> <span x-text="route.start_time"></span></p>
+                                <p><span class="text-slate-400">Fim:</span> <span x-text="route.end_time"></span></p>
+                            </div>
                         </div>
                     </div>
                     <div class="text-right">
@@ -261,6 +348,8 @@
                         <p class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 inline-block mt-1 border border-slate-600"
                             x-text="route.performance"></p>
                     </div>
+                    <!-- Swipe hint -->
+                    <span class="swipe-hint">← deslize</span>
                 </div>
             </template>
         </div>
@@ -339,10 +428,10 @@
                         </template>
                     </div>
 
-                    <button @click="startBatch()"
+                    <button @click="startBatch()" :class="{'btn-loading': isLoading}"
                         class="w-full py-4 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold text-lg shadow-lg shadow-green-500/20 active:scale-[0.98] transition-all flex justify-center items-center gap-2">
-                        <span>Iniciar Separação</span>
-                        <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                        <span x-text="isLoading ? 'Iniciando...' : 'Iniciar Separação'"></span>
+                        <i data-lucide="arrow-right" class="w-5 h-5" x-show="!isLoading"></i>
                     </button>
                 </div>
             </div>
@@ -392,9 +481,9 @@
                     class="flex-1 py-3 rounded-xl bg-slate-800 text-slate-300 font-medium hover:bg-slate-700">
                     Cancelar
                 </button>
-                <button @click="confirmStop()"
+                <button @click="confirmStop()" :class="{'btn-loading': isLoading}"
                     class="flex-1 py-3 rounded-xl bg-green-500 text-white font-bold hover:bg-green-600 shadow-lg shadow-green-500/20">
-                    Confirmar
+                    <span x-text="isLoading ? 'Finalizando...' : 'Confirmar'"></span>
                 </button>
             </div>
         </div>
@@ -571,13 +660,15 @@
 </script>
 <script>
     function dashboardController() {
-        console.log("Dashboard Controller V3 Loaded");
+        console.log("Dashboard Controller V4 Loaded");
         return {
+            initialized: false,
             showStartModal: false,
             showStopModal: false,
             showEndDayModal: false,
             showEvaluation: false,
             showHelpModal: false,
+            isLoading: false,
 
             searchClient: '',
             queue: [], // Array of {id, name, weight}
@@ -614,15 +705,106 @@
 
             init() {
                 console.log("Dashboard Loaded");
-                lucide.createIcons();
-                if (this.labels.length > 0) {
-                    this.initChart();
-                }
+                
+                // Mark as initialized after a brief delay to show skeleton
+                setTimeout(() => {
+                    this.initialized = true;
+                    this.$nextTick(() => {
+                        lucide.createIcons();
+                        if (this.labels.length > 0) {
+                            this.initChart();
+                        }
+                    });
+                }, 100);
 
                 // Timer tick
                 setInterval(() => {
                     this.tick = Date.now();
                 }, 1000);
+
+                // Setup offline detection
+                this.setupOfflineDetection();
+                
+                // Setup pull to refresh
+                this.setupPullToRefresh();
+            },
+
+            // Haptic feedback helper
+            haptic(type = 'light') {
+                if ('vibrate' in navigator) {
+                    const patterns = {
+                        light: [10],
+                        medium: [20],
+                        heavy: [30, 10, 30],
+                        success: [10, 50, 30],
+                        error: [50, 30, 50]
+                    };
+                    navigator.vibrate(patterns[type] || patterns.light);
+                }
+            },
+
+            // Offline detection
+            setupOfflineDetection() {
+                const banner = document.getElementById('offline-banner');
+                const updateStatus = () => {
+                    if (!navigator.onLine) {
+                        banner.classList.add('show');
+                    } else {
+                        banner.classList.remove('show');
+                    }
+                };
+                window.addEventListener('online', updateStatus);
+                window.addEventListener('offline', updateStatus);
+                updateStatus();
+            },
+
+            // Pull to refresh
+            setupPullToRefresh() {
+                let startY = 0;
+                let pulling = false;
+                const indicator = document.getElementById('pull-indicator');
+                const container = this.$refs.mainContainer;
+                
+                if (!container) return;
+
+                container.addEventListener('touchstart', (e) => {
+                    if (window.scrollY === 0) {
+                        startY = e.touches[0].pageY;
+                        pulling = true;
+                    }
+                }, { passive: true });
+
+                container.addEventListener('touchmove', (e) => {
+                    if (!pulling) return;
+                    const y = e.touches[0].pageY;
+                    const diff = y - startY;
+                    if (diff > 80 && window.scrollY === 0) {
+                        indicator.classList.add('visible');
+                    }
+                }, { passive: true });
+
+                container.addEventListener('touchend', () => {
+                    if (indicator.classList.contains('visible')) {
+                        this.haptic('medium');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 300);
+                    }
+                    pulling = false;
+                    indicator.classList.remove('visible');
+                });
+            },
+
+            // Show XP popup animation
+            showXpPopup(amount) {
+                const popup = document.getElementById('xp-popup');
+                const amountEl = document.getElementById('xp-amount');
+                amountEl.textContent = amount;
+                popup.classList.remove('hidden');
+                this.haptic('success');
+                setTimeout(() => {
+                    popup.classList.add('hidden');
+                }, 2000);
             },
 
             tick: Date.now(),
@@ -706,8 +888,10 @@
             },
 
             startBatch() {
-                // REWRITE OF START BATCH
-                if (this.queue.length === 0) return;
+                if (this.queue.length === 0 || this.isLoading) return;
+                
+                this.haptic('medium');
+                this.isLoading = true;
 
                 let allocations = [];
                 for (let i = 0; i < this.queue.length; i++) {
@@ -725,12 +909,19 @@
                     .then(r => r.json())
                     .then(data => {
                         if (data.success) {
+                            this.haptic('success');
                             window.location.reload();
                         } else {
+                            this.haptic('error');
+                            this.isLoading = false;
                             alert("Erro: " + (data.error || "Falha ao iniciar"));
                         }
                     })
-                    .catch(err => alert("Erro de conexão"));
+                    .catch(err => {
+                        this.haptic('error');
+                        this.isLoading = false;
+                        alert("Erro de conexão");
+                    });
             },
 
             openStopModal(route) {
@@ -739,7 +930,10 @@
             },
 
             confirmStop() {
-                if (!this.selectedRoute) return;
+                if (!this.selectedRoute || this.isLoading) return;
+
+                this.haptic('medium');
+                this.isLoading = true;
 
                 fetch(`/mobile/route/${this.selectedRoute.id}/finish`, {
                     method: 'POST'
@@ -747,10 +941,24 @@
                     .then(r => r.json())
                     .then(data => {
                         if (data.success) {
-                            window.location.reload();
+                            this.haptic('success');
+                            // Show XP popup if XP was earned
+                            if (data.xp_earned) {
+                                this.showXpPopup(data.xp_earned);
+                                setTimeout(() => window.location.reload(), 2000);
+                            } else {
+                                window.location.reload();
+                            }
                         } else {
+                            this.haptic('error');
+                            this.isLoading = false;
                             alert("Erro: " + data.error);
                         }
+                    })
+                    .catch(err => {
+                        this.haptic('error');
+                        this.isLoading = false;
+                        alert("Erro de conexão");
                     });
             },
 

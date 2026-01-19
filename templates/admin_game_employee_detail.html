@@ -100,7 +100,7 @@
                                             <i data-lucide="clock" class="w-3 h-3 inline mr-1"></i>
                                             <span x-text="translateText(item.details.regra_horario)"></span>
                                         </div>
-                                        <div x-show="item.source_type === 'manual'"
+                                        <div x-show="item.source_type && (item.source_type.includes('manual') || item.source_type.includes('admin'))"
                                             class="mt-2 bg-slate-900/50 p-2 rounded text-xs text-amber-200/80 italic border border-amber-500/10">
                                             Obs: <span x-text="item.reason"></span>
                                         </div>

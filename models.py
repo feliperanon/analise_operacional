@@ -227,13 +227,16 @@ class GameXPTransaction(SQLModel, table=True):
 
 class GameAchievement(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    slug: str = Field(index=True, unique=True) # e.g. "marathon_100t"
+    slug: Optional[str] = Field(default=None, index=True) # e.g. "marathon_100t"
     name: str
     description: str
-    icon: str # lucide icon name or image path
+    icon: str = Field(default="🏆") # emoji or lucide icon name
     xp_reward: int = Field(default=0)
-    trigger_rule: Optional[str] = None # JSON or key for logic
-    is_manual: bool = Field(default=False) # If true, only managers can grant
+    category: str = Field(default="general") # production, attendance, health, tenure, social, special
+    trigger_type: str = Field(default="manual") # auto_production, auto_attendance, auto_health, auto_tenure, auto_streak, manual
+    trigger_value: Optional[str] = None # JSON with trigger conditions
+    trigger_rule: Optional[str] = None # Legacy - JSON or key for logic
+    is_manual: bool = Field(default=False) # Legacy - If true, only managers can grant
 
 class EmployeeAchievement(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
