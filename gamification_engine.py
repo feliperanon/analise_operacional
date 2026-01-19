@@ -1,6 +1,7 @@
 
 from typing import List, Optional
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from sqlmodel import Session, select, func
 from models import Employee, Route, GameXPTransaction, GameLevel, GameAchievement, EmployeeAchievement, Event
 import json
@@ -145,7 +146,7 @@ def calculate_daily_xp(session: Session, target_date_str: str):
             source_type="daily_auto",
             status="provisional", # Requires confirmation
             reason=f"Produtividade {target_date_str} (ref: {reference_id}) | {kg:.0f}kg | {uo:.2f} UO {extra_info}",
-            created_at=datetime.now()
+            created_at=datetime.now(ZoneInfo("America/Sao_Paulo"))
         )
         session.add(tx)
         created_count += 1
@@ -161,7 +162,8 @@ def confirm_pending_xp(session: Session):
     # Find provisional transactions created calculated for YESTERDAY (or older)
     # Actually, we rely on the `created_at`. If created > 24h ago, confirm.
     
-    threshold = datetime.now() - timedelta(hours=20) # Almost a day
+    tz = ZoneInfo("America/Sao_Paulo")
+    threshold = datetime.now(tz) - timedelta(hours=20) # Almost a day
     
     pending = session.exec(select(GameXPTransaction).where(
         GameXPTransaction.status == "provisional",
@@ -171,7 +173,7 @@ def confirm_pending_xp(session: Session):
     confirmed_count = 0
     for tx in pending:
         tx.status = "confirmed"
-        tx.confirmed_at = datetime.now()
+        tx.confirmed_at = datetime.now(ZoneInfo("America/Sao_Paulo"))
         
         # Update Employee Total XP
         emp = session.get(Employee, tx.employee_id)
@@ -197,7 +199,7 @@ def get_employee_progress(session: Session, employee_id: int):
     # Calculate MONTHS in company
     months_in_company = 0
     if emp.admission_date:
-        today = datetime.now()
+        today = datetime.now(ZoneInfo("America/Sao_Paulo"))
         # diff in months
         months_in_company = (today.year - emp.admission_date.year) * 12 + (today.month - emp.admission_date.month)
     
@@ -263,7 +265,7 @@ def check_and_award_achievements(session: Session, employee_id: int):
     if not available: return
     
     # Pre-fetch some generic stats for performance
-    now = datetime.now()
+    now = datetime.now(ZoneInfo("America/Sao_Paulo"))
     months_tenure = 0
     if emp.admission_date:
         months_tenure = (now.year - emp.admission_date.year) * 12 + (now.month - emp.admission_date.month)
@@ -385,7 +387,7 @@ def check_and_award_achievements(session: Session, employee_id: int):
             ea = EmployeeAchievement(
                 employee_id=employee_id,
                 achievement_id=ach.id,
-                earned_at=datetime.now(),
+                earned_at=datetime.now(ZoneInfo("America/Sao_Paulo")),
                 status="approved" # Auto-achievements are auto-approved
             )
             session.add(ea)
@@ -397,8 +399,8 @@ def check_and_award_achievements(session: Session, employee_id: int):
                 source_type="achievement_grant",
                 status="confirmed",
                 reason=f"Conquista Desbloqueada: {ach.name} {ach.icon}",
-                created_at=datetime.now(),
-                confirmed_at=datetime.now()
+                created_at=datetime.now(ZoneInfo("America/Sao_Paulo")),
+                confirmed_at=datetime.now(ZoneInfo("America/Sao_Paulo"))
             )
             session.add(tx)
             

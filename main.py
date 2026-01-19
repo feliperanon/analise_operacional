@@ -9,6 +9,7 @@ import json
 import csv
 import io
 from datetime import datetime, timedelta, time
+from zoneinfo import ZoneInfo
 import traceback
 import os
 from starlette.middleware.sessions import SessionMiddleware
@@ -437,7 +438,8 @@ def get_dashboard_data(session: Session, shift_filter: str):
     """
     Fetches data for the Command Center Dashboard (Nexus).
     """
-    today = datetime.now()
+    tz = ZoneInfo("America/Sao_Paulo")
+    today = datetime.now(tz)
     today_str = today.strftime("%Y-%m-%d")
     
     # --- 1. Operations Pulse (KPIs) ---
@@ -2081,7 +2083,7 @@ def add_xp_transaction(session: Session, employee_id: int, points: float, type: 
         points=points,
         reference_id=reference_id,
         note=note,
-        created_at=datetime.now()
+        created_at=datetime.now(ZoneInfo("America/Sao_Paulo"))
     )
     session.add(ledger)
     
@@ -2214,9 +2216,9 @@ async def mobile_routine_stop(request: Request, session: Session = Depends(get_s
     
     return RedirectResponse(url="/mobile/logout", status_code=303)
          
-    user_id = user.get("id")
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    now_time = datetime.now().strftime("%H:%M")
+    tz = ZoneInfo("America/Sao_Paulo")
+    today_str = datetime.now(tz).strftime("%Y-%m-%d")
+    now_time = datetime.now(tz).strftime("%H:%M")
     
     stmt = select(models.EmployeeRoutine).where(
         models.EmployeeRoutine.employee_id == user_id,
@@ -2293,7 +2295,7 @@ async def admin_reopen_routine(
         # User requested: "reopened_by / reopened_reason / reopened_at"
         routine.reopened_by = str(user)
         routine.reopened_reason = reason
-        routine.reopened_at = datetime.now()
+        routine.reopened_at = datetime.now(ZoneInfo("America/Sao_Paulo"))
         
         session.add(routine)
         
