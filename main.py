@@ -1179,6 +1179,16 @@ async def api_confirm_xp(session: Session = Depends(get_session)):
     count = confirm_pending_xp(session)
     return {"success": True, "confirmed_transactions": count}
 
+@app.post("/api/game/recalculate-all/{date_str}")
+async def api_recalculate_all(date_str: str, session: Session = Depends(get_session)):
+    """Force recalculation of XP for ALL employees on a specific date"""
+    try:
+        from gamification_engine import calculate_daily_xp
+        count = calculate_daily_xp(session, date_str)
+        return {"success": True, "processed": count}
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
 @app.get("/api/game/audit")
 async def api_game_audit(
     request: Request,
@@ -2001,6 +2011,13 @@ async def mobile_route_finish(
         session.add(route)
         session.commit()
         
+        # Recalculate Daily XP
+        try:
+            from gamification_engine import calculate_daily_xp
+            calculate_daily_xp(session, route.date)
+        except Exception as e:
+            logger.error(f"Error calculating XP on mobile finish: {e}")
+            
         return JSONResponse({"success": True})
     except Exception as e:
         logger.exception(f"Error finishing route {route_id}: {e}")
@@ -2205,6 +2222,13 @@ async def mobile_routine_stop(request: Request, session: Session = Depends(get_s
         session.add(r)
         
     session.commit()
+    
+    # Trigger XP calculation for today
+    try:
+        from gamification_engine import calculate_daily_xp
+        calculate_daily_xp(session, today_str)
+    except Exception as e:
+        logger.error(f"Error calculating XP on routine end: {e}")
     
     # Redirect to Separacao as per last request? Or stay on Dashboard (which will likely redirect or show closed state)?
     # User: "Quando eu clicar encerrar o dia no botão deve se finalizar e encerrar tambem na pagina /separacao"

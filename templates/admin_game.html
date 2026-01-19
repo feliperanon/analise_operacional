@@ -123,11 +123,13 @@
 
                 <!-- Toggle -->
                 <div class="grid grid-cols-2 gap-2 mb-4">
-                    <button type="button" @click="manual.form.type='add'" :class="manual.form.type==='add' ? 'bg-green-600 text-white border-green-500/40' : 'bg-slate-900 text-slate-200 border-slate-700'"
+                    <button type="button" @click="manual.form.type='add'"
+                        :class="manual.form.type==='add' ? 'bg-green-600 text-white border-green-500/40' : 'bg-slate-900 text-slate-200 border-slate-700'"
                         class="px-3 py-2 rounded-xl border text-xs font-bold transition-colors">
                         + XP
                     </button>
-                    <button type="button" @click="manual.form.type='remove'" :class="manual.form.type==='remove' ? 'bg-red-600 text-white border-red-500/40' : 'bg-slate-900 text-slate-200 border-slate-700'"
+                    <button type="button" @click="manual.form.type='remove'"
+                        :class="manual.form.type==='remove' ? 'bg-red-600 text-white border-red-500/40' : 'bg-slate-900 text-slate-200 border-slate-700'"
                         class="px-3 py-2 rounded-xl border text-xs font-bold transition-colors">
                         - XP
                     </button>
@@ -137,7 +139,8 @@
                 <div class="space-y-3">
                     <div>
                         <label class="block text-xs font-bold text-slate-400 mb-1">Colaborador</label>
-                        <select x-model.number="manual.form.employee_id" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-blue-500">
+                        <select x-model.number="manual.form.employee_id"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-blue-500">
                             <option value="0">Selecione...</option>
                             <template x-for="e in manual.employees" :key="e.id">
                                 <option :value="e.id" x-text="e.name"></option>
@@ -159,14 +162,16 @@
                             placeholder="Ex: Bonificação por meta batida / Ajuste por correção de lançamento"></textarea>
                     </div>
 
-                    <div x-show="manual.error" x-transition.opacity class="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-sm text-red-200">
+                    <div x-show="manual.error" x-transition.opacity
+                        class="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-sm text-red-200">
                         <div class="flex items-start gap-2">
                             <i data-lucide="alert-triangle" class="w-4 h-4 mt-0.5"></i>
                             <div x-text="manual.error"></div>
                         </div>
                     </div>
 
-                    <div x-show="manual.success" x-transition.opacity class="bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-sm text-green-200">
+                    <div x-show="manual.success" x-transition.opacity
+                        class="bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-sm text-green-200">
                         <div class="flex items-start gap-2">
                             <i data-lucide="check-circle" class="w-4 h-4 mt-0.5"></i>
                             <div x-text="manual.success"></div>
@@ -177,9 +182,26 @@
                         class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-colors"
                         :class="manual.form.type==='add' ? 'bg-green-600 hover:bg-green-500 disabled:bg-green-900/40' : 'bg-red-600 hover:bg-red-500 disabled:bg-red-900/40'">
                         <i data-lucide="loader-2" class="w-4 h-4 animate-spin" x-show="manual.saving"></i>
-                        <span x-text="manual.form.type==='add' ? (manual.saving ? 'Aplicando...' : 'Aplicar bonificação') : (manual.saving ? 'Aplicando...' : 'Aplicar penalidade')"></span>
+                        <span
+                            x-text="manual.form.type==='add' ? (manual.saving ? 'Aplicando...' : 'Aplicar bonificação') : (manual.saving ? 'Aplicando...' : 'Aplicar penalidade')"></span>
                     </button>
                 </div>
+            </div>
+
+            <!-- Sync Card -->
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
+                <h3 class="font-bold text-white mb-2 flex items-center gap-2">
+                    <i data-lucide="refresh-cw" class="w-5 h-5 text-blue-400"></i>
+                    Sincronização
+                </h3>
+                <p class="text-sm text-slate-400 mb-5">Recalcula transações pendentes para o dia de hoje.</p>
+
+                <button type="button" @click="recalculateToday()" :disabled="syncing"
+                    class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 font-bold text-sm text-white transition-all border border-slate-600">
+                    <i data-lucide="loader-2" class="w-4 h-4 animate-spin" x-show="syncing"></i>
+                    <i data-lucide="zap" class="w-4 h-4 text-yellow-500" x-show="!syncing"></i>
+                    <span x-text="syncing ? 'Sincronizando...' : 'Recalcular XP (Hoje)'"></span>
+                </button>
             </div>
 
             <div class="bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl p-6 shadow-lg text-white">
@@ -209,6 +231,7 @@
                     reason: ''
                 }
             },
+            syncing: false,
 
             init() {
                 this.loadEmployees();
@@ -301,6 +324,26 @@
                     this.manual.error = 'Erro de conexão.';
                 } finally {
                     this.manual.saving = false;
+                    this.$nextTick(() => lucide.createIcons());
+                }
+            },
+
+            async recalculateToday() {
+                this.syncing = true;
+                const today = new Date().toISOString().split('T')[0];
+                try {
+                    const res = await fetch(`/api/game/recalculate-all/${today}`, { method: 'POST' });
+                    const data = await res.json();
+                    if (data.success) {
+                        alert('XP recalculado com sucesso! ' + (data.processed || 0) + ' transações processadas.');
+                        window.location.reload();
+                    } else {
+                        alert('Erro ao recalcular: ' + (data.error || 'Erro desconhecido'));
+                    }
+                } catch (e) {
+                    alert('Erro de conexão ao sincronizar.');
+                } finally {
+                    this.syncing = false;
                     this.$nextTick(() => lucide.createIcons());
                 }
             },
