@@ -666,7 +666,11 @@ async def logout(request: Request):
 
 @app.get("/mobile/login", response_class=HTMLResponse)
 async def mobile_login(request: Request):
-    return templates.TemplateResponse("mobile/login.html", {"request": request})
+    error = request.query_params.get("error")
+    error_msg = None
+    if error == "access_revoked":
+        error_msg = "Seu acesso foi revogado pelo administrador."
+    return templates.TemplateResponse("mobile/login.html", {"request": request, "error": error_msg})
 
 @app.post("/mobile/auth")
 async def mobile_auth(
@@ -688,6 +692,13 @@ async def mobile_auth(
         return templates.TemplateResponse(
             "mobile/login.html", 
             {"request": request, "error": "Acesso não autorizado."}
+        )
+
+    # Check Mobile Access Permission
+    if not employee.mobile_access:
+        return templates.TemplateResponse(
+            "mobile/login.html", 
+            {"request": request, "error": "Seu usuário não possui permissão de acesso ao app mobile."}
         )
 
     # Clear any existing session (e.g. Admin login) to prevent conflicts
@@ -721,6 +732,11 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
         if not employee:
             request.session.clear()
             return RedirectResponse(url="/mobile/login", status_code=303)
+
+        # Enforce Mobile Access (Revocation Check)
+        if not employee.mobile_access:
+            request.session.clear()
+            return RedirectResponse(url="/mobile/login?error=access_revoked", status_code=303)
 
         today = datetime.now(ZoneInfo("America/Sao_Paulo"))
         yesterday = today - timedelta(days=1)
@@ -3183,7 +3199,7 @@ async def strategy_page(request: Request):
     return templates.TemplateResponse("strategy.html", {"request": request})
 
 @app.get("/rankings", response_class=HTMLResponse)
-async def rankings_page(request: Request, shift: Optional[str] = None, date: Optional[str] = None, period: str = "daily", session: Session = Depends(get_session)):
+async def rankings_page(request: Request, shift: Optional[str] = None, date: Optional[str] = None, period: str = "daily", sort_by: str = "tonnage", order: str = "desc", session: Session = Depends(get_session)):
     import traceback
     try:
         user = require_login(request)
@@ -3249,69 +3265,70 @@ async def rankings_page(request: Request, shift: Optional[str] = None, date: Opt
         for eid, s in emp_stats.items():
             if not s['emp']: continue
             
+            hours = 0
             avg_kgh = 0
             if s['secs'] > 0:
-                avg_kgh = s['tonnage'] / (s['secs']/3600)
+                hours = s['secs'] / 3600
+                avg_kgh = s['tonnage'] / hours
                 
             ranking_list.append({
+                "id": eid,
                 "name": s['emp'].name,
                 "photo": s['emp'].photo_url,
                 "tonnage": s['tonnage'],
                 "kgh": avg_kgh,
+                "count": s['count'],
+                "time_hours": hours,
+                "time_fmt": "{:02d}:{:02d}".format(int(hours), int((hours*60)%60)),
                 "max_tonnage": s['max_tonnage'],
-                "max_kgh": s['max_kgh'],
-                "count": s['count']
+                "max_kgh": s['max_kgh']
             })
             
-        # Sorters
-        rank_volume = sorted(ranking_list, key=lambda x: x['tonnage'], reverse=True)[:10] # Top 10
-        rank_speed = sorted(ranking_list, key=lambda x: x['kgh'], reverse=True)[:10] # Top 10
+        # Sorters (Dynamic)
+        reverse_order = True if order == 'desc' else False
         
+        if sort_by == 'kgh':
+            ranking_list.sort(key=lambda x: x['kgh'], reverse=reverse_order)
+        elif sort_by == 'time':
+            ranking_list.sort(key=lambda x: x['time_hours'], reverse=reverse_order)
+        elif sort_by == 'count':
+            ranking_list.sort(key=lambda x: x['count'], reverse=reverse_order)
+        else: # tonnage
+            ranking_list.sort(key=lambda x: x['tonnage'], reverse=reverse_order)
+
         # --- Badges Logic ---
         badges = []
-        
-        # Flash (Maior Kgh único do dia/periodo)
         if ranking_list:
-            flash_winner = max(ranking_list, key=lambda x: x['max_kgh'])
-            if flash_winner['max_kgh'] > 0:
+            by_kgh = sorted(ranking_list, key=lambda x: x['max_kgh'], reverse=True)
+            by_vol = sorted(ranking_list, key=lambda x: x['max_tonnage'], reverse=True)
+            by_cnt = sorted(ranking_list, key=lambda x: x['count'], reverse=True)
+            
+            flash = by_kgh[0] if by_kgh and by_kgh[0]['max_kgh'] > 0 else None
+            hulk  = by_vol[0] if by_vol and by_vol[0]['max_tonnage'] > 0 else None
+            mara  = by_cnt[0] if by_cnt and by_cnt[0]['count'] >= 5 else None 
+            
+            if flash:
                 badges.append({
-                    "image": "/static/badges/flash.png", 
-                    "title": "The Flash", 
-                    "class": "shadow-yellow-500/50 border-yellow-500/50",
-                    "desc": "Maior velocidade em uma única carga",
-                    "winner": flash_winner['name'],
-                    "value": f"{int(flash_winner['max_kgh'])} kg/h"
+                    "image": "/static/badges/flash.png", "title": "The Flash", 
+                    "class": "shadow-yellow-500/50 border-yellow-500/50", "desc": "Maior velocidade (única)",
+                    "winner": flash['name'].split()[0], "value": f"{int(flash['max_kgh'])} kg/h"
                 })
-                
-        # Hulk (Maior Carga única)
-        if ranking_list:
-            hulk_winner = max(ranking_list, key=lambda x: x['max_tonnage'])
-            if hulk_winner['max_tonnage'] > 0:
+            if hulk:
                 badges.append({
-                    "image": "/static/badges/hulk.png", 
-                    "title": "O Hulk", 
-                    "class": "shadow-green-500/50 border-green-500/50",
-                    "desc": "Maior peso carregado de uma só vez",
-                    "winner": hulk_winner['name'],
-                    "value": f"{hulk_winner['max_tonnage']} kg"
+                    "image": "/static/badges/hulk.png", "title": "Hulk Esmaga", 
+                    "class": "shadow-green-500/50 border-green-500/50", "desc": "Maior carga (única)",
+                    "winner": hulk['name'].split()[0], "value": f"{int(hulk['max_tonnage'])} kg"
                 })
-                
-        # Maratonista (Mais viagens)
-        if ranking_list:
-            mara_winner = max(ranking_list, key=lambda x: x['count'])
-            if mara_winner['count'] > 0:
-                 badges.append({
-                    "image": "/static/badges/marathon.png", 
-                    "title": "Maratonista", 
-                    "class": "shadow-blue-500/50 border-blue-500/50",
-                    "desc": "Maior número de viagens total",
-                    "winner": mara_winner['name'],
-                    "value": f"{mara_winner['count']} viagens"
+            if mara:
+                badges.append({
+                    "image": "/static/badges/marathon.png", "title": "Maratonista", 
+                    "class": "shadow-blue-500/50 border-blue-500/50", "desc": "Mais separações",
+                    "winner": mara['name'].split()[0], "value": f"{mara['count']} viagens"
                 })
-                
+
         # --- Global Levels (All Employees) ---
         query_levels = select(models.Employee).where(models.Employee.status == 'active')
-        if shift and shift != 'Geral':
+        if shift and shift not in ['Geral', 'Todos', None]:
             query_levels = query_levels.where(models.Employee.work_shift == shift)
             
         all_emps = session.exec(query_levels.order_by(models.Employee.total_xp.desc()).limit(12)).all()
@@ -3322,7 +3339,6 @@ async def rankings_page(request: Request, shift: Optional[str] = None, date: Opt
             lvl_name = "Júnior"
             progress = 0
             
-            # Simple level logic (can be replaced by DB levels if needed)
             if xp < 5000:
                 lvl_name = "Bronze"
                 progress = (xp / 5000) * 100
@@ -3345,18 +3361,116 @@ async def rankings_page(request: Request, shift: Optional[str] = None, date: Opt
 
         return templates.TemplateResponse("rankings.html", {
             "request": request,
-            "rank_volume": rank_volume,
-            "rank_speed": rank_speed,
-            "badges": badges,
-            "levels": level_list,
+            "period": period,
+            "current_period": period,
             "selected_date": date,
-            "current_shift": shift or 'Geral',
-            "current_period": period
+            "current_shift": shift or 'Todos',
+            "current_sort": sort_by,
+            "current_order": order,
+            "badges": badges,
+            "ranking_list": ranking_list,
+            "levels": level_list
         })
 
     except Exception as e:
         traceback.print_exc()
-        return HTMLResponse(f"<h1>Erro 500</h1><pre>{traceback.format_exc()}</pre>", status_code=500)        # Base Query
+        return HTMLResponse(f"<h1>Erro 500</h1><pre>{traceback.format_exc()}</pre>", status_code=500)
+
+@app.get("/api/rankings/employee/{employee_id}/details")
+async def get_ranking_details(
+    request: Request,
+    employee_id: int,
+    date: str,
+    period: str = "daily",
+    shift: Optional[str] = None,
+    session: Session = Depends(get_session)
+):
+    try:
+        user = require_login(request)
+        target_date = datetime.strptime(date, "%Y-%m-%d")
+        start_date_str = date
+        end_date_str = date
+        
+        if period == "weekly":
+            start_date_obj = target_date - timedelta(days=6)
+            start_date_str = start_date_obj.strftime("%Y-%m-%d")
+        elif period == "monthly":
+            start_date_obj = target_date - timedelta(days=29)
+            start_date_str = start_date_obj.strftime("%Y-%m-%d")
+            
+        # Stats Query
+        query = select(models.Route, models.Client).join(models.Client, models.Route.client_id == models.Client.id)
+        query = query.where(models.Route.employee_id == employee_id)
+        query = query.where(models.Route.tonnage > 0)
+        query = query.where(models.Route.date >= start_date_str)
+        query = query.where(models.Route.date <= end_date_str)
+        
+        if shift and shift not in ['Geral', 'Todos', None, 'null']:
+            query = query.where(models.Route.shift == shift)
+            
+        results = session.exec(query).all() # List of (Route, Client)
+        
+        routes_data = []
+        total_tonnage = 0
+        total_secs = 0
+        max_kgh = 0
+        
+        for r, c in results:
+            tonnage = r.tonnage or 0
+            duration_fmt = "-"
+            kgh = 0
+            
+            # Duration logic
+            try:
+                if r.start_time and r.end_time:
+                    s = datetime.strptime(r.start_time, "%H:%M")
+                    e = datetime.strptime(r.end_time, "%H:%M")
+                    diff = (e-s).total_seconds()
+                    if diff > 0:
+                        total_secs += diff
+                        duration_fmt = f"{int(diff//3600):02d}:{int((diff%3600)//60):02d}"
+                        kgh = tonnage / (diff/3600)
+                        if kgh > max_kgh: max_kgh = kgh
+            except: pass
+            
+            total_tonnage += tonnage
+            
+            routes_data.append({
+                "client": c.name,
+                "tonnage": int(tonnage),
+                "start": r.start_time,
+                "end": r.end_time or "-",
+                "duration": duration_fmt,
+                "kgh": int(kgh),
+                "date": datetime.strptime(r.date, "%Y-%m-%d").strftime("%d/%m")
+            })
+            
+        # Summary
+        avg_kgh = 0
+        hours = total_secs / 3600
+        if hours > 0:
+            avg_kgh = total_tonnage / hours
+            
+        employee = session.exec(select(models.Employee).where(models.Employee.id == employee_id)).first()
+            
+        return {
+            "employee": {
+                "name": employee.name if employee else "Desconhecido",
+                "photo": employee.photo_url if employee else None
+            },
+            "summary": {
+                "total_tonnage": int(total_tonnage),
+                "avg_kgh": int(avg_kgh),
+                "total_hours": f"{int(hours):02d}:{int((hours*60)%60):02d}",
+                "count": len(routes_data)
+            },
+            "routes": sorted(routes_data, key=lambda x: x['start'] or "", reverse=True)
+        }
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return HTMLResponse(f"Erro: {str(e)}", status_code=500)
         query = select(models.Employee).where(models.Employee.status == 'active')
         
         # Apply Shift Filter (if specific shift selected)
@@ -6061,6 +6175,7 @@ async def update_employee(
     birthday: str = Form(None),
     work_days: List[str] = Form(None),
     work_schedule: str = Form(None),
+    mobile_access: bool = Form(False),
     session: Session = Depends(get_session)
 ):
     require_login(request)
@@ -6096,7 +6211,9 @@ async def update_employee(
         emp.role = role
         emp.work_shift = work_shift
         emp.cost_center = cost_center
+        emp.cost_center = cost_center
         emp.work_schedule = work_schedule
+        emp.mobile_access = mobile_access
 
         # Update Work Days
         if work_days:

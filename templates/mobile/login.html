@@ -23,6 +23,14 @@
 
         <!-- Glass Card -->
         <div class="backdrop-blur-xl bg-slate-800/40 border border-slate-700/50 p-8 rounded-3xl shadow-2xl">
+
+            {% if error %}
+            <div class="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-3">
+                <i data-lucide="alert-circle" class="w-5 h-5 text-red-500 shrink-0 mt-0.5"></i>
+                <p class="text-sm text-red-200">{{ error }}</p>
+            </div>
+            {% endif %}
+
             <form action="/mobile/auth" method="POST" class="space-y-6">
 
                 <div class="space-y-2">

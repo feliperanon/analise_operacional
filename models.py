@@ -40,6 +40,9 @@ class Employee(SQLModel, table=True):
     # Schedule (Horário de Trabalho) e.g. "07:00 - 15:20"
     work_schedule: Optional[str] = Field(default=None)
     
+    # Access Control
+    mobile_access: bool = Field(default=False)
+    
     # Gamification
     total_xp: float = Field(default=0.0) # Accumulated Tonnage/Score
     
