@@ -103,8 +103,11 @@
                     class="relative group bg-slate-800/40 rounded-2xl p-4 border {{ 'border-yellow-500/30 bg-yellow-500/5' if achievement.unlocked else 'border-white/5 opacity-75 grayscale' }}">
                     <div class="flex items-start gap-4">
                         <div
-                            class="w-14 h-14 rounded-xl {{ 'bg-yellow-500/20 text-yellow-400' if achievement.unlocked else 'bg-slate-700/50 text-slate-500' }} flex items-center justify-center flex-shrink-0">
-                            <i data-lucide="{{ achievement.icon }}" class="w-7 h-7"></i>
+                            class="w-14 h-14 rounded-xl {{ 'bg-yellow-500/20 text-yellow-400' if achievement.unlocked else 'bg-slate-700/50 text-slate-500' }} flex items-center justify-center flex-shrink-0 text-2xl">
+                            <span data-lucide="{{ achievement.icon }}"
+                                class="w-7 h-7 flex items-center justify-center not-italic">
+                                {{ achievement.icon }}
+                            </span>
                         </div>
                         <div class="flex-1">
                             <div class="flex justify-between items-start">

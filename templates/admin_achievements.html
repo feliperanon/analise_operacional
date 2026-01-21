@@ -1,0 +1,439 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="flex flex-col h-full" x-data="achievementManager()" x-init="init()">
+
+    <!-- Header -->
+    <header class="bg-slate-950 border-b border-slate-800 px-8 py-6 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <div class="p-2 bg-orange-500/10 rounded-lg text-orange-400">
+                <i data-lucide="award" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-white">Gerenciador de Conquistas</h1>
+                <p class="text-sm text-slate-400">Crie, gerencie e entregue medalhas aos colaboradores</p>
+            </div>
+        </div>
+
+        <div class="flex gap-3">
+            <button @click="loadAchievements()" class="p-2 text-slate-400 hover:text-white transition-colors"
+                title="Recarregar">
+                <i data-lucide="refresh-cw" class="w-5 h-5" :class="{'animate-spin': loading}"></i>
+            </button>
+            <button @click="auditAchievements()"
+                class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                title="Revogar conquistas inválidas">
+                <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                <span class="hidden md:inline">Auditoria</span>
+            </button>
+            <button @click="checkAutoAchievements()"
+                class="p-2 text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20"
+                title="Verificar Regras Automáticas">
+                <i data-lucide="zap" class="w-5 h-5"></i>
+                <span class="text-xs font-bold hidden md:inline">Verificar Auto</span>
+            </button>
+            <button @click="addAchievement()"
+                class="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-orange-500/20 active:scale-95">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                Nova Conquista
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 p-8 overflow-y-auto custom-scrollbar relative">
+
+        <!-- Loading State -->
+        <div x-show="loading && achievements.length === 0" class="flex justify-center items-center h-64">
+            <div class="flex flex-col items-center gap-3 text-slate-500">
+                <i data-lucide="loader-2" class="w-8 h-8 animate-spin"></i>
+                <p class="text-sm">Carregando conquistas...</p>
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div x-show="!loading && achievements.length === 0"
+            class="flex flex-col items-center justify-center h-64 text-slate-500">
+            <i data-lucide="award" class="w-12 h-12 mb-3 opacity-20"></i>
+            <p class="text-lg font-medium">Nenhuma conquista criada</p>
+            <p class="text-sm">Clique em "Nova Conquista" para começar.</p>
+        </div>
+
+        <!-- Grid -->
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4" x-show="achievements.length > 0">
+            <template x-for="(ach, index) in achievements" :key="ach.id || index">
+                <div
+                    class="bg-slate-900/60 p-5 rounded-2xl border border-slate-700/50 hover:border-orange-500/40 hover:bg-slate-900/80 transition-all group relative">
+
+                    <!-- Delete Button -->
+                    <button @click="removeAchievement(index)"
+                        class="absolute top-4 right-4 p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                        title="Excluir Conquista">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+
+                    <!-- Grant Button (Only for saved items) -->
+                    <button x-show="ach.id" @click="openGrantModal(ach)"
+                        class="absolute top-4 right-14 p-1.5 text-slate-500 hover:text-green-400 hover:bg-green-400/10 rounded-lg transition-all opacity-0 group-hover:opacity-100 flex items-center gap-1"
+                        title="Entregar Conquista">
+                        <i data-lucide="gift" class="w-4 h-4"></i>
+                        <span class="text-xs font-bold">Entregar</span>
+                    </button>
+
+
+                    <!-- Save Status Indicator -->
+                    <div class="absolute bottom-4 right-4">
+                        <span x-show="ach._saving" class="text-xs text-orange-400 animate-pulse">Salvando...</span>
+                        <span x-show="ach._saved" class="text-xs text-green-400"
+                            x-transition.duration.1000ms>Salvo!</span>
+                        <span x-show="ach._error" class="text-xs text-red-400">Erro ao salvar</span>
+                    </div>
+
+                    <div class="flex items-start gap-4">
+                        <!-- Icon Pick -->
+                        <div class="flex flex-col items-center gap-2">
+                            <div class="w-14 h-14 bg-slate-950 border border-slate-700 rounded-2xl flex items-center justify-center text-3xl shadow-inner shadow-black/50 select-none cursor-pointer hover:bg-slate-900 transition-colors"
+                                x-text="ach.icon || '🏆'" @click="$refs['iconInput_' + index].focus()"></div>
+                            <input type="text" :x-ref="'iconInput_' + index" x-model="ach.icon"
+                                @change="saveAchievement(index)" placeholder="Emoji"
+                                class="w-12 text-center bg-slate-950 border border-slate-700 rounded text-xs py-1 text-white focus:ring-1 focus:ring-orange-500 outline-none">
+                        </div>
+
+                        <div class="flex-1 space-y-4">
+                            <!-- Title & Desc -->
+                            <div class="space-y-2">
+                                <input type="text" x-model="ach.name" @change="saveAchievement(index)"
+                                    placeholder="Nome da Conquista"
+                                    class="w-full bg-transparent border-b border-slate-700 text-white font-bold text-base focus:border-orange-500 outline-none pb-1 placeholder-slate-600">
+                                <textarea x-model="ach.description" @change="saveAchievement(index)" rows="2"
+                                    placeholder="Descreva como o usuário ganha essa conquista..."
+                                    class="w-full bg-slate-950/50 border border-slate-700/50 rounded-lg px-3 py-2 text-slate-300 text-xs focus:ring-2 focus:ring-orange-500 outline-none resize-none placeholder-slate-600"></textarea>
+                            </div>
+
+                            <!-- Meta Grid -->
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                <div class="space-y-1">
+                                    <label
+                                        class="block text-[10px] font-bold text-slate-500 uppercase">Categoria</label>
+                                    <select x-model="ach.category" @change="saveAchievement(index)"
+                                        class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-white text-xs focus:ring-1 focus:ring-orange-500 outline-none">
+                                        <option value="production">Produção</option>
+                                        <option value="attendance">Assiduidade</option>
+                                        <option value="health">Saúde</option>
+                                        <option value="tenure">Tempo de Casa</option>
+                                        <option value="speed">Velocidade</option>
+                                        <option value="streak">Sequências</option>
+                                        <option value="social">Social</option>
+                                        <option value="special">Especial</option>
+                                        <option value="general">Geral</option>
+                                    </select>
+                                </div>
+
+                                <div class="space-y-1">
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase">Gatilho</label>
+                                    <select x-model="ach.trigger_type" @change="saveAchievement(index)"
+                                        class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-white text-xs focus:ring-1 focus:ring-orange-500 outline-none">
+                                        <option value="manual">Manual (Admin)</option>
+                                        <option value="auto_production">Auto: Produção (kg)</option>
+                                        <option value="auto_attendance">Auto: Presença</option>
+                                        <option value="auto_health">Auto: Saúde</option>
+                                        <option value="auto_tenure">Auto: Tempo</option>
+                                        <option value="auto_time">Auto: Horário</option>
+                                        <option value="auto_streak">Auto: Sequência</option>
+                                    </select>
+                                </div>
+
+                                <div class="space-y-1">
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase">Prêmio
+                                        XP</label>
+                                    <div class="relative">
+                                        <input type="number" x-model.number="ach.xp_reward"
+                                            @change="saveAchievement(index)"
+                                            class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-orange-400 font-mono text-sm focus:ring-1 focus:ring-orange-500 outline-none pl-8">
+                                        <span class="absolute left-2.5 top-1.5 text-xs text-orange-500/50">XP</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Trigger Value (Auto Only) -->
+                            <div x-show="ach.trigger_type !== 'manual'" x-transition
+                                class="p-3 bg-orange-500/5 border border-orange-500/10 rounded-xl">
+                                <label class="block text-[10px] font-bold text-orange-500/70 uppercase mb-1">Regra
+                                    (JSON)</label>
+                                <input type="text" x-model="ach.trigger_value" @change="saveAchievement(index)"
+                                    placeholder='{"daily_kg": 5000}'
+                                    class="w-full bg-slate-950 border border-orange-500/20 rounded px-3 py-1.5 text-white font-mono text-[11px] focus:ring-1 focus:ring-orange-500 outline-none">
+                                <p class="mt-1 text-[9px] text-slate-500">Ex: {"daily_kg": 5000}, {"months": 12},
+                                    {"days_without_breech": 30}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Grant Modal -->
+        <div x-show="grantModal.open"
+            class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" x-transition>
+            <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl relative"
+                @click.away="grantModal.open = false">
+
+                <h2 class="text-xl font-bold text-white mb-1 flex items-center gap-2">
+                    <i data-lucide="gift" class="w-5 h-5 text-orange-500"></i>
+                    Entregar Conquista
+                </h2>
+                <div class="flex items-center gap-3 bg-slate-800/50 p-3 rounded-xl mb-4 border border-slate-700">
+                    <div class="text-3xl" x-text="grantModal.achievement.icon"></div>
+                    <div>
+                        <div class="font-bold text-white text-sm" x-text="grantModal.achievement.name"></div>
+                        <div class="text-xs text-orange-400 font-mono"
+                            x-text="'+' + grantModal.achievement.xp_reward + ' XP'"></div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 mb-1 uppercase">Colaborador</label>
+                        <select x-model="grantModal.employee_id"
+                            class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-orange-500">
+                            <option value="">Selecione...</option>
+                            <template x-for="emp in employees" :key="emp.id">
+                                <option :value="emp.id" x-text="emp.name"></option>
+                            </template>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 mb-1 uppercase">Motivo (Opcional)</label>
+                        <input type="text" x-model="grantModal.reason" placeholder="Ex: Ótimo desempenho na semana..."
+                            class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-orange-500">
+                    </div>
+
+                    <button @click="confirmGrant()" :disabled="grantModal.loading || !grantModal.employee_id"
+                        class="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2">
+                        <span x-show="grantModal.loading" class="animate-spin"><i data-lucide="loader-2"
+                                class="w-4 h-4"></i></span>
+                        Confirmar Entrega
+                    </button>
+
+                    <button @click="grantModal.open = false"
+                        class="w-full py-2 text-slate-500 hover:text-white text-xs">Cancelar</button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script>
+    lucide.createIcons();
+
+    function achievementManager() {
+        return {
+            loading: false,
+            achievements: [],
+            employees: [], // For modal
+
+            grantModal: {
+                open: false,
+                achievement: {},
+                employee_id: '',
+                reason: '',
+                loading: false
+            },
+
+            async init() {
+                await Promise.all([this.loadAchievements(), this.loadEmployees()]);
+            },
+
+            async loadEmployees() {
+                try {
+                    const res = await fetch('/api/employees');
+                    const data = await res.json();
+                    this.employees = (data.employees || data.data || []).sort((a, b) => a.name.localeCompare(b.name));
+                } catch (e) { console.error(e); }
+            },
+
+            async loadAchievements() {
+                this.loading = true;
+                try {
+                    const res = await fetch('/api/game/achievements');
+                    const data = await res.json();
+                    if (data.success) {
+                        this.achievements = data.data.map(a => ({
+                            ...a,
+                            _saving: false,
+                            _saved: false,
+                            _error: false
+                        }));
+                    } else {
+                        console.error("Erro ao carregar:", data.error);
+                    }
+                } catch (e) {
+                    console.error("Erro de conexão:", e);
+                } finally {
+                    this.loading = false;
+                    this.$nextTick(() => lucide.createIcons());
+                }
+            },
+
+            addAchievement() {
+                this.achievements.unshift({
+                    id: null,
+                    name: '',
+                    description: '',
+                    icon: '🏆',
+                    xp_reward: 100,
+                    category: 'production',
+                    trigger_type: 'manual',
+                    trigger_value: '',
+                    _saving: false,
+                    _saved: false,
+                    _error: false
+                });
+                this.$nextTick(() => {
+                    lucide.createIcons();
+                });
+            },
+
+            async saveAchievement(index) {
+                const ach = this.achievements[index];
+                if (!ach.name) return;
+
+                ach._saving = true;
+                ach._saved = false;
+                ach._error = false;
+
+                try {
+                    const payload = {
+                        id: ach.id,
+                        name: ach.name,
+                        description: ach.description || '',
+                        icon: ach.icon || '🏆',
+                        xp_reward: parseInt(ach.xp_reward) || 0,
+                        category: ach.category,
+                        trigger_type: ach.trigger_type,
+                        trigger_value: ach.trigger_value
+                    };
+
+                    const res = await fetch('/api/game/achievements', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const data = await res.json();
+
+                    if (res.ok && data.success) {
+                        if (data.data && data.data.id) {
+                            ach.id = data.data.id;
+                        }
+                        ach._saved = true;
+                        setTimeout(() => ach._saved = false, 2000);
+                    } else {
+                        ach._error = true;
+                    }
+                } catch (e) {
+                    ach._error = true;
+                } finally {
+                    ach._saving = false;
+                }
+            },
+
+            async removeAchievement(index) {
+                const ach = this.achievements[index];
+                if (!confirm(`Tem certeza que deseja excluir "${ach.name || 'Nova Conquista'}"?`)) return;
+
+                if (!ach.id) {
+                    this.achievements.splice(index, 1);
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`/api/game/achievements/${ach.id}`, { method: 'DELETE' });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        this.achievements.splice(index, 1);
+                    } else {
+                        alert('Erro ao excluir: ' + (data.error || 'Erro desconhecido'));
+                    }
+                } catch (e) {
+                    alert('Erro de conexão ao excluir.');
+                }
+            },
+
+            openGrantModal(achievement) {
+                this.grantModal.achievement = achievement;
+                this.grantModal.employee_id = '';
+                this.grantModal.reason = '';
+                this.grantModal.open = true;
+            },
+
+            async confirmGrant() {
+                if (!this.grantModal.employee_id) return;
+
+                this.grantModal.loading = true;
+                try {
+                    const res = await fetch('/api/game/achievements/grant', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            achievement_id: this.grantModal.achievement.id,
+                            employee_id: parseInt(this.grantModal.employee_id),
+                            reason: this.grantModal.reason
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        alert(data.message);
+                        this.grantModal.open = false;
+                    } else {
+                        alert("Erro: " + data.error);
+                    }
+                } catch (e) {
+                    alert("Erro de conexão.");
+                } finally {
+                    this.grantModal.loading = false;
+                }
+            },
+
+            async checkAutoAchievements() {
+                if (!confirm("Deseja verificar todas as conquistas automáticas para todos os colaboradores? Isso pode levar alguns segundos.")) return;
+
+                this.loading = true;
+                try {
+                    const res = await fetch('/api/game/achievements/check-all', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.success) {
+                        alert(data.message);
+                    } else {
+                        alert("Erro: " + data.error);
+                    }
+                } catch (e) {
+                    alert("Erro de conexão.");
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            async auditAchievements() {
+                if (!confirm('Deseja AUDITAR todas as conquistas? Isso irá REVOGAR conquistas de quem não atende mais aos critérios (ex: atestado retroativo) e deduzir o XP.')) return;
+
+                this.loading = true;
+                try {
+                    const res = await fetch('/api/game/achievements/audit-all', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.success) {
+                        alert(data.message);
+                    } else {
+                        alert('Erro: ' + data.error);
+                    }
+                } catch (e) {
+                    alert('Erro de conexão.');
+                } finally {
+                    this.loading = false;
+                }
+            }
+        }
+    }
+</script>
+{% endblock %}

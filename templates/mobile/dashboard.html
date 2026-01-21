@@ -71,6 +71,15 @@
                     <h1 class="text-xl font-bold text-white tracking-tight leading-tight">{{ employee.name }}</h1>
                     <div class="flex items-center gap-2 flex-wrap">
                         <p class="text-sm text-slate-400 font-medium">{{ gamification.level.name }}</p>
+
+                        <!-- Achievement Counter -->
+                        <div
+                            class="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                            <i data-lucide="trophy" class="w-3 h-3 text-yellow-500"></i>
+                            <span class="text-[10px] font-bold text-yellow-500">{{ gamification.achievements_unlocked
+                                }}/{{ gamification.achievements_total }}</span>
+                        </div>
+
                         {% if streak_days and streak_days >= 3 %}
                         <span class="streak-badge">
                             <i data-lucide="flame" class="w-3 h-3"></i>

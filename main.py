@@ -323,6 +323,74 @@ def fmt_br_int(val):
 templates.env.filters["fmt_br"] = fmt_br
 templates.env.filters["fmt_br_int"] = fmt_br_int
 
+# --- Auth Helper Functions ---
+def get_current_user(request: Request):
+    user = request.session.get("user")
+    if user: return user
+    
+    # Support for Mobile Employee Session
+    user_id = request.session.get("user_id")
+    if user_id:
+        return {"type": "employee", "id": user_id}
+    return None
+
+def require_login(request: Request):
+    user = get_current_user(request)
+    path = request.url.path
+
+    # Not logged in at all
+    if not user:
+        if path.startswith("/mobile"):
+             raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/mobile/login"})
+        raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/login"})
+
+    # Logged in, check permissions
+    # User is Admin (str) -> Can access everything (or maybe restrict from mobile specific logic if needed, but usually fine)
+    if isinstance(user, str):
+        return user
+
+    # User is Employee (dict) -> RESTRICTED TO /mobile ONLY
+    if isinstance(user, dict) and user.get("type") == "employee":
+        if not path.startswith("/mobile") and not path.startswith("/static") and not path.startswith("/api"):
+            # Trying to access Desktop/Admin page -> Redirect to Mobile Dashboard
+            # e.g. /smart-flow, /employees, /
+            print(f"🔒 Access Denied: Mobile User {user.get('id')} tried to access {path}")
+            raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/mobile/dashboard"})
+
+    return user
+
+def require_gm(request: Request, session: Session = Depends(get_session)):
+    """
+    Dependency to ensure the user is logged in AND is a Game Master (Admin).
+    """
+    try:
+        user = get_current_user(request)
+        if not user:
+             raise HTTPException(status_code=403, detail="Not authenticated")
+        
+        if isinstance(user, str):
+            # "Admin" or similar string -> ALLOW
+            return None 
+
+        if isinstance(user, dict):
+            # Employee
+            user_id = user.get("id")
+            emp = session.get(models.Employee, user_id)
+            if not emp:
+                 raise HTTPException(status_code=403, detail="Employee not found")
+            
+            # Strict check: Regular employees cannot trigger audits.
+            # Only allow if role implies GM rights (or we just restrict this to Admin string users for now?)
+            # Let's check if role is "Admin" or similar.
+            if emp.role not in ["Admin", "Manager", "Master"]:
+                raise HTTPException(status_code=403, detail="Acesso negado: Requer privilégios de Admin/GM.")
+
+            return emp
+            
+        raise HTTPException(status_code=403, detail="Invalid auth state")
+    except Exception as e:
+        raise HTTPException(status_code=403, detail=str(e))
+
 # --- Admin Tools ---
 # --- Admin Tools ---
 @app.post("/api/admin/sync-xp-totals")
@@ -348,6 +416,151 @@ async def api_sync_xp_totals(request: Request, session: Session = Depends(get_se
         return {"success": True, "updated": count}
     except Exception as e:
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+# --- Achievement Management APIs ---
+
+class AchievementSchema(BaseModel):
+    id: Optional[int] = None
+    name: str
+    description: Optional[str] = ""
+    icon: Optional[str] = "🏆"
+    xp_reward: int = 100
+    category: str = "general"
+    trigger_type: str = "manual"
+    trigger_value: Optional[str] = None
+
+@app.get("/admin/game/achievements", response_class=HTMLResponse)
+def admin_achievements_page(request: Request, user=Depends(require_login)):
+    """Page to manage achievements"""
+    return templates.TemplateResponse("admin_achievements.html", {"request": request, "user": user})
+
+@app.get("/api/game/achievements")
+def api_list_achievements(session: Session = Depends(get_session), user=Depends(require_login)):
+    try:
+        achievements = session.exec(select(models.GameAchievement).order_by(models.GameAchievement.xp_reward)).all()
+        return {"success": True, "data": achievements}
+    except Exception as e:
+        logger.error(f"Error listing achievements: {e}")
+        return {"success": False, "error": str(e)}
+
+@app.post("/api/game/achievements")
+def api_save_achievement(
+    data: AchievementSchema, 
+    session: Session = Depends(get_session),
+    user=Depends(require_login)
+):
+    try:
+        if data.id:
+            # Update
+            ach = session.get(models.GameAchievement, data.id)
+            if not ach:
+                return {"success": False, "error": "Achievement not found"}
+            
+            ach.name = data.name
+            ach.description = data.description
+            ach.icon = data.icon
+            ach.xp_reward = data.xp_reward
+            ach.category = data.category
+            ach.trigger_type = data.trigger_type
+            ach.trigger_value = data.trigger_value
+            session.add(ach)
+        else:
+            # Create
+            ach = models.GameAchievement(
+                name=data.name,
+                description=data.description,
+                icon=data.icon,
+                xp_reward=data.xp_reward,
+                category=data.category,
+                trigger_type=data.trigger_type,
+                trigger_value=data.trigger_value,
+                slug=data.name.lower().replace(" ", "_") # Simple slug gen
+            )
+            session.add(ach)
+        
+        session.commit()
+        session.refresh(ach)
+        return {"success": True, "data": ach}
+
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Error saving achievement: {e}")
+        return {"success": False, "error": str(e)}
+
+@app.delete("/api/game/achievements/{ach_id}")
+def api_delete_achievement(ach_id: int, session: Session = Depends(get_session), user=Depends(require_login)):
+    try:
+        ach = session.get(models.GameAchievement, ach_id)
+        if not ach:
+            return {"success": False, "error": "Not found"}
+        
+        session.delete(ach)
+        session.commit()
+        return {"success": True}
+    except Exception as e:
+        session.rollback()
+        return {"success": False, "error": str(e)}
+
+class GrantAchievementSchema(BaseModel):
+    achievement_id: int
+    employee_id: int
+    reason: Optional[str] = None
+
+@app.post("/api/game/achievements/grant")
+def api_grant_achievement(
+    data: GrantAchievementSchema,
+    session: Session = Depends(get_session),
+    user=Depends(require_login)
+):
+    try:
+        # 1. Verify exists
+        ach = session.get(models.GameAchievement, data.achievement_id)
+        emp = session.get(models.Employee, data.employee_id)
+        
+        if not ach or not emp:
+            return {"success": False, "error": "Conquista ou Colaborador não encontrado."}
+        
+        # 2. Register User Achievement
+        user_ach = models.EmployeeAchievement(
+            employee_id=emp.id,
+            achievement_id=ach.id,
+            status="approved",
+            approved_by=str(user),
+            approved_at=datetime.now(ZoneInfo("America/Sao_Paulo"))
+        )
+        session.add(user_ach)
+        
+        # 3. Create Transaction if XP > 0
+        if ach.xp_reward > 0:
+            tx = models.GameXPTransaction(
+                employee_id=emp.id,
+                amount=ach.xp_reward,
+                source_type="achievement_grant",
+                status="confirmed",
+                reason=f"Conquista: {ach.name} | {data.reason or ''}",
+                manager_id=str(user),
+                confirmed_at=datetime.now(ZoneInfo("America/Sao_Paulo"))
+            )
+            session.add(tx)
+            
+            # 4. Update Employee Total
+            emp.total_xp += ach.xp_reward
+            session.add(emp)
+            
+        session.commit()
+        
+        return {
+            "success": True, 
+            "message": f"Conquista '{ach.name}' concedida para {emp.name}.",
+            "xp_added": ach.xp_reward
+        }
+            
+    except Exception as e:
+        session.rollback()
+        return {"success": False, "error": str(e)}
+
+
+
 
 @app.post("/api/admin/reset-data")
 async def api_reset_data(
@@ -428,15 +641,8 @@ async def api_reset_data(
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
     return Response(status_code=204)
-def get_current_user(request: Request):
-    user = request.session.get("user")
-    if user: return user
-    
-    # Support for Mobile Employee Session
-    user_id = request.session.get("user_id")
-    if user_id:
-        return {"type": "employee", "id": user_id}
-    return None
+
+# Moved get_current_user and require_login to top of file to fix NameError dependencies
 
 def get_dashboard_data(session: Session, shift_filter: str):
     """
@@ -583,30 +789,7 @@ def get_dashboard_data(session: Session, shift_filter: str):
         "active_separators_count": len(active_routes)
     }
 
-def require_login(request: Request):
-    user = get_current_user(request)
-    path = request.url.path
 
-    # Not logged in at all
-    if not user:
-        if path.startswith("/mobile"):
-             raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/mobile/login"})
-        raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/login"})
-
-    # Logged in, check permissions
-    # User is Admin (str) -> Can access everything (or maybe restrict from mobile specific logic if needed, but usually fine)
-    if isinstance(user, str):
-        return user
-
-    # User is Employee (dict) -> RESTRICTED TO /mobile ONLY
-    if isinstance(user, dict) and user.get("type") == "employee":
-        if not path.startswith("/mobile") and not path.startswith("/static") and not path.startswith("/api"):
-            # Trying to access Desktop/Admin page -> Redirect to Mobile Dashboard
-            # e.g. /smart-flow, /employees, /
-            print(f"🔒 Access Denied: Mobile User {user.get('id')} tried to access {path}")
-            raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/mobile/dashboard"})
-
-    return user
 # --- Routes ---
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, shift: str = "Todos", session: Session = Depends(get_session)):
@@ -994,15 +1177,45 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
             progress_percent = 0
 
         # Process XP History
+        # Fetch Revoked Achievement Names for Filtering
+        revoked_names = session.exec(
+            select(models.GameAchievement.name)
+            .join(models.EmployeeAchievement, models.GameAchievement.id == models.EmployeeAchievement.achievement_id)
+            .where(
+                models.EmployeeAchievement.employee_id == employee.id,
+                models.EmployeeAchievement.status == "revoked"
+            )
+        ).all()
+
         raw_history = session.exec(select(GameXPTransaction)
             .where(GameXPTransaction.employee_id == employee.id)
             .where(GameXPTransaction.status == "confirmed")
             .order_by(desc(GameXPTransaction.created_at))
-            .limit(20)
+            .limit(50) # Fetch more to allow for filtering
         ).all()
 
         xp_history_list = []
         for tx in raw_history:
+            # FILTER 1: Hide Revocation Transactions
+            if tx.source_type == "achievement_revoke":
+                continue
+            
+            # FILTER 2: Hide Grant Transactions for Revoked Achievements
+            if tx.source_type == "achievement_grant":
+                is_revoked_grant = False
+                for r_name in revoked_names:
+                    # Reason format: "Conquista Desbloqueada: Imune a Tudo ..."
+                    # Check if revoked name is present in the reason
+                    if r_name in tx.reason:
+                        is_revoked_grant = True
+                        break
+                if is_revoked_grant:
+                    continue
+
+            # Limit to 20 items for display AFTER filtering
+            if len(xp_history_list) >= 20:
+                break
+
             title = tx.reason
             details = ""
             category = "other"  # produção, evento, bônus, manual, other
@@ -1137,6 +1350,11 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
         except Exception as e:
             print(f"Error calculating daily goal: {e}")
         
+        # Achievements Count
+        ach_count_total = session.exec(select(func.count(models.GameAchievement.id))).one()
+        ach_count_unlocked = session.exec(select(func.count(models.EmployeeAchievement.id))
+                                            .where(models.EmployeeAchievement.employee_id == employee.id, models.EmployeeAchievement.status == "approved")).one()
+
         context = {
             "request": request,
             "employee": employee,
@@ -1151,7 +1369,9 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
                 "next_level": next_level,
                 "total_xp": int(employee.total_xp), # Use confirmed XP from DB
                 "progress_percent": progress_percent,
-                "time_in_company": progress_data["months_tenure"] if progress_data else 0
+                "time_in_company": progress_data["months_tenure"] if progress_data else 0,
+                "achievements_total": ach_count_total,
+                "achievements_unlocked": ach_count_unlocked
             },
             # New: Streak & Daily Goal
             "streak_days": streak_days,
@@ -1196,7 +1416,10 @@ async def mobile_achievements(request: Request, current_user: dict = Depends(get
         
         # Achievements Data
         all_achievements = session.exec(select(models.GameAchievement).order_by(models.GameAchievement.xp_reward)).all()
-        my_achievements = session.exec(select(models.EmployeeAchievement).where(models.EmployeeAchievement.employee_id == employee.id)).all()
+        my_achievements = session.exec(select(models.EmployeeAchievement)
+            .where(models.EmployeeAchievement.employee_id == employee.id)
+            .where(models.EmployeeAchievement.status == "approved")
+        ).all()
         
         my_unlocked_ids = {a.achievement_id: a.earned_at for a in my_achievements}
         
@@ -1272,6 +1495,41 @@ async def api_recalculate_all(date_str: str, session: Session = Depends(get_sess
         return {"success": True, "processed": count}
     except Exception as e:
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+@app.post("/api/game/achievements/check-all")
+def check_all_achievements(
+    session: Session = Depends(get_session),
+    current_user: models.Employee = Depends(require_gm)
+):
+    try:
+        from gamification_engine import check_and_award_achievements
+        employees = session.exec(select(models.Employee).where(models.Employee.status == "active")).all()
+        count = 0
+        for emp in employees:
+            check_and_award_achievements(session, emp.id)
+            count += 1
+        return {"success": True, "message": f"Verificação concluída para {count} colaboradores."}
+    except Exception as e:
+        print(f"Error checking achievements: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.post("/api/game/achievements/audit-all")
+def audit_all_achievements(
+    session: Session = Depends(get_session),
+    current_user: models.Employee = Depends(require_gm)
+):
+    try:
+        from gamification_engine import audit_and_revoke_achievements
+        employees = session.exec(select(models.Employee).where(models.Employee.status == "active")).all()
+        total_revoked = 0
+        for emp in employees:
+            revoked = audit_and_revoke_achievements(session, emp.id)
+            total_revoked += revoked
+        return {"success": True, "message": f"Auditoria concluída. {total_revoked} conquistas revogadas."}
+    except Exception as e:
+        print(f"Error auditing achievements: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 
 @app.get("/api/game/audit")
 async def api_game_audit(

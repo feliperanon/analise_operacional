@@ -403,6 +403,11 @@ const SectorManagement = {
                 return false;
             }
 
+            // Deve ter permissão de acesso mobile
+            if (emp.mobile_access !== true) {
+                return false;
+            }
+
             // Não deve estar alocado
             return !allocations[emp.id];
         });
