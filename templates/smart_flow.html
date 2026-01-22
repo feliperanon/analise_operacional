@@ -1,111 +1,120 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="h-screen flex flex-col bg-slate-900 text-slate-100 font-sans overflow-hidden">
+<div class="min-h-dvh flex flex-col bg-slate-900 text-slate-100 font-sans overflow-x-hidden">
 
-    <!-- Header -->
-    <header class="bg-slate-800 border-b border-slate-700 px-6 py-3 shrink-0">
-        <div class="flex items-center justify-between">
+    <!-- Header Responsivo -->
+    <header class="bg-slate-800 border-b border-slate-700 px-4 py-3 shrink-0">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
 
-            <!-- Left: Brand -->
-            <div class="flex flex-col flex-1">
-                <h1 class="text-lg font-bold text-white flex items-center gap-2">
-                    <span class="text-blue-500 text-xl">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                        </svg>
-                    </span> Fluxo Operacional
-                </h1>
-                <p class="text-[10px] text-slate-400 font-medium tracking-wide">VISÃO EM TEMPO REAL</p>
+            <!-- Top Row: Brand & Mobile Toggle -->
+            <div class="flex items-center justify-between">
+                <div class="flex flex-col">
+                    <h1 class="text-lg font-bold text-white flex items-center gap-2">
+                        <span class="text-blue-500 text-xl">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                            </svg>
+                        </span> Fluxo Operacional
+                    </h1>
+                    <p class="text-[10px] text-slate-400 font-medium tracking-wide">VISÃO EM TEMPO REAL</p>
+                </div>
             </div>
 
-            <!-- Center: Context Controls (Date & Shift) -->
-            <div
-                class="flex items-center gap-4 bg-slate-900/80 p-1.5 rounded-2xl border border-slate-700/60 shadow-inner">
+            <!-- Controls Row (Scrollable on mobile) -->
+            <div class="flex items-center gap-3 overflow-x-auto pb-1 md:pb-0 no-scrollbar">
 
-                <!-- Date Input -->
-                <div class="relative group px-2">
-                    <div class="absolute inset-y-0 left-2 flex items-center pointer-events-none">
-                        <svg class="h-4 w-4 text-slate-500 group-hover:text-blue-400 transition" fill="none"
-                            viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                <!-- Date & Shift Group -->
+                <div
+                    class="flex items-center gap-2 bg-slate-900/80 p-1 rounded-xl border border-slate-700/60 shadow-inner flex-shrink-0">
+                    <div class="relative group px-2">
+                        <!-- Ícone Calendário -->
+                        <div class="absolute inset-y-0 left-2 flex items-center pointer-events-none">
+                            <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                                </path>
+                            </svg>
+                        </div>
+                        <input type="date" id="date-picker" value="{{ current_date }}" onchange="changeDate(this.value)"
+                            class="bg-transparent text-white text-xs font-bold py-2 pl-8 pr-1 border-none focus:ring-0 cursor-pointer outline-none w-32 text-center tracking-wide"
+                            onclick="this.showPicker()">
+                    </div>
+
+                    <div class="w-px h-5 bg-slate-700"></div>
+
+                    <!-- Shift Tabs -->
+                    <div class="flex p-0.5 bg-slate-800 rounded-lg" id="shift-controls">
+                        <button onclick="changeShift('Manhã')" data-shift="Manhã"
+                            class="touch-target px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all text-slate-500">Manhã</button>
+                        <button onclick="changeShift('Tarde')" data-shift="Tarde"
+                            class="touch-target px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all text-slate-500">Tarde</button>
+                        <button onclick="changeShift('Noite')" data-shift="Noite"
+                            class="touch-target px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all text-slate-500">Noite</button>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    <a href="/routine/report?date={{ current_date }}&shift={{ current_shift }}" id="report-link"
+                        target="_blank"
+                        class="h-10 px-3 bg-purple-600 active:bg-purple-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-md touch-target hover:bg-purple-500">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
                             </path>
                         </svg>
-                    </div>
-                    <input type="date" id="date-picker" value="{{ current_date }}" onchange="changeDate(this.value)"
-                        class="bg-transparent text-white text-xs font-bold py-1.5 pl-8 pr-1 border-none focus:ring-0 cursor-pointer outline-none w-32 text-center tracking-wide hover:text-blue-200 transition"
-                        onclick="this.showPicker()">
-                </div>
+                        <span class="hidden md:inline">Relatório</span>
+                    </a>
 
-                <div class="w-px h-5 bg-slate-700"></div>
+                    <a href="/operational/history" id="history-link"
+                        class="h-10 px-3 bg-slate-700 active:bg-slate-600 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-md border border-slate-600 touch-target hover:bg-slate-600">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span class="hidden md:inline">Histórico</span>
+                    </a>
 
-                <!-- Shift Tabs -->
-                <div class="flex p-0.5 bg-slate-800 rounded-xl" id="shift-controls">
-                    <button onclick="changeShift('Manhã')" data-shift="Manhã"
-                        class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all text-slate-500 hover:text-slate-300 hover:bg-slate-700/50">Manhã</button>
-                    <button onclick="changeShift('Tarde')" data-shift="Tarde"
-                        class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all text-slate-500 hover:text-slate-300 hover:bg-slate-700/50">Tarde</button>
-                    <button onclick="changeShift('Noite')" data-shift="Noite"
-                        class="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all text-slate-500 hover:text-slate-300 hover:bg-slate-700/50">Noite</button>
+                    <button onclick="createSector()"
+                        class="h-10 px-4 bg-blue-600 active:bg-blue-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-2 shadow-md touch-target hover:bg-blue-500">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+                            viewBox="0 0 24 24">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Setor
+                    </button>
+                    <button onclick="saveAll()"
+                        class="h-10 px-4 bg-emerald-600 active:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-md touch-target hover:bg-emerald-500">
+                        Salvar
+                    </button>
+
+                    <button onclick="closeShift()"
+                        class="h-10 px-3 bg-slate-700 text-white text-xs font-bold rounded-xl transition shadow-md touch-target hover:bg-slate-600 border border-slate-600"
+                        title="Encerrar Turno">
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                            stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                    </button>
                 </div>
             </div>
-
-            <!-- Right: Actions -->
-            <div class="flex items-center gap-2 flex-1 justify-end">
-                <a href="/routine/report?date={{ current_date }}&shift={{ current_shift }}" id="report-link"
-                    target="_blank"
-                    class="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow-md">
-                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                        </path>
-                    </svg>
-                    Relatório
-                </a>
-
-                <a href="/operational/history" id="history-link"
-                    class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow-md border border-slate-600">
-                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    Histórico
-                </a>
-
-                <button onclick="createSector()"
-                    class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow-md">
-                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"
-                        viewBox="0 0 24 24">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                    Setor
-                </button>
-
-                <button onclick="saveAll()"
-                    class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition shadow-md">
-                    Salvar
-                </button>
-
-                <button onclick="closeShift()"
-                    class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded-lg transition shadow-md">
-                    Encerrar
-                </button>
-            </div>
-
         </div>
     </header>
 
-    <!-- KPI Strip -->
-    <div id="kpi-strip" class="shrink-0 px-4 py-2 border-b border-slate-800 bg-slate-900/95 backdrop-blur z-10">
-        <!-- Grid de 7 colunas em telas grandes, responsivo -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+    <!-- KPI Strip (Scrollable Mobile) -->
+    <div id="kpi-strip"
+        class="shrink-0 px-4 py-3 border-b border-slate-800 bg-slate-900/95 backdrop-blur z-10 overflow-x-auto no-scrollbar">
+        <div class="flex md:grid md:grid-cols-7 gap-3 min-w-max md:min-w-0">
 
             <!-- 1. Headcount -->
             <div onclick="KPIDetails.show('present')"
-                class="bg-slate-800 p-2 rounded-lg border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-emerald-500 transition">
+                class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-emerald-500 transition w-32 md:w-auto">
                 <p class="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Headcount</p>
                 <div>
                     <p class="text-lg font-bold text-white leading-none">
@@ -120,7 +129,7 @@
 
             <!-- 2. Vagas (Demitidos) -->
             <div onclick="KPIDetails.show('gap')"
-                class="bg-slate-800 p-2 rounded-lg border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-red-500 transition">
+                class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-red-500 transition w-24 md:w-auto">
                 <p class="text-[10px] font-bold text-red-400 uppercase mb-0.5">Vagas</p>
                 <div>
                     <p class="text-lg font-bold text-white leading-none" id="total-gap">0</p>
@@ -130,52 +139,52 @@
 
             <!-- 3. Férias -->
             <div onclick="KPIDetails.show('vacation')"
-                class="bg-slate-800 p-2 rounded-lg border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-orange-500 transition">
+                class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-orange-500 transition w-28 md:w-auto">
                 <p class="text-[10px] font-bold text-orange-400 uppercase mb-0.5">Férias</p>
                 <div>
                     <p class="text-lg font-bold text-white leading-none" id="total-vacation">0</p>
-                    <p class="text-[9px] text-slate-500 mt-0.5">Colaboradores</p>
+                    <p class="text-[9px] text-slate-500 mt-0.5">Colab.</p>
                 </div>
             </div>
 
             <!-- 4. Afastados -->
             <div onclick="KPIDetails.show('away')"
-                class="bg-slate-800 p-2 rounded-lg border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-indigo-500 transition">
+                class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-indigo-500 transition w-28 md:w-auto">
                 <p class="text-[10px] font-bold text-indigo-400 uppercase mb-0.5">Afastados</p>
                 <div>
                     <p class="text-lg font-bold text-white leading-none" id="total-away">0</p>
-                    <p class="text-[9px] text-slate-500 mt-0.5">Colaboradores</p>
+                    <p class="text-[9px] text-slate-500 mt-0.5">Colab.</p>
                 </div>
             </div>
 
             <!-- 5. Atestados -->
             <div onclick="KPIDetails.show('sick')"
-                class="bg-slate-800 p-2 rounded-lg border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-amber-500 transition">
+                class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-amber-500 transition w-28 md:w-auto">
                 <p class="text-[10px] font-bold text-amber-400 uppercase mb-0.5">Atestados</p>
                 <div>
                     <p class="text-lg font-bold text-white leading-none" id="total-sick">0</p>
-                    <p class="text-[9px] text-slate-500 mt-0.5">Colaboradores</p>
+                    <p class="text-[9px] text-slate-500 mt-0.5">Colab.</p>
                 </div>
             </div>
 
             <!-- 6. Faltas -->
             <div onclick="KPIDetails.show('missing')"
-                class="bg-slate-800 p-2 rounded-lg border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-rose-500 transition">
+                class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-rose-500 transition w-28 md:w-auto">
                 <p class="text-[10px] font-bold text-rose-400 uppercase mb-0.5">Faltas</p>
                 <div>
                     <p class="text-lg font-bold text-white leading-none" id="total-missing">0</p>
-                    <p class="text-[9px] text-slate-500 mt-0.5">Colaboradores</p>
+                    <p class="text-[9px] text-slate-500 mt-0.5">Colab.</p>
                 </div>
             </div>
 
             <!-- 7. Produção Total -->
-            <div class="bg-slate-800 p-2 rounded-lg border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-purple-500 transition"
+            <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-purple-500 transition w-36 md:w-auto"
                 onclick="editTonnage()">
                 <p class="text-[10px] font-bold text-purple-400 uppercase mb-0.5">Produção</p>
                 <div>
                     <p class="text-lg font-bold text-white leading-none" id="total-tonnage">0 kg</p>
                     <p class="text-[9px] text-slate-500 mt-0.5">
-                        <span id="prod-per-person" class="text-purple-400 font-bold">0</span> kg/pessoa
+                        <span id="prod-per-person" class="text-purple-400 font-bold">0</span> kg/p
                     </p>
                 </div>
             </div>
@@ -185,17 +194,62 @@
 
 
     <!-- Main Content -->
-    <main class="flex-1 overflow-hidden flex flex-col">
+    <main class="flex-1 flex flex-col relative">
         <!-- Flow Grid -->
-        <div class="flex-1 p-6 overflow-hidden">
+        <div class="flex-1 p-4 md:p-6 overflow-y-auto overflow-x-hidden">
             <div id="flow-grid"
-                class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 h-full auto-rows-max">
-                <!-- Sectors will be rendered here by render.js -->
+                class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 pb-24">
+                <!-- Sectors rendered here -->
             </div>
         </div>
     </main>
 
+    <!-- Bottom Sheet Container (Interação Colaborador) -->
+    <div id="employee-bottom-sheet"
+        class="fixed inset-x-0 bottom-0 z-50 transform translate-y-full transition-transform duration-300 ease-out">
+
+        <!-- Backdrop (click to close) -->
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm -z-10 opacity-0 transition-opacity duration-300"
+            id="sheet-backdrop" onclick="closeEmployeeSheet()"></div>
+
+        <!-- Sheet Content -->
+        <div
+            class="bg-slate-800 border-t border-slate-700 rounded-t-3xl shadow-2xl p-6 pb-8 safe-area-bottom w-full max-w-3xl mx-auto">
+
+            <!-- Handle (Visual Cue) -->
+            <div class="w-12 h-1.5 bg-slate-600 rounded-full mx-auto mb-6"></div>
+
+            <div id="sheet-content">
+                <!-- Conteúdo dinâmico injetado via JS -->
+            </div>
+        </div>
+    </div>
+
 </div>
+
+<!-- CSS Scoped Styles for Touch Targets -->
+<style>
+    .touch-target {
+        min-height: 44px;
+        min-width: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .safe-area-bottom {
+        padding-bottom: env(safe-area-inset-bottom, 20px);
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+</style>
 
 <!-- Modal: Criar/Editar Setor -->
 <div id="sector-crud-modal" class="fixed inset-0 z-50 hidden">

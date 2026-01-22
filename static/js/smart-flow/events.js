@@ -157,6 +157,15 @@ const Events = {
         };
     },
 
+    setActivity(empId, activity) {
+        console.log(`Setting activity for ${empId}: ${activity}`);
+        const obsInput = document.getElementById('activity-observation');
+        const observation = obsInput ? obsInput.value.trim() : null;
+
+        Store.updateActivity(empId, activity, observation);
+        Render.closeBottomSheet();
+    },
+
     setupInputs() {
         // Date & Shift pickers
         const dateInput = document.getElementById('date-filter');

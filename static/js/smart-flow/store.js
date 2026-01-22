@@ -13,6 +13,8 @@ const Store = {
         sectors: [],        // Setores hierárquicos com sub-setores
         allocations: {},    // Alocações: { empId: subsectorId }
         routines: {},       // Rotinas: { empId: 'present'|'absent'|'sick'|'vacation'|'away' }
+        activities: {},     // Atividades reais: { empId: { activity: 'Separation', started_at: '...' } }
+        logs: [],           // Histórico de transições de atividades
         kpis: {},           // Indicadores calculados
         filters: {          // Filtros da sidebar
             search: '',
@@ -51,6 +53,8 @@ const Store = {
         this.state.sectors = data.sectors || [];
         this.state.allocations = data.allocations || {};
         this.state.routines = data.routines || {};
+        this.state.activities = data.activities || {}; // Recuperar atividades atuais
+        this.state.logs = data.logs || []; // Recuperar histórico
         this.state.tonnage = data.tonnage || 0;
         if (data.targets) this.state.targets = data.targets; // Update targets if provided
         this.state.isDirty = false;
@@ -99,6 +103,49 @@ const Store = {
         this.state.isDirty = true;
         this.notify();
         this.autoSave(); // Reabilitado - erro 500 resolvido
+    },
+
+    // Atualizar Atividade (Smart Activity)
+    updateActivity(empId, activityName, observation = null) {
+        // 1. Snapshot do estado anterior
+        const currentActivity = this.state.activities[empId];
+        const now = new Date().toISOString();
+        const nowBR = new Date().toLocaleString('pt-BR');
+
+        // Se já estava numa atividade, encerrar e logar
+        if (currentActivity) {
+            this.state.logs.push({
+                employee_id: empId,
+                activity: currentActivity.activity,
+                started_at: currentActivity.started_at,
+                ended_at: now,
+                duration_minutes: this.diffMinutes(currentActivity.started_at, now),
+                observation: currentActivity.observation || null // Persistir observação da atividade anterior
+            });
+        }
+
+        // 2. Definir nova atividade
+        this.state.activities[empId] = {
+            activity: activityName,
+            started_at: now,
+            status: 'active',
+            observation: observation // Salvar nova observação
+        };
+
+        // 3. Atualizar Rotina Global para refletir status (opcional, mapear cor)
+        // Se atividade for "Pausa" ou "Aguardando", rotina visual = 'away' ou similar?
+        // Por simplificação, mantemos rotina 'present' se for atividade produtiva.
+
+        this.state.isDirty = true;
+        this.notify();
+        this.autoSave();
+    },
+
+    // Helper de tempo
+    diffMinutes(start, end) {
+        const s = new Date(start);
+        const e = new Date(end);
+        return Math.round((e - s) / 60000);
     },
 
     // Atualizar Tonelagem
@@ -252,7 +299,15 @@ const Store = {
                 shift: this.state.currentShift,
                 allocations: this.state.allocations,
                 routines: this.state.routines,
-                tonnage: this.state.tonnage
+                tonnage: this.state.tonnage,
+                // Mapear logs e activities para serem salvos
+                logs: this.state.logs,
+                // Nota: O backend pode não esperar 'activities' soltos no root do payload se for um modelo estrito.
+                // Vou injetar 'activities' dentro de 'attendance_log' ou similar se necessário.
+                // Por hora, vou assumir que 'attendance_log' pode guardar o snapshot atual.
+                attendance_log: {
+                    activities: this.state.activities
+                }
             };
 
             console.log('💾 Salvando alocações:', {

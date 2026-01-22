@@ -156,7 +156,7 @@ const Render = {
 
     createSubSectorCard(sector, subsector, state) {
         const card = document.createElement('div');
-        card.className = 'bg-slate-900 rounded-xl border border-slate-700 p-3 min-h-[200px] flex flex-col';
+        card.className = 'bg-slate-900 rounded-xl border border-slate-700 overflow-hidden flex flex-col transition-all duration-300'; // Alterado para suportar collapse
         card.dataset.subsectorId = subsector.id;
         card.dataset.maxEmployees = subsector.max_employees;
 
@@ -164,26 +164,38 @@ const Render = {
         const allocatedEmployees = this.getSubsectorEmployees(subsector.id, state);
         const currentCount = allocatedEmployees.length;
 
-        // Header do Sub-setor
+        // --- HEADER DO SUB-SETOR (Clicável para Accordion) ---
         const header = document.createElement('div');
-        header.className = 'flex items-center justify-between mb-3 pb-2 border-b border-slate-700';
+        header.className = 'flex items-center justify-between p-3 border-b border-slate-700 cursor-pointer bg-slate-800 hover:bg-slate-750 transition select-none';
+
+        // Estado inicial: Aberto se tiver gente, fechado se vazio (ou lógica customizada)
+        const isOpen = true; // Default open for now
+
         header.innerHTML = `
-            <div>
-                <h4 class="text-sm font-bold text-white">${subsector.name}</h4>
-                <p class="text-xs text-slate-500">
-                    <span class="subsector-count">${currentCount}</span> / ${subsector.max_employees}
-                </p>
+            <div class="flex items-center gap-2">
+                <!-- Chevron Icon -->
+                <svg class="chevron-icon w-4 h-4 text-slate-400 transition-transform duration-300 transform rotate-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+                <div>
+                    <h4 class="text-sm font-bold text-white leading-tight">${subsector.name}</h4>
+                    <p class="text-[10px] text-slate-500">
+                        <span class="subsector-count font-bold text-slate-300">${currentCount}</span> / ${subsector.max_employees}
+                    </p>
+                </div>
             </div>
-            <div class="flex gap-1">
+            
+            <!-- Ações (Editar/Excluir) - Stop Propagation para não triggar o accordion -->
+            <div class="flex gap-1" onclick="event.stopPropagation()">
                 <button onclick="SectorsCRUD.openEditSubSector(${subsector.id}, ${sector.id}, '${subsector.name}', ${subsector.max_employees})"
-                    class="text-slate-500 hover:text-white p-1" title="Editar">
+                    class="text-slate-500 hover:text-white p-1.5 rounded active:bg-slate-700" title="Editar">
                     <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                     </svg>
                 </button>
                 <button onclick="SectorsCRUD.deleteSubSector(${subsector.id}, '${subsector.name}')"
-                    class="text-red-500 hover:text-red-300 p-1" title="Excluir">
+                    class="text-slate-500 hover:text-red-400 p-1.5 rounded active:bg-slate-700" title="Excluir">
                     <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <polyline points="3 6 5 6 21 6"></polyline>
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -193,14 +205,18 @@ const Render = {
         `;
         card.appendChild(header);
 
-        // Lista de colaboradores alocados
+        // --- LISTA DE COLABORADORES ---
+        const listContainer = document.createElement('div');
+        listContainer.className = 'accordion-content transition-all duration-300 ease-in-out';
+        // Altura automática handling é chato no CSS transition, vamos usar max-height trick ou só toggle class
+
         const employeesList = document.createElement('div');
-        employeesList.className = 'space-y-2 employees-list flex-1 overflow-y-auto';
+        employeesList.className = 'space-y-2 p-3 employees-list min-h-[60px]'; // Padding movido para cá
 
         if (allocatedEmployees.length === 0) {
             employeesList.innerHTML = `
-                <div class="text-xs text-slate-600 text-center py-4">
-                    Arraste colaboradores aqui
+                <div class="text-xs text-slate-600 text-center py-4 border-2 border-dashed border-slate-700 rounded-lg">
+                    Arraste aqui
                 </div>
             `;
         } else {
@@ -211,9 +227,27 @@ const Render = {
             });
         }
 
-        card.appendChild(employeesList);
+        listContainer.appendChild(employeesList);
+        card.appendChild(listContainer);
 
-        // Tornar drop zone
+        // --- ACCORDION LOGIC ---
+        const chevron = header.querySelector('.chevron-icon');
+
+        header.onclick = () => {
+            const isHidden = listContainer.classList.contains('hidden');
+            if (isHidden) {
+                listContainer.classList.remove('hidden');
+                chevron.style.transform = 'rotate(0deg)';
+            } else {
+                listContainer.classList.add('hidden');
+                chevron.style.transform = 'rotate(-90deg)';
+            }
+        };
+
+        // Estado inicial (Opcional: fechar se tiver muitos sub-setores?) 
+        // Por enquanto deixa aberto.
+
+        // Tornar drop zone (funciona mesmo fechado? Sim, events fire on container)
         this.makeDropZone(card, subsector.id);
 
         return card;
@@ -221,58 +255,202 @@ const Render = {
 
     createEmployeeCard(employee, routine) {
         const card = document.createElement('div');
-        card.className = 'bg-slate-800 rounded-lg p-2 border border-slate-700 hover:border-slate-600 transition cursor-move';
+        // Card base stylings - touch friendly
+        card.className = 'bg-slate-800 rounded-xl p-3 border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer relative group active:scale-95 duration-100 touch-manipulation select-none';
+
         card.draggable = true;
         card.dataset.employeeId = employee.id;
 
-        const statusColors = {
-            present: 'emerald',
-            absent: 'red',
-            sick: 'amber',
-            vacation: 'orange',
-            away: 'indigo'
-        };
+        // Recuperar Atividade Atual do Store (se existir)
+        const activityData = Store.state.activities ? Store.state.activities[employee.id] : null;
+        const currentActivity = activityData ? activityData.activity : null;
 
-        const statusLabels = {
-            present: 'Presente',
-            absent: 'Falta',
-            sick: 'Atestado',
-            vacation: 'Férias',
-            away: 'Afastado'
-        };
+        // Definição de Cores baseada na Atividade ou Rotina
+        let statusColor = 'slate';
+        let statusText = 'Disponível';
 
-        const color = statusColors[routine] || 'slate';
+        // Mapeamento de Status Visual
+        if (currentActivity) {
+            const act = currentActivity.toLowerCase();
+            if (['separacao', 'conferencia', 'carregamento', 'limpeza'].includes(act)) {
+                statusColor = 'emerald';
+            } else if (['aguardando', 'pausa', 'banheiro'].includes(act)) {
+                statusColor = 'amber';
+            } else if (['intercorrencia', 'apoio'].includes(act)) {
+                statusColor = 'rose';
+            } else {
+                statusColor = 'blue';
+            }
+            statusText = currentActivity.charAt(0).toUpperCase() + currentActivity.slice(1);
+        } else if (routine && routine !== 'present') {
+            // Fallback para rotinas legadas (Falta, Atestado, etc)
+            const routineMap = {
+                'absent': { color: 'red', text: 'Falta' },
+                'sick': { color: 'amber', text: 'Atestado' },
+                'vacation': { color: 'orange', text: 'Férias' },
+                'away': { color: 'indigo', text: 'Afastado' }
+            };
+            const r = routineMap[routine];
+            if (r) {
+                statusColor = r.color;
+                statusText = r.text;
+            }
+        } else {
+            // Default Present
+            statusColor = 'emerald';
+        }
 
+        card.classList.add(`border-${statusColor}-500`);
+
+        // Conteúdo do Card
         card.innerHTML = `
-            <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center justify-between gap-3">
+                <!-- Avatar / Initials -->
+                <div class="h-10 w-10 rounded-full bg-slate-700 flex items-center justify-center shrink-0 border border-slate-600">
+                    ${employee.photo_url ?
+                `<img src="${employee.photo_url}" class="h-full w-full rounded-full object-cover">` :
+                `<span class="text-xs font-bold text-slate-400">${employee.name.substring(0, 2).toUpperCase()}</span>`
+            }
+                </div>
+
+                <!-- Info -->
                 <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-white truncate">${employee.name}</p>
-                    <p class="text-xs text-slate-400 truncate">${employee.role || 'Colaborador'}</p>
+                    <p class="text-sm font-bold text-white truncate leading-tight">${employee.name}</p>
+                    <p class="text-[11px] text-${statusColor}-400 font-medium truncate mt-0.5 flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-${statusColor}-500 animate-pulse"></span>
+                        ${statusText}
+                    </p>
                 </div>
-                <div class="flex-shrink-0">
-                    <select onchange="updateRoutine(${employee.id}, this.value)" 
-                        class="text-xs bg-${color}-600/20 text-${color}-400 border border-${color}-600/30 rounded px-2 py-1 cursor-pointer">
-                        <option value="present" ${routine === 'present' ? 'selected' : ''}>✓ Presente</option>
-                        <option value="absent" ${routine === 'absent' ? 'selected' : ''}>✗ Falta</option>
-                        <option value="sick" ${routine === 'sick' ? 'selected' : ''}>🏥 Atestado</option>
-                        <option value="vacation" ${routine === 'vacation' ? 'selected' : ''}>🏖️ Férias</option>
-                        <option value="away" ${routine === 'away' ? 'selected' : ''}>🚫 Afastado</option>
-                    </select>
-                </div>
+
+                <!-- Timer (Opcional, futuro) -->
+                ${activityData ? `
+                <div class="text-[10px] text-slate-500 font-mono">
+                    ${this.formatTime(activityData.started_at)}
+                </div>` : ''}
             </div>
         `;
 
-        // Drag events
+        // Click Event -> Open Bottom Sheet
+        card.onclick = (e) => {
+            // Evita abrir se estiver arrastando (embora click não dispare no dragend, bom garantir)
+            this.openBottomSheet(employee);
+        };
+
+        // Drag Events
         card.addEventListener('dragstart', (e) => {
             e.dataTransfer.setData('employeeId', employee.id);
-            card.classList.add('opacity-50');
+            card.classList.add('opacity-50', 'scale-95');
         });
 
         card.addEventListener('dragend', () => {
-            card.classList.remove('opacity-50');
+            card.classList.remove('opacity-50', 'scale-95');
         });
 
         return card;
+    },
+
+    // --- Bottom Sheet Logic ---
+
+    openBottomSheet(employee) {
+        const sheet = document.getElementById('employee-bottom-sheet');
+        const backdrop = document.getElementById('sheet-backdrop');
+        const content = document.getElementById('sheet-content');
+
+        if (!sheet || !content) return;
+
+        // Popular Conteúdo
+        content.innerHTML = this.buildSheetContent(employee);
+
+        // Mostrar
+        sheet.classList.remove('translate-y-full');
+        backdrop.classList.remove('opacity-0', '-z-10');
+        backdrop.classList.add('z-40');
+    },
+
+    closeBottomSheet() {
+        const sheet = document.getElementById('employee-bottom-sheet');
+        const backdrop = document.getElementById('sheet-backdrop');
+
+        if (!sheet) return;
+
+        sheet.classList.add('translate-y-full');
+        backdrop.classList.add('opacity-0', '-z-10');
+        backdrop.classList.remove('z-40');
+    },
+
+    buildSheetContent(employee) {
+        const currentActivity = Store.state.activities[employee.id]?.activity || 'Nenhuma';
+
+        return `
+            <!-- Header do Sheet -->
+            <div class="text-center mb-4">
+                <h3 class="text-xl font-bold text-white">${employee.name}</h3>
+                <p class="text-slate-400 text-sm">${employee.role || 'Colaborador'}</p>
+                <div class="mt-2 inline-flex items-center px-3 py-1 rounded-full bg-slate-700 border border-slate-600">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2"></span>
+                    <span class="text-xs text-slate-200 uppercase tracking-wide font-bold">${currentActivity}</span>
+                </div>
+            </div>
+
+            <!-- Campo de Observação (Opcional) -->
+            <div class="mb-5">
+                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Observação / Obs. Curta</label>
+                <div class="relative">
+                    <input type="text" id="activity-observation" 
+                        placeholder="Ex: Falta de caixa, prioridade, etc..." 
+                        class="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all shadow-inner placeholder-slate-600">
+                    <div class="absolute right-3 top-3 text-slate-600 pointer-events-none">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ações Rápidas (Grid) -->
+            <p class="text-xs text-slate-500 font-bold uppercase mb-2 pl-1">Atividades Principais</p>
+            <div class="grid grid-cols-2 gap-3 mb-5">
+                ${this.renderActivityButton(employee.id, 'Separacao', 'emerald', '📦')}
+                ${this.renderActivityButton(employee.id, 'Conferencia', 'emerald', '✅')}
+                ${this.renderActivityButton(employee.id, 'Carregamento', 'emerald', '🚛')}
+                ${this.renderActivityButton(employee.id, 'Limpeza', 'emerald', '🧹')}
+            </div>
+
+            <p class="text-xs text-slate-500 font-bold uppercase mb-2 pl-1">Pausa / Outros</p>
+            <div class="grid grid-cols-3 gap-3 mb-5">
+                ${this.renderActivityButton(employee.id, 'Aguardando', 'amber', '⏳')}
+                ${this.renderActivityButton(employee.id, 'Pausa', 'amber', '☕')}
+                ${this.renderActivityButton(employee.id, 'Banheiro', 'amber', 'wc')}
+            </div>
+
+            <p class="text-xs text-slate-500 font-bold uppercase mb-2 pl-1">Problemas</p>
+            <div class="grid grid-cols-2 gap-3">
+                ${this.renderActivityButton(employee.id, 'Intercorrencia', 'rose', '⚠️')}
+                ${this.renderActivityButton(employee.id, 'Apoio', 'blue', '🤝')}
+            </div>
+            
+            <!-- Botão Fechar -->
+            <button onclick="Render.closeBottomSheet()" class="mt-8 w-full py-4 bg-slate-900 text-slate-400 font-bold rounded-xl active:bg-slate-950 border border-slate-800">
+                Cancelar / Fechar
+            </button>
+        `;
+    },
+
+    renderActivityButton(empId, activity, color, icon) {
+        // Normalizar strings para evitar erros
+        const actKey = activity.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+        return `
+            <button onclick="Events.setActivity(${empId}, '${actKey}')"
+                class="flex flex-col items-center justify-center p-4 bg-slate-700/50 hover:bg-${color}-600/20 border border-slate-600 hover:border-${color}-500/50 rounded-2xl transition-all active:scale-95 group">
+                <span class="text-2xl mb-1 group-hover:scale-110 transition-transform">${icon}</span>
+                <span class="text-xs font-bold text-slate-300 group-hover:text-white">${activity}</span>
+            </button>
+        `;
+    },
+
+    formatTime(isoString) {
+        if (!isoString) return '';
+        const date = new Date(isoString);
+        return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     },
 
     makeDropZone(element, subsectorId) {
@@ -328,10 +506,12 @@ const Render = {
     }
 };
 
-// Expor globalmente
+// Expor globalmente e helper para fechar sheet
 window.Render = Render;
+window.closeEmployeeSheet = Render.closeBottomSheet; // Atalho para o onclick do backdrop
 
-// Função global para atualizar rotina
+// Função global para atualizar rotina (mantida para compatibilidade, mas UI mudou)
 window.updateRoutine = (empId, routine) => {
     Store.updateRoutine(empId, routine);
 };
+
