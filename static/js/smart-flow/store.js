@@ -132,9 +132,9 @@ const Store = {
             observation: observation // Salvar nova observação
         };
 
-        // 3. Atualizar Rotina Global para refletir status (opcional, mapear cor)
-        // Se atividade for "Pausa" ou "Aguardando", rotina visual = 'away' ou similar?
-        // Por simplificação, mantemos rotina 'present' se for atividade produtiva.
+        // 3. Atualizar Rotina Global para 'present' (corrige bug de dupla contagem se estava como falta)
+        // Se o colaborador inicia atividade, ele está presente.
+        this.updateRoutine(empId, 'present');
 
         this.state.isDirty = true;
         this.notify();

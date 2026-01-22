@@ -166,6 +166,42 @@ const Events = {
         Render.closeBottomSheet();
     },
 
+    setRoutine(empId, routine) {
+        console.log(`Setting routine for ${empId}: ${routine}`);
+        const obsInput = document.getElementById('activity-observation');
+        const observation = obsInput ? obsInput.value.trim() : null;
+
+        // Limpar atividade atual
+        if (Store.state.activities[empId]) {
+            Store.updateActivity(empId, null, observation);
+        }
+
+        Store.updateRoutine(empId, routine);
+        Render.closeBottomSheet();
+    },
+
+    async setExtendedRoutine(empId, routine) {
+        const startDate = document.getElementById('routine-start-date').value;
+        const days = parseInt(document.getElementById('routine-days').value);
+
+        console.log(`Extended Routine: ${empId}, ${routine}, Start: ${startDate}, Days: ${days}`);
+
+        // Validação simples
+        if (days > 1) {
+            // TODO: Implementar lógica de backend para range dates
+            alert(`ℹ️ Registro de ${days} dias: O sistema salvou o status para HOJE (${startDate}).\n\nO suporte a agendamento futuro automático será ativado na próxima atualização do Backend.`);
+        }
+
+        // Aplica para o dia atual (lógica padrão)
+        // Se a data selecionada for diferente de hoje, avisar?
+        if (startDate !== Store.state.currentDate) {
+            alert('Atenção: Você selecionou uma data diferente da visualizada no painel. O registro será aplicado na data visualizada.');
+        }
+
+        Store.updateRoutine(empId, routine);
+        Render.closeBottomSheet();
+    },
+
     setupInputs() {
         // Date & Shift pickers
         const dateInput = document.getElementById('date-filter');

@@ -97,6 +97,22 @@ const Render = {
         const sectorEmployeeCount = this.countSectorEmployees(sector, state.allocations);
         const percentage = sector.max_employees > 0 ? Math.round((sectorEmployeeCount / sector.max_employees) * 100) : 0;
 
+        // Calcular presentes reais (não afastados)
+        let realPresentCount = 0;
+        if (sector.subsectors) {
+            sector.subsectors.forEach(sub => {
+                Object.entries(state.allocations).forEach(([empId, subId]) => {
+                    if (subId === sub.id) {
+                        const routine = state.routines[empId] || 'present';
+                        // Considera presente se não tiver flag de ausência administrativa
+                        if (!['absent', 'sick', 'vacation', 'away', 'falta', 'atestado', 'ferias', 'afastado'].includes(routine.toLowerCase())) {
+                            realPresentCount++;
+                        }
+                    }
+                });
+            });
+        }
+
         // Tornar card clicável para abrir modal de gestão
         card.onclick = (e) => {
             // Não abrir modal se clicou em botão de ação
@@ -144,9 +160,15 @@ const Render = {
                     <div class="bg-${percentage >= 80 ? 'emerald' : percentage >= 50 ? 'amber' : 'red'}-500 h-full transition-all" style="width: ${percentage}%"></div>
                 </div>
                 
-                <div class="text-right">
-                    <span class="text-[9px] text-slate-500">Ocupação: </span>
-                    <span class="text-xs font-bold text-${percentage >= 80 ? 'emerald' : percentage >= 50 ? 'amber' : 'red'}-400">${percentage}%</span>
+                <div class="flex justify-between items-center text-[9px] pt-1">
+                     <div class="flex items-center gap-1.5 text-slate-400">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        <span>Presentes: <strong class="text-emerald-400">${realPresentCount}</strong></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500">Ocupação: </span>
+                        <span class="font-bold text-${percentage >= 80 ? 'emerald' : percentage >= 50 ? 'amber' : 'red'}-400">${percentage}%</span>
+                    </div>
                 </div>
             </div>
         `;
@@ -382,68 +404,170 @@ const Render = {
         const currentActivity = Store.state.activities[employee.id]?.activity || 'Nenhuma';
 
         return `
-            <!-- Header do Sheet -->
-            <div class="text-center mb-4">
-                <h3 class="text-xl font-bold text-white">${employee.name}</h3>
-                <p class="text-slate-400 text-sm">${employee.role || 'Colaborador'}</p>
-                <div class="mt-2 inline-flex items-center px-3 py-1 rounded-full bg-slate-700 border border-slate-600">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2"></span>
-                    <span class="text-xs text-slate-200 uppercase tracking-wide font-bold">${currentActivity}</span>
-                </div>
-            </div>
-
-            <!-- Campo de Observação (Opcional) -->
-            <div class="mb-5">
-                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Observação / Obs. Curta</label>
-                <div class="relative">
-                    <input type="text" id="activity-observation" 
-                        placeholder="Ex: Falta de caixa, prioridade, etc..." 
-                        class="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all shadow-inner placeholder-slate-600">
-                    <div class="absolute right-3 top-3 text-slate-600 pointer-events-none">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+            <!-- Header Compacto -->
+            <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold border border-slate-600">
+                        ${employee.name.substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-white leading-tight">${employee.name}</h3>
+                        <p class="text-xs text-slate-400">${employee.role || 'Colaborador'}</p>
                     </div>
                 </div>
+                <div class="px-2.5 py-1 rounded-full bg-slate-700 border border-slate-600 flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    <span class="text-[10px] text-slate-200 uppercase font-bold">${currentActivity}</span>
+                </div>
             </div>
 
-            <!-- Ações Rápidas (Grid) -->
-            <p class="text-xs text-slate-500 font-bold uppercase mb-2 pl-1">Atividades Principais</p>
-            <div class="grid grid-cols-2 gap-3 mb-5">
-                ${this.renderActivityButton(employee.id, 'Separacao', 'emerald', '📦')}
-                ${this.renderActivityButton(employee.id, 'Conferencia', 'emerald', '✅')}
-                ${this.renderActivityButton(employee.id, 'Carregamento', 'emerald', '🚛')}
-                ${this.renderActivityButton(employee.id, 'Limpeza', 'emerald', '🧹')}
-            </div>
+            <div class="space-y-4">
+                <!-- Observação -->
+                <div>
+                    <div class="relative">
+                        <input type="text" id="activity-observation" 
+                            placeholder="Adicionar observação..." 
+                            class="w-full bg-slate-900/50 border border-slate-600/50 rounded-lg px-3 py-2 text-white text-xs focus:ring-1 focus:ring-blue-500 transition-all outline-none">
+                    </div>
+                </div>
 
-            <p class="text-xs text-slate-500 font-bold uppercase mb-2 pl-1">Pausa / Outros</p>
-            <div class="grid grid-cols-3 gap-3 mb-5">
-                ${this.renderActivityButton(employee.id, 'Aguardando', 'amber', '⏳')}
-                ${this.renderActivityButton(employee.id, 'Pausa', 'amber', '☕')}
-                ${this.renderActivityButton(employee.id, 'Banheiro', 'amber', 'wc')}
-            </div>
+                <!-- Grids Compactos -->
+                <div>
+                    <p class="text-[10px] text-slate-500 font-bold uppercase mb-1.5 tracking-wide">Operação</p>
+                    <div class="grid grid-cols-4 gap-2">
+                        ${this.renderActivityButton(employee.id, 'Separacao', 'emerald', '📦', true)}
+                        ${this.renderActivityButton(employee.id, 'Conferencia', 'emerald', '✅', true)}
+                        ${this.renderActivityButton(employee.id, 'Carregamento', 'emerald', '🚛', true)}
+                        ${this.renderActivityButton(employee.id, 'Limpeza', 'emerald', '🧹', true)}
+                    </div>
+                </div>
 
-            <p class="text-xs text-slate-500 font-bold uppercase mb-2 pl-1">Problemas</p>
-            <div class="grid grid-cols-2 gap-3">
-                ${this.renderActivityButton(employee.id, 'Intercorrencia', 'rose', '⚠️')}
-                ${this.renderActivityButton(employee.id, 'Apoio', 'blue', '🤝')}
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <p class="text-[10px] text-slate-500 font-bold uppercase mb-1.5 tracking-wide">Pausa</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            ${this.renderActivityButton(employee.id, 'Pausa', 'amber', '☕', true)}
+                            ${this.renderActivityButton(employee.id, 'Banheiro', 'amber', 'wc', true)}
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-slate-500 font-bold uppercase mb-1.5 tracking-wide">Problemas</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            ${this.renderActivityButton(employee.id, 'Intercorrencia', 'rose', '⚠️', true)}
+                            ${this.renderActivityButton(employee.id, 'Apoio', 'blue', '🤝', true)}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Administrativo (Com Input de Dias) -->
+                <div class="pt-2 border-t border-slate-700/50">
+                    <p class="text-[10px] text-slate-500 font-bold uppercase mb-1.5 tracking-wide">Administrativo / Ausência</p>
+                    
+                    <!-- Seletores Rápidos -->
+                    <div class="grid grid-cols-3 gap-2 mb-3">
+                        ${this.renderRoutineButton(employee.id, 'absent', 'red', '✗', 'Falta', true)}
+                        ${this.renderRoutineButton(employee.id, 'sick', 'amber', '🏥', 'Atestado', true)}
+                        ${this.renderRoutineButton(employee.id, 'vacation', 'orange', '🏖️', 'Férias', true)}
+                    </div>
+
+                    <!-- Área de Detalhes (Inicialmente Oculta, ou integrada) -->
+                    <!-- Aqui podemos adicionar lógica JS para expandir se clicar -->
+                </div>
             </div>
             
-            <!-- Botão Fechar -->
-            <button onclick="Render.closeBottomSheet()" class="mt-8 w-full py-4 bg-slate-900 text-slate-400 font-bold rounded-xl active:bg-slate-950 border border-slate-800">
-                Cancelar / Fechar
+            <button onclick="Render.closeBottomSheet()" class="mt-4 w-full py-3 bg-slate-900/80 text-slate-400 font-bold rounded-xl active:bg-slate-950 border border-slate-800 text-xs">
+                Cancelar
             </button>
         `;
     },
 
-    renderActivityButton(empId, activity, color, icon) {
-        // Normalizar strings para evitar erros
+    renderActivityButton(empId, activity, color, icon, compact = false) {
         const actKey = activity.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const sizeClass = compact ? 'p-2.5 min-h-[60px]' : 'p-4';
+        const iconClass = compact ? 'text-xl mb-0.5' : 'text-2xl mb-1';
+        const textClass = compact ? 'text-[9px]' : 'text-xs';
 
         return `
             <button onclick="Events.setActivity(${empId}, '${actKey}')"
-                class="flex flex-col items-center justify-center p-4 bg-slate-700/50 hover:bg-${color}-600/20 border border-slate-600 hover:border-${color}-500/50 rounded-2xl transition-all active:scale-95 group">
-                <span class="text-2xl mb-1 group-hover:scale-110 transition-transform">${icon}</span>
-                <span class="text-xs font-bold text-slate-300 group-hover:text-white">${activity}</span>
+                class="flex flex-col items-center justify-center ${sizeClass} bg-slate-700/30 hover:bg-${color}-600/20 border border-slate-600/50 hover:border-${color}-500/50 rounded-xl transition-all active:scale-95 group">
+                <span class="${iconClass} group-hover:scale-110 transition-transform">${icon}</span>
+                <span class="${textClass} font-bold text-slate-300 group-hover:text-white uppercase tracking-tight">${activity}</span>
             </button>
+        `;
+    },
+
+    renderRoutineButton(empId, routineKey, color, icon, label, compact = false) {
+        const sizeClass = compact ? 'p-2.5 min-h-[60px]' : 'p-4';
+        const iconClass = compact ? 'text-xl mb-0.5' : 'text-2xl mb-1';
+        const textClass = compact ? 'text-[9px]' : 'text-xs';
+
+        return `
+            <button onclick="Render.openRoutineForm(${empId}, '${routineKey}', '${label}')"
+                class="flex flex-col items-center justify-center ${sizeClass} bg-slate-700/30 hover:bg-${color}-600/20 border border-slate-600/50 hover:border-${color}-500/50 rounded-xl transition-all active:scale-95 group">
+                <span class="${iconClass} group-hover:scale-110 transition-transform">${icon}</span>
+                <span class="${textClass} font-bold text-slate-300 group-hover:text-white uppercase tracking-tight">${label}</span>
+            </button>
+        `;
+    },
+
+    openRoutineForm(empId, type, label) {
+        const content = document.getElementById('sheet-content');
+        if (!content) return;
+
+        const today = Store.state.currentDate;
+        const employee = Store.state.employees.find(e => e.id == empId);
+
+        content.innerHTML = `
+            <div class="animate-fade-in">
+                <!-- Header com Voltar -->
+                <div class="flex items-center gap-3 mb-6 border-b border-slate-700 pb-4">
+                    <button onclick="Render.openBottomSheet(Store.state.employees.find(e => e.id == ${empId}))" 
+                        class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700/50 hover:bg-slate-700 text-slate-400 hover:text-white transition">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <div>
+                        <h3 class="text-base font-bold text-white leading-tight">Registrar ${label}</h3>
+                        <p class="text-xs text-slate-400">Para: ${employee ? employee.name : 'Colaborador'}</p>
+                    </div>
+                </div>
+
+                <div class="space-y-5">
+                    <!-- Data Início -->
+                    <div>
+                        <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1.5 ml-1">Data Início</label>
+                        <input type="date" id="routine-start-date" value="${today}"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-medium">
+                    </div>
+
+                    <!-- Duração -->
+                    <div>
+                        <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1.5 ml-1">Quantidade de Dias</label>
+                        <div class="flex items-center gap-3">
+                            <button onclick="document.getElementById('routine-days').stepDown()" 
+                                class="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 text-slate-400 font-bold text-xl hover:bg-slate-700 active:scale-95 transition flex items-center justify-center">–</button>
+                            
+                            <input type="number" id="routine-days" value="1" min="1" max="30" readonly
+                                class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-center text-xl font-bold outline-none focus:border-blue-500">
+                            
+                            <button onclick="document.getElementById('routine-days').stepUp()" 
+                                class="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 text-slate-400 font-bold text-xl hover:bg-slate-700 active:scale-95 transition flex items-center justify-center">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botões de Ação -->
+                <div class="mt-8 grid grid-cols-2 gap-3">
+                     <button onclick="Render.openBottomSheet(Store.state.employees.find(e => e.id == ${empId}))" 
+                        class="py-3.5 bg-slate-800/80 text-slate-400 font-bold rounded-xl border border-slate-700 text-sm hover:bg-slate-800 transition">
+                        Voltar
+                    </button>
+                    <button onclick="Events.setExtendedRoutine(${empId}, '${type}')" 
+                        class="py-3.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-900/20 text-sm hover:bg-blue-500 active:scale-95 transition flex items-center justify-center gap-2">
+                        <span>Confirmar</span>
+                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    </button>
+                </div>
+            </div>
         `;
     },
 
