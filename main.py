@@ -5981,14 +5981,24 @@ async def _employees_page_impl(request: Request, session: Session):
         sector_map_sum[sec_shift_norm] += sec.max_employees
         has_sectors = True
         
-    # Decision: If sectors exist for a shift, use sector sum. Else legacy.
-    # Actually, Smart Flow UI uses sector sum. We should align.
+    # Decision: User stated /employees is OFFICIAL.
+    # So we MUST prioritize the Manual Target (Legacy) over Sector Sum key-by-key.
+    # Sector Sum is operational capacity, but Target is HR Budget.
+    
     target_map = {}
     for s in ["Manhã", "Tarde", "Noite"]:
-        if sector_map_sum[s] > 0:
-            target_map[s] = sector_map_sum[s]
+        manual_val = legacy_map.get(s, 0)
+        sector_val = sector_map_sum[s]
+        
+        # If manual value is set (exists in DB and > 0, or just exists?), prioritize it.
+        # But we treated 0 as 'not set' or 'default'.
+        # Let's trust the DB. If user saved 41, use 41.
+        if manual_val > 0:
+             target_map[s] = manual_val
+        elif sector_val > 0:
+             target_map[s] = sector_val
         else:
-            target_map[s] = legacy_map.get(s, 0)
+             target_map[s] = 0
 
     total_target = sum(target_map.values())
     
