@@ -273,10 +273,10 @@ const SectorManagement = {
         // Como estamos num template string e o objeto pode ser complexo, melhor buscar pelo ID no click
 
         return `
-    < div class="bg-slate-800 rounded-xl p-3 border-l-4 border-${statusColor}-500 shadow-sm hover:shadow-md transition-all cursor-pointer relative group active:scale-95 duration-100 touch-manipulation select-none flex items-center justify-between gap-3"
-onclick = "Render.openBottomSheet(Store.state.employees.find(e => e.id == ${emp.id}))" >
+            <div class="bg-slate-800 rounded-xl p-3 border-l-4 border-${statusColor}-500 shadow-sm hover:shadow-md transition-all cursor-pointer relative group active:scale-95 duration-100 touch-manipulation select-none flex items-center justify-between gap-3"
+                onclick="Render.openBottomSheet(Store.state.employees.find(e => e.id == ${emp.id}))">
                 
-                < !--Avatar / Initials-- >
+                <!-- Avatar / Initials -->
                 <div class="h-10 w-10 rounded-full bg-slate-700 flex items-center justify-center shrink-0 border border-slate-600">
                     ${emp.photo_url ?
                 `<img src="${emp.photo_url}" class="h-full w-full rounded-full object-cover">` :
@@ -293,14 +293,14 @@ onclick = "Render.openBottomSheet(Store.state.employees.find(e => e.id == ${emp.
                     </p>
                 </div>
 
-                <!--Botão Remover(Discreto)-- >
+                <!-- Botão Remover (Discreto) -->
     <button onclick="event.stopPropagation(); SectorManagement.removeEmployee(${emp.id})"
         class="text-slate-600 hover:text-red-400 p-2 rounded-full hover:bg-slate-700/50 transition">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path d="M6 18L18 6M6 6l12 12"></path>
         </svg>
     </button>
-            </div >
+            </div>
     `;
     },
 
