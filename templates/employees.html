@@ -458,24 +458,41 @@
             </button>
         </div>
         <div class="space-y-4">
+            <!-- Global Limit -->
+            <div class="bg-slate-900/50 p-3 rounded-lg border border-blue-500/20 mb-2">
+                <label class="block text-xs font-bold text-blue-400 uppercase mb-1">Quantidade Total (Limite)</label>
+                <input type="number" id="target-total" value="{{ stats.total_target }}"
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500 font-bold text-lg"
+                    oninput="validateTargets()">
+                <p class="text-[10px] text-slate-500 mt-1">Soma dos turnos não pode exceder este valor.</p>
+            </div>
+
             <div>
                 <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Manhã</label>
                 <input type="number" id="target-manha" value="{{ stats.targets_map.get('Manhã', 0) }}"
-                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500">
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500"
+                    oninput="validateTargets()">
             </div>
             <div>
                 <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tarde</label>
                 <input type="number" id="target-tarde" value="{{ stats.targets_map.get('Tarde', 0) }}"
-                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500">
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500"
+                    oninput="validateTargets()">
             </div>
             <div>
                 <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Noite</label>
                 <input type="number" id="target-noite" value="{{ stats.targets_map.get('Noite', 0) }}"
-                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500">
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500"
+                    oninput="validateTargets()">
             </div>
 
-            <button onclick="saveTargets()"
-                class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg shadow-lg shadow-blue-500/20 transition-all mt-4">
+            <!-- Validation Feedback -->
+            <div id="target-validation-msg" class="hidden text-xs text-red-400 font-bold text-center">
+                Soma dos turnos excede o total!
+            </div>
+
+            <button onclick="saveTargets()" id="btn-save-targets"
+                class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg shadow-lg shadow-blue-500/20 transition-all mt-4 disabled:opacity-50 disabled:cursor-not-allowed">
                 Salvar Metas
             </button>
         </div>
@@ -485,9 +502,37 @@
 <script>
     function openTargetModal() {
         document.getElementById('targetModal').classList.remove('hidden');
+        validateTargets(); // Check initial state
+    }
+
+    function validateTargets() {
+        const total = parseInt(document.getElementById('target-total').value) || 0;
+        const m = parseInt(document.getElementById('target-manha').value) || 0;
+        const t = parseInt(document.getElementById('target-tarde').value) || 0;
+        const n = parseInt(document.getElementById('target-noite').value) || 0;
+
+        const sum = m + t + n;
+        const btn = document.getElementById('btn-save-targets');
+        const msg = document.getElementById('target-validation-msg');
+
+        if (sum > total) {
+            msg.classList.remove('hidden');
+            msg.innerText = `Soma (${sum}) excede o Total (${total})!`;
+            btn.disabled = true;
+        } else {
+            msg.classList.add('hidden');
+            btn.disabled = false;
+        }
     }
 
     function saveTargets() {
+        // Enviar apenas os turnos para o backend (o total é derivado/validacao frontend ou backend?)
+        // Se o usuário quer salvar o "Total" como limite global enforced, precisamos persistir isso ou apenas usar validacao visual?
+        // O backend atualmente soma as targets.
+        // Se quisermos persistir o "Total Global", precisaríamos de um novo modelo ou apenas confiar na soma.
+        // O request do usuário diz "Incluir campo... e limite a quantidade".
+        // Vou enviar as targets individuais. O Total serve como trava de entrada.
+
         const payload = {
             targets: {
                 "Manhã": parseInt(document.getElementById('target-manha').value) || 0,

@@ -5951,21 +5951,47 @@ async def _employees_page_impl(request: Request, session: Session):
         # Calculate Stats
     total_active = sum(1 for e in employees if e.status == "active")
         # Fetch Targets (Create defaults if not exist)
-    targets = session.exec(select(models.HeadcountTarget)).all()
-    if not targets:
-        # Defaults
+    # Fetch Targets Algorithm
+    # 1. Legacy HeadcountTarget (user manually input global target)
+    legacy_targets = session.exec(select(models.HeadcountTarget)).all()
+    if not legacy_targets:
         defaults = [
             models.HeadcountTarget(shift_name="Manhã", target_value=50),
             models.HeadcountTarget(shift_name="Tarde", target_value=50),
             models.HeadcountTarget(shift_name="Noite", target_value=50)
         ]
-        for d in defaults:
-            session.add(d)
+        for d in defaults: session.add(d)
         session.commit()
-        targets = session.exec(select(models.HeadcountTarget)).all()
+        legacy_targets = session.exec(select(models.HeadcountTarget)).all()
+        
+    legacy_map = {t.shift_name: t.target_value for t in legacy_targets}
+
+    # 2. Smart Flow Sector Targets (Sum of sector capacities)
+    # This is the SOURCE OF TRUTH if sectors exist.
+    all_sectors = session.exec(select(models.Sector)).all()
+    sector_map_sum = {"Manhã": 0, "Tarde": 0, "Noite": 0}
+    has_sectors = False
     
-    target_map = {t.shift_name: t.target_value for t in targets}
-    total_target = sum(t.target_value for t in targets)
+    for sec in all_sectors:
+        # Normalize shift name just in case
+        sec_shift_norm = "Manhã"
+        if "tarde" in sec.shift.lower(): sec_shift_norm = "Tarde"
+        elif "noite" in sec.shift.lower(): sec_shift_norm = "Noite"
+        
+        sector_map_sum[sec_shift_norm] += sec.max_employees
+        has_sectors = True
+        
+    # Decision: If sectors exist for a shift, use sector sum. Else legacy.
+    # Actually, Smart Flow UI uses sector sum. We should align.
+    target_map = {}
+    for s in ["Manhã", "Tarde", "Noite"]:
+        if sector_map_sum[s] > 0:
+            target_map[s] = sector_map_sum[s]
+        else:
+            target_map[s] = legacy_map.get(s, 0)
+
+    total_target = sum(target_map.values())
+    
         # Shift Stats
     shifts = ["Manhã", "Tarde", "Noite"]
     shift_stats = []
@@ -6000,15 +6026,22 @@ async def _employees_page_impl(request: Request, session: Session):
         
     for s in shifts:
         data = shift_data.get(s, {"active":0, "vacation":0, "away":0})
-        active_count = data["active"]
+        active_count = data["active"] # Active presence
+        # Total head count for vacancies calculation includes active + vacation + away? 
+        # Usually vacancies = Target - Headcount (Active people).
+        # Here active_count is purely status='active' (present).
+        # We need total headcount of the shift (excluding fired).
+        total_shift_headcount = data["active"] + data["vacation"] + data["away"]
+        
         target = target_map.get(s, 0)
         shift_stats.append({
             "name": s,
-            "count": active_count,
+            "count": active_count, # Display "Active" users
+            "headcount": total_shift_headcount, # Logic for vacancies
             "vacation": data["vacation"],
             "away": data["away"],
             "target": target,
-            "vacancies": target - active_count
+            "vacancies": max(0, target - total_shift_headcount)
         })
         
     # Status Stats (Global)
