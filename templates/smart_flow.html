@@ -205,17 +205,16 @@
     </main>
 
     <!-- Bottom Sheet Container (Interação Colaborador) -->
+    <!-- Bottom Sheet Backdrop (Fixo na tela inteira) -->
+    <div id="sheet-backdrop"
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] transition-opacity duration-300 opacity-0 pointer-events-none"
+        onclick="Render.closeBottomSheet()"></div>
+
+    <!-- Bottom Sheet Panel (Deslizante) -->
     <div id="employee-bottom-sheet"
-        class="fixed inset-x-0 bottom-0 z-50 transform translate-y-full transition-transform duration-300 ease-out">
+        class="fixed inset-x-0 bottom-0 z-[101] transform translate-y-full transition-transform duration-300 ease-out safe-area-bottom">
 
-        <!-- Backdrop (click to close) -->
-        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm -z-10 opacity-0 transition-opacity duration-300"
-            id="sheet-backdrop" onclick="closeEmployeeSheet()"></div>
-
-        <!-- Sheet Content -->
-        <div
-            class="bg-slate-800 border-t border-slate-700 rounded-t-3xl shadow-2xl p-6 pb-8 safe-area-bottom w-full max-w-3xl mx-auto">
-
+        <div class="bg-slate-800 border-t border-slate-700 rounded-t-3xl shadow-2xl p-6 pb-8 w-full max-w-3xl mx-auto">
             <!-- Handle (Visual Cue) -->
             <div class="w-12 h-1.5 bg-slate-600 rounded-full mx-auto mb-6"></div>
 

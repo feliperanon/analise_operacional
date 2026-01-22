@@ -503,6 +503,34 @@ const Render = {
             }
         });
         return employees;
+    },
+
+    openBottomSheet(employee) {
+        const sheet = document.getElementById('employee-bottom-sheet');
+        const backdrop = document.getElementById('sheet-backdrop');
+        const content = document.getElementById('sheet-content');
+
+        if (!sheet || !backdrop || !content) {
+            console.error('Bottom Sheet elements not found');
+            return;
+        }
+
+        // Renderizar conteúdo do funcionário
+        content.innerHTML = this.buildSheetContent(employee);
+
+        // Mostrar Backdrop
+        backdrop.classList.remove('opacity-0', 'pointer-events-none');
+
+        // Deslizar Sheet para cima
+        sheet.classList.remove('translate-y-full');
+    },
+
+    closeBottomSheet() {
+        const sheet = document.getElementById('employee-bottom-sheet');
+        const backdrop = document.getElementById('sheet-backdrop');
+
+        if (sheet) sheet.classList.add('translate-y-full');
+        if (backdrop) backdrop.classList.add('opacity-0', 'pointer-events-none');
     }
 };
 
