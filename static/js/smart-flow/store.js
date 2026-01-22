@@ -78,6 +78,18 @@ const Store = {
 
     // Alocar colaborador em sub-setor
     allocateEmployee(employeeId, subsectorId) {
+        // Validação: Não permitir alocar se estiver faltando ou de atestado/férias
+        const currentRoutine = this.state.routines[employeeId];
+        if (currentRoutine && ['absent', 'sick', 'vacation', 'falta', 'atestado', 'ferias'].includes(currentRoutine.toLowerCase())) {
+            const routineMap = {
+                'absent': 'Falta', 'falta': 'Falta',
+                'sick': 'Atestado', 'atestado': 'Atestado',
+                'vacation': 'Férias', 'ferias': 'Férias'
+            };
+            alert(`Colaborador com status de ${routineMap[currentRoutine.toLowerCase()] || currentRoutine}. Remova a ausência primeiro se deseja alocá-lo.`);
+            return;
+        }
+
         this.state.allocations[employeeId] = subsectorId;
         this.state.isDirty = true;
         this.notify();

@@ -159,6 +159,19 @@ const Events = {
 
     setActivity(empId, activity) {
         console.log(`Setting activity for ${empId}: ${activity}`);
+
+        // Validação de Ausência
+        const currentRoutine = Store.state.routines[empId];
+        if (currentRoutine && ['absent', 'sick', 'vacation', 'falta', 'atestado', 'ferias'].includes(currentRoutine.toLowerCase())) {
+            const routineMap = { 'absent': 'Falta', 'sick': 'Atestado', 'vacation': 'Férias' };
+            const statusName = routineMap[currentRoutine.toLowerCase()] || currentRoutine;
+
+            if (!confirm(`O colaborador está marcado com ${statusName}. Deseja remover a ausência e iniciar esta atividade?`)) {
+                return;
+            }
+            // Se confirmou, a rotina será atualizada para 'present' automaticamente pelo Store.updateActivity
+        }
+
         const obsInput = document.getElementById('activity-observation');
         const observation = obsInput ? obsInput.value.trim() : null;
 

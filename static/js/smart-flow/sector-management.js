@@ -220,7 +220,7 @@ const SectorManagement = {
                     ${allocatedEmployees.length === 0 ?
                     '<p class="text-xs text-slate-600 text-center py-2 border-2 border-dashed border-slate-800 rounded">Arraste aqui</p>' :
                     allocatedEmployees.map(emp => {
-                        const routine = state.routines[emp.id] || 'present';
+                        const routine = state.routines[emp.id] || emp.status || 'present';
                         return this.renderAllocatedEmployee(emp, routine, subsector.id);
                     }).join('')
                 }

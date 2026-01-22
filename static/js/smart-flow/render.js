@@ -97,21 +97,30 @@ const Render = {
         const sectorEmployeeCount = this.countSectorEmployees(sector, state.allocations);
         const percentage = sector.max_employees > 0 ? Math.round((sectorEmployeeCount / sector.max_employees) * 100) : 0;
 
-        // Calcular presentes reais (não afastados)
-        let realPresentCount = 0;
+        // Calcular contagens detalhadas
+        let countRealPresent = 0;
+        let countAbsence = { vacation: 0, sick: 0, absent: 0, away: 0 };
+
         if (sector.subsectors) {
             sector.subsectors.forEach(sub => {
                 Object.entries(state.allocations).forEach(([empId, subId]) => {
                     if (subId === sub.id) {
-                        const routine = state.routines[empId] || 'present';
-                        // Considera presente se não tiver flag de ausência administrativa
-                        if (!['absent', 'sick', 'vacation', 'away', 'falta', 'atestado', 'ferias', 'afastado'].includes(routine.toLowerCase())) {
-                            realPresentCount++;
-                        }
+                        const emp = state.employees.find(e => e.id == empId);
+                        const routine = state.routines[empId] || (emp ? emp.status : 'present');
+                        const r = routine.toLowerCase();
+
+                        if (['vacation', 'ferias'].includes(r)) countAbsence.vacation++;
+                        else if (['sick', 'atestado'].includes(r)) countAbsence.sick++;
+                        else if (['absent', 'falta'].includes(r)) countAbsence.absent++;
+                        else if (['away', 'afastado'].includes(r)) countAbsence.away++;
+                        else if (!['fired', 'demitido'].includes(r)) countRealPresent++;
                     }
                 });
             });
         }
+
+        // Percentual baseado em Presentes vs Alocados (Força de Trabalho Real)
+        const realPercentage = sectorEmployeeCount > 0 ? Math.round((countRealPresent / sectorEmployeeCount) * 100) : 0;
 
         // Tornar card clicável para abrir modal de gestão
         card.onclick = (e) => {
@@ -121,55 +130,56 @@ const Render = {
         };
 
         card.innerHTML = `
-            <!-- Header -->
-            <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-700/50">
+            <!-- Header Compacto -->
+            <div class="flex items-center justify-between mb-3 border-b border-slate-700/50 pb-2">
                 <div class="flex-1 min-w-0">
-                    <h3 class="text-sm font-bold text-white group-hover:text-blue-400 transition truncate">${sector.name}</h3>
-                    <p class="text-[9px] text-slate-500">${sector.subsectors?.length || 0} sub-setores</p>
+                    <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider truncate mb-0.5">${sector.name}</h3>
+                    <div class="flex items-center gap-2">
+                         <span class="text-lg font-bold text-white leading-none">${countRealPresent} <span class="text-xs text-slate-500 font-normal">/ ${sectorEmployeeCount}</span></span>
+                    </div>
                 </div>
-                <div class="flex gap-1 flex-shrink-0" onclick="event.stopPropagation()">
-                    <button onclick="SectorsCRUD.openEditSector(${sector.id}, '${sector.name}', ${sector.max_employees}, '${sector.color}')"
-                        class="text-slate-500 hover:text-blue-400 p-1 rounded transition" title="Editar">
-                        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                        </svg>
-                    </button>
-                    <button onclick="SectorsCRUD.deleteSector(${sector.id}, '${sector.name}')"
-                        class="text-slate-500 hover:text-red-400 p-1 rounded transition" title="Excluir">
-                        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                    </button>
+                <!-- Actions -->
+                <div class="flex gap-1" onclick="event.stopPropagation()">
+                    <button onclick="SectorsCRUD.openEditSector(${sector.id}, '${sector.name}', ${sector.max_employees}, '${sector.color}')" class="p-1.5 text-slate-500 hover:text-white rounded hover:bg-slate-700 transition"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                    <button onclick="SectorsCRUD.deleteSector(${sector.id}, '${sector.name}')" class="p-1.5 text-slate-500 hover:text-red-400 rounded hover:bg-slate-700 transition"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
                 </div>
             </div>
 
-            <!-- Stats -->
-            <div class="space-y-2">
-                <div class="flex items-baseline justify-between">
-                    <span class="text-[9px] text-slate-500 uppercase font-bold">Alocados</span>
-                    <div class="text-right">
-                        <span class="text-xl font-bold text-${percentage >= 80 ? 'emerald' : percentage >= 50 ? 'amber' : 'red'}-400">${sectorEmployeeCount}</span>
-                        <span class="text-slate-600 text-sm"> / ${sector.max_employees}</span>
-                    </div>
+            <!-- Progress & Stats -->
+            <div class="mb-3">
+                <div class="flex justify-between items-end mb-1">
+                    <span class="text-[9px] text-slate-500 font-bold uppercase">Presença</span>
+                    <span class="text-[10px] font-bold ${realPercentage < 70 ? 'text-red-400' : 'text-emerald-400'}">${realPercentage}%</span>
                 </div>
+                <div class="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
+                    <div class="bg-${realPercentage < 70 ? 'red' : 'emerald'}-500 h-full transition-all" style="width: ${realPercentage}%"></div>
+                </div>
+            </div>
+
+            <!-- Rupture Indicators (Badges) -->
+            <div class="flex flex-wrap gap-2 min-h-[20px]">
+                ${countAbsence.vacation > 0 ?
+                `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-orange-500/10 border border-orange-500/20 text-[9px] font-bold text-orange-400" title="Férias">
+                        <span>🏖️</span> ${countAbsence.vacation}
+                    </span>` : ''}
                 
-                <!-- Progress Bar -->
-                <div class="w-full bg-slate-900 rounded-full h-1 overflow-hidden">
-                    <div class="bg-${percentage >= 80 ? 'emerald' : percentage >= 50 ? 'amber' : 'red'}-500 h-full transition-all" style="width: ${percentage}%"></div>
-                </div>
+                ${countAbsence.sick > 0 ?
+                `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-[9px] font-bold text-amber-400" title="Atestado">
+                        <span>🏥</span> ${countAbsence.sick}
+                    </span>` : ''}
+
+                ${countAbsence.absent > 0 ?
+                `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/20 text-[9px] font-bold text-red-400" title="Falta">
+                        <span>✗</span> ${countAbsence.absent}
+                    </span>` : ''}
                 
-                <div class="flex justify-between items-center text-[9px] pt-1">
-                     <div class="flex items-center gap-1.5 text-slate-400">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                        <span>Presentes: <strong class="text-emerald-400">${realPresentCount}</strong></span>
-                    </div>
-                    <div>
-                        <span class="text-slate-500">Ocupação: </span>
-                        <span class="font-bold text-${percentage >= 80 ? 'emerald' : percentage >= 50 ? 'amber' : 'red'}-400">${percentage}%</span>
-                    </div>
-                </div>
+                ${countAbsence.away > 0 ?
+                `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20 text-[9px] font-bold text-indigo-400" title="Afastado">
+                        <span>🚫</span> ${countAbsence.away}
+                    </span>` : ''}
+                
+                ${(countAbsence.vacation + countAbsence.sick + countAbsence.absent + countAbsence.away) === 0 ?
+                `<span class="text-[9px] text-slate-600 italic">Equipe completa</span>` : ''}
             </div>
         `;
 
@@ -243,7 +253,8 @@ const Render = {
             `;
         } else {
             allocatedEmployees.forEach(emp => {
-                const routine = state.routines[emp.id] || 'present';
+                // Bugfix: Considerar status do funcionário se não houver rotina diária
+                const routine = state.routines[emp.id] || emp.status || 'present';
                 const empCard = this.createEmployeeCard(emp, routine);
                 employeesList.appendChild(empCard);
             });
@@ -464,7 +475,8 @@ const Render = {
                     <p class="text-[10px] text-slate-500 font-bold uppercase mb-1.5 tracking-wide">Administrativo / Ausência</p>
                     
                     <!-- Seletores Rápidos -->
-                    <div class="grid grid-cols-3 gap-2 mb-3">
+                    <div class="grid grid-cols-4 gap-2 mb-3">
+                        ${this.renderRoutineButton(employee.id, 'present', 'emerald', '🙌', 'Presente', true)}
                         ${this.renderRoutineButton(employee.id, 'absent', 'red', '✗', 'Falta', true)}
                         ${this.renderRoutineButton(employee.id, 'sick', 'amber', '🏥', 'Atestado', true)}
                         ${this.renderRoutineButton(employee.id, 'vacation', 'orange', '🏖️', 'Férias', true)}
