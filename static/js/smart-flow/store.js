@@ -79,14 +79,19 @@ const Store = {
     // Alocar colaborador em sub-setor
     allocateEmployee(employeeId, subsectorId) {
         // Validação: Não permitir alocar se estiver faltando ou de atestado/férias
-        const currentRoutine = this.state.routines[employeeId];
-        if (currentRoutine && ['absent', 'sick', 'vacation', 'falta', 'atestado', 'ferias'].includes(currentRoutine.toLowerCase())) {
+        const emp = this.state.employees.find(e => e.id == employeeId);
+        const currentRoutine = this.state.routines[employeeId] || (emp ? emp.status : null);
+
+        if (currentRoutine && ['absent', 'sick', 'vacation', 'away', 'falta', 'atestado', 'ferias', 'afastado', 'dayoff', 'folga'].includes(currentRoutine.toLowerCase())) {
             const routineMap = {
                 'absent': 'Falta', 'falta': 'Falta',
                 'sick': 'Atestado', 'atestado': 'Atestado',
-                'vacation': 'Férias', 'ferias': 'Férias'
+                'vacation': 'Férias', 'ferias': 'Férias',
+                'away': 'Afastado', 'afastado': 'Afastado',
+                'dayoff': 'Folga', 'folga': 'Folga'
             };
-            alert(`Colaborador com status de ${routineMap[currentRoutine.toLowerCase()] || currentRoutine}. Remova a ausência primeiro se deseja alocá-lo.`);
+            const statusName = routineMap[currentRoutine.toLowerCase()] || currentRoutine;
+            alert(`Colaborador com status de ${statusName}. Remova a ausência primeiro se deseja alocá-lo.`);
             return;
         }
 
@@ -186,6 +191,7 @@ const Store = {
         let vacation = 0;
         let away = 0;
         let missing = 0;
+        let dayoff = 0;
 
         // Contar status baseado em rotinas (prioridade) ou status do employee
         shiftEmps.forEach(emp => {
@@ -207,8 +213,7 @@ const Store = {
             } else if (normalizedStatus === 'absent' || normalizedStatus === 'falta') {
                 missing++;
             } else if (normalizedStatus === 'dayoff' || normalizedStatus === 'folga') {
-                // Folga não conta como presente
-                // Não incrementa nenhum contador específico
+                dayoff++;
             } else if (normalizedStatus === 'fired' || normalizedStatus === 'demitido') {
                 // Demitido - não conta como presente (usado para cálculo de vagas)
                 // Não incrementa nenhum contador específico

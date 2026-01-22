@@ -160,10 +160,18 @@ const Events = {
     setActivity(empId, activity) {
         console.log(`Setting activity for ${empId}: ${activity}`);
 
-        // Validação de Ausência
-        const currentRoutine = Store.state.routines[empId];
-        if (currentRoutine && ['absent', 'sick', 'vacation', 'falta', 'atestado', 'ferias'].includes(currentRoutine.toLowerCase())) {
-            const routineMap = { 'absent': 'Falta', 'sick': 'Atestado', 'vacation': 'Férias' };
+        // Validação de Ausência (Incluindo Status Permanente)
+        const emp = Store.state.employees.find(e => e.id == empId);
+        const currentRoutine = Store.state.routines[empId] || (emp ? emp.status : null);
+
+        if (currentRoutine && ['absent', 'sick', 'vacation', 'away', 'falta', 'atestado', 'ferias', 'afastado', 'dayoff', 'folga'].includes(currentRoutine.toLowerCase())) {
+            const routineMap = {
+                'absent': 'Falta', 'falta': 'Falta',
+                'sick': 'Atestado', 'atestado': 'Atestado',
+                'vacation': 'Férias', 'ferias': 'Férias',
+                'away': 'Afastado', 'afastado': 'Afastado',
+                'dayoff': 'Folga', 'folga': 'Folga'
+            };
             const statusName = routineMap[currentRoutine.toLowerCase()] || currentRoutine;
 
             if (!confirm(`O colaborador está marcado com ${statusName}. Deseja remover a ausência e iniciar esta atividade?`)) {

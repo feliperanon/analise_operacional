@@ -56,6 +56,7 @@ const Render = {
         setText('total-target-kpi', kpis.target || 0);
         setText('present-percent', `${kpis.percent || 0}%`);
         setText('total-gap', kpis.gap || 0);
+        setText('total-dayoff', kpis.dayoff || 0);
         setText('total-sick', kpis.sick || 0);
         setText('total-missing', kpis.missing || 0);
         setText('total-vacation', kpis.vacation || 0);
@@ -475,15 +476,17 @@ const Render = {
                     <p class="text-[10px] text-slate-500 font-bold uppercase mb-1.5 tracking-wide">Administrativo / Ausência</p>
                     
                     <!-- Seletores Rápidos -->
-                    <div class="grid grid-cols-4 gap-2 mb-3">
+                    <div class="grid grid-cols-5 gap-1.5 mb-3">
                         ${this.renderRoutineButton(employee.id, 'present', 'emerald', '🙌', 'Presente', true)}
+                        ${this.renderRoutineButton(employee.id, 'dayoff', 'slate', '📅', 'Folga', true)}
                         ${this.renderRoutineButton(employee.id, 'absent', 'red', '✗', 'Falta', true)}
                         ${this.renderRoutineButton(employee.id, 'sick', 'amber', '🏥', 'Atestado', true)}
                         ${this.renderRoutineButton(employee.id, 'vacation', 'orange', '🏖️', 'Férias', true)}
                     </div>
-
-                    <!-- Área de Detalhes (Inicialmente Oculta, ou integrada) -->
-                    <!-- Aqui podemos adicionar lógica JS para expandir se clicar -->
+                    <!-- Linha Extra para Afastado (menos comum) -->
+                    <div class="grid grid-cols-2 gap-2">
+                        ${this.renderRoutineButton(employee.id, 'away', 'indigo', '🚫', 'Afastado', true)}
+                    </div>
                 </div>
             </div>
             
