@@ -560,6 +560,115 @@ def api_grant_achievement(
         return {"success": False, "error": str(e)}
 
 
+# --- Automatic Achievement Check/Audit APIs ---
+from gamification_engine import check_and_award_achievements, audit_and_revoke_achievements
+
+@app.post("/api/game/achievements/check-all")
+def api_check_all_achievements(
+    request: Request,
+    session: Session = Depends(get_session),
+    _gm=Depends(require_gm)
+):
+    """
+    Verifica todas as conquistas automáticas para TODOS os colaboradores.
+    Concede conquistas para quem atende aos critérios.
+    """
+    try:
+        # Buscar todos os colaboradores ativos
+        employees = session.exec(
+            select(models.Employee).where(models.Employee.status != "fired")
+        ).all()
+        
+        total_awarded = 0
+        results = []
+        
+        for emp in employees:
+            try:
+                # Contar conquistas antes
+                before = session.exec(
+                    select(func.count(models.EmployeeAchievement.id))
+                    .where(models.EmployeeAchievement.employee_id == emp.id)
+                    .where(models.EmployeeAchievement.status == "approved")
+                ).one() or 0
+                
+                # Verificar e conceder
+                check_and_award_achievements(session, emp.id)
+                
+                # Contar depois
+                after = session.exec(
+                    select(func.count(models.EmployeeAchievement.id))
+                    .where(models.EmployeeAchievement.employee_id == emp.id)
+                    .where(models.EmployeeAchievement.status == "approved")
+                ).one() or 0
+                
+                awarded = after - before
+                if awarded > 0:
+                    total_awarded += awarded
+                    results.append({"name": emp.name, "awarded": awarded})
+                    
+            except Exception as e:
+                logger.warning(f"Erro ao verificar conquistas de {emp.name}: {e}")
+                continue
+        
+        message = f"Verificação concluída! {total_awarded} conquista(s) concedida(s) para {len(results)} colaborador(es)."
+        if total_awarded == 0:
+            message = "Nenhuma nova conquista foi concedida. Todos já possuem as conquistas elegíveis."
+            
+        return {
+            "success": True,
+            "message": message,
+            "total_awarded": total_awarded,
+            "details": results
+        }
+        
+    except Exception as e:
+        logger.error(f"Erro ao verificar conquistas: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/game/achievements/audit-all")
+def api_audit_all_achievements(
+    request: Request,
+    session: Session = Depends(get_session),
+    _gm=Depends(require_gm)
+):
+    """
+    Audita todas as conquistas de TODOS os colaboradores.
+    Revoga conquistas de quem não atende mais aos critérios.
+    """
+    try:
+        # Buscar todos os colaboradores ativos
+        employees = session.exec(
+            select(models.Employee).where(models.Employee.status != "fired")
+        ).all()
+        
+        total_revoked = 0
+        results = []
+        
+        for emp in employees:
+            try:
+                revoked = audit_and_revoke_achievements(session, emp.id)
+                if revoked and revoked > 0:
+                    total_revoked += revoked
+                    results.append({"name": emp.name, "revoked": revoked})
+            except Exception as e:
+                logger.warning(f"Erro ao auditar conquistas de {emp.name}: {e}")
+                continue
+        
+        message = f"Auditoria concluída! {total_revoked} conquista(s) revogada(s) de {len(results)} colaborador(es)."
+        if total_revoked == 0:
+            message = "Nenhuma conquista foi revogada. Todos os colaboradores ainda atendem aos critérios."
+            
+        return {
+            "success": True,
+            "message": message,
+            "total_revoked": total_revoked,
+            "details": results
+        }
+        
+    except Exception as e:
+        logger.error(f"Erro ao auditar conquistas: {e}")
+        return {"success": False, "error": str(e)}
 
 
 @app.post("/api/admin/reset-data")
@@ -1468,6 +1577,61 @@ async def mobile_achievements(request: Request, current_user: dict = Depends(get
     except Exception as e:
         print(traceback.format_exc())
         return RedirectResponse(url="/mobile/dashboard", status_code=303)
+
+
+# --- Mobile Game Master Route ---
+@app.get("/mobile/game", response_class=HTMLResponse)
+async def mobile_game_master(request: Request, session: Session = Depends(get_session)):
+    """
+    Mobile version of the Game Master admin panel.
+    Requires admin or GM role.
+    """
+    try:
+        user = require_login(request)
+        
+        # Check if user is admin (string) or has GM role
+        is_admin = isinstance(user, str)
+        if not is_admin:
+            # Employee accessing - check role
+            if isinstance(user, dict):
+                emp = session.get(models.Employee, user.get("id"))
+                if not emp or emp.role not in ["Admin", "Manager", "Master"]:
+                    return RedirectResponse(url="/mobile/dashboard", status_code=303)
+        
+        # Fetch pending transactions
+        pending_txs = session.exec(
+            select(models.GameXPTransaction)
+            .where(models.GameXPTransaction.status == "provisional")
+            .order_by(models.GameXPTransaction.created_at.desc())
+            .limit(50)
+        ).all()
+        
+        # Format pending txs for template
+        pending_list = []
+        for tx in pending_txs:
+            emp = session.get(models.Employee, tx.employee_id)
+            reason_parts = (tx.reason or "").split("|")
+            description = reason_parts[0].split("(")[0].strip() if reason_parts else "XP"
+            
+            pending_list.append({
+                "id": tx.id,
+                "employee_name": emp.name if emp else "Desconhecido",
+                "amount": int(tx.amount),
+                "description": description,
+                "date": tx.created_at.strftime("%d/%m %H:%M") if tx.created_at else "-"
+            })
+        
+        return templates.TemplateResponse("mobile/game.html", {
+            "request": request,
+            "user": user,
+            "pending_txs": pending_list
+        })
+        
+    except Exception as e:
+        import traceback
+        print(f"Error in mobile_game: {traceback.format_exc()}")
+        return RedirectResponse(url="/mobile/dashboard", status_code=303)
+
 
 # --- Gamification V2 API & Admin ---
 from gamification_engine import calculate_daily_xp, confirm_pending_xp

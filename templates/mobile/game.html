@@ -1,0 +1,333 @@
+{% extends "mobile/layout.html" %}
+
+{% block content %}
+<div x-data="gameMasterMobile()" x-init="init()" class="flex flex-col min-h-screen pb-safe">
+
+    <!-- Header -->
+    <header
+        class="relative px-6 pt-safe pb-6 bg-gradient-to-b from-yellow-900/30 to-slate-900 border-b border-yellow-500/20">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="p-3 bg-yellow-500/20 rounded-2xl text-yellow-400 shadow-lg shadow-yellow-500/10">
+                    <i data-lucide="gamepad-2" class="w-7 h-7"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-white tracking-tight">Game Master</h1>
+                    <p class="text-xs text-slate-400">Painel de Gamificação</p>
+                </div>
+            </div>
+            <a href="/mobile/dashboard"
+                class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </a>
+        </div>
+    </header>
+
+    <!-- Quick Actions -->
+    <div class="px-6 -mt-3 z-20">
+        <div class="bg-slate-800/90 backdrop-blur-xl rounded-3xl p-4 border border-slate-700/50 shadow-xl">
+            <div class="grid grid-cols-3 gap-3">
+                <a href="/admin/game/settings"
+                    class="flex flex-col items-center p-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/20 transition-colors">
+                    <i data-lucide="sliders" class="w-6 h-6 text-purple-400 mb-2"></i>
+                    <span class="text-xs font-bold text-purple-300">Config</span>
+                </a>
+                <a href="/admin/game/audit"
+                    class="flex flex-col items-center p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-colors">
+                    <i data-lucide="list" class="w-6 h-6 text-blue-400 mb-2"></i>
+                    <span class="text-xs font-bold text-blue-300">Auditoria</span>
+                </a>
+                <a href="/admin/game/achievements"
+                    class="flex flex-col items-center p-3 rounded-2xl bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 transition-colors">
+                    <i data-lucide="award" class="w-6 h-6 text-orange-400 mb-2"></i>
+                    <span class="text-xs font-bold text-orange-300">Conquistas</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 space-y-6 overflow-y-auto">
+
+        <!-- Pending Approvals -->
+        <div class="bg-slate-800/50 rounded-3xl border border-slate-700/50 overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-700/50 bg-slate-900/50 flex justify-between items-center">
+                <h2 class="font-bold text-white flex items-center gap-2">
+                    <i data-lucide="inbox" class="w-5 h-5 text-yellow-500"></i>
+                    Pendentes
+                </h2>
+                <span class="bg-yellow-500/20 text-yellow-500 text-xs px-3 py-1 rounded-full font-bold"
+                    x-text="pendingCount"></span>
+            </div>
+
+            <div class="divide-y divide-slate-700/50 max-h-[400px] overflow-y-auto">
+                <!-- Empty State -->
+                <template x-if="pending.length === 0">
+                    <div class="p-8 text-center text-slate-500">
+                        <i data-lucide="thumbs-up" class="w-10 h-10 mx-auto mb-3 opacity-50"></i>
+                        <p class="font-medium">Nenhuma pendência!</p>
+                    </div>
+                </template>
+
+                <!-- Pending Items -->
+                <template x-for="tx in pending" :key="tx.id">
+                    <div class="p-4 hover:bg-slate-700/30 transition-colors">
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold text-xs uppercase border border-slate-600"
+                                    x-text="tx.employee_name.substring(0,2)"></div>
+                                <div>
+                                    <p class="font-bold text-white text-sm" x-text="tx.employee_name"></p>
+                                    <p class="text-xs text-slate-400" x-text="tx.description"></p>
+                                </div>
+                            </div>
+                            <span
+                                class="bg-indigo-500/20 text-indigo-400 font-bold px-2 py-1 rounded-lg text-xs border border-indigo-500/20"
+                                x-text="'+' + tx.amount + ' XP'"></span>
+                        </div>
+                        <div class="flex gap-2 justify-end">
+                            <button @click="reject(tx.id)"
+                                class="px-4 py-2 text-xs font-medium text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-xl transition-colors border border-red-500/20">
+                                Rejeitar
+                            </button>
+                            <button @click="approve(tx.id)"
+                                class="px-4 py-2 text-xs font-bold text-white bg-green-600 hover:bg-green-500 rounded-xl shadow-lg shadow-green-500/20 transition-all">
+                                <i data-lucide="check" class="w-3 h-3 inline-block mr-1"></i>
+                                Aprovar
+                            </button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Manual XP Adjustment -->
+        <div class="bg-slate-800/50 rounded-3xl border border-slate-700/50 p-5">
+            <h3 class="font-bold text-white mb-4 flex items-center gap-2">
+                <i data-lucide="sliders" class="w-5 h-5 text-blue-400"></i>
+                Ajuste Manual de XP
+            </h3>
+
+            <!-- Toggle -->
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <button @click="form.type='add'"
+                    :class="form.type==='add' ? 'bg-green-600 text-white border-green-500' : 'bg-slate-900 text-slate-300 border-slate-700'"
+                    class="py-3 rounded-xl border font-bold text-sm transition-colors">
+                    + Bonificar
+                </button>
+                <button @click="form.type='remove'"
+                    :class="form.type==='remove' ? 'bg-red-600 text-white border-red-500' : 'bg-slate-900 text-slate-300 border-slate-700'"
+                    class="py-3 rounded-xl border font-bold text-sm transition-colors">
+                    - Penalizar
+                </button>
+            </div>
+
+            <!-- Form -->
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-2">Colaborador</label>
+                    <select x-model.number="form.employee_id"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-blue-500">
+                        <option value="0">Selecione...</option>
+                        <template x-for="e in employees" :key="e.id">
+                            <option :value="e.id" x-text="e.name"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-2">Quantidade (XP)</label>
+                    <input type="number" x-model="form.amount" inputmode="numeric"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-blue-500"
+                        placeholder="Ex: 100">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-2">Motivo</label>
+                    <textarea rows="3" x-model="form.reason"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-blue-500 resize-none"
+                        placeholder="Descreva o motivo..."></textarea>
+                </div>
+
+                <!-- Messages -->
+                <div x-show="error" x-transition
+                    class="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-sm text-red-300">
+                    <i data-lucide="alert-circle" class="w-4 h-4 inline-block mr-1"></i>
+                    <span x-text="error"></span>
+                </div>
+                <div x-show="success" x-transition
+                    class="bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-sm text-green-300">
+                    <i data-lucide="check-circle" class="w-4 h-4 inline-block mr-1"></i>
+                    <span x-text="success"></span>
+                </div>
+
+                <button @click="submitManual()" :disabled="saving"
+                    class="w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                    :class="form.type==='add' ? 'bg-green-600 hover:bg-green-500 shadow-green-500/20' : 'bg-red-600 hover:bg-red-500 shadow-red-500/20'">
+                    <i data-lucide="loader-2" class="w-5 h-5 animate-spin" x-show="saving"></i>
+                    <span
+                        x-text="saving ? 'Aplicando...' : (form.type==='add' ? 'Aplicar Bonificação' : 'Aplicar Penalidade')"></span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Sync Button -->
+        <div class="bg-slate-800/50 rounded-3xl border border-slate-700/50 p-5">
+            <h3 class="font-bold text-white mb-3 flex items-center gap-2">
+                <i data-lucide="refresh-cw" class="w-5 h-5 text-blue-400"></i>
+                Sincronização
+            </h3>
+            <p class="text-xs text-slate-400 mb-4">Recalcula XP de produção para hoje.</p>
+            <button @click="recalculateToday()" :disabled="syncing"
+                class="w-full py-3 rounded-xl bg-slate-700 hover:bg-slate-600 font-bold text-sm text-white transition-all border border-slate-600 flex items-center justify-center gap-2">
+                <i data-lucide="loader-2" class="w-4 h-4 animate-spin" x-show="syncing"></i>
+                <i data-lucide="zap" class="w-4 h-4 text-yellow-500" x-show="!syncing"></i>
+                <span x-text="syncing ? 'Sincronizando...' : 'Recalcular XP (Hoje)'"></span>
+            </button>
+        </div>
+
+    </main>
+</div>
+
+<script>
+    lucide.createIcons();
+
+    function gameMasterMobile() {
+        return {
+            pending: [],
+            pendingCount: {{ pending_txs | length }
+    },
+    employees: [],
+        saving: false,
+            syncing: false,
+                error: '',
+                    success: '',
+                        form: {
+        type: 'add',
+            employee_id: 0,
+                amount: '',
+                    reason: ''
+    },
+
+            async init() {
+        this.loadPending();
+        this.loadEmployees();
+    },
+
+            async loadPending() {
+        try {
+            // Use pending_txs from Jinja
+            this.pending = {{ pending_txs | tojson | safe }
+        };
+    } catch (e) {
+        console.error('Error loading pending:', e);
+        this.pending = [];
+    }
+    this.$nextTick(() => lucide.createIcons());
+            },
+
+            async loadEmployees() {
+        try {
+            const res = await fetch('/api/employees');
+            const data = await res.json();
+            this.employees = (data.employees || data.data || []).sort((a, b) => a.name.localeCompare(b.name));
+        } catch (e) {
+            this.employees = [];
+        }
+        this.$nextTick(() => lucide.createIcons());
+    },
+
+            async approve(id) {
+        await this.sendAction(id, 'approve');
+    },
+
+            async reject(id) {
+        await this.sendAction(id, 'reject');
+    },
+
+            async sendAction(id, action) {
+        try {
+            const res = await fetch(`/api/game/transaction/${id}/${action}`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                this.pending = this.pending.filter(tx => tx.id !== id);
+                this.pendingCount = this.pending.length;
+            } else {
+                alert('Erro ao processar: ' + (data.error || ''));
+            }
+        } catch (e) {
+            alert('Erro de conexão');
+        }
+        this.$nextTick(() => lucide.createIcons());
+    },
+
+            async submitManual() {
+        this.error = '';
+        this.success = '';
+
+        if (!this.form.employee_id || this.form.employee_id <= 0) {
+            this.error = 'Selecione um colaborador.';
+            return;
+        }
+        if (!this.form.amount || parseInt(this.form.amount) <= 0) {
+            this.error = 'Informe uma quantidade válida.';
+            return;
+        }
+        if (!this.form.reason.trim()) {
+            this.error = 'Informe o motivo.';
+            return;
+        }
+
+        this.saving = true;
+        let amount = parseInt(this.form.amount);
+        if (this.form.type === 'remove') amount = -Math.abs(amount);
+
+        try {
+            const res = await fetch('/api/game/manual-xp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    employee_id: Number(this.form.employee_id),
+                    amount,
+                    reason: this.form.reason.trim(),
+                    status: 'confirmed'
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                this.success = 'Ajuste aplicado com sucesso!';
+                this.form.amount = '';
+                this.form.reason = '';
+            } else {
+                this.error = data.error || 'Erro ao aplicar ajuste.';
+            }
+        } catch (e) {
+            this.error = 'Erro de conexão.';
+        } finally {
+            this.saving = false;
+            this.$nextTick(() => lucide.createIcons());
+        }
+    },
+
+            async recalculateToday() {
+        this.syncing = true;
+        const today = new Date().toISOString().split('T')[0];
+        try {
+            const res = await fetch(`/api/game/recalculate-all/${today}`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                alert('XP recalculado! ' + (data.processed || 0) + ' transações processadas.');
+                location.reload();
+            } else {
+                alert('Erro: ' + (data.error || 'Desconhecido'));
+            }
+        } catch (e) {
+            alert('Erro de conexão.');
+        } finally {
+            this.syncing = false;
+        }
+    }
+        };
+    }
+</script>
+{% endblock %}
