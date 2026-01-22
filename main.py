@@ -5054,25 +5054,15 @@ async def get_allocations(
     
     tonnage = route_tonnage if route_tonnage else 0.0
 
-    # Fetch Targets (Prioritize Manual > Sector Sum) - Same logic as /employees
-    legacy_targets = session.exec(select(models.HeadcountTarget)).all()
-    legacy_map = {t.shift_name: t.target_value for t in legacy_targets}
-
+    # Fetch Targets - SEMPRE usar soma dos setores (SOURCE OF TRUTH)
+    # HeadcountTarget é legado e pode estar desatualizado
     all_sectors = session.exec(select(models.Sector)).all()
-    sector_map_sum = {"Manhã": 0, "Tarde": 0, "Noite": 0}
+    target_map = {"Manhã": 0, "Tarde": 0, "Noite": 0}
     for sec in all_sectors:
         sec_shift_norm = "Manhã"
         if "tarde" in sec.shift.lower(): sec_shift_norm = "Tarde"
         elif "noite" in sec.shift.lower(): sec_shift_norm = "Noite"
-        sector_map_sum[sec_shift_norm] += sec.max_employees
-    
-    target_map = {}
-    for s in ["Manhã", "Tarde", "Noite"]:
-        manual_val = legacy_map.get(s, 0)
-        sector_val = sector_map_sum[s]
-        if manual_val > 0: target_map[s] = manual_val
-        elif sector_val > 0: target_map[s] = sector_val
-        else: target_map[s] = 0
+        target_map[sec_shift_norm] += sec.max_employees
 
     return {
         "allocations": allocations_map,
@@ -5460,36 +5450,35 @@ async def routine_report(
         all_employees = session.exec(select(models.Employee)).all()
         emp_map = {str(e.registration_id): e for e in all_employees}
         
-        # 3. Fetch Sector Config (Targets)
-        sector_config_db = session.exec(select(models.SectorConfiguration).where(models.SectorConfiguration.shift_name == shift)).first()
-        sector_config = {}
-        if sector_config_db and sector_config_db.config_json:
-            sector_config = sector_config_db.config_json
-            if isinstance(sector_config, str):
-                try:
-                    sector_config = json.loads(sector_config)
-                except:
-                    sector_config = {}
-                    
+        # 3. Fetch Sectors from Sector Table (SOURCE OF TRUTH - Same as Smart Flow)
+        # IMPORTANTE: Usar tabela Sector ao invés de SectorConfiguration para garantir
+        # consistência entre Smart Flow e Relatório
+        db_sectors = session.exec(
+            select(models.Sector)
+            .where(models.Sector.shift == shift)
+            .order_by(models.Sector.order)
+        ).all()
+        
+        # Normalizar nome do setor para key (ex: "Câmara Fria" -> "camara_fria")
+        def normalize_sector_key(name):
+            import unicodedata
+            name_norm = unicodedata.normalize('NFD', name.lower().strip())
+            key = name_norm.encode('ascii', 'ignore').decode('utf-8').replace(' ', '_')
+            return key
+        
+        # Converter para estrutura esperada pelo relatório
+        SECTORS = []
+        for sec in db_sectors:
+            SECTORS.append({
+                "key": normalize_sector_key(sec.name),
+                "label": sec.name,
+                "target": sec.max_employees
+            })
+        
         # DEBUG: Log configuration status
-        print(f"🔍 DEBUG - Sector Config DB found: {sector_config_db is not None}")
-        if sector_config_db:
-            print(f"🔍 DEBUG - Config JSON type: {type(sector_config_db.config_json)}")
-            print(f"🔍 DEBUG - Sectors in config: {len(sector_config.get('sectors', []))}")
-            if sector_config.get('sectors'):
-                for s in sector_config['sectors']:
-                    print(f"   - {s.get('label')}: meta {s.get('target')}")
-        else:
-            print(f"⚠️ WARNING - No SectorConfiguration found for shift '{shift}'")
-                    
-        # IMPORTANTE: Não usar defaults hardcoded
-        # O relatório deve sempre usar a configuração real do Smart Flow
-        # Se não houver configuração, mostrar lista vazia (não inventar setores)
-        if not sector_config or "sectors" not in sector_config:
-            print(f"⚠️ WARNING - Using empty sectors list (no config found)")
-            sector_config = {"sectors": []}
-            
-        SECTORS = sector_config.get("sectors", [])
+        print(f"🔍 DEBUG - Sectors from Sector table: {len(SECTORS)}")
+        for s in SECTORS:
+            print(f"   - {s.get('label')}: meta {s.get('target')}")
         
         # 4. Build Snapshot Data
         
@@ -5552,8 +5541,16 @@ async def routine_report(
             sector_key = sector_name_norm.encode('ascii', 'ignore').decode('utf-8').replace(' ', '_')
             
             # Resolve Status
-            # Priority: Routine > Employee Status > 'present'
-            status = routine_map.get(emp.id, 'present')
+            # Priority: Routine Diária > Employee Status Database > 'present'
+            # IMPORTANTE: Se não houver rotina no dia, verificar status do empregado (vacation, away, etc)
+            if emp.id in routine_map:
+                status = routine_map[emp.id]
+            elif emp.status in ['vacation', 'away', 'sick']:
+                # Usar status do banco se for ausência conhecida
+                status = emp.status
+            else:
+                # Default para colaboradores ativos sem rotina específica
+                status = 'present'
             
             log[str(emp.registration_id)] = {
                 "status": status,
@@ -5621,8 +5618,9 @@ async def routine_report(
             })
             processed_ids.add(employee.id)
 
-        # 2. Process Remaining Employees (Same Shift, No Routine Today)
-        # This catches "Away", "Vacation" people who didn't get a routine entry today
+        # 2. Process Remaining Employees (Same Shift, No Routine/Allocation Today)
+        # Estes são pessoas do turno que NÃO foram alocadas hoje
+        # IMPORTANTE: Não contar como 'present' se não estão alocados (consistência com Smart Flow)
         for emp in all_employees:
             if emp.id in processed_ids:
                 continue
@@ -5630,26 +5628,27 @@ async def routine_report(
             if emp.status == 'fired': 
                 continue # Fired and no routine = ignored
                 
-            # Check Shift
+            # Check Shift - comparação EXATA (não usar 'in' para evitar matches incorretos)
             emp_shift_norm = normalize_str(emp.work_shift)
-            if target_shift_norm not in emp_shift_norm:
+            if emp_shift_norm != target_shift_norm:
                 continue # Wrong shift
                 
             # Determine Status from DB Profile
+            # IMPORTANTE: Se não está alocado, usar o status do cadastro
+            # Não assumir 'present' para pessoas não alocadas (divergia do Smart Flow)
             db_status = emp.status
-            report_status = 'present' # Default assumption if active
+            report_status = db_status  # Usar status real do banco
             
             if db_status == 'away':
                 report_status = 'away'
             elif db_status == 'vacation':
                 report_status = 'vacation'
             elif db_status == 'active':
-                # Active but no routine... Assume present (unallocated) or just list them?
-                # If we assume present, we might increase "Presentes" count.
-                # If they are truly absent, they should have been marked 'absent'.
-                # Assumption: Active = Present
-                report_status = 'present'
-                total_present += 1
+                # Active mas não alocado = não contar como presente operacionalmente
+                # Pode ser: folga, não programado, etc.
+                # Para consistência com Smart Flow, marcar como 'unallocated' (não soma em presente)
+                report_status = 'unallocated'
+                # NÃO incrementar total_present aqui!
             
             # Substituted Check (Duplicate logic, could functionality extract)
             is_substituted = False
@@ -5753,6 +5752,9 @@ async def routine_report(
                 "gap": 0
             })
             total_allocated_sum += len(others_allocated)
+        
+        # Calcular vagas operacionais (soma das vagas de todos os setores)
+        total_operational_vacancies = sum(s.get('vacancies', 0) for s in sectors_detailed)
             
         # Top KPIs - ALINHADO COM SMART FLOW
         # IMPORTANTE: Total target = SOMA DAS METAS CONFIGURADAS (não colaboradores do turno)

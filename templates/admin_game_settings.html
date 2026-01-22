@@ -33,8 +33,8 @@
             </button>
             <a href="/admin/game"
                 class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors">
-                <i data-lucide="x" class="w-4 h-4"></i>
-                Cancelar
+                <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                Voltar
             </a>
         </div>
     </header>
@@ -55,12 +55,7 @@
                     <i data-lucide="trophy" class="w-4 h-4 inline-block mr-1"></i>
                     Níveis
                 </button>
-                <button @click="activeTab = 'achievements'"
-                    :class="activeTab === 'achievements' ? 'text-white border-b-2 border-purple-500' : 'text-slate-400 hover:text-white'"
-                    class="px-4 py-3 text-sm font-medium transition-colors">
-                    <i data-lucide="award" class="w-4 h-4 inline-block mr-1"></i>
-                    Conquistas
-                </button>
+                <!-- Aba Conquistas removida - já existe como botão no Game Master -->
                 <button @click="activeTab = 'data'"
                     :class="activeTab === 'data' ? 'text-white border-b-2 border-red-500' : 'text-slate-400 hover:text-white'"
                     class="px-4 py-3 text-sm font-medium transition-colors">
@@ -608,12 +603,12 @@
             toast: { visible: false, message: '', type: 'success' },
 
             config: {{ config_json | safe }},
-    levels: {{ levels_json | safe }},
-    achievements: {{ achievements_json | safe }},
+            levels: {{ levels_json | safe }},
+            achievements: {{ achievements_json | safe }},
 
-    // Multiple events support
-    specialEvents: {{ special_events_json | safe }},
-    timeBonuses: {{ time_bonuses_json | safe }},
+            // Multiple events support
+            specialEvents: {{ special_events_json | safe }},
+            timeBonuses: {{ time_bonuses_json | safe }},
 
     showToast(message, type = 'success') {
         this.toast = { visible: true, message, type };
@@ -636,7 +631,9 @@
 
     removeSpecialEvent(index) {
         if (confirm('Excluir este evento?')) {
-            this.specialEvents.splice(index, 1); }},
+            this.specialEvents.splice(index, 1);
+        }
+    },
 
     // Achievements CRUD
     addAchievement() {
@@ -654,7 +651,9 @@
 
     removeAchievement(index) {
         if (confirm('Deseja excluir permanentemente esta conquista?')) {
-            this.achievements.splice(index, 1); }},
+            this.achievements.splice(index, 1);
+        }
+    },
 
     // Time Bonuses CRUD
     addTimeBonus() {
@@ -669,7 +668,9 @@
 
     removeTimeBonus(index) {
         if (confirm('Excluir esta regra de horário?')) {
-            this.timeBonuses.splice(index, 1); }},
+            this.timeBonuses.splice(index, 1);
+        }
+    },
 
     // Event Status Helpers
     isEventActive(event) {
@@ -722,10 +723,14 @@
                 this.showToast('Sistema resetado com sucesso! 🔄', 'success');
                 setTimeout(() => window.location.reload(), 1500);
             } else {
-                throw new Error(data.error || 'Erro desconhecido'); }} catch (err) {
+                throw new Error(data.error || 'Erro desconhecido');
+            }
+        } catch (err) {
             this.showToast(err.message, 'error');
         } finally {
-            this.saving = false; }},
+            this.saving = false;
+        }
+    },
 
     async saveAll() {
         if (this.saving) return;
@@ -779,7 +784,9 @@
             console.error(err);
             this.showToast(err.message, 'error');
         } finally {
-            this.saving = false; }}
+            this.saving = false;
+        }
+    }
         };
     }
 </script>

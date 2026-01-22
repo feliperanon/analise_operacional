@@ -5,16 +5,17 @@
 
 const KPIDetails = {
     show(type) {
-        const { employees, currentShift, currentDate, routines } = Store.state;
+        const { employees, currentShift, currentDate, routines, allocations } = Store.state;
 
-        // Filtrar colaboradores do turno atual E ativos (não demitidos)
+        // IMPORTANTE: Usar apenas colaboradores ALOCADOS (consistência com KPI strip)
+        // Antes: contava todos do turno. Agora: apenas alocados.
+        const allocatedEmpIds = Object.keys(allocations);
+
         const shiftEmps = employees.filter(e => {
-            const empShift = e.work_shift ?? e.shift ?? null;
-            if (!empShift) return false;
-            // Verificar shift
-            if (empShift.toLowerCase() !== currentShift.toLowerCase()) return false;
+            // Verificar se está alocado
+            if (!allocatedEmpIds.includes(String(e.id))) return false;
 
-            // Excluir demitidos da contagem geral deste modal (para bater com Headcount Target)
+            // Excluir demitidos
             const status = (e.status || 'active').toLowerCase();
             return status !== 'fired' && status !== 'demitido';
         });

@@ -40,12 +40,13 @@ const App = {
         // Carregar alocações e rotinas
         const allocData = await API.loadAllocations(currentDate, currentShift);
 
-        // Atualizar Store
+        // Atualizar Store - incluir targets para cálculo correto de meta
         Store.setData({
             sectors: sectorsData.sectors || [],
             allocations: allocData.allocations || {},
             routines: allocData.routines || {},
-            tonnage: allocData.tonnage || 0
+            tonnage: allocData.tonnage || 0,
+            targets: allocData.targets || {}  // IMPORTANTE: passar targets para KPI correto
         });
     }
 };

@@ -76,9 +76,14 @@ const Events = {
             App.loadData();
         };
 
-        window.changeShift = (newShift) => {
+        window.changeShift = async (newShift) => {
+            // Limpar state imediatamente para evitar valores misturados durante o carregamento
+            Store.state.allocations = {};
+            Store.state.routines = {};
+            Store.state.kpis = { present: 0, target: 0, percent: 0 };
+
             Store.setShift(newShift);
-            App.loadData();
+
             // Update layout active state on shift change
             document.querySelectorAll('[data-shift]').forEach(el => {
                 if (el.dataset.shift === newShift) {
@@ -87,6 +92,9 @@ const Events = {
                     el.classList.remove('active');
                 }
             });
+
+            // Carregar novos dados (aguardar para evitar race condition)
+            await App.loadData();
         };
 
         window.saveAll = async () => {

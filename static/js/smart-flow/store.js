@@ -194,13 +194,29 @@ const Store = {
         let dayoff = 0;
 
         // Contar status baseado em rotinas (prioridade) ou status do employee
-        shiftEmps.forEach(emp => {
+        // APENAS para colaboradores ALOCADOS (consistência com Relatório)
+        const allocatedEmpIds = Object.keys(allocations);
+
+        allocatedEmpIds.forEach(empId => {
+            const emp = employees.find(e => e.id == empId);
+            if (!emp) return;
+
+            // Se está alocado neste turno, conta (não filtra por turno do cadastro)
+            // A alocação já foi feita para este turno específico
+
             // Priorizar rotina do dia, depois status do employee
-            const routine = this.state.routines[emp.id];
-            const status = routine || emp.status || 'active';
+            const routine = this.state.routines[empId];
+            let status;
+            if (routine) {
+                status = routine;
+            } else if (emp.status && ['vacation', 'away', 'sick'].includes(emp.status.toLowerCase())) {
+                status = emp.status;
+            } else {
+                status = 'present';
+            }
             const normalizedStatus = status.toLowerCase();
 
-            // Apenas contar como presente se routine for 'present' ou não houver rotina e status for 'active'/'ativo'
+            // Classificar por status
             if (normalizedStatus === 'present' ||
                 (!routine && (normalizedStatus === 'active' || normalizedStatus === 'ativo'))) {
                 present++;
@@ -215,24 +231,16 @@ const Store = {
             } else if (normalizedStatus === 'dayoff' || normalizedStatus === 'folga') {
                 dayoff++;
             } else if (normalizedStatus === 'fired' || normalizedStatus === 'demitido') {
-                // Demitido - não conta como presente (usado para cálculo de vagas)
-                // Não incrementa nenhum contador específico
+                // Demitido - não conta
             } else {
-                // Default: se não for nenhuma rotina especial e não houver rotina definida, conta como presente
+                // Default: presente se não tiver rotina especial
                 if (!routine) {
-                    console.warn('Unknown status for employee:', emp.name, '- status:', status);
                     present++;
                 }
             }
         });
 
-        // Contar alocados (presentes operacionais)
-        const operationalPresent = Object.keys(allocations).filter(empId => {
-            const emp = employees.find(e => e.id == empId);
-            if (!emp) return false;
-            const empShift = emp.work_shift ?? emp.shift ?? null;
-            return empShift && empShift.toLowerCase() === currentShift.toLowerCase();
-        }).length;
+        // Total de alocados (para referência)
 
         // Calcular target total (total de colaboradores ATIVOS/AFASTADOS do turno, excluindo demitidos)
         // Antes era shiftEmps.length (incluía demitidos)
@@ -257,7 +265,7 @@ const Store = {
         console.log('Total in Shift (incl. fired):', shiftEmps.length);
         console.log('Fired Count:', firedCount);
         console.log('Active Workforce (Target):', totalTarget);
-        console.log('Present:', operationalPresent);
+        console.log('Present:', present);
         console.groupEnd();
 
         // Calcular vagas REAIS (colaboradores demitidos do turno)
