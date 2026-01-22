@@ -5053,16 +5053,32 @@ async def get_allocations(
     ).one()
     
     tonnage = route_tonnage if route_tonnage else 0.0
+
+    # Fetch Targets (Prioritize Manual > Sector Sum) - Same logic as /employees
+    legacy_targets = session.exec(select(models.HeadcountTarget)).all()
+    legacy_map = {t.shift_name: t.target_value for t in legacy_targets}
+
+    all_sectors = session.exec(select(models.Sector)).all()
+    sector_map_sum = {"Manhã": 0, "Tarde": 0, "Noite": 0}
+    for sec in all_sectors:
+        sec_shift_norm = "Manhã"
+        if "tarde" in sec.shift.lower(): sec_shift_norm = "Tarde"
+        elif "noite" in sec.shift.lower(): sec_shift_norm = "Noite"
+        sector_map_sum[sec_shift_norm] += sec.max_employees
     
-    # Se quiser manter o manual como fallback ou override, teria que ter lógica extra.
-    # Mas o pedido implica que as rotas são a fonte.
-    # daily_op = session.exec(...)
-    # tonnage = daily_op.tonnage if daily_op and daily_op.tonnage else 0
+    target_map = {}
+    for s in ["Manhã", "Tarde", "Noite"]:
+        manual_val = legacy_map.get(s, 0)
+        sector_val = sector_map_sum[s]
+        if manual_val > 0: target_map[s] = manual_val
+        elif sector_val > 0: target_map[s] = sector_val
+        else: target_map[s] = 0
 
     return {
         "allocations": allocations_map,
         "routines": routines_map,
-        "tonnage": tonnage
+        "tonnage": tonnage,
+        "targets": target_map
     }
 
 @app.post("/api/smart-flow/allocations/save", response_class=JSONResponse)

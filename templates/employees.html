@@ -486,9 +486,10 @@
                     oninput="validateTargets()">
             </div>
 
-            <!-- Validation Feedback -->
-            <div id="target-validation-msg" class="hidden text-xs text-red-400 font-bold text-center">
-                Soma dos turnos excede o total!
+            <!-- Balance Display -->
+            <div id="target-balance-display"
+                class="text-xs font-bold text-center mt-2 p-2 bg-slate-700/20 rounded border border-slate-600">
+                Calculando saldo...
             </div>
 
             <button onclick="saveTargets()" id="btn-save-targets"
