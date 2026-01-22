@@ -1,43 +1,48 @@
-# Implementation Plan: Bulk Absence Import
+# [CONCLUÍDO] Refatoração Mobile-First (Smart Flow 2.0)
 
-## Goal
-Allow the user to upload an Excel spreadsheet containing historical absence data (Faltas, Atestados) to bulk-update `EmployeeRoutine` and `Event` references.
+**Status:** ✅ Finalizado e Validado (21/01/2026)
+**Objetivo:** Transformar a experiência de uso em dispositivos móveis, eliminando modais desktop e introduzindo padrões de UX nativos (Bottom Sheet, Accordion).
 
-## Data Source
-- Format: Excel `.xlsx`
-- Columns: `Matricula`, `Nome` (Ignored), `Data`, `Ocorrencia`
-- Mapping:
-  - `Matricula` -> `Employee.registration_id`
-  - `Data` -> `EmployeeRoutine.date` + `Event.timestamp`
-  - `Ocorrencia` -> `EmployeeRoutine.routine` + `Event.type`
+## 1. Alterações Realizadas
 
-## Components
+### A. Frontend (UI/UX)
 
-### 1. Backend (`main.py`)
-New Endpoint: `POST /api/import/routines`
-- Parses Excel.
-- Iterates rows.
-- Validates Employee existence.
-- Normalizes "Ocorrencia" string (e.g., "Falta" -> "absent", "Atestado" -> "sick").
-- **Action:**
-    - Updates/Creates `EmployeeRoutine` for (Employee, Date).
-    - Creates `Event` of type 'falta'/'atestado'.
-    - **Crucial:** Does NOT update global `Employee.status` (per previous fix).
+- **Layout Responsivo Real**:
+  - Remoção de `h-screen` fixo (bug de scroll em mobile).
+  - Sidebar oculta automaticamente em telas < 768px (`md:flex`).
+  - Header com layout "Stacked" em mobile e "Row" em desktop.
 
-### 2. Frontend (`employees.html`)
-- Add "Importar Ocorrências" button next to "Importar Colaboradores".
-- Modal with File Input.
-- Form POST to `/api/import/routines`.
+- **Componentes Interativos**:
+  - **Bottom Sheet**: Substituição completa dos modais de gestão de colaborador. Agora desliza do rodapé, permitindo fácil alcance do dedão.
+  - **Accordion (Sub-setores)**: Listas de colaboradores agrupadas por sub-setor agora abrem/fecham, economizando scroll vertical.
 
-## Logic Details
-- **Normalization:**
-    - `Falta` -> `routine='absent'`, `event='falta'`
-    - `Atestado` -> `routine='sick'`, `event='atestado'`
-    - `Suspensão` -> `routine='absent'`, `event='suspension'` (if needed)
+### B. Funcionalidades (Lógica)
 
-- **Idempotency:**
-    - If a routine already exists for that day, overwrite it? YES. The spreadsheet is the "correction".
+- **Rastreamento de Atividades**:
+  - Novo fluxo de "Início/Fim" de atividade.
+  - Persistência de logs no `Store.state` e envio ao backend via `/save`.
+  - **Input de Observação**: Campo de texto integrado ao Bottom Sheet para notas rápidas ("Prioridade", "Quebra").
 
-## Verification
-- User uploads sample file.
-- Check "People Intelligence" report for the imported dates.
+### C. Backend (API)
+
+- Nenhuma alteração de schema foi necessária (uso criativo do campo `logs` e `attendance_log` existentes no modelo `DailyRoutineUpdate`).
+
+## 2. Arquivos Impactados
+
+### Templates
+
+- `templates/smart_flow.html`: Estrutura do Bottom Sheet e classes responsivas.
+- `templates/base.html`: Lógica de ocultação da Sidebar.
+
+### JavaScript (Static)
+
+- `static/js/smart-flow/render.js`: Renderização de cards e controle do Bottom Sheet.
+- `static/js/smart-flow/store.js`: Lógica de transição de estado (`updateActivity`) e persistência.
+- `static/js/smart-flow/sector-management.js`: Implementação do Accordion e correção de HTML "vazando".
+
+## 3. Validação
+
+- **Testes Realizados**:
+  - Navegação em viewport 390x844 (iPhone 12/13).
+  - Abertura de modal e interação com accordion.
+  - Persistência de dados após reload.

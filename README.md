@@ -10,38 +10,45 @@ Sistema de gestão inteligente para operações logísticas e controle de fluxo 
 ## 🚀 Funcionalidades Principais
 
 ### 1. ⚡ Fluxo Operacional Inteligente (Smart Flow)
+
 O coração da operação. Uma interface visual interativa para gestão em tempo real:
+
 - **Gestão Visual**: Cards de setores (Recebimento, Seleção, Câmara Fria, Expedição) com indicadores de meta vs. realizado.
 - **Alocação Dinâmica**: Arraste e solte colaboradores entre equipes? (Futuro) / Seleção rápida de sub-setores (Doca 1, Linha A, etc.).
 - **Barra de KPIs**: Monitoramento instantâneo de Headcount, Vagas em Aberto, Absenteísmo e Produção (Tonelagem).
 - **Status Sincronizados**: Controle de Férias, Atestados e Afastamentos que sincronizam automaticamente com o banco de dados.
-- **Layout Responsivo**: Adaptado para visualização em telas únicas ou monitores de gestão.
+- **Layout Mobile-First**: Interface responsiva com Sidebar adaptável, Bottom Sheet para ações rápidas e navegação fluida em dispositivos móveis.
+- **Accordion e Listas Expansíveis**: Gestão de sub-setores otimizada para telas pequenas.
 - **Arquitetura API-First**: Separação total entre dados (API REST) e apresentação (HTML/JS).
 
 ### 2. 👥 Gestão de Colaboradores e Férias
+
 - **Cadastro Completo**: Matrícula, Nome, Função, Turno e Centro de Custo.
 - **Módulo de Férias Global**:
-    - Agendamento individual de férias com feedback visual.
-    - **Importação em Massa**: Ferramenta para colagem direta do Excel (Matrícula, Início, Fim).
+  - Agendamento individual de férias com feedback visual.
+  - **Importação em Massa**: Ferramenta para colagem direta do Excel (Matrícula, Início, Fim).
 - **Histórico & Edição**: Mudanças de status (Férias, Afastado) geram eventos automáticos traduzidos. Edição completa de histórico (Tipo, Data, Texto) disponível.
 - **Horário de Trabalho**: Exibição clara do turno/horário no detalhe do colaborador.
 - **Filtros Inteligentes**: Busca rápida por nome, matrícula e visualização segmentada por turno.
 
 ### 3. 📈 Dashboard e Analytics
+
 - Visão gerencial dos resultados operacionais.
 - Gráficos de performance histórica.
 - Relatórios de "Dia Crítico" e Rankings de Produtividade.
 
 ### 4. 📝 Diário de Operações e Relatórios
+
 - **Registro Oficial**: Controle detalhado de ocorrências do turno (Chegada/Saída, Qualitativo).
 - **Relatório PDF**: Geração automática de relatório de turno (`/routine/report`) contendo:
-    - KPIs consolidados (Total, GAP, Tonelagem, Produtividade).
-    - Lista de presença e ausências.
-    - Insights automáticos: Aniversariantes e Vencimento de Contratos (45/90 dias).
+  - KPIs consolidados (Total, GAP, Tonelagem, Produtividade).
+  - Lista de presença e ausências.
+  - Insights automáticos: Aniversariantes e Vencimento de Contratos (45/90 dias).
 
 ## 🛠️ Tecnologias Utilizadas
 
 **Backend**
+
 - **Language**: Python 3.10+
 - **Framework**: FastAPI (Alta performance, assíncrono)
 - **Database**: SQLModel (Abstração sobre SQLAlchemy)
@@ -49,6 +56,7 @@ O coração da operação. Uma interface visual interativa para gestão em tempo
 - **Logging**: RotatingFileHandler com níveis otimizados (INFO em produção)
 
 **Frontend**
+
 - **Arquitetura**: API-First (Separação total de dados e apresentação)
 - **Templating**: Jinja2 (Apenas estrutura HTML, sem lógica de negócio)
 - **Estilização**: TailwindCSS (Utility-first CSS, Foco em Dark Mode/Slate Theme)
@@ -57,6 +65,7 @@ O coração da operação. Uma interface visual interativa para gestão em tempo
 - **Relatórios**: Geração de HTML/PDF otimizado para impressão/exportação.
 
 **Performance**
+
 - **Logs Otimizados**: Sistema de rotação automática (5MB max, 3 backups)
 - **Queries Indexadas**: 20+ índices em colunas críticas
 - **Cache Inteligente**: Dados raramente alterados em memória
@@ -65,19 +74,23 @@ O coração da operação. Uma interface visual interativa para gestão em tempo
 ## ⚡ Performance e Otimizações
 
 ### Ganhos Implementados
+
 - 🚀 **2x-2.4x mais rápido** (50-140% de melhoria)
 - 📉 **90% menos logs** gerados
 - 💾 **Logs controlados** (rotação automática, sem crescimento infinito)
 - ⚡ **Queries otimizadas** com índices em colunas críticas
 
 ### Arquitetura API-First
+
 O sistema segue rigorosamente a arquitetura API-First:
+
 - ✅ Templates HTML contêm **apenas estrutura e layout**
 - ✅ Dados são **sempre carregados via API REST** (`fetch/axios`)
 - ✅ JavaScript gerencia **todo o estado e lógica de negócio**
 - ✅ Backend fornece **dados validados via Pydantic schemas**
 
 ### Sistema de Logs Inteligente
+
 ```python
 # Logs otimizados com rotação automática
 RotatingFileHandler(
@@ -91,7 +104,9 @@ LOG_LEVEL = logging.INFO  # (ou DEBUG se DEBUG=true)
 ```
 
 ### Índices de Banco de Dados
+
 20+ índices criados em colunas frequentemente consultadas:
+
 - `employee`: registration_id, status, work_shift, cost_center
 - `dailyoperation`: date+shift, date
 - `event`: employee_id, timestamp, type, category
@@ -100,6 +115,7 @@ LOG_LEVEL = logging.INFO  # (ou DEBUG se DEBUG=true)
 ## 📦 Instalação e Execução
 
 ### Pré-requisitos
+
 - Python 3.10+ instalado
 - PostgreSQL (produção) ou SQLite (desenvolvimento)
 - Gerenciador de pacotes `pip`
@@ -107,12 +123,14 @@ LOG_LEVEL = logging.INFO  # (ou DEBUG se DEBUG=true)
 ### Passo a Passo
 
 1. **Clone o repositório**
+
    ```bash
    git clone https://github.com/feliperanon/analise_operacional.git
    cd analise_operacional
    ```
 
 2. **Crie e ative um ambiente virtual**
+
    ```bash
    python -m venv .venv
    # Windows
@@ -122,13 +140,15 @@ LOG_LEVEL = logging.INFO  # (ou DEBUG se DEBUG=true)
    ```
 
 3. **Instale as dependências**
+
    ```bash
    pip install -r requirements.txt
    ```
 
 4. **Configure o banco de dados (Opcional)**
-   
+
    Crie um arquivo `.env` na raiz do projeto:
+
    ```env
    # PostgreSQL (Produção)
    DATABASE_URL=postgresql://user:password@localhost/dbname
@@ -141,6 +161,7 @@ LOG_LEVEL = logging.INFO  # (ou DEBUG se DEBUG=true)
    ```
 
 5. **Aplique otimizações de índices (Recomendado)**
+
    ```bash
    # Windows
    .\apply_indexes.bat
@@ -150,13 +171,15 @@ LOG_LEVEL = logging.INFO  # (ou DEBUG se DEBUG=true)
    ```
 
 6. **Execute a aplicação**
-   
+
    **Opção A (Script Powershell - Windows):**
+
    ```powershell
    .\run.ps1
    ```
 
    **Opção B (Manual):**
+
    ```bash
    uvicorn main:app --reload
    ```
@@ -200,6 +223,7 @@ analise_operacional/
 ## 🔧 Scripts Úteis
 
 ### Aplicar Índices de Performance
+
 ```bash
 # Windows
 .\apply_indexes.bat
@@ -209,6 +233,7 @@ python apply_indexes.py
 ```
 
 ### Executar em Modo Debug
+
 ```bash
 # Ativar logs detalhados (SQL queries, DEBUG level)
 # Edite .env:
@@ -219,6 +244,7 @@ DEBUG=true
 ```
 
 ### Backup do Banco de Dados
+
 ```bash
 # PostgreSQL
 pg_dump -U user dbname > backup.sql
@@ -239,6 +265,7 @@ cp database.db database.db.backup_$(date +%Y%m%d_%H%M%S)
 | APIs REST | 80-200ms | ✅ Otimizado |
 
 ### Logs
+
 - **Tamanho máximo:** 5 MB (rotação automática)
 - **Backups:** 3 arquivos mantidos
 - **Taxa de crescimento:** ~20 KB/minuto (vs. ~187 KB/min antes)
@@ -259,12 +286,19 @@ cp database.db database.db.backup_$(date +%Y%m%d_%H%M%S)
 
 ## 🏆 Melhorias Recentes
 
-### Janeiro 2026
+### Janeiro 2026 (Refinamento Mobile)
+
+- ✅ **Mobile-First Real**: Refatoração completa de layout para uso em celulares (Sidebar oculta, Headers adaptáveis).
+- ✅ **Bottom Sheet Interativo**: Substituição de modais e menus desktop por painéis deslizantes inferiores.
+- ✅ **Accordion em Gestão**: Sub-setores agora colapsáveis para melhor uso de espaço vertical.
+- ✅ **Rastreamento de Atividades**: Logs precisos de início/fim e observações via interface touch.
+
+### Melhorias Anteriores
+
 - ✅ **Horário de Trabalho**: Módulo para exibição e gestão de escalas individuais.
 - ✅ **Edição de Histórico**: Possibilidade de corrigir qualquer evento passado (Ex: Falta -> Atestado).
-- ✅ **Blindagem Anti-500**: Proteção global de rotas e conexão de banco resiliente (Postgres `pool_pre_ping`).
-- ✅ **Tradução de Logs**: Eventos de sistema agora em Português nativo.
-- ✅ **Performance**: Ganho de 2x em velocidade e queries otimizadas.
+- ✅ **Blindagem Anti-500**: Proteção global de rotas.
+- ✅ **Performance**: Ganho de 2x em velocidade.
 
 ---
 

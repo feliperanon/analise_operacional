@@ -307,10 +307,10 @@ const SectorManagement = {
     renderAvailableEmployees(employees) {
         if (!employees || employees.length === 0) {
             return `
-    < div class="text-center text-slate-500 py-8 bg-slate-900/50 rounded-xl border border-slate-700" >
-                    <p class="text-sm">Nenhum colaborador disponível</p>
-                    <p class="text-xs mt-1">Todos os colaboradores do turno já estão alocados.</p>
-                </div >
+            <div class="text-center text-slate-500 py-8 bg-slate-900/50 rounded-xl border border-slate-700">
+                <p class="text-sm">Nenhum colaborador disponível</p>
+                <p class="text-xs mt-1">Todos os colaboradores do turno já estão alocados.</p>
+            </div>
     `;
         }
 
@@ -377,8 +377,8 @@ const SectorManagement = {
             const opacity = isUnavailable ? 'opacity-50' : '';
 
             return `
-    < div class="bg-slate-900 rounded-lg p-3 border border-slate-700 hover:border-${shiftColor}-500 transition cursor-pointer group ${opacity}"
-onclick = "SectorManagement.showSubsectorSelector(${emp.id})" >
+            <div class="bg-slate-900 rounded-lg p-3 border border-slate-700 hover:border-${shiftColor}-500 transition cursor-pointer group ${opacity}"
+                onclick="SectorManagement.showSubsectorSelector(${emp.id})">
     <div class="flex items-center justify-between">
         <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-1">
