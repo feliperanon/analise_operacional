@@ -506,23 +506,89 @@
     }
 
     function validateTargets() {
-        const total = parseInt(document.getElementById('target-total').value) || 0;
-        const m = parseInt(document.getElementById('target-manha').value) || 0;
-        const t = parseInt(document.getElementById('target-tarde').value) || 0;
-        const n = parseInt(document.getElementById('target-noite').value) || 0;
+        const totalInput = document.getElementById('target-total');
+        const manhaInput = document.getElementById('target-manha');
+        const tardeInput = document.getElementById('target-tarde');
+        const noiteInput = document.getElementById('target-noite');
 
-        const sum = m + t + n;
+        const total = parseInt(totalInput.value) || 0;
+        const m = parseInt(manhaInput.value) || 0;
+        const t = parseInt(tardeInput.value) || 0;
+        const n = parseInt(noiteInput.value) || 0;
+
+        const currentSum = m + t + n;
+        const remaining = total - currentSum;
+
         const btn = document.getElementById('btn-save-targets');
         const msg = document.getElementById('target-validation-msg');
 
-        if (sum > total) {
-            msg.classList.remove('hidden');
-            msg.innerText = `Soma (${sum}) excede o Total (${total})!`;
-            btn.disabled = true;
-        } else {
-            msg.classList.add('hidden');
-            btn.disabled = false;
+        // Atualizar textos de ajuda
+        updateHelper(manhaInput, total - (t + n));
+        updateHelper(tardeInput, total - (m + n));
+        updateHelper(noiteInput, total - (m + t));
+
+        // Atualizar saldo global
+        const balanceEl = document.getElementById('target-balance-display');
+        if (balanceEl) {
+            if (remaining > 0) {
+                balanceEl.innerHTML = `<span class="text-emerald-400">Restam <b>${remaining}</b> vagas para distribuir</span>`;
+                balanceEl.className = "text-xs font-bold text-center mt-2 p-2 bg-emerald-500/10 rounded border border-emerald-500/20";
+            } else if (remaining === 0) {
+                balanceEl.innerHTML = `<span class="text-blue-400">Total atingido exatamente!</span>`;
+                balanceEl.className = "text-xs font-bold text-center mt-2 p-2 bg-blue-500/10 rounded border border-blue-500/20";
+            } else {
+                balanceEl.innerHTML = `<span class="text-red-400">Excesso de <b>${Math.abs(remaining)}</b> vagas!</span>`;
+                balanceEl.className = "text-xs font-bold text-center mt-2 p-2 bg-red-500/10 rounded border border-red-500/20";
+            }
         }
+
+        if (remaining < 0) {
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            // msg.classList.remove('hidden'); // Usando balanceEl agora
+            // msg.innerText = `Soma (${currentSum}) excede o Total (${total})!`;
+        } else {
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            // msg.classList.add('hidden');
+        }
+    }
+
+    function updateHelper(input, maxVal) {
+        // Encontrar ou criar helper text
+        let container = input.parentElement;
+        let helper = container.querySelector('.target-helper');
+        if (!helper) {
+            helper = document.createElement('div');
+            helper.className = 'target-helper text-[10px] text-slate-500 text-right mt-1 h-4 flex justify-between items-center';
+            container.appendChild(helper);
+        }
+
+        const currentVal = parseInt(input.value) || 0;
+        // Se o valor atual for menor que o máximo possível (considerando os outros fixos), mostrar quanto falta
+        // MaxVal aqui é (Total - Outros). Se Input > MaxVal, então estourou.
+        // Se Input < MaxVal, pode aumentar.
+
+        // Botão de auto-complete
+        // Se (Total - Outros) > Current, sugerir preencher
+        const diff = maxVal - currentVal;
+
+        if (diff > 0) {
+            helper.innerHTML = `
+                <span>Disponível: ${maxVal}</span>
+                <button onclick="fillRemainder('${input.id}', ${maxVal})" class="text-blue-400 hover:text-white font-bold hover:underline">Completar (+${diff})</button>
+            `;
+        } else if (diff < 0) {
+            helper.innerHTML = `<span class="text-red-400 font-bold">Reduzir em ${Math.abs(diff)}</span>`;
+        } else {
+            helper.innerHTML = `<span class="text-emerald-500 font-bold">No limite ✓</span>`;
+        }
+    }
+
+    function fillRemainder(inputId, val) {
+        const input = document.getElementById(inputId);
+        input.value = val;
+        validateTargets(); // Re-validar
     }
 
     function saveTargets() {
