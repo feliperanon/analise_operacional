@@ -203,7 +203,9 @@ const Events = {
 
     async setExtendedRoutine(empId, routine) {
         const startDate = document.getElementById('routine-start-date').value;
-        const days = parseInt(document.getElementById('routine-days').value);
+        // Para 'away', days pode estar oculto/vazio. Assumir 1 ou backend deve lidar.
+        const daysInput = document.getElementById('routine-days');
+        const days = daysInput ? parseInt(daysInput.value) : 1;
 
         console.log(`Extended Routine: ${empId}, ${routine}, Start: ${startDate}, Days: ${days}`);
 

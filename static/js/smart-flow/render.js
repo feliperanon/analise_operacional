@@ -134,9 +134,9 @@ const Render = {
             <!-- Header Compacto -->
             <div class="flex items-center justify-between mb-3 border-b border-slate-700/50 pb-2">
                 <div class="flex-1 min-w-0">
-                    <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider truncate mb-0.5">${sector.name}</h3>
+                     <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider truncate mb-0.5">${sector.name}</h3>
                     <div class="flex items-center gap-2">
-                         <span class="text-lg font-bold text-white leading-none">${countRealPresent} <span class="text-xs text-slate-500 font-normal">/ ${sectorEmployeeCount}</span></span>
+                         <span class="text-lg font-bold ${sectorEmployeeCount < sector.max_employees ? 'text-amber-400' : 'text-white'} leading-none">${countRealPresent} <span class="text-xs text-slate-500 font-normal">/ ${sector.max_employees}</span></span>
                     </div>
                 </div>
                 <!-- Actions -->
@@ -532,6 +532,10 @@ const Render = {
         const today = Store.state.currentDate;
         const employee = Store.state.employees.find(e => e.id == empId);
 
+        // Define se deve mostrar o seletor de duração
+        const showDuration = type !== 'away'; // Esconde para 'away'
+        const hideClass = showDuration ? '' : 'hidden';
+
         content.innerHTML = `
             <div class="animate-fade-in">
                 <!-- Header com Voltar -->
@@ -554,8 +558,8 @@ const Render = {
                             class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-medium">
                     </div>
 
-                    <!-- Duração -->
-                    <div>
+                    <!-- Duração (Oculto para Afastado) -->
+                    <div class="${hideClass}">
                         <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1.5 ml-1">Quantidade de Dias</label>
                         <div class="flex items-center gap-3">
                             <button onclick="document.getElementById('routine-days').stepDown()" 

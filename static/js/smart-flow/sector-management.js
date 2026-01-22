@@ -418,10 +418,16 @@ const SectorManagement = {
     getAvailableEmployees(state) {
         const { employees, allocations, currentShift } = state;
 
+        // Helper de normalização (Manhã -> manha)
+        const normalize = (s) => s ? s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
+        const currentShiftNorm = normalize(currentShift);
+
         return employees.filter(emp => {
             // Deve ser do turno correto
             const empShift = emp.work_shift ?? emp.shift ?? null;
-            if (!empShift || empShift.toLowerCase() !== currentShift.toLowerCase()) {
+            const empShiftNorm = normalize(empShift);
+
+            if (!empShift || empShiftNorm !== currentShiftNorm) {
                 return false;
             }
 

@@ -7,11 +7,16 @@ const KPIDetails = {
     show(type) {
         const { employees, currentShift, currentDate, routines } = Store.state;
 
-        // Filtrar colaboradores do turno atual
+        // Filtrar colaboradores do turno atual E ativos (não demitidos)
         const shiftEmps = employees.filter(e => {
             const empShift = e.work_shift ?? e.shift ?? null;
             if (!empShift) return false;
-            return empShift.toLowerCase() === currentShift.toLowerCase();
+            // Verificar shift
+            if (empShift.toLowerCase() !== currentShift.toLowerCase()) return false;
+
+            // Excluir demitidos da contagem geral deste modal (para bater com Headcount Target)
+            const status = (e.status || 'active').toLowerCase();
+            return status !== 'fired' && status !== 'demitido';
         });
 
         // Se for 'present', mostrar TODAS as rotinas agrupadas

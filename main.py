@@ -5187,29 +5187,63 @@ async def save_allocations(
             daily_op = models.DailyOperation(date=date, shift=shift, attendance_log={})
             session.add(daily_op)
             
-        attendance_log = {}
-        import unicodedata
+        # Capture activities from payload (sent by Store.js inside attendance_log.activities or root)
+        # Store.js sends: attendance_log: { activities: {...} }
+        payload_log = data.get("attendance_log", {})
+        activities_map = payload_log.get("activities", {})
         
-        # Build lookup for routine status from input (faster than db query)
+        # ... (Existing logic for allocations and routines)
+
+        attendance_log = {}
+        
+        # Build lookup for routine status from input
         routine_input_lookup = {int(k): v for k, v in routines.items()}
         
         # Process allocations for log
         for emp, sub in valid_allocations_for_log:
-            # Resolve Sector
             sec = sector_map.get(sub.sector_id)
             if not sec: continue
             
-            # Normalize Sector Name
             sector_name_norm = unicodedata.normalize('NFD', sec.name.lower().strip())
             sector_key = sector_name_norm.encode('ascii', 'ignore').decode('utf-8').replace(' ', '_')
             
-            # Get Status
             status = routine_input_lookup.get(emp.id, 'present')
+            
+            # Get Activity/Observation for this employee if exists
+            emp_activity = activities_map.get(str(emp.id), {})
             
             attendance_log[str(emp.registration_id)] = {
                 "status": status,
-                "sector": sector_key
+                "sector": sector_key,
+                "sector_name": sec.name, # Store human readable name too
+                "subsector_name": sub.name,
+                "activity": emp_activity.get("activity"),
+                "observation": emp_activity.get("observation")
             }
+            
+        # Also include employees NOT allocated but with Activity/Routine
+        # Merge activities into log for unallocated people
+        for emp_id_str, act_data in activities_map.items():
+             try:
+                 emp_id = int(emp_id_str)
+                 emp = emp_map.get(emp_id)
+                 if not emp: continue
+                 
+                 # If already processed via allocation, skip (already enriched above)
+                 # Note: attendance_log uses registration_id as key.
+                 if str(emp.registration_id) in attendance_log:
+                     continue
+                     
+                 # Add unallocated entry
+                 routine = routine_input_lookup.get(emp.id, 'present')
+                 attendance_log[str(emp.registration_id)] = {
+                     "status": routine,
+                     "sector": None,
+                     "activity": act_data.get("activity"),
+                     "observation": act_data.get("observation")
+                 }
+             except:
+                 continue
             
         if tonnage is not None:
             daily_op.tonnage = float(tonnage)
@@ -5711,48 +5745,84 @@ async def routine_report(
         # total_target já foi calculado no loop acima (soma de todas as metas)
         # Não usar total_target_real (colaboradores ativos) pois isso causa divergência
         
-        total_gap = sum(s['gap'] for s in sectors_detailed)
+        # Total Headcount (Active Workforce + Absences + Vacation + etc)
+        total_headcount = len(people_list)
         
-        # Operational Vacancies (Sum of Sector Vacancies)
-        total_operational_vacancies = sum(s['vacancies'] for s in sectors_detailed)
-
-        # HR Vacancies (UI Def) = Total Demitidos no Turno
-        # A UI considera "Vagas" como o número de demitidos.
-        # Para bater 100% com a UI, contaremos os demitidos do turno.
-        fired_in_shift = 0
+        # Operational Vacancies (Open Positions)
+        # Definition: Total Target - Total Headcount
+        # If we need 44 people and have 43 (regardless of status), we have 1 open position.
+        # If we have 44 people but 3 are absent, we have 3 gaps, but 0 vacancies.
+        total_vacancies = max(0, total_target - total_headcount)
+        
+        # Operational Gap (Missing Hands)
+        # Definition: Total Target - Total Present
+        total_gap = max(0, total_target - total_present)
+        
+        # HR Vacancies (Fired count - for reference/dashboard badge if needed)
+        hr_vacancies_fired = 0
         for emp in all_employees:
             if emp.status == 'fired':
                  emp_shift_norm = normalize_str(emp.work_shift)
                  if target_shift_norm in emp_shift_norm:
-                     fired_in_shift += 1
+                     hr_vacancies_fired += 1
                      
-        hr_vacancies = fired_in_shift
-        
-        # total_vacancies used for Sector breakdown remains 'Operational Gap'
-        # But for Top KPI used in "Vagas" card, we should use HR Vacancies to match UI
-        
+        # Decide which 'Vagas' to show in Top KPI.
+        # User feedback suggests they want the math to close: 37 Present + 2 Absent + ... + X Vagas = 44 Target.
+        # So Vagas MUST be (Target - Headcount).
+        kpi_vacancies = total_vacancies
+
         prod_per_person = round(tonnage / total_present, 2) if total_present > 0 else 0
         present_pct = int((total_present / total_target * 100)) if total_target > 0 else 0
         
-        # Detailed Counts - SEPARADOS (não combinados)
+        # Detailed Counts
         daily_absent = len([p for p in people_list if p['status_daily'] == 'absent'])
         daily_sick = len([p for p in people_list if p['status_daily'] == 'sick'])
         daily_vacation = len([p for p in people_list if p['status_daily'] == 'vacation'])
         daily_away = len([p for p in people_list if p['status_daily'] == 'away'])
         daily_dayoff = len([p for p in people_list if p['status_daily'] == 'dayoff'])
+        daily_suspended = len([p for p in people_list if p['status_daily'] == 'suspension'])
         
+        count_substitutions = 0
+        away_employees = [e for e in all_employees if e.status == 'away']
+        for emp in away_employees:
+            has_sub = session.exec(select(models.Event).where(
+                models.Event.employee_id == emp.id,
+                models.Event.text.like("%Substituído por%")
+            )).first()
+            if has_sub:
+                count_substitutions += 1
+        
+        # DEBUG DIAGNOSTIC
+        print(f"Relatório Debug - Data: {date}, Turno: {shift}")
+        print(f"Meta Total: {total_target}")
+        print(f"Headcount Total (People List): {total_headcount}")
+        print(f"Presentes: {total_present}, Faltas: {daily_absent}, Férias: {daily_vacation}, Afastados: {daily_away}")
+        print(f"Vagas Calculadas (Meta - Headcount): {kpi_vacancies}")
+        print(f"Vagas Operacionais (Soma Setores): {total_operational_vacancies}")
+        
+        # Check filtered out employees
+        ignored_count = 0
+        for emp in all_employees:
+            if emp.id not in processed_ids and emp.status != 'fired':
+                emp_shift_norm = normalize_str(emp.work_shift)
+                if target_shift_norm not in emp_shift_norm:
+                     # print(f"Ignorado (Turno Incompatível): {emp.name} ({emp.work_shift}) - Status: {emp.status}")
+                     ignored_count += 1
+        print(f"Total ignorados por turno incompatível: {ignored_count}")
+
         snapshot = {
             "kpis": {
                 "total_target": total_target,
                 "total_allocated": total_allocated_sum,
                 "total_present": total_present,
                 "present_pct": present_pct,
-                "total_gap": total_gap,  # Gap Operacional (Meta - Alocados)
-                "total_vacancies": hr_vacancies, # CORREÇÃO: Vagas RH (Meta - Headcount) para bater com UI
-                "operational_gap": total_operational_vacancies, # Mantendo o valor antigo com outro nome se precisar
+                "total_gap": total_gap,  # Gap Operacional (Meta - Presentes)
+                "total_vacancies": kpi_vacancies, # Vagas Abertas (Meta - Headcount)
+                "hr_vacancies": hr_vacancies_fired, 
+                "operational_gap": total_operational_vacancies, 
                 "tonnage": f"{tonnage:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
                 "prod_per_person": f"{prod_per_person:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
-                "count_absent": daily_absent,
+                "count_absent": daily_absent + daily_suspended, 
                 "count_sick": daily_sick,
                 "count_vacation": daily_vacation,
                 "count_away": daily_away,
@@ -6243,6 +6313,92 @@ async def employee_detail(request: Request, employee_id: int, session: Session =
     # I'll update template to use x.amount. (Next step)
 
 
+    # Fetch Daily Allocation/Activity Data (Range Search: Yesterday, Today, Tomorrow)
+    # This handles timezone diffs and future planning
+    search_dates = [
+        (today - timedelta(days=1)).strftime("%Y-%m-%d"),
+        today.strftime("%Y-%m-%d"),
+        (today + timedelta(days=1)).strftime("%Y-%m-%d")
+    ]
+    
+    # Fetch operations in range (ignoring shift filter to catch extra hours/changes)
+    daily_ops = session.exec(select(models.DailyOperation).where(
+        col(models.DailyOperation.date).in_(search_dates)
+    ).order_by(desc(models.DailyOperation.date), desc(models.DailyOperation.created_at))).all()
+
+    current_allocation = None
+    current_activity = None
+    
+    # Priority Strategy: Prefer TODAY matching Shift, then TODAY any shift, then TOMORROW/YESTERDAY
+    # For simplicity: Just pick the FIRST one (Latest date) that has data for this user.
+    # Because we ordered by Date DESC, we will see Tomorrow -> Today -> Yesterday.
+    # If planned for tomorrow, we show it. If working today, we show it.
+    
+    # Pre-fetch Sector Metadata for Fallback (Legacy Logs compatibility)
+    sectors_db = session.exec(select(models.Sector)).all()
+    subsectors_db = session.exec(select(models.SubSector)).all()
+    
+    # Map normalized key -> Pretty Name (Re-create normalization logic or fuzzy match?)
+    # Since we don't store key in DB easily, we rely on the log['sector'] key.
+    # But wait, we can just map simple lookup if needed, OR relies on 'sector_name' being populated in new saves.
+    # Ideally, we should just assume new saves work manually re-saving solves it.
+    # BUT user is complaining NOW. 
+    # Let's try to infer from allocations table IF log is missing info?
+    # No, allocations table is the source of truth for "Allocations". Log is for "Snapshot".
+    # Let's check EmployeeAllocation table as well!
+    
+    # Strategy V2: Check EmployeeAllocation TABLE first (Source of Truth for Allocation), 
+    # then fallback to Log (Snapshot). Application saves both.
+    
+    alloc_db = session.exec(select(models.EmployeeAllocation).where(
+        models.EmployeeAllocation.employee_id == employee.id,
+        models.EmployeeAllocation.date == today.strftime("%Y-%m-%d")
+    )).first()
+    
+    # Override/Augment current_allocation with DB data if found (Most accurate/recent)
+    if alloc_db:
+        # Resolve names
+        sub_obj = session.get(models.SubSector, alloc_db.subsector_id)
+        if sub_obj:
+            sec_obj = session.get(models.Sector, sub_obj.sector_id)
+            if sec_obj:
+                current_allocation = {
+                    "sector": sec_obj.name,
+                    "subsector": sub_obj.name,
+                    "date": alloc_db.date,
+                    "shift": alloc_db.shift
+                }
+
+    # If DB allocation not found (maybe historic/yesterday?), try Log 
+    if not current_allocation:
+         str_reg_id = str(employee.registration_id)
+         for op in daily_ops:
+            if op and op.attendance_log:
+                log_entry = op.attendance_log.get(str_reg_id)
+                if log_entry:
+                    sec_name = log_entry.get("sector_name")
+                    # Fallback logic for legacy keys
+                    if not sec_name and log_entry.get("sector"):
+                        # Try to format raw key (e.g. 'expedicao' -> 'Expedicao')
+                        sec_name = log_entry.get("sector").replace("_", " ").title()
+                        
+                    if sec_name:
+                        current_allocation = {
+                            "sector": sec_name,
+                            "subsector": log_entry.get("subsector_name") or "-",
+                            "date": op.date,
+                            "shift": op.shift
+                        }
+                    
+                    if log_entry.get("activity") or log_entry.get("observation"):
+                        current_activity = {
+                            "name": log_entry.get("activity"),
+                            "observation": log_entry.get("observation"),
+                            "date": op.date
+                        }
+                    if current_allocation or current_activity:
+                        break
+
     return templates.TemplateResponse("employee_detail.html", {
         "request": request, 
         "emp": employee, 
@@ -6253,7 +6409,9 @@ async def employee_detail(request: Request, employee_id: int, session: Session =
         "work_days_display": work_days_display,
         "routines": routines,
         "xp_stats": xp_stats,
-        "xp_ledger": xp_ledger
+        "xp_ledger": xp_ledger,
+        "current_allocation": current_allocation,
+        "current_activity": current_activity
     })
 @app.post("/employees/{emp_id}/status")
 async def update_employee_status(

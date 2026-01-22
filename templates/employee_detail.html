@@ -48,8 +48,28 @@
                 {% elif emp.status == 'fired' %}
                 <span class="px-3 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">Demitido</span>
                 {% endif %}
-            </div>
+                {% if current_allocation %}
+                <span
+                    class="flex items-center gap-1 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20 text-emerald-400 font-bold">
+                    📍 {{ current_allocation.sector }} <span class="text-xs text-slate-500 font-normal">({{
+                        current_allocation.subsector }})</span>
+                </span>
+                {% endif %}
 
+                {% if current_activity %}
+                <div class="w-full mt-2 bg-slate-700/30 p-2 rounded-lg border border-slate-600/50">
+                    <p class="text-xs text-slate-400 font-bold uppercase mb-0.5">Atividade Atual</p>
+                    <p class="text-white text-sm">
+                        {{ current_activity.name }}
+                        {% if current_activity.observation %}
+                        <span class="block text-xs text-slate-400 font-normal mt-0.5 whitespace-pre-line">Obs: {{
+                            current_activity.observation }}</span>
+                        {% endif %}
+                    </p>
+                </div>
+                {% endif %}
+
+            </div>
             <!-- Work Days Display -->
             <div class="mt-2 text-xs text-slate-500 font-medium">
                 {% if work_days_display %}
