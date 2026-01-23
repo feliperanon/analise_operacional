@@ -52,13 +52,23 @@
             {{ error }}
         </div>
         {% endif %}
+        {% if success %}
+        <div
+            class="mb-4 p-3 rounded-lg bg-emerald-500/20 border border-emerald-500/50 text-emerald-200 text-sm flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M5 13l4 4L19 7"></path>
+            </svg>
+            {{ success }}
+        </div>
+        {% endif %}
 
         <form action="/login" method="POST" class="space-y-6">
             <div>
-                <label for="username" class="block text-sm font-medium text-slate-300 mb-1">Usuário</label>
-                <input type="text" name="username" id="username" required
+                <label for="email" class="block text-sm font-medium text-slate-300 mb-1">E-mail</label>
+                <input type="email" name="email" id="email" required
                     class="w-full px-4 py-3 rounded-lg bg-slate-800/50 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duraiton-200"
-                    placeholder="Seu usuário">
+                    placeholder="seuemail@empresa.com">
             </div>
 
             <div>
@@ -72,7 +82,26 @@
                 class="w-full py-3.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-blue-500/30 transform hover:-translate-y-0.5 transition-all duration-200">
                 Entrar no Sistema
             </button>
+            <div class="flex items-center justify-between text-sm">
+                <a href="/reset" class="text-slate-400 hover:text-white transition-colors">Esqueci minha senha</a>
+            </div>
         </form>
+
+        {% if google_enabled %}
+        <div class="mt-6">
+            <a href="/auth/google"
+                class="w-full inline-flex items-center justify-center gap-3 py-3 px-4 rounded-lg bg-white text-slate-900 font-semibold hover:bg-slate-100 transition-colors">
+                <svg class="w-5 h-5" viewBox="0 0 48 48" aria-hidden="true">
+                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.72 1.22 9.22 3.2l6.86-6.86C35.9 1.9 30.3 0 24 0 14.6 0 6.5 5.38 2.7 13.2l7.98 6.2C12.4 13.2 17.7 9.5 24 9.5z"></path>
+                    <path fill="#4285F4" d="M46.5 24c0-1.64-.15-3.22-.43-4.75H24v9.02h12.67c-.55 2.97-2.23 5.48-4.75 7.18l7.26 5.64c4.25-3.92 6.7-9.7 6.7-17.09z"></path>
+                    <path fill="#FBBC05" d="M10.68 28.1c-.5-1.5-.78-3.1-.78-4.7 0-1.63.28-3.22.78-4.72l-7.98-6.2C.99 15.7 0 19.74 0 23.4c0 3.66.99 7.7 2.7 10.92l7.98-6.22z"></path>
+                    <path fill="#34A853" d="M24 48c6.3 0 11.6-2.08 15.48-5.62l-7.26-5.64c-2.02 1.36-4.62 2.16-8.22 2.16-6.3 0-11.62-3.7-13.54-8.8l-7.98 6.22C6.5 42.62 14.6 48 24 48z"></path>
+                    <path fill="none" d="M0 0h48v48H0z"></path>
+                </svg>
+                Entrar com Google
+            </a>
+        </div>
+        {% endif %}
     </div>
 
 </body>

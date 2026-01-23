@@ -39,6 +39,9 @@
             </div>
 
             <nav class="flex-1 px-4 space-y-2 overflow-y-auto custom-scrollbar">
+                {% set user_role = request.session.get("auth_user_role", "") %}
+                {% set allowed_pages = request.session.get("allowed_pages", []) %}
+                {% if user_role == "admin" %}
                 <a href="/"
                     class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -108,6 +111,33 @@
                     <span>Histórico Operacional</span>
                 </a>
 
+                <a href="/admin/routine/checklists"
+                    class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 5h6m-6 4h6m-7 4h8m-5 4h2m-8 2h10a2 2 0 002-2V5a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z">
+                        </path>
+                    </svg>
+                    <span>Checklists Operacionais</span>
+                </a>
+                <a href="/admin/routine/checklists/dashboard"
+                    class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 3v18m-6-6h12M4 21h16a1 1 0 001-1V4a1 1 0 00-1-1H4a1 1 0 00-1 1v16a1 1 0 001 1z">
+                        </path>
+                    </svg>
+                    <span>Dashboard de Checklists</span>
+                </a>
+                <a href="/admin/routine/checklists/settings"
+                    class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                    <span>Cadastros do Checklist</span>
+                </a>
+
                 <a href="#"
                     class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -127,7 +157,9 @@
                     </svg>
                     <span>Turno</span>
                 </a>
+                {% endif %}
 
+                {% if user_role != "admin" and "smart_flow" in allowed_pages %}
                 <a href="/smart-flow"
                     class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -136,7 +168,38 @@
                     </svg>
                     <span>Fluxo Inteligente</span>
                 </a>
+                {% endif %}
 
+                {% if user_role != "admin" and "checklist_admin" in allowed_pages %}
+                <a href="/admin/routine/checklists"
+                    class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 5h6m-6 4h6m-7 4h8m-5 4h2m-8 2h10a2 2 0 002-2V5a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z">
+                        </path>
+                    </svg>
+                    <span>Checklists Operacionais</span>
+                </a>
+                <a href="/admin/routine/checklists/dashboard"
+                    class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 3v18m-6-6h12M4 21h16a1 1 0 001-1V4a1 1 0 00-1-1H4a1 1 0 00-1 1v16a1 1 0 001 1z">
+                        </path>
+                    </svg>
+                    <span>Dashboard de Checklists</span>
+                </a>
+                <a href="/admin/routine/checklists/settings"
+                    class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                    <span>Cadastros do Checklist</span>
+                </a>
+                {% endif %}
+
+                {% if user_role == "admin" %}
                 <div class="pt-4 pb-2">
                     <p class="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Gestão & Engajamento
                     </p>
@@ -161,16 +224,30 @@
                     </svg>
                     <span>Rankings & Badges</span>
                 </a>
+                {% endif %}
 
+                {% if user_role != "admin" and "admin_game" in allowed_pages %}
                 <a href="/admin/game"
                     class="flex items-center gap-3 px-4 py-3 text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10 rounded-lg transition-colors">
                     <i data-lucide="gamepad-2" class="w-5 h-5"></i>
                     <span>Game Master</span>
                 </a>
+                {% endif %}
 
+                {% if user_role == "admin" %}
                 <div class="pt-4 pb-2">
                     <p class="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Acesso</p>
                 </div>
+
+                <a href="/admin/users"
+                    class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z">
+                        </path>
+                    </svg>
+                    <span>Usuários</span>
+                </a>
 
                 <a href="/mobile/login" target="_blank"
                     class="flex items-center gap-3 px-4 py-3 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition-colors">
@@ -180,6 +257,7 @@
                     </svg>
                     <span>Abrir Portal Mobile</span>
                 </a>
+                {% endif %}
             </nav>
 
             <div class="p-6 border-t border-slate-800">

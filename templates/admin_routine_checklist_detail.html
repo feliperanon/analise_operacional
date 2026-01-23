@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8">
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-white">Checklist #{{ checklist.id }}</h1>
+            <p class="text-sm text-slate-400">Detalhes e revisão do checklist.</p>
+        </div>
+        <a href="/admin/routine/checklists"
+            class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors">
+            Voltar
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 space-y-6">
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <p class="text-xs text-slate-400">Colaborador</p>
+                        <p class="text-sm font-semibold text-white">{{ employee.name }}</p>
+                        <p class="text-xs text-slate-500">{{ employee.registration_id }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400">Equipamento</p>
+                        <p class="text-sm font-semibold text-white">{{ checklist.equipment_code }}</p>
+                        <p class="text-xs {{ 'text-red-300' if equipment and equipment.status == 'blocked' else 'text-emerald-300' }}">
+                            {{ equipment.status if equipment else 'available' }}
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400">Data / Turno</p>
+                        <p class="text-sm font-semibold text-white">{{ checklist.date }}</p>
+                        <p class="text-xs text-slate-500">{{ checklist.shift }}</p>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <p class="text-xs text-slate-400">Status</p>
+                    <span
+                        class="inline-flex text-xs px-2 py-1 rounded-full {{ 'bg-emerald-500/20 text-emerald-200' if checklist.status == 'approved' else 'bg-amber-500/20 text-amber-200' if checklist.status in ['submitted','reviewed'] else 'bg-red-500/20 text-red-200' }}">
+                        {{ checklist.status }}
+                    </span>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5">
+                <h2 class="text-base font-semibold text-white mb-3">Itens do checklist</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {% for item in items %}
+                    {% set ok = checklist.items.get(item.key, False) %}
+                    <div
+                        class="flex items-center justify-between rounded-xl border {{ 'border-emerald-500/40' if ok else 'border-red-500/40' }} bg-slate-900 px-3 py-2">
+                        <span class="text-sm text-slate-200">{{ item.label }}</span>
+                        <span
+                            class="text-xs {{ 'text-emerald-300' if ok else 'text-red-300' }}">{{ 'Conforme' if ok else 'Não Conforme' }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5">
+                <h2 class="text-base font-semibold text-white mb-3">Observações</h2>
+                <p class="text-sm text-slate-200">{{ checklist.observations or 'Sem observações.' }}</p>
+                {% if checklist.reviewed_by %}
+                <div class="mt-4 border-t border-slate-700 pt-3">
+                    <p class="text-xs text-slate-400">Revisado por</p>
+                    <p class="text-sm text-slate-200">{{ checklist.reviewed_by }}</p>
+                    {% if checklist.reviewed_at %}
+                    <p class="text-xs text-slate-500">{{ checklist.reviewed_at.strftime("%d/%m/%Y %H:%M") }}</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5">
+                <h2 class="text-base font-semibold text-white mb-3">Evidências</h2>
+                {% if checklist.images %}
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {% for img in checklist.images %}
+                    <a href="/static/uploads/checklists/{{ img }}" target="_blank"
+                        class="block rounded-xl overflow-hidden border border-slate-700">
+                        <img src="/static/uploads/checklists/{{ img }}" alt="Evidência"
+                            class="w-full h-24 object-cover">
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-sm text-slate-400">Nenhuma imagem enviada.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="space-y-6">
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 space-y-4">
+                <h2 class="text-base font-semibold text-white">Revisão</h2>
+                <form action="/admin/routine/checklists/{{ checklist.id }}/review" method="POST" class="space-y-3">
+                    <textarea name="comment" rows="3"
+                        class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+                        placeholder="Comentário do revisor (opcional)">{{ checklist.review_comment or '' }}</textarea>
+                    <button type="submit"
+                        class="w-full py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-sm font-semibold">
+                        Marcar como revisado
+                    </button>
+                </form>
+                <form action="/admin/routine/checklists/{{ checklist.id }}/approve" method="POST" class="space-y-3">
+                    <textarea name="comment" rows="3"
+                        class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                        placeholder="Comentário obrigatório se houver não conformidade"></textarea>
+                    <button type="submit"
+                        class="w-full py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold">
+                        Aprovar checklist
+                    </button>
+                </form>
+                <form action="/admin/routine/checklists/{{ checklist.id }}/reject" method="POST" class="space-y-3">
+                    <textarea name="comment" rows="3" required
+                        class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white focus:border-red-500 focus:outline-none"
+                        placeholder="Comentário obrigatório"></textarea>
+                    <button type="submit"
+                        class="w-full py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-semibold">
+                        Rejeitar checklist
+                    </button>
+                </form>
+            </div>
+
+            {% if equipment and equipment.status == 'blocked' %}
+            <div class="bg-slate-800 border border-red-500/40 rounded-2xl p-5 space-y-3">
+                <h2 class="text-base font-semibold text-red-200">Equipamento bloqueado</h2>
+                <p class="text-sm text-red-200">{{ equipment.blocked_reason or 'Aguardando liberação.' }}</p>
+                <form action="/admin/routine/checklists/{{ checklist.id }}/release" method="POST">
+                    <button type="submit"
+                        class="w-full py-2 rounded-lg bg-red-500/20 border border-red-500/40 text-red-100 hover:bg-red-500/30 text-sm font-semibold">
+                        Liberar equipamento
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

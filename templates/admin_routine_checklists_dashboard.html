@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8">
+    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-white">Dashboard de Checklists</h1>
+            <p class="text-sm text-slate-400">Indicadores dos últimos {{ period_days }} dias.</p>
+        </div>
+        <div class="flex gap-2">
+            <a href="/admin/routine/checklists/dashboard?days=7"
+                class="px-3 py-2 text-xs rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors">7 dias</a>
+            <a href="/admin/routine/checklists/dashboard?days=30"
+                class="px-3 py-2 text-xs rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors">30 dias</a>
+            <a href="/admin/routine/checklists/settings"
+                class="px-3 py-2 text-xs rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors">Cadastros</a>
+            <a href="/admin/routine/checklists"
+                class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors">Lista</a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+            <div class="text-xs text-slate-400 uppercase tracking-wider">Total</div>
+            <div class="text-2xl font-bold text-white">{{ total_count }}</div>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+            <div class="text-xs text-slate-400 uppercase tracking-wider">Não Conforme</div>
+            <div class="text-2xl font-bold text-amber-300">{{ nonconforming_count }}</div>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+            <div class="text-xs text-slate-400 uppercase tracking-wider">Críticos</div>
+            <div class="text-2xl font-bold text-red-300">{{ critical_count }}</div>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+            <div class="text-xs text-slate-400 uppercase tracking-wider">Tempo Médio (h)</div>
+            <div class="text-2xl font-bold text-emerald-300">
+                {{ "{:.2f}".format(avg_resolution_hours) if avg_resolution_hours is not none else "—" }}
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+            <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-3">Por turno</h2>
+            {% if shift_stats %}
+            <div class="space-y-3">
+                {% for row in shift_stats %}
+                <div class="flex items-center justify-between text-sm">
+                    <div class="text-slate-300">{{ row.shift }}</div>
+                    <div class="text-slate-200 font-mono">{{ row.count }} ({{ row.percent }}%)</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-sm text-slate-500">Sem dados no período.</div>
+            {% endif %}
+        </div>
+
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 lg:col-span-2">
+            <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-3">Top itens não conforme</h2>
+            {% if top_items %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {% for item in top_items %}
+                <div class="flex items-center justify-between border border-slate-700/70 rounded-lg p-3 bg-slate-900/40">
+                    <div class="text-sm text-slate-200">
+                        {{ item.label }}
+                        {% if item.critical %}
+                        <span class="text-[10px] uppercase font-bold text-red-300 ml-2">Crítico</span>
+                        {% endif %}
+                    </div>
+                    <div class="text-sm font-mono text-slate-300">{{ item.count }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-sm text-slate-500">Sem não conformidades registradas.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+        <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-3">Equipamentos com reincidência</h2>
+        {% if top_equipment %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {% for row in top_equipment %}
+            <div class="flex items-center justify-between border border-slate-700/70 rounded-lg p-3 bg-slate-900/40">
+                <div class="text-sm text-slate-200">{{ row.equipment_code }}</div>
+                <div class="text-sm font-mono text-slate-300">{{ row.count }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-sm text-slate-500">Sem reincidência no período.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

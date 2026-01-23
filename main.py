@@ -8,13 +8,20 @@ from typing import Optional, List
 import json
 import csv
 import io
+import base64
+import hashlib
+import secrets
+import hmac
+import smtplib
 from datetime import datetime, timedelta, time
 from zoneinfo import ZoneInfo
 import traceback
 import os
+from collections import Counter
+from email.message import EmailMessage
 from starlette.middleware.sessions import SessionMiddleware
 from sqlmodel import Session, select, col, delete, text, or_, desc
-from sqlalchemy import func
+from sqlalchemy import func, inspect
 from typing import List
 from database import create_db_and_tables, get_session, engine
 import models
@@ -22,7 +29,9 @@ import logging
 import pydantic
 from logging.handlers import RotatingFileHandler
 import unicodedata
-import os
+from urllib.parse import urlencode
+from urllib.request import Request as UrlRequest, urlopen
+from urllib.error import HTTPError, URLError
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -44,9 +53,14 @@ logger.setLevel(LOG_LEVEL)
 logger.addHandler(handler)
 
 # --- Config ---
-SECRET_KEY = "your-secret-key-change-in-production"
-ALLOWED_USER = os.getenv("ADMIN_USER", "admin")
-ALLOWED_PASS = os.getenv("ADMIN_PASS", "admin")
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", os.getenv("ADMIN_USER", "admin@local"))
+ADMIN_PASS = os.getenv("ADMIN_PASS", "admin")
+ADMIN_ROLE = os.getenv("ADMIN_ROLE", "admin")
+RESET_TOKEN_TTL_MINUTES = int(os.getenv("RESET_TOKEN_TTL_MINUTES", "30"))
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "").strip()
 
 # --- Helper Functions ---
 def calculate_expected_work_days(
@@ -227,6 +241,15 @@ def sync_sectors_on_startup():
 async def lifespan(app: FastAPI):
     create_db_and_tables()
     try:
+        ensure_user_auth_schema()
+        ensure_employee_access_schema()
+        ensure_event_reference_schema()
+        ensure_checklist_email_schema()
+        with Session(engine) as session:
+            ensure_default_admin(session)
+    except Exception as e:
+        logger.error(f"Erro ao preparar auth: {e}")
+    try:
         from database import engine
         print(f"🌍 DATABASE URL DETECTADA: {engine.url}")
         sync_sectors_on_startup()
@@ -323,11 +346,457 @@ def fmt_br_int(val):
 templates.env.filters["fmt_br"] = fmt_br
 templates.env.filters["fmt_br_int"] = fmt_br_int
 
+# --- Auth Helpers (Local + Google) ---
+PASSWORD_ITERATIONS = 120_000
+
+def normalize_email(value: str) -> str:
+    return (value or "").strip().lower()
+
+def hash_password(password: str) -> str:
+    salt = secrets.token_bytes(16)
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, PASSWORD_ITERATIONS)
+    return "pbkdf2_sha256${}${}${}".format(
+        PASSWORD_ITERATIONS,
+        base64.b64encode(salt).decode("ascii"),
+        base64.b64encode(dk).decode("ascii")
+    )
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    if not stored_hash:
+        return False
+    try:
+        algo, iterations_str, salt_b64, hash_b64 = stored_hash.split("$", 3)
+        if algo != "pbkdf2_sha256":
+            return False
+        iterations = int(iterations_str)
+        salt = base64.b64decode(salt_b64.encode("ascii"))
+        expected = base64.b64decode(hash_b64.encode("ascii"))
+        candidate = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations)
+        return hmac.compare_digest(candidate, expected)
+    except Exception:
+        return False
+
+def hash_reset_token(token: str) -> str:
+    digest = hashlib.sha256()
+    digest.update(token.encode("utf-8"))
+    digest.update(SECRET_KEY.encode("utf-8"))
+    return digest.hexdigest()
+
+def is_google_enabled() -> bool:
+    return bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
+
+PAGE_OPTIONS = [
+    {"key": "admin_game", "label": "Game Master", "path": "/admin/game", "prefixes": ["/admin/game", "/api/game"]},
+    {"key": "smart_flow", "label": "Smart Flow", "path": "/smart-flow", "prefixes": ["/smart-flow", "/api/smart-flow", "/smart-flow/load"]},
+    {"key": "checklist_admin", "label": "Checklists Operacionais", "path": "/admin/routine/checklists", "prefixes": ["/admin/routine/checklists", "/api/routine/checklists"]}
+]
+PAGE_KEYS = {p["key"] for p in PAGE_OPTIONS}
+
+def parse_allowed_pages(raw_value: Optional[str]) -> List[str]:
+    if not raw_value:
+        return []
+    try:
+        data = json.loads(raw_value)
+        if isinstance(data, list):
+            return [str(x) for x in data if str(x) in PAGE_KEYS]
+    except Exception:
+        return []
+    return []
+
+def serialize_allowed_pages(keys: List[str]) -> str:
+    clean = [k for k in keys if k in PAGE_KEYS]
+    return json.dumps(clean)
+
+def allowed_prefixes_for(keys: List[str]) -> List[str]:
+    prefixes = []
+    for opt in PAGE_OPTIONS:
+        if opt["key"] in keys:
+            prefixes.extend(opt["prefixes"])
+    return prefixes
+
+# --- Checklist Operacional (Transpaleteira) ---
+CHECKLIST_ITEMS = [
+    {"key": "hydraulic_functions", "label": "Funções hidráulicas", "critical": True},
+    {"key": "seat", "label": "Assento", "critical": False},
+    {"key": "battery_lock", "label": "Trava da bateria", "critical": False},
+    {"key": "leaks", "label": "Vazamentos", "critical": True},
+    {"key": "speed", "label": "Velocidade", "critical": False},
+    {"key": "battery_water_level", "label": "Nível da água da bateria", "critical": False},
+    {"key": "chassis_forks", "label": "Chassi / garfos (trincas, batidas)", "critical": False},
+    {"key": "steering", "label": "Direção (folgas / ruídos)", "critical": True},
+    {"key": "pedal_brake", "label": "Freio de pedal", "critical": True},
+    {"key": "parking_brake", "label": "Freio de estacionamento", "critical": True},
+    {"key": "panel", "label": "Painel", "critical": False},
+    {"key": "horn", "label": "Buzina", "critical": False},
+    {"key": "chains_hoses", "label": "Correntes / mangueiras", "critical": False},
+    {"key": "wheels", "label": "Rodas (carga e tração)", "critical": False},
+    {"key": "paint", "label": "Pintura", "critical": False},
+    {"key": "cleanliness", "label": "Limpeza / poeira", "critical": False},
+    {"key": "steering_force_balance", "label": "Força da direção igual para ambos os lados", "critical": True},
+    {"key": "battery_charge_level", "label": "Nível de carga da bateria", "critical": False}
+]
+CHECKLIST_ITEM_KEYS = [item["key"] for item in CHECKLIST_ITEMS]
+CHECKLIST_CRITICAL_KEYS = {item["key"] for item in CHECKLIST_ITEMS if item["critical"]}
+CHECKLIST_XP = int(os.getenv("CHECKLIST_XP", "10"))
+CHECKLIST_IMAGE_DIR = os.path.join("static", "uploads", "checklists")
+CHECKLIST_MAX_IMAGE_SIZE = 5 * 1024 * 1024
+MAINTENANCE_EMAIL_TO = os.getenv("MAINTENANCE_EMAIL_TO", "").strip()
+MAINTENANCE_EMAIL_FROM = os.getenv("MAINTENANCE_EMAIL_FROM", "").strip()
+MAINTENANCE_EMAIL_FROM_FIXED = "felipe.pires@nlfrutas.com.br"
+SMTP_HOST = os.getenv("SMTP_HOST", "").strip()
+SMTP_PORT_RAW = os.getenv("SMTP_PORT", "587").strip()
+SMTP_USER = os.getenv("SMTP_USER", "").strip()
+SMTP_PASS = os.getenv("SMTP_PASS", "")
+SMTP_TLS_RAW = os.getenv("SMTP_TLS", "true").strip()
+APP_BASE_URL = os.getenv("APP_BASE_URL", "").strip().rstrip("/")
+
+def parse_bool_env(value: str, default: bool = False) -> bool:
+    if value is None:
+        return default
+    return value.strip().lower() in ("1", "true", "yes", "on")
+
+def parse_int_env(value: str, default: int) -> int:
+    try:
+        return int(value)
+    except Exception:
+        return default
+
+def parse_email_list(value: str) -> List[str]:
+    if not value:
+        return []
+    parts = [p.strip() for p in value.replace(";", ",").split(",")]
+    return [normalize_email(p) for p in parts if normalize_email(p)]
+
+def smtp_config_error(recipient_list: List[str]) -> Optional[str]:
+    missing = []
+    host_val = (SMTP_HOST or "").strip()
+    if not recipient_list:
+        missing.append("MAINTENANCE_EMAIL_TO")
+    if not host_val or host_val.upper() == "SEU_HOST_AQUI":
+        missing.append("SMTP_HOST")
+    port_raw = (SMTP_PORT_RAW or "").strip()
+    if not port_raw:
+        missing.append("SMTP_PORT")
+    else:
+        try:
+            int(port_raw)
+        except Exception:
+            missing.append("SMTP_PORT")
+    if not (SMTP_TLS_RAW or "").strip():
+        missing.append("SMTP_TLS")
+    if not (SMTP_USER or "").strip():
+        missing.append("SMTP_USER")
+    if not (SMTP_PASS or ""):
+        missing.append("SMTP_PASS")
+    if missing:
+        return "Configuração de e-mail incompleta. Variáveis faltando/invalidas: " + ", ".join(missing)
+    return None
+
+def checklist_nonconforming_items(keys: Optional[List[str]]) -> List[dict]:
+    label_map = checklist_item_label_map()
+    items = []
+    for key in (keys or []):
+        items.append({
+            "key": key,
+            "label": label_map.get(key, key),
+            "critical": key in CHECKLIST_CRITICAL_KEYS
+        })
+    return items
+
+def build_checklist_pdf(report: dict) -> bytes:
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas
+    except Exception as exc:
+        raise RuntimeError("ReportLab não disponível para gerar PDF.") from exc
+
+    buffer = io.BytesIO()
+    page_width, page_height = A4
+    c = canvas.Canvas(buffer, pagesize=A4)
+    y = page_height - 40
+    line_height = 14
+
+    def draw_line(text: str, bold: bool = False):
+        nonlocal y
+        if y < 40:
+            c.showPage()
+            y = page_height - 40
+        c.setFont("Helvetica-Bold" if bold else "Helvetica", 10)
+        c.drawString(40, y, text)
+        y -= line_height
+
+    draw_line("Checklist Operacional - Não Conforme", True)
+    draw_line(f"Checklist ID: {report['checklist_id']}")
+    draw_line(f"Operador: {report['operator_name']} ({report['operator_id']})")
+    draw_line(f"Data/Hora: {report['submitted_at']} | Turno: {report['shift']}")
+    draw_line(f"Equipamento: {report['equipment_code']}")
+    draw_line("")
+    draw_line("Itens não conformes:", True)
+    for item in report["nonconforming_items"]:
+        critical_tag = " [CRITICO]" if item["critical"] else ""
+        draw_line(f"- {item['label']}{critical_tag}")
+    draw_line("")
+    draw_line("Observações:", True)
+    for line in (report["observations"] or "-").splitlines():
+        draw_line(line)
+    if report["image_list"]:
+        draw_line("")
+        draw_line("Imagens:", True)
+        for img in report["image_list"]:
+            draw_line(f"- {img}")
+    draw_line("")
+    draw_line(f"Link: {report['checklist_link']}")
+    draw_line("")
+    draw_line(f"Gerado em: {report['generated_at']}")
+
+    c.save()
+    buffer.seek(0)
+    return buffer.getvalue()
+
+def send_maintenance_email(report: dict, recipients: Optional[List[str]] = None) -> tuple:
+    smtp_port = parse_int_env(SMTP_PORT_RAW, 587)
+    smtp_tls = parse_bool_env(SMTP_TLS_RAW, True)
+    recipient_list = [normalize_email(r) for r in (recipients or []) if normalize_email(r)]
+    if not recipient_list:
+        recipient_list = parse_email_list(MAINTENANCE_EMAIL_TO)
+
+    config_error = smtp_config_error(recipient_list)
+    if config_error:
+        return False, config_error
+
+    msg = EmailMessage()
+    msg["Subject"] = report["subject"]
+    msg["From"] = MAINTENANCE_EMAIL_FROM_FIXED
+    msg["To"] = ", ".join(recipient_list)
+    msg.set_content(report["body"])
+
+    if report.get("pdf_bytes"):
+        msg.add_attachment(
+            report["pdf_bytes"],
+            maintype="application",
+            subtype="pdf",
+            filename=report["pdf_filename"]
+        )
+
+    with smtplib.SMTP(SMTP_HOST, smtp_port, timeout=20) as smtp:
+        if smtp_tls:
+            smtp.starttls()
+        if SMTP_USER:
+            smtp.login(SMTP_USER, SMTP_PASS)
+        smtp.send_message(msg)
+    return True, None
+
+def normalize_shift(value: Optional[str]) -> str:
+    return (value or "").strip().lower()
+
+def checklist_item_label_map() -> dict:
+    return {item["key"]: item["label"] for item in CHECKLIST_ITEMS}
+
+def parse_items_payload(raw_items: str) -> dict:
+    try:
+        data = json.loads(raw_items)
+    except Exception:
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    if any(key not in data for key in CHECKLIST_ITEM_KEYS):
+        return {}
+    result = {}
+    for key in CHECKLIST_ITEM_KEYS:
+        val = data.get(key)
+        if isinstance(val, bool):
+            result[key] = val
+        else:
+            result[key] = str(val).lower() in ("true", "1", "yes", "on")
+    return result
+
+def ensure_checklist_dir():
+    os.makedirs(CHECKLIST_IMAGE_DIR, exist_ok=True)
+
+async def save_checklist_images(files: List[UploadFile]) -> List[str]:
+    ensure_checklist_dir()
+    saved = []
+    for file in files:
+        if not file or not file.filename:
+            continue
+        contents = await file.read()
+        if len(contents) > CHECKLIST_MAX_IMAGE_SIZE:
+            raise HTTPException(status_code=400, detail="Imagem muito grande (max 5MB).")
+        ext = os.path.splitext(file.filename)[1].lower()
+        if ext not in (".jpg", ".jpeg", ".png", ".webp"):
+            raise HTTPException(status_code=400, detail="Formato de imagem inválido.")
+        filename = f"{secrets.token_hex(12)}{ext}"
+        path = os.path.join(CHECKLIST_IMAGE_DIR, filename)
+        with open(path, "wb") as handle:
+            handle.write(contents)
+        saved.append(filename)
+    return saved
+
+def resolve_equipment(session: Session, code: str) -> models.TranspalletEquipment:
+    equipment = session.exec(
+        select(models.TranspalletEquipment).where(models.TranspalletEquipment.code == code)
+    ).first()
+    if not equipment:
+        equipment = models.TranspalletEquipment(code=code, status="available")
+        session.add(equipment)
+        session.commit()
+        session.refresh(equipment)
+    return equipment
+
+def block_equipment(session: Session, equipment: models.TranspalletEquipment, reason: str, checklist_id: Optional[int]):
+    equipment.status = "blocked"
+    equipment.blocked_reason = reason
+    equipment.blocked_at = datetime.now()
+    equipment.last_checklist_id = checklist_id
+    session.add(equipment)
+
+def release_equipment(session: Session, equipment: models.TranspalletEquipment, released_by: str):
+    equipment.status = "available"
+    equipment.released_by = released_by
+    equipment.released_at = datetime.now()
+    session.add(equipment)
+
+def ensure_user_auth_schema():
+    inspector = inspect(engine)
+    if "user" not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns("user")}
+    missing = {
+        "role": "VARCHAR(32)",
+        "is_active": "BOOLEAN",
+        "employee_id": "INTEGER",
+        "allowed_pages": "TEXT",
+        "google_sub": "VARCHAR(255)",
+        "reset_token_hash": "VARCHAR(255)",
+        "reset_token_expires_at": "TIMESTAMP",
+        "created_at": "TIMESTAMP",
+        "updated_at": "TIMESTAMP"
+    }
+    table_name = "\"user\""
+    added_is_active = False
+    added_role = False
+    added_allowed_pages = False
+    with engine.begin() as conn:
+        for col_name, col_type in missing.items():
+            if col_name in existing:
+                continue
+            conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}"))
+            if col_name == "is_active":
+                added_is_active = True
+            if col_name == "role":
+                added_role = True
+            if col_name == "allowed_pages":
+                added_allowed_pages = True
+        if "is_active" in existing or added_is_active:
+            conn.execute(text(f"UPDATE {table_name} SET is_active = TRUE WHERE is_active IS NULL"))
+        if "role" in existing or added_role:
+            conn.execute(text(f"UPDATE {table_name} SET role = 'admin' WHERE role IS NULL"))
+    if "allowed_pages" in existing or added_allowed_pages:
+        with engine.begin() as conn:
+            conn.execute(text(f"UPDATE {table_name} SET allowed_pages = '[]' WHERE allowed_pages IS NULL"))
+
+def ensure_employee_access_schema():
+    inspector = inspect(engine)
+    if "employee" not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns("employee")}
+    missing = {
+        "mobile_access_separation": "BOOLEAN",
+        "mobile_access_checklist": "BOOLEAN"
+    }
+    added_separation = False
+    added_checklist = False
+    with engine.begin() as conn:
+        for col_name, col_type in missing.items():
+            if col_name in existing:
+                continue
+            conn.execute(text(f"ALTER TABLE employee ADD COLUMN {col_name} {col_type}"))
+            if col_name == "mobile_access_separation":
+                added_separation = True
+            if col_name == "mobile_access_checklist":
+                added_checklist = True
+        if "mobile_access_separation" in existing or added_separation:
+            conn.execute(text("UPDATE employee SET mobile_access_separation = mobile_access WHERE mobile_access_separation IS NULL"))
+        if "mobile_access_checklist" in existing or added_checklist:
+            conn.execute(text("UPDATE employee SET mobile_access_checklist = FALSE WHERE mobile_access_checklist IS NULL"))
+
+def ensure_event_reference_schema():
+    inspector = inspect(engine)
+    if "event" not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns("event")}
+    missing = {
+        "reference_type": "VARCHAR(64)",
+        "reference_id": "INTEGER"
+    }
+    with engine.begin() as conn:
+        for col_name, col_type in missing.items():
+            if col_name in existing:
+                continue
+            conn.execute(text(f"ALTER TABLE event ADD COLUMN {col_name} {col_type}"))
+
+def ensure_checklist_email_schema():
+    inspector = inspect(engine)
+    table_name = getattr(models.TranspalletChecklist, "__tablename__", "transpalletchecklist")
+    if table_name not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns(table_name)}
+    missing = {
+        "maintenance_email_sent_at": "TIMESTAMP",
+        "maintenance_email_error": "TEXT"
+    }
+    with engine.begin() as conn:
+        for col_name, col_type in missing.items():
+            if col_name in existing:
+                continue
+            conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}"))
+
+def ensure_default_admin(session: Session):
+    existing = session.exec(select(models.User)).first()
+    if existing:
+        return
+    email = normalize_email(ADMIN_EMAIL)
+    if "@" not in email:
+        email = f"{email}@local"
+    password = ADMIN_PASS
+    if not email or not password:
+        logger.warning("Nenhum admin padrão criado: ADMIN_EMAIL/ADMIN_PASS não definidos.")
+        return
+    user = models.User(
+        username=email,
+        password_hash=hash_password(password),
+        role=ADMIN_ROLE or "admin",
+        is_active=True,
+        created_at=datetime.now(),
+        updated_at=datetime.now()
+    )
+    session.add(user)
+    session.commit()
+    logger.warning("Admin padrão criado. Atualize ADMIN_EMAIL/ADMIN_PASS imediatamente.")
+
+def admin_users_redirect(message: str, level: str = "success") -> RedirectResponse:
+    query = urlencode({"message": message, "level": level})
+    return RedirectResponse(url=f"/admin/users?{query}", status_code=status.HTTP_303_SEE_OTHER)
+
+def admin_checklists_settings_redirect(message: str, level: str = "success") -> RedirectResponse:
+    query = urlencode({"message": message, "level": level})
+    return RedirectResponse(url=f"/admin/routine/checklists/settings?{query}", status_code=status.HTTP_303_SEE_OTHER)
+
 # --- Auth Helper Functions ---
 def get_current_user(request: Request):
-    user = request.session.get("user")
-    if user: return user
-    
+    auth_user_id = request.session.get("auth_user_id")
+    if auth_user_id:
+        return {
+            "type": "user",
+            "id": auth_user_id,
+            "role": request.session.get("auth_user_role"),
+            "email": request.session.get("auth_user_email")
+        }
+
+    legacy_user = request.session.get("user")
+    if legacy_user:
+        return {"type": "user", "id": None, "role": "admin", "email": str(legacy_user)}
+
     # Support for Mobile Employee Session
     user_id = request.session.get("user_id")
     if user_id:
@@ -345,8 +814,17 @@ def require_login(request: Request):
         raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/login"})
 
     # Logged in, check permissions
-    # User is Admin (str) -> Can access everything (or maybe restrict from mobile specific logic if needed, but usually fine)
-    if isinstance(user, str):
+    if isinstance(user, dict) and user.get("type") == "user":
+        role = (user.get("role") or "").lower()
+        if role == "leader":
+            allowed_keys = request.session.get("allowed_pages")
+            if isinstance(allowed_keys, list):
+                allowed_keys = [str(k) for k in allowed_keys if str(k) in PAGE_KEYS]
+            else:
+                allowed_keys = parse_allowed_pages(allowed_keys)
+            allowed_prefixes = allowed_prefixes_for(allowed_keys)
+            if not any(path.startswith(prefix) for prefix in allowed_prefixes):
+                raise HTTPException(status_code=403, detail="Acesso negado.")
         return user
 
     # User is Employee (dict) -> RESTRICTED TO /mobile ONLY
@@ -359,6 +837,32 @@ def require_login(request: Request):
 
     return user
 
+def require_mobile_module(employee, module: str):
+    if module == "separation":
+        allowed = bool(getattr(employee, "mobile_access_separation", False))
+    elif module == "checklist":
+        allowed = bool(getattr(employee, "mobile_access_checklist", False))
+    else:
+        raise HTTPException(status_code=400, detail="Módulo inválido.")
+
+    if not allowed:
+        raise HTTPException(status_code=403, detail="Acesso não liberado para este módulo")
+    return True
+
+def require_roles(request: Request, allowed_roles: set):
+    user = require_login(request)
+    if isinstance(user, dict) and user.get("type") == "user":
+        if (user.get("role") or "").lower() not in allowed_roles:
+            raise HTTPException(status_code=403, detail="Acesso negado.")
+        return user
+    raise HTTPException(status_code=403, detail="Acesso negado.")
+
+def require_leader(request: Request):
+    return require_roles(request, {"leader", "admin"})
+
+def require_admin(request: Request):
+    return require_roles(request, {"admin"})
+
 def require_gm(request: Request, session: Session = Depends(get_session)):
     """
     Dependency to ensure the user is logged in AND is a Game Master (Admin).
@@ -367,24 +871,20 @@ def require_gm(request: Request, session: Session = Depends(get_session)):
         user = get_current_user(request)
         if not user:
              raise HTTPException(status_code=403, detail="Not authenticated")
-        
-        if isinstance(user, str):
-            # "Admin" or similar string -> ALLOW
-            return None 
 
-        if isinstance(user, dict):
-            # Employee
+        if isinstance(user, dict) and user.get("type") == "user":
+            role = (user.get("role") or "").lower()
+            if role in {"admin", "leader"}:
+                return user
+            raise HTTPException(status_code=403, detail="Acesso negado: Requer privilégios de Admin/GM.")
+
+        if isinstance(user, dict) and user.get("type") == "employee":
             user_id = user.get("id")
             emp = session.get(models.Employee, user_id)
             if not emp:
                  raise HTTPException(status_code=403, detail="Employee not found")
-            
-            # Strict check: Regular employees cannot trigger audits.
-            # Only allow if role implies GM rights (or we just restrict this to Admin string users for now?)
-            # Let's check if role is "Admin" or similar.
             if emp.role not in ["Admin", "Manager", "Master"]:
                 raise HTTPException(status_code=403, detail="Acesso negado: Requer privilégios de Admin/GM.")
-
             return emp
             
         raise HTTPException(status_code=403, detail="Invalid auth state")
@@ -430,11 +930,11 @@ class AchievementSchema(BaseModel):
     trigger_value: Optional[str] = None
 
 @app.get("/admin/game/achievements", response_class=HTMLResponse)
-def admin_achievements_page(request: Request, user=Depends(require_login)):
+def admin_achievements_page(request: Request, user=Depends(require_leader)):
     """Page to manage achievements"""
     return templates.TemplateResponse("admin_achievements.html", {"request": request, "user": user})
 
-@app.get("/api/game/achievements")
+@app.get("/api/game/achievements", dependencies=[Depends(require_leader)])
 def api_list_achievements(session: Session = Depends(get_session), user=Depends(require_login)):
     try:
         achievements = session.exec(select(models.GameAchievement).order_by(models.GameAchievement.xp_reward)).all()
@@ -443,7 +943,7 @@ def api_list_achievements(session: Session = Depends(get_session), user=Depends(
         logger.error(f"Error listing achievements: {e}")
         return {"success": False, "error": str(e)}
 
-@app.post("/api/game/achievements")
+@app.post("/api/game/achievements", dependencies=[Depends(require_leader)])
 def api_save_achievement(
     data: AchievementSchema, 
     session: Session = Depends(get_session),
@@ -487,7 +987,7 @@ def api_save_achievement(
         logger.error(f"Error saving achievement: {e}")
         return {"success": False, "error": str(e)}
 
-@app.delete("/api/game/achievements/{ach_id}")
+@app.delete("/api/game/achievements/{ach_id}", dependencies=[Depends(require_leader)])
 def api_delete_achievement(ach_id: int, session: Session = Depends(get_session), user=Depends(require_login)):
     try:
         ach = session.get(models.GameAchievement, ach_id)
@@ -506,7 +1006,7 @@ class GrantAchievementSchema(BaseModel):
     employee_id: int
     reason: Optional[str] = None
 
-@app.post("/api/game/achievements/grant")
+@app.post("/api/game/achievements/grant", dependencies=[Depends(require_leader)])
 def api_grant_achievement(
     data: GrantAchievementSchema,
     session: Session = Depends(get_session),
@@ -563,7 +1063,7 @@ def api_grant_achievement(
 # --- Automatic Achievement Check/Audit APIs ---
 from gamification_engine import check_and_award_achievements, audit_and_revoke_achievements
 
-@app.post("/api/game/achievements/check-all")
+@app.post("/api/game/achievements/check-all", dependencies=[Depends(require_leader)])
 def api_check_all_achievements(
     request: Request,
     session: Session = Depends(get_session),
@@ -626,7 +1126,7 @@ def api_check_all_achievements(
         return {"success": False, "error": str(e)}
 
 
-@app.post("/api/game/achievements/audit-all")
+@app.post("/api/game/achievements/audit-all", dependencies=[Depends(require_leader)])
 def api_audit_all_achievements(
     request: Request,
     session: Session = Depends(get_session),
@@ -680,10 +1180,7 @@ async def api_reset_data(
     session: Session = Depends(get_session)
 ):
     try:
-        user = require_login(request)
-        # Extra security: Ensure only admin
-        if user != ALLOWED_USER:
-             return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+        require_roles(request, {"admin"})
 
         import shutil
         import time
@@ -942,14 +1439,415 @@ async def mobile_root():
     return RedirectResponse(url="/mobile/login")
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+    current = get_current_user(request)
+    if isinstance(current, dict):
+        if current.get("type") == "employee":
+            return RedirectResponse(url="/mobile/dashboard", status_code=status.HTTP_303_SEE_OTHER)
+        if current.get("type") == "user":
+            if (current.get("role") or "").lower() == "leader":
+                return RedirectResponse(url="/admin/game", status_code=status.HTTP_303_SEE_OTHER)
+            return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    return templates.TemplateResponse(
+        "login.html",
+        {"request": request, "google_enabled": is_google_enabled()}
+    )
 @app.post("/login", response_class=HTMLResponse)
-async def login(request: Request, username: str = Form(...), password: str = Form(...)):
-    if username == ALLOWED_USER and password == ALLOWED_PASS:
-        request.session["user"] = username
-        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
-    else:
-        return templates.TemplateResponse("login.html", {"request": request, "error": "Credenciais inválidas"})
+async def login(
+    request: Request,
+    email: str = Form(...),
+    password: str = Form(...),
+    session: Session = Depends(get_session)
+):
+    email_norm = normalize_email(email)
+    user = session.exec(select(models.User).where(models.User.username == email_norm)).first()
+    if not user or not user.is_active:
+        return templates.TemplateResponse("login.html", {"request": request, "error": "Credenciais inválidas", "google_enabled": is_google_enabled()})
+    if not user.password_hash or not verify_password(password, user.password_hash):
+        return templates.TemplateResponse("login.html", {"request": request, "error": "Credenciais inválidas", "google_enabled": is_google_enabled()})
+    if (user.role or "leader").lower() == "leader" and not user.employee_id:
+        return templates.TemplateResponse("login.html", {"request": request, "error": "Usuário sem colaborador vinculado.", "google_enabled": is_google_enabled()})
+
+    request.session.clear()
+    request.session["auth_user_id"] = user.id
+    request.session["auth_user_role"] = user.role or "leader"
+    request.session["auth_user_email"] = user.username
+    allowed_keys = list(PAGE_KEYS) if (user.role or "leader").lower() == "admin" else parse_allowed_pages(user.allowed_pages)
+    request.session["allowed_pages"] = allowed_keys
+    allowed_keys = list(PAGE_KEYS) if (user.role or "leader").lower() == "admin" else parse_allowed_pages(user.allowed_pages)
+    request.session["allowed_pages"] = allowed_keys
+    user.updated_at = datetime.now()
+    session.add(user)
+    session.commit()
+
+    redirect_url = "/admin/game" if (user.role or "leader").lower() == "leader" else "/"
+    return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
+
+def get_google_redirect_uri(request: Request) -> str:
+    if GOOGLE_REDIRECT_URI:
+        return GOOGLE_REDIRECT_URI
+    return str(request.url_for("google_callback"))
+
+@app.get("/auth/google")
+async def google_login(request: Request):
+    if not is_google_enabled():
+        return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
+
+    state = secrets.token_urlsafe(16)
+    request.session["google_oauth_state"] = state
+    redirect_uri = get_google_redirect_uri(request)
+    params = {
+        "client_id": GOOGLE_CLIENT_ID,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "online",
+        "prompt": "select_account",
+        "state": state
+    }
+    auth_url = "https://accounts.google.com/o/oauth2/v2/auth?" + urlencode(params)
+    return RedirectResponse(url=auth_url, status_code=status.HTTP_303_SEE_OTHER)
+
+@app.get("/auth/google/callback", name="google_callback")
+async def google_callback(
+    request: Request,
+    code: Optional[str] = None,
+    state: Optional[str] = None,
+    session: Session = Depends(get_session)
+):
+    if not is_google_enabled():
+        return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
+
+    expected_state = request.session.get("google_oauth_state")
+    if not state or state != expected_state:
+        return templates.TemplateResponse("login.html", {"request": request, "error": "Falha na autenticação Google.", "google_enabled": is_google_enabled()})
+
+    if not code:
+        return templates.TemplateResponse("login.html", {"request": request, "error": "Falha na autenticação Google.", "google_enabled": is_google_enabled()})
+
+    redirect_uri = get_google_redirect_uri(request)
+    token_payload = {
+        "code": code,
+        "client_id": GOOGLE_CLIENT_ID,
+        "client_secret": GOOGLE_CLIENT_SECRET,
+        "redirect_uri": redirect_uri,
+        "grant_type": "authorization_code"
+    }
+    try:
+        token_req = UrlRequest(
+            "https://oauth2.googleapis.com/token",
+            data=urlencode(token_payload).encode("utf-8"),
+            headers={"Content-Type": "application/x-www-form-urlencoded"}
+        )
+        with urlopen(token_req, timeout=10) as resp:
+            token_data = json.loads(resp.read().decode("utf-8"))
+    except (HTTPError, URLError, TimeoutError) as e:
+        logger.error(f"Erro OAuth Google: {e}")
+        return templates.TemplateResponse("login.html", {"request": request, "error": "Falha na autenticação Google.", "google_enabled": is_google_enabled()})
+
+    id_token = token_data.get("id_token")
+    if not id_token:
+        return templates.TemplateResponse("login.html", {"request": request, "error": "Falha na autenticação Google.", "google_enabled": is_google_enabled()})
+
+    try:
+        tokeninfo_url = "https://oauth2.googleapis.com/tokeninfo?" + urlencode({"id_token": id_token})
+        with urlopen(tokeninfo_url, timeout=10) as resp:
+            tokeninfo = json.loads(resp.read().decode("utf-8"))
+    except (HTTPError, URLError, TimeoutError) as e:
+        logger.error(f"Erro validando token Google: {e}")
+        return templates.TemplateResponse("login.html", {"request": request, "error": "Falha na autenticação Google.", "google_enabled": is_google_enabled()})
+
+    email_verified = tokeninfo.get("email_verified")
+    if tokeninfo.get("aud") != GOOGLE_CLIENT_ID or (email_verified not in ("true", True)):
+        return templates.TemplateResponse("login.html", {"request": request, "error": "E-mail Google não verificado.", "google_enabled": is_google_enabled()})
+
+    email = normalize_email(tokeninfo.get("email", ""))
+    sub = tokeninfo.get("sub")
+    user = session.exec(select(models.User).where(models.User.username == email)).first()
+    if not user or not user.is_active:
+        return templates.TemplateResponse("login.html", {"request": request, "error": "E-mail não autorizado.", "google_enabled": is_google_enabled()})
+
+    if user.google_sub and user.google_sub != sub:
+        return templates.TemplateResponse("login.html", {"request": request, "error": "Conta Google não autorizada.", "google_enabled": is_google_enabled()})
+
+    if not user.google_sub:
+        user.google_sub = sub
+    if (user.role or "leader").lower() == "leader" and not user.employee_id:
+        return templates.TemplateResponse("login.html", {"request": request, "error": "Usuário sem colaborador vinculado.", "google_enabled": is_google_enabled()})
+    user.updated_at = datetime.now()
+    session.add(user)
+    session.commit()
+
+    request.session.clear()
+    request.session["auth_user_id"] = user.id
+    request.session["auth_user_role"] = user.role or "leader"
+    request.session["auth_user_email"] = user.username
+    request.session.pop("google_oauth_state", None)
+
+    redirect_url = "/admin/game" if (user.role or "leader").lower() == "leader" else "/"
+    return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
+
+@app.get("/reset", response_class=HTMLResponse)
+async def reset_request_page(request: Request):
+    return templates.TemplateResponse(
+        "reset_request.html",
+        {"request": request, "google_enabled": is_google_enabled()}
+    )
+
+@app.post("/reset", response_class=HTMLResponse)
+async def reset_request(
+    request: Request,
+    email: str = Form(...),
+    session: Session = Depends(get_session)
+):
+    email_norm = normalize_email(email)
+    user = session.exec(select(models.User).where(models.User.username == email_norm)).first()
+    reset_link = None
+    if user and user.is_active:
+        token = secrets.token_urlsafe(32)
+        user.reset_token_hash = hash_reset_token(token)
+        user.reset_token_expires_at = datetime.utcnow() + timedelta(minutes=RESET_TOKEN_TTL_MINUTES)
+        user.updated_at = datetime.now()
+        session.add(user)
+        session.commit()
+        reset_link = f"{request.base_url}reset/{token}"
+        logger.info(f"Reset de senha gerado para {email_norm}: {reset_link}")
+
+    show_reset_link = os.getenv("RESET_SHOW_LINK", "").lower() == "true" or not IS_PROD
+    return templates.TemplateResponse(
+        "reset_request.html",
+        {
+            "request": request,
+            "sent": True,
+            "show_reset_link": show_reset_link,
+            "reset_link": reset_link,
+            "google_enabled": is_google_enabled()
+        }
+    )
+
+@app.get("/reset/{token}", response_class=HTMLResponse)
+async def reset_password_page(request: Request, token: str, session: Session = Depends(get_session)):
+    token_hash = hash_reset_token(token)
+    user = session.exec(select(models.User).where(models.User.reset_token_hash == token_hash)).first()
+    if not user or not user.reset_token_expires_at or user.reset_token_expires_at < datetime.utcnow():
+        return templates.TemplateResponse("reset_password.html", {"request": request, "error": "Token inválido ou expirado."})
+    if not user.is_active:
+        return templates.TemplateResponse("reset_password.html", {"request": request, "error": "Usuário inativo."})
+    return templates.TemplateResponse("reset_password.html", {"request": request, "token": token})
+
+@app.post("/reset/{token}", response_class=HTMLResponse)
+async def reset_password(
+    request: Request,
+    token: str,
+    password: str = Form(...),
+    confirm_password: str = Form(...),
+    session: Session = Depends(get_session)
+):
+    if password != confirm_password:
+        return templates.TemplateResponse("reset_password.html", {"request": request, "error": "As senhas não conferem.", "token": token})
+
+    token_hash = hash_reset_token(token)
+    user = session.exec(select(models.User).where(models.User.reset_token_hash == token_hash)).first()
+    if not user or not user.reset_token_expires_at or user.reset_token_expires_at < datetime.utcnow():
+        return templates.TemplateResponse("reset_password.html", {"request": request, "error": "Token inválido ou expirado."})
+    if not user.is_active:
+        return templates.TemplateResponse("reset_password.html", {"request": request, "error": "Usuário inativo."})
+
+    user.password_hash = hash_password(password)
+    user.reset_token_hash = None
+    user.reset_token_expires_at = None
+    user.updated_at = datetime.now()
+    session.add(user)
+    session.commit()
+
+    return templates.TemplateResponse("login.html", {"request": request, "success": "Senha atualizada com sucesso.", "google_enabled": is_google_enabled()})
+
+# --- Admin: User Management ---
+@app.get("/admin/users", response_class=HTMLResponse)
+async def admin_users_page(
+    request: Request,
+    session: Session = Depends(get_session),
+    user=Depends(require_admin)
+):
+    users = session.exec(select(models.User).order_by(models.User.id)).all()
+    employees = session.exec(
+        select(models.Employee)
+        .where(models.Employee.status != "fired")
+        .order_by(models.Employee.name)
+    ).all()
+    message = request.query_params.get("message")
+    level = request.query_params.get("level", "success")
+    user_allowed_map = {u.id: parse_allowed_pages(u.allowed_pages) for u in users}
+    return templates.TemplateResponse(
+        "admin_users.html",
+        {
+            "request": request,
+            "users": users,
+            "employees": employees,
+            "page_options": PAGE_OPTIONS,
+            "user_allowed_map": user_allowed_map,
+            "message": message,
+            "level": level
+        }
+    )
+
+@app.post("/admin/users/create")
+async def admin_users_create(
+    request: Request,
+    email: str = Form(...),
+    password: str = Form(...),
+    employee_id: int = Form(...),
+    role: str = Form("leader"),
+    pages: Optional[List[str]] = Form(None),
+    session: Session = Depends(get_session),
+    user=Depends(require_admin)
+):
+    email_norm = normalize_email(email)
+    if "@" not in email_norm:
+        return admin_users_redirect("E-mail inválido.", "error")
+    role_norm = (role or "leader").strip().lower()
+    if role_norm not in {"admin", "leader"}:
+        return admin_users_redirect("Role inválida.", "error")
+    existing = session.exec(select(models.User).where(models.User.username == email_norm)).first()
+    if existing:
+        return admin_users_redirect("Usuário já existe.", "error")
+    if not password:
+        return admin_users_redirect("Senha é obrigatória.", "error")
+    if not employee_id or employee_id <= 0:
+        return admin_users_redirect("Selecione um colaborador válido.", "error")
+    employee = session.get(models.Employee, employee_id)
+    if not employee or employee.status == "fired":
+        return admin_users_redirect("Colaborador inválido.", "error")
+    linked = session.exec(select(models.User).where(models.User.employee_id == employee_id)).first()
+    if linked:
+        return admin_users_redirect("Este colaborador já está vinculado a outro usuário.", "error")
+
+    allowed_pages = list(PAGE_KEYS) if role_norm == "admin" else (pages or [])
+
+    new_user = models.User(
+        username=email_norm,
+        password_hash=hash_password(password),
+        role=role_norm,
+        is_active=True,
+        employee_id=employee_id,
+        allowed_pages=serialize_allowed_pages(allowed_pages),
+        created_at=datetime.now(),
+        updated_at=datetime.now()
+    )
+    session.add(new_user)
+    session.commit()
+    return admin_users_redirect("Usuário criado com sucesso.")
+
+@app.post("/admin/users/{user_id}/role")
+async def admin_users_update_role(
+    request: Request,
+    user_id: int,
+    role: str = Form(...),
+    session: Session = Depends(get_session),
+    user=Depends(require_admin)
+):
+    role_norm = (role or "").strip().lower()
+    if role_norm not in {"admin", "leader"}:
+        return admin_users_redirect("Role inválida.", "error")
+    target = session.get(models.User, user_id)
+    if not target:
+        return admin_users_redirect("Usuário não encontrado.", "error")
+    if role_norm == "leader" and not target.employee_id:
+        return admin_users_redirect("Vincule um colaborador antes de definir como líder.", "error")
+    target.role = role_norm
+    target.updated_at = datetime.now()
+    session.add(target)
+    session.commit()
+    return admin_users_redirect("Role atualizado.")
+
+@app.post("/admin/users/{user_id}/employee")
+async def admin_users_update_employee(
+    request: Request,
+    user_id: int,
+    employee_id: int = Form(...),
+    session: Session = Depends(get_session),
+    user=Depends(require_admin)
+):
+    target = session.get(models.User, user_id)
+    if not target:
+        return admin_users_redirect("Usuário não encontrado.", "error")
+    if not employee_id or employee_id <= 0:
+        return admin_users_redirect("Selecione um colaborador válido.", "error")
+    employee = session.get(models.Employee, employee_id)
+    if not employee or employee.status == "fired":
+        return admin_users_redirect("Colaborador inválido.", "error")
+    linked = session.exec(
+        select(models.User)
+        .where(models.User.employee_id == employee_id)
+        .where(models.User.id != user_id)
+    ).first()
+    if linked:
+        return admin_users_redirect("Este colaborador já está vinculado a outro usuário.", "error")
+    target.employee_id = employee_id
+    target.updated_at = datetime.now()
+    session.add(target)
+    session.commit()
+    return admin_users_redirect("Colaborador vinculado.")
+
+@app.post("/admin/users/{user_id}/pages")
+async def admin_users_update_pages(
+    request: Request,
+    user_id: int,
+    pages: Optional[List[str]] = Form(None),
+    session: Session = Depends(get_session),
+    user=Depends(require_admin)
+):
+    target = session.get(models.User, user_id)
+    if not target:
+        return admin_users_redirect("Usuário não encontrado.", "error")
+    if (target.role or "leader").lower() == "admin":
+        return admin_users_redirect("Admin possui acesso total.", "error")
+    allowed = pages or []
+    if (target.role or "leader").lower() == "leader" and not target.employee_id:
+        return admin_users_redirect("Vincule um colaborador antes de liberar páginas.", "error")
+    target.allowed_pages = serialize_allowed_pages(allowed)
+    target.updated_at = datetime.now()
+    session.add(target)
+    session.commit()
+    return admin_users_redirect("Acessos atualizados.")
+
+@app.post("/admin/users/{user_id}/status")
+async def admin_users_update_status(
+    request: Request,
+    user_id: int,
+    active: str = Form(...),
+    session: Session = Depends(get_session),
+    user=Depends(require_admin)
+):
+    target = session.get(models.User, user_id)
+    if not target:
+        return admin_users_redirect("Usuário não encontrado.", "error")
+    active_flag = str(active).lower() in {"1", "true", "yes", "on"}
+    target.is_active = active_flag
+    target.updated_at = datetime.now()
+    session.add(target)
+    session.commit()
+    return admin_users_redirect("Status atualizado.")
+
+@app.post("/admin/users/{user_id}/password")
+async def admin_users_update_password(
+    request: Request,
+    user_id: int,
+    password: str = Form(...),
+    session: Session = Depends(get_session),
+    user=Depends(require_admin)
+):
+    if not password:
+        return admin_users_redirect("Senha é obrigatória.", "error")
+    target = session.get(models.User, user_id)
+    if not target:
+        return admin_users_redirect("Usuário não encontrado.", "error")
+    target.password_hash = hash_password(password)
+    target.reset_token_hash = None
+    target.reset_token_expires_at = None
+    target.updated_at = datetime.now()
+    session.add(target)
+    session.commit()
+    return admin_users_redirect("Senha atualizada.")
 @app.get("/logout")
 async def logout(request: Request):
     request.session.clear()
@@ -1464,6 +2362,44 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
         ach_count_unlocked = session.exec(select(func.count(models.EmployeeAchievement.id))
                                             .where(models.EmployeeAchievement.employee_id == employee.id, models.EmployeeAchievement.status == "approved")).one()
 
+        module_notice = None
+        module_denied = request.query_params.get("module")
+        if module_denied == "checklist":
+            module_notice = "Acesso não liberado para o módulo de Checklist Operacional."
+        elif module_denied == "separation":
+            module_notice = "Acesso não liberado para o módulo de Separação de Mercadorias."
+
+        modules = [
+            {
+                "key": "loading",
+                "label": "Iniciar Carregamento",
+                "description": "Módulo em breve.",
+                "icon": "package",
+                "href": "#",
+                "enabled": False,
+                "action": None
+            },
+            {
+                "key": "separation",
+                "label": "Separação de Mercadorias",
+                "description": "Inicie e finalize suas rotas.",
+                "icon": "truck",
+                "href": "#",
+                "enabled": bool(employee.mobile_access_separation),
+                "action": "start_separation"
+            },
+            {
+                "key": "checklist",
+                "label": "Checklist Operacional",
+                "description": "Checklist diário da transpaleteira.",
+                "icon": "check-square",
+                "href": "/mobile/routine/checklist",
+                "enabled": bool(employee.mobile_access_checklist),
+                "action": None
+            }
+        ]
+        modules = [m for m in modules if m.get("enabled") or m.get("key") == "loading"]
+
         context = {
             "request": request,
             "employee": employee,
@@ -1472,6 +2408,8 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
             "completed_routes": json.dumps(completed_routes_list), # JSON for Alpine History
             "current_date": datetime.now().strftime("%d/%m/%Y"),
             "ai_message": ai_message,
+            "module_notice": module_notice,
+            "modules": modules,
             # Gamification Data
             "gamification": {
                 "level": current_level,
@@ -1589,14 +2527,16 @@ async def mobile_game_master(request: Request, session: Session = Depends(get_se
     try:
         user = require_login(request)
         
-        # Check if user is admin (string) or has GM role
-        is_admin = isinstance(user, str)
+        # Check if user is admin or has GM role
+        is_admin = isinstance(user, dict) and user.get("type") == "user" and (user.get("role") or "").lower() == "admin"
         if not is_admin:
             # Employee accessing - check role
-            if isinstance(user, dict):
+            if isinstance(user, dict) and user.get("type") == "employee":
                 emp = session.get(models.Employee, user.get("id"))
                 if not emp or emp.role not in ["Admin", "Manager", "Master"]:
                     return RedirectResponse(url="/mobile/dashboard", status_code=303)
+            else:
+                return RedirectResponse(url="/mobile/dashboard", status_code=303)
         
         # Fetch pending transactions
         pending_txs = session.exec(
@@ -1638,19 +2578,19 @@ from gamification_engine import calculate_daily_xp, confirm_pending_xp
 from models import GameLevel, GameXPTransaction, GameAchievement
 from sqlmodel import desc
 
-@app.post("/api/game/calc-daily/{date_str}")
+@app.post("/api/game/calc-daily/{date_str}", dependencies=[Depends(require_leader)])
 async def api_calc_xp(date_str: str, session: Session = Depends(get_session)):
     """Trigger Daily XP Calculation Manually"""
     count = calculate_daily_xp(session, date_str)
     return {"success": True, "created_transactions": count}
 
-@app.post("/api/game/confirm-xp")
+@app.post("/api/game/confirm-xp", dependencies=[Depends(require_leader)])
 async def api_confirm_xp(session: Session = Depends(get_session)):
     """Trigger Confirmation of Pending XP"""
     count = confirm_pending_xp(session)
     return {"success": True, "confirmed_transactions": count}
 
-@app.post("/api/game/recalculate-all/{date_str}")
+@app.post("/api/game/recalculate-all/{date_str}", dependencies=[Depends(require_leader)])
 async def api_recalculate_all(date_str: str, session: Session = Depends(get_session)):
     """Force recalculation of XP for ALL employees on a specific date"""
     try:
@@ -1660,7 +2600,7 @@ async def api_recalculate_all(date_str: str, session: Session = Depends(get_sess
     except Exception as e:
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)
 
-@app.post("/api/game/achievements/check-all")
+@app.post("/api/game/achievements/check-all", dependencies=[Depends(require_leader)])
 def check_all_achievements(
     session: Session = Depends(get_session),
     current_user: models.Employee = Depends(require_gm)
@@ -1677,7 +2617,7 @@ def check_all_achievements(
         print(f"Error checking achievements: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
-@app.post("/api/game/achievements/audit-all")
+@app.post("/api/game/achievements/audit-all", dependencies=[Depends(require_leader)])
 def audit_all_achievements(
     session: Session = Depends(get_session),
     current_user: models.Employee = Depends(require_gm)
@@ -1695,7 +2635,7 @@ def audit_all_achievements(
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
-@app.get("/api/game/audit")
+@app.get("/api/game/audit", dependencies=[Depends(require_leader)])
 async def api_game_audit(
     request: Request,
     start_date: Optional[str] = None,
@@ -1815,7 +2755,7 @@ def parse_reason(reason: str):
 
 
 
-@app.get("/api/game/audit/routes")
+@app.get("/api/game/audit/routes", dependencies=[Depends(require_leader)])
 async def api_game_audit_routes(
     request: Request,
     date: Optional[str] = None,
@@ -1907,7 +2847,7 @@ async def api_game_audit_routes(
 
     return {"success": True, "items": items}
 
-@app.get("/api/game/export/xp")
+@app.get("/api/game/export/xp", dependencies=[Depends(require_leader)])
 async def api_game_export_xp(
     request: Request,
     start_date: Optional[str] = None,
@@ -1981,7 +2921,7 @@ async def api_game_export_xp(
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
 
-@app.get("/api/game/audit/summary")
+@app.get("/api/game/audit/summary", dependencies=[Depends(require_leader)])
 async def api_game_audit_summary(
     request: Request,
     start_date: Optional[str] = None,
@@ -2040,7 +2980,7 @@ async def api_game_audit_summary(
     return {"success": True, "summary": result}
 
 
-@app.post("/api/game/manual-xp")
+@app.post("/api/game/manual-xp", dependencies=[Depends(require_leader)])
 async def api_manual_xp(payload: ManualXPRequest, request: Request, session: Session = Depends(get_session)):
     """Cria uma transação manual de XP (bonificação/penalidade)."""
     require_login(request)
@@ -2098,7 +3038,7 @@ async def api_manual_xp(payload: ManualXPRequest, request: Request, session: Ses
     }
 
 @app.get("/admin/game", response_class=HTMLResponse)
-async def admin_game_dashboard(request: Request, session: Session = Depends(get_session)):
+async def admin_game_dashboard(request: Request, session: Session = Depends(get_session), user=Depends(require_leader)):
     """Manager Dashboard for Gamification Control"""
     # 1. Fetch Provisional Transactions
     pending_txs = session.exec(
@@ -2145,7 +3085,7 @@ async def admin_game_dashboard(request: Request, session: Session = Depends(get_
     })
 
 @app.get("/admin/game/audit", response_class=HTMLResponse)
-async def admin_game_audit(request: Request, session: Session = Depends(get_session)):
+async def admin_game_audit(request: Request, session: Session = Depends(get_session), user=Depends(require_leader)):
     """Exclusive Audit Log Page"""
     history_txs = session.exec(
         select(GameXPTransaction, models.Employee)
@@ -2175,7 +3115,8 @@ async def admin_game_audit(request: Request, session: Session = Depends(get_sess
 async def admin_game_employee_detail_page(
     request: Request, 
     employee_id: int, 
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
 ):
     """Employee Detail Page (HTML)"""
     require_login(request)
@@ -2188,7 +3129,7 @@ async def admin_game_employee_detail_page(
         "employee": emp
     })
 
-@app.get("/api/game/audit/employee/{employee_id}")
+@app.get("/api/game/audit/employee/{employee_id}", dependencies=[Depends(require_leader)])
 async def api_game_audit_employee_history(
     employee_id: int, 
     session: Session = Depends(get_session)
@@ -2323,7 +3264,7 @@ async def api_game_audit_employee_history(
 class LevelsPayload(BaseModel):
     levels: List[models.GameLevel]
 
-@app.post("/api/game/levels")
+@app.post("/api/game/levels", dependencies=[Depends(require_leader)])
 async def api_save_levels(payload: LevelsPayload, session: Session = Depends(get_session)):
     """Sync Levels: Update existing, Create new, Delete missing"""
     try:
@@ -2362,7 +3303,7 @@ async def api_save_levels(payload: LevelsPayload, session: Session = Depends(get
 class AchievementsPayload(BaseModel):
     achievements: List[models.GameAchievement]
 
-@app.post("/api/game/achievements")
+@app.post("/api/game/achievements", dependencies=[Depends(require_leader)])
 async def api_save_achievements(payload: AchievementsPayload, session: Session = Depends(get_session)):
     """Sync Achievements: Update existing, Create new, Delete missing"""
     try:
@@ -2396,7 +3337,7 @@ async def api_save_achievements(payload: AchievementsPayload, session: Session =
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
-@app.post("/api/game/transaction/{tx_id}/{action}")
+@app.post("/api/game/transaction/{tx_id}/{action}", dependencies=[Depends(require_leader)])
 async def api_manage_tx(tx_id: int, action: str, session: Session = Depends(get_session)):
     """Approve/Reject Provisional Transaction"""
     tx = session.get(GameXPTransaction, tx_id)
@@ -2422,7 +3363,7 @@ async def api_manage_tx(tx_id: int, action: str, session: Session = Depends(get_
 async def admin_game_settings(request: Request, session: Session = Depends(get_session)):
     """Configuration Page"""
     try:
-        require_login(request) # Admin Only
+        require_leader(request)
         
         configs = session.exec(select(models.GameConfiguration)).all()
         # Convert list to dict for frontend
@@ -2465,7 +3406,7 @@ async def admin_game_settings(request: Request, session: Session = Depends(get_s
         traceback.print_exc()
         return HTMLResponse(f"<h1>Erro 500 Debug</h1><pre>{traceback.format_exc()}</pre>", status_code=500)
 
-@app.post("/api/game/settings")
+@app.post("/api/game/settings", dependencies=[Depends(require_leader)])
 async def api_save_settings(request: Request, session: Session = Depends(get_session)):
     data = await request.json()
     
@@ -2517,7 +3458,17 @@ async def mobile_route_finish(
         user_id = request.session.get("user_id")
         if not user_id:
              return JSONResponse({"error": "Unauthorized"}, status_code=401)
-             
+
+        employee = session.get(models.Employee, user_id)
+        if not employee:
+             return JSONResponse({"error": "Colaborador não encontrado."}, status_code=404)
+        try:
+            require_mobile_module(employee, "separation")
+        except HTTPException as exc:
+            if exc.status_code == status.HTTP_403_FORBIDDEN:
+                return JSONResponse({"detail": exc.detail}, status_code=403)
+            raise
+              
         route = session.get(models.Route, route_id)
         if not route:
              return JSONResponse({"error": "Rota não encontrada"}, status_code=404)
@@ -2559,6 +3510,16 @@ async def mobile_routine_start_with_allocation(
     user_id = request.session.get("user_id")
     if not user_id:
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
+    employee = session.get(models.Employee, user_id)
+    if not employee:
+        return JSONResponse({"error": "Colaborador não encontrado."}, status_code=404)
+    try:
+        require_mobile_module(employee, "separation")
+    except HTTPException as exc:
+        if exc.status_code == status.HTTP_403_FORBIDDEN:
+            return JSONResponse({"detail": exc.detail}, status_code=403)
+        raise
         
     # FORCE TIMEZONE to prevent UTC/Server mismatches
     br_tz = ZoneInfo("America/Sao_Paulo")
@@ -2633,30 +3594,6 @@ def add_xp_transaction(session: Session, employee_id: int, points: float, type: 
     return ledger
 
 # --- Mobile Routes ---
-@app.get("/mobile/login", response_class=HTMLResponse)
-async def mobile_login_page(request: Request):
-    return templates.TemplateResponse("mobile/login.html", {"request": request})
-
-@app.post("/mobile/auth", response_class=RedirectResponse)
-async def mobile_auth(request: Request, registration_id: str = Form(...), session: Session = Depends(get_session)):
-    # Simple Auth: Check if ID exists and is active
-    statement = select(models.Employee).where(models.Employee.registration_id == registration_id)
-    employee = session.exec(statement).first()
-    
-    if not employee or employee.status == "fired":
-         return RedirectResponse(url="/mobile/login?error=Matrícula inválida ou inativa", status_code=status.HTTP_303_SEE_OTHER)
-         
-    # Set Session
-    request.session["user_id"] = employee.id
-    request.session["user_role"] = "employee"
-    
-    return RedirectResponse(url="/mobile/dashboard", status_code=303)
-
-@app.get("/mobile/logout")
-async def mobile_logout(request: Request):
-    request.session.clear()
-    return RedirectResponse(url="/mobile/login", status_code=303)
-
 @app.post("/mobile/routine/start", response_class=RedirectResponse)
 async def mobile_routine_start(request: Request, session: Session = Depends(get_session)):
     user = require_login(request)
@@ -2664,6 +3601,15 @@ async def mobile_routine_start(request: Request, session: Session = Depends(get_
         return RedirectResponse(url="/mobile/login", status_code=303)
         
     user_id = user.get("id")
+    employee = session.get(models.Employee, user_id)
+    if not employee:
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    try:
+        require_mobile_module(employee, "separation")
+    except HTTPException as exc:
+        if exc.status_code == status.HTTP_403_FORBIDDEN:
+            return RedirectResponse(url="/mobile/dashboard?module=separation", status_code=303)
+        raise
     
     br_tz = ZoneInfo("America/Sao_Paulo")
     now_br = datetime.now(br_tz)
@@ -2707,6 +3653,15 @@ async def mobile_routine_stop(request: Request, session: Session = Depends(get_s
          return RedirectResponse(url="/mobile/login", status_code=303)
          
     user_id = user.get("id")
+    employee = session.get(models.Employee, user_id)
+    if not employee:
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    try:
+        require_mobile_module(employee, "separation")
+    except HTTPException as exc:
+        if exc.status_code == status.HTTP_403_FORBIDDEN:
+            return RedirectResponse(url="/mobile/dashboard?module=separation", status_code=303)
+        raise
     
     br_tz = ZoneInfo("America/Sao_Paulo")
     now_br = datetime.now(br_tz)
@@ -2853,6 +3808,844 @@ async def admin_reopen_routine(
     
     # Redirect back to Employee Detail
     return RedirectResponse(url=f"/employees/{routine.employee_id}", status_code=status.HTTP_303_SEE_OTHER)
+
+# --- Checklist Operacional (Transpaleteira) ---
+def apply_checklist_review(
+    session: Session,
+    checklist: models.TranspalletChecklist,
+    reviewer: str,
+    action: str,
+    comment: Optional[str]
+):
+    now = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    comment_text = (comment or "").strip()
+
+    def reject_tx_missing_evidence(detail: str):
+        if checklist.xp_transaction_id:
+            tx = session.get(models.GameXPTransaction, checklist.xp_transaction_id)
+            if tx and tx.status != "rejected":
+                tx.status = "rejected"
+                session.add(tx)
+                session.commit()
+        raise HTTPException(status_code=400, detail=detail)
+
+    if action == "reject" and not comment_text:
+        raise HTTPException(status_code=400, detail="Comentário obrigatório para rejeição.")
+    if action == "approve":
+        if checklist.critical_flag and (not comment_text or not checklist.images):
+            reject_tx_missing_evidence(
+                "Aprovação exige comentário e evidência para itens críticos. Transação XP rejeitada por falta de evidência."
+            )
+        if checklist.nonconforming_keys and not comment_text:
+            reject_tx_missing_evidence(
+                "Comentário obrigatório quando houver não conformidades. Transação XP rejeitada por falta de evidência."
+            )
+
+    if action == "review":
+        checklist.status = "reviewed"
+    elif action == "approve":
+        checklist.status = "approved"
+    elif action == "reject":
+        checklist.status = "rejected"
+    else:
+        raise HTTPException(status_code=400, detail="Ação inválida.")
+
+    checklist.reviewed_by = reviewer
+    checklist.reviewed_at = now
+    if comment_text:
+        checklist.review_comment = comment_text
+
+    if checklist.xp_transaction_id:
+        tx = session.get(models.GameXPTransaction, checklist.xp_transaction_id)
+        if tx:
+            if action == "approve" and tx.status != "confirmed":
+                tx.status = "confirmed"
+                tx.confirmed_at = now
+                tx.manager_id = reviewer
+                emp = session.get(models.Employee, checklist.employee_id)
+                if emp:
+                    emp.total_xp += tx.amount
+                    session.add(emp)
+                session.add(tx)
+            if action == "reject" and tx.status != "rejected":
+                tx.status = "rejected"
+                session.add(tx)
+
+    session.add(checklist)
+
+@app.get("/mobile/routine/checklist", response_class=HTMLResponse)
+async def mobile_checklist_page(request: Request, session: Session = Depends(get_session)):
+    user = require_login(request)
+    if not isinstance(user, dict) or user.get("type") != "employee":
+        return RedirectResponse(url="/mobile/login", status_code=303)
+
+    employee_id = user.get("id")
+    employee = session.get(models.Employee, employee_id)
+    if not employee:
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    try:
+        require_mobile_module(employee, "checklist")
+    except HTTPException as exc:
+        if exc.status_code == status.HTTP_403_FORBIDDEN:
+            return RedirectResponse(url="/mobile/dashboard?module=checklist", status_code=303)
+        raise
+
+    today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    checklists = session.exec(
+        select(models.TranspalletChecklist)
+        .where(models.TranspalletChecklist.employee_id == employee_id)
+        .where(models.TranspalletChecklist.date == today)
+        .order_by(models.TranspalletChecklist.submitted_at.desc())
+    ).all()
+
+    return templates.TemplateResponse(
+        "mobile/routine_checklist.html",
+        {
+            "request": request,
+            "employee": employee,
+            "items": CHECKLIST_ITEMS,
+            "today": today,
+            "checklists": checklists
+        }
+    )
+
+@app.get("/admin/routine/checklists/dashboard", response_class=HTMLResponse)
+async def admin_checklists_dashboard(
+    request: Request,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    days_param = request.query_params.get("days", "30")
+    period_days = parse_int_env(days_param, 30)
+    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    start_date = now_br - timedelta(days=period_days)
+
+    checklist_query = (
+        select(models.TranspalletChecklist)
+        .where(models.TranspalletChecklist.submitted_at >= start_date)
+        .order_by(desc(models.TranspalletChecklist.submitted_at))
+    )
+    checklists = session.exec(checklist_query).all()
+
+    total_count = len(checklists)
+    critical_count = sum(1 for c in checklists if c.critical_flag)
+    nonconforming_count = sum(1 for c in checklists if c.nonconforming_keys)
+
+    shift_counts = session.exec(
+        select(models.TranspalletChecklist.shift, func.count())
+        .where(models.TranspalletChecklist.submitted_at >= start_date)
+        .group_by(models.TranspalletChecklist.shift)
+    ).all()
+    shift_stats = []
+    for shift, count in shift_counts:
+        pct = round((count / total_count) * 100, 1) if total_count else 0
+        shift_stats.append({"shift": shift, "count": count, "percent": pct})
+    shift_stats = sorted(shift_stats, key=lambda x: x["count"], reverse=True)
+
+    item_counter = Counter()
+    for checklist in checklists:
+        for key in (checklist.nonconforming_keys or []):
+            item_counter[key] += 1
+    label_map = checklist_item_label_map()
+    top_items = [
+        {
+            "key": key,
+            "label": label_map.get(key, key),
+            "count": count,
+            "critical": key in CHECKLIST_CRITICAL_KEYS
+        }
+        for key, count in item_counter.most_common(10)
+    ]
+
+    equipment_counter = Counter()
+    for checklist in checklists:
+        if checklist.nonconforming_keys:
+            equipment_counter[checklist.equipment_code] += 1
+    top_equipment = [
+        {"equipment_code": code, "count": count}
+        for code, count in equipment_counter.most_common(10)
+    ]
+
+    equipment_codes = {c.equipment_code for c in checklists if c.critical_flag}
+    equipment_map = {}
+    if equipment_codes:
+        equipment_rows = session.exec(
+            select(models.TranspalletEquipment).where(models.TranspalletEquipment.code.in_(equipment_codes))
+        ).all()
+        equipment_map = {e.code: e for e in equipment_rows}
+
+    resolution_seconds = []
+    for checklist in checklists:
+        if not checklist.critical_flag:
+            continue
+        equipment = equipment_map.get(checklist.equipment_code)
+        if not equipment or not equipment.released_at or not checklist.submitted_at:
+            continue
+        delta = equipment.released_at - checklist.submitted_at
+        if delta.total_seconds() >= 0:
+            resolution_seconds.append(delta.total_seconds())
+    avg_resolution_hours = None
+    if resolution_seconds:
+        avg_resolution_hours = round(sum(resolution_seconds) / len(resolution_seconds) / 3600, 2)
+
+    return templates.TemplateResponse(
+        "admin_routine_checklists_dashboard.html",
+        {
+            "request": request,
+            "period_days": period_days,
+            "total_count": total_count,
+            "critical_count": critical_count,
+            "nonconforming_count": nonconforming_count,
+            "avg_resolution_hours": avg_resolution_hours,
+            "shift_stats": shift_stats,
+            "top_items": top_items,
+            "top_equipment": top_equipment
+        }
+    )
+
+@app.get("/admin/routine/checklists/settings", response_class=HTMLResponse)
+async def admin_checklists_settings(
+    request: Request,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    message = request.query_params.get("message")
+    level = request.query_params.get("level", "success")
+    date_filter = request.query_params.get("date")
+    shift_filter = request.query_params.get("shift", "Todos")
+    if not date_filter:
+        date_filter = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+
+    recipients = session.exec(
+        select(models.ChecklistEmailRecipient).order_by(models.ChecklistEmailRecipient.email)
+    ).all()
+    equipment_list = session.exec(
+        select(models.TranspalletEquipment).order_by(models.TranspalletEquipment.code)
+    ).all()
+
+    employees_query = (
+        select(models.Employee)
+        .where(models.Employee.mobile_access_checklist == True)
+        .where(models.Employee.status != "fired")
+    )
+    if shift_filter != "Todos":
+        employees_query = employees_query.where(models.Employee.work_shift == shift_filter)
+    authorized_employees = session.exec(employees_query.order_by(models.Employee.name)).all()
+    authorized_ids = {emp.id for emp in authorized_employees}
+
+    checklist_query = select(models.TranspalletChecklist.employee_id).where(
+        models.TranspalletChecklist.date == date_filter
+    )
+    if shift_filter != "Todos":
+        checklist_query = checklist_query.where(models.TranspalletChecklist.shift == shift_filter)
+    done_ids = set(session.exec(checklist_query).all())
+
+    done_count = len(done_ids.intersection(authorized_ids))
+    pending_employees = [emp for emp in authorized_employees if emp.id not in done_ids]
+
+    return templates.TemplateResponse(
+        "admin_routine_checklists_settings.html",
+        {
+            "request": request,
+            "message": message,
+            "level": level,
+            "recipients": recipients,
+            "equipment_list": equipment_list,
+            "pending_employees": pending_employees,
+            "filters": {
+                "date": date_filter,
+                "shift": shift_filter
+            },
+            "stats": {
+                "authorized_total": len(authorized_employees),
+                "done_count": done_count,
+                "pending_count": len(pending_employees)
+            }
+        }
+    )
+
+@app.post("/admin/routine/checklists/settings/emails", response_class=RedirectResponse)
+async def admin_checklists_add_email(
+    request: Request,
+    email: str = Form(...),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    email_norm = normalize_email(email)
+    if not email_norm or "@" not in email_norm:
+        return admin_checklists_settings_redirect("E-mail inválido.", "error")
+
+    existing = session.exec(
+        select(models.ChecklistEmailRecipient)
+        .where(models.ChecklistEmailRecipient.email == email_norm)
+    ).first()
+    if existing:
+        if not existing.is_active:
+            existing.is_active = True
+            session.add(existing)
+            session.commit()
+        return admin_checklists_settings_redirect("E-mail reativado.", "success")
+
+    recipient = models.ChecklistEmailRecipient(email=email_norm, is_active=True)
+    session.add(recipient)
+    session.commit()
+    return admin_checklists_settings_redirect("E-mail cadastrado com sucesso.", "success")
+
+@app.post("/admin/routine/checklists/settings/emails/{recipient_id}/delete", response_class=RedirectResponse)
+async def admin_checklists_remove_email(
+    request: Request,
+    recipient_id: int,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    recipient = session.get(models.ChecklistEmailRecipient, recipient_id)
+    if not recipient:
+        return admin_checklists_settings_redirect("E-mail não encontrado.", "error")
+    if recipient.is_active:
+        recipient.is_active = False
+        session.add(recipient)
+        session.commit()
+    return admin_checklists_settings_redirect("E-mail removido.", "success")
+
+@app.post("/admin/routine/checklists/settings/equipment", response_class=RedirectResponse)
+async def admin_checklists_add_equipment(
+    request: Request,
+    code: str = Form(...),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    code_norm = (code or "").strip()
+    if not code_norm:
+        return admin_checklists_settings_redirect("Informe o código do equipamento.", "error")
+
+    existing = session.exec(
+        select(models.TranspalletEquipment)
+        .where(models.TranspalletEquipment.code == code_norm)
+    ).first()
+    if existing:
+        return admin_checklists_settings_redirect("Equipamento já cadastrado.", "error")
+
+    equipment = models.TranspalletEquipment(code=code_norm, status="available")
+    session.add(equipment)
+    session.commit()
+    return admin_checklists_settings_redirect("Equipamento cadastrado com sucesso.", "success")
+
+@app.post("/admin/routine/checklists/settings/equipment/{equipment_id}/delete", response_class=RedirectResponse)
+async def admin_checklists_remove_equipment(
+    request: Request,
+    equipment_id: int,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    equipment = session.get(models.TranspalletEquipment, equipment_id)
+    if not equipment:
+        return admin_checklists_settings_redirect("Equipamento não encontrado.", "error")
+    if equipment.status == "blocked":
+        return admin_checklists_settings_redirect("Equipamento bloqueado não pode ser removido.", "error")
+
+    usage_count = session.exec(
+        select(func.count(models.TranspalletChecklist.id))
+        .where(models.TranspalletChecklist.equipment_code == equipment.code)
+    ).one() or 0
+    if usage_count:
+        return admin_checklists_settings_redirect(
+            "Equipamento com checklists registrados não pode ser removido.",
+            "error"
+        )
+
+    session.delete(equipment)
+    session.commit()
+    return admin_checklists_settings_redirect("Equipamento removido.", "success")
+
+@app.get("/admin/routine/checklists", response_class=HTMLResponse)
+async def admin_checklists_page(
+    request: Request,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    date_filter = request.query_params.get("date")
+    status_filter = request.query_params.get("status")
+    equipment_filter = request.query_params.get("equipment")
+    employee_filter = request.query_params.get("employee_id")
+    employee_filter_id = None
+
+    query = (
+        select(models.TranspalletChecklist, models.Employee)
+        .join(models.Employee, models.Employee.id == models.TranspalletChecklist.employee_id)
+        .order_by(models.TranspalletChecklist.submitted_at.desc())
+    )
+    if date_filter:
+        query = query.where(models.TranspalletChecklist.date == date_filter)
+    if status_filter:
+        query = query.where(models.TranspalletChecklist.status == status_filter)
+    if equipment_filter:
+        query = query.where(models.TranspalletChecklist.equipment_code.ilike(f"%{equipment_filter}%"))
+    if employee_filter:
+        try:
+            employee_filter_id = int(employee_filter)
+            query = query.where(models.TranspalletChecklist.employee_id == employee_filter_id)
+        except ValueError:
+            employee_filter_id = None
+
+    rows = session.exec(query).all()
+    equipment_codes = {c.equipment_code for c, _ in rows}
+    equipment_map = {}
+    if equipment_codes:
+        equipment_rows = session.exec(
+            select(models.TranspalletEquipment).where(models.TranspalletEquipment.code.in_(equipment_codes))
+        ).all()
+        equipment_map = {e.code: e for e in equipment_rows}
+
+    checklist_rows = []
+    for checklist, employee in rows:
+        equipment = equipment_map.get(checklist.equipment_code)
+        checklist_rows.append({
+            "checklist": checklist,
+            "employee": employee,
+            "equipment_status": equipment.status if equipment else "available"
+        })
+
+    employees = session.exec(select(models.Employee).order_by(models.Employee.name)).all()
+
+    return templates.TemplateResponse(
+        "admin_routine_checklists.html",
+        {
+            "request": request,
+            "rows": checklist_rows,
+            "employees": employees,
+            "status_options": ["submitted", "reviewed", "approved", "rejected"],
+            "filters": {
+                "date": date_filter or "",
+                "status": status_filter or "",
+                "equipment": equipment_filter or "",
+                "employee_id": employee_filter_id
+            }
+        }
+    )
+
+@app.get("/admin/routine/checklists/{checklist_id}", response_class=HTMLResponse)
+async def admin_checklist_detail(
+    checklist_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    checklist = session.get(models.TranspalletChecklist, checklist_id)
+    if not checklist:
+        raise HTTPException(status_code=404, detail="Checklist não encontrado.")
+    employee = session.get(models.Employee, checklist.employee_id)
+    equipment = session.exec(
+        select(models.TranspalletEquipment).where(models.TranspalletEquipment.code == checklist.equipment_code)
+    ).first()
+
+    label_map = checklist_item_label_map()
+    return templates.TemplateResponse(
+        "admin_routine_checklist_detail.html",
+        {
+            "request": request,
+            "checklist": checklist,
+            "employee": employee,
+            "equipment": equipment,
+            "label_map": label_map,
+            "items": CHECKLIST_ITEMS
+        }
+    )
+
+@app.post("/admin/routine/checklists/{checklist_id}/approve", response_class=RedirectResponse)
+async def admin_checklist_approve(
+    request: Request,
+    checklist_id: int,
+    comment: str = Form(""),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    checklist = session.get(models.TranspalletChecklist, checklist_id)
+    if not checklist:
+        raise HTTPException(status_code=404, detail="Checklist não encontrado.")
+    reviewer = str(user)
+    apply_checklist_review(session, checklist, reviewer, "approve", comment)
+    session.commit()
+    return RedirectResponse(url=f"/admin/routine/checklists/{checklist_id}", status_code=status.HTTP_303_SEE_OTHER)
+
+@app.post("/admin/routine/checklists/{checklist_id}/reject", response_class=RedirectResponse)
+async def admin_checklist_reject(
+    request: Request,
+    checklist_id: int,
+    comment: str = Form(...),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    checklist = session.get(models.TranspalletChecklist, checklist_id)
+    if not checklist:
+        raise HTTPException(status_code=404, detail="Checklist não encontrado.")
+    reviewer = str(user)
+    apply_checklist_review(session, checklist, reviewer, "reject", comment)
+    session.commit()
+    return RedirectResponse(url=f"/admin/routine/checklists/{checklist_id}", status_code=status.HTTP_303_SEE_OTHER)
+
+@app.post("/admin/routine/checklists/{checklist_id}/review", response_class=RedirectResponse)
+async def admin_checklist_review(
+    request: Request,
+    checklist_id: int,
+    comment: str = Form(""),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    checklist = session.get(models.TranspalletChecklist, checklist_id)
+    if not checklist:
+        raise HTTPException(status_code=404, detail="Checklist não encontrado.")
+    reviewer = str(user)
+    apply_checklist_review(session, checklist, reviewer, "review", comment)
+    session.commit()
+    return RedirectResponse(url=f"/admin/routine/checklists/{checklist_id}", status_code=status.HTTP_303_SEE_OTHER)
+
+@app.post("/admin/routine/checklists/{checklist_id}/release", response_class=RedirectResponse)
+async def admin_checklist_release_equipment(
+    request: Request,
+    checklist_id: int,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    checklist = session.get(models.TranspalletChecklist, checklist_id)
+    if not checklist:
+        raise HTTPException(status_code=404, detail="Checklist não encontrado.")
+    equipment = session.exec(
+        select(models.TranspalletEquipment).where(models.TranspalletEquipment.code == checklist.equipment_code)
+    ).first()
+    if equipment:
+        release_equipment(session, equipment, str(user))
+        session.commit()
+    return RedirectResponse(url=f"/admin/routine/checklists/{checklist_id}", status_code=status.HTTP_303_SEE_OTHER)
+
+@app.post("/api/routine/checklists")
+async def api_create_checklist(
+    request: Request,
+    equipment_code: str = Form(...),
+    items: str = Form(...),
+    observations: str = Form(""),
+    date: Optional[str] = Form(None),
+    shift: Optional[str] = Form(None),
+    files: List[UploadFile] = File([]),
+    session: Session = Depends(get_session)
+):
+    user = require_login(request)
+    if not isinstance(user, dict) or user.get("type") != "employee":
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
+    employee_id = user.get("id")
+    employee = session.get(models.Employee, employee_id)
+    if not employee:
+        return JSONResponse({"error": "Colaborador não encontrado."}, status_code=404)
+    require_mobile_module(employee, "checklist")
+
+    equipment_code = (equipment_code or "").strip().upper()
+    if not equipment_code:
+        return JSONResponse({"error": "Equipamento obrigatório."}, status_code=400)
+
+    payload_items = parse_items_payload(items)
+    if not payload_items or len(payload_items) != len(CHECKLIST_ITEM_KEYS):
+        return JSONResponse({"error": "Checklist incompleto."}, status_code=400)
+
+    nonconforming_keys = [k for k, v in payload_items.items() if not v]
+    observations = (observations or "").strip()
+    files = files or []
+    if nonconforming_keys:
+        if not observations:
+            return JSONResponse({"error": "Observação obrigatória para não conformidade."}, status_code=400)
+        if not files:
+            return JSONResponse({"error": "Imagem obrigatória para não conformidade."}, status_code=400)
+
+    critical_flag = any(k in CHECKLIST_CRITICAL_KEYS for k in nonconforming_keys)
+    images = []
+    if files:
+        images = await save_checklist_images(files)
+
+    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    date_val = date or now_br.strftime("%Y-%m-%d")
+    shift_val = shift or employee.work_shift or "Manhã"
+
+    checklist = models.TranspalletChecklist(
+        employee_id=employee_id,
+        equipment_code=equipment_code,
+        date=date_val,
+        shift=shift_val,
+        status="submitted",
+        items=payload_items,
+        nonconforming_keys=nonconforming_keys,
+        observations=observations,
+        images=images,
+        critical_flag=critical_flag,
+        submitted_at=now_br
+    )
+    session.add(checklist)
+    session.commit()
+    session.refresh(checklist)
+
+    if critical_flag:
+        equipment = resolve_equipment(session, equipment_code)
+        blocked_items = ", ".join([checklist_item_label_map().get(k, k) for k in nonconforming_keys])
+        block_equipment(session, equipment, f"Itens críticos: {blocked_items}", checklist.id)
+        session.add(models.Event(
+            timestamp=now_br,
+            text=f"Checklist crítico {equipment_code}: {blocked_items}",
+            type="checklist",
+            category="infraestrutura",
+            sector=equipment_code,
+            impact="high",
+            reference_type="checklist",
+            reference_id=checklist.id,
+            employee_id=employee_id
+        ))
+        session.commit()
+
+    if nonconforming_keys:
+        report_items = checklist_nonconforming_items(nonconforming_keys)
+        image_list = [f"/static/uploads/checklists/{img}" for img in images]
+        checklist_link = f"{APP_BASE_URL}/admin/routine/checklists/{checklist.id}" if APP_BASE_URL else f"/admin/routine/checklists/{checklist.id}"
+        submitted_at = checklist.submitted_at.strftime("%d/%m/%Y %H:%M") if checklist.submitted_at else now_br.strftime("%d/%m/%Y %H:%M")
+        email_date = now_br.strftime("%Y-%m-%d")
+        report = {
+            "subject": f"ALERTA MANUTENÇÃO — {email_date} — Equipamento {equipment_code}",
+            "checklist_id": checklist.id,
+            "operator_name": employee.name,
+            "operator_id": employee.registration_id or "-",
+            "submitted_at": submitted_at,
+            "shift": shift_val,
+            "equipment_code": equipment_code,
+            "nonconforming_items": report_items,
+            "observations": observations or "-",
+            "checklist_link": checklist_link,
+            "image_list": image_list,
+            "generated_at": now_br.strftime("%d/%m/%Y %H:%M")
+        }
+        nonconforming_lines = []
+        for item in report_items:
+            critical_tag = " (CRITICO)" if item["critical"] else ""
+            nonconforming_lines.append(f"- {item['label']}{critical_tag}")
+        body_lines = [
+            f"Operador: {report['operator_name']} ({report['operator_id']})",
+            f"Data/Hora: {report['submitted_at']}",
+            f"Turno: {report['shift']}",
+            f"Equipamento: {report['equipment_code']}",
+            "",
+            "Itens NÃO CONFORME:",
+            *nonconforming_lines,
+            "",
+            f"Observações: {report['observations']}",
+            "",
+            f"Link: {report['checklist_link']}"
+        ]
+        if image_list:
+            body_lines.extend(["", "Imagens:", *[f"- {img}" for img in image_list]])
+        report["body"] = "\n".join(body_lines)
+        report["pdf_filename"] = f"checklist_{checklist.id}_{date_val}.pdf"
+
+        pdf_error = None
+        try:
+            report["pdf_bytes"] = build_checklist_pdf(report)
+        except Exception as exc:
+            pdf_error = str(exc)
+
+        maintenance_error = None
+        try:
+            recipients = session.exec(
+                select(models.ChecklistEmailRecipient)
+                .where(models.ChecklistEmailRecipient.is_active == True)
+            ).all()
+            recipient_emails = [r.email for r in recipients]
+            sent, error = send_maintenance_email(report, recipient_emails)
+            if sent:
+                checklist.maintenance_email_sent_at = now_br
+                if pdf_error:
+                    maintenance_error = f"PDF não gerado ({pdf_error}). E-mail enviado sem anexo."
+            else:
+                maintenance_error = error or "Falha ao enviar e-mail."
+        except Exception as exc:
+            maintenance_error = str(exc)
+            logger.exception(f"Erro ao enviar e-mail de manutenção (checklist {checklist.id})")
+        if maintenance_error:
+            checklist.maintenance_email_error = maintenance_error
+        session.add(checklist)
+        session.commit()
+
+    shift_ok = normalize_shift(shift_val) == normalize_shift(employee.work_shift)
+    if shift_ok:
+        tx = models.GameXPTransaction(
+            employee_id=employee_id,
+            amount=CHECKLIST_XP,
+            source_type="checklist",
+            status="provisional",
+            reason=f"Checklist Transpaleteira {equipment_code} | {date_val}",
+            created_at=now_br
+        )
+        session.add(tx)
+        session.commit()
+        checklist.xp_transaction_id = tx.id
+        session.add(checklist)
+        session.commit()
+
+    return {"success": True, "id": checklist.id}
+
+@app.get("/api/routine/checklists")
+async def api_list_checklists(
+    request: Request,
+    date: Optional[str] = None,
+    status: Optional[str] = None,
+    equipment: Optional[str] = None,
+    employee_id: Optional[int] = None,
+    session: Session = Depends(get_session)
+):
+    user = require_login(request)
+    current_user = get_current_user(request)
+
+    if isinstance(current_user, dict) and current_user.get("type") == "employee":
+        employee = session.get(models.Employee, current_user.get("id"))
+        if not employee:
+            return JSONResponse({"error": "Colaborador não encontrado."}, status_code=404)
+        require_mobile_module(employee, "checklist")
+
+    query = (
+        select(models.TranspalletChecklist, models.Employee)
+        .join(models.Employee, models.Employee.id == models.TranspalletChecklist.employee_id)
+        .order_by(models.TranspalletChecklist.submitted_at.desc())
+    )
+    if date:
+        query = query.where(models.TranspalletChecklist.date == date)
+    if status:
+        query = query.where(models.TranspalletChecklist.status == status)
+    if equipment:
+        query = query.where(models.TranspalletChecklist.equipment_code.ilike(f"%{equipment}%"))
+
+    if isinstance(current_user, dict) and current_user.get("type") == "employee":
+        query = query.where(models.TranspalletChecklist.employee_id == current_user.get("id"))
+    elif employee_id:
+        query = query.where(models.TranspalletChecklist.employee_id == employee_id)
+
+    rows = session.exec(query).all()
+    result = []
+    for checklist, employee in rows:
+        result.append({
+            "id": checklist.id,
+            "employee_id": employee.id,
+            "employee_name": employee.name,
+            "registration_id": employee.registration_id,
+            "equipment_code": checklist.equipment_code,
+            "date": checklist.date,
+            "shift": checklist.shift,
+            "status": checklist.status,
+            "critical": checklist.critical_flag,
+            "nonconforming_count": len(checklist.nonconforming_keys or []),
+            "submitted_at": checklist.submitted_at.isoformat()
+        })
+    return {"success": True, "items": result}
+
+@app.get("/api/routine/checklists/{checklist_id}")
+async def api_get_checklist(
+    checklist_id: int,
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    require_login(request)
+    current_user = get_current_user(request)
+    checklist = session.get(models.TranspalletChecklist, checklist_id)
+    if not checklist:
+        return JSONResponse({"error": "Checklist não encontrado."}, status_code=404)
+    if isinstance(current_user, dict) and current_user.get("type") == "employee":
+        employee = session.get(models.Employee, current_user.get("id"))
+        if not employee:
+            return JSONResponse({"error": "Colaborador não encontrado."}, status_code=404)
+        require_mobile_module(employee, "checklist")
+        if checklist.employee_id != current_user.get("id"):
+            return JSONResponse({"error": "Unauthorized"}, status_code=403)
+
+    employee = session.get(models.Employee, checklist.employee_id)
+    image_urls = [f"/static/uploads/checklists/{img}" for img in (checklist.images or [])]
+    return {
+        "success": True,
+        "item": {
+            "id": checklist.id,
+            "employee": {"id": employee.id, "name": employee.name, "registration_id": employee.registration_id},
+            "equipment_code": checklist.equipment_code,
+            "date": checklist.date,
+            "shift": checklist.shift,
+            "status": checklist.status,
+            "items": checklist.items,
+            "nonconforming_keys": checklist.nonconforming_keys,
+            "observations": checklist.observations,
+            "images": image_urls,
+            "critical": checklist.critical_flag,
+            "submitted_at": checklist.submitted_at.isoformat(),
+            "reviewed_at": checklist.reviewed_at.isoformat() if checklist.reviewed_at else None,
+            "reviewed_by": checklist.reviewed_by,
+            "review_comment": checklist.review_comment
+        }
+    }
+
+@app.post("/api/routine/checklists/{checklist_id}/review")
+async def api_review_checklist(
+    checklist_id: int,
+    request: Request,
+    comment: str = Form(""),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    checklist = session.get(models.TranspalletChecklist, checklist_id)
+    if not checklist:
+        return JSONResponse({"error": "Checklist não encontrado."}, status_code=404)
+    reviewer = str(user)
+    apply_checklist_review(session, checklist, reviewer, "review", comment)
+    session.commit()
+    return {"success": True}
+
+@app.post("/api/routine/checklists/{checklist_id}/approve")
+async def api_approve_checklist(
+    checklist_id: int,
+    request: Request,
+    comment: str = Form(""),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    checklist = session.get(models.TranspalletChecklist, checklist_id)
+    if not checklist:
+        return JSONResponse({"error": "Checklist não encontrado."}, status_code=404)
+    reviewer = str(user)
+    apply_checklist_review(session, checklist, reviewer, "approve", comment)
+    session.commit()
+    return {"success": True}
+
+@app.post("/api/routine/checklists/{checklist_id}/reject")
+async def api_reject_checklist(
+    checklist_id: int,
+    request: Request,
+    comment: str = Form(...),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    checklist = session.get(models.TranspalletChecklist, checklist_id)
+    if not checklist:
+        return JSONResponse({"error": "Checklist não encontrado."}, status_code=404)
+    reviewer = str(user)
+    apply_checklist_review(session, checklist, reviewer, "reject", comment)
+    session.commit()
+    return {"success": True}
+
+@app.post("/api/routine/checklists/{checklist_id}/release")
+async def api_release_equipment(
+    checklist_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    checklist = session.get(models.TranspalletChecklist, checklist_id)
+    if not checklist:
+        return JSONResponse({"error": "Checklist não encontrado."}, status_code=404)
+    equipment = session.exec(
+        select(models.TranspalletEquipment).where(models.TranspalletEquipment.code == checklist.equipment_code)
+    ).first()
+    if equipment:
+        release_equipment(session, equipment, str(user))
+        session.commit()
+    return {"success": True}
 
 @app.get("/mobile/api/ai/today")
 async def mobile_ai_today(request: Request, session: Session = Depends(get_session)):
@@ -3621,10 +5414,10 @@ async def strategy_page(request: Request):
     return templates.TemplateResponse("strategy.html", {"request": request})
 
 @app.get("/rankings", response_class=HTMLResponse)
-async def rankings_page(request: Request, shift: Optional[str] = None, date: Optional[str] = None, period: str = "daily", sort_by: str = "tonnage", order: str = "desc", session: Session = Depends(get_session)):
+async def rankings_page(request: Request, shift: Optional[str] = None, date: Optional[str] = None, period: str = "daily", sort_by: str = "tonnage", order: str = "desc", session: Session = Depends(get_session), user = Depends(require_login)):
     import traceback
     try:
-        user = require_login(request)
+        # user is now passed as Depends() parameter
         if not date:
             date = datetime.now().strftime("%Y-%m-%d")
         
@@ -4841,7 +6634,7 @@ async def get_all_employees(request: Request, session: Session = Depends(get_ses
 
 # --- Smart Flow Hierarchical API Endpoints ---
 
-@app.get("/api/smart-flow/sectors", response_class=JSONResponse)
+@app.get("/api/smart-flow/sectors", response_class=JSONResponse, dependencies=[Depends(require_leader)])
 async def get_sectors(
     request: Request,
     shift: str = "Manhã",
@@ -4881,7 +6674,7 @@ async def get_sectors(
     
     return {"sectors": result}
 
-@app.post("/api/smart-flow/sectors", response_class=JSONResponse)
+@app.post("/api/smart-flow/sectors", response_class=JSONResponse, dependencies=[Depends(require_leader)])
 async def create_sector(
     request: Request,
     name: str = Form(...),
@@ -4916,7 +6709,7 @@ async def create_sector(
     
     return {"success": True, "sector": {"id": new_sector.id, "name": new_sector.name}}
 
-@app.put("/api/smart-flow/sectors/{sector_id}", response_class=JSONResponse)
+@app.put("/api/smart-flow/sectors/{sector_id}", response_class=JSONResponse, dependencies=[Depends(require_leader)])
 async def update_sector(
     request: Request,
     sector_id: int,
@@ -4985,7 +6778,7 @@ async def update_sector(
     
     return {"success": True}
 
-@app.delete("/api/smart-flow/sectors/{sector_id}", response_class=JSONResponse)
+@app.delete("/api/smart-flow/sectors/{sector_id}", response_class=JSONResponse, dependencies=[Depends(require_leader)])
 async def delete_sector(
     request: Request,
     sector_id: int,
@@ -5004,7 +6797,7 @@ async def delete_sector(
     
     return {"success": True}
 
-@app.post("/api/smart-flow/subsectors", response_class=JSONResponse)
+@app.post("/api/smart-flow/subsectors", response_class=JSONResponse, dependencies=[Depends(require_leader)])
 async def create_subsector(
     request: Request,
     sector_id: int = Form(...),
@@ -5041,7 +6834,7 @@ async def create_subsector(
     
     return {"success": True, "subsector": {"id": new_subsector.id, "name": new_subsector.name}}
 
-@app.put("/api/smart-flow/subsectors/{subsector_id}", response_class=JSONResponse)
+@app.put("/api/smart-flow/subsectors/{subsector_id}", response_class=JSONResponse, dependencies=[Depends(require_leader)])
 async def update_subsector(
     request: Request,
     subsector_id: int,
@@ -5066,7 +6859,7 @@ async def update_subsector(
     
     return {"success": True}
 
-@app.delete("/api/smart-flow/subsectors/{subsector_id}", response_class=JSONResponse)
+@app.delete("/api/smart-flow/subsectors/{subsector_id}", response_class=JSONResponse, dependencies=[Depends(require_leader)])
 async def delete_subsector(
     request: Request,
     subsector_id: int,
@@ -5085,7 +6878,7 @@ async def delete_subsector(
     
     return {"success": True}
 
-@app.get("/api/smart-flow/allocations", response_class=JSONResponse)
+@app.get("/api/smart-flow/allocations", response_class=JSONResponse, dependencies=[Depends(require_leader)])
 async def get_allocations(
     request: Request,
     date: str,
@@ -5235,7 +7028,7 @@ async def get_allocations(
         "targets": target_map
     }
 
-@app.post("/api/smart-flow/allocations/save", response_class=JSONResponse)
+@app.post("/api/smart-flow/allocations/save", response_class=JSONResponse, dependencies=[Depends(require_leader)])
 async def save_allocations(
     request: Request,
     session: Session = Depends(get_session)
@@ -6816,7 +8609,8 @@ async def update_employee(
     birthday: str = Form(None),
     work_days: List[str] = Form(None),
     work_schedule: str = Form(None),
-    mobile_access: bool = Form(False),
+    mobile_access_separation: bool = Form(False),
+    mobile_access_checklist: bool = Form(False),
     session: Session = Depends(get_session)
 ):
     require_login(request)
@@ -6854,7 +8648,9 @@ async def update_employee(
         emp.cost_center = cost_center
         emp.cost_center = cost_center
         emp.work_schedule = work_schedule
-        emp.mobile_access = mobile_access
+        emp.mobile_access_separation = mobile_access_separation
+        emp.mobile_access_checklist = mobile_access_checklist
+        emp.mobile_access = bool(mobile_access_separation or mobile_access_checklist)
 
         # Update Work Days
         if work_days:
@@ -7529,7 +9325,7 @@ async def people_intelligence_report(
 
 
 
-@app.get("/smart-flow/load", response_class=JSONResponse)
+@app.get("/smart-flow/load", response_class=JSONResponse, dependencies=[Depends(require_leader)])
 async def smart_flow_load(request: Request, shift: str = "Manhã", date: Optional[str] = None, session: Session = Depends(get_session)):
     try:
         if not date:
@@ -7583,11 +9379,38 @@ async def smart_flow_load(request: Request, shift: str = "Manhã", date: Optiona
 # --- Operational History Routes ---
 
 @app.get("/operational/history", response_class=HTMLResponse)
-async def operational_history_page(request: Request):
+async def operational_history_page(request: Request, session: Session = Depends(get_session)):
     """Render the Operational History Page"""
     try:
-        require_login(request)
-        return templates.TemplateResponse("operational_history.html", {"request": request})
+        user = require_login(request)
+        can_view_checklist_links = (
+            isinstance(user, dict)
+            and user.get("type") == "user"
+            and (user.get("role") or "").lower() in {"admin", "leader"}
+        )
+
+        now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+        start_date = now_br - timedelta(days=30)
+        events = session.exec(
+            select(models.Event)
+            .where(
+                or_(
+                    models.Event.reference_type == "checklist",
+                    models.Event.type == "checklist"
+                ),
+                models.Event.timestamp >= start_date
+            )
+            .order_by(desc(models.Event.timestamp))
+        ).all()
+
+        return templates.TemplateResponse(
+            "operational_history.html",
+            {
+                "request": request,
+                "events": events,
+                "can_view_checklist_links": can_view_checklist_links
+            }
+        )
     except Exception as e:
         logger.exception("Error rendering operational history")
         return HTMLResponse(content=f"Error: {e}", status_code=500)

@@ -11,3 +11,4 @@ python-dotenv==1.2.1
 sqlalchemy==2.0.45
 pydantic==2.12.5
 tzdata
+reportlab==4.2.2

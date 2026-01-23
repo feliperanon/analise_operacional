@@ -42,6 +42,8 @@ class Employee(SQLModel, table=True):
     
     # Access Control
     mobile_access: bool = Field(default=False)
+    mobile_access_separation: bool = Field(default=False)
+    mobile_access_checklist: bool = Field(default=False)
     
     # Gamification
     total_xp: float = Field(default=0.0) # Accumulated Tonnage/Score
@@ -95,6 +97,8 @@ class Event(SQLModel, table=True):
     category: str # infraestrutura, pessoas, processo, fornecedor
     sector: str = Field(default="Geral") # selecao, expedicao, camara
     impact: str = Field(default="low") # low, medium, high
+    reference_type: Optional[str] = Field(default=None, index=True)
+    reference_id: Optional[int] = Field(default=None, index=True)
     
     shift_id: Optional[int] = Field(default=None, foreign_key="shift.id")
     shift: Optional[Shift] = Relationship(back_populates="events")
@@ -104,8 +108,17 @@ class Event(SQLModel, table=True):
 
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    username: str = Field(index=True)
-    password_hash: str # In simplistic version we will just store plain/hashed, but for now hardcoded in auth logic
+    username: str = Field(index=True, unique=True)  # Email/username
+    password_hash: Optional[str] = None
+    role: str = Field(default="leader")
+    is_active: bool = Field(default=True)
+    employee_id: Optional[int] = Field(default=None, foreign_key="employee.id")
+    allowed_pages: Optional[str] = Field(default="[]")
+    google_sub: Optional[str] = Field(default=None, index=True)
+    reset_token_hash: Optional[str] = None
+    reset_token_expires_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
 
 class SectorConfiguration(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -130,6 +143,46 @@ class Route(SQLModel, table=True):
     status: str = "pending" # pending, completed
     created_at: datetime = Field(default_factory=datetime.now)
 
+# --- Checklist Operacional (Transpaleteira) ---
+
+class TranspalletEquipment(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    code: str = Field(index=True, unique=True)
+    status: str = Field(default="available", index=True)  # available, blocked
+    blocked_reason: Optional[str] = None
+    blocked_at: Optional[datetime] = None
+    released_at: Optional[datetime] = None
+    released_by: Optional[str] = None
+    last_checklist_id: Optional[int] = Field(default=None, index=True)
+
+class ChecklistEmailRecipient(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    email: str = Field(index=True, unique=True)
+    is_active: bool = Field(default=True, index=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+class TranspalletChecklist(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    employee_id: int = Field(foreign_key="employee.id", index=True)
+    equipment_code: str = Field(index=True)
+    date: str = Field(index=True)  # YYYY-MM-DD
+    shift: str = Field(index=True)
+    status: str = Field(default="submitted", index=True)  # submitted, reviewed, approved, rejected
+
+    items: dict = Field(default={}, sa_column=Column(JSON))
+    nonconforming_keys: List[str] = Field(default=[], sa_column=Column(JSON))
+    observations: Optional[str] = None
+    images: List[str] = Field(default=[], sa_column=Column(JSON))
+    critical_flag: bool = Field(default=False)
+
+    submitted_at: datetime = Field(default_factory=datetime.now)
+    reviewed_at: Optional[datetime] = None
+    reviewed_by: Optional[str] = None
+    review_comment: Optional[str] = None
+
+    xp_transaction_id: Optional[int] = Field(default=None, index=True)
+    maintenance_email_sent_at: Optional[datetime] = None
+    maintenance_email_error: Optional[str] = None
 # --- Smart Flow Hierarchical Models ---
 
 class Sector(SQLModel, table=True):

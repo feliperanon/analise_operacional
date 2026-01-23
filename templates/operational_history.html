@@ -105,6 +105,41 @@
         </div>
     </div>
 
+    <!-- Eventos (Checklist) -->
+    {% if events is defined %}
+    <div class="bg-gray-800 rounded-xl border border-gray-700 p-4">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-bold text-white uppercase tracking-wider">Eventos</h2>
+            <span class="text-xs text-gray-500">Últimos 30 dias</span>
+        </div>
+        {% if events %}
+        <div class="space-y-3">
+            {% for event in events %}
+            <div class="flex items-start justify-between gap-4 border border-gray-700/70 rounded-lg p-3 bg-gray-900/40">
+                <div class="min-w-0">
+                    <div class="text-xs text-gray-400 font-mono">
+                        {{ event.timestamp.strftime("%d/%m/%Y %H:%M") if event.timestamp else '-' }}
+                    </div>
+                    <div class="text-sm text-white">{{ event.text }}</div>
+                    {% if event.reference_type == "checklist" and event.reference_id %}
+                        {% if can_view_checklist_links %}
+                        <a href="/admin/routine/checklists/{{ event.reference_id }}"
+                            class="text-xs text-blue-400 hover:text-blue-300 font-semibold">Ver checklist</a>
+                        {% else %}
+                        <span class="text-xs text-gray-500">Checklist #{{ event.reference_id }}</span>
+                        {% endif %}
+                    {% endif %}
+                </div>
+                <span class="text-[10px] uppercase font-bold text-red-300 bg-red-500/10 px-2 py-1 rounded">Checklist</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-sm text-gray-500">Nenhum evento de checklist no período.</div>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <!-- Data Table -->
     <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg">
         <div class="max-h-[70vh] overflow-auto">
