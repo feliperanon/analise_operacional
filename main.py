@@ -448,6 +448,7 @@ SMTP_PORT_RAW = os.getenv("SMTP_PORT", "587").strip()
 SMTP_USER = os.getenv("SMTP_USER", "").strip()
 SMTP_PASS = os.getenv("SMTP_PASS", "")
 SMTP_TLS_RAW = os.getenv("SMTP_TLS", "true").strip()
+SMTP_USE_SSL_RAW = os.getenv("SMTP_USE_SSL", "").strip()
 APP_BASE_URL = os.getenv("APP_BASE_URL", "").strip().rstrip("/")
 
 def parse_bool_env(value: str, default: bool = False) -> bool:
@@ -473,7 +474,7 @@ def smtp_config_error(recipient_list: List[str]) -> Optional[str]:
     if not recipient_list:
         missing.append("MAINTENANCE_EMAIL_TO")
     if not host_val or host_val.upper() == "SEU_HOST_AQUI":
-        missing.append("SMTP_HOST")
+        missing.append(f"SMTP_HOST (valor='{host_val or ''}')")
     port_raw = (SMTP_PORT_RAW or "").strip()
     if not port_raw:
         missing.append("SMTP_PORT")
@@ -562,7 +563,13 @@ def send_maintenance_email(report: dict, recipients: Optional[List[str]] = None)
 
     config_error = smtp_config_error(recipient_list)
     if config_error:
+        logger.error(config_error)
         return False, config_error
+
+    if SMTP_USE_SSL_RAW.strip():
+        smtp_use_ssl = parse_bool_env(SMTP_USE_SSL_RAW, False)
+    else:
+        smtp_use_ssl = smtp_port == 465
 
     msg = EmailMessage()
     msg["Subject"] = report["subject"]
@@ -578,13 +585,32 @@ def send_maintenance_email(report: dict, recipients: Optional[List[str]] = None)
             filename=report["pdf_filename"]
         )
 
-    with smtplib.SMTP(SMTP_HOST, smtp_port, timeout=20) as smtp:
-        if smtp_tls:
-            smtp.starttls()
-        if SMTP_USER:
+    logger.info(
+        "Enviando e-mail de manutencao | host=%s port=%s tls=%s ssl=%s from=%s recipients=%s subject=%s",
+        SMTP_HOST,
+        smtp_port,
+        smtp_tls,
+        smtp_use_ssl,
+        MAINTENANCE_EMAIL_FROM_FIXED,
+        recipient_list,
+        report.get("subject")
+    )
+
+    try:
+        if smtp_use_ssl:
+            smtp_client = smtplib.SMTP_SSL(SMTP_HOST, smtp_port, timeout=20)
+        else:
+            smtp_client = smtplib.SMTP(SMTP_HOST, smtp_port, timeout=20)
+        with smtp_client as smtp:
+            if not smtp_use_ssl and smtp_tls:
+                smtp.starttls()
             smtp.login(SMTP_USER, SMTP_PASS)
-        smtp.send_message(msg)
-    return True, None
+            smtp.send_message(msg)
+        logger.info("E-mail de manutencao enviado com sucesso.")
+        return True, None
+    except Exception as exc:
+        logger.exception("Falha ao enviar e-mail de manutencao.")
+        return False, str(exc)
 
 def normalize_shift(value: Optional[str]) -> str:
     return (value or "").strip().lower()
@@ -2194,11 +2220,12 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
             )
         ).all()
 
+        yesterday = now_br.date() - timedelta(days=1)
         raw_history = session.exec(select(GameXPTransaction)
             .where(GameXPTransaction.employee_id == employee.id)
             .where(GameXPTransaction.status == "confirmed")
+            .where(func.date(GameXPTransaction.created_at) >= yesterday)
             .order_by(desc(GameXPTransaction.created_at))
-            .limit(50) # Fetch more to allow for filtering
         ).all()
 
         xp_history_list = []
@@ -2398,7 +2425,7 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
                 "action": None
             }
         ]
-        modules = [m for m in modules if m.get("enabled") or m.get("key") == "loading"]
+        modules = [m for m in modules if m.get("enabled")]
 
         context = {
             "request": request,
@@ -4485,6 +4512,30 @@ async def api_create_checklist(
         session.commit()
 
     return {"success": True, "id": checklist.id}
+
+@app.get("/admin/tools/email-test", response_class=HTMLResponse)
+async def admin_email_test(request: Request, session: Session = Depends(get_session), user=Depends(require_leader)):
+    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    report = {
+        "subject": f"ALERTA MANUTENÇÃO — {now_br.strftime('%Y-%m-%d')} — Equipamento TESTE",
+        "body": "Teste de envio SMTP do sistema de checklists.",
+        "pdf_bytes": None
+    }
+    recipients = session.exec(
+        select(models.ChecklistEmailRecipient)
+        .where(models.ChecklistEmailRecipient.is_active == True)
+    ).all()
+    recipient_emails = [r.email for r in recipients]
+    sent, error = send_maintenance_email(report, recipient_emails)
+    return templates.TemplateResponse(
+        "admin_email_test.html",
+        {
+            "request": request,
+            "sent": sent,
+            "error": error,
+            "recipients": recipient_emails
+        }
+    )
 
 @app.get("/api/routine/checklists")
 async def api_list_checklists(
