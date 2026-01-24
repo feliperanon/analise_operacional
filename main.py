@@ -30,12 +30,14 @@ import logging
 import pydantic
 from logging.handlers import RotatingFileHandler
 import unicodedata
+from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request as UrlRequest, urlopen
 from urllib.error import HTTPError, URLError
 from dotenv import load_dotenv
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(dotenv_path=BASE_DIR / ".env")
 # Performance: Use INFO level in production, DEBUG only when explicitly enabled
 LOG_LEVEL = logging.DEBUG if os.getenv("DEBUG", "false").lower() == "true" else logging.INFO
 

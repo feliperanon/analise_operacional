@@ -123,6 +123,21 @@
                 </form>
             </div>
 
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 space-y-2">
+                <h2 class="text-base font-semibold text-white">E-mail de manutencao</h2>
+                <p class="text-sm text-slate-300">
+                    Status: {{ 'Enviado' if checklist.maintenance_email_sent_at else 'Nao enviado' }}
+                </p>
+                {% if checklist.maintenance_email_sent_at %}
+                <p class="text-xs text-slate-400">
+                    Enviado em: {{ checklist.maintenance_email_sent_at.strftime("%d/%m/%Y %H:%M") }}
+                </p>
+                {% endif %}
+                <p class="text-xs {{ 'text-red-300' if checklist.maintenance_email_error else 'text-slate-400' }}">
+                    {{ checklist.maintenance_email_error or 'Sem erro registrado.' }}
+                </p>
+            </div>
+
             {% if equipment and equipment.status == 'blocked' %}
             <div class="bg-slate-800 border border-red-500/40 rounded-2xl p-5 space-y-3">
                 <h2 class="text-base font-semibold text-red-200">Equipamento bloqueado</h2>

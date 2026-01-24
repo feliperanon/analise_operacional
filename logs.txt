@@ -14364,3 +14364,6 @@ fastapi.exceptions.HTTPException: 303: See Other
 2026-01-24 12:42:20,536 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
 2026-01-24 12:45:23,247 | INFO     | main | Enviando e-mail de manutencao | host=smtp.office365.com port=587 tls=True ssl=False from=felipe.pires@nlfrutas.com.br recipients=['feliperanon@live.com'] subject=ALERTA MANUTENÇÃO — 2026-01-24 — Equipamento TESTE
 2026-01-24 12:45:25,113 | INFO     | main | E-mail de manutencao enviado com sucesso.
+2026-01-24 12:47:50,969 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-24 12:49:55,493 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-24 12:50:23,312 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
