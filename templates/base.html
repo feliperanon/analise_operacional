@@ -110,6 +110,14 @@
                     </svg>
                     <span>Histórico Operacional</span>
                 </a>
+                <a href="/smart-flow"
+                    class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    <span>Fluxo Inteligente</span>
+                </a>
 
                 <a href="/admin/routine/checklists"
                     class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
@@ -199,6 +207,17 @@
                 </a>
                 {% endif %}
 
+                {% if user_role != "admin" and "ops_performance" in allowed_pages %}
+                <a href="/operations/performance"
+                    class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 4h18M3 10h18M3 16h18"></path>
+                    </svg>
+                    <span>Avaliacao Operacional</span>
+                </a>
+                {% endif %}
+
                 {% if user_role == "admin" %}
                 <div class="pt-4 pb-2">
                     <p class="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Gestão & Engajamento
@@ -215,14 +234,14 @@
                     <span>Estratégia</span>
                 </a>
 
-                <a href="/rankings"
+                <a href="/operations/performance"
                     class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z">
                         </path>
                     </svg>
-                    <span>Rankings & Badges</span>
+                    <span>Avaliacao Operacional</span>
                 </a>
                 {% endif %}
 

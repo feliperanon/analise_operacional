@@ -431,13 +431,12 @@ const SectorManagement = {
                 return false;
             }
 
-            // Deve ter permissão de acesso mobile
-            if (emp.mobile_access !== true) {
+            // Não deve estar alocado
+            if (allocations[emp.id]) {
                 return false;
             }
 
-            // Não deve estar alocado
-            return !allocations[emp.id];
+            return true;
         });
     },
 

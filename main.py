@@ -13,11 +13,12 @@ import hashlib
 import secrets
 import hmac
 import smtplib
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta, time, date
 from zoneinfo import ZoneInfo
 import traceback
 import os
 from collections import Counter
+import statistics
 from email.message import EmailMessage
 from starlette.middleware.sessions import SessionMiddleware
 from sqlmodel import Session, select, col, delete, text, or_, desc
@@ -388,7 +389,8 @@ def is_google_enabled() -> bool:
 PAGE_OPTIONS = [
     {"key": "admin_game", "label": "Game Master", "path": "/admin/game", "prefixes": ["/admin/game", "/api/game"]},
     {"key": "smart_flow", "label": "Smart Flow", "path": "/smart-flow", "prefixes": ["/smart-flow", "/api/smart-flow", "/smart-flow/load"]},
-    {"key": "checklist_admin", "label": "Checklists Operacionais", "path": "/admin/routine/checklists", "prefixes": ["/admin/routine/checklists", "/api/routine/checklists"]}
+    {"key": "checklist_admin", "label": "Checklists Operacionais", "path": "/admin/routine/checklists", "prefixes": ["/admin/routine/checklists", "/api/routine/checklists"]},
+    {"key": "ops_performance", "label": "Avaliacao Operacional", "path": "/operations/performance", "prefixes": ["/operations/performance", "/rankings", "/api/rankings"]}
 ]
 PAGE_KEYS = {p["key"] for p in PAGE_OPTIONS}
 
@@ -4223,13 +4225,49 @@ async def admin_checklists_page(
         ).all()
         equipment_map = {e.code: e for e in equipment_rows}
 
+    status_labels = {
+        "submitted": "Enviado",
+        "reviewed": "Em revisão",
+        "approved": "Aprovado",
+        "rejected": "Rejeitado"
+    }
+    equipment_labels = {
+        "blocked": "Bloqueado",
+        "available": "Disponível"
+    }
+
     checklist_rows = []
+    summary = {
+        "total": 0,
+        "pending": 0,
+        "approved": 0,
+        "rejected": 0,
+        "blocked": 0,
+        "nonconforming": 0
+    }
     for checklist, employee in rows:
         equipment = equipment_map.get(checklist.equipment_code)
+        status_value = checklist.status or "submitted"
+        equipment_status = equipment.status if equipment else "available"
+        nonconforming_count = len(checklist.nonconforming_keys or [])
+        summary["total"] += 1
+        summary["nonconforming"] += nonconforming_count
+        if status_value in ["submitted", "reviewed"]:
+            summary["pending"] += 1
+        elif status_value == "approved":
+            summary["approved"] += 1
+        elif status_value == "rejected":
+            summary["rejected"] += 1
+        if equipment_status == "blocked":
+            summary["blocked"] += 1
         checklist_rows.append({
             "checklist": checklist,
             "employee": employee,
-            "equipment_status": equipment.status if equipment else "available"
+            "equipment_status": equipment_status,
+            "equipment_status_label": equipment_labels.get(equipment_status, equipment_status),
+            "status_label": status_labels.get(status_value, status_value),
+            "date_br": fmt_ddmmyyyy(checklist.date),
+            "nonconforming_count": nonconforming_count
         })
 
     employees = session.exec(select(models.Employee).order_by(models.Employee.name)).all()
@@ -4241,11 +4279,20 @@ async def admin_checklists_page(
             "rows": checklist_rows,
             "employees": employees,
             "status_options": ["submitted", "reviewed", "approved", "rejected"],
+            "status_labels": status_labels,
             "filters": {
                 "date": date_filter or "",
                 "status": status_filter or "",
                 "equipment": equipment_filter or "",
                 "employee_id": employee_filter_id
+            },
+            "summary": {
+                "total": format_int_br(summary["total"]),
+                "pending": format_int_br(summary["pending"]),
+                "approved": format_int_br(summary["approved"]),
+                "rejected": format_int_br(summary["rejected"]),
+                "blocked": format_int_br(summary["blocked"]),
+                "nonconforming": format_int_br(summary["nonconforming"])
             }
         }
     )
@@ -5464,184 +5511,857 @@ async def strategy_page(request: Request):
     # Static Skeleton - Data loaded via API
     return templates.TemplateResponse("strategy.html", {"request": request})
 
-@app.get("/rankings", response_class=HTMLResponse)
-async def rankings_page(request: Request, shift: Optional[str] = None, date: Optional[str] = None, period: str = "daily", sort_by: str = "tonnage", order: str = "desc", session: Session = Depends(get_session), user = Depends(require_login)):
-    import traceback
-    try:
-        # user is now passed as Depends() parameter
-        if not date:
-            date = datetime.now().strftime("%Y-%m-%d")
-        
-        target_date = datetime.strptime(date, "%Y-%m-%d")
-        start_date_str = date
-        end_date_str = date
-        
-        if period == "weekly":
-            start_date_obj = target_date - timedelta(days=6)
-            start_date_str = start_date_obj.strftime("%Y-%m-%d")
-        elif period == "monthly":
-            start_date_obj = target_date - timedelta(days=29)
-            start_date_str = start_date_obj.strftime("%Y-%m-%d")
-            
-        # --- Leaderboards (Selected Period) ---
-        query = select(models.Route).where(models.Route.tonnage > 0)
-        
-        # Date Filter
-        query = query.where(models.Route.date >= start_date_str)
-        query = query.where(models.Route.date <= end_date_str)
-        
-        if shift and shift != 'Geral':
-            query = query.where(models.Route.shift == shift)
-            
-        routes_period = session.exec(query).all()
-        
-        emp_stats = {} # id -> {original_obj, tonnage, duration_secs, count, max_tonnage, max_kgh}
-        
-        emp_map = {e.id: e for e in session.exec(select(models.Employee)).all()}
-        
-        for r in routes_period:
-            eid = r.employee_id
-            if eid not in emp_stats:
-                emp_stats[eid] = {'emp': emp_map.get(eid), 'tonnage': 0, 'secs': 0, 'count': 0, 'max_tonnage': 0, 'max_kgh': 0}
-                
-            stats = emp_stats[eid]
-            t = r.tonnage or 0.0
-            stats['tonnage'] += t
-            stats['count'] += 1
-            if t > stats['max_tonnage']:
-                stats['max_tonnage'] = t
-                
-            # Duration
+ABSENCE_JUSTIFIED_KEYWORDS = [
+    "atestado",
+    "absence_justified",
+    "justificativa",
+    "medical_leave",
+    "ausencia_justificada",
+    "justificada"
+]
+ABSENCE_UNJUSTIFIED_KEYWORDS = [
+    "falta",
+    "absence_unjustified",
+    "no_show",
+    "ausencia_injustificada",
+    "injustificada"
+]
+ABSENCE_LEAVE_KEYWORDS = [
+    "afastamento",
+    "inss",
+    "licenca",
+    "leave",
+    "afastado"
+]
+ABSENCE_OFFDAY_KEYWORDS = [
+    "folga",
+    "dsr",
+    "compensacao",
+    "offday"
+]
+ABSENCE_PRIORITY = {"leave": 4, "justified": 3, "offday": 2, "unjustified": 1}
+
+
+def normalize_event_label(value: Optional[str]) -> str:
+    if not value:
+        return ""
+    cleaned = str(value).strip().lower()
+    cleaned = cleaned.replace("_", " ").replace("-", " ").replace("/", " ")
+    cleaned = " ".join(cleaned.split())
+    normalized = unicodedata.normalize("NFKD", cleaned)
+    normalized = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+    return " ".join(normalized.split())
+
+
+def classify_event_label(label: str) -> Optional[str]:
+    if not label:
+        return None
+    for keyword in ABSENCE_LEAVE_KEYWORDS:
+        if keyword in label:
+            return "leave"
+    for keyword in ABSENCE_JUSTIFIED_KEYWORDS:
+        if keyword in label:
+            return "justified"
+    for keyword in ABSENCE_OFFDAY_KEYWORDS:
+        if keyword in label:
+            return "offday"
+    for keyword in ABSENCE_UNJUSTIFIED_KEYWORDS:
+        if keyword in label:
+            return "unjustified"
+    return None
+
+
+def classify_event_record(event_type: Optional[str], event_category: Optional[str], event_text: Optional[str]) -> Optional[str]:
+    combined = " ".join([event_type or "", event_category or "", event_text or ""]).strip()
+    return classify_event_label(normalize_event_label(combined))
+
+
+def fetch_absences_agg(session: Session, employee_ids: List[int], start_dt: datetime, end_dt: datetime) -> tuple:
+    if not employee_ids:
+        return {}, {"unknown": 0, "examples": []}
+
+    rows = session.exec(
+        select(
+            models.Event.employee_id,
+            models.Event.type,
+            models.Event.category,
+            models.Event.text,
+            func.date(models.Event.timestamp)
+        )
+        .where(models.Event.employee_id.in_(employee_ids))
+        .where(models.Event.timestamp >= start_dt)
+        .where(models.Event.timestamp <= end_dt)
+    ).all()
+
+    per_employee_days = {}
+    unknown_counts = Counter()
+
+    for emp_id, ev_type, ev_category, ev_text, ev_day in rows:
+        group = classify_event_record(ev_type, ev_category, ev_text)
+        if not group:
+            label = normalize_event_label(" ".join([ev_type or "", ev_category or "", ev_text or ""]).strip())
+            if label:
+                unknown_counts[label] += 1
+            continue
+        day_key = str(ev_day)
+        per_employee_days.setdefault(emp_id, {})
+        current = per_employee_days[emp_id].get(day_key)
+        if not current or ABSENCE_PRIORITY[group] > ABSENCE_PRIORITY[current]:
+            per_employee_days[emp_id][day_key] = group
+
+    absence_counts = {}
+    for emp_id, day_map in per_employee_days.items():
+        counts = {"justified": 0, "unjustified": 0, "leave": 0, "offday": 0}
+        for group in day_map.values():
+            if group in counts:
+                counts[group] += 1
+        absence_counts[emp_id] = counts
+
+    unknown_total = sum(unknown_counts.values())
+    unknown_examples = [label for label, _ in unknown_counts.most_common(10)]
+    if unknown_total and LOG_LEVEL == logging.DEBUG:
+        logger.debug("Absencias nao classificadas: %s | exemplos: %s", unknown_total, unknown_examples)
+
+    return absence_counts, {"unknown": unknown_total, "examples": unknown_examples}
+
+
+def get_absence_penalty(period: str, unjustified_days: int) -> float:
+    if period == "daily":
+        return max(0.75, 1.0 - 0.10 * unjustified_days)
+    if period == "weekly":
+        return max(0.65, 1.0 - 0.09 * unjustified_days)
+    if period == "monthly":
+        return max(0.60, 1.0 - 0.08 * unjustified_days)
+    return max(0.60, 1.0 - 0.08 * unjustified_days)
+
+
+def safe_parse_iso_date(value) -> Optional[date]:
+    if not value:
+        return None
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%Y/%m/%d"):
             try:
-                if r.start_time and r.end_time:
-                    s = datetime.strptime(r.start_time, "%H:%M")
-                    e = datetime.strptime(r.end_time, "%H:%M")
-                    diff = (e-s).total_seconds()
-                    if diff > 0:
-                        stats['secs'] += diff
-                        # Max Kgh only counts single route peak
-                        current_kgh = (t / (diff/3600))
-                        if current_kgh > stats['max_kgh']:
-                            stats['max_kgh'] = current_kgh
-            except:
-                pass
-                
-        # Listify
-        ranking_list = []
-        for eid, s in emp_stats.items():
-            if not s['emp']: continue
-            
-            hours = 0
-            avg_kgh = 0
-            if s['secs'] > 0:
-                hours = s['secs'] / 3600
-                avg_kgh = s['tonnage'] / hours
-                
-            ranking_list.append({
-                "id": eid,
-                "name": s['emp'].name,
-                "photo": s['emp'].photo_url,
-                "tonnage": s['tonnage'],
-                "kgh": avg_kgh,
-                "count": s['count'],
-                "time_hours": hours,
-                "time_fmt": "{:02d}:{:02d}".format(int(hours), int((hours*60)%60)),
-                "max_tonnage": s['max_tonnage'],
-                "max_kgh": s['max_kgh']
-            })
-            
-        # Sorters (Dynamic)
-        reverse_order = True if order == 'desc' else False
-        
-        if sort_by == 'kgh':
-            ranking_list.sort(key=lambda x: x['kgh'], reverse=reverse_order)
-        elif sort_by == 'time':
-            ranking_list.sort(key=lambda x: x['time_hours'], reverse=reverse_order)
-        elif sort_by == 'count':
-            ranking_list.sort(key=lambda x: x['count'], reverse=reverse_order)
-        else: # tonnage
-            ranking_list.sort(key=lambda x: x['tonnage'], reverse=reverse_order)
+                return datetime.strptime(text, fmt).date()
+            except Exception:
+                continue
+        try:
+            return datetime.fromisoformat(text).date()
+        except Exception:
+            return None
+    return None
 
-        # --- Badges Logic ---
-        badges = []
-        if ranking_list:
-            by_kgh = sorted(ranking_list, key=lambda x: x['max_kgh'], reverse=True)
-            by_vol = sorted(ranking_list, key=lambda x: x['max_tonnage'], reverse=True)
-            by_cnt = sorted(ranking_list, key=lambda x: x['count'], reverse=True)
-            
-            flash = by_kgh[0] if by_kgh and by_kgh[0]['max_kgh'] > 0 else None
-            hulk  = by_vol[0] if by_vol and by_vol[0]['max_tonnage'] > 0 else None
-            mara  = by_cnt[0] if by_cnt and by_cnt[0]['count'] >= 5 else None 
-            
-            if flash:
-                badges.append({
-                    "image": "/static/badges/flash.png", "title": "The Flash", 
-                    "class": "shadow-yellow-500/50 border-yellow-500/50", "desc": "Maior velocidade (única)",
-                    "winner": flash['name'].split()[0], "value": f"{int(flash['max_kgh'])} kg/h"
-                })
-            if hulk:
-                badges.append({
-                    "image": "/static/badges/hulk.png", "title": "Hulk Esmaga", 
-                    "class": "shadow-green-500/50 border-green-500/50", "desc": "Maior carga (única)",
-                    "winner": hulk['name'].split()[0], "value": f"{int(hulk['max_tonnage'])} kg"
-                })
-            if mara:
-                badges.append({
-                    "image": "/static/badges/marathon.png", "title": "Maratonista", 
-                    "class": "shadow-blue-500/50 border-blue-500/50", "desc": "Mais separações",
-                    "winner": mara['name'].split()[0], "value": f"{mara['count']} viagens"
-                })
 
-        # --- Global Levels (All Employees) ---
-        query_levels = select(models.Employee).where(models.Employee.status == 'active')
-        if shift and shift not in ['Geral', 'Todos', None]:
-            query_levels = query_levels.where(models.Employee.work_shift == shift)
-            
-        all_emps = session.exec(query_levels.order_by(models.Employee.total_xp.desc()).limit(12)).all()
-        
-        level_list = []
-        for e in all_emps:
-            xp = e.total_xp or 0.0
-            lvl_name = "Júnior"
-            progress = 0
-            
-            if xp < 5000:
-                lvl_name = "Bronze"
-                progress = (xp / 5000) * 100
-            elif xp < 15000:
-                lvl_name = "Prata"
-                progress = ((xp - 5000) / 10000) * 100
-            elif xp < 50000:
-                lvl_name = "Ouro"
-                progress = ((xp - 15000) / 35000) * 100
-            else:
-                lvl_name = "Diamante"
-                progress = 100
+def to_date(value) -> Optional[date]:
+    return safe_parse_iso_date(value)
 
-            level_list.append({
-                "name": e.name,
-                "level": lvl_name,
-                "xp": int(xp),
-                "progress": progress
-            })
 
-        return templates.TemplateResponse("rankings.html", {
-            "request": request,
-            "period": period,
-            "current_period": period,
-            "selected_date": date,
-            "current_shift": shift or 'Todos',
-            "current_sort": sort_by,
-            "current_order": order,
-            "badges": badges,
-            "ranking_list": ranking_list,
-            "levels": level_list
+def fmt_ddmm(value) -> str:
+    parsed = to_date(value)
+    return parsed.strftime("%d/%m") if parsed else "-"
+
+
+def fmt_ddmmyyyy(value) -> str:
+    parsed = to_date(value)
+    return parsed.strftime("%d/%m/%Y") if parsed else "-"
+
+
+def format_int_br(value) -> str:
+    try:
+        return f"{int(value):,}".replace(",", ".")
+    except Exception:
+        return "0"
+
+
+@app.get("/operations/performance", response_class=HTMLResponse)
+@app.get("/rankings", response_class=HTMLResponse)
+async def operations_performance_page(
+    request: Request,
+    date: Optional[str] = None,
+    period: str = "daily",
+    shift: str = "Todos",
+    route_band: str = "Todos",
+    tenure_band: str = "Todos",
+    sort_by: str = "score",
+    order: str = "desc",
+    session: Session = Depends(get_session),
+    user = Depends(require_leader)
+):
+    OCCURRENCE_TYPES = {"erro", "alerta", "ocorrencia", "advertencia"}
+
+    def safe_mean(values: List[float]) -> float:
+        return statistics.mean(values) if values else 0.0
+
+    def safe_stdev(values: List[float]) -> float:
+        return statistics.pstdev(values) if len(values) > 1 else 0.0
+
+    def normalize_val(value: float, min_val: float, max_val: float) -> float:
+        if max_val == min_val:
+            return 0.5 if max_val else 0.0
+        return (value - min_val) / (max_val - min_val)
+
+    def parse_time_value(value) -> Optional[time]:
+        if value is None:
+            return None
+        if isinstance(value, time):
+            return value
+        if isinstance(value, datetime):
+            return value.time()
+        if isinstance(value, str):
+            for fmt in ("%H:%M:%S", "%H:%M"):
+                try:
+                    return datetime.strptime(value.strip(), fmt).time()
+                except Exception:
+                    continue
+        return None
+
+    def duration_seconds(start_val, end_val) -> float:
+        start_time = parse_time_value(start_val)
+        end_time = parse_time_value(end_val)
+        if not start_time or not end_time:
+            return 0.0
+        start_dt = datetime.combine(datetime.now().date(), start_time)
+        end_dt = datetime.combine(datetime.now().date(), end_time)
+        if end_dt < start_dt:
+            end_dt += timedelta(days=1)
+        return max(0.0, (end_dt - start_dt).total_seconds())
+
+    def trend_slope(values: List[float]) -> float:
+        if len(values) < 2:
+            return 0.0
+        x_mean = (len(values) - 1) / 2
+        y_mean = safe_mean(values)
+        numerator = sum((idx - x_mean) * (val - y_mean) for idx, val in enumerate(values))
+        denominator = sum((idx - x_mean) ** 2 for idx in range(len(values)))
+        return numerator / denominator if denominator else 0.0
+
+    def pearson_corr(x_vals: List[float], y_vals: List[float]) -> float:
+        if len(x_vals) < 2 or len(x_vals) != len(y_vals):
+            return 0.0
+        x_mean = safe_mean(x_vals)
+        y_mean = safe_mean(y_vals)
+        x_diff = [x - x_mean for x in x_vals]
+        y_diff = [y - y_mean for y in y_vals]
+        denom = (sum(d ** 2 for d in x_diff) * sum(d ** 2 for d in y_diff)) ** 0.5
+        if denom == 0:
+            return 0.0
+        return sum(xd * yd for xd, yd in zip(x_diff, y_diff)) / denom
+
+    def assign_band(value: float, low: float, high: float) -> str:
+        if value <= low:
+            return "Leve"
+        if value <= high:
+            return "Media"
+        return "Pesada"
+
+    def get_tenure_band(months: int) -> str:
+        if months < 3:
+            return "Novatos"
+        if months < 12:
+            return "Consolidacao"
+        return "Veteranos"
+
+    def compute_tenure_months(employee: models.Employee) -> int:
+        admission_date = to_date(getattr(employee, "admission_date", None))
+        if not admission_date:
+            return 0
+        return max(0, int((target_date - admission_date).days / 30))
+
+    def get_weights(band: str) -> dict:
+        base = {"kgh": 0.30, "tonnage": 0.25, "regularity": 0.20, "consistency": 0.15, "trend": 0.10}
+        if band == "Novatos":
+            return {"kgh": 0.28, "tonnage": 0.22, "regularity": 0.18, "consistency": 0.12, "trend": 0.20}
+        if band == "Veteranos":
+            return {"kgh": 0.28, "tonnage": 0.23, "regularity": 0.24, "consistency": 0.18, "trend": 0.07}
+        return base
+
+    def kmeans(points: List[List[float]], k: int = 3, iterations: int = 8):
+        if not points:
+            return [], []
+        k = min(k, len(points))
+        ordered_idx = sorted(range(len(points)), key=lambda i: points[i][0])
+        centroids = [points[ordered_idx[int(i * (len(points) - 1) / max(k - 1, 1))]] for i in range(k)]
+        for _ in range(iterations):
+            clusters = [[] for _ in range(k)]
+            for idx, point in enumerate(points):
+                distances = [sum((p - c) ** 2 for p, c in zip(point, centroid)) for centroid in centroids]
+                cluster_idx = distances.index(min(distances))
+                clusters[cluster_idx].append(idx)
+            new_centroids = []
+            for c_idx, members in enumerate(clusters):
+                if not members:
+                    new_centroids.append(centroids[c_idx])
+                    continue
+                new_centroids.append([
+                    safe_mean([points[m][dim] for m in members]) for dim in range(len(points[0]))
+                ])
+            if new_centroids == centroids:
+                break
+            centroids = new_centroids
+        return clusters, centroids
+
+    if not date:
+        date = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    target_date = safe_parse_iso_date(date)
+    if not target_date:
+        target_date = datetime.now(ZoneInfo("America/Sao_Paulo")).date()
+        date = target_date.strftime("%Y-%m-%d")
+    if period == "weekly":
+        start_date = target_date - timedelta(days=6)
+    elif period == "monthly":
+        start_date = target_date - timedelta(days=29)
+    else:
+        start_date = target_date
+    end_date = target_date
+    total_days = (end_date - start_date).days + 1
+
+    query = (
+        select(models.Route, models.Employee, models.Client)
+        .join(models.Employee, models.Route.employee_id == models.Employee.id)
+        .join(models.Client, models.Route.client_id == models.Client.id)
+        .where(models.Route.tonnage > 0)
+        .where(models.Route.date >= start_date.strftime("%Y-%m-%d"))
+        .where(models.Route.date <= end_date.strftime("%Y-%m-%d"))
+    )
+    if shift and shift not in ["Todos", "Geral", None]:
+        query = query.where(models.Route.shift == shift)
+    routes_rows = session.exec(query).all()
+
+    routes = []
+    for route, emp, client in routes_rows:
+        if not emp:
+            continue
+        tonnage = float(route.tonnage or 0)
+        if tonnage <= 0:
+            continue
+        route_day = to_date(route.date)
+        route_day_key = route_day.isoformat() if route_day else str(route.date)
+        routes.append({
+            "employee_id": route.employee_id,
+            "employee": emp,
+            "client": client,
+            "date": route_day_key,
+            "tonnage": tonnage,
+            "start_time": route.start_time,
+            "end_time": route.end_time
         })
 
-    except Exception as e:
-        traceback.print_exc()
-        return HTMLResponse(f"<h1>Erro 500</h1><pre>{traceback.format_exc()}</pre>", status_code=500)
+    tonnage_values = [r["tonnage"] for r in routes]
+    band_low, band_high = (0.0, 0.0)
+    if tonnage_values:
+        ordered_tonnage = sorted(tonnage_values)
+        idx_low = max(0, int(len(ordered_tonnage) * 0.33) - 1)
+        idx_high = max(0, int(len(ordered_tonnage) * 0.66) - 1)
+        band_low = ordered_tonnage[idx_low]
+        band_high = ordered_tonnage[idx_high]
 
+    if route_band and route_band not in ["Todos", "Geral"]:
+        routes = [r for r in routes if assign_band(r["tonnage"], band_low, band_high) == route_band]
+
+    employee_ids = sorted({r["employee_id"] for r in routes})
+    start_dt = datetime.combine(start_date, datetime.min.time()).replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+    end_dt = datetime.combine(end_date, datetime.max.time()).replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+    event_query = (
+        select(models.Event.employee_id, func.count())
+        .where(models.Event.employee_id.is_not(None))
+        .where(models.Event.timestamp >= start_dt)
+        .where(models.Event.timestamp <= end_dt)
+        .where(models.Event.type.in_(list(OCCURRENCE_TYPES)))
+        .group_by(models.Event.employee_id)
+    )
+    if employee_ids:
+        event_query = event_query.where(models.Event.employee_id.in_(employee_ids))
+    event_rows = session.exec(event_query).all()
+    event_counts = {eid: count for eid, count in event_rows if eid}
+
+    if employee_ids:
+        absence_counts, _absence_unknown = fetch_absences_agg(session, employee_ids, start_dt, end_dt)
+    else:
+        absence_counts, _absence_unknown = ({}, {"unknown": 0, "examples": []})
+    debug_absences = None
+    if LOG_LEVEL == logging.DEBUG and _absence_unknown.get("unknown"):
+        debug_absences = _absence_unknown
+
+    stats = {}
+    for item in routes:
+        eid = item["employee_id"]
+        emp = item["employee"]
+        client = item["client"]
+        stats.setdefault(eid, {
+            "employee": emp,
+            "tonnage": 0.0,
+            "secs": 0.0,
+            "count": 0,
+            "max_tonnage": 0.0,
+            "max_kgh": 0.0,
+            "days": set(),
+            "daily": {},
+            "clients": Counter()
+        })
+        payload = stats[eid]
+        payload["tonnage"] += item["tonnage"]
+        payload["count"] += 1
+        payload["days"].add(item["date"])
+        payload["max_tonnage"] = max(payload["max_tonnage"], item["tonnage"])
+        client_name = client.name if client else "N/A"
+        payload["clients"][client_name] += 1
+
+        duration = duration_seconds(item["start_time"], item["end_time"])
+        if duration:
+            payload["secs"] += duration
+            kgh = item["tonnage"] / (duration / 3600)
+            payload["max_kgh"] = max(payload["max_kgh"], kgh)
+
+        daily_entry = payload["daily"].setdefault(item["date"], {"tonnage": 0.0, "secs": 0.0})
+        daily_entry["tonnage"] += item["tonnage"]
+        daily_entry["secs"] += duration
+
+    rows_all = []
+    for eid, payload in stats.items():
+        employee = payload["employee"]
+        hours = payload["secs"] / 3600 if payload["secs"] else 0.0
+        avg_kgh = payload["tonnage"] / hours if hours else 0.0
+        avg_trip_minutes = (payload["secs"] / 60 / payload["count"]) if payload["count"] else 0.0
+
+        daily_kgh = []
+        for data in payload["daily"].values():
+            if data["secs"] > 0:
+                daily_kgh.append(data["tonnage"] / (data["secs"] / 3600))
+        daily_kgh_sorted = [val for _, val in sorted(zip(payload["daily"].keys(), daily_kgh))]
+        daily_mean = safe_mean(daily_kgh_sorted)
+        daily_std = safe_stdev(daily_kgh_sorted)
+        cv = (daily_std / daily_mean) if daily_mean else 0.0
+        regularity = len(payload["days"]) / total_days if total_days else 0.0
+        slope = trend_slope(daily_kgh_sorted)
+        trend_ratio = slope / daily_mean if daily_mean else 0.0
+        if trend_ratio > 0.05:
+            trend_label = "Em alta"
+        elif trend_ratio < -0.05:
+            trend_label = "Em queda"
+        else:
+            trend_label = "Estavel"
+
+        occurrences = int(event_counts.get(eid, 0))
+        penalty_factor = max(0.7, 1 - occurrences * 0.05)
+
+        absence_data = absence_counts.get(eid, {"justified": 0, "unjustified": 0, "leave": 0, "offday": 0})
+        justified_days = absence_data["justified"]
+        unjustified_days = absence_data["unjustified"]
+        leave_days = absence_data["leave"]
+        offday_days = absence_data["offday"]
+        days_active = len(payload["days"])
+        adjusted_denominator = max(1, total_days - justified_days - leave_days - offday_days)
+        regularity_adjusted = days_active / adjusted_denominator
+        absence_penalty_factor = get_absence_penalty(period, unjustified_days)
+        discipline_rate = 1 - (unjustified_days / max(1, total_days))
+
+        consistency_score = max(0.0, 1 - cv)
+        top_client = payload["clients"].most_common(1)[0][0] if payload["clients"] else "-"
+
+        tenure_months = compute_tenure_months(employee)
+        tenure_group = get_tenure_band(tenure_months)
+
+        rows_all.append({
+            "id": eid,
+            "name": employee.name if employee else "N/A",
+            "photo": employee.photo_url if employee else None,
+            "total_tonnage": payload["tonnage"],
+            "total_hours": hours,
+            "count": payload["count"],
+            "avg_kgh": avg_kgh,
+            "avg_trip_minutes": avg_trip_minutes,
+            "regularity": regularity,
+            "regularity_adjusted": min(1.0, regularity_adjusted),
+            "daily_std": daily_std,
+            "cv": cv,
+            "consistency_score": consistency_score,
+            "trend_slope": slope,
+            "trend_label": trend_label,
+            "trend_ratio": trend_ratio,
+            "occurrences": occurrences,
+            "penalty_factor": penalty_factor,
+            "absence_penalty_factor": absence_penalty_factor,
+            "justified_absences": justified_days,
+            "unjustified_absences": unjustified_days,
+            "leave_absences": leave_days,
+            "offday_absences": offday_days,
+            "presence_rate": min(1.0, regularity_adjusted),
+            "discipline_rate": max(0.0, discipline_rate),
+            "top_client": top_client,
+            "tenure_months": tenure_months,
+            "tenure_band": tenure_group
+        })
+
+    if not rows_all:
+        return templates.TemplateResponse(
+            "rankings.html",
+            {
+                "request": request,
+                "rows": [],
+                "filters": {
+                    "date": date,
+                    "period": period,
+                    "shift": shift,
+                    "route_band": route_band,
+                    "tenure_band": tenure_band,
+                    "sort_by": sort_by,
+                    "order": order
+                },
+                "band_labels": {"Leve": "-", "Media": "-", "Pesada": "-"},
+                "team_stats": {
+                    "total_tonnage": 0,
+                    "avg_kgh": 0,
+                    "avg_trip_minutes": 0,
+                    "total_routes": 0,
+                    "active_employees": 0,
+                    "avg_presence_adjusted": 0,
+                    "discipline_rate": 0,
+                    "unjustified_total": 0
+                },
+                "insights": {},
+                "top_performers": [],
+                "clusters": [],
+                "outliers": [],
+                "feature_drivers": [],
+                "route_band": route_band,
+                "absence_totals": {"justified": 0, "unjustified": 0, "leave": 0, "offday": 0},
+                "league_rankings": [],
+                "debug_absences": debug_absences
+            }
+        )
+
+    rows_filtered = [r for r in rows_all if tenure_band in ["Todos", None, "Geral"] or r["tenure_band"] == tenure_band]
+    if not rows_filtered:
+        return templates.TemplateResponse(
+            "rankings.html",
+            {
+                "request": request,
+                "rows": [],
+                "filters": {
+                    "date": date,
+                    "period": period,
+                    "shift": shift,
+                    "route_band": route_band,
+                    "tenure_band": tenure_band,
+                    "sort_by": sort_by,
+                    "order": order
+                },
+                "band_labels": {"Leve": "-", "Media": "-", "Pesada": "-"},
+                "team_stats": {
+                    "total_tonnage": 0,
+                    "avg_kgh": 0,
+                    "avg_trip_minutes": 0,
+                    "total_routes": 0,
+                    "active_employees": 0,
+                    "avg_presence_adjusted": 0,
+                    "discipline_rate": 0,
+                    "unjustified_total": 0
+                },
+                "insights": {},
+                "top_performers": [],
+                "clusters": [],
+                "outliers": [],
+                "feature_drivers": [],
+                "route_band": route_band,
+                "absence_totals": {"justified": 0, "unjustified": 0, "leave": 0, "offday": 0},
+                "league_rankings": [],
+                "debug_absences": debug_absences
+            }
+        )
+
+    def apply_scores(rows_subset: List[dict]) -> None:
+        if not rows_subset:
+            return
+        kgh_values = [r["avg_kgh"] for r in rows_subset]
+        tonnage_values = [r["total_tonnage"] for r in rows_subset]
+        regularity_values = [r["regularity_adjusted"] for r in rows_subset]
+        consistency_values = [r["consistency_score"] for r in rows_subset]
+        trend_values = [r["trend_slope"] for r in rows_subset]
+
+        min_kgh, max_kgh = min(kgh_values), max(kgh_values)
+        min_tonnage, max_tonnage = min(tonnage_values), max(tonnage_values)
+        min_reg, max_reg = min(regularity_values), max(regularity_values)
+        min_cons, max_cons = min(consistency_values), max(consistency_values)
+        min_trend, max_trend = min(trend_values), max(trend_values)
+
+        for row in rows_subset:
+            kgh_norm = normalize_val(row["avg_kgh"], min_kgh, max_kgh)
+            tonnage_norm = normalize_val(row["total_tonnage"], min_tonnage, max_tonnage)
+            regularity_norm = normalize_val(row["regularity_adjusted"], min_reg, max_reg)
+            consistency_norm = normalize_val(row["consistency_score"], min_cons, max_cons)
+            trend_norm = normalize_val(row["trend_slope"], min_trend, max_trend)
+            weights = get_weights(row["tenure_band"])
+            base_score = (
+                weights["kgh"] * kgh_norm
+                + weights["tonnage"] * tonnage_norm
+                + weights["regularity"] * regularity_norm
+                + weights["consistency"] * consistency_norm
+                + weights["trend"] * trend_norm
+            )
+            row["score"] = round(base_score * 100 * row["penalty_factor"] * row["absence_penalty_factor"], 2)
+
+        score_values = [r["score"] for r in rows_subset]
+        score_values_sorted = sorted(score_values, reverse=True)
+        for row in rows_subset:
+            rank_index = score_values_sorted.index(row["score"])
+            if len(score_values_sorted) > 1:
+                row["percentile"] = int(100 * (1 - rank_index / (len(score_values_sorted) - 1)))
+            else:
+                row["percentile"] = 100
+
+    apply_scores(rows_filtered)
+
+    def build_league_rankings(rows_source: List[dict]) -> List[dict]:
+        league_cards = []
+        for band_name in ["Novatos", "Consolidacao", "Veteranos"]:
+            band_rows = [dict(r) for r in rows_source if r["tenure_band"] == band_name]
+            apply_scores(band_rows)
+            band_rows.sort(key=lambda x: x["score"], reverse=True)
+            league_cards.append({
+                "band": band_name,
+                "top": band_rows[:3]
+            })
+        return league_cards
+
+    league_rankings = build_league_rankings(rows_all)
+
+    team_avg_kgh = safe_mean([r["avg_kgh"] for r in rows_filtered])
+    team_avg_tonnage = safe_mean([r["total_tonnage"] for r in rows_filtered])
+    team_avg_trip_minutes = safe_mean([r["avg_trip_minutes"] for r in rows_filtered])
+    team_avg_presence_adjusted = safe_mean([r["regularity_adjusted"] for r in rows_filtered])
+    unjustified_total = sum(r["unjustified_absences"] for r in rows_filtered)
+    discipline_rate = 1 - (unjustified_total / max(1, total_days * len(rows_filtered)))
+
+    kgh_values = [r["avg_kgh"] for r in rows_filtered]
+    tonnage_values = [r["total_tonnage"] for r in rows_filtered]
+    regularity_values = [r["regularity_adjusted"] for r in rows_filtered]
+    consistency_values = [r["consistency_score"] for r in rows_filtered]
+    trend_values = [r["trend_slope"] for r in rows_filtered]
+    score_values = [r["score"] for r in rows_filtered]
+
+    if len(rows_filtered) > 1:
+        x_vals = [r["regularity_adjusted"] for r in rows_filtered]
+        y_vals = [r["avg_kgh"] for r in rows_filtered]
+        x_mean = safe_mean(x_vals)
+        y_mean = safe_mean(y_vals)
+        denom = sum((x - x_mean) ** 2 for x in x_vals)
+        slope = sum((x - x_mean) * (y - y_mean) for x, y in zip(x_vals, y_vals)) / denom if denom else 0.0
+        intercept = y_mean - slope * x_mean
+    else:
+        slope = 0.0
+        intercept = rows_filtered[0]["avg_kgh"]
+    for row in rows_filtered:
+        row["expected_kgh"] = max(0.0, intercept + slope * row["regularity_adjusted"])
+        row["delta_expected"] = row["avg_kgh"] - row["expected_kgh"]
+
+    feature_drivers = []
+    for label, values in [
+        ("Velocidade (kg/h)", kgh_values),
+        ("Volume (kg)", tonnage_values),
+        ("Regularidade ajustada", regularity_values),
+        ("Consistencia", consistency_values),
+        ("Tendencia", trend_values)
+    ]:
+        corr = pearson_corr(values, score_values)
+        feature_drivers.append({"label": label, "corr": corr})
+    feature_drivers.sort(key=lambda x: abs(x["corr"]), reverse=True)
+
+    outliers = []
+    if len(rows_filtered) >= 8:
+        kgh_mean = team_avg_kgh
+        kgh_std = safe_stdev(kgh_values)
+        if kgh_std:
+            for row in rows_filtered:
+                z = (row["avg_kgh"] - kgh_mean) / kgh_std
+                if abs(z) >= 2:
+                    outliers.append({"name": row["name"], "kgh": row["avg_kgh"], "zscore": z})
+
+    clusters = []
+    if len(rows_filtered) >= 12:
+        min_kgh, max_kgh = min(kgh_values), max(kgh_values)
+        min_cons, max_cons = min(consistency_values), max(consistency_values)
+        min_reg, max_reg = min(regularity_values), max(regularity_values)
+        cluster_points = [
+            [
+                normalize_val(r["avg_kgh"], min_kgh, max_kgh),
+                normalize_val(r["consistency_score"], min_cons, max_cons),
+                normalize_val(r["regularity_adjusted"], min_reg, max_reg)
+            ]
+            for r in rows_filtered
+        ]
+        raw_clusters, centroids = kmeans(cluster_points, k=3)
+        for idx, members in enumerate(raw_clusters):
+            if not members:
+                continue
+            centroid = centroids[idx]
+            label = "Ritmo moderado"
+            if centroid[0] > 0.65 and centroid[1] > 0.6:
+                label = "Rapido e constante"
+            elif centroid[0] > 0.65 and centroid[1] <= 0.6:
+                label = "Rapido e instavel"
+            elif centroid[0] <= 0.45 and centroid[1] > 0.6:
+                label = "Constante e gradual"
+            clusters.append({
+                "label": label,
+                "members": [rows_filtered[m]["name"] for m in members][:6],
+                "count": len(members),
+                "avg_kgh": safe_mean([rows_filtered[m]["avg_kgh"] for m in members]),
+                "avg_regularity": safe_mean([rows_filtered[m]["regularity_adjusted"] for m in members]),
+                "avg_consistency": safe_mean([rows_filtered[m]["consistency_score"] for m in members])
+            })
+    else:
+        rule_clusters = {
+            "Rapido e constante": [],
+            "Rapido e instavel": [],
+            "Lento e constante": [],
+            "Ritmo moderado": []
+        }
+        for row in rows_filtered:
+            if row["avg_kgh"] >= team_avg_kgh * 1.1 and row["cv"] <= 0.25:
+                rule_clusters["Rapido e constante"].append(row)
+            elif row["avg_kgh"] >= team_avg_kgh * 1.1 and row["cv"] > 0.25:
+                rule_clusters["Rapido e instavel"].append(row)
+            elif row["avg_kgh"] <= team_avg_kgh * 0.9 and row["cv"] <= 0.25:
+                rule_clusters["Lento e constante"].append(row)
+            else:
+                rule_clusters["Ritmo moderado"].append(row)
+        for label, members in rule_clusters.items():
+            if not members:
+                continue
+            clusters.append({
+                "label": label,
+                "members": [m["name"] for m in members][:6],
+                "count": len(members),
+                "avg_kgh": safe_mean([m["avg_kgh"] for m in members]),
+                "avg_regularity": safe_mean([m["regularity_adjusted"] for m in members]),
+                "avg_consistency": safe_mean([m["consistency_score"] for m in members])
+            })
+
+    sort_reverse = order != "asc"
+    sort_map = {
+        "score": "score",
+        "kgh": "avg_kgh",
+        "tonnage": "total_tonnage",
+        "consistency": "consistency_score",
+        "trend": "trend_slope"
+    }
+    sort_key = sort_map.get(sort_by, "score")
+    rows_filtered.sort(key=lambda x: x[sort_key], reverse=sort_reverse)
+
+    top_performers = []
+    for row in rows_filtered[:5]:
+        reasons = []
+        if row["avg_kgh"] > team_avg_kgh * 1.1:
+            reasons.append("Velocidade acima da media")
+        if row["regularity_adjusted"] >= 0.8:
+            reasons.append("Presenca consistente")
+        if row["trend_ratio"] > 0.05:
+            reasons.append("Tendencia positiva")
+        if row["unjustified_absences"] == 0:
+            reasons.append("Sem faltas nao justificadas")
+        if row["top_client"] and row["top_client"] != "-":
+            reasons.append(f"Cliente recorrente: {row['top_client']}")
+        top_performers.append({
+            "name": row["name"],
+            "score": row["score"],
+            "percentile": row["percentile"],
+            "reasons": reasons[:3],
+            "id": row["id"]
+        })
+
+    insights = {}
+    best = rows_filtered[0] if rows_filtered else None
+    if best:
+        insights["best"] = {"name": best["name"], "detail": f"Score {best['score']} | {best['percentile']}%"}
+    most_improved = max(rows_filtered, key=lambda x: x["trend_slope"], default=None)
+    if most_improved:
+        insights["improved"] = {"name": most_improved["name"], "detail": most_improved["trend_label"]}
+    most_consistent = min(rows_filtered, key=lambda x: x["cv"], default=None)
+    if most_consistent:
+        insights["consistent"] = {"name": most_consistent["name"], "detail": f"CV {most_consistent['cv']:.2f}"}
+    bottleneck = max(rows_filtered, key=lambda x: x["avg_trip_minutes"], default=None)
+    if bottleneck:
+        insights["bottleneck"] = {"name": bottleneck["name"], "detail": f"{bottleneck['avg_trip_minutes']:.1f} min/viagem"}
+    best_presence = max(rows_filtered, key=lambda x: x["regularity_adjusted"], default=None)
+    if best_presence:
+        insights["presence"] = {"name": best_presence["name"], "detail": f"{best_presence['regularity_adjusted']:.0%} presenca"}
+    most_absences = max(rows_filtered, key=lambda x: x["unjustified_absences"], default=None)
+    if most_absences and most_absences["unjustified_absences"] > 0:
+        insights["absences"] = {"name": most_absences["name"], "detail": f"{most_absences['unjustified_absences']} faltas"}
+    learning_candidates = [r for r in rows_filtered if r["tenure_band"] == "Novatos"]
+    if learning_candidates:
+        best_learning = max(learning_candidates, key=lambda x: x["trend_slope"], default=None)
+        if best_learning:
+            insights["learning"] = {"name": best_learning["name"], "detail": "Curva positiva"}
+    veteran_candidates = [r for r in rows_filtered if r["tenure_band"] == "Veteranos"]
+    if veteran_candidates:
+        veteran_ref = max(veteran_candidates, key=lambda x: (x["score"], -x["cv"]), default=None)
+        if veteran_ref:
+            insights["veteran"] = {"name": veteran_ref["name"], "detail": "Referencia de consistencia"}
+    potential = None
+    if rows_filtered:
+        median_score = sorted(score_values)[len(score_values) // 2]
+        candidates = [r for r in rows_filtered if r["regularity_adjusted"] >= 0.8 and r["score"] <= median_score]
+        if candidates:
+            potential = max(candidates, key=lambda x: x["regularity_adjusted"])
+    if potential:
+        insights["potential"] = {"name": potential["name"], "detail": "Alta presenca, ganho possivel"}
+
+    band_labels = {
+        "Leve": f"<= {band_low:.0f} kg" if band_low else "-",
+        "Media": f"{band_low:.0f} - {band_high:.0f} kg" if band_high else "-",
+        "Pesada": f">= {band_high:.0f} kg" if band_high else "-"
+    }
+
+    absence_totals = {
+        "justified": sum(r["justified_absences"] for r in rows_filtered),
+        "unjustified": sum(r["unjustified_absences"] for r in rows_filtered),
+        "leave": sum(r["leave_absences"] for r in rows_filtered),
+        "offday": sum(r["offday_absences"] for r in rows_filtered)
+    }
+
+    return templates.TemplateResponse(
+        "rankings.html",
+        {
+            "request": request,
+            "rows": rows_filtered,
+            "filters": {
+                "date": date,
+                "period": period,
+                "shift": shift,
+                "route_band": route_band,
+                "tenure_band": tenure_band,
+                "sort_by": sort_by,
+                "order": order
+            },
+            "band_labels": band_labels,
+            "team_stats": {
+                "total_tonnage": sum(tonnage_values),
+                "avg_kgh": team_avg_kgh,
+                "avg_trip_minutes": team_avg_trip_minutes,
+                "total_routes": sum(r["count"] for r in rows_filtered),
+                "active_employees": len(rows_filtered),
+                "avg_presence_adjusted": team_avg_presence_adjusted,
+                "discipline_rate": max(0.0, discipline_rate),
+                "unjustified_total": unjustified_total
+            },
+            "insights": insights,
+            "top_performers": top_performers,
+            "clusters": clusters,
+            "outliers": outliers,
+            "feature_drivers": feature_drivers[:4],
+            "route_band": route_band,
+            "absence_totals": absence_totals,
+            "league_rankings": league_rankings,
+            "debug_absences": debug_absences
+        }
+    )
 @app.get("/api/rankings/employee/{employee_id}/details")
 async def get_ranking_details(
     request: Request,
@@ -5649,37 +6369,102 @@ async def get_ranking_details(
     date: str,
     period: str = "daily",
     shift: Optional[str] = None,
-    session: Session = Depends(get_session)
+    route_band: str = "Todos",
+    tenure_band: str = "Todos",
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
 ):
     try:
-        user = require_login(request)
-        target_date = datetime.strptime(date, "%Y-%m-%d")
-        start_date_str = date
-        end_date_str = date
+        target_date = safe_parse_iso_date(date)
+        if not target_date:
+            target_date = datetime.now(ZoneInfo("America/Sao_Paulo")).date()
+        start_date_obj = target_date
+        end_date_obj = target_date
         
         if period == "weekly":
             start_date_obj = target_date - timedelta(days=6)
-            start_date_str = start_date_obj.strftime("%Y-%m-%d")
         elif period == "monthly":
             start_date_obj = target_date - timedelta(days=29)
-            start_date_str = start_date_obj.strftime("%Y-%m-%d")
+
+        start_date_str = start_date_obj.strftime("%Y-%m-%d")
+        end_date_str = end_date_obj.strftime("%Y-%m-%d")
+        total_days = (end_date_obj - start_date_obj).days + 1
             
-        # Stats Query
-        query = select(models.Route, models.Client).join(models.Client, models.Route.client_id == models.Client.id)
-        query = query.where(models.Route.employee_id == employee_id)
-        query = query.where(models.Route.tonnage > 0)
-        query = query.where(models.Route.date >= start_date_str)
-        query = query.where(models.Route.date <= end_date_str)
-        
-        if shift and shift not in ['Geral', 'Todos', None, 'null']:
-            query = query.where(models.Route.shift == shift)
-            
-        results = session.exec(query).all() # List of (Route, Client)
-        
+        employee = session.exec(select(models.Employee).where(models.Employee.id == employee_id)).first()
+        tenure_months = 0
+        tenure_band_value = "Novatos"
+        admission_date = to_date(getattr(employee, "admission_date", None))
+        if admission_date:
+            tenure_months = max(0, int((target_date - admission_date).days / 30))
+            if tenure_months < 3:
+                tenure_band_value = "Novatos"
+            elif tenure_months < 12:
+                tenure_band_value = "Consolidacao"
+            else:
+                tenure_band_value = "Veteranos"
+
+        tenure_filter_mismatch = (
+            tenure_band not in ["Todos", "Geral", None, "null"] and tenure_band != tenure_band_value
+        )
+
+        def assign_band(value: float, low: float, high: float) -> str:
+            if value <= low:
+                return "Leve"
+            if value <= high:
+                return "Media"
+            return "Pesada"
+
+        band_low, band_high = (0.0, 0.0)
+        tonnage_values = []
+        if route_band and route_band not in ["Todos", "Geral", None, "null"]:
+            tonnage_query = (
+                select(models.Route.tonnage)
+                .where(models.Route.tonnage > 0)
+                .where(models.Route.date >= start_date_str)
+                .where(models.Route.date <= end_date_str)
+            )
+            if shift and shift not in ['Geral', 'Todos', None, 'null']:
+                tonnage_query = tonnage_query.where(models.Route.shift == shift)
+            tonnage_rows = session.exec(tonnage_query).all()
+            tonnage_values = []
+            for val in tonnage_rows:
+                if isinstance(val, (list, tuple)):
+                    val = val[0] if val else None
+                if val:
+                    tonnage_values.append(float(val))
+            if tonnage_values:
+                ordered_tonnage = sorted(tonnage_values)
+                idx_low = max(0, int(len(ordered_tonnage) * 0.33) - 1)
+                idx_high = max(0, int(len(ordered_tonnage) * 0.66) - 1)
+                band_low = ordered_tonnage[idx_low]
+                band_high = ordered_tonnage[idx_high]
+
+        results = []
+        if not tenure_filter_mismatch:
+            query = select(models.Route, models.Client).join(models.Client, models.Route.client_id == models.Client.id)
+            query = query.where(models.Route.employee_id == employee_id)
+            query = query.where(models.Route.tonnage > 0)
+            query = query.where(models.Route.date >= start_date_str)
+            query = query.where(models.Route.date <= end_date_str)
+
+            if shift and shift not in ['Geral', 'Todos', None, 'null']:
+                query = query.where(models.Route.shift == shift)
+
+            results = session.exec(query).all() # List of (Route, Client)
+            if route_band and route_band not in ["Todos", "Geral", None, "null"]:
+                if tonnage_values:
+                    results = [
+                        (r, c) for r, c in results
+                        if assign_band(float(r.tonnage or 0), band_low, band_high) == route_band
+                    ]
+                else:
+                    results = []
+
         routes_data = []
         total_tonnage = 0
         total_secs = 0
         max_kgh = 0
+        active_days = set()
         
         for r, c in results:
             tonnage = r.tonnage or 0
@@ -5700,7 +6485,11 @@ async def get_ranking_details(
             except: pass
             
             total_tonnage += tonnage
-            
+            route_day = to_date(r.date)
+            route_day_key = route_day.isoformat() if route_day else str(r.date)
+            active_days.add(route_day_key)
+            route_date_str = fmt_ddmm(r.date)
+
             routes_data.append({
                 "client": c.name,
                 "tonnage": int(tonnage),
@@ -5708,7 +6497,7 @@ async def get_ranking_details(
                 "end": r.end_time or "-",
                 "duration": duration_fmt,
                 "kgh": int(kgh),
-                "date": datetime.strptime(r.date, "%Y-%m-%d").strftime("%d/%m")
+                "date": route_date_str
             })
             
         # Summary
@@ -5717,7 +6506,19 @@ async def get_ranking_details(
         if hours > 0:
             avg_kgh = total_tonnage / hours
             
-        employee = session.exec(select(models.Employee).where(models.Employee.id == employee_id)).first()
+        start_dt = datetime.combine(start_date_obj, datetime.min.time()).replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+        end_dt = datetime.combine(end_date_obj, datetime.max.time()).replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+
+        absence_counts, _absence_unknown = fetch_absences_agg(session, [employee_id], start_dt, end_dt)
+        absence_data = absence_counts.get(employee_id, {"justified": 0, "unjustified": 0, "leave": 0, "offday": 0})
+        justified_days = absence_data["justified"]
+        unjustified_days = absence_data["unjustified"]
+        leave_days = absence_data["leave"]
+        offday_days = absence_data["offday"]
+        adjusted_denominator = max(1, total_days - justified_days - leave_days - offday_days)
+        regularity_adjusted = len(active_days) / adjusted_denominator
+        absence_penalty_factor = get_absence_penalty(period, unjustified_days)
+        discipline_rate = 1 - (unjustified_days / max(1, total_days))
             
         return {
             "employee": {
@@ -5728,7 +6529,24 @@ async def get_ranking_details(
                 "total_tonnage": int(total_tonnage),
                 "avg_kgh": int(avg_kgh),
                 "total_hours": f"{int(hours):02d}:{int((hours*60)%60):02d}",
-                "count": len(routes_data)
+                "count": len(routes_data),
+                "absences": {
+                    "justified": justified_days,
+                    "unjustified": unjustified_days,
+                    "leave": leave_days,
+                    "offday": offday_days,
+                    "total": justified_days + unjustified_days + leave_days + offday_days
+                },
+                "justified_days": justified_days,
+                "unjustified_days": unjustified_days,
+                "leave_days": leave_days,
+                "offday_days": offday_days,
+                "regularity_adjusted": min(1.0, regularity_adjusted),
+                "absence_penalty_factor": absence_penalty_factor,
+                "presence_rate": min(1.0, regularity_adjusted),
+                "discipline_rate": max(0.0, discipline_rate),
+                "tenure_months": tenure_months,
+                "tenure_band": tenure_band_value
             },
             "routes": sorted(routes_data, key=lambda x: x['start'] or "", reverse=True)
         }
@@ -6018,7 +6836,9 @@ async def smart_flow_page(request: Request, shift: str = "Manhã", date: Optiona
                 "status": e.status,
                 "birthday": e.birthday.isoformat() if e.birthday else None,
                 "admission_date": e.admission_date.isoformat() if e.admission_date else None,
-                "is_substituted": e.registration_id in substituted_ids
+                "is_substituted": e.registration_id in substituted_ids,
+                "mobile_access": e.mobile_access, # IMPORTANT for Sector Management
+                "db_id": e.id
             } for e in employees])
         })
     except Exception as e:

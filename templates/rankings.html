@@ -1,547 +1,453 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="min-h-screen bg-slate-900 pb-20 p-4 sm:p-8" x-data="rankingController()">
-    <div class="max-w-7xl mx-auto space-y-6">
-
-        <!-- DETAILS MODAL -->
-        <div x-show="showModal" class="fixed inset-0 z-50 flex items-center justify-center px-4 sm:px-0"
-            style="display: none;" x-transition:enter="transition ease-out duration-300"
-            x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-            x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100"
-            x-transition:leave-end="opacity-0">
-
-            <!-- Backdrop -->
-            <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" @click="showModal = false"></div>
-
-            <!-- Modal Content -->
-            <div class="bg-slate-900 rounded-3xl border border-white/10 shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col relative z-10 overflow-hidden transform transition-all"
-                x-transition:enter="transition ease-out duration-300"
-                x-transition:enter-start="opacity-0 scale-95 translate-y-4"
-                x-transition:enter-end="opacity-100 scale-100 translate-y-0"
-                x-transition:leave="transition ease-in duration-200"
-                x-transition:leave-start="opacity-100 scale-100 translate-y-0"
-                x-transition:leave-end="opacity-0 scale-95 translate-y-4">
-
-                <!-- Loading State -->
-                <div x-show="loading" class="absolute inset-0 flex items-center justify-center bg-slate-900/50 z-20">
-                    <i data-lucide="loader-2" class="w-8 h-8 text-indigo-500 animate-spin"></i>
-                </div>
-
-                <!-- Modal Header -->
-                <div class="p-6 border-b border-white/5 flex items-start justify-between bg-slate-800/50">
-                    <div class="flex items-center gap-4">
-                        <div class="w-16 h-16 rounded-full bg-slate-700 overflow-hidden border-2 border-slate-600">
-                            <img :src="empDetails?.employee?.photo || 'https://ui-avatars.com/api/?background=random&name=' + (empDetails?.employee?.name || '?')"
-                                class="w-full h-full object-cover">
-                        </div>
-                        <div>
-                            <h2 class="text-xl font-bold text-white" x-text="empDetails?.employee?.name">Review</h2>
-                            <p class="text-sm text-slate-400">Detalhamento de Performance</p>
-                        </div>
-                    </div>
-                    <button @click="showModal = false"
-                        class="p-2 rounded-full bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
-                        <i data-lucide="x" class="w-5 h-5"></i>
-                    </button>
-                </div>
-
-                <!-- Stats Grid -->
-                <div class="grid grid-cols-4 gap-2 p-4 bg-slate-800/20">
-                    <div class="bg-slate-800/50 p-3 rounded-xl text-center border border-white/5">
-                        <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Volume</p>
-                        <p class="text-lg font-black text-white"
-                            x-text="formatNumber(empDetails?.summary?.total_tonnage)">
-                        </p>
-                    </div>
-                    <div class="bg-slate-800/50 p-3 rounded-xl text-center border border-white/5">
-                        <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Velocidade</p>
-                        <p class="text-lg font-black text-green-400"
-                            x-text="formatNumber(empDetails?.summary?.avg_kgh) + ' kg/h'"></p>
-                    </div>
-                    <div class="bg-slate-800/50 p-3 rounded-xl text-center border border-white/5">
-                        <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Tempo</p>
-                        <p class="text-lg font-black text-blue-400" x-text="empDetails?.summary?.total_hours"></p>
-                    </div>
-                    <div class="bg-slate-800/50 p-3 rounded-xl text-center border border-white/5">
-                        <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Viagens</p>
-                        <p class="text-lg font-black text-purple-400" x-text="empDetails?.summary?.count"></p>
-                    </div>
-                </div>
-
-                <!-- Routes List -->
-                <div class="flex-1 overflow-y-auto p-0">
-                    <table class="w-full text-left">
-                        <thead class="bg-slate-800/80 sticky top-0 backdrop-blur-sm z-10">
-                            <tr>
-                                <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Cliente
-                                </th>
-                                <th
-                                    class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">
-                                    Peso</th>
-                                <th
-                                    class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">
-                                    Vel.</th>
-                                <th
-                                    class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">
-                                    Duração</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-white/5">
-                            <template x-for="route in empDetails?.routes" :key="route.start">
-                                <tr class="hover:bg-white/5 transition-colors">
-                                    <td class="px-6 py-3">
-                                        <p class="text-sm font-bold text-white" x-text="route.client"></p>
-                                        <p class="text-[10px] text-slate-500" x-text="route.start + ' - ' + route.end">
-                                        </p>
-                                    </td>
-                                    <td class="px-6 py-3 text-right">
-                                        <p class="text-sm font-mono font-medium text-slate-300"
-                                            x-text="formatNumber(route.tonnage)"></p>
-                                    </td>
-                                    <td class="px-6 py-3 text-right">
-                                        <div class="inline-flex items-center gap-1">
-                                            <span class="text-sm font-mono font-bold text-green-400"
-                                                x-text="route.kgh"></span>
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-3 text-right">
-                                        <p class="text-sm font-mono text-slate-400" x-text="route.duration"></p>
-                                    </td>
-                                </tr>
-                            </template>
-                            <template x-if="!empDetails?.routes?.length">
-                                <tr>
-                                    <td colspan="4" class="text-center py-8 text-slate-500">Nenhum registro encontrado.
-                                    </td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
+<div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8" x-data="performanceController()">
+    <div class="max-w-7xl mx-auto space-y-8">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+                <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Operacoes em rotas e separacao</p>
+                <h1 class="text-3xl md:text-4xl font-black text-white">Avaliacao Operacional Inteligente</h1>
+                <p class="text-sm text-slate-400 mt-2">Apenas colaboradores com rotas registradas no periodo.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Periodo: {{ filters.period }}</span>
+                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Turno: {{ filters.shift }}</span>
+                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Rota: {{ filters.route_band }}</span>
+                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Liga: {{ filters.tenure_band }}</span>
+                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Faltas: {{ absence_totals.unjustified }}</span>
+                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Atestados: {{ absence_totals.justified }}</span>
+                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Afastamentos: {{ absence_totals.leave }}</span>
+                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Folgas: {{ absence_totals.offday }}</span>
             </div>
         </div>
-        <!-- END DETAILS MODAL -->
 
-        <script>
-            function rankingController() {
-                return {
-                    showModal: false,
-                    loading: false,
-                    empDetails: null,
-
-                    formatNumber(num) {
-                        if (num === undefined || num === null) return '-';
-                        return new Intl.NumberFormat('pt-BR').format(num);
-                    },
-
-                    async openDetails(empId) {
-                        this.showModal = true;
-                        this.loading = true;
-                        this.empDetails = null; // reset
-
-                        // Get current filters from URL params or inputs
-                        const params = new URLSearchParams(window.location.search);
-                        const date = params.get('date') || document.querySelector('input[name="date"]').value;
-                        const period = params.get('period') || 'daily';
-                        const shift = params.get('shift') || 'Todos';
-
-                        try {
-                            const res = await fetch(`/api/rankings/employee/${empId}/details?date=${date}&period=${period}&shift=${shift}`);
-                            if (!res.ok) throw new Error('Falha ao buscar detalhes');
-                            this.empDetails = await res.json();
-                        } catch (e) {
-                            console.error(e);
-                            alert("Erro ao carregar detalhes.");
-                            this.showModal = false;
-                        } finally {
-                            this.loading = false;
-                        }
-                    }
-                }
-            }
-
-            function changeDate(days) {
-                const input = document.querySelector('input[name="date"]');
-                if (!input.value) {
-                    input.value = new Date().toISOString().split('T')[0];
-                }
-                const current = new Date(input.value + "T12:00:00");
-                current.setDate(current.getDate() + days);
-                input.value = current.toISOString().split('T')[0];
-                document.getElementById('filterForm').submit();
-            }
-        </script>
-
-        <!-- Header e Filtros Completos -->
-        <div
-            class="flex flex-col xl:flex-row items-center justify-between gap-6 bg-slate-800/50 p-6 rounded-[2rem] border border-white/5 backdrop-blur-sm">
-            <div class="text-center xl:text-left">
-                <h1
-                    class="text-4xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 mb-2 drop-shadow-sm">
-                    Arena de Lendas
-                </h1>
-                <p class="text-slate-400 font-medium text-lg">Onde a performance vira história.</p>
+        <form class="grid grid-cols-1 md:grid-cols-7 gap-3 bg-slate-800/60 border border-slate-700 rounded-2xl p-4" method="get" action="/operations/performance" id="filtersForm">
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Periodo</label>
+                <select name="period" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
+                    <option value="daily" {{ 'selected' if filters.period == 'daily' else '' }}>Diario</option>
+                    <option value="weekly" {{ 'selected' if filters.period == 'weekly' else '' }}>Semanal</option>
+                    <option value="monthly" {{ 'selected' if filters.period == 'monthly' else '' }}>Mensal</option>
+                </select>
             </div>
-
-            <!-- Controls Deck -->
-            <div class="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
-
-                <!-- Period Tabs -->
-                <div class="flex p-1 bg-slate-900 rounded-xl border border-white/5 w-full sm:w-auto overflow-x-auto">
-                    {% for p in ['daily', 'weekly', 'monthly'] %}
-                    <a href="?period={{ p }}&date={{ selected_date }}&shift={{ current_shift }}&sort_by={{ current_sort }}&order={{ current_order }}"
-                        class="flex-1 sm:flex-none px-4 py-2 rounded-lg font-bold text-sm text-center transition-all capitalize whitespace-nowrap {{ 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/25' if current_period == p else 'text-slate-400 hover:text-white' }}">
-                        {{ 'Dia' if p == 'daily' else 'Semana' if p == 'weekly' else 'Mês' }}
-                    </a>
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Data base</label>
+                <input type="date" name="date" value="{{ filters.date }}" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Turno</label>
+                <select name="shift" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
+                    {% for opt in ['Todos','Manhã','Tarde','Noite'] %}
+                    <option value="{{ opt }}" {{ 'selected' if filters.shift == opt else '' }}>{{ opt }}</option>
                     {% endfor %}
-                </div>
-
-                <!-- Date & Shift -->
-                <form action="/rankings" method="get"
-                    class="flex flex-wrap items-center justify-center gap-2 w-full sm:w-auto" id="filterForm">
-                    <input type="hidden" name="period" value="{{ current_period }}">
-                    <input type="hidden" name="sort_by" value="{{ current_sort }}">
-                    <input type="hidden" name="order" value="{{ current_order }}">
-
-                    <!-- Shift -->
-                    <select name="shift" onchange="this.form.submit()"
-                        class="bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-2 font-bold focus:ring-2 focus:ring-indigo-500 outline-none appearance-none cursor-pointer hover:bg-slate-800 transition-colors">
-                        <option value="Todos" {{ 'selected' if current_shift=='Todos' }}>Todos Turnos</option>
-                        <option value="Manhã" {{ 'selected' if current_shift=='Manhã' }}>Manhã</option>
-                        <option value="Tarde" {{ 'selected' if current_shift=='Tarde' }}>Tarde</option>
-                        <option value="Noite" {{ 'selected' if current_shift=='Noite' }}>Noite</option>
-                    </select>
-
-                    <!-- Date Nav -->
-                    <div class="flex items-center bg-slate-900 rounded-lg p-1 border border-slate-700">
-                        <button type="button" onclick="changeDate(-1)"
-                            class="p-1.5 rounded bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
-                            <i data-lucide="chevron-left" class="w-4 h-4"></i>
-                        </button>
-                        <input type="date" name="date" value="{{ selected_date }}" onchange="this.form.submit()"
-                            class="bg-transparent text-white border-0 py-1 px-2 font-mono font-bold text-sm focus:ring-0 w-28 text-center [color-scheme:dark]">
-                        <button type="button" onclick="changeDate(1)"
-                            class="p-1.5 rounded bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
-                            <i data-lucide="chevron-right" class="w-4 h-4"></i>
-                        </button>
-                    </div>
-                </form>
+                </select>
             </div>
-        </div>
-
-        <!-- Metric & Order Selectors -->
-        <div class="flex flex-col sm:flex-row justify-center gap-4">
-            <!-- Metrics -->
-            <div class="flex p-1 bg-slate-800/50 rounded-2xl border border-white/5 backdrop-blur-sm overflow-x-auto">
-                <a href="?sort_by=tonnage&period={{ current_period }}&date={{ selected_date }}&shift={{ current_shift }}&order={{ current_order }}"
-                    class="flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all {{ 'bg-yellow-500 text-slate-900 shadow-lg shadow-yellow-500/20' if current_sort == 'tonnage' else 'text-slate-400 hover:text-white hover:bg-white/5' }}">
-                    <i data-lucide="package" class="w-5 h-5"></i> Volume
-                </a>
-                <a href="?sort_by=kgh&period={{ current_period }}&date={{ selected_date }}&shift={{ current_shift }}&order={{ current_order }}"
-                    class="flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all {{ 'bg-green-500 text-white shadow-lg shadow-green-500/20' if current_sort == 'kgh' else 'text-slate-400 hover:text-white hover:bg-white/5' }}">
-                    <i data-lucide="zap" class="w-5 h-5"></i> Velocidade
-                </a>
-                <a href="?sort_by=time&period={{ current_period }}&date={{ selected_date }}&shift={{ current_shift }}&order={{ current_order }}"
-                    class="flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all {{ 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' if current_sort == 'time' else 'text-slate-400 hover:text-white hover:bg-white/5' }}">
-                    <i data-lucide="clock" class="w-5 h-5"></i> Tempo
-                </a>
-                <a href="?sort_by=count&period={{ current_period }}&date={{ selected_date }}&shift={{ current_shift }}&order={{ current_order }}"
-                    class="flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all {{ 'bg-purple-500 text-white shadow-lg shadow-purple-500/20' if current_sort == 'count' else 'text-slate-400 hover:text-white hover:bg-white/5' }}">
-                    <i data-lucide="list-ordered" class="w-5 h-5"></i> Viagens
-                </a>
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Tipo de rota</label>
+                <select name="route_band" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
+                    <option value="Todos" {{ 'selected' if filters.route_band == 'Todos' else '' }}>Todas</option>
+                    <option value="Leve" {{ 'selected' if filters.route_band == 'Leve' else '' }}>Leve ({{ band_labels.Leve }})</option>
+                    <option value="Media" {{ 'selected' if filters.route_band == 'Media' else '' }}>Media ({{ band_labels.Media }})</option>
+                    <option value="Pesada" {{ 'selected' if filters.route_band == 'Pesada' else '' }}>Pesada ({{ band_labels.Pesada }})</option>
+                </select>
             </div>
-
-            <!-- Order Toggle -->
-            <div class="flex p-1 bg-slate-800/50 rounded-2xl border border-white/5 backdrop-blur-sm">
-                <a href="?order=desc&sort_by={{ current_sort }}&period={{ current_period }}&date={{ selected_date }}&shift={{ current_shift }}"
-                    class="flex items-center gap-2 px-5 py-3 rounded-xl font-bold transition-all {{ 'bg-emerald-500 text-white' if current_order == 'desc' else 'text-slate-500 hover:text-slate-300' }}">
-                    <i data-lucide="trophy" class="w-5 h-5"></i> Melhores
-                </a>
-                <a href="?order=asc&sort_by={{ current_sort }}&period={{ current_period }}&date={{ selected_date }}&shift={{ current_shift }}"
-                    class="flex items-center gap-2 px-5 py-3 rounded-xl font-bold transition-all {{ 'bg-red-500 text-white' if current_order == 'asc' else 'text-slate-500 hover:text-slate-300' }}">
-                    <i data-lucide="thumbs-down" class="w-5 h-5"></i> Piores
-                </a>
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Liga</label>
+                <select name="tenure_band" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
+                    <option value="Todos" {{ 'selected' if filters.tenure_band == 'Todos' else '' }}>Todas</option>
+                    <option value="Novatos" {{ 'selected' if filters.tenure_band == 'Novatos' else '' }}>Novatos (0-3m)</option>
+                    <option value="Consolidacao" {{ 'selected' if filters.tenure_band == 'Consolidacao' else '' }}>Consolidacao (3-12m)</option>
+                    <option value="Veteranos" {{ 'selected' if filters.tenure_band == 'Veteranos' else '' }}>Veteranos (12m+)</option>
+                </select>
             </div>
-        </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Ordenar por</label>
+                <select name="sort_by" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
+                    <option value="score" {{ 'selected' if filters.sort_by == 'score' else '' }}>Score</option>
+                    <option value="kgh" {{ 'selected' if filters.sort_by == 'kgh' else '' }}>Kg/h</option>
+                    <option value="tonnage" {{ 'selected' if filters.sort_by == 'tonnage' else '' }}>Volume</option>
+                    <option value="consistency" {{ 'selected' if filters.sort_by == 'consistency' else '' }}>Consistencia</option>
+                    <option value="trend" {{ 'selected' if filters.sort_by == 'trend' else '' }}>Tendencia</option>
+                </select>
+            </div>
+            <div class="flex items-end gap-2">
+                <select name="order" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
+                    <option value="desc" {{ 'selected' if filters.order == 'desc' else '' }}>Maior</option>
+                    <option value="asc" {{ 'selected' if filters.order == 'asc' else '' }}>Menor</option>
+                </select>
+                <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold">Aplicar</button>
+            </div>
+        </form>
 
-        {% if not ranking_list %}
-        <div
-            class="text-center py-20 bg-slate-800/30 rounded-3xl border border-dashed border-slate-700 animate-fade-in">
-            <i data-lucide="ghost" class="w-16 h-16 text-slate-600 mx-auto mb-4"></i>
-            <h3 class="text-xl font-bold text-slate-400">Nenhum dado encontrado</h3>
-            <p class="text-slate-500">Tente mudar os filtros ou a data.</p>
+        {% if not rows %}
+        <div class="text-center py-16 bg-slate-800/40 border border-dashed border-slate-700 rounded-3xl">
+            <p class="text-slate-400">Nenhuma rota encontrada para o periodo selecionado.</p>
         </div>
         {% else %}
+        <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+                <p class="text-xs text-slate-400 uppercase tracking-wider">Volume total</p>
+                <p class="text-2xl font-bold text-white">{{ "{:,.0f}".format(team_stats.total_tonnage) }}</p>
+            </div>
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+                <p class="text-xs text-slate-400 uppercase tracking-wider">Media kg/h</p>
+                <p class="text-2xl font-bold text-emerald-300">{{ "{:,.0f}".format(team_stats.avg_kgh) }}</p>
+            </div>
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+                <p class="text-xs text-slate-400 uppercase tracking-wider">Tempo medio/viagem</p>
+                <p class="text-2xl font-bold text-blue-300">{{ "{:.1f}".format(team_stats.avg_trip_minutes) }} min</p>
+            </div>
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+                <p class="text-xs text-slate-400 uppercase tracking-wider">Ativos</p>
+                <p class="text-2xl font-bold text-white">{{ team_stats.active_employees }}</p>
+            </div>
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+                <p class="text-xs text-slate-400 uppercase tracking-wider">Presenca ajustada</p>
+                <p class="text-2xl font-bold text-emerald-200">{{ "{:.0%}".format(team_stats.avg_presence_adjusted) }}</p>
+            </div>
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+                <p class="text-xs text-slate-400 uppercase tracking-wider">Disciplina (faltas)</p>
+                <p class="text-2xl font-bold text-amber-200">{{ "{:.0%}".format(team_stats.discipline_rate) }}</p>
+                <p class="text-[10px] text-slate-500 mt-1">Faltas: {{ team_stats.unjustified_total }}</p>
+            </div>
+        </div>
 
-        <!-- BADGES (Only visible on Top Performers) -->
-        {% if badges and current_order == 'desc' %}
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 animate-slide-up">
-            {% for badge in badges %}
-            <div class="relative group cursor-default">
-                <div
-                    class="bg-slate-800/80 border border-white/5 p-6 rounded-3xl flex items-center gap-4 shadow-lg transition-all hover:-translate-y-1 {{ badge.class }}">
-                    <div class="w-16 h-16 shrink-0 bg-slate-900 rounded-2xl p-2 shadow-inner">
-                        <img src="{{ badge.image }}" class="w-full h-full object-contain">
-                    </div>
-                    <div>
-                        <h3 class="font-black text-white uppercase text-sm tracking-wider mb-1">{{ badge.title }}</h3>
-                        <div class="text-xs text-slate-400 mb-2 leading-tight">{{ badge.desc }}</div>
-                        <div class="flex items-center gap-2">
-                            <span
-                                class="font-bold text-white bg-slate-900 px-2 py-0.5 rounded text-xs border border-white/10">{{
-                                badge.winner }}</span>
-                            <span class="font-bold text-yellow-500 text-xs">{{ badge.value }}</span>
-                        </div>
-                    </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {% for league in league_rankings %}
+            <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-bold text-white">{{ league.band }}</h3>
+                    <a href="/operations/performance?date={{ filters.date }}&period={{ filters.period }}&shift={{ filters.shift }}&route_band={{ filters.route_band }}&sort_by={{ filters.sort_by }}&order={{ filters.order }}&tenure_band={{ league.band }}"
+                        class="text-xs text-blue-300 hover:text-blue-200">Filtrar</a>
                 </div>
+                {% if league.top %}
+                <div class="space-y-2 text-xs text-slate-300">
+                    {% for item in league.top %}
+                    <div class="flex items-center justify-between">
+                        <span class="text-white font-semibold">{{ item.name }}</span>
+                        <span>{{ item.score }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-xs text-slate-500">Sem dados na liga.</p>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
-        {% endif %}
 
-        <!-- PODIUM (Only if Order DESC and at least 3 items) -->
-        {% if current_order == 'desc' and ranking_list|length >= 3 %}
-        <div class="relative py-10 mb-10 animate-slide-up">
-            <div class="flex items-end justify-center gap-4 h-64">
-
-                <!-- 2nd Place -->
-                <div class="flex flex-col items-center w-1/4 sm:w-1/5 relative group" style="animation-delay: 100ms">
-                    <div
-                        class="absolute -top-12 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 px-3 py-1 rounded-lg text-xs font-bold text-white mb-2 pointer-events-none border border-slate-600 box-content z-20 whitespace-nowrap">
-                        {{ ranking_list[1].name }}
-                    </div>
-                    <div
-                        class="w-16 h-16 rounded-full border-4 border-slate-300 bg-slate-800 overflow-hidden shadow-lg mb-[-20px] z-10 relative">
-                        <img src="{{ ranking_list[1].photo or 'https://ui-avatars.com/api/?background=random&name=' + ranking_list[1].name }}"
-                            class="w-full h-full object-cover">
-                    </div>
-                    <div
-                        class="w-full bg-gradient-to-t from-slate-700 to-slate-600 rounded-t-2xl h-32 flex flex-col justify-end pb-4 items-center shadow-lg border-t border-white/10 relative">
-                        <div class="text-4xl font-black text-slate-300/20 absolute top-2">2</div>
-                        <div class="text-white font-bold text-lg md:text-xl font-mono">
-                            {% if current_sort == 'kgh' %}{{ "{:,.0f}".format(ranking_list[1].kgh) }}
-                            {% elif current_sort == 'time' %}{{ ranking_list[1].time_fmt }}
-                            {% elif current_sort == 'count' %}{{ ranking_list[1].count }}
-                            {% else %}{{ "{:,.0f}".format(ranking_list[1].tonnage) }}{% endif %}
-                        </div>
-                        <div class="text-[10px] uppercase font-bold text-slate-300 tracking-wider">
-                            {{ 'Kg/h' if current_sort == 'kgh' else 'Tempo' if current_sort == 'time' else 'Viagens' if
-                            current_sort == 'count' else 'Kg' }}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 1st Place -->
-                <div class="flex flex-col items-center w-1/3 sm:w-1/4 z-10 relative group">
-                    <i data-lucide="crown" class="w-8 h-8 text-yellow-400 absolute -top-24 animate-bounce"></i>
-                    <div
-                        class="w-24 h-24 rounded-full border-4 border-yellow-400 bg-slate-800 overflow-hidden shadow-xl shadow-yellow-500/30 mb-[-30px] z-10 relative">
-                        <img src="{{ ranking_list[0].photo or 'https://ui-avatars.com/api/?background=random&name=' + ranking_list[0].name }}"
-                            class="w-full h-full object-cover">
-                    </div>
-                    <div
-                        class="w-full bg-gradient-to-t from-yellow-600 to-yellow-500 rounded-t-2xl h-48 flex flex-col justify-end pb-6 items-center shadow-[0_0_50px_rgba(234,179,8,0.2)] border-t border-yellow-300/30 relative">
-                        <div class="text-6xl font-black text-yellow-900/20 absolute top-4">1</div>
-                        <div class="text-white font-black text-2xl md:text-4xl font-mono drop-shadow-sm">
-                            {% if current_sort == 'kgh' %}{{ "{:,.0f}".format(ranking_list[0].kgh) }}
-                            {% elif current_sort == 'time' %}{{ ranking_list[0].time_fmt }}
-                            {% elif current_sort == 'count' %}{{ ranking_list[0].count }}
-                            {% else %}{{ "{:,.0f}".format(ranking_list[0].tonnage) }}{% endif %}
-                        </div>
-                        <div class="text-xs uppercase font-bold text-yellow-100 tracking-wider">
-                            {{ 'Kg/h' if current_sort == 'kgh' else 'Tempo' if current_sort == 'time' else 'Viagens' if
-                            current_sort == 'count' else 'Kg' }}
-                        </div>
-                        <div
-                            class="mt-2 px-3 py-1 bg-black/20 rounded-full text-xs font-bold text-white truncate max-w-[90%]">
-                            {{ ranking_list[0].name.split()[0] }}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 3rd Place -->
-                <div class="flex flex-col items-center w-1/4 sm:w-1/5 relative group" style="animation-delay: 200ms">
-                    <div
-                        class="absolute -top-12 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 px-3 py-1 rounded-lg text-xs font-bold text-white mb-2 pointer-events-none border border-slate-600 box-content z-20 whitespace-nowrap">
-                        {{ ranking_list[2].name }}
-                    </div>
-                    <div
-                        class="w-16 h-16 rounded-full border-4 border-orange-600 bg-slate-800 overflow-hidden shadow-lg mb-[-20px] z-10 relative">
-                        <img src="{{ ranking_list[2].photo or 'https://ui-avatars.com/api/?background=random&name=' + ranking_list[2].name }}"
-                            class="w-full h-full object-cover">
-                    </div>
-                    <div
-                        class="w-full bg-gradient-to-t from-orange-800 to-orange-700 rounded-t-2xl h-24 flex flex-col justify-end pb-4 items-center shadow-lg border-t border-white/10 relative">
-                        <div class="text-4xl font-black text-orange-900/20 absolute top-2">3</div>
-                        <div class="text-white font-bold text-lg md:text-xl font-mono">
-                            {% if current_sort == 'kgh' %}{{ "{:,.0f}".format(ranking_list[2].kgh) }}
-                            {% elif current_sort == 'time' %}{{ ranking_list[2].time_fmt }}
-                            {% elif current_sort == 'count' %}{{ ranking_list[2].count }}
-                            {% else %}{{ "{:,.0f}".format(ranking_list[2].tonnage) }}{% endif %}
-                        </div>
-                        <div class="text-[10px] uppercase font-bold text-orange-200 tracking-wider">
-                            {{ 'Kg/h' if current_sort == 'kgh' else 'Tempo' if current_sort == 'time' else 'Viagens' if
-                            current_sort == 'count' else 'Kg' }}
-                        </div>
-                    </div>
-                </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {% set insight_cards = [
+                ('Melhor do periodo', insights.best),
+                ('Maior evolucao', insights.improved),
+                ('Melhor presenca', insights.presence),
+                ('Mais consistente', insights.consistent),
+                ('Gargalo de tempo', insights.bottleneck),
+                ('Mais faltas', insights.absences),
+                ('Maior curva de aprendizado', insights.learning),
+                ('Veterano referencia', insights.veteran),
+                ('Potencial nao explorado', insights.potential)
+            ] %}
+            {% for title, info in insight_cards %}
+            <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4">
+                <p class="text-xs text-slate-400 uppercase tracking-wider">{{ title }}</p>
+                <p class="text-lg font-bold text-white mt-2">{{ info.name if info else '---' }}</p>
+                <p class="text-xs text-slate-500">{{ info.detail if info else 'Sem dados' }}</p>
             </div>
-        </div>
-        {% endif %}
-
-        <!-- UNIFIED LIST (Full Ranking) -->
-        <div class="bg-slate-800/50 rounded-[2.5rem] border border-white/5 overflow-hidden animate-slide-up">
-            <div class="p-6 sm:p-8">
-                <h3 class="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                    <span class="p-2 rounded-xl bg-indigo-500/10 text-indigo-500">
-                        <i data-lucide="list" class="w-6 h-6"></i>
-                    </span>
-                    Classificação Geral
-                    <span
-                        class="text-sm font-normal text-slate-500 ml-auto bg-slate-900 px-3 py-1 rounded-full border border-slate-700">
-                        Total: {{ ranking_list|length }}
-                    </span>
-                </h3>
-
-                <div class="overflow-x-auto">
-                    <table class="w-full border-collapse">
-                        <thead>
-                            <tr class="text-left border-b border-white/5">
-                                <th class="pb-4 pl-4 text-slate-500 font-bold uppercase text-xs tracking-wider w-16">
-                                    Rank</th>
-                                <th class="pb-4 text-slate-500 font-bold uppercase text-xs tracking-wider">Colaborador
-                                </th>
-                                <th
-                                    class="pb-4 text-right text-slate-500 font-bold uppercase text-xs tracking-wider {{ 'text-yellow-500' if current_sort == 'tonnage' }}">
-                                    Volume</th>
-                                <th
-                                    class="pb-4 text-right text-slate-500 font-bold uppercase text-xs tracking-wider {{ 'text-green-500' if current_sort == 'kgh' }}">
-                                    Kg/h</th>
-                                <th
-                                    class="pb-4 text-right text-slate-500 font-bold uppercase text-xs tracking-wider {{ 'text-blue-500' if current_sort == 'time' }}">
-                                    Tempo</th>
-                                <th
-                                    class="pb-4 pr-4 text-right text-slate-500 font-bold uppercase text-xs tracking-wider {{ 'text-purple-500' if current_sort == 'count' }}">
-                                    Viagens</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-white/5">
-                            <!-- Loop Skip Podium only if DESC. If ASC show all. -->
-                            {% set start_index = 3 if (current_order == 'desc' and ranking_list|length >= 3) else 0 %}
-                            {% for item in ranking_list[start_index:] %}
-                            <tr class="group hover:bg-white/5 transition-colors">
-                                <td class="py-4 pl-4">
-                                    <span
-                                        class="font-mono font-bold text-slate-500 group-hover:text-white transition-colors">#{{
-                                        start_index + loop.index }}</span>
-                                </td>
-                                <td class="py-4">
-                                    <div class="flex items-center gap-3">
-                                        <div
-                                            class="w-10 h-10 rounded-full bg-slate-700 overflow-hidden border border-slate-600 group-hover:border-indigo-500 transition-colors">
-                                            <img src="{{ item.photo or 'https://ui-avatars.com/api/?background=random&name=' + item.name }}"
-                                                class="w-full h-full object-cover">
-                                        </div>
-                                        <div>
-                                            <p class="text-white font-bold text-sm">{{ item.name }}</p>
-                                            <div class="flex items-center gap-1 mt-0.5">
-                                                <!-- Mini badges for records -->
-                                                {% if item.max_kgh > 3000 %}<span
-                                                    class="w-1.5 h-1.5 rounded-full bg-yellow-500"
-                                                    title="Alta Velocidade"></span>{% endif %}
-                                                {% if item.max_tonnage > 1500 %}<span
-                                                    class="w-1.5 h-1.5 rounded-full bg-green-500"
-                                                    title="Carga Pesada"></span>{% endif %}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </td>
-
-                                <td
-                                    class="py-4 text-right font-mono font-medium {{ 'text-yellow-400 font-bold text-lg' if current_sort == 'tonnage' else 'text-slate-400' }}">
-                                    {{ "{:,.0f}".format(item.tonnage) }} <span
-                                        class="text-[10px] text-slate-600">kg</span>
-                                </td>
-
-                                <td
-                                    class="py-4 text-right font-mono font-medium {{ 'text-green-400 font-bold text-lg' if current_sort == 'kgh' else 'text-slate-400' }}">
-                                    {{ "{:,.0f}".format(item.kgh) }}
-                                </td>
-
-                                <td
-                                    class="py-4 text-right font-mono font-medium {{ 'text-blue-400 font-bold text-lg' if current_sort == 'time' else 'text-slate-400' }}">
-                                    {{ item.time_fmt }}
-                                </td>
-
-                                <td
-                                    class="py-4 pr-4 text-right font-mono font-medium {{ 'text-purple-400 font-bold text-lg' if current_sort == 'count' else 'text-slate-400' }}">
-                                    {{ item.count }}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            {% endfor %}
         </div>
 
-        {% endif %}
-
-        <!-- Global Levels Section (Keep as is just optimized) -->
-        <div class="mt-12 bg-slate-900/50 p-6 rounded-3xl border border-white/5">
-            <h2 class="text-2xl font-black text-white mb-6 flex items-center gap-3">
-                <span class="p-2 rounded-xl bg-purple-500/10 text-purple-500"><i data-lucide="gamepad-2"
-                        class="w-6 h-6"></i></span>
-                Níveis Globais (Top 12)
-            </h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {% for level in levels %}
-                <div
-                    class="bg-slate-800 rounded-2xl p-4 border border-slate-700 flex items-center gap-4 hover:bg-slate-750 transition-colors">
-                    <div class="relative shrink-0 w-12 h-12">
-                        <svg class="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                            <path class="text-slate-700"
-                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                fill="none" stroke="currentColor" stroke-width="4" />
-                            <path
-                                class="{{ 'text-yellow-500' if level.level == 'Ouro' else 'text-slate-300' if level.level == 'Prata' else 'text-orange-600' if level.level == 'Bronze' else 'text-cyan-400' }}"
-                                stroke-dasharray="{{ level.progress }}, 100"
-                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
-                        </svg>
-                        <div class="absolute inset-0 flex items-center justify-center">
-                            <span class="text-[10px] font-bold text-slate-300">{{ level.progress|int }}%</span>
+        <div class="bg-slate-800/50 border border-slate-700 rounded-3xl p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold text-white">Top performers e porque</h2>
+                <p class="text-xs text-slate-500">Score ponderado por volume, regularidade e consistencia</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for perf in top_performers %}
+                <div class="bg-slate-900/80 border border-slate-700 rounded-2xl p-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-semibold text-white">{{ perf.name }}</p>
+                            <p class="text-xs text-slate-500">Score {{ perf.score }} | {{ perf.percentile }}%</p>
                         </div>
+                        <button @click="openDetails({{ perf.id }})" class="text-xs text-blue-300 hover:text-blue-200">Detalhes</button>
                     </div>
-                    <div class="min-w-0">
-                        <h4 class="text-white font-bold truncate">{{ level.name }}</h4>
-                        <div class="flex items-center gap-2">
-                            <span
-                                class="px-1.5 py-0.5 rounded text-[10px] uppercase font-bold bg-slate-900 border border-slate-700 {{ 'text-yellow-500' if level.level == 'Ouro' else 'text-slate-300' if level.level == 'Prata' else 'text-orange-600' if level.level == 'Bronze' else 'text-cyan-400' }}">
-                                {{ level.level }}
-                            </span>
-                            <span class="text-xs text-slate-500 font-mono">{{ "{:,}".format(level.xp) }} XP</span>
-                        </div>
-                    </div>
+                    <ul class="mt-3 space-y-1 text-xs text-slate-300">
+                        {% for reason in perf.reasons %}
+                        <li>• {{ reason }}</li>
+                        {% endfor %}
+                        {% if not perf.reasons %}
+                        <li>• Sem sinais fortes no periodo</li>
+                        {% endif %}
+                    </ul>
                 </div>
                 {% endfor %}
             </div>
         </div>
 
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4">
+                <h3 class="text-sm font-bold text-white">Perfis operacionais</h3>
+                {% if rows|length < 12 %}
+                <p class="text-[10px] text-slate-500 mb-3">Perfis por regras (amostra pequena).</p>
+                {% else %}
+                <p class="text-[10px] text-slate-500 mb-3">Clustering estatistico do periodo.</p>
+                {% endif %}
+                <div class="space-y-3 text-xs text-slate-300">
+                    {% for cluster in clusters %}
+                    <div>
+                        <p class="font-semibold text-white">{{ cluster.label }} ({{ cluster.count }})</p>
+                        <p>Media kg/h: {{ "{:,.0f}".format(cluster.avg_kgh) }} | Reg: {{ "{:.0%}".format(cluster.avg_regularity) }}</p>
+                        <p class="text-slate-500">{{ cluster.members | join(', ') }}</p>
+                    </div>
+                    {% endfor %}
+                    {% if not clusters %}
+                    <p class="text-slate-500">Dados insuficientes para clustering.</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4">
+                <h3 class="text-sm font-bold text-white">Outliers de performance</h3>
+                {% if rows|length < 8 %}
+                <p class="text-[10px] text-slate-500 mb-3">Amostra pequena para outliers.</p>
+                {% else %}
+                <p class="text-[10px] text-slate-500 mb-3">Z-score em kg/h.</p>
+                {% endif %}
+                <div class="space-y-3 text-xs text-slate-300">
+                    {% for out in outliers %}
+                    <div>
+                        <p class="font-semibold text-white">{{ out.name }}</p>
+                        <p>Kg/h: {{ "{:,.0f}".format(out.kgh) }} | z {{ "{:.2f}".format(out.zscore) }}</p>
+                    </div>
+                    {% endfor %}
+                    {% if not outliers %}
+                    <p class="text-slate-500">Sem picos anormais no periodo.</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4">
+                <h3 class="text-sm font-bold text-white">Drivers estatisticos do score (correlacao)</h3>
+                <p class="text-[10px] text-slate-500 mb-3">Nao indica causalidade.</p>
+                <div class="space-y-3 text-xs text-slate-300">
+                    {% for driver in feature_drivers %}
+                    <div class="flex items-center justify-between">
+                        <span>{{ driver.label }}</span>
+                        <span class="text-slate-400">{{ "{:.2f}".format(driver.corr) }}</span>
+                    </div>
+                    {% endfor %}
+                    {% if not feature_drivers %}
+                    <p class="text-slate-500">Sem dados para correlacao.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-slate-800/50 border border-slate-700 rounded-3xl overflow-hidden">
+            <div class="flex items-center justify-between p-6">
+                <div>
+                    <h2 class="text-xl font-bold text-white">Mapa completo da operacao</h2>
+                    <p class="text-xs text-slate-500">Score ponderado, regularidade e eficiencia operacional.</p>
+                </div>
+                <span class="text-xs text-slate-500">{{ rows|length }} colaboradores</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="text-xs uppercase text-slate-500 border-b border-slate-700">
+                        <tr>
+                            <th class="py-3 px-4">Colaborador</th>
+                            <th class="py-3 px-4">Liga</th>
+                            <th class="py-3 px-4">Score</th>
+                            <th class="py-3 px-4">Volume</th>
+                            <th class="py-3 px-4">Kg/h</th>
+                            <th class="py-3 px-4">Viagens</th>
+                            <th class="py-3 px-4">Tempo/viagem</th>
+                            <th class="py-3 px-4">Regularidade ajustada</th>
+                            <th class="py-3 px-4">Consistencia (CV)</th>
+                            <th class="py-3 px-4">Tendencia</th>
+                            <th class="py-3 px-4">Tempo casa</th>
+                            <th class="py-3 px-4">Faltas</th>
+                            <th class="py-3 px-4">Atestados</th>
+                            <th class="py-3 px-4">Afastamentos</th>
+                            <th class="py-3 px-4">Folgas</th>
+                            <th class="py-3 px-4">Ocorrencias</th>
+                            <th class="py-3 px-4"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-700">
+                        {% for row in rows %}
+                        <tr class="hover:bg-slate-900/60">
+                            <td class="py-3 px-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-9 h-9 rounded-full bg-slate-700 overflow-hidden">
+                                        <img src="{{ row.photo or 'https://ui-avatars.com/api/?background=1f2937&color=fff&name=' + row.name }}" class="w-full h-full object-cover">
+                                    </div>
+                                    <div>
+                                        <p class="text-white font-semibold">{{ row.name }}</p>
+                                        <p class="text-xs text-slate-500">{{ row.top_client }}</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-3 px-4">
+                                <span class="text-xs px-2 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300">{{ row.tenure_band }}</span>
+                            </td>
+                            <td class="py-3 px-4 text-emerald-300 font-semibold">{{ row.score }}</td>
+                            <td class="py-3 px-4">{{ "{:,.0f}".format(row.total_tonnage) }} kg</td>
+                            <td class="py-3 px-4">{{ "{:,.0f}".format(row.avg_kgh) }}</td>
+                            <td class="py-3 px-4">{{ row.count }}</td>
+                            <td class="py-3 px-4">{{ "{:.1f}".format(row.avg_trip_minutes) }} min</td>
+                            <td class="py-3 px-4">{{ "{:.0%}".format(row.regularity_adjusted) }}</td>
+                            <td class="py-3 px-4">{{ "{:.2f}".format(row.cv) }}</td>
+                            <td class="py-3 px-4">{{ row.trend_label }}</td>
+                            <td class="py-3 px-4">{{ row.tenure_months }}m</td>
+                            <td class="py-3 px-4">{{ row.unjustified_absences }}</td>
+                            <td class="py-3 px-4">{{ row.justified_absences }}</td>
+                            <td class="py-3 px-4">{{ row.leave_absences }}</td>
+                            <td class="py-3 px-4">{{ row.offday_absences }}</td>
+                            <td class="py-3 px-4">{{ row.occurrences }}</td>
+                            <td class="py-3 px-4">
+                                <button @click="openDetails({{ row.id }})" class="text-xs text-blue-300 hover:text-blue-200">Detalhes</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if debug_absences %}
+        <details class="bg-slate-800/60 border border-slate-700 rounded-2xl p-4 text-xs text-slate-300">
+            <summary class="cursor-pointer text-slate-400 font-semibold">Debug absencias nao classificadas</summary>
+            <p class="mt-2 text-slate-400">Total: {{ debug_absences.unknown }}</p>
+            {% if debug_absences.examples %}
+            <div class="mt-2 grid gap-1 text-slate-300">
+                {% for label in debug_absences.examples %}
+                <div>• {{ label }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </details>
+        {% endif %}
+
+        <div x-show="showModal" class="fixed inset-0 z-50 flex items-center justify-center px-4" style="display: none;">
+            <div class="absolute inset-0 bg-black/70" @click="showModal = false"></div>
+            <div class="bg-slate-900 rounded-2xl border border-white/10 shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col relative z-10 overflow-hidden">
+                <div x-show="loading" class="absolute inset-0 flex items-center justify-center bg-slate-900/60 z-20">
+                    <div class="text-slate-300 text-sm">Carregando...</div>
+                </div>
+                <div class="p-6 border-b border-white/10 flex items-start justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold text-white" x-text="empDetails?.employee?.name">Detalhes</h2>
+                        <p class="text-xs text-slate-500">Rotas do periodo selecionado.</p>
+                        <p class="text-xs text-slate-500 mt-1">
+                            Tempo de casa: <span x-text="empDetails?.summary?.tenure_months ?? '-'"></span>m
+                            · Liga: <span x-text="empDetails?.summary?.tenure_band ?? '-'"></span>
+                            · Faltas: <span x-text="empDetails?.summary?.absences?.unjustified ?? 0"></span>
+                            · Atestados: <span x-text="empDetails?.summary?.absences?.justified ?? 0"></span>
+                            · Afastamentos: <span x-text="empDetails?.summary?.absences?.leave ?? 0"></span>
+                            · Folgas: <span x-text="empDetails?.summary?.absences?.offday ?? 0"></span>
+                        </p>
+                        <p class="text-[10px] text-slate-500 mt-1">
+                            Atestado, afastamento e folga nao reduzem regularidade. Falta reduz score.
+                        </p>
+                    </div>
+                    <button @click="showModal = false" class="text-slate-400 hover:text-white">Fechar</button>
+                </div>
+                <div class="grid grid-cols-4 gap-2 p-4 bg-slate-800/30">
+                    <div class="bg-slate-800/50 p-3 rounded-xl text-center border border-white/5">
+                        <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Volume</p>
+                        <p class="text-lg font-black text-white" x-text="formatNumber(empDetails?.summary?.total_tonnage)"></p>
+                    </div>
+                    <div class="bg-slate-800/50 p-3 rounded-xl text-center border border-white/5">
+                        <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Kg/h</p>
+                        <p class="text-lg font-black text-emerald-300" x-text="formatNumber(empDetails?.summary?.avg_kgh)"></p>
+                    </div>
+                    <div class="bg-slate-800/50 p-3 rounded-xl text-center border border-white/5">
+                        <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Tempo</p>
+                        <p class="text-lg font-black text-blue-300" x-text="empDetails?.summary?.total_hours"></p>
+                    </div>
+                    <div class="bg-slate-800/50 p-3 rounded-xl text-center border border-white/5">
+                        <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Viagens</p>
+                        <p class="text-lg font-black text-purple-300" x-text="empDetails?.summary?.count"></p>
+                    </div>
+                </div>
+                <div class="flex-1 overflow-y-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-800/80 sticky top-0">
+                            <tr>
+                                <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase">Cliente</th>
+                                <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase text-right">Peso</th>
+                                <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase text-right">Vel.</th>
+                                <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase text-right">Duracao</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5">
+                            <template x-for="route in empDetails?.routes" :key="route.start">
+                                <tr class="hover:bg-white/5">
+                                    <td class="px-6 py-3">
+                                        <p class="text-sm font-semibold text-white" x-text="route.client"></p>
+                                        <p class="text-[10px] text-slate-500" x-text="route.start + ' - ' + route.end"></p>
+                                    </td>
+                                    <td class="px-6 py-3 text-right" x-text="formatNumber(route.tonnage)"></td>
+                                    <td class="px-6 py-3 text-right" x-text="route.kgh"></td>
+                                    <td class="px-6 py-3 text-right" x-text="route.duration"></td>
+                                </tr>
+                            </template>
+                            <template x-if="!empDetails?.routes?.length">
+                                <tr><td colspan="4" class="text-center py-6 text-slate-500">Nenhuma rota.</td></tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
-    function changeDate(days) {
-        const input = document.querySelector('input[name="date"]');
-        if (!input.value) {
-            input.value = new Date().toISOString().split('T')[0];
+    function performanceController() {
+        return {
+            showModal: false,
+            loading: false,
+            empDetails: null,
+
+            formatNumber(num) {
+                if (num === undefined || num === null) return '-';
+                return new Intl.NumberFormat('pt-BR').format(num);
+            },
+
+            async openDetails(empId) {
+                this.showModal = true;
+                this.loading = true;
+                this.empDetails = null;
+
+                const params = new URLSearchParams(window.location.search);
+                const date = params.get('date') || document.querySelector('input[name="date"]').value;
+                const period = params.get('period') || 'daily';
+                const shift = params.get('shift') || 'Todos';
+                const routeBand = params.get('route_band')
+                    || document.querySelector('select[name="route_band"]')?.value
+                    || 'Todos';
+                const tenureBand = params.get('tenure_band')
+                    || document.querySelector('select[name="tenure_band"]')?.value
+                    || 'Todos';
+
+                try {
+                    const res = await fetch(`/api/rankings/employee/${empId}/details?date=${encodeURIComponent(date)}&period=${encodeURIComponent(period)}&shift=${encodeURIComponent(shift)}&route_band=${encodeURIComponent(routeBand)}&tenure_band=${encodeURIComponent(tenureBand)}`);
+                    if (!res.ok) {
+                        const msg = res.status >= 500 ? 'Erro 500. Verifique logs.' : 'Falha ao buscar detalhes';
+                        throw new Error(msg);
+                    }
+                    this.empDetails = await res.json();
+                } catch (e) {
+                    console.error(e);
+                    alert(e.message || 'Erro ao carregar detalhes.');
+                    this.showModal = false;
+                } finally {
+                    this.loading = false;
+                }
+            }
         }
-        const current = new Date(input.value + "T12:00:00");
-        current.setDate(current.getDate() + days);
-        input.value = current.toISOString().split('T')[0];
-        document.getElementById('filterForm').submit();
     }
 </script>
 {% endblock %}

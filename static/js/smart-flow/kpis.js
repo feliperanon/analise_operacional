@@ -73,7 +73,11 @@ function updateKPIs() {
 function getShiftEmployeesByStatus(status) {
     return ALL_EMPLOYEES.filter(emp => {
         // Shift filter
-        if (emp.shift !== currentShift) return false;
+        const normalize = (s) => s ? s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
+        const empShift = normalize(emp.shift || "");
+        const currShift = normalize(currentShift || "");
+
+        if (empShift !== currShift) return false;
 
         // Status logic
         const dailyStatus = employees.log[emp.id]?.status;

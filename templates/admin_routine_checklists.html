@@ -35,7 +35,7 @@
                 class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
                 <option value="">Todos</option>
                 {% for s in status_options %}
-                <option value="{{ s }}" {{ "selected" if filters.status == s else "" }}>{{ s }}</option>
+                <option value="{{ s }}" {{ "selected" if filters.status == s else "" }}>{{ status_labels.get(s, s) }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -63,6 +63,33 @@
         </div>
     </form>
 
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-3">
+            <p class="text-[10px] text-slate-400 uppercase tracking-wider">Total</p>
+            <p class="text-lg font-bold text-white">{{ summary.total }}</p>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-3">
+            <p class="text-[10px] text-slate-400 uppercase tracking-wider">Pendentes</p>
+            <p class="text-lg font-bold text-amber-200">{{ summary.pending }}</p>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-3">
+            <p class="text-[10px] text-slate-400 uppercase tracking-wider">Aprovados</p>
+            <p class="text-lg font-bold text-emerald-200">{{ summary.approved }}</p>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-3">
+            <p class="text-[10px] text-slate-400 uppercase tracking-wider">Rejeitados</p>
+            <p class="text-lg font-bold text-red-200">{{ summary.rejected }}</p>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-3">
+            <p class="text-[10px] text-slate-400 uppercase tracking-wider">Equip. bloqueados</p>
+            <p class="text-lg font-bold text-red-200">{{ summary.blocked }}</p>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-3">
+            <p class="text-[10px] text-slate-400 uppercase tracking-wider">Não conforme</p>
+            <p class="text-lg font-bold text-amber-200">{{ summary.nonconforming }}</p>
+        </div>
+    </div>
+
     <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 overflow-x-auto">
         <table class="w-full text-sm">
             <thead>
@@ -79,26 +106,26 @@
             <tbody class="divide-y divide-slate-700">
                 {% for row in rows %}
                 <tr>
-                    <td class="py-3 pr-4">{{ row.checklist.date }}</td>
+                    <td class="py-3 pr-4">{{ row.date_br }}</td>
                     <td class="py-3 pr-4">{{ row.checklist.shift }}</td>
                     <td class="py-3 pr-4">{{ row.employee.name }}</td>
                     <td class="py-3 pr-4">
                         <div class="flex flex-col">
                             <span class="text-white">{{ row.checklist.equipment_code }}</span>
                             <span class="text-xs {{ 'text-red-300' if row.equipment_status == 'blocked' else 'text-emerald-300' }}">
-                                {{ row.equipment_status }}
+                                {{ row.equipment_status_label }}
                             </span>
                         </div>
                     </td>
                     <td class="py-3 pr-4">
                         <span class="text-xs {{ 'text-red-300' if row.checklist.nonconforming_keys else 'text-emerald-300' }}">
-                            {{ row.checklist.nonconforming_keys | length }}
+                            {{ row.nonconforming_count }}
                         </span>
                     </td>
                     <td class="py-3 pr-4">
                         <span
                             class="text-xs px-2 py-1 rounded-full {{ 'bg-emerald-500/20 text-emerald-200' if row.checklist.status == 'approved' else 'bg-amber-500/20 text-amber-200' if row.checklist.status in ['submitted', 'reviewed'] else 'bg-red-500/20 text-red-200' }}">
-                            {{ row.checklist.status }}
+                            {{ row.status_label }}
                         </span>
                     </td>
                     <td class="py-3">
