@@ -248,6 +248,7 @@ async def lifespan(app: FastAPI):
         ensure_employee_access_schema()
         ensure_event_reference_schema()
         ensure_checklist_email_schema()
+        ensure_checklist_edit_schema()
         with Session(engine) as session:
             ensure_default_admin(session)
     except Exception as e:
@@ -444,6 +445,8 @@ CHECKLIST_CRITICAL_KEYS = {item["key"] for item in CHECKLIST_ITEMS if item["crit
 CHECKLIST_XP = int(os.getenv("CHECKLIST_XP", "10"))
 CHECKLIST_IMAGE_DIR = os.path.join("static", "uploads", "checklists")
 CHECKLIST_MAX_IMAGE_SIZE = 5 * 1024 * 1024
+TICKET_IMAGE_DIR = os.path.join("static", "uploads", "tickets")
+TICKET_MAX_IMAGE_SIZE = 5 * 1024 * 1024
 MAINTENANCE_EMAIL_TO = os.getenv("MAINTENANCE_EMAIL_TO", "").strip()
 MAINTENANCE_EMAIL_FROM = os.getenv("MAINTENANCE_EMAIL_FROM", "").strip()
 MAINTENANCE_EMAIL_FROM_FIXED = "felipe.pires@nlfrutas.com.br"
@@ -558,6 +561,52 @@ def build_checklist_pdf(report: dict) -> bytes:
     buffer.seek(0)
     return buffer.getvalue()
 
+def build_ticket_pdf(report: dict) -> bytes:
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas
+    except Exception as exc:
+        raise RuntimeError("ReportLab não disponível para gerar PDF.") from exc
+
+    buffer = io.BytesIO()
+    page_width, page_height = A4
+    c = canvas.Canvas(buffer, pagesize=A4)
+    y = page_height - 40
+    line_height = 14
+
+    def draw_line(text: str, bold: bool = False):
+        nonlocal y
+        if y < 40:
+            c.showPage()
+            y = page_height - 40
+        c.setFont("Helvetica-Bold" if bold else "Helvetica", 10)
+        c.drawString(40, y, text)
+        y -= line_height
+
+    draw_line("Chamado de Manutenção - Novo Registro", True)
+    draw_line(f"Ticket ID: {report['ticket_id']}")
+    draw_line(f"Solicitante: {report['employee_name']} ({report['employee_id']})")
+    draw_line(f"Data/Hora: {report['created_at']} | Turno: {report['shift']}")
+    draw_line(f"Equipamento: {report['equipment_code']}")
+    draw_line(f"Severidade: {report['severity'].upper()}")
+    draw_line("")
+    draw_line("Descrição do Problema:", True)
+    for line in (report["description"] or "-").splitlines():
+        draw_line(line)
+    if report["image_list"]:
+        draw_line("")
+        draw_line("Imagens Anexadas:", True)
+        for img in report["image_list"]:
+            draw_line(f"- {img}")
+    draw_line("")
+    draw_line(f"Link: {report['ticket_link']}")
+    draw_line("")
+    draw_line(f"Gerado em: {report['generated_at']}")
+
+    c.save()
+    buffer.seek(0)
+    return buffer.getvalue()
+
 def send_maintenance_email(report: dict, recipients: Optional[List[str]] = None) -> tuple:
     smtp_port = parse_int_env(SMTP_PORT_RAW, 587)
     smtp_tls = parse_bool_env(SMTP_TLS_RAW, True)
@@ -643,6 +692,9 @@ def parse_items_payload(raw_items: str) -> dict:
 def ensure_checklist_dir():
     os.makedirs(CHECKLIST_IMAGE_DIR, exist_ok=True)
 
+def ensure_ticket_dir():
+    os.makedirs(TICKET_IMAGE_DIR, exist_ok=True)
+
 async def save_checklist_images(files: List[UploadFile]) -> List[str]:
     ensure_checklist_dir()
     saved = []
@@ -657,6 +709,25 @@ async def save_checklist_images(files: List[UploadFile]) -> List[str]:
             raise HTTPException(status_code=400, detail="Formato de imagem inválido.")
         filename = f"{secrets.token_hex(12)}{ext}"
         path = os.path.join(CHECKLIST_IMAGE_DIR, filename)
+        with open(path, "wb") as handle:
+            handle.write(contents)
+        saved.append(filename)
+    return saved
+
+async def save_ticket_images(files: List[UploadFile]) -> List[str]:
+    ensure_ticket_dir()
+    saved = []
+    for file in files:
+        if not file or not file.filename:
+            continue
+        contents = await file.read()
+        if len(contents) > TICKET_MAX_IMAGE_SIZE:
+            raise HTTPException(status_code=400, detail="Imagem muito grande (max 5MB).")
+        ext = os.path.splitext(file.filename)[1].lower()
+        if ext not in (".jpg", ".jpeg", ".png", ".webp"):
+            raise HTTPException(status_code=400, detail="Formato de imagem inv\xe1lido.")
+        filename = f"{secrets.token_hex(12)}{ext}"
+        path = os.path.join(TICKET_IMAGE_DIR, filename)
         with open(path, "wb") as handle:
             handle.write(contents)
         saved.append(filename)
@@ -774,6 +845,25 @@ def ensure_checklist_email_schema():
     missing = {
         "maintenance_email_sent_at": "TIMESTAMP",
         "maintenance_email_error": "TEXT"
+    }
+    with engine.begin() as conn:
+        for col_name, col_type in missing.items():
+            if col_name in existing:
+                continue
+            conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}"))
+
+def ensure_checklist_edit_schema():
+    inspector = inspect(engine)
+    table_name = getattr(models.TranspalletChecklist, "__tablename__", "transpalletchecklist")
+    if table_name not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns(table_name)}
+    missing = {
+        "edited_at": "TIMESTAMP",
+        "edited_by": "TEXT",
+        "edit_comment": "TEXT",
+        "previous_observations": "TEXT",
+        "previous_equipment_code": "TEXT"
     }
     with engine.begin() as conn:
         for col_name, col_type in missing.items():
@@ -2427,6 +2517,15 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
                 "href": "/mobile/routine/checklist",
                 "enabled": bool(employee.mobile_access_checklist),
                 "action": None
+            },
+            {
+                "key": "tickets",
+                "label": "Chamados de Equipamento",
+                "description": "Registrar falhas pós-checklist.",
+                "icon": "alert-octagon",
+                "href": "/mobile/equipment/tickets/new",
+                "enabled": bool(employee.mobile_access),
+                "action": None
             }
         ]
         modules = [m for m in modules if m.get("enabled")]
@@ -3922,12 +4021,91 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
         raise
 
     today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    
+    # 1. Checklists do Dia (Mantido)
     checklists = session.exec(
         select(models.TranspalletChecklist)
         .where(models.TranspalletChecklist.employee_id == employee_id)
         .where(models.TranspalletChecklist.date == today)
         .order_by(models.TranspalletChecklist.submitted_at.desc())
     ).all()
+
+    # 2. Histórico (Últimos 7 dias, excluindo hoje)
+    history_start = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=7)).strftime("%Y-%m-%d")
+    history_checklists = session.exec(
+        select(models.TranspalletChecklist)
+        .where(models.TranspalletChecklist.employee_id == employee_id)
+        .where(models.TranspalletChecklist.date >= history_start)
+        .where(models.TranspalletChecklist.date < today)
+        .order_by(models.TranspalletChecklist.submitted_at.desc())
+    ).all()
+
+    # 3. Chamados Abertos (Últimos 30 dias para não poluir)
+    ticket_start = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=30)).strftime("%Y-%m-%d")
+    open_tickets = session.exec(
+        select(models.EquipmentTicket)
+        .where(models.EquipmentTicket.employee_id == employee_id)
+        .where(models.EquipmentTicket.created_at >= datetime.strptime(ticket_start, "%Y-%m-%d"))
+        .where(models.EquipmentTicket.status == "open")
+        .order_by(models.EquipmentTicket.created_at.desc())
+    ).all()
+
+    # 4. Alertas de Dias Pendentes (Missing Days)
+    # Regra: Work Days - Absences - Done Days
+    missing_days = []
+    
+    # Janela de análise: Últimos 14 dias até ontem
+    analysis_end = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=1)).date()
+    analysis_start = analysis_end - timedelta(days=13) # 14 dias total
+    
+    # Buscar Checklists feitos no período
+    done_dates = set(session.exec(
+        select(models.TranspalletChecklist.date)
+        .where(models.TranspalletChecklist.employee_id == employee_id)
+        .where(models.TranspalletChecklist.date >= analysis_start.strftime("%Y-%m-%d"))
+        .where(models.TranspalletChecklist.date <= analysis_end.strftime("%Y-%m-%d"))
+    ).all())
+    
+    # Buscar Ausências (EmployeeRoutine != present)
+    absences = session.exec(
+        select(models.EmployeeRoutine)
+        .where(models.EmployeeRoutine.employee_id == employee_id)
+        .where(models.EmployeeRoutine.date >= analysis_start.strftime("%Y-%m-%d"))
+        .where(models.EmployeeRoutine.date <= analysis_end.strftime("%Y-%m-%d"))
+        .where(models.EmployeeRoutine.routine != "present")
+    ).all()
+    absence_map = {a.date: a.routine for a in absences} # data str -> motivo
+
+    # Parse Work Days
+    import json
+    work_days_list = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    try:
+        if employee.work_days:
+            work_days_list = json.loads(employee.work_days)
+    except: pass
+    
+    current_d = analysis_start
+    while current_d <= analysis_end:
+        d_str = current_d.strftime("%Y-%m-%d")
+        week_day_name = current_d.strftime("%A") # English names matches default list
+        
+        # Se for dia de trabalho...
+        if week_day_name in work_days_list:
+            # E não tiver ausência registrada...
+            if d_str not in absence_map:
+                # E não tiver checklist feito...
+                if d_str not in done_dates:
+                    # ENTÃO é pendente
+                    missing_days.append({
+                        "date": current_d.strftime("%d/%m"),
+                        "full_date": d_str,
+                        "weekday": week_day_name
+                    })
+        
+        current_d += timedelta(days=1)
+    
+    # Ordenar decrescente (mais recente primeiro)
+    missing_days.sort(key=lambda x: x["full_date"], reverse=True)
 
     return templates.TemplateResponse(
         "mobile/routine_checklist.html",
@@ -3936,7 +4114,36 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
             "employee": employee,
             "items": CHECKLIST_ITEMS,
             "today": today,
-            "checklists": checklists
+            "checklists": checklists,
+            "history_checklists": history_checklists,
+            "open_tickets": open_tickets,
+            "missing_days": missing_days
+        }
+    )
+
+@app.get("/mobile/equipment/tickets/new", response_class=HTMLResponse)
+async def mobile_ticket_new(request: Request, session: Session = Depends(get_session)):
+    user = require_login(request)
+    if not isinstance(user, dict) or user.get("type") != "employee":
+        return RedirectResponse(url="/mobile/login", status_code=303)
+
+    employee = session.get(models.Employee, user.get("id"))
+    if not employee:
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    try:
+        require_mobile_module(employee, "checklist")
+    except HTTPException as exc:
+        if exc.status_code == status.HTTP_403_FORBIDDEN:
+             return RedirectResponse(url="/mobile/dashboard?module=checklist", status_code=303)
+        raise
+
+    today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    return templates.TemplateResponse(
+        "mobile/equipment_ticket_new.html",
+        {
+            "request": request,
+            "employee": employee,
+            "today": today
         }
     )
 
@@ -4034,6 +4241,91 @@ async def admin_checklists_dashboard(
         }
     )
 
+@app.get("/admin/equipment/tickets", response_class=HTMLResponse)
+async def admin_equipment_tickets(
+    request: Request,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    message = request.query_params.get("message")
+    level = request.query_params.get("level", "success")
+    status_filter = request.query_params.get("status") or ""
+    severity_filter = request.query_params.get("severity") or ""
+    equipment_filter = request.query_params.get("equipment") or ""
+
+    query = (
+        select(models.EquipmentTicket, models.Employee)
+        .join(models.Employee, models.Employee.id == models.EquipmentTicket.employee_id)
+        .order_by(models.EquipmentTicket.created_at.desc())
+    )
+    if status_filter:
+        query = query.where(models.EquipmentTicket.status == status_filter)
+    if severity_filter:
+        query = query.where(models.EquipmentTicket.severity == severity_filter)
+    if equipment_filter:
+        query = query.where(models.EquipmentTicket.equipment_code.ilike(f"%{equipment_filter}%"))
+
+    rows = session.exec(query).all()
+    tickets = []
+    for ticket, employee in rows:
+        image_urls = [f"/static/uploads/tickets/{img}" for img in (ticket.images or [])]
+        tickets.append({
+            "ticket": ticket,
+            "employee": employee,
+            "created_at_br": fmt_datetime_br(ticket.created_at),
+            "image_urls": image_urls
+        })
+
+    return templates.TemplateResponse(
+        "admin_equipment_tickets.html",
+        {
+            "request": request,
+            "message": message,
+            "level": level,
+            "tickets": tickets,
+            "filters": {
+                "status": status_filter,
+                "severity": severity_filter,
+                "equipment": equipment_filter
+            }
+        }
+    )
+
+@app.post("/admin/equipment/tickets/{ticket_id}/close", response_class=RedirectResponse)
+async def admin_equipment_ticket_close(
+    request: Request,
+    ticket_id: int,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    ticket = session.get(models.EquipmentTicket, ticket_id)
+    if not ticket:
+        query = urlencode({"message": "Chamado não encontrado.", "level": "error"})
+        return RedirectResponse(url=f"/admin/equipment/tickets?{query}", status_code=status.HTTP_303_SEE_OTHER)
+    if ticket.status == "closed":
+        query = urlencode({"message": "Chamado já encerrado.", "level": "error"})
+        return RedirectResponse(url=f"/admin/equipment/tickets?{query}", status_code=status.HTTP_303_SEE_OTHER)
+
+    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    ticket.status = "closed"
+    ticket.closed_at = now_br
+    ticket.closed_by = str(user)
+    session.add(ticket)
+    session.add(models.Event(
+        timestamp=now_br,
+        text=f"Chamado #{ticket.id} encerrado por {user}.",
+        type="ticket_close",
+        category="processo",
+        sector=ticket.equipment_code,
+        impact="low",
+        reference_type="ticket",
+        reference_id=ticket.id,
+        employee_id=ticket.employee_id
+    ))
+    session.commit()
+    query = urlencode({"message": "Chamado encerrado.", "level": "success"})
+    return RedirectResponse(url=f"/admin/equipment/tickets?{query}", status_code=status.HTTP_303_SEE_OTHER)
+
 @app.get("/admin/routine/checklists/settings", response_class=HTMLResponse)
 async def admin_checklists_settings(
     request: Request,
@@ -4064,15 +4356,28 @@ async def admin_checklists_settings(
     authorized_employees = session.exec(employees_query.order_by(models.Employee.name)).all()
     authorized_ids = {emp.id for emp in authorized_employees}
 
-    checklist_query = select(models.TranspalletChecklist.employee_id).where(
-        models.TranspalletChecklist.date == date_filter
+    checklist_query = (
+        select(models.TranspalletChecklist.id, models.TranspalletChecklist.employee_id)
+        .where(models.TranspalletChecklist.date == date_filter)
+        .order_by(models.TranspalletChecklist.submitted_at.desc())
     )
     if shift_filter != "Todos":
         checklist_query = checklist_query.where(models.TranspalletChecklist.shift == shift_filter)
-    done_ids = set(session.exec(checklist_query).all())
+    done_by_employee_id = {}
+    for checklist_id, employee_id in session.exec(checklist_query).all():
+        if employee_id not in done_by_employee_id:
+            done_by_employee_id[employee_id] = checklist_id
 
-    done_count = len(done_ids.intersection(authorized_ids))
-    pending_employees = [emp for emp in authorized_employees if emp.id not in done_ids]
+    done_count = len(set(done_by_employee_id.keys()).intersection(authorized_ids))
+    pending_count = len(authorized_employees) - done_count
+    authorized_rows = []
+    for emp in authorized_employees:
+        checklist_id = done_by_employee_id.get(emp.id)
+        authorized_rows.append({
+            "employee": emp,
+            "done": checklist_id is not None,
+            "checklist_id": checklist_id
+        })
 
     return templates.TemplateResponse(
         "admin_routine_checklists_settings.html",
@@ -4082,7 +4387,7 @@ async def admin_checklists_settings(
             "level": level,
             "recipients": recipients,
             "equipment_list": equipment_list,
-            "pending_employees": pending_employees,
+            "authorized_rows": authorized_rows,
             "filters": {
                 "date": date_filter,
                 "shift": shift_filter
@@ -4090,7 +4395,7 @@ async def admin_checklists_settings(
             "stats": {
                 "authorized_total": len(authorized_employees),
                 "done_count": done_count,
-                "pending_count": len(pending_employees)
+                "pending_count": pending_count
             }
         }
     )
@@ -4165,6 +4470,8 @@ async def admin_checklists_add_equipment(
 async def admin_checklists_remove_equipment(
     request: Request,
     equipment_id: int,
+    force_delete: Optional[str] = Form(None),
+    comment: str = Form(""),
     session: Session = Depends(get_session),
     user=Depends(require_leader)
 ):
@@ -4172,20 +4479,46 @@ async def admin_checklists_remove_equipment(
     if not equipment:
         return admin_checklists_settings_redirect("Equipamento não encontrado.", "error")
     if equipment.status == "blocked":
-        return admin_checklists_settings_redirect("Equipamento bloqueado não pode ser removido.", "error")
+        if force_delete != "true":
+            reason = equipment.blocked_reason or "Equipamento bloqueado."
+            if equipment.last_checklist_id:
+                reason = f"{reason} (Checklist #{equipment.last_checklist_id})"
+            return admin_checklists_settings_redirect(
+                f"Equipamento bloqueado não pode ser removido. {reason}",
+                "error"
+            )
+        comment = (comment or "").strip()
+        if not comment:
+            return admin_checklists_settings_redirect(
+                "Comentário obrigatório para forçar remoção de equipamento bloqueado.",
+                "error"
+            )
 
     usage_count = session.exec(
         select(func.count(models.TranspalletChecklist.id))
         .where(models.TranspalletChecklist.equipment_code == equipment.code)
     ).one() or 0
-    if usage_count:
+    if usage_count and equipment.status != "blocked":
         return admin_checklists_settings_redirect(
             "Equipamento com checklists registrados não pode ser removido.",
             "error"
         )
 
+    if equipment.status == "blocked" and force_delete == "true":
+        session.add(models.Event(
+            timestamp=datetime.now(ZoneInfo("America/Sao_Paulo")),
+            text=f"Equipamento {equipment.code} removido à força. Motivo: {comment}",
+            type="equipment_force_remove",
+            category="infraestrutura",
+            sector=equipment.code,
+            impact="high",
+            reference_type="equipment",
+            reference_id=equipment.id
+        ))
     session.delete(equipment)
     session.commit()
+    if equipment.status == "blocked" and force_delete == "true":
+        return admin_checklists_settings_redirect("Equipamento bloqueado removido com sucesso.", "success")
     return admin_checklists_settings_redirect("Equipamento removido.", "success")
 
 @app.get("/admin/routine/checklists", response_class=HTMLResponse)
@@ -4269,6 +4602,7 @@ async def admin_checklists_page(
             "equipment_status_label": equipment_labels.get(equipment_status, equipment_status),
             "status_label": status_labels.get(status_value, status_value),
             "date_br": fmt_ddmmyyyy(checklist.date),
+            "time_br": fmt_hhmm(checklist.submitted_at),
             "nonconforming_count": nonconforming_count
         })
 
@@ -4326,6 +4660,189 @@ async def admin_checklist_detail(
             "items": CHECKLIST_ITEMS
         }
     )
+
+@app.post("/admin/routine/checklists/{checklist_id}/delete", response_class=RedirectResponse)
+async def admin_checklist_delete(
+    request: Request,
+    checklist_id: int,
+    confirm_delete: Optional[str] = Form(None),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    checklist = session.get(models.TranspalletChecklist, checklist_id)
+    if not checklist:
+        raise HTTPException(status_code=404, detail="Checklist não encontrado.")
+
+    if checklist.status == "approved" and confirm_delete != "true":
+        raise HTTPException(status_code=400, detail="Confirmação obrigatória para excluir checklist aprovado.")
+
+    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    if checklist.xp_transaction_id:
+        tx = session.get(models.GameXPTransaction, checklist.xp_transaction_id)
+        if tx:
+            note = "Checklist excluído por admin"
+            tx.status = "rejected"
+            if tx.reason:
+                if note not in tx.reason:
+                    tx.reason = f"{tx.reason} | {note}"
+            else:
+                tx.reason = note
+            tx.confirmed_at = now_br
+            session.add(tx)
+
+    session.add(models.Event(
+        timestamp=now_br,
+        text=f"Checklist #{checklist.id} excluído por {user}.",
+        type="checklist_delete",
+        category="processo",
+        sector=checklist.equipment_code,
+        impact="high",
+        reference_type="checklist",
+        reference_id=checklist.id,
+        employee_id=checklist.employee_id
+    ))
+
+    session.delete(checklist)
+    session.commit()
+    return RedirectResponse(url="/admin/routine/checklists", status_code=status.HTTP_303_SEE_OTHER)
+
+@app.post("/admin/routine/checklists/bulk-delete", response_class=RedirectResponse)
+async def admin_checklist_bulk_delete(
+    request: Request,
+    checklist_ids: List[int] = Form(...),
+    session: Session = Depends(get_session),
+    user = Depends(require_leader)
+):
+    if not checklist_ids:
+        return RedirectResponse(url="/admin/routine/checklists", status_code=status.HTTP_303_SEE_OTHER)
+
+    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    
+    # Process each checklist
+    for cid in checklist_ids:
+        checklist = session.get(models.RoutineChecklist, cid)
+        if not checklist:
+            continue
+            
+        # If equipment was blocked by this checklist, release it
+        if checklist.equipment_status == "blocked":
+            eq = session.exec(select(models.Equipment).where(models.Equipment.code == checklist.equipment_code)).first()
+            if eq and eq.status == "blocked" and eq.last_checklist_id == checklist.id:
+                eq.status = "available"
+                eq.blocked_reason = None
+                eq.last_checklist_id = None
+                session.add(eq)
+        
+        # If checklist gave XP, revoke it
+        if checklist.xp_transaction_id:
+            tx = session.get(models.GameXPTransaction, checklist.xp_transaction_id)
+            if tx and tx.status == "approved":
+                tx.status = "revoked"
+                tx.reason = f"Revogado: Checklist #{checklist.id} excluído em lote."
+                tx.revoked_at = now_br
+                session.add(tx)
+                
+                # Revoke badge XP if exists
+                if tx.badge_id:
+                    emp = session.get(models.Employee, tx.employee_id)
+                    if emp:
+                        ach = session.exec(
+                             select(models.EmployeeAchievement)
+                             .where(
+                                 models.EmployeeAchievement.employee_id == emp.id,
+                                 models.EmployeeAchievement.badge_id == tx.badge_id
+                             )
+                        ).first()
+                        if ach:
+                            # We don't delete the achievement usually, but we might want to flag it?
+                            # Use existing revoke logic if possible, or just revoke the TX
+                            pass
+
+        session.add(models.Event(
+            timestamp=now_br,
+            text=f"Checklist #{checklist.id} excluído em lote por {user}.",
+            type="checklist_delete",
+            category="processo",
+            sector=checklist.equipment_code,
+            impact="high",
+            reference_type="checklist",
+            reference_id=checklist.id,
+            employee_id=checklist.employee_id
+        ))
+        
+        session.delete(checklist)
+    
+    session.commit()
+    return RedirectResponse(url="/admin/routine/checklists", status_code=status.HTTP_303_SEE_OTHER)
+
+@app.post("/admin/routine/checklists/{checklist_id}/edit", response_class=RedirectResponse)
+async def admin_checklist_edit(
+    request: Request,
+    checklist_id: int,
+    equipment_code: str = Form(...),
+    observations: str = Form(""),
+    edit_comment: str = Form(...),
+    files: List[UploadFile] = File([]),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    checklist = session.get(models.TranspalletChecklist, checklist_id)
+    if not checklist:
+        raise HTTPException(status_code=404, detail="Checklist não encontrado.")
+
+    comment = (edit_comment or "").strip()
+    if not comment:
+        raise HTTPException(status_code=400, detail="Comentário obrigatório para edição.")
+
+    new_equipment = (equipment_code or "").strip().upper()
+    if not new_equipment:
+        raise HTTPException(status_code=400, detail="Equipamento obrigatório.")
+
+    new_observations = (observations or "").strip()
+    old_equipment = checklist.equipment_code
+    old_observations = checklist.observations or ""
+
+    new_images = []
+    if files:
+        new_images = await save_checklist_images(files)
+
+    changes = []
+    if new_equipment != old_equipment:
+        checklist.previous_equipment_code = old_equipment
+        checklist.equipment_code = new_equipment
+        resolve_equipment(session, new_equipment)
+        changes.append(f"Equipamento: {old_equipment} -> {new_equipment}")
+
+    if new_observations != old_observations:
+        checklist.previous_observations = old_observations
+        checklist.observations = new_observations
+        changes.append("Observações atualizadas")
+
+    if new_images:
+        checklist.images = (checklist.images or []) + new_images
+        changes.append(f"Imagens adicionadas: {len(new_images)}")
+
+    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    checklist.edited_at = now_br
+    checklist.edited_by = str(user)
+    checklist.edit_comment = comment
+
+    if changes:
+        session.add(models.Event(
+            timestamp=now_br,
+            text=f"Checklist #{checklist.id} editado por {user}. Motivo: {comment}. Alterações: {', '.join(changes)}.",
+            type="checklist_edit",
+            category="processo",
+            sector=checklist.equipment_code,
+            impact="medium",
+            reference_type="checklist",
+            reference_id=checklist.id,
+            employee_id=checklist.employee_id
+        ))
+
+    session.add(checklist)
+    session.commit()
+    return RedirectResponse(url=f"/admin/routine/checklists/{checklist_id}", status_code=status.HTTP_303_SEE_OTHER)
 
 @app.post("/admin/routine/checklists/{checklist_id}/approve", response_class=RedirectResponse)
 async def admin_checklist_approve(
@@ -4561,6 +5078,129 @@ async def api_create_checklist(
         session.commit()
 
     return {"success": True, "id": checklist.id}
+
+@app.post("/api/equipment/tickets")
+async def api_create_ticket(
+    request: Request,
+    equipment_code: str = Form(...),
+    description: str = Form(...),
+    severity: str = Form("low"),
+    files: List[UploadFile] = File([]),
+    session: Session = Depends(get_session)
+):
+    user = require_login(request)
+    if not isinstance(user, dict) or user.get("type") != "employee":
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
+    employee = session.get(models.Employee, user.get("id"))
+    if not employee:
+        return JSONResponse({"error": "Colaborador não encontrado."}, status_code=404)
+    
+    # Gating
+    try:
+        require_mobile_module(employee, "checklist")
+    except HTTPException:
+        return JSONResponse({"error": "Acesso não autorizado ao módulo de checklist."}, status_code=403)
+
+    equipment_code = (equipment_code or "").strip().upper()
+    description = (description or "").strip()
+    severity_norm = (severity or "low").strip().lower()
+
+    if not equipment_code:
+        return JSONResponse({"error": "Equipamento obrigatório."}, status_code=400)
+    if not description:
+        return JSONResponse({"error": "Descrição obrigatória."}, status_code=400)
+    if severity_norm not in ("low", "high"):
+        return JSONResponse({"error": "Severidade inválida."}, status_code=400)
+
+    images = []
+    if files:
+        images = await save_ticket_images(files)
+
+    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    shift_val = employee.work_shift or "Manhã"
+
+    ticket = models.EquipmentTicket(
+        equipment_code=equipment_code,
+        employee_id=employee.id,
+        created_at=now_br,
+        shift=shift_val,
+        description=description,
+        severity=severity_norm,
+        images=images,
+        status="open"
+    )
+    session.add(ticket)
+    session.commit()
+    session.refresh(ticket)
+
+    impact = "high" if severity_norm == "high" else "medium"
+    event_text = f"Chamado aberto para {equipment_code} por {employee.name}: {description}"
+    if severity_norm == "high":
+        event_text += " (CRITICO)"
+    session.add(models.Event(
+        timestamp=now_br,
+        text=event_text,
+        type="ticket",
+        category="infraestrutura",
+        sector=equipment_code,
+        impact=impact,
+        reference_type="ticket",
+        reference_id=ticket.id,
+        employee_id=employee.id
+    ))
+
+    if severity_norm == "high":
+        equipment = resolve_equipment(session, equipment_code)
+        block_equipment(session, equipment, f"Chamado crítico #{ticket.id}", None)
+        session.add(equipment)
+
+    # --- Email Notification ---
+    try:
+        pdf_bytes = build_ticket_pdf({
+            "ticket_id": ticket.id,
+            "employee_id": employee.registration_id,
+            "employee_name": employee.name,
+            "created_at": now_br.strftime("%d/%m/%Y %H:%M"),
+            "shift": shift_val,
+            "equipment_code": equipment_code,
+            "severity": severity_norm,
+            "description": description,
+            "image_list": images,
+            "ticket_link": f"/admin/equipment/tickets", # Fallback link
+            "generated_at": now_br.strftime("%d/%m/%Y %H:%M:%S")
+        })
+        
+        email_report = {
+            "subject": f"ALERTA MANUTENÇÃO — {now_br.strftime('%Y-%m-%d')} — Equipamento {equipment_code}",
+            "body": (
+                f"Novo chamado de manutenção registrado.\n\n"
+                f"Equipamento: {equipment_code}\n"
+                f"Severidade: {severity_norm.upper()}\n"
+                f"Solicitante: {employee.name} ({employee.registration_id})\n"
+                f"Turno: {shift_val}\n"
+                f"Data/Hora: {now_br.strftime('%d/%m/%Y %H:%M')}\n\n"
+                f"Descrição:\n{description}\n\n"
+                "Verifique o anexo PDF para mais detalhes e imagens."
+            ),
+            "pdf_bytes": pdf_bytes,
+            "pdf_filename": f"chamado_{ticket.id}_{equipment_code}.pdf"
+        }
+        
+        sent, error = send_maintenance_email(email_report)
+        if sent:
+            ticket.maintenance_email_sent_at = now_br
+        else:
+            ticket.maintenance_email_error = str(error)
+            logger.error(f"Failed to send ticket email: {error}")
+            
+    except Exception as e:
+        logger.exception(f"Error generating ticket email/PDF: {e}")
+        ticket.maintenance_email_error = str(e)
+
+    session.add(ticket)
+    session.commit()
+    return {"success": True, "id": ticket.id}
 
 @app.get("/admin/tools/email-test", response_class=HTMLResponse)
 async def admin_email_test(request: Request, session: Session = Depends(get_session), user=Depends(require_leader)):
@@ -5673,6 +6313,30 @@ def fmt_ddmmyyyy(value) -> str:
     parsed = to_date(value)
     return parsed.strftime("%d/%m/%Y") if parsed else "-"
 
+def fmt_hhmm(value) -> str:
+    if not value:
+        return "—"
+    try:
+        if isinstance(value, datetime):
+            if value.tzinfo:
+                value = value.astimezone(ZoneInfo("America/Sao_Paulo"))
+            return value.strftime("%H:%M")
+    except Exception:
+        return "—"
+    return "—"
+
+def fmt_datetime_br(value) -> str:
+    if not value:
+        return "-"
+    try:
+        if isinstance(value, datetime):
+            if value.tzinfo:
+                value = value.astimezone(ZoneInfo("America/Sao_Paulo"))
+            return value.strftime("%d/%m/%Y %H:%M")
+    except Exception:
+        return "-"
+    return "-"
+
 
 def format_int_br(value) -> str:
     try:
@@ -5963,16 +6627,194 @@ async def operations_performance_page(
         absence_penalty_factor = get_absence_penalty(period, unjustified_days)
         discipline_rate = 1 - (unjustified_days / max(1, total_days))
 
+        event_query = (
+            select(func.count(models.Event.id))
+            .where(models.Event.employee_id == employee_id)
+            .where(models.Event.timestamp >= start_dt)
+            .where(models.Event.timestamp <= end_dt)
+            .where(models.Event.type.in_(list(OCCURRENCE_TYPES)))
+        )
+        occurrences = session.exec(event_query).one() or 0
+        penalty_factor = max(0.7, 1 - occurrences * 0.05)
+
+        team_query = (
+            select(models.Route)
+            .where(models.Route.tonnage > 0)
+            .where(models.Route.date >= start_date_str)
+            .where(models.Route.date <= end_date_str)
+        )
+        if shift and shift not in ["Geral", "Todos", None, "null"]:
+            team_query = team_query.where(models.Route.shift == shift)
+        team_rows = session.exec(team_query).all()
+
+        team_tonnage_values = []
+        team_employee_stats = {}
+        for route in team_rows:
+            tonnage_val = float(route.tonnage or 0)
+            if route_band and route_band not in ["Todos", "Geral", None, "null"]:
+                if assign_band(tonnage_val, band_low, band_high) != route_band:
+                    continue
+            diff = duration_seconds(route.start_time, route.end_time)
+
+            eid = route.employee_id
+            if not eid:
+                continue
+            entry = team_employee_stats.setdefault(eid, {"tonnage": 0.0, "secs": 0.0, "count": 0})
+            entry["tonnage"] += tonnage_val
+            entry["count"] += 1
+            if diff > 0:
+                entry["secs"] += diff
+
+        team_employee_kgh = []
+        team_employee_trip = []
+        team_employee_route = []
+        for entry in team_employee_stats.values():
+            if not entry["count"]:
+                continue
+            hours_val = entry["secs"] / 3600 if entry["secs"] else 0.0
+            avg_kgh_val = entry["tonnage"] / hours_val if hours_val else 0.0
+            avg_trip_val = (entry["secs"] / 60 / entry["count"]) if entry["count"] else 0.0
+            avg_route_val = entry["tonnage"] / entry["count"] if entry["count"] else 0.0
+            team_employee_kgh.append(avg_kgh_val)
+            team_employee_trip.append(avg_trip_val)
+            team_employee_route.append(avg_route_val)
+            team_tonnage_values.append(entry["tonnage"])
+
+        team_avg_kgh = safe_mean(team_employee_kgh)
+        team_avg_trip_minutes = safe_mean(team_employee_trip)
+        team_avg_route_tonnage = safe_mean(team_employee_route)
+        min_kgh = min(team_employee_kgh) if team_employee_kgh else 0.0
+        max_kgh = max(team_employee_kgh) if team_employee_kgh else 0.0
+        min_trip = min(team_employee_trip) if team_employee_trip else 0.0
+        max_trip = max(team_employee_trip) if team_employee_trip else 0.0
+        min_route = min(team_employee_route) if team_employee_route else 0.0
+        max_route = max(team_employee_route) if team_employee_route else 0.0
+        min_tonnage = min(team_tonnage_values) if team_tonnage_values else 0.0
+        max_tonnage = max(team_tonnage_values) if team_tonnage_values else 0.0
+
+        consistency_score = max(0.0, 1 - cv)
+        kgh_norm = normalize_val(avg_kgh, min_kgh, max_kgh) if team_employee_kgh else 0.0
+        tonnage_norm = normalize_val(total_tonnage, min_tonnage, max_tonnage) if team_tonnage_values else 0.0
+        trip_norm = 1 - normalize_val(avg_trip_minutes, min_trip, max_trip) if team_employee_trip else 0.0
+        route_norm = normalize_val(avg_route_tonnage, min_route, max_route) if team_employee_route else 0.0
+        regularity_norm = clamp01(regularity_adjusted)
+        trend_norm = clamp01(0.5 + trend_ratio * 2)
+        discipline_score = clamp01(discipline_rate * absence_penalty_factor * penalty_factor)
+        context_score = clamp01(0.7 * route_norm + 0.3 * clamp01(1 - top_client_share))
+
+        productivity_score = clamp01(0.5 * kgh_norm + 0.3 * tonnage_norm + 0.2 * trip_norm)
+        quality_score = clamp01(0.6 * regularity_norm + 0.4 * consistency_score)
+        evolution_score = clamp01(trend_norm)
+
+        def get_pillar_weights(tenure_band: str) -> dict:
+            base = {
+                "productivity": 0.35,
+                "quality": 0.20,
+                "discipline": 0.20,
+                "evolution": 0.15,
+                "context": 0.10
+            }
+            if tenure_band == "Novatos":
+                return {
+                    "productivity": 0.30,
+                    "quality": 0.18,
+                    "discipline": 0.18,
+                    "evolution": 0.22,
+                    "context": 0.12
+                }
+            if tenure_band == "Veteranos":
+                return {
+                    "productivity": 0.30,
+                    "quality": 0.24,
+                    "discipline": 0.24,
+                    "evolution": 0.12,
+                    "context": 0.10
+                }
+            return base
+
+        weights = get_pillar_weights(tenure_band_value)
+        overall_score = (
+            weights["productivity"] * productivity_score
+            + weights["quality"] * quality_score
+            + weights["discipline"] * discipline_score
+            + weights["evolution"] * evolution_score
+            + weights["context"] * context_score
+        )
+        overall_score = round(overall_score * 100, 2)
+
+        def build_badge() -> dict:
+            if overall_score >= 85 and discipline_rate >= 0.95 and regularity_adjusted >= 0.8:
+                return {"label": "Referência", "reason": "Alta entrega com disciplina consistente."}
+            if trend_ratio > 0.05:
+                return {"label": "Em evolução", "reason": "Tendência de melhora no período."}
+            if unjustified_days > 0 or (team_avg_kgh and avg_kgh < team_avg_kgh * 0.85):
+                return {"label": "Atenção", "reason": "Queda de eficiência ou faltas não justificadas."}
+            if regularity_adjusted >= 0.8 and overall_score <= 60:
+                return {"label": "Potencial", "reason": "Presença alta com performance abaixo do potencial."}
+            return {"label": "Potencial", "reason": "Margem clara para evolução com ajustes operacionais."}
+
+        def build_strengths() -> List[str]:
+            items = []
+            if team_avg_kgh and avg_kgh > team_avg_kgh * 1.1:
+                items.append("Velocidade acima da média do time")
+            if regularity_adjusted >= 0.8:
+                items.append("Presença consistente no período")
+            if trend_ratio > 0.05:
+                items.append("Tendência de melhora contínua")
+            if discipline_rate >= 0.95 and unjustified_days == 0:
+                items.append("Disciplina alta sem faltas")
+            return items or ["Sem sinais fortes de destaque no período"]
+
+        def build_losses() -> List[str]:
+            items = []
+            if team_avg_trip_minutes and avg_trip_minutes > team_avg_trip_minutes * 1.15:
+                items.append("Tempo médio por viagem acima da média")
+            if unjustified_days > 0:
+                items.append(f"{unjustified_days} falta(s) não justificadas")
+            if occurrences:
+                items.append(f"{occurrences} ocorrência(s) operacional(is)")
+            if team_avg_kgh and avg_kgh < team_avg_kgh * 0.9:
+                items.append("Velocidade abaixo da média do time")
+            return items or ["Sem perdas críticas detectadas no período"]
+
+        def build_how_works() -> List[str]:
+            items = [
+                f"Liga: {tenure_band_value} ({tenure_months}m)",
+                f"Tipo de rota: {route_band_value}",
+                f"Turno: {employee_shift}"
+            ]
+            if top_client and top_client != "-":
+                items.append(f"Cliente recorrente: {top_client}")
+            return items
+
+        def build_replicable() -> List[str]:
+            items = []
+            if consistency_score >= 0.7:
+                items.append("Ritmo estável ao longo do período")
+            if discipline_rate >= 0.95 and unjustified_days == 0:
+                items.append("Disciplina operacional consistente")
+            if team_avg_kgh and avg_kgh > team_avg_kgh * 1.1:
+                items.append("Velocidade acima da média replicável com padronização")
+            return items or ["Sem padrão claro para replicação no período"]
+
+        badge = build_badge()
+
+
         consistency_score = max(0.0, 1 - cv)
         top_client = payload["clients"].most_common(1)[0][0] if payload["clients"] else "-"
+        top_client_count = payload["clients"].most_common(1)[0][1] if payload["clients"] else 0
+        top_client_share = (top_client_count / payload["count"]) if payload["count"] else 0.0
+        avg_route_tonnage = payload["tonnage"] / payload["count"] if payload["count"] else 0.0
 
         tenure_months = compute_tenure_months(employee)
         tenure_group = get_tenure_band(tenure_months)
+        route_band_value = assign_band(avg_route_tonnage, band_low, band_high) if avg_route_tonnage else "Leve"
 
         rows_all.append({
             "id": eid,
             "name": employee.name if employee else "N/A",
             "photo": employee.photo_url if employee else None,
+            "shift": employee.work_shift if employee else None,
             "total_tonnage": payload["tonnage"],
             "total_hours": hours,
             "count": payload["count"],
@@ -5996,6 +6838,10 @@ async def operations_performance_page(
             "presence_rate": min(1.0, regularity_adjusted),
             "discipline_rate": max(0.0, discipline_rate),
             "top_client": top_client,
+            "top_client_share": top_client_share,
+            "avg_route_tonnage": avg_route_tonnage,
+            "route_band": route_band_value,
+            "sample_days": len(payload["days"]),
             "tenure_months": tenure_months,
             "tenure_band": tenure_group
         })
@@ -6077,36 +6923,91 @@ async def operations_performance_page(
             }
         )
 
+    def clamp01(value: float) -> float:
+        return max(0.0, min(1.0, value))
+
+    def get_pillar_weights(tenure_band: str) -> dict:
+        base = {
+            "productivity": 0.35,
+            "quality": 0.20,
+            "discipline": 0.20,
+            "evolution": 0.15,
+            "context": 0.10
+        }
+        if tenure_band == "Novatos":
+            return {
+                "productivity": 0.30,
+                "quality": 0.18,
+                "discipline": 0.18,
+                "evolution": 0.22,
+                "context": 0.12
+            }
+        if tenure_band == "Veteranos":
+            return {
+                "productivity": 0.30,
+                "quality": 0.24,
+                "discipline": 0.24,
+                "evolution": 0.12,
+                "context": 0.10
+            }
+        return base
+
+    def compute_context_score(route_norm: float, top_client_share: float) -> float:
+        client_variation = clamp01(1 - (top_client_share or 0.0))
+        return clamp01(0.7 * route_norm + 0.3 * client_variation)
+
     def apply_scores(rows_subset: List[dict]) -> None:
         if not rows_subset:
             return
         kgh_values = [r["avg_kgh"] for r in rows_subset]
         tonnage_values = [r["total_tonnage"] for r in rows_subset]
+        trip_values = [r["avg_trip_minutes"] for r in rows_subset]
         regularity_values = [r["regularity_adjusted"] for r in rows_subset]
         consistency_values = [r["consistency_score"] for r in rows_subset]
         trend_values = [r["trend_slope"] for r in rows_subset]
+        route_values = [r["avg_route_tonnage"] for r in rows_subset]
 
         min_kgh, max_kgh = min(kgh_values), max(kgh_values)
         min_tonnage, max_tonnage = min(tonnage_values), max(tonnage_values)
+        min_trip, max_trip = min(trip_values), max(trip_values)
         min_reg, max_reg = min(regularity_values), max(regularity_values)
         min_cons, max_cons = min(consistency_values), max(consistency_values)
         min_trend, max_trend = min(trend_values), max(trend_values)
+        min_route, max_route = min(route_values), max(route_values)
 
         for row in rows_subset:
             kgh_norm = normalize_val(row["avg_kgh"], min_kgh, max_kgh)
             tonnage_norm = normalize_val(row["total_tonnage"], min_tonnage, max_tonnage)
+            trip_norm = 1 - normalize_val(row["avg_trip_minutes"], min_trip, max_trip)
             regularity_norm = normalize_val(row["regularity_adjusted"], min_reg, max_reg)
             consistency_norm = normalize_val(row["consistency_score"], min_cons, max_cons)
             trend_norm = normalize_val(row["trend_slope"], min_trend, max_trend)
-            weights = get_weights(row["tenure_band"])
-            base_score = (
-                weights["kgh"] * kgh_norm
-                + weights["tonnage"] * tonnage_norm
-                + weights["regularity"] * regularity_norm
-                + weights["consistency"] * consistency_norm
-                + weights["trend"] * trend_norm
+            route_norm = normalize_val(row["avg_route_tonnage"], min_route, max_route)
+
+            productivity_score = clamp01(0.5 * kgh_norm + 0.3 * tonnage_norm + 0.2 * trip_norm)
+            quality_score = clamp01(0.6 * regularity_norm + 0.4 * consistency_norm)
+            discipline_score = clamp01(
+                row["discipline_rate"] * row["absence_penalty_factor"] * row["penalty_factor"]
             )
-            row["score"] = round(base_score * 100 * row["penalty_factor"] * row["absence_penalty_factor"], 2)
+            evolution_score = clamp01(trend_norm)
+            context_score = compute_context_score(route_norm, row.get("top_client_share", 0.0))
+
+            weights = get_pillar_weights(row["tenure_band"])
+            base_score = (
+                weights["productivity"] * productivity_score
+                + weights["quality"] * quality_score
+                + weights["discipline"] * discipline_score
+                + weights["evolution"] * evolution_score
+                + weights["context"] * context_score
+            )
+            row["score"] = round(base_score * 100, 2)
+            row["pillar_scores"] = {
+                "productivity": round(productivity_score * 100, 1),
+                "quality": round(quality_score * 100, 1),
+                "discipline": round(discipline_score * 100, 1),
+                "evolution": round(evolution_score * 100, 1),
+                "context": round(context_score * 100, 1)
+            }
 
         score_values = [r["score"] for r in rows_subset]
         score_values_sorted = sorted(score_values, reverse=True)
@@ -6147,6 +7048,64 @@ async def operations_performance_page(
     trend_values = [r["trend_slope"] for r in rows_filtered]
     score_values = [r["score"] for r in rows_filtered]
 
+    median_score = sorted(score_values)[len(score_values) // 2] if score_values else 0
+
+    def badge_meta(label: str) -> dict:
+        styles = {
+            "Referência": "bg-emerald-500/20 text-emerald-200 border-emerald-500/30",
+            "Em evolução": "bg-blue-500/20 text-blue-200 border-blue-500/30",
+            "Atenção": "bg-red-500/20 text-red-200 border-red-500/30",
+            "Potencial": "bg-amber-500/20 text-amber-200 border-amber-500/30"
+        }
+        return {"label": label, "class": styles.get(label, styles["Potencial"])}
+
+    def build_badge(row: dict) -> dict:
+        if row["score"] >= 85 and row["discipline_rate"] >= 0.95 and row["regularity_adjusted"] >= 0.8:
+            return {"label": "Referência", "reason": "Alta entrega com disciplina consistente."}
+        if row["trend_ratio"] > 0.05:
+            return {"label": "Em evolução", "reason": "Tendência de melhora no período."}
+        if row["unjustified_absences"] > 0 or row["avg_kgh"] < team_avg_kgh * 0.85:
+            return {"label": "Atenção", "reason": "Queda de eficiência ou faltas não justificadas."}
+        if row["regularity_adjusted"] >= 0.8 and row["score"] <= median_score:
+            return {"label": "Potencial", "reason": "Presença alta com performance abaixo do potencial."}
+        return {"label": "Potencial", "reason": "Margem clara para evolução com ajustes operacionais."}
+
+    def build_reasons(row: dict) -> List[str]:
+        reasons = []
+        if row.get("sample_days", 0) < 3:
+            reasons.append("Amostra pequena no período")
+        if row["avg_kgh"] > team_avg_kgh * 1.1:
+            reasons.append("Velocidade acima da média do time")
+        if row.get("delta_expected_context") is not None:
+            if row["delta_expected_context"] > team_avg_kgh * 0.05:
+                reasons.append("Acima do esperado para rota/turno")
+            elif row["delta_expected_context"] < -team_avg_kgh * 0.05:
+                reasons.append("Abaixo do esperado para rota/turno")
+        if row["avg_trip_minutes"] > team_avg_trip_minutes * 1.15:
+            reasons.append("Tempo por viagem acima da média")
+        if row["regularity_adjusted"] >= 0.8:
+            reasons.append("Presença consistente no período")
+        if row["trend_ratio"] > 0.05:
+            reasons.append("Tendência de melhora")
+        if row["trend_ratio"] < -0.05:
+            reasons.append("Tendência de queda")
+        if row["unjustified_absences"] > 0:
+            reasons.append(f"{row['unjustified_absences']} falta(s) não justificadas")
+        if row["occurrences"] > 0:
+            reasons.append(f"{row['occurrences']} ocorrência(s) operacional(is)")
+        if row["top_client"] and row["top_client"] != "-":
+            reasons.append(f"Cliente recorrente: {row['top_client']}")
+        return reasons[:4]
+
+    for row in rows_filtered:
+        badge = build_badge(row)
+        meta = badge_meta(badge["label"])
+        row["badge"] = meta["label"]
+        row["badge_class"] = meta["class"]
+        row["badge_reason"] = badge["reason"]
+        row["analysis_reasons"] = build_reasons(row)
+        row["score_source"] = "Estatística"
+
     if len(rows_filtered) > 1:
         x_vals = [r["regularity_adjusted"] for r in rows_filtered]
         y_vals = [r["avg_kgh"] for r in rows_filtered]
@@ -6161,6 +7120,17 @@ async def operations_performance_page(
     for row in rows_filtered:
         row["expected_kgh"] = max(0.0, intercept + slope * row["regularity_adjusted"])
         row["delta_expected"] = row["avg_kgh"] - row["expected_kgh"]
+
+    expected_map = {}
+    for row in rows_filtered:
+        key = (row.get("route_band"), row.get("shift"))
+        expected_map.setdefault(key, []).append(row["avg_kgh"])
+    expected_map = {key: safe_mean(vals) for key, vals in expected_map.items()}
+    for row in rows_filtered:
+        key = (row.get("route_band"), row.get("shift"))
+        expected_context = expected_map.get(key, team_avg_kgh)
+        row["expected_kgh_context"] = expected_context
+        row["delta_expected_context"] = row["avg_kgh"] - expected_context
 
     feature_drivers = []
     for label, values in [
@@ -6258,23 +7228,13 @@ async def operations_performance_page(
 
     top_performers = []
     for row in rows_filtered[:5]:
-        reasons = []
-        if row["avg_kgh"] > team_avg_kgh * 1.1:
-            reasons.append("Velocidade acima da media")
-        if row["regularity_adjusted"] >= 0.8:
-            reasons.append("Presenca consistente")
-        if row["trend_ratio"] > 0.05:
-            reasons.append("Tendencia positiva")
-        if row["unjustified_absences"] == 0:
-            reasons.append("Sem faltas nao justificadas")
-        if row["top_client"] and row["top_client"] != "-":
-            reasons.append(f"Cliente recorrente: {row['top_client']}")
         top_performers.append({
             "name": row["name"],
             "score": row["score"],
             "percentile": row["percentile"],
-            "reasons": reasons[:3],
-            "id": row["id"]
+            "reasons": row.get("analysis_reasons", [])[:3],
+            "id": row["id"],
+            "badge": row.get("badge")
         })
 
     insights = {}
@@ -6393,6 +7353,7 @@ async def get_ranking_details(
         total_days = (end_date_obj - start_date_obj).days + 1
             
         employee = session.exec(select(models.Employee).where(models.Employee.id == employee_id)).first()
+        employee_shift = employee.work_shift if employee else "-"
         tenure_months = 0
         tenure_band_value = "Novatos"
         admission_date = to_date(getattr(employee, "admission_date", None))
@@ -6408,6 +7369,57 @@ async def get_ranking_details(
         tenure_filter_mismatch = (
             tenure_band not in ["Todos", "Geral", None, "null"] and tenure_band != tenure_band_value
         )
+
+        OCCURRENCE_TYPES = {"erro", "alerta", "ocorrencia", "advertencia"}
+
+        def safe_mean(values: List[float]) -> float:
+            return statistics.mean(values) if values else 0.0
+
+        def safe_stdev(values: List[float]) -> float:
+            return statistics.pstdev(values) if len(values) > 1 else 0.0
+
+        def clamp01(value: float) -> float:
+            return max(0.0, min(1.0, value))
+
+        def normalize_val(value: float, min_val: float, max_val: float) -> float:
+            if max_val == min_val:
+                return 0.5 if max_val else 0.0
+            return (value - min_val) / (max_val - min_val)
+
+        def parse_time_value(value) -> Optional[time]:
+            if value is None:
+                return None
+            if isinstance(value, time):
+                return value
+            if isinstance(value, datetime):
+                return value.time()
+            if isinstance(value, str):
+                for fmt in ("%H:%M:%S", "%H:%M"):
+                    try:
+                        return datetime.strptime(value.strip(), fmt).time()
+                    except Exception:
+                        continue
+            return None
+
+        def duration_seconds(start_val, end_val) -> float:
+            start_time = parse_time_value(start_val)
+            end_time = parse_time_value(end_val)
+            if not start_time or not end_time:
+                return 0.0
+            start_dt = datetime.combine(datetime.now().date(), start_time)
+            end_dt = datetime.combine(datetime.now().date(), end_time)
+            if end_dt < start_dt:
+                end_dt += timedelta(days=1)
+            return max(0.0, (end_dt - start_dt).total_seconds())
+
+        def trend_slope(values: List[float]) -> float:
+            if len(values) < 2:
+                return 0.0
+            x_mean = (len(values) - 1) / 2
+            y_mean = safe_mean(values)
+            numerator = sum((idx - x_mean) * (val - y_mean) for idx, val in enumerate(values))
+            denominator = sum((idx - x_mean) ** 2 for idx in range(len(values)))
+            return numerator / denominator if denominator else 0.0
 
         def assign_band(value: float, low: float, high: float) -> str:
             if value <= low:
@@ -6467,33 +7479,42 @@ async def get_ranking_details(
         total_secs = 0
         max_kgh = 0
         active_days = set()
+        daily = {}
+        client_counts = Counter()
         
         for r, c in results:
             tonnage = r.tonnage or 0
             duration_fmt = "-"
             kgh = 0
+            diff = 0
             
             # Duration logic
             try:
-                if r.start_time and r.end_time:
-                    s = datetime.strptime(r.start_time, "%H:%M")
-                    e = datetime.strptime(r.end_time, "%H:%M")
-                    diff = (e-s).total_seconds()
-                    if diff > 0:
-                        total_secs += diff
-                        duration_fmt = f"{int(diff//3600):02d}:{int((diff%3600)//60):02d}"
-                        kgh = tonnage / (diff/3600)
-                        if kgh > max_kgh: max_kgh = kgh
-            except: pass
+                diff = duration_seconds(r.start_time, r.end_time)
+                if diff > 0:
+                    total_secs += diff
+                    duration_fmt = f"{int(diff//3600):02d}:{int((diff%3600)//60):02d}"
+                    kgh = tonnage / (diff/3600)
+                    if kgh > max_kgh:
+                        max_kgh = kgh
+            except Exception:
+                pass
             
             total_tonnage += tonnage
             route_day = to_date(r.date)
             route_day_key = route_day.isoformat() if route_day else str(r.date)
             active_days.add(route_day_key)
             route_date_str = fmt_ddmm(r.date)
+            client_name = c.name if c else "N/A"
+            client_counts[client_name] += 1
+
+            if diff > 0:
+                day_entry = daily.setdefault(route_day_key, {"tonnage": 0.0, "secs": 0.0})
+                day_entry["tonnage"] += tonnage
+                day_entry["secs"] += diff
 
             routes_data.append({
-                "client": c.name,
+                "client": client_name,
                 "tonnage": int(tonnage),
                 "start": r.start_time,
                 "end": r.end_time or "-",
@@ -6501,6 +7522,30 @@ async def get_ranking_details(
                 "kgh": int(kgh),
                 "date": route_date_str
             })
+
+        daily_kgh = []
+        for data in daily.values():
+            if data["secs"] > 0:
+                daily_kgh.append(data["tonnage"] / (data["secs"] / 3600))
+        daily_kgh_sorted = [val for _, val in sorted(zip(daily.keys(), daily_kgh))] if daily_kgh else []
+        daily_mean = safe_mean(daily_kgh_sorted)
+        daily_std = safe_stdev(daily_kgh_sorted)
+        cv = (daily_std / daily_mean) if daily_mean else 0.0
+        slope = trend_slope(daily_kgh_sorted)
+        trend_ratio = slope / daily_mean if daily_mean else 0.0
+        if trend_ratio > 0.05:
+            trend_label = "Em alta"
+        elif trend_ratio < -0.05:
+            trend_label = "Em queda"
+        else:
+            trend_label = "Estavel"
+
+        top_client = client_counts.most_common(1)[0][0] if client_counts else "-"
+        top_client_count = client_counts.most_common(1)[0][1] if client_counts else 0
+        top_client_share = (top_client_count / len(routes_data)) if routes_data else 0.0
+        avg_route_tonnage = total_tonnage / len(routes_data) if routes_data else 0.0
+        avg_trip_minutes = (total_secs / 60 / len(routes_data)) if routes_data else 0.0
+        route_band_value = assign_band(avg_route_tonnage, band_low, band_high) if avg_route_tonnage else "Leve"
             
         # Summary
         avg_kgh = 0
@@ -6549,6 +7594,32 @@ async def get_ranking_details(
                 "discipline_rate": max(0.0, discipline_rate),
                 "tenure_months": tenure_months,
                 "tenure_band": tenure_band_value
+            },
+            "analysis": {
+                "badge": badge["label"],
+                "badge_reason": badge["reason"],
+                "pillars": {
+                    "productivity": round(productivity_score * 100, 1),
+                    "quality": round(quality_score * 100, 1),
+                    "discipline": round(discipline_score * 100, 1),
+                    "evolution": round(evolution_score * 100, 1),
+                    "context": round(context_score * 100, 1)
+                },
+                "how_works": build_how_works(),
+                "losses": build_losses(),
+                "strengths": build_strengths(),
+                "replicable": build_replicable(),
+                "context": {
+                    "route_band": route_band_value,
+                    "top_client": top_client,
+                    "top_client_share": round(top_client_share * 100, 1),
+                    "shift": employee_shift
+                },
+                "sources": {
+                    "score": "Estatística",
+                    "trend": "Estatística",
+                    "context": "Regras"
+                }
             },
             "routes": sorted(routes_data, key=lambda x: x['start'] or "", reverse=True)
         }

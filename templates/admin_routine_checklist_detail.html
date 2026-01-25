@@ -123,6 +123,52 @@
                 </form>
             </div>
 
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 space-y-4">
+                <h2 class="text-base font-semibold text-white">Correção (Admin)</h2>
+                {% if checklist.edited_at %}
+                <div class="text-xs text-slate-400 space-y-1">
+                    <p><span class="text-slate-500">Editado por:</span> {{ checklist.edited_by }}</p>
+                    <p><span class="text-slate-500">Em:</span> {{ checklist.edited_at.strftime("%d/%m/%Y %H:%M") }}</p>
+                    <p><span class="text-slate-500">Motivo:</span> {{ checklist.edit_comment }}</p>
+                    {% if checklist.previous_equipment_code %}
+                    <p><span class="text-slate-500">Equipamento anterior:</span> {{ checklist.previous_equipment_code }}</p>
+                    {% endif %}
+                    {% if checklist.previous_observations %}
+                    <p><span class="text-slate-500">Observações anteriores:</span> {{ checklist.previous_observations }}</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+                <form action="/admin/routine/checklists/{{ checklist.id }}/edit" method="POST" enctype="multipart/form-data"
+                    class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Equipamento</label>
+                        <input type="text" name="equipment_code" value="{{ checklist.equipment_code }}" required
+                            class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Observações</label>
+                        <textarea name="observations" rows="3"
+                            class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+                            placeholder="Complemento ou correção">{{ checklist.observations or '' }}</textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Evidências adicionais</label>
+                        <input type="file" name="files" multiple accept="image/*"
+                            class="w-full text-xs text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-700 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-slate-600">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Motivo da correção</label>
+                        <textarea name="edit_comment" rows="2" required
+                            class="w-full rounded-xl bg-slate-900 border border-red-500/40 px-3 py-2 text-sm text-white focus:border-red-500 focus:outline-none"
+                            placeholder="Explique a correção"></textarea>
+                    </div>
+                    <button type="submit"
+                        class="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold">
+                        Salvar correção
+                    </button>
+                </form>
+            </div>
+
             <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 space-y-2">
                 <h2 class="text-base font-semibold text-white">E-mail de manutencao</h2>
                 <p class="text-sm text-slate-300">

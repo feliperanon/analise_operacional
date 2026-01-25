@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8">
+    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-white">Chamados de Equipamento</h1>
+            <p class="text-sm text-slate-400">Registro de falhas pós-checklist e acompanhamento.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <a href="/admin/routine/checklists/dashboard"
+                class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                Dashboard
+            </a>
+            <a href="/admin/routine/checklists"
+                class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+                Checklists
+            </a>
+            <a href="/admin/routine/checklists/settings"
+                class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Cadastros
+            </a>
+        </div>
+    </div>
+
+    {% if message %}
+    <div
+        class="mb-6 p-3 rounded-lg border text-sm {{ 'bg-emerald-500/20 border-emerald-500/40 text-emerald-100' if level != 'error' else 'bg-red-500/20 border-red-500/40 text-red-100' }}">
+        {{ message }}
+    </div>
+    {% endif %}
+
+    <form class="bg-slate-800 border border-slate-700 rounded-2xl p-4 mb-6 grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Status</label>
+            <select name="status"
+                class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
+                <option value="">Todos</option>
+                <option value="open" {{ "selected" if filters.status=="open" else "" }}>Aberto</option>
+                <option value="closed" {{ "selected" if filters.status=="closed" else "" }}>Fechado</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Severidade</label>
+            <select name="severity"
+                class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
+                <option value="">Todas</option>
+                <option value="low" {{ "selected" if filters.severity=="low" else "" }}>Baixa</option>
+                <option value="high" {{ "selected" if filters.severity=="high" else "" }}>Alta</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Equipamento</label>
+            <input type="text" name="equipment" value="{{ filters.equipment }}"
+                class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+                placeholder="TP-01">
+        </div>
+        <div class="flex items-end">
+            <button type="submit"
+                class="w-full rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 transition-colors">
+                Filtrar
+            </button>
+        </div>
+    </form>
+
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-slate-400 border-b border-slate-700">
+                    <th class="py-2 pr-4">Data/Hora</th>
+                    <th class="py-2 pr-4">Equipamento</th>
+                    <th class="py-2 pr-4">Colaborador</th>
+                    <th class="py-2 pr-4">Turno</th>
+                    <th class="py-2 pr-4">Severidade</th>
+                    <th class="py-2 pr-4">Status</th>
+                    <th class="py-2 pr-4">Descrição</th>
+                    <th class="py-2">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-700">
+                {% for row in tickets %}
+                <tr>
+                    <td class="py-3 pr-4">{{ row.created_at_br }}</td>
+                    <td class="py-3 pr-4">{{ row.ticket.equipment_code }}</td>
+                    <td class="py-3 pr-4">{{ row.employee.name }}</td>
+                    <td class="py-3 pr-4">{{ row.ticket.shift or '-' }}</td>
+                    <td class="py-3 pr-4">
+                        <span
+                            class="text-xs px-2 py-1 rounded-full {{ 'bg-red-500/20 text-red-200' if row.ticket.severity == 'high' else 'bg-emerald-500/20 text-emerald-200' }}">
+                            {{ 'ALTA' if row.ticket.severity == 'high' else 'BAIXA' }}
+                        </span>
+                    </td>
+                    <td class="py-3 pr-4">
+                        <span
+                            class="text-xs px-2 py-1 rounded-full {{ 'bg-amber-500/20 text-amber-200' if row.ticket.status == 'open' else 'bg-emerald-500/20 text-emerald-200' }}">
+                            {{ 'ABERTO' if row.ticket.status == 'open' else 'FECHADO' }}
+                        </span>
+                    </td>
+                    <td class="py-3 pr-4">
+                        <div class="text-slate-300 text-xs leading-snug max-w-xs">
+                            {{ row.ticket.description }}
+                        </div>
+                        {% if row.image_urls %}
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            {% for img in row.image_urls %}
+                            <a href="{{ img }}" target="_blank"
+                                class="text-xs text-blue-300 hover:text-blue-200">Imagem</a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td class="py-3">
+                        {% if row.ticket.status == 'open' %}
+                        <form action="/admin/equipment/tickets/{{ row.ticket.id }}/close" method="POST">
+                            <button type="submit"
+                                class="text-xs px-2 py-1 rounded-lg border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 transition-colors">
+                                Encerrar
+                            </button>
+                        </form>
+                        {% else %}
+                        <span class="text-xs text-slate-500">Finalizado</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not tickets %}
+                <tr>
+                    <td colspan="8" class="py-8 text-center text-slate-400">Nenhum chamado encontrado.</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

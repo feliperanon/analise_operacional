@@ -14377,3 +14377,989 @@ fastapi.exceptions.HTTPException: 303: See Other
 2026-01-24 23:30:22,407 | INFO     | main | E-mail de manutencao enviado com sucesso.
 2026-01-24 23:33:41,721 | INFO     | main | Enviando e-mail de manutencao | host=smtp.office365.com port=587 tls=True ssl=False from=felipe.pires@nlfrutas.com.br recipients=['feliperanon@live.com'] subject=ALERTA MANUTENÇÃO — 2026-01-24 — Equipamento TESTE-EMAIL
 2026-01-24 23:33:46,686 | INFO     | main | E-mail de manutencao enviado com sucesso.
+2026-01-24 23:39:55,972 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-24 23:49:42,652 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-24 23:50:15,041 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-24 23:50:58,718 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-24 23:51:57,664 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-24 23:52:40,724 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-24 23:53:06,447 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-24 23:53:34,085 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-24 23:55:56,208 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-24 23:56:23,455 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-24 23:56:52,170 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-24 23:57:16,097 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-24 23:59:02,846 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-24 23:59:56,338 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:14:43,215 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:23:37,715 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:23:58,685 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:24:19,558 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:24:39,244 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:29:20,806 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:29:41,187 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:30:13,175 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:30:32,883 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:30:52,503 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:31:13,473 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:31:36,906 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:32:40,024 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:32:59,576 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:33:31,292 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:33:50,965 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:38:38,825 | ERROR    | main | [500] GET http://127.0.0.1:8000/operations/performance?period=daily&date=2026-01-24&shift=Todos&route_band=Todos&tenure_band=Todos&sort_by=score&order=desc | Trace: 3a971aea | Error: name 'employee_id' is not defined
+  + Exception Group Traceback (most recent call last):
+  |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 79, in collapse_excgroups
+  |     yield
+  |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 192, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |                ~~~~~~~~~~~~~~~~~~~~~~~^^
+  |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 783, in __aexit__
+  |     raise BaseExceptionGroup(
+  |         "unhandled errors in a TaskGroup", self._exceptions
+  |     ) from None
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "E:\Projeto\analise_operacional\main.py", line 293, in global_exception_handler
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ~~~~~~~~~~~~~~~~~~^^
+    |   File "C:\Users\felip\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    |     self.gen.throw(value)
+    |     ~~~~~~~~~~~~~~^^^^^^^
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\main.py", line 281, in add_no_cache_header
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    |     await self.app(scope, receive, send_wrapper)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    |     await route.handle(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    |     await self.app(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 118, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 104, in app
+    |     response = await f(request)
+    |                ^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 428, in app
+    |     raw_response = await run_endpoint_function(
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     ...<3 lines>...
+    |     )
+    |     ^
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 314, in run_endpoint_function
+    |     return await dependant.call(**values)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\main.py", line 6448, in operations_performance_page
+    |     .where(models.Event.employee_id == employee_id)
+    |                                        ^^^^^^^^^^^
+    | NameError: name 'employee_id' is not defined. Did you mean: 'employee_ids'?
+    +------------------------------------
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "E:\Projeto\analise_operacional\main.py", line 293, in global_exception_handler
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\felip\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    raise exc
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\main.py", line 281, in add_no_cache_header
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 118, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 104, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 428, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 314, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\main.py", line 6448, in operations_performance_page
+    .where(models.Event.employee_id == employee_id)
+                                       ^^^^^^^^^^^
+NameError: name 'employee_id' is not defined. Did you mean: 'employee_ids'?
+
+2026-01-25 00:39:36,935 | ERROR    | main | [500] GET http://127.0.0.1:8000/operations/performance?period=daily&date=2026-01-24&shift=Todos&route_band=Todos&tenure_band=Todos&sort_by=score&order=desc | Trace: 33ef81c2 | Error: name 'employee_id' is not defined
+  + Exception Group Traceback (most recent call last):
+  |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 79, in collapse_excgroups
+  |     yield
+  |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 192, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |                ~~~~~~~~~~~~~~~~~~~~~~~^^
+  |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 783, in __aexit__
+  |     raise BaseExceptionGroup(
+  |         "unhandled errors in a TaskGroup", self._exceptions
+  |     ) from None
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "E:\Projeto\analise_operacional\main.py", line 293, in global_exception_handler
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ~~~~~~~~~~~~~~~~~~^^
+    |   File "C:\Users\felip\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    |     self.gen.throw(value)
+    |     ~~~~~~~~~~~~~~^^^^^^^
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\main.py", line 281, in add_no_cache_header
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    |     await self.app(scope, receive, send_wrapper)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    |     await route.handle(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    |     await self.app(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 118, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 104, in app
+    |     response = await f(request)
+    |                ^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 428, in app
+    |     raw_response = await run_endpoint_function(
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     ...<3 lines>...
+    |     )
+    |     ^
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 314, in run_endpoint_function
+    |     return await dependant.call(**values)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\main.py", line 6448, in operations_performance_page
+    |     .where(models.Event.employee_id == employee_id)
+    |                                        ^^^^^^^^^^^
+    | NameError: name 'employee_id' is not defined. Did you mean: 'employee_ids'?
+    +------------------------------------
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "E:\Projeto\analise_operacional\main.py", line 293, in global_exception_handler
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\felip\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    raise exc
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\main.py", line 281, in add_no_cache_header
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 118, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 104, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 428, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 314, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\main.py", line 6448, in operations_performance_page
+    .where(models.Event.employee_id == employee_id)
+                                       ^^^^^^^^^^^
+NameError: name 'employee_id' is not defined. Did you mean: 'employee_ids'?
+
+2026-01-25 00:42:11,885 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:45:29,313 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:45:48,751 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:46:10,639 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:46:30,079 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:46:50,165 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:49:55,577 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:50:14,650 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-25 00:50:32,791 | ERROR    | main | [500] GET http://127.0.0.1:8000/operations/performance?period=daily&date=2026-01-23&shift=Todos&route_band=Todos&tenure_band=Todos&sort_by=score&order=desc | Trace: 9ce7f34f | Error: name 'employee_id' is not defined
+  + Exception Group Traceback (most recent call last):
+  |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 79, in collapse_excgroups
+  |     yield
+  |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 192, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |                ~~~~~~~~~~~~~~~~~~~~~~~^^
+  |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 783, in __aexit__
+  |     raise BaseExceptionGroup(
+  |         "unhandled errors in a TaskGroup", self._exceptions
+  |     ) from None
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "E:\Projeto\analise_operacional\main.py", line 293, in global_exception_handler
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ~~~~~~~~~~~~~~~~~~^^
+    |   File "C:\Users\felip\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    |     self.gen.throw(value)
+    |     ~~~~~~~~~~~~~~^^^^^^^
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\main.py", line 281, in add_no_cache_header
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    |     await self.app(scope, receive, send_wrapper)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    |     await route.handle(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    |     await self.app(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 118, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 104, in app
+    |     response = await f(request)
+    |                ^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 428, in app
+    |     raw_response = await run_endpoint_function(
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     ...<3 lines>...
+    |     )
+    |     ^
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 314, in run_endpoint_function
+    |     return await dependant.call(**values)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\main.py", line 6632, in operations_performance_page
+    |     .where(models.Event.employee_id == employee_id)
+    |                                        ^^^^^^^^^^^
+    | NameError: name 'employee_id' is not defined. Did you mean: 'employee_ids'?
+    +------------------------------------
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "E:\Projeto\analise_operacional\main.py", line 293, in global_exception_handler
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\felip\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    raise exc
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\main.py", line 281, in add_no_cache_header
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 118, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 104, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 428, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 314, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\main.py", line 6632, in operations_performance_page
+    .where(models.Event.employee_id == employee_id)
+                                       ^^^^^^^^^^^
+NameError: name 'employee_id' is not defined. Did you mean: 'employee_ids'?
+
+2026-01-25 00:50:37,883 | ERROR    | main | [500] GET http://127.0.0.1:8000/operations/performance?period=daily&date=2026-01-23&shift=Todos&route_band=Todos&tenure_band=Todos&sort_by=score&order=desc | Trace: 8db5f987 | Error: name 'employee_id' is not defined
+  + Exception Group Traceback (most recent call last):
+  |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 79, in collapse_excgroups
+  |     yield
+  |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 192, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |                ~~~~~~~~~~~~~~~~~~~~~~~^^
+  |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 783, in __aexit__
+  |     raise BaseExceptionGroup(
+  |         "unhandled errors in a TaskGroup", self._exceptions
+  |     ) from None
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "E:\Projeto\analise_operacional\main.py", line 293, in global_exception_handler
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ~~~~~~~~~~~~~~~~~~^^
+    |   File "C:\Users\felip\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    |     self.gen.throw(value)
+    |     ~~~~~~~~~~~~~~^^^^^^^
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\main.py", line 281, in add_no_cache_header
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    |     await self.app(scope, receive, send_wrapper)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    |     await route.handle(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    |     await self.app(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 118, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 104, in app
+    |     response = await f(request)
+    |                ^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 428, in app
+    |     raw_response = await run_endpoint_function(
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     ...<3 lines>...
+    |     )
+    |     ^
+    |   File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 314, in run_endpoint_function
+    |     return await dependant.call(**values)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\main.py", line 6632, in operations_performance_page
+    |     .where(models.Event.employee_id == employee_id)
+    |                                        ^^^^^^^^^^^
+    | NameError: name 'employee_id' is not defined. Did you mean: 'employee_ids'?
+    +------------------------------------
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "E:\Projeto\analise_operacional\main.py", line 293, in global_exception_handler
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\felip\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    raise exc
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\main.py", line 281, in add_no_cache_header
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 118, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 104, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 428, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 314, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\main.py", line 6632, in operations_performance_page
+    .where(models.Event.employee_id == employee_id)
+                                       ^^^^^^^^^^^
+NameError: name 'employee_id' is not defined. Did you mean: 'employee_ids'?
+
+2026-01-25 00:52:32,322 | ERROR    | main | [500] GET http://127.0.0.1:8000/mobile/routine/checklist | Trace: b9dc8833 | Error: (psycopg2.errors.UndefinedColumn) column equipmentticket.maintenance_email_sent_at does not exist
+LINE 1: ...pmentticket.closed_at, equipmentticket.closed_by, equipmentt...
+                                                             ^
+
+[SQL: SELECT equipmentticket.id, equipmentticket.equipment_code, equipmentticket.employee_id, equipmentticket.created_at, equipmentticket.shift, equipmentticket.description, equipmentticket.severity, equipmentticket.images, equipmentticket.status, equipmentticket.closed_at, equipmentticket.closed_by, equipmentticket.maintenance_email_sent_at, equipmentticket.maintenance_email_error 
+FROM equipmentticket 
+WHERE equipmentticket.employee_id = %(employee_id_1)s AND equipmentticket.created_at >= %(created_at_1)s AND equipmentticket.status = %(status_1)s ORDER BY equipmentticket.created_at DESC]
+[parameters: {'employee_id_1': 442, 'created_at_1': datetime.datetime(2025, 12, 26, 0, 0), 'status_1': 'open'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Traceback (most recent call last):
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: column equipmentticket.maintenance_email_sent_at does not exist
+LINE 1: ...pmentticket.closed_at, equipmentticket.closed_by, equipmentt...
+                                                             ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "E:\Projeto\analise_operacional\main.py", line 293, in global_exception_handler
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\felip\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    raise exc
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\main.py", line 281, in add_no_cache_header
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 118, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 104, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 428, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 314, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\main.py", line 4045, in mobile_checklist_page
+    open_tickets = session.exec(
+                   ~~~~~~~~~~~~^
+        select(models.EquipmentTicket)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        .order_by(models.EquipmentTicket.created_at.desc())
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ).all()
+    ^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlmodel\orm\session.py", line 83, in exec
+    results = super().execute(
+        statement,
+    ...<4 lines>...
+        _add_event=_add_event,
+    )
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+        statement, params or {}, execution_options=execution_options
+    )
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column equipmentticket.maintenance_email_sent_at does not exist
+LINE 1: ...pmentticket.closed_at, equipmentticket.closed_by, equipmentt...
+                                                             ^
+
+[SQL: SELECT equipmentticket.id, equipmentticket.equipment_code, equipmentticket.employee_id, equipmentticket.created_at, equipmentticket.shift, equipmentticket.description, equipmentticket.severity, equipmentticket.images, equipmentticket.status, equipmentticket.closed_at, equipmentticket.closed_by, equipmentticket.maintenance_email_sent_at, equipmentticket.maintenance_email_error 
+FROM equipmentticket 
+WHERE equipmentticket.employee_id = %(employee_id_1)s AND equipmentticket.created_at >= %(created_at_1)s AND equipmentticket.status = %(status_1)s ORDER BY equipmentticket.created_at DESC]
+[parameters: {'employee_id_1': 442, 'created_at_1': datetime.datetime(2025, 12, 26, 0, 0), 'status_1': 'open'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+
+2026-01-25 00:53:38,218 | ERROR    | main | [500] GET http://127.0.0.1:8000/mobile/routine/checklist | Trace: 6f8b106d | Error: (psycopg2.errors.UndefinedColumn) column equipmentticket.maintenance_email_sent_at does not exist
+LINE 1: ...pmentticket.closed_at, equipmentticket.closed_by, equipmentt...
+                                                             ^
+
+[SQL: SELECT equipmentticket.id, equipmentticket.equipment_code, equipmentticket.employee_id, equipmentticket.created_at, equipmentticket.shift, equipmentticket.description, equipmentticket.severity, equipmentticket.images, equipmentticket.status, equipmentticket.closed_at, equipmentticket.closed_by, equipmentticket.maintenance_email_sent_at, equipmentticket.maintenance_email_error 
+FROM equipmentticket 
+WHERE equipmentticket.employee_id = %(employee_id_1)s AND equipmentticket.created_at >= %(created_at_1)s AND equipmentticket.status = %(status_1)s ORDER BY equipmentticket.created_at DESC]
+[parameters: {'employee_id_1': 442, 'created_at_1': datetime.datetime(2025, 12, 26, 0, 0), 'status_1': 'open'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Traceback (most recent call last):
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: column equipmentticket.maintenance_email_sent_at does not exist
+LINE 1: ...pmentticket.closed_at, equipmentticket.closed_by, equipmentt...
+                                                             ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "E:\Projeto\analise_operacional\main.py", line 293, in global_exception_handler
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\felip\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    raise exc
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\main.py", line 281, in add_no_cache_header
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 118, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 104, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 428, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 314, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\main.py", line 4045, in mobile_checklist_page
+    open_tickets = session.exec(
+                   ~~~~~~~~~~~~^
+        select(models.EquipmentTicket)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        .order_by(models.EquipmentTicket.created_at.desc())
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ).all()
+    ^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlmodel\orm\session.py", line 83, in exec
+    results = super().execute(
+        statement,
+    ...<4 lines>...
+        _add_event=_add_event,
+    )
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+        statement, params or {}, execution_options=execution_options
+    )
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "E:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column equipmentticket.maintenance_email_sent_at does not exist
+LINE 1: ...pmentticket.closed_at, equipmentticket.closed_by, equipmentt...
+                                                             ^
+
+[SQL: SELECT equipmentticket.id, equipmentticket.equipment_code, equipmentticket.employee_id, equipmentticket.created_at, equipmentticket.shift, equipmentticket.description, equipmentticket.severity, equipmentticket.images, equipmentticket.status, equipmentticket.closed_at, equipmentticket.closed_by, equipmentticket.maintenance_email_sent_at, equipmentticket.maintenance_email_error 
+FROM equipmentticket 
+WHERE equipmentticket.employee_id = %(employee_id_1)s AND equipmentticket.created_at >= %(created_at_1)s AND equipmentticket.status = %(status_1)s ORDER BY equipmentticket.created_at DESC]
+[parameters: {'employee_id_1': 442, 'created_at_1': datetime.datetime(2025, 12, 26, 0, 0), 'status_1': 'open'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+
