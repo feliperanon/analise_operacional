@@ -292,6 +292,9 @@
                                             {% if row.badge %}
                                             <span class="text-[10px] px-2 py-0.5 rounded-full border {{ row.badge_class }}">{{ row.badge }}</span>
                                             {% endif %}
+                                            {% if row.sample_small %}
+                                            <span class="text-[10px] px-1.5 py-0.5 rounded-full border border-amber-500/30 text-amber-200" title="Amostra pequena (&lt;3 dias)">!</span>
+                                            {% endif %}
                                         </div>
                                         <p class="text-xs text-slate-500">{{ row.top_client }}</p>
                                     </div>
@@ -300,7 +303,18 @@
                             <td class="py-3 px-4">
                                 <span class="text-xs px-2 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300">{{ row.tenure_band }}</span>
                             </td>
-                            <td class="py-3 px-4 text-emerald-300 font-semibold">{{ "{:.2f}".format(row.score) | replace('.', ',') }}</td>
+                            <td class="py-3 px-4">
+                                <div class="text-emerald-300 font-semibold">{{ "{:.2f}".format(row.score) | replace('.', ',') }}</div>
+                                {% if row.pillar_scores %}
+                                <div class="text-[10px] text-slate-500">
+                                    P: {{ row.pillar_scores.productivity|fmt_br }} |
+                                    Q: {{ row.pillar_scores.quality|fmt_br }} |
+                                    D: {{ row.pillar_scores.discipline|fmt_br }} |
+                                    E: {{ row.pillar_scores.evolution|fmt_br }} |
+                                    C: {{ row.pillar_scores.context|fmt_br }}
+                                </div>
+                                {% endif %}
+                            </td>
                             <td class="py-3 px-4">{{ row.total_tonnage|fmt_br_int }} kg</td>
                             <td class="py-3 px-4">{{ row.avg_kgh|fmt_br_int }}</td>
                             <td class="py-3 px-4">{{ row.count|fmt_br_int }}</td>
@@ -364,6 +378,15 @@
                             · Folgas: <span x-text="empDetails?.summary?.absences?.offday ?? 0"></span>
                         </p>
                         <p class="text-[10px] text-slate-500 mt-1">
+                            Dias ativos considerados: <span x-text="empDetails?.analysis?.sample_days ?? '-'"></span>
+                        </p>
+                        <p class="text-[10px] text-amber-300 mt-1" x-show="empDetails?.analysis?.sample_small">
+                            <span x-text="empDetails?.analysis?.sample_note ?? 'Amostra pequena.'"></span>
+                        </p>
+                        <p class="text-[10px] text-rose-300 mt-1" x-show="empDetails?.analysis?.routine_missing">
+                            <span x-text="empDetails?.analysis?.routine_missing_label ?? 'Sem rotina lancada no dia.'"></span>
+                        </p>
+                        <p class="text-[10px] text-slate-500 mt-1">
                             Atestado, afastamento e folga nao reduzem regularidade. Falta reduz score.
                         </p>
                     </div>
@@ -409,6 +432,20 @@
                         <p class="text-sm font-black text-slate-200" x-text="formatNumber(empDetails?.analysis?.pillars?.context) + '%'"></p>
                     </div>
                 </div>
+                <div class="px-4 pb-4">
+                    <div class="bg-slate-800/40 border border-white/5 rounded-xl p-4">
+                        <p class="text-xs uppercase text-slate-500 font-semibold mb-2">Auditoria do score</p>
+                        <div class="text-xs text-slate-300 space-y-1">
+                            <p>Score final ponderado: <span class="text-white font-semibold" x-text="formatNumber(empDetails?.analysis?.weighted_score)"></span></p>
+                            <p>Pesos (liga): P <span x-text="empDetails?.analysis?.pillar_weights?.productivity ?? '-'"></span>% · Q <span x-text="empDetails?.analysis?.pillar_weights?.quality ?? '-'"></span>% · D <span x-text="empDetails?.analysis?.pillar_weights?.discipline ?? '-'"></span>% · E <span x-text="empDetails?.analysis?.pillar_weights?.evolution ?? '-'"></span>% · C <span x-text="empDetails?.analysis?.pillar_weights?.context ?? '-'"></span>%</p>
+                            <p>Origem por pilar: P <span x-text="empDetails?.analysis?.pillar_sources?.productivity ?? '-'"></span> · Q <span x-text="empDetails?.analysis?.pillar_sources?.quality ?? '-'"></span> · D <span x-text="empDetails?.analysis?.pillar_sources?.discipline ?? '-'"></span> · E <span x-text="empDetails?.analysis?.pillar_sources?.evolution ?? '-'"></span> · C <span x-text="empDetails?.analysis?.pillar_sources?.context ?? '-'"></span></p>
+                            <p>Grupo: <span x-text="empDetails?.analysis?.group_label ?? '-'"></span> · Percentil prod.: <span x-text="empDetails?.analysis?.productivity_percentile_group ?? '-'"></span>% · Percentil score: <span x-text="empDetails?.analysis?.score_percentile_group ?? '-'"></span>%</p>
+                            <p>Confiabilidade do tempo: <span x-text="empDetails?.analysis?.time_reliability_rate ?? '-'"></span>% <span class="text-amber-300" x-show="empDetails?.analysis?.time_estimated">(estimado)</span></p>
+                            <p>Subpesos prod.: kg/h <span x-text="empDetails?.analysis?.productivity_subweights?.kgh ?? '-'"></span>% · volume <span x-text="empDetails?.analysis?.productivity_subweights?.tonnage ?? '-'"></span>% · tempo <span x-text="empDetails?.analysis?.productivity_subweights?.trip ?? '-'"></span>%</p>
+                            <p>Regra do selo: <span x-text="empDetails?.analysis?.badge_rule ?? '-'"></span></p>
+                        </div>
+                    </div>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 px-4 pb-4">
                     <div class="bg-slate-800/40 border border-white/5 rounded-xl p-4">
                         <p class="text-xs uppercase text-slate-500 font-semibold mb-2">Como ele trabalha</p>
@@ -441,6 +478,36 @@
                                 <li x-text="'• ' + item"></li>
                             </template>
                         </ul>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 px-4 pb-4">
+                    <div class="bg-slate-800/40 border border-white/5 rounded-xl p-4">
+                        <p class="text-xs uppercase text-slate-500 font-semibold mb-2">Kg/h por dia</p>
+                        <div class="text-xs text-slate-300 space-y-1">
+                            <template x-for="item in empDetails?.analysis?.timeline?.kgh_by_day || []" :key="item.date">
+                                <div class="flex items-center justify-between">
+                                    <span x-text="item.date"></span>
+                                    <span x-text="item.kgh === null ? '-' : formatNumber(item.kgh)"></span>
+                                </div>
+                            </template>
+                            <template x-if="!(empDetails?.analysis?.timeline?.kgh_by_day || []).length">
+                                <p class="text-slate-500">Sem registros no periodo.</p>
+                            </template>
+                        </div>
+                    </div>
+                    <div class="bg-slate-800/40 border border-white/5 rounded-xl p-4">
+                        <p class="text-xs uppercase text-slate-500 font-semibold mb-2">Ausencias por dia</p>
+                        <div class="text-xs text-slate-300 space-y-1">
+                            <template x-for="item in empDetails?.analysis?.timeline?.absences_by_day || []" :key="item.date + item.type">
+                                <div class="flex items-center justify-between">
+                                    <span x-text="item.date"></span>
+                                    <span x-text="item.type"></span>
+                                </div>
+                            </template>
+                            <template x-if="!(empDetails?.analysis?.timeline?.absences_by_day || []).length">
+                                <p class="text-slate-500">Sem ausencias registradas.</p>
+                            </template>
+                        </div>
                     </div>
                 </div>
                 <p class="text-[10px] text-slate-500 px-4 pb-4">

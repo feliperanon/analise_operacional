@@ -4107,6 +4107,70 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
     # Ordenar decrescente (mais recente primeiro)
     missing_days.sort(key=lambda x: x["full_date"], reverse=True)
 
+    # Create formatted view lists to be template-safe
+    
+    # helper for PT-BR date
+    def fmt_br(dt_obj):
+        if not dt_obj: return "-"
+        if isinstance(dt_obj, str): return dt_obj # fallback
+        return dt_obj.strftime("%d/%m/%Y %H:%M")
+
+    checklists_view = []
+    for c in checklists:
+        checklists_view.append({
+            "equipment_code": c.equipment_code,
+            "submitted_at_fmt": c.submitted_at.strftime("%H:%M") if c.submitted_at else "-",
+            "status_class": "bg-red-500/10 text-red-400" if (c.critical_flag or c.nonconforming_keys) else "bg-emerald-500/10 text-emerald-400",
+            "status_label": "Falha" if c.critical_flag else ("Atenção" if c.nonconforming_keys else "OK"),
+            "original": c
+        })
+
+    history_view = []
+    for c in history_checklists:
+        is_fail = c.critical_flag or c.nonconforming_keys
+        history_view.append({
+            "equipment_code": c.equipment_code,
+            "submitted_at_date": c.submitted_at.strftime("%d/%m") if c.submitted_at else "-",
+            "submitted_at_time": c.submitted_at.strftime("%H:%M") if c.submitted_at else "-",
+            "status_dot": "bg-red-500" if is_fail else "bg-emerald-500",
+            "status_badge_class": "text-red-400 bg-red-500/10" if c.critical_flag else ("text-amber-400 bg-amber-500/10" if c.nonconforming_keys else "text-emerald-400 bg-emerald-500/10"),
+            "status_label": "Falha" if c.critical_flag else ("Atenção" if c.nonconforming_keys else "OK"),
+            "original": c
+        })
+
+    tickets_view = []
+    for t in open_tickets:
+        tickets_view.append({
+            "equipment_code": t.equipment_code,
+            "severity_class": "bg-red-500/20 text-red-200" if t.severity == 'high' else "bg-slate-700 text-slate-300",
+            "severity_label": "CRÍTICO" if t.severity == 'high' else "BAIXA",
+            "description": t.description,
+            "created_at_fmt": t.created_at.strftime("%d/%m %H:%M") if t.created_at else "-",
+            "original": t
+        })
+
+    # Weekday Translation
+    weekday_map = {
+        "Monday": "Segunda-feira",
+        "Tuesday": "Terça-feira",
+        "Wednesday": "Quarta-feira",
+        "Thursday": "Quinta-feira",
+        "Friday": "Sexta-feira",
+        "Saturday": "Sábado",
+        "Sunday": "Domingo"
+    }
+
+    # Format missing days
+    missing_days_view = []
+    for idx, day in enumerate(missing_days):
+        # day has {date: "dd/mm", full_date: "YYYY-MM-DD", weekday: "Monday"}
+        pt_weekday = weekday_map.get(day["weekday"], day["weekday"])
+        missing_days_view.append({
+            "date_fmt": day["date"],
+            "full_date": day["full_date"],
+            "weekday_pt": pt_weekday
+        })
+
     return templates.TemplateResponse(
         "mobile/routine_checklist.html",
         {
@@ -4114,10 +4178,10 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
             "employee": employee,
             "items": CHECKLIST_ITEMS,
             "today": today,
-            "checklists": checklists,
-            "history_checklists": history_checklists,
-            "open_tickets": open_tickets,
-            "missing_days": missing_days
+            "checklists": checklists_view,
+            "history_checklists": history_view,
+            "open_tickets": tickets_view,
+            "missing_days": missing_days_view
         }
     )
 
@@ -6218,25 +6282,68 @@ def classify_event_record(event_type: Optional[str], event_category: Optional[st
     return classify_event_label(normalize_event_label(combined))
 
 
+def classify_routine_label(routine: Optional[str]) -> Optional[str]:
+    if not routine:
+        return None
+    label = normalize_event_label(routine)
+    if not label:
+        return None
+    if any(keyword in label for keyword in ["absent", "falta", "ausente", "no show"]):
+        return "unjustified"
+    if any(keyword in label for keyword in ["sick", "atestado", "justificada"]):
+        return "justified"
+    if any(keyword in label for keyword in ["away", "afastado", "afastamento", "licenca", "vacation", "ferias"]):
+        return "leave"
+    if any(keyword in label for keyword in ["offday", "folga", "dayoff", "dsr"]):
+        return "offday"
+    return None
+
+
 def fetch_absences_agg(session: Session, employee_ids: List[int], start_dt: datetime, end_dt: datetime) -> tuple:
     if not employee_ids:
         return {}, {"unknown": 0, "examples": []}
 
-    rows = session.exec(
-        select(
-            models.Event.employee_id,
-            models.Event.type,
-            models.Event.category,
-            models.Event.text,
-            func.date(models.Event.timestamp)
-        )
-        .where(models.Event.employee_id.in_(employee_ids))
-        .where(models.Event.timestamp >= start_dt)
-        .where(models.Event.timestamp <= end_dt)
-    ).all()
-
     per_employee_days = {}
     unknown_counts = Counter()
+
+    start_date_str = start_dt.date().strftime("%Y-%m-%d")
+    end_date_str = end_dt.date().strftime("%Y-%m-%d")
+    routine_rows = session.exec(
+        select(
+            models.EmployeeRoutine.employee_id,
+            models.EmployeeRoutine.date,
+            models.EmployeeRoutine.routine
+        )
+        .where(models.EmployeeRoutine.employee_id.in_(employee_ids))
+        .where(models.EmployeeRoutine.date >= start_date_str)
+        .where(models.EmployeeRoutine.date <= end_date_str)
+    ).all()
+
+    for emp_id, routine_date, routine_label in routine_rows:
+        group = classify_routine_label(routine_label)
+        if not group:
+            continue
+        day_key = str(routine_date)
+        per_employee_days.setdefault(emp_id, {})
+        current = per_employee_days[emp_id].get(day_key)
+        if not current or ABSENCE_PRIORITY[group] > ABSENCE_PRIORITY[current]:
+            per_employee_days[emp_id][day_key] = group
+
+    try:
+        rows = session.exec(
+            select(
+                models.Event.employee_id,
+                models.Event.type,
+                models.Event.category,
+                models.Event.text,
+                func.date(models.Event.timestamp)
+            )
+            .where(models.Event.employee_id.in_(employee_ids))
+            .where(models.Event.timestamp >= start_dt)
+            .where(models.Event.timestamp <= end_dt)
+        ).all()
+    except Exception:
+        rows = []
 
     for emp_id, ev_type, ev_category, ev_text, ev_day in rows:
         group = classify_event_record(ev_type, ev_category, ev_text)
@@ -6487,6 +6594,12 @@ async def operations_performance_page(
     end_date = target_date
     total_days = (end_date - start_date).days + 1
 
+    allowed_query = select(models.Employee).where(models.Employee.mobile_access_separation == True)
+    if shift and shift not in ["Todos", "Geral", None]:
+        allowed_query = allowed_query.where(models.Employee.work_shift == shift)
+    allowed_employees = session.exec(allowed_query).all()
+    allowed_ids = {emp.id for emp in allowed_employees if emp and emp.id}
+
     query = (
         select(models.Route, models.Employee, models.Client)
         .join(models.Employee, models.Route.employee_id == models.Employee.id)
@@ -6497,11 +6610,17 @@ async def operations_performance_page(
     )
     if shift and shift not in ["Todos", "Geral", None]:
         query = query.where(models.Route.shift == shift)
-    routes_rows = session.exec(query).all()
+    if allowed_ids:
+        query = query.where(models.Route.employee_id.in_(allowed_ids))
+        routes_rows = session.exec(query).all()
+    else:
+        routes_rows = []
 
     routes = []
     for route, emp, client in routes_rows:
         if not emp:
+            continue
+        if allowed_ids and route.employee_id not in allowed_ids:
             continue
         tonnage = float(route.tonnage or 0)
         if tonnage <= 0:
@@ -6528,11 +6647,35 @@ async def operations_performance_page(
         band_high = ordered_tonnage[idx_high]
 
     if route_band and route_band not in ["Todos", "Geral"]:
+        route_day = to_date(route.date)
+        route_day_key = route_day.isoformat() if route_day else str(route.date)
+        routes.append({
+            "employee_id": route.employee_id,
+            "employee": emp,
+            "client": client,
+            "date": route_day_key,
+            "tonnage": tonnage,
+            "start_time": route.start_time,
+            "end_time": route.end_time
+        })
+
+    tonnage_values = [r["tonnage"] for r in routes]
+    band_low, band_high = (0.0, 0.0)
+    if tonnage_values:
+        ordered_tonnage = sorted(tonnage_values)
+        idx_low = max(0, int(len(ordered_tonnage) * 0.33) - 1)
+        idx_high = max(0, int(len(ordered_tonnage) * 0.66) - 1)
+        band_low = ordered_tonnage[idx_low]
+        band_high = ordered_tonnage[idx_high]
+
+    if route_band and route_band not in ["Todos", "Geral"]:
         routes = [r for r in routes if assign_band(r["tonnage"], band_low, band_high) == route_band]
 
-    employee_ids = sorted({r["employee_id"] for r in routes})
+    employee_ids = sorted(allowed_ids)
     start_dt = datetime.combine(start_date, datetime.min.time()).replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
     end_dt = datetime.combine(end_date, datetime.max.time()).replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+    today_date = datetime.now(ZoneInfo("America/Sao_Paulo")).date()
+    # Bulk Event Query (Optimization)
     event_query = (
         select(models.Event.employee_id, func.count())
         .where(models.Event.employee_id.is_not(None))
@@ -6541,12 +6684,14 @@ async def operations_performance_page(
         .where(models.Event.type.in_(list(OCCURRENCE_TYPES)))
         .group_by(models.Event.employee_id)
     )
+    event_counts = {}
     if employee_ids:
         event_query = event_query.where(models.Event.employee_id.in_(employee_ids))
-    event_rows = session.exec(event_query).all()
-    event_counts = {eid: count for eid, count in event_rows if eid}
-
-    if employee_ids:
+        try:
+            event_rows = session.exec(event_query).all()
+            event_counts = {eid: count for eid, count in event_rows if eid}
+        except Exception:
+            event_counts = {}
         absence_counts, _absence_unknown = fetch_absences_agg(session, employee_ids, start_dt, end_dt)
     else:
         absence_counts, _absence_unknown = ({}, {"unknown": 0, "examples": []})
@@ -6555,6 +6700,21 @@ async def operations_performance_page(
         debug_absences = _absence_unknown
 
     stats = {}
+    for emp in allowed_employees:
+        if not emp or not emp.id:
+            continue
+        stats[emp.id] = {
+            "employee": emp,
+            "tonnage": 0.0,
+            "secs": 0.0,
+            "count": 0,
+            "max_tonnage": 0.0,
+            "max_kgh": 0.0,
+            "complete_routes": 0,
+            "days": set(),
+            "daily": {},
+            "clients": Counter()
+        }
     for item in routes:
         eid = item["employee_id"]
         emp = item["employee"]
@@ -6566,6 +6726,7 @@ async def operations_performance_page(
             "count": 0,
             "max_tonnage": 0.0,
             "max_kgh": 0.0,
+            "complete_routes": 0,
             "days": set(),
             "daily": {},
             "clients": Counter()
@@ -6583,6 +6744,7 @@ async def operations_performance_page(
             payload["secs"] += duration
             kgh = item["tonnage"] / (duration / 3600)
             payload["max_kgh"] = max(payload["max_kgh"], kgh)
+            payload["complete_routes"] += 1
 
         daily_entry = payload["daily"].setdefault(item["date"], {"tonnage": 0.0, "secs": 0.0})
         daily_entry["tonnage"] += item["tonnage"]
@@ -6627,179 +6789,6 @@ async def operations_performance_page(
         absence_penalty_factor = get_absence_penalty(period, unjustified_days)
         discipline_rate = 1 - (unjustified_days / max(1, total_days))
 
-        event_query = (
-            select(func.count(models.Event.id))
-            .where(models.Event.employee_id == employee_id)
-            .where(models.Event.timestamp >= start_dt)
-            .where(models.Event.timestamp <= end_dt)
-            .where(models.Event.type.in_(list(OCCURRENCE_TYPES)))
-        )
-        occurrences = session.exec(event_query).one() or 0
-        penalty_factor = max(0.7, 1 - occurrences * 0.05)
-
-        team_query = (
-            select(models.Route)
-            .where(models.Route.tonnage > 0)
-            .where(models.Route.date >= start_date_str)
-            .where(models.Route.date <= end_date_str)
-        )
-        if shift and shift not in ["Geral", "Todos", None, "null"]:
-            team_query = team_query.where(models.Route.shift == shift)
-        team_rows = session.exec(team_query).all()
-
-        team_tonnage_values = []
-        team_employee_stats = {}
-        for route in team_rows:
-            tonnage_val = float(route.tonnage or 0)
-            if route_band and route_band not in ["Todos", "Geral", None, "null"]:
-                if assign_band(tonnage_val, band_low, band_high) != route_band:
-                    continue
-            diff = duration_seconds(route.start_time, route.end_time)
-
-            eid = route.employee_id
-            if not eid:
-                continue
-            entry = team_employee_stats.setdefault(eid, {"tonnage": 0.0, "secs": 0.0, "count": 0})
-            entry["tonnage"] += tonnage_val
-            entry["count"] += 1
-            if diff > 0:
-                entry["secs"] += diff
-
-        team_employee_kgh = []
-        team_employee_trip = []
-        team_employee_route = []
-        for entry in team_employee_stats.values():
-            if not entry["count"]:
-                continue
-            hours_val = entry["secs"] / 3600 if entry["secs"] else 0.0
-            avg_kgh_val = entry["tonnage"] / hours_val if hours_val else 0.0
-            avg_trip_val = (entry["secs"] / 60 / entry["count"]) if entry["count"] else 0.0
-            avg_route_val = entry["tonnage"] / entry["count"] if entry["count"] else 0.0
-            team_employee_kgh.append(avg_kgh_val)
-            team_employee_trip.append(avg_trip_val)
-            team_employee_route.append(avg_route_val)
-            team_tonnage_values.append(entry["tonnage"])
-
-        team_avg_kgh = safe_mean(team_employee_kgh)
-        team_avg_trip_minutes = safe_mean(team_employee_trip)
-        team_avg_route_tonnage = safe_mean(team_employee_route)
-        min_kgh = min(team_employee_kgh) if team_employee_kgh else 0.0
-        max_kgh = max(team_employee_kgh) if team_employee_kgh else 0.0
-        min_trip = min(team_employee_trip) if team_employee_trip else 0.0
-        max_trip = max(team_employee_trip) if team_employee_trip else 0.0
-        min_route = min(team_employee_route) if team_employee_route else 0.0
-        max_route = max(team_employee_route) if team_employee_route else 0.0
-        min_tonnage = min(team_tonnage_values) if team_tonnage_values else 0.0
-        max_tonnage = max(team_tonnage_values) if team_tonnage_values else 0.0
-
-        consistency_score = max(0.0, 1 - cv)
-        kgh_norm = normalize_val(avg_kgh, min_kgh, max_kgh) if team_employee_kgh else 0.0
-        tonnage_norm = normalize_val(total_tonnage, min_tonnage, max_tonnage) if team_tonnage_values else 0.0
-        trip_norm = 1 - normalize_val(avg_trip_minutes, min_trip, max_trip) if team_employee_trip else 0.0
-        route_norm = normalize_val(avg_route_tonnage, min_route, max_route) if team_employee_route else 0.0
-        regularity_norm = clamp01(regularity_adjusted)
-        trend_norm = clamp01(0.5 + trend_ratio * 2)
-        discipline_score = clamp01(discipline_rate * absence_penalty_factor * penalty_factor)
-        context_score = clamp01(0.7 * route_norm + 0.3 * clamp01(1 - top_client_share))
-
-        productivity_score = clamp01(0.5 * kgh_norm + 0.3 * tonnage_norm + 0.2 * trip_norm)
-        quality_score = clamp01(0.6 * regularity_norm + 0.4 * consistency_score)
-        evolution_score = clamp01(trend_norm)
-
-        def get_pillar_weights(tenure_band: str) -> dict:
-            base = {
-                "productivity": 0.35,
-                "quality": 0.20,
-                "discipline": 0.20,
-                "evolution": 0.15,
-                "context": 0.10
-            }
-            if tenure_band == "Novatos":
-                return {
-                    "productivity": 0.30,
-                    "quality": 0.18,
-                    "discipline": 0.18,
-                    "evolution": 0.22,
-                    "context": 0.12
-                }
-            if tenure_band == "Veteranos":
-                return {
-                    "productivity": 0.30,
-                    "quality": 0.24,
-                    "discipline": 0.24,
-                    "evolution": 0.12,
-                    "context": 0.10
-                }
-            return base
-
-        weights = get_pillar_weights(tenure_band_value)
-        overall_score = (
-            weights["productivity"] * productivity_score
-            + weights["quality"] * quality_score
-            + weights["discipline"] * discipline_score
-            + weights["evolution"] * evolution_score
-            + weights["context"] * context_score
-        )
-        overall_score = round(overall_score * 100, 2)
-
-        def build_badge() -> dict:
-            if overall_score >= 85 and discipline_rate >= 0.95 and regularity_adjusted >= 0.8:
-                return {"label": "Referência", "reason": "Alta entrega com disciplina consistente."}
-            if trend_ratio > 0.05:
-                return {"label": "Em evolução", "reason": "Tendência de melhora no período."}
-            if unjustified_days > 0 or (team_avg_kgh and avg_kgh < team_avg_kgh * 0.85):
-                return {"label": "Atenção", "reason": "Queda de eficiência ou faltas não justificadas."}
-            if regularity_adjusted >= 0.8 and overall_score <= 60:
-                return {"label": "Potencial", "reason": "Presença alta com performance abaixo do potencial."}
-            return {"label": "Potencial", "reason": "Margem clara para evolução com ajustes operacionais."}
-
-        def build_strengths() -> List[str]:
-            items = []
-            if team_avg_kgh and avg_kgh > team_avg_kgh * 1.1:
-                items.append("Velocidade acima da média do time")
-            if regularity_adjusted >= 0.8:
-                items.append("Presença consistente no período")
-            if trend_ratio > 0.05:
-                items.append("Tendência de melhora contínua")
-            if discipline_rate >= 0.95 and unjustified_days == 0:
-                items.append("Disciplina alta sem faltas")
-            return items or ["Sem sinais fortes de destaque no período"]
-
-        def build_losses() -> List[str]:
-            items = []
-            if team_avg_trip_minutes and avg_trip_minutes > team_avg_trip_minutes * 1.15:
-                items.append("Tempo médio por viagem acima da média")
-            if unjustified_days > 0:
-                items.append(f"{unjustified_days} falta(s) não justificadas")
-            if occurrences:
-                items.append(f"{occurrences} ocorrência(s) operacional(is)")
-            if team_avg_kgh and avg_kgh < team_avg_kgh * 0.9:
-                items.append("Velocidade abaixo da média do time")
-            return items or ["Sem perdas críticas detectadas no período"]
-
-        def build_how_works() -> List[str]:
-            items = [
-                f"Liga: {tenure_band_value} ({tenure_months}m)",
-                f"Tipo de rota: {route_band_value}",
-                f"Turno: {employee_shift}"
-            ]
-            if top_client and top_client != "-":
-                items.append(f"Cliente recorrente: {top_client}")
-            return items
-
-        def build_replicable() -> List[str]:
-            items = []
-            if consistency_score >= 0.7:
-                items.append("Ritmo estável ao longo do período")
-            if discipline_rate >= 0.95 and unjustified_days == 0:
-                items.append("Disciplina operacional consistente")
-            if team_avg_kgh and avg_kgh > team_avg_kgh * 1.1:
-                items.append("Velocidade acima da média replicável com padronização")
-            return items or ["Sem padrão claro para replicação no período"]
-
-        badge = build_badge()
-
-
         consistency_score = max(0.0, 1 - cv)
         top_client = payload["clients"].most_common(1)[0][0] if payload["clients"] else "-"
         top_client_count = payload["clients"].most_common(1)[0][1] if payload["clients"] else 0
@@ -6809,6 +6798,9 @@ async def operations_performance_page(
         tenure_months = compute_tenure_months(employee)
         tenure_group = get_tenure_band(tenure_months)
         route_band_value = assign_band(avg_route_tonnage, band_low, band_high) if avg_route_tonnage else "Leve"
+        completeness_rate = (payload["complete_routes"] / payload["count"]) if payload["count"] else 0.0
+        sample_days = len(payload["days"])
+        sample_small = sample_days < 3
 
         rows_all.append({
             "id": eid,
@@ -6841,7 +6833,9 @@ async def operations_performance_page(
             "top_client_share": top_client_share,
             "avg_route_tonnage": avg_route_tonnage,
             "route_band": route_band_value,
-            "sample_days": len(payload["days"]),
+            "sample_days": sample_days,
+            "sample_small": sample_small,
+            "completeness_rate": completeness_rate,
             "tenure_months": tenure_months,
             "tenure_band": tenure_group
         })
@@ -6956,6 +6950,14 @@ async def operations_performance_page(
         client_variation = clamp01(1 - (top_client_share or 0.0))
         return clamp01(0.7 * route_norm + 0.3 * client_variation)
 
+    def percentile_rank(values: List[float], value: float) -> float:
+        if not values:
+            return 0.0
+        total = len(values)
+        less = sum(1 for v in values if v < value)
+        equal = sum(1 for v in values if v == value)
+        return (less + 0.5 * equal) / total
+
     def apply_scores(rows_subset: List[dict]) -> None:
         if not rows_subset:
             return
@@ -6984,15 +6986,59 @@ async def operations_performance_page(
             trend_norm = normalize_val(row["trend_slope"], min_trend, max_trend)
             route_norm = normalize_val(row["avg_route_tonnage"], min_route, max_route)
 
-            productivity_score = clamp01(0.5 * kgh_norm + 0.3 * tonnage_norm + 0.2 * trip_norm)
-            quality_score = clamp01(0.6 * regularity_norm + 0.4 * consistency_norm)
-            discipline_score = clamp01(
+            completeness_rate = row.get("completeness_rate", 1.0)
+            if completeness_rate < 0.7:
+                prod_weights = {"kgh": 0.35, "tonnage": 0.50, "trip": 0.15}
+                row["time_estimated"] = True
+            else:
+                prod_weights = {"kgh": 0.50, "tonnage": 0.30, "trip": 0.20}
+                row["time_estimated"] = False
+
+            raw_productivity = clamp01(
+                prod_weights["kgh"] * kgh_norm
+                + prod_weights["tonnage"] * tonnage_norm
+                + prod_weights["trip"] * trip_norm
+            )
+
+            row["productivity_raw"] = raw_productivity
+            row["productivity_subweights"] = prod_weights
+            row["_quality_score"] = clamp01(0.6 * regularity_norm + 0.4 * consistency_norm)
+            row["_discipline_score"] = clamp01(
                 row["discipline_rate"] * row["absence_penalty_factor"] * row["penalty_factor"]
             )
-            evolution_score = clamp01(trend_norm)
-            context_score = compute_context_score(route_norm, row.get("top_client_share", 0.0))
+            row["_evolution_score"] = clamp01(trend_norm)
+            row["_context_score"] = compute_context_score(route_norm, row.get("top_client_share", 0.0))
 
-            weights = get_pillar_weights(row["tenure_band"])
+            row["pillar_sources"] = {
+                "productivity": "Estatística",
+                "quality": "Estatística",
+                "discipline": "Regras",
+                "evolution": "Estatística",
+                "context": "Regras"
+            }
+            row["pillar_weights"] = get_pillar_weights(row["tenure_band"])
+            row["group_key"] = f"{row.get('route_band', '-')}/{row.get('shift') or '-'}"
+
+        group_map = {}
+        for row in rows_subset:
+            group_map.setdefault(row["group_key"], []).append(row)
+
+        for group_rows in group_map.values():
+            prod_values = [r["productivity_raw"] for r in group_rows]
+            for row in group_rows:
+                row["productivity_percentile_group"] = percentile_rank(prod_values, row["productivity_raw"])
+
+        for row in rows_subset:
+            productivity_score = clamp01(
+                0.65 * row.get("productivity_percentile_group", 0.0)
+                + 0.35 * row.get("productivity_raw", 0.0)
+            )
+            quality_score = row.get("_quality_score", 0.0)
+            discipline_score = row.get("_discipline_score", 0.0)
+            evolution_score = row.get("_evolution_score", 0.0)
+            context_score = row.get("_context_score", 0.0)
+
+            weights = row.get("pillar_weights", get_pillar_weights(row["tenure_band"]))
             base_score = (
                 weights["productivity"] * productivity_score
                 + weights["quality"] * quality_score
@@ -7001,6 +7047,7 @@ async def operations_performance_page(
                 + weights["context"] * context_score
             )
             row["score"] = round(base_score * 100, 2)
+            row["weighted_score"] = row["score"]
             row["pillar_scores"] = {
                 "productivity": round(productivity_score * 100, 1),
                 "quality": round(quality_score * 100, 1),
@@ -7008,6 +7055,11 @@ async def operations_performance_page(
                 "evolution": round(evolution_score * 100, 1),
                 "context": round(context_score * 100, 1)
             }
+
+        for group_rows in group_map.values():
+            score_values_group = [r.get("score", 0.0) for r in group_rows]
+            for row in group_rows:
+                row["score_percentile_group"] = percentile_rank(score_values_group, row.get("score", 0.0))
 
         score_values = [r["score"] for r in rows_subset]
         score_values_sorted = sorted(score_values, reverse=True)
@@ -7060,39 +7112,74 @@ async def operations_performance_page(
         return {"label": label, "class": styles.get(label, styles["Potencial"])}
 
     def build_badge(row: dict) -> dict:
-        if row["score"] >= 85 and row["discipline_rate"] >= 0.95 and row["regularity_adjusted"] >= 0.8:
-            return {"label": "Referência", "reason": "Alta entrega com disciplina consistente."}
+        sample_small = row.get("sample_small", False)
+        if row["score"] >= 85 and row["discipline_rate"] >= 0.95 and row["regularity_adjusted"] >= 0.8 and not sample_small:
+            return {
+                "label": "Refer??ncia",
+                "reason": "Alta entrega com disciplina consistente.",
+                "rule": "Score>=85, Disciplina>=95%, Presenca>=80%, dias>=3"
+            }
         if row["trend_ratio"] > 0.05:
-            return {"label": "Em evolução", "reason": "Tendência de melhora no período."}
-        if row["unjustified_absences"] > 0 or row["avg_kgh"] < team_avg_kgh * 0.85:
-            return {"label": "Atenção", "reason": "Queda de eficiência ou faltas não justificadas."}
+            return {
+                "label": "Em evolu????o",
+                "reason": "Tend??ncia de melhora no per??odo.",
+                "rule": "Tendencia>0,05"
+            }
+        attention_trigger = row["unjustified_absences"] > 0 or row["avg_kgh"] < team_avg_kgh * 0.85
+        if attention_trigger:
+            if sample_small and row["unjustified_absences"] == 0:
+                return {
+                    "label": "Potencial",
+                    "reason": "Amostra pequena; evite conclusoes fortes.",
+                    "rule": "Amostra<3 dias -> selo rebaixado"
+                }
+            return {
+                "label": "Aten????o",
+                "reason": "Queda de efici??ncia ou faltas n??o justificadas.",
+                "rule": "Falta(s) nao justificadas ou kg/h < 85% da media"
+            }
         if row["regularity_adjusted"] >= 0.8 and row["score"] <= median_score:
-            return {"label": "Potencial", "reason": "Presença alta com performance abaixo do potencial."}
-        return {"label": "Potencial", "reason": "Margem clara para evolução com ajustes operacionais."}
+            return {
+                "label": "Potencial",
+                "reason": "Presen??a alta com performance abaixo do potencial.",
+                "rule": "Presenca>=80% e score abaixo da mediana"
+            }
+        if sample_small:
+            return {
+                "label": "Potencial",
+                "reason": "Amostra pequena; dados insuficientes.",
+                "rule": "Amostra<3 dias"
+            }
+        return {
+            "label": "Potencial",
+            "reason": "Margem clara para evolu????o com ajustes operacionais.",
+            "rule": "Sem sinais fortes de destaque"
+        }
 
     def build_reasons(row: dict) -> List[str]:
         reasons = []
-        if row.get("sample_days", 0) < 3:
-            reasons.append("Amostra pequena no período")
+        sample_small = row.get("sample_small", False)
+        if sample_small:
+            reasons.append("Amostra pequena (indicios, dados insuficientes)")
         if row["avg_kgh"] > team_avg_kgh * 1.1:
-            reasons.append("Velocidade acima da média do time")
+            reasons.append("Indicios de velocidade acima da media" if sample_small else "Velocidade acima da media do time")
         if row.get("delta_expected_context") is not None:
             if row["delta_expected_context"] > team_avg_kgh * 0.05:
-                reasons.append("Acima do esperado para rota/turno")
+                reasons.append("Indicios acima do esperado para rota/turno" if sample_small else "Acima do esperado para rota/turno")
             elif row["delta_expected_context"] < -team_avg_kgh * 0.05:
-                reasons.append("Abaixo do esperado para rota/turno")
+                reasons.append("Indicios abaixo do esperado para rota/turno" if sample_small else "Abaixo do esperado para rota/turno")
         if row["avg_trip_minutes"] > team_avg_trip_minutes * 1.15:
-            reasons.append("Tempo por viagem acima da média")
+            reasons.append("Indicios de tempo por viagem acima da media" if sample_small else "Tempo por viagem acima da media")
         if row["regularity_adjusted"] >= 0.8:
-            reasons.append("Presença consistente no período")
+            reasons.append("Presen??a consistente no per??odo")
         if row["trend_ratio"] > 0.05:
-            reasons.append("Tendência de melhora")
+            reasons.append("Indicios de melhora" if sample_small else "Tend??ncia de melhora")
         if row["trend_ratio"] < -0.05:
-            reasons.append("Tendência de queda")
+            reasons.append("Indicios de queda" if sample_small else "Tend??ncia de queda")
         if row["unjustified_absences"] > 0:
-            reasons.append(f"{row['unjustified_absences']} falta(s) não justificadas")
+            reasons.append(f"{row['unjustified_absences']} falta(s) n??o justificadas")
         if row["occurrences"] > 0:
-            reasons.append(f"{row['occurrences']} ocorrência(s) operacional(is)")
+            reasons.append(f"{row['occurrences']} ocorr??ncia(s) operacional(is)")
         if row["top_client"] and row["top_client"] != "-":
             reasons.append(f"Cliente recorrente: {row['top_client']}")
         return reasons[:4]
@@ -7103,8 +7190,11 @@ async def operations_performance_page(
         row["badge"] = meta["label"]
         row["badge_class"] = meta["class"]
         row["badge_reason"] = badge["reason"]
+        row["badge_rule"] = badge.get("rule", "")
         row["analysis_reasons"] = build_reasons(row)
-        row["score_source"] = "Estatística"
+        row["score_source"] = "Estatistica"
+        row["group_label"] = f"Rota {row.get('route_band', '-')} / Turno {row.get('shift') or '-'}"
+        row["sample_note"] = "Amostra pequena; dados insuficientes." if row.get("sample_small") else ""
 
     if len(rows_filtered) > 1:
         x_vals = [r["regularity_adjusted"] for r in rows_filtered]
@@ -7381,6 +7471,14 @@ async def get_ranking_details(
         def clamp01(value: float) -> float:
             return max(0.0, min(1.0, value))
 
+        def percentile_rank(values: List[float], value: float) -> float:
+            if not values:
+                return 0.0
+            total = len(values)
+            less = sum(1 for v in values if v < value)
+            equal = sum(1 for v in values if v == value)
+            return (less + 0.5 * equal) / total
+
         def normalize_val(value: float, min_val: float, max_val: float) -> float:
             if max_val == min_val:
                 return 0.5 if max_val else 0.0
@@ -7478,6 +7576,7 @@ async def get_ranking_details(
         total_tonnage = 0
         total_secs = 0
         max_kgh = 0
+        complete_routes = 0
         active_days = set()
         daily = {}
         client_counts = Counter()
@@ -7497,6 +7596,7 @@ async def get_ranking_details(
                     kgh = tonnage / (diff/3600)
                     if kgh > max_kgh:
                         max_kgh = kgh
+                    complete_routes += 1
             except Exception:
                 pass
             
@@ -7528,6 +7628,13 @@ async def get_ranking_details(
             if data["secs"] > 0:
                 daily_kgh.append(data["tonnage"] / (data["secs"] / 3600))
         daily_kgh_sorted = [val for _, val in sorted(zip(daily.keys(), daily_kgh))] if daily_kgh else []
+        timeline_kgh = []
+        for day_key, data in sorted(daily.items()):
+            if data["secs"] > 0:
+                kgh_val = data["tonnage"] / (data["secs"] / 3600)
+                timeline_kgh.append({"date": fmt_ddmm(day_key), "kgh": round(kgh_val, 1)})
+            else:
+                timeline_kgh.append({"date": fmt_ddmm(day_key), "kgh": None})
         daily_mean = safe_mean(daily_kgh_sorted)
         daily_std = safe_stdev(daily_kgh_sorted)
         cv = (daily_std / daily_mean) if daily_mean else 0.0
@@ -7546,6 +7653,10 @@ async def get_ranking_details(
         avg_route_tonnage = total_tonnage / len(routes_data) if routes_data else 0.0
         avg_trip_minutes = (total_secs / 60 / len(routes_data)) if routes_data else 0.0
         route_band_value = assign_band(avg_route_tonnage, band_low, band_high) if avg_route_tonnage else "Leve"
+        routes_count = len(routes_data)
+        completeness_rate = (complete_routes / routes_count) if routes_count else 0.0
+        sample_days = len(active_days)
+        sample_small = sample_days < 3
             
         # Summary
         avg_kgh = 0
@@ -7566,6 +7677,399 @@ async def get_ranking_details(
         regularity_adjusted = len(active_days) / adjusted_denominator
         absence_penalty_factor = get_absence_penalty(period, unjustified_days)
         discipline_rate = 1 - (unjustified_days / max(1, total_days))
+
+        event_query = (
+            select(func.count(models.Event.id))
+            .where(models.Event.employee_id == employee_id)
+            .where(models.Event.timestamp >= start_dt)
+            .where(models.Event.timestamp <= end_dt)
+            .where(models.Event.type.in_(list(OCCURRENCE_TYPES)))
+        )
+        try:
+            occurrences = session.exec(event_query).one() or 0
+        except Exception:
+            occurrences = 0
+        penalty_factor = max(0.7, 1 - occurrences * 0.05)
+
+        team_query = (
+            select(models.Route)
+            .where(models.Route.tonnage > 0)
+            .where(models.Route.date >= start_date_str)
+            .where(models.Route.date <= end_date_str)
+        )
+        if shift and shift not in ["Geral", "Todos", None, "null"]:
+            team_query = team_query.where(models.Route.shift == shift)
+        team_rows = session.exec(team_query).all()
+
+        group_tonnage_values = [float(r.tonnage or 0) for r in team_rows if r.tonnage]
+        band_low_group, band_high_group = (0.0, 0.0)
+        if group_tonnage_values:
+            ordered_tonnage = sorted(group_tonnage_values)
+            idx_low = max(0, int(len(ordered_tonnage) * 0.33) - 1)
+            idx_high = max(0, int(len(ordered_tonnage) * 0.66) - 1)
+            band_low_group = ordered_tonnage[idx_low]
+            band_high_group = ordered_tonnage[idx_high]
+            route_band_value = assign_band(avg_route_tonnage, band_low_group, band_high_group) if avg_route_tonnage else "Leve"
+
+        group_stats = {}
+        for route in team_rows:
+            if not route.employee_id:
+                continue
+            tonnage_val = float(route.tonnage or 0)
+            if tonnage_val <= 0:
+                continue
+            if group_tonnage_values:
+                if assign_band(tonnage_val, band_low_group, band_high_group) != route_band_value:
+                    continue
+            if employee_shift not in ["-", None] and route.shift != employee_shift:
+                continue
+            entry = group_stats.setdefault(route.employee_id, {
+                "tonnage": 0.0,
+                "secs": 0.0,
+                "count": 0,
+                "complete_routes": 0,
+                "days": set(),
+                "daily": {},
+                "clients": Counter()
+            })
+            entry["tonnage"] += tonnage_val
+            entry["count"] += 1
+            entry["days"].add(str(route.date))
+            entry["clients"][str(route.client_id or "N/A")] += 1
+            diff = duration_seconds(route.start_time, route.end_time)
+            if diff > 0:
+                entry["secs"] += diff
+                entry["complete_routes"] += 1
+            day_entry = entry["daily"].setdefault(str(route.date), {"tonnage": 0.0, "secs": 0.0})
+            day_entry["tonnage"] += tonnage_val
+            day_entry["secs"] += diff
+
+        if not group_stats and routes_count:
+            group_stats[employee_id] = {
+                "tonnage": total_tonnage,
+                "secs": total_secs,
+                "count": routes_count,
+                "complete_routes": complete_routes,
+                "days": set(active_days),
+                "daily": dict(daily),
+                "clients": Counter(client_counts)
+            }
+
+        group_employee_ids = list(group_stats.keys())
+        group_absence_counts, _group_absence_unknown = fetch_absences_agg(session, group_employee_ids, start_dt, end_dt) if group_employee_ids else ({}, {})
+
+        group_event_counts = {}
+        if group_employee_ids:
+            group_event_query = (
+                select(models.Event.employee_id, func.count())
+                .where(models.Event.employee_id.is_not(None))
+                .where(models.Event.timestamp >= start_dt)
+                .where(models.Event.timestamp <= end_dt)
+                .where(models.Event.type.in_(list(OCCURRENCE_TYPES)))
+                .where(models.Event.employee_id.in_(group_employee_ids))
+                .group_by(models.Event.employee_id)
+            )
+            try:
+                group_event_rows = session.exec(group_event_query).all()
+                group_event_counts = {eid: count for eid, count in group_event_rows if eid}
+            except Exception:
+                group_event_counts = {}
+
+        group_employees = session.exec(
+            select(models.Employee).where(models.Employee.id.in_(group_employee_ids))
+        ).all() if group_employee_ids else []
+        group_emp_map = {emp.id: emp for emp in group_employees}
+
+        def get_pillar_weights(tenure_band: str) -> dict:
+            base = {
+                "productivity": 0.35,
+                "quality": 0.20,
+                "discipline": 0.20,
+                "evolution": 0.15,
+                "context": 0.10
+            }
+            if tenure_band == "Novatos":
+                return {
+                    "productivity": 0.30,
+                    "quality": 0.18,
+                    "discipline": 0.18,
+                    "evolution": 0.22,
+                    "context": 0.12
+                }
+            if tenure_band == "Veteranos":
+                return {
+                    "productivity": 0.30,
+                    "quality": 0.24,
+                    "discipline": 0.24,
+                    "evolution": 0.12,
+                    "context": 0.10
+                }
+            return base
+
+        def compute_context_score(route_norm: float, top_client_share: float) -> float:
+            client_variation = clamp01(1 - (top_client_share or 0.0))
+            return clamp01(0.7 * route_norm + 0.3 * client_variation)
+
+        group_rows = []
+        for eid, payload in group_stats.items():
+            hours_val = payload["secs"] / 3600 if payload["secs"] else 0.0
+            avg_kgh_val = payload["tonnage"] / hours_val if hours_val else 0.0
+            avg_trip_val = (payload["secs"] / 60 / payload["count"]) if payload["count"] else 0.0
+            avg_route_val = payload["tonnage"] / payload["count"] if payload["count"] else 0.0
+
+            daily_vals = []
+            for data in payload["daily"].values():
+                if data["secs"] > 0:
+                    daily_vals.append(data["tonnage"] / (data["secs"] / 3600))
+            daily_vals_sorted = sorted(daily_vals)
+            daily_mean_val = safe_mean(daily_vals_sorted)
+            daily_std_val = safe_stdev(daily_vals_sorted)
+            cv_val = (daily_std_val / daily_mean_val) if daily_mean_val else 0.0
+            slope_val = trend_slope(daily_vals_sorted)
+            trend_ratio_val = slope_val / daily_mean_val if daily_mean_val else 0.0
+
+            absence_data_group = group_absence_counts.get(eid, {"justified": 0, "unjustified": 0, "leave": 0, "offday": 0})
+            justified_g = absence_data_group["justified"]
+            unjustified_g = absence_data_group["unjustified"]
+            leave_g = absence_data_group["leave"]
+            offday_g = absence_data_group["offday"]
+            adjusted_denominator_g = max(1, total_days - justified_g - leave_g - offday_g)
+            regularity_adj_g = len(payload["days"]) / adjusted_denominator_g
+            absence_penalty_g = get_absence_penalty(period, unjustified_g)
+            discipline_rate_g = 1 - (unjustified_g / max(1, total_days))
+            occurrences_g = int(group_event_counts.get(eid, 0))
+            penalty_factor_g = max(0.7, 1 - occurrences_g * 0.05)
+
+            top_client_count_g = max(payload["clients"].values()) if payload["clients"] else 0
+            top_client_share_g = (top_client_count_g / payload["count"]) if payload["count"] else 0.0
+            completeness_rate_g = (payload["complete_routes"] / payload["count"]) if payload["count"] else 0.0
+
+            emp_obj = group_emp_map.get(eid)
+            tenure_months_g = 0
+            tenure_band_g = "Novatos"
+            admission_g = to_date(getattr(emp_obj, "admission_date", None)) if emp_obj else None
+            if admission_g:
+                tenure_months_g = max(0, int((target_date - admission_g).days / 30))
+                if tenure_months_g < 3:
+                    tenure_band_g = "Novatos"
+                elif tenure_months_g < 12:
+                    tenure_band_g = "Consolidacao"
+                else:
+                    tenure_band_g = "Veteranos"
+
+            group_rows.append({
+                "employee_id": eid,
+                "avg_kgh": avg_kgh_val,
+                "total_tonnage": payload["tonnage"],
+                "avg_trip_minutes": avg_trip_val,
+                "regularity_adjusted": min(1.0, regularity_adj_g),
+                "consistency_score": max(0.0, 1 - cv_val),
+                "trend_slope": slope_val,
+                "trend_ratio": trend_ratio_val,
+                "avg_route_tonnage": avg_route_val,
+                "top_client_share": top_client_share_g,
+                "discipline_rate": max(0.0, discipline_rate_g),
+                "absence_penalty_factor": absence_penalty_g,
+                "penalty_factor": penalty_factor_g,
+                "completeness_rate": completeness_rate_g,
+                "tenure_band": tenure_band_g
+            })
+
+        kgh_group_values = [r["avg_kgh"] for r in group_rows] or [0.0]
+        tonnage_group_values = [r["total_tonnage"] for r in group_rows] or [0.0]
+        trip_group_values = [r["avg_trip_minutes"] for r in group_rows] or [0.0]
+        reg_group_values = [r["regularity_adjusted"] for r in group_rows] or [0.0]
+        cons_group_values = [r["consistency_score"] for r in group_rows] or [0.0]
+        trend_group_values = [r["trend_slope"] for r in group_rows] or [0.0]
+        route_group_values = [r["avg_route_tonnage"] for r in group_rows] or [0.0]
+
+        min_kgh_g, max_kgh_g = min(kgh_group_values), max(kgh_group_values)
+        min_ton_g, max_ton_g = min(tonnage_group_values), max(tonnage_group_values)
+        min_trip_g, max_trip_g = min(trip_group_values), max(trip_group_values)
+        min_reg_g, max_reg_g = min(reg_group_values), max(reg_group_values)
+        min_cons_g, max_cons_g = min(cons_group_values), max(cons_group_values)
+        min_trend_g, max_trend_g = min(trend_group_values), max(trend_group_values)
+        min_route_g, max_route_g = min(route_group_values), max(route_group_values)
+
+        for row in group_rows:
+            kgh_norm = normalize_val(row["avg_kgh"], min_kgh_g, max_kgh_g)
+            tonnage_norm = normalize_val(row["total_tonnage"], min_ton_g, max_ton_g)
+            trip_norm = 1 - normalize_val(row["avg_trip_minutes"], min_trip_g, max_trip_g)
+            regularity_norm = normalize_val(row["regularity_adjusted"], min_reg_g, max_reg_g)
+            consistency_norm = normalize_val(row["consistency_score"], min_cons_g, max_cons_g)
+            trend_norm = normalize_val(row["trend_slope"], min_trend_g, max_trend_g)
+            route_norm = normalize_val(row["avg_route_tonnage"], min_route_g, max_route_g)
+
+            if row["completeness_rate"] < 0.7:
+                prod_weights = {"kgh": 0.35, "tonnage": 0.50, "trip": 0.15}
+            else:
+                prod_weights = {"kgh": 0.50, "tonnage": 0.30, "trip": 0.20}
+
+            raw_productivity = clamp01(
+                prod_weights["kgh"] * kgh_norm
+                + prod_weights["tonnage"] * tonnage_norm
+                + prod_weights["trip"] * trip_norm
+            )
+            row["productivity_raw"] = raw_productivity
+            row["productivity_subweights"] = prod_weights
+            row["quality_score"] = clamp01(0.6 * regularity_norm + 0.4 * consistency_norm)
+            row["discipline_score"] = clamp01(
+                row["discipline_rate"] * row["absence_penalty_factor"] * row["penalty_factor"]
+            )
+            row["evolution_score"] = clamp01(trend_norm)
+            row["context_score"] = compute_context_score(route_norm, row.get("top_client_share", 0.0))
+
+        prod_values_group = [r["productivity_raw"] for r in group_rows]
+        for row in group_rows:
+            row["productivity_percentile_group"] = percentile_rank(prod_values_group, row["productivity_raw"])
+            row["productivity_score"] = clamp01(
+                0.65 * row["productivity_percentile_group"] + 0.35 * row["productivity_raw"]
+            )
+            weights = get_pillar_weights(row["tenure_band"])
+            row["pillar_weights"] = weights
+            base_score = (
+                weights["productivity"] * row["productivity_score"]
+                + weights["quality"] * row["quality_score"]
+                + weights["discipline"] * row["discipline_score"]
+                + weights["evolution"] * row["evolution_score"]
+                + weights["context"] * row["context_score"]
+            )
+            row["score"] = round(base_score * 100, 2)
+
+        score_values_group = [r["score"] for r in group_rows]
+        median_score_group = sorted(score_values_group)[len(score_values_group) // 2] if score_values_group else 0
+        for row in group_rows:
+            row["score_percentile_group"] = percentile_rank(score_values_group, row["score"])
+
+        target_row = next((r for r in group_rows if r["employee_id"] == employee_id), None)
+        if target_row:
+            productivity_score = target_row["productivity_score"]
+            quality_score = target_row["quality_score"]
+            discipline_score = target_row["discipline_score"]
+            evolution_score = target_row["evolution_score"]
+            context_score = target_row["context_score"]
+            pillar_weights = target_row["pillar_weights"]
+            productivity_percentile_group = target_row.get("productivity_percentile_group", 0.0)
+            score_percentile_group = target_row.get("score_percentile_group", 0.0)
+            product_subweights = target_row.get("productivity_subweights", {"kgh": 0.5, "tonnage": 0.3, "trip": 0.2})
+        else:
+            productivity_score = 0.0
+            quality_score = 0.0
+            discipline_score = 0.0
+            evolution_score = 0.0
+            context_score = 0.0
+            pillar_weights = get_pillar_weights(tenure_band_value)
+            productivity_percentile_group = 0.0
+            score_percentile_group = 0.0
+            product_subweights = {"kgh": 0.5, "tonnage": 0.3, "trip": 0.2}
+
+        group_label = f"Rota {route_band_value} / Turno {employee_shift}"
+
+        def build_badge() -> dict:
+            sample_small_local = sample_small
+            if productivity_score == 0 and quality_score == 0 and discipline_score == 0:
+                return {"label": "Potencial", "reason": "Sem dados suficientes.", "rule": "Sem producao no periodo"}
+            if weighted_score >= 85 and discipline_rate >= 0.95 and regularity_adjusted >= 0.8 and not sample_small_local:
+                return {"label": "Refer?ncia", "reason": "Alta entrega com disciplina consistente.", "rule": "Score>=85, Disciplina>=95%, Presenca>=80%, dias>=3"}
+            if trend_ratio > 0.05:
+                return {"label": "Em evolu??o", "reason": "Tend?ncia de melhora no per?odo.", "rule": "Tendencia>0,05"}
+            if unjustified_days > 0 or (group_rows and avg_kgh < safe_mean([r["avg_kgh"] for r in group_rows]) * 0.85):
+                if sample_small_local and unjustified_days == 0:
+                    return {"label": "Potencial", "reason": "Amostra pequena; evite conclusoes fortes.", "rule": "Amostra<3 dias -> selo rebaixado"}
+                return {"label": "Aten??o", "reason": "Queda de efici?ncia ou faltas n?o justificadas.", "rule": "Falta(s) nao justificadas ou kg/h < 85% da media"}
+            if regularity_adjusted >= 0.8 and weighted_score <= median_score_group:
+                return {"label": "Potencial", "reason": "Presen?a alta com performance abaixo do potencial.", "rule": "Presenca>=80% e score abaixo da mediana"}
+            if sample_small_local:
+                return {"label": "Potencial", "reason": "Amostra pequena; dados insuficientes.", "rule": "Amostra<3 dias"}
+            return {"label": "Potencial", "reason": "Margem clara para evolu??o com ajustes operacionais.", "rule": "Sem sinais fortes de destaque"}
+
+        def build_strengths() -> List[str]:
+            items = []
+            if sample_small:
+                items.append("Amostra pequena: indicios limitados")
+            if group_rows and avg_kgh > safe_mean([r["avg_kgh"] for r in group_rows]) * 1.1:
+                items.append("Velocidade acima da media do grupo")
+            if regularity_adjusted >= 0.8:
+                items.append("Presenca consistente no periodo")
+            if trend_ratio > 0.05:
+                items.append("Tendencia de melhora no periodo")
+            if discipline_rate >= 0.95 and unjustified_days == 0:
+                items.append("Disciplina alta sem faltas")
+            return items or ["Sem sinais fortes de destaque no periodo"]
+
+        def build_losses() -> List[str]:
+            items = []
+            if sample_small:
+                items.append("Amostra pequena: dados insuficientes")
+            if group_rows and avg_trip_minutes > safe_mean([r["avg_trip_minutes"] for r in group_rows]) * 1.15:
+                items.append("Tempo medio por viagem acima da media")
+            if unjustified_days > 0:
+                items.append(f"{unjustified_days} falta(s) nao justificadas")
+            if occurrences:
+                items.append(f"{occurrences} ocorrencia(s) operacional(is)")
+            if group_rows and avg_kgh < safe_mean([r["avg_kgh"] for r in group_rows]) * 0.9:
+                items.append("Velocidade abaixo da media do grupo")
+            return items or ["Sem perdas criticas detectadas no periodo"]
+
+        def build_how_works() -> List[str]:
+            items = [
+                f"Liga: {tenure_band_value} ({tenure_months}m)",
+                f"Tipo de rota: {route_band_value}",
+                f"Turno: {employee_shift}"
+            ]
+            if top_client and top_client != "-":
+                items.append(f"Cliente recorrente: {top_client}")
+            return items
+
+        def build_replicable() -> List[str]:
+            items = []
+            if max(0.0, 1 - cv) >= 0.7:
+                items.append("Ritmo estavel ao longo do periodo")
+            if discipline_rate >= 0.95 and unjustified_days == 0:
+                items.append("Disciplina operacional consistente")
+            if group_rows and avg_kgh > safe_mean([r["avg_kgh"] for r in group_rows]) * 1.1:
+                items.append("Velocidade acima da media replicavel com padronizacao")
+            return items or ["Sem padrao claro para replicacao no periodo"]
+
+        weighted_score = target_row["score"] if target_row else 0.0
+        productivity_percentile_group_pct = round(productivity_percentile_group * 100, 1)
+        score_percentile_group_pct = round(score_percentile_group * 100, 1)
+        time_reliability_rate = round(completeness_rate * 100, 1)
+        time_estimated = completeness_rate < 0.7
+        pillar_sources = {
+            "productivity": "Estatistica",
+            "quality": "Estatistica",
+            "discipline": "Regras",
+            "evolution": "Estatistica",
+            "context": "Regras"
+        }
+
+        badge = build_badge()
+
+        routine_rows = session.exec(
+            select(models.EmployeeRoutine.date, models.EmployeeRoutine.routine)
+            .where(models.EmployeeRoutine.employee_id == employee_id)
+            .where(models.EmployeeRoutine.date >= start_date_str)
+            .where(models.EmployeeRoutine.date <= end_date_str)
+        ).all()
+        routine_days = {r_date for r_date, _ in routine_rows}
+        routine_missing = period == "daily" and start_date_str not in routine_days
+        absence_timeline = []
+        for r_date, r_routine in sorted(routine_rows, key=lambda x: x[0]):
+            group = classify_routine_label(r_routine)
+            if not group:
+                continue
+            label_map = {
+                "unjustified": "Falta",
+                "justified": "Atestado",
+                "leave": "Afastamento",
+                "offday": "Folga"
+            }
+            absence_timeline.append({
+                "date": fmt_ddmm(r_date),
+                "type": label_map.get(group, group)
+            })
+
             
         return {
             "employee": {
@@ -7598,6 +8102,8 @@ async def get_ranking_details(
             "analysis": {
                 "badge": badge["label"],
                 "badge_reason": badge["reason"],
+                "badge_rule": badge.get("rule", ""),
+                "weighted_score": round(weighted_score, 2),
                 "pillars": {
                     "productivity": round(productivity_score * 100, 1),
                     "quality": round(quality_score * 100, 1),
@@ -7605,10 +8111,37 @@ async def get_ranking_details(
                     "evolution": round(evolution_score * 100, 1),
                     "context": round(context_score * 100, 1)
                 },
+                "pillar_weights": {
+                    "productivity": round(pillar_weights["productivity"] * 100, 1),
+                    "quality": round(pillar_weights["quality"] * 100, 1),
+                    "discipline": round(pillar_weights["discipline"] * 100, 1),
+                    "evolution": round(pillar_weights["evolution"] * 100, 1),
+                    "context": round(pillar_weights["context"] * 100, 1)
+                },
+                "pillar_sources": pillar_sources,
+                "productivity_percentile_group": productivity_percentile_group_pct,
+                "score_percentile_group": score_percentile_group_pct,
+                "group_label": group_label,
+                "sample_days": sample_days,
+                "sample_small": sample_small,
+                "sample_note": "Amostra pequena; dados insuficientes." if sample_small else "",
+                "time_reliability_rate": time_reliability_rate,
+                "time_estimated": time_estimated,
+                "productivity_subweights": {
+                    "kgh": round(product_subweights.get("kgh", 0.0) * 100, 1),
+                    "tonnage": round(product_subweights.get("tonnage", 0.0) * 100, 1),
+                    "trip": round(product_subweights.get("trip", 0.0) * 100, 1)
+                },
                 "how_works": build_how_works(),
                 "losses": build_losses(),
                 "strengths": build_strengths(),
                 "replicable": build_replicable(),
+                "timeline": {
+                    "kgh_by_day": timeline_kgh,
+                    "absences_by_day": absence_timeline
+                },
+                "routine_missing": routine_missing,
+                "routine_missing_label": "Sem rotina lancada no dia" if routine_missing else "",
                 "context": {
                     "route_band": route_band_value,
                     "top_client": top_client,
@@ -7616,8 +8149,8 @@ async def get_ranking_details(
                     "shift": employee_shift
                 },
                 "sources": {
-                    "score": "Estatística",
-                    "trend": "Estatística",
+                    "score": "Estatistica",
+                    "trend": "Estatistica",
                     "context": "Regras"
                 }
             },
