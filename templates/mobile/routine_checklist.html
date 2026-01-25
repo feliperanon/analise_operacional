@@ -62,13 +62,22 @@
     <div class="px-5 -mt-8 relative z-20 space-y-6">
 
         <!-- Equipamento Input Card -->
+        <!-- Equipamento Input Card -->
         <div class="bg-slate-800 border border-slate-700/50 rounded-3xl p-1.5 shadow-xl flex items-center gap-2">
             <div class="pl-4">
                 <i data-lucide="package-search" class="w-6 h-6 text-slate-400"></i>
             </div>
-            <input type="text" x-model="equipmentCode"
-                class="w-full bg-transparent border-none text-white font-bold text-lg placeholder:text-slate-600 focus:ring-0 p-3"
-                placeholder="Cód. Equipamento (Ex: TP-01)">
+            <select x-model="equipmentCode"
+                class="w-full bg-transparent border-none text-white font-bold text-lg focus:ring-0 p-3 appearance-none">
+                <option value="" disabled selected class="text-slate-500">Selecione o Equipamento</option>
+                {% if equipment_list %}
+                {% for eq in equipment_list %}
+                <option value="{{ eq.code }}" class="bg-slate-800 text-white">{{ eq.code }}</option>
+                {% endfor %}
+                {% else %}
+                <option value="" disabled class="bg-slate-800">Sem cadastro</option>
+                {% endif %}
+            </select>
         </div>
 
         <!-- Action Bar -->
@@ -177,9 +186,30 @@
         <!-- DASHBOARD OPERADOR -->
         <div class="pt-8 space-y-6">
 
+            <!-- Quick Access Grid -->
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <a href="/mobile/equipment/tickets"
+                    class="bg-slate-800 border border-slate-700/50 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 hover:bg-slate-700 transition-colors group">
+                    <div
+                        class="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
+                        <i data-lucide="wrench" class="w-5 h-5 text-blue-400"></i>
+                    </div>
+                    <span class="text-sm font-bold text-slate-200">Chamados</span>
+                </a>
+
+                <a href="/mobile/routine/history"
+                    class="bg-slate-800 border border-slate-700/50 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 hover:bg-slate-700 transition-colors group">
+                    <div
+                        class="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
+                        <i data-lucide="history" class="w-5 h-5 text-emerald-400"></i>
+                    </div>
+                    <span class="text-sm font-bold text-slate-200">Histórico</span>
+                </a>
+            </div>
+
             {% if missing_days %}
             <!-- Alertas de Pendência -->
-            <div class="bg-amber-500/10 border border-amber-500/20 rounded-3xl p-5">
+            <div class="bg-amber-500/10 border border-amber-500/20 rounded-3xl p-5 mb-8">
                 <div class="flex items-center gap-3 mb-4">
                     <div class="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
                         <i data-lucide="calendar-off" class="w-4 h-4 text-amber-400"></i>
@@ -187,7 +217,7 @@
                     <h3 class="text-white font-bold">Dias Pendentes</h3>
                 </div>
                 <div class="space-y-2">
-                    {% for day in missing_days %}
+                    {% for day in missing_days|default([]) %}
                     <div
                         class="flex items-center justify-between bg-slate-900/50 rounded-xl p-3 border border-amber-500/10">
                         <div>
@@ -202,79 +232,6 @@
                 <p class="text-center text-slate-500 text-xs mt-3">Justifique ausências com seu líder.</p>
             </div>
             {% endif %}
-
-            <!-- Chamados Abertos -->
-            <div class="bg-slate-800/50 border border-slate-700/50 rounded-3xl p-5">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
-                            <i data-lucide="wrench" class="w-4 h-4 text-blue-400"></i>
-                        </div>
-                        <h3 class="text-white font-bold">Chamados</h3>
-                    </div>
-                    <a href="/mobile/equipment/tickets/new"
-                        class="text-xs font-bold text-blue-400 bg-blue-500/10 px-3 py-1.5 rounded-full hover:bg-blue-500/20">+
-                        Novo</a>
-                </div>
-
-                {% if open_tickets %}
-                <div class="space-y-2">
-                    {% for t in open_tickets %}
-                    <div class="bg-slate-900 rounded-xl p-3 border border-slate-700/50">
-                        <div class="flex justify-between items-start mb-1">
-                            <span class="text-white font-bold text-sm">{{ t.equipment_code }}</span>
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase {{ t.severity_class }}">
-                                {{ t.severity_label }}
-                            </span>
-                        </div>
-                        <p class="text-slate-400 text-xs line-clamp-1 mb-2">{{ t.description }}</p>
-                        <p class="text-slate-600 text-[10px]">{{ t.created_at_fmt }}</p>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="text-center py-4">
-                    <p class="text-slate-500 text-xs">Nenhum chamado aberto.</p>
-                </div>
-                {% endif %}
-            </div>
-
-            <!-- Histórico Recente -->
-            <div class="bg-slate-800/50 border border-slate-700/50 rounded-3xl p-5 mb-8">
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                        <i data-lucide="history" class="w-4 h-4 text-emerald-400"></i>
-                    </div>
-                    <h3 class="text-white font-bold">Histórico (7 dias)</h3>
-                </div>
-
-                {% if history_checklists %}
-                <div class="relative pl-4 border-l border-slate-700 space-y-6">
-                    {% for c in history_checklists %}
-                    <div class="relative">
-                        <!-- Dot -->
-                        <div
-                            class="absolute -left-[21px] top-1.5 w-3 h-3 rounded-full border-2 border-slate-900 {{ c.status_dot }}">
-                        </div>
-
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <p class="text-white font-bold text-sm">{{ c.equipment_code }}</p>
-                                <p class="text-slate-500 text-xs">{{ c.submitted_at_date }} às {{
-                                    c.submitted_at_time }}</p>
-                            </div>
-                            <span class="text-xs font-bold px-2 py-1 rounded {{ c.status_badge_class }}">{{
-                                c.status_label }}</span>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="text-center py-4">
-                    <p class="text-slate-500 text-xs">Nenhum histórico recente.</p>
-                </div>
-                {% endif %}
-            </div>
 
         </div>
 

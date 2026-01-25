@@ -3,85 +3,121 @@
 {% block content %}
 <div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8" x-data="performanceController()">
     <div class="max-w-7xl mx-auto space-y-8">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-                <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Operacoes em rotas e separacao</p>
-                <h1 class="text-3xl md:text-4xl font-black text-white">Avaliacao Operacional Inteligente</h1>
-                <p class="text-sm text-slate-400 mt-2">Apenas colaboradores com rotas registradas no periodo.</p>
+        {% set period_label_map = {'daily': 'Diário', 'weekly': 'Semanal', 'monthly': 'Mensal'} %}
+        {% set period_label = period_label_map.get(filters.period, filters.period) %}
+        {% set route_label_map = {'Media': 'Média', 'Todos': 'Todas'} %}
+        {% set route_label = route_label_map.get(filters.route_band, filters.route_band) %}
+        {% set tenure_label_map = {'Consolidacao': 'Consolidação'} %}
+        {% set tenure_label = tenure_label_map.get(filters.tenure_band, filters.tenure_band) %}
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div class="space-y-2">
+                <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Operações em rotas e separação</p>
+                <h1 class="text-3xl md:text-4xl font-black text-white">Avaliação Operacional Inteligente</h1>
+                <p class="text-sm text-slate-400">Apenas colaboradores com acesso ao mobile de separação de mercadorias.</p>
             </div>
-            <div class="flex flex-wrap gap-2">
-                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Periodo: {{ filters.period }}</span>
-                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Turno: {{ filters.shift }}</span>
-                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Rota: {{ filters.route_band }}</span>
-                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Liga: {{ filters.tenure_band }}</span>
-                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Faltas: {{ absence_totals.unjustified|fmt_br_int }}</span>
-                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Atestados: {{ absence_totals.justified|fmt_br_int }}</span>
-                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Afastamentos: {{ absence_totals.leave|fmt_br_int }}</span>
-                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Folgas: {{ absence_totals.offday|fmt_br_int }}</span>
+            <div class="w-full lg:w-auto bg-slate-800/60 border border-slate-700 rounded-2xl p-4">
+                <div>
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-slate-500">Intervalo analisado</p>
+                    <p class="text-sm font-semibold text-white">{{ period_range_label }}</p>
+                    <p class="text-[10px] text-slate-500">{{ period_context_label }}</p>
+                </div>
+                <div class="mt-3 flex flex-nowrap gap-2 overflow-x-auto snap-x snap-mandatory lg:flex-wrap lg:overflow-visible">
+                    <a href="#filtersForm" class="px-3 py-1 rounded-full text-xs bg-slate-900/60 border border-slate-700 text-slate-300 snap-start hover:border-slate-500">Período: {{ period_label }}</a>
+                    <a href="#filtersForm" class="px-3 py-1 rounded-full text-xs bg-slate-900/60 border border-slate-700 text-slate-300 snap-start hover:border-slate-500">Turno: {{ filters.shift }}</a>
+                    <a href="#filtersForm" class="px-3 py-1 rounded-full text-xs bg-slate-900/60 border border-slate-700 text-slate-300 snap-start hover:border-slate-500">Rota: {{ route_label }}</a>
+                    <a href="#filtersForm" class="px-3 py-1 rounded-full text-xs bg-slate-900/60 border border-slate-700 text-slate-300 snap-start hover:border-slate-500">Liga: {{ tenure_label }}</a>
+                    <span class="px-3 py-1 rounded-full text-xs bg-rose-500/10 border border-rose-500/20 text-rose-300 snap-start">Faltas: {{ absence_totals.unjustified|fmt_br_int }}</span>
+                    <span class="px-3 py-1 rounded-full text-xs bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 snap-start">Atestados: {{ absence_totals.justified|fmt_br_int }}</span>
+                    <span class="px-3 py-1 rounded-full text-xs bg-orange-500/10 border border-orange-500/20 text-orange-300 snap-start">Afastamentos: {{ absence_totals.leave|fmt_br_int }}</span>
+                    <span class="px-3 py-1 rounded-full text-xs bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 snap-start">Folgas: {{ absence_totals.offday|fmt_br_int }}</span>
+                </div>
             </div>
         </div>
 
-        <form class="grid grid-cols-1 md:grid-cols-7 gap-3 bg-slate-800/60 border border-slate-700 rounded-2xl p-4" method="get" action="/operations/performance" id="filtersForm">
-            <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1">Periodo</label>
-                <select name="period" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
-                    <option value="daily" {{ 'selected' if filters.period == 'daily' else '' }}>Diario</option>
-                    <option value="weekly" {{ 'selected' if filters.period == 'weekly' else '' }}>Semanal</option>
-                    <option value="monthly" {{ 'selected' if filters.period == 'monthly' else '' }}>Mensal</option>
-                </select>
+        <form class="bg-slate-800/60 border border-slate-700 rounded-2xl p-4 space-y-4" method="get" action="/operations/performance" id="filtersForm">
+            <div class="bg-slate-900/50 border border-slate-700 rounded-xl p-4">
+                <div class="flex items-center justify-between">
+                    <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Tempo</p>
+                    <span class="text-[10px] text-slate-500">{{ period_context_label }}</span>
+                </div>
+                <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Período</label>
+                        <select name="period" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
+                            <option value="daily" {{ 'selected' if filters.period == 'daily' else '' }}>Diário</option>
+                            <option value="weekly" {{ 'selected' if filters.period == 'weekly' else '' }}>Semanal</option>
+                            <option value="monthly" {{ 'selected' if filters.period == 'monthly' else '' }}>Mensal</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Data base</label>
+                        <input type="date" name="date" value="{{ filters.date }}" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
+                        <p class="text-[10px] text-slate-500 mt-1">{{ period_context_label }}</p>
+                    </div>
+                </div>
             </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1">Data base</label>
-                <input type="date" name="date" value="{{ filters.date }}" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
+            <div class="bg-slate-900/50 border border-slate-700 rounded-xl p-4">
+                <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Operação</p>
+                <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Turno</label>
+                        <select name="shift" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
+                            {% for opt in ['Todos','Manhã','Tarde','Noite'] %}
+                            <option value="{{ opt }}" {{ 'selected' if filters.shift == opt else '' }}>{{ opt }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Tipo de rota</label>
+                        <select name="route_band" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
+                            <option value="Todos" {{ 'selected' if filters.route_band == 'Todos' else '' }}>Todas</option>
+                            <option value="Leve" {{ 'selected' if filters.route_band == 'Leve' else '' }}>Leve ({{ band_labels.Leve }})</option>
+                            <option value="Media" {{ 'selected' if filters.route_band == 'Media' else '' }}>Média ({{ band_labels.Media }})</option>
+                            <option value="Pesada" {{ 'selected' if filters.route_band == 'Pesada' else '' }}>Pesada ({{ band_labels.Pesada }})</option>
+                        </select>
+                    </div>
+                </div>
             </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1">Turno</label>
-                <select name="shift" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
-                    {% for opt in ['Todos','Manhã','Tarde','Noite'] %}
-                    <option value="{{ opt }}" {{ 'selected' if filters.shift == opt else '' }}>{{ opt }}</option>
-                    {% endfor %}
-                </select>
+            <div class="bg-slate-900/50 border border-slate-700 rounded-xl p-4">
+                <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Pessoas</p>
+                <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Liga</label>
+                        <select name="tenure_band" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
+                            <option value="Todos" {{ 'selected' if filters.tenure_band == 'Todos' else '' }}>Todas</option>
+                            <option value="Novatos" {{ 'selected' if filters.tenure_band == 'Novatos' else '' }}>Novatos (0-3m)</option>
+                            <option value="Consolidacao" {{ 'selected' if filters.tenure_band == 'Consolidacao' else '' }}>Consolidação (3-12m)</option>
+                            <option value="Veteranos" {{ 'selected' if filters.tenure_band == 'Veteranos' else '' }}>Veteranos (12m+)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Ordenar por</label>
+                        <select name="sort_by" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
+                            <option value="score" {{ 'selected' if filters.sort_by == 'score' else '' }}>Score</option>
+                            <option value="kgh" {{ 'selected' if filters.sort_by == 'kgh' else '' }}>Kg/h</option>
+                            <option value="tonnage" {{ 'selected' if filters.sort_by == 'tonnage' else '' }}>Volume</option>
+                            <option value="consistency" {{ 'selected' if filters.sort_by == 'consistency' else '' }}>Consistência</option>
+                            <option value="trend" {{ 'selected' if filters.sort_by == 'trend' else '' }}>Tendência</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Ordem</label>
+                        <select name="order" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
+                            <option value="desc" {{ 'selected' if filters.order == 'desc' else '' }}>Maior</option>
+                            <option value="asc" {{ 'selected' if filters.order == 'asc' else '' }}>Menor</option>
+                        </select>
+                    </div>
+                </div>
             </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1">Tipo de rota</label>
-                <select name="route_band" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
-                    <option value="Todos" {{ 'selected' if filters.route_band == 'Todos' else '' }}>Todas</option>
-                    <option value="Leve" {{ 'selected' if filters.route_band == 'Leve' else '' }}>Leve ({{ band_labels.Leve }})</option>
-                    <option value="Media" {{ 'selected' if filters.route_band == 'Media' else '' }}>Media ({{ band_labels.Media }})</option>
-                    <option value="Pesada" {{ 'selected' if filters.route_band == 'Pesada' else '' }}>Pesada ({{ band_labels.Pesada }})</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1">Liga</label>
-                <select name="tenure_band" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
-                    <option value="Todos" {{ 'selected' if filters.tenure_band == 'Todos' else '' }}>Todas</option>
-                    <option value="Novatos" {{ 'selected' if filters.tenure_band == 'Novatos' else '' }}>Novatos (0-3m)</option>
-                    <option value="Consolidacao" {{ 'selected' if filters.tenure_band == 'Consolidacao' else '' }}>Consolidacao (3-12m)</option>
-                    <option value="Veteranos" {{ 'selected' if filters.tenure_band == 'Veteranos' else '' }}>Veteranos (12m+)</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1">Ordenar por</label>
-                <select name="sort_by" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
-                    <option value="score" {{ 'selected' if filters.sort_by == 'score' else '' }}>Score</option>
-                    <option value="kgh" {{ 'selected' if filters.sort_by == 'kgh' else '' }}>Kg/h</option>
-                    <option value="tonnage" {{ 'selected' if filters.sort_by == 'tonnage' else '' }}>Volume</option>
-                    <option value="consistency" {{ 'selected' if filters.sort_by == 'consistency' else '' }}>Consistencia</option>
-                    <option value="trend" {{ 'selected' if filters.sort_by == 'trend' else '' }}>Tendencia</option>
-                </select>
-            </div>
-            <div class="flex items-end gap-2">
-                <select name="order" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
-                    <option value="desc" {{ 'selected' if filters.order == 'desc' else '' }}>Maior</option>
-                    <option value="asc" {{ 'selected' if filters.order == 'asc' else '' }}>Menor</option>
-                </select>
-                <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold">Aplicar</button>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <a href="/operations/performance" class="text-xs text-slate-300 underline underline-offset-4 hover:text-white">Limpar filtros</a>
+                <button type="submit" class="w-full sm:w-auto px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold">Aplicar</button>
             </div>
         </form>
 
         {% if not rows %}
         <div class="text-center py-16 bg-slate-800/40 border border-dashed border-slate-700 rounded-3xl">
-            <p class="text-slate-400">Nenhuma rota encontrada para o periodo selecionado.</p>
+            <p class="text-slate-400">Nenhuma rota encontrada para o período selecionado.</p>
         </div>
         {% else %}
         <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
@@ -90,11 +126,11 @@
                 <p class="text-2xl font-bold text-white">{{ team_stats.total_tonnage|fmt_br_int }}</p>
             </div>
             <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
-                <p class="text-xs text-slate-400 uppercase tracking-wider">Media kg/h</p>
+                <p class="text-xs text-slate-400 uppercase tracking-wider">Média kg/h</p>
                 <p class="text-2xl font-bold text-emerald-300">{{ team_stats.avg_kgh|fmt_br_int }}</p>
             </div>
             <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
-                <p class="text-xs text-slate-400 uppercase tracking-wider">Tempo medio/viagem</p>
+                <p class="text-xs text-slate-400 uppercase tracking-wider">Tempo médio/viagem</p>
                 <p class="text-2xl font-bold text-blue-300">{{ team_stats.avg_trip_minutes|fmt_br }} min</p>
             </div>
             <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
@@ -102,7 +138,7 @@
                 <p class="text-2xl font-bold text-white">{{ team_stats.active_employees|fmt_br_int }}</p>
             </div>
             <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
-                <p class="text-xs text-slate-400 uppercase tracking-wider">Presenca ajustada</p>
+                <p class="text-xs text-slate-400 uppercase tracking-wider">Presença ajustada</p>
                 <p class="text-2xl font-bold text-emerald-200">{{ (team_stats.avg_presence_adjusted * 100)|fmt_br_int }}%</p>
             </div>
             <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
@@ -116,7 +152,7 @@
             {% for league in league_rankings %}
             <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4">
                 <div class="flex items-center justify-between mb-3">
-                    <h3 class="text-sm font-bold text-white">{{ league.band }}</h3>
+                    <h3 class="text-sm font-bold text-white">{{ league.band_label }}</h3>
                     <a href="/operations/performance?date={{ filters.date }}&period={{ filters.period }}&shift={{ filters.shift }}&route_band={{ filters.route_band }}&sort_by={{ filters.sort_by }}&order={{ filters.order }}&tenure_band={{ league.band }}"
                         class="text-xs text-blue-300 hover:text-blue-200">Filtrar</a>
                 </div>
@@ -125,7 +161,7 @@
                     {% for item in league.top %}
                     <div class="flex items-center justify-between">
                         <span class="text-white font-semibold">{{ item.name }}</span>
-                        <span>{{ "{:.2f}".format(item.score) | replace('.', ',') }}</span>
+                        <span>{{ item.score|fmt_br_2 }}</span>
                     </div>
                     {% endfor %}
                 </div>
@@ -138,15 +174,15 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {% set insight_cards = [
-                ('Melhor do periodo', insights.best),
-                ('Maior evolucao', insights.improved),
-                ('Melhor presenca', insights.presence),
+                ('Melhor do período', insights.best),
+                ('Maior evolução', insights.improved),
+                ('Melhor presença', insights.presence),
                 ('Mais consistente', insights.consistent),
                 ('Gargalo de tempo', insights.bottleneck),
                 ('Mais faltas', insights.absences),
                 ('Maior curva de aprendizado', insights.learning),
                 ('Veterano referencia', insights.veteran),
-                ('Potencial nao explorado', insights.potential)
+                ('Potencial não explorado', insights.potential)
             ] %}
             {% for title, info in insight_cards %}
             <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4">
@@ -159,8 +195,8 @@
 
         <div class="bg-slate-800/50 border border-slate-700 rounded-3xl p-6">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-xl font-bold text-white">Top performers e porque</h2>
-                <p class="text-xs text-slate-500">Score ponderado pelos 5 pilares (produtividade, qualidade, disciplina, evolucao e contexto)</p>
+                <h2 class="text-xl font-bold text-white">Top performers e por quê</h2>
+                <p class="text-xs text-slate-500">Score ponderado pelos 5 pilares (produtividade, qualidade, disciplina, evolução e contexto)</p>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {% for perf in top_performers %}
@@ -168,7 +204,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm font-semibold text-white">{{ perf.name }}</p>
-                            <p class="text-xs text-slate-500">Score {{ "{:.2f}".format(perf.score) | replace('.', ',') }} | {{ perf.percentile|fmt_br_int }}%</p>
+                            <p class="text-xs text-slate-500">Score {{ perf.score|fmt_br_2 }} | {{ perf.percentile|fmt_br_int }}%</p>
                             {% if perf.badge %}
                             <span class="mt-1 inline-flex items-center text-[10px] px-2 py-0.5 rounded-full border border-slate-700 text-slate-300">
                                 {{ perf.badge }}
@@ -182,7 +218,7 @@
                         <li>• {{ reason }}</li>
                         {% endfor %}
                         {% if not perf.reasons %}
-                        <li>• Sem sinais fortes no periodo</li>
+                        <li>• Sem sinais fortes no período</li>
                         {% endif %}
                     </ul>
                 </div>
@@ -196,13 +232,13 @@
                 {% if rows|length < 12 %}
                 <p class="text-[10px] text-slate-500 mb-3">Origem: regras (amostra pequena).</p>
                 {% else %}
-                <p class="text-[10px] text-slate-500 mb-3">Origem: modelo estatistico do periodo.</p>
+                <p class="text-[10px] text-slate-500 mb-3">Origem: modelo estatístico do período.</p>
                 {% endif %}
                 <div class="space-y-3 text-xs text-slate-300">
                     {% for cluster in clusters %}
                     <div>
                         <p class="font-semibold text-white">{{ cluster.label }} ({{ cluster.count }})</p>
-                        <p>Media kg/h: {{ cluster.avg_kgh|fmt_br_int }} | Reg: {{ (cluster.avg_regularity * 100)|fmt_br_int }}%</p>
+                        <p>Média kg/h: {{ cluster.avg_kgh|fmt_br_int }} | Reg: {{ (cluster.avg_regularity * 100)|fmt_br_int }}%</p>
                         <p class="text-slate-500">{{ cluster.members | join(', ') }}</p>
                     </div>
                     {% endfor %}
@@ -216,72 +252,88 @@
                 {% if rows|length < 8 %}
                 <p class="text-[10px] text-slate-500 mb-3">Amostra pequena para outliers.</p>
                 {% else %}
-                <p class="text-[10px] text-slate-500 mb-3">Origem: estatistica (z-score em kg/h).</p>
+                <p class="text-[10px] text-slate-500 mb-3">Origem: estatística (z-score em kg/h).</p>
                 {% endif %}
                 <div class="space-y-3 text-xs text-slate-300">
                     {% for out in outliers %}
                     <div>
                         <p class="font-semibold text-white">{{ out.name }}</p>
-                        <p>Kg/h: {{ out.kgh|fmt_br_int }} | z {{ "{:.2f}".format(out.zscore) | replace('.', ',') }}</p>
+                        <p>Kg/h: {{ out.kgh|fmt_br_int }} | z {{ out.zscore|fmt_br_2 }}</p>
                     </div>
                     {% endfor %}
                     {% if not outliers %}
-                    <p class="text-slate-500">Sem picos anormais no periodo.</p>
+                    <p class="text-slate-500">Sem picos anormais no período.</p>
                     {% endif %}
                 </div>
             </div>
             <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4">
-                <h3 class="text-sm font-bold text-white">Drivers estatisticos do score (correlacao)</h3>
-                <p class="text-[10px] text-slate-500 mb-3">Nao indica causalidade.</p>
+                <h3 class="text-sm font-bold text-white">Drivers estatísticos do score (correlação)</h3>
+                <p class="text-[10px] text-slate-500 mb-3">Não indica causalidade.</p>
                 <div class="space-y-3 text-xs text-slate-300">
                     {% for driver in feature_drivers %}
                     <div class="flex items-center justify-between">
                         <span>{{ driver.label }}</span>
-                        <span class="text-slate-400">{{ "{:.2f}".format(driver.corr) | replace('.', ',') }}</span>
+                        <span class="text-slate-400">{{ driver.corr|fmt_br_2 }}</span>
                     </div>
                     {% endfor %}
                     {% if not feature_drivers %}
-                    <p class="text-slate-500">Sem dados para correlacao.</p>
+                    <p class="text-slate-500">Sem dados para correlação.</p>
                     {% endif %}
                 </div>
             </div>
         </div>
 
         <div class="bg-slate-800/50 border border-slate-700 rounded-3xl overflow-hidden">
-            <div class="flex items-center justify-between p-6">
+            <div class="flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                    <h2 class="text-xl font-bold text-white">Mapa completo da operacao</h2>
-                    <p class="text-xs text-slate-500">Score ponderado, regularidade e eficiencia operacional.</p>
+                    <h2 class="text-xl font-bold text-white">Mapa completo da operação</h2>
+                    <p class="text-xs text-slate-500">Score ponderado · regularidade · eficiência · disciplina</p>
                 </div>
-                <span class="text-xs text-slate-500">{{ rows|length }} colaboradores</span>
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="relative">
+                        <input x-model.trim="searchTerm" type="text" placeholder="Buscar colaborador..." class="w-56 rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-xs text-white placeholder:text-slate-500">
+                    </div>
+                    <button type="button" @click="compactMode = !compactMode" :class="compactMode ? 'bg-slate-700 text-white' : 'bg-slate-900 text-slate-300'" class="px-3 py-2 rounded-lg text-xs border border-slate-700">Modo compacto</button>
+                    <button type="button" @click="showDiscipline = !showDiscipline" :class="showDiscipline ? 'bg-slate-700 text-white' : 'bg-slate-900 text-slate-300'" class="px-3 py-2 rounded-lg text-xs border border-slate-700">Mostrar disciplina</button>
+                </div>
+            </div>
+            <div class="flex items-center justify-between px-6 pb-4 text-xs text-slate-500">
+                <span>{{ rows|length }} colaboradores</span>
+                <span class="text-slate-600" x-show="searchTerm">Filtro local ativo</span>
             </div>
             <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm">
-                    <thead class="text-xs uppercase text-slate-500 border-b border-slate-700">
-                        <tr>
-                            <th class="py-3 px-4">Colaborador</th>
-                            <th class="py-3 px-4">Liga</th>
-                            <th class="py-3 px-4">Score</th>
-                            <th class="py-3 px-4">Volume</th>
-                            <th class="py-3 px-4">Kg/h</th>
-                            <th class="py-3 px-4">Viagens</th>
-                            <th class="py-3 px-4">Tempo/viagem</th>
-                            <th class="py-3 px-4">Regularidade ajustada</th>
-                            <th class="py-3 px-4">Consistencia (CV)</th>
-                            <th class="py-3 px-4">Tendencia</th>
-                            <th class="py-3 px-4">Tempo casa</th>
-                            <th class="py-3 px-4">Faltas</th>
-                            <th class="py-3 px-4">Atestados</th>
-                            <th class="py-3 px-4">Afastamentos</th>
-                            <th class="py-3 px-4">Folgas</th>
-                            <th class="py-3 px-4">Ocorrencias</th>
-                            <th class="py-3 px-4"></th>
+                <table class="w-full text-left" :class="compactMode ? 'text-xs' : 'text-sm'">
+                    <thead class="text-xs uppercase text-slate-400 bg-slate-900 sticky top-0 z-20">
+                        <tr class="border-b border-slate-800">
+                            <th rowspan="2" class="px-4 py-3 sticky left-0 bg-slate-900 z-30 border-r border-slate-800">Colaborador</th>
+                            <th rowspan="2" class="px-4 py-3">Liga</th>
+                            <th rowspan="2" class="px-4 py-3 text-right">Score</th>
+                            <th colspan="4" class="px-4 py-3 text-center">Produção</th>
+                            <th colspan="3" class="px-4 py-3 text-center">Qualidade</th>
+                            <th colspan="4" class="px-4 py-3 text-center" :class="showDiscipline ? '' : 'hidden'">Disciplina</th>
+                            <th rowspan="2" class="px-4 py-3 text-right" :class="compactMode ? 'hidden' : ''">Tempo casa</th>
+                            <th rowspan="2" class="px-4 py-3 text-right" :class="compactMode ? 'hidden' : ''">Ocorrências</th>
+                            <th rowspan="2" class="px-4 py-3"></th>
+                        </tr>
+                        <tr class="border-b border-slate-800">
+                            <th class="px-4 py-3 text-right">Volume</th>
+                            <th class="px-4 py-3 text-right">Kg/h</th>
+                            <th class="px-4 py-3 text-right">Viagens</th>
+                            <th class="px-4 py-3 text-right">Tempo/viagem</th>
+                            <th class="px-4 py-3 text-right">Regularidade</th>
+                            <th class="px-4 py-3 text-right">CV</th>
+                            <th class="px-4 py-3">Tendência</th>
+                            <th class="px-4 py-3 text-right" :class="showDiscipline ? '' : 'hidden'">Faltas</th>
+                            <th class="px-4 py-3 text-right" :class="showDiscipline ? '' : 'hidden'">Atestados</th>
+                            <th class="px-4 py-3 text-right" :class="showDiscipline ? '' : 'hidden'">Afastamentos</th>
+                            <th class="px-4 py-3 text-right" :class="showDiscipline ? '' : 'hidden'">Folgas</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-700">
+                    <tbody class="divide-y divide-slate-800">
                         {% for row in rows %}
-                        <tr class="hover:bg-slate-900/60">
-                            <td class="py-3 px-4">
+                        <tr class="odd:bg-slate-900/30 even:bg-slate-900/10 hover:bg-slate-900/60 cursor-pointer" data-search="{{ row.name }} {{ row.id }} {{ row.top_client }}"
+                            x-show="matchesSearch($el.dataset.search)" @click="openDetails({{ row.id }})">
+                            <td class="px-4 sticky left-0 bg-slate-900 z-10 border-r border-slate-800" :class="compactMode ? 'py-2' : 'py-3'">
                                 <div class="flex items-center gap-3">
                                     <div class="w-9 h-9 rounded-full bg-slate-700 overflow-hidden">
                                         <img src="{{ row.photo or 'https://ui-avatars.com/api/?background=1f2937&color=fff&name=' + row.name }}" class="w-full h-full object-cover">
@@ -300,11 +352,11 @@
                                     </div>
                                 </div>
                             </td>
-                            <td class="py-3 px-4">
-                                <span class="text-xs px-2 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300">{{ row.tenure_band }}</span>
+                            <td class="px-4" :class="compactMode ? 'py-2' : 'py-3'">
+                                <span class="text-xs px-2 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300">{{ row.tenure_band_label }}</span>
                             </td>
-                            <td class="py-3 px-4">
-                                <div class="text-emerald-300 font-semibold">{{ "{:.2f}".format(row.score) | replace('.', ',') }}</div>
+                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">
+                                <div class="text-emerald-300 font-semibold">{{ row.score|fmt_br_2 }}</div>
                                 {% if row.pillar_scores %}
                                 <div class="text-[10px] text-slate-500">
                                     P: {{ row.pillar_scores.productivity|fmt_br }} |
@@ -315,21 +367,21 @@
                                 </div>
                                 {% endif %}
                             </td>
-                            <td class="py-3 px-4">{{ row.total_tonnage|fmt_br_int }} kg</td>
-                            <td class="py-3 px-4">{{ row.avg_kgh|fmt_br_int }}</td>
-                            <td class="py-3 px-4">{{ row.count|fmt_br_int }}</td>
-                            <td class="py-3 px-4">{{ row.avg_trip_minutes|fmt_br }} min</td>
-                            <td class="py-3 px-4">{{ (row.regularity_adjusted * 100)|fmt_br_int }}%</td>
-                            <td class="py-3 px-4">{{ "{:.2f}".format(row.cv) | replace('.', ',') }}</td>
-                            <td class="py-3 px-4">{{ row.trend_label }}</td>
-                            <td class="py-3 px-4">{{ row.tenure_months|fmt_br_int }}m</td>
-                            <td class="py-3 px-4">{{ row.unjustified_absences|fmt_br_int }}</td>
-                            <td class="py-3 px-4">{{ row.justified_absences|fmt_br_int }}</td>
-                            <td class="py-3 px-4">{{ row.leave_absences|fmt_br_int }}</td>
-                            <td class="py-3 px-4">{{ row.offday_absences|fmt_br_int }}</td>
-                            <td class="py-3 px-4">{{ row.occurrences|fmt_br_int }}</td>
-                            <td class="py-3 px-4">
-                                <button @click="openDetails({{ row.id }})" class="text-xs text-blue-300 hover:text-blue-200">Detalhes</button>
+                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">{{ row.total_tonnage|fmt_br_int }} kg</td>
+                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">{{ row.avg_kgh|fmt_br_int }}</td>
+                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">{{ row.count|fmt_br_int }}</td>
+                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">{{ row.avg_trip_minutes|fmt_br }} min</td>
+                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">{{ row.regularity_adjusted|fmt_br_pct }}</td>
+                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">{{ row.cv|fmt_br_2 }}</td>
+                            <td class="px-4" :class="compactMode ? 'py-2' : 'py-3'">{{ row.trend_label }}</td>
+                            <td class="px-4 text-right" :class="compactMode ? 'py-2 hidden' : 'py-3'">{{ row.tenure_months|fmt_br_int }}m</td>
+                            <td class="px-4 text-right" :class="(showDiscipline ? '' : 'hidden') + ' ' + (compactMode ? 'py-2' : 'py-3')">{{ row.unjustified_absences|fmt_br_int }}</td>
+                            <td class="px-4 text-right" :class="(showDiscipline ? '' : 'hidden') + ' ' + (compactMode ? 'py-2' : 'py-3')">{{ row.justified_absences|fmt_br_int }}</td>
+                            <td class="px-4 text-right" :class="(showDiscipline ? '' : 'hidden') + ' ' + (compactMode ? 'py-2' : 'py-3')">{{ row.leave_absences|fmt_br_int }}</td>
+                            <td class="px-4 text-right" :class="(showDiscipline ? '' : 'hidden') + ' ' + (compactMode ? 'py-2' : 'py-3')">{{ row.offday_absences|fmt_br_int }}</td>
+                            <td class="px-4 text-right" :class="compactMode ? 'py-2 hidden' : 'py-3'">{{ row.occurrences|fmt_br_int }}</td>
+                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">
+                                <button @click.stop="openDetails({{ row.id }})" class="text-xs text-blue-300 hover:text-blue-200">Detalhes</button>
                             </td>
                         </tr>
                         {% endfor %}
@@ -341,15 +393,56 @@
 
         {% if debug_absences %}
         <details class="bg-slate-800/60 border border-slate-700 rounded-2xl p-4 text-xs text-slate-300">
-            <summary class="cursor-pointer text-slate-400 font-semibold">Debug absencias nao classificadas</summary>
+            <summary class="cursor-pointer text-slate-400 font-semibold">Debug ausências não classificadas</summary>
             <p class="mt-2 text-slate-400">Total: {{ debug_absences.unknown }}</p>
-            {% if debug_absences.examples %}
+        {% if debug_absences.examples %}
+        <div class="mt-2 grid gap-1 text-slate-300">
+            {% for label in debug_absences.examples %}
+            <div>• {{ label }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if debug_absences.labels %}
+        <div class="mt-2 grid gap-1 text-slate-300">
+            {% for item in debug_absences.labels %}
+            <div>• {{ item.label }} ({{ item.count }})</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </details>
+    {% endif %}
+
+        {% if debug_absence_summary %}
+        <details class="bg-slate-800/60 border border-slate-700 rounded-2xl p-4 text-xs text-slate-300">
+            <summary class="cursor-pointer text-slate-400 font-semibold">Debug ausências (resumo)</summary>
             <div class="mt-2 grid gap-1 text-slate-300">
-                {% for label in debug_absences.examples %}
-                <div>• {{ label }}</div>
+                <div>Rotinas no período: {{ debug_absence_summary.routine_count|fmt_br_int }}</div>
+                <div>Eventos no período: {{ debug_absence_summary.event_count|fmt_br_int }}</div>
+                <div>Origem: {{ debug_absence_summary.source_label }}</div>
+            </div>
+            <div class="mt-2 grid gap-1 text-slate-300">
+                <div>Dias — Faltas: {{ debug_absence_summary.days.unjustified|fmt_br_int }} · Atestados: {{ debug_absence_summary.days.justified|fmt_br_int }} · Afastamentos: {{ debug_absence_summary.days.leave|fmt_br_int }} · Folgas: {{ debug_absence_summary.days.offday|fmt_br_int }}</div>
+                <div>Logs — Faltas: {{ debug_absence_summary.logs.unjustified|fmt_br_int }} · Atestados: {{ debug_absence_summary.logs.justified|fmt_br_int }} · Afastamentos: {{ debug_absence_summary.logs.leave|fmt_br_int }} · Folgas: {{ debug_absence_summary.logs.offday|fmt_br_int }}</div>
+            </div>
+            {% if debug_absence_summary.dup_examples %}
+            <div class="mt-2 grid gap-1 text-slate-300">
+                {% for item in debug_absence_summary.dup_examples %}
+                <div>• {{ item.date }} · {{ item.group }} · {{ item.count }} logs</div>
                 {% endfor %}
             </div>
             {% endif %}
+        </details>
+        {% endif %}
+
+        {% if debug_absence_diagnostic %}
+        <details class="bg-slate-800/60 border border-slate-700 rounded-2xl p-4 text-xs text-slate-300">
+            <summary class="cursor-pointer text-slate-400 font-semibold">Debug ausências por colaborador</summary>
+            <p class="mt-2 text-slate-400">Colaborador ID: {{ debug_absence_employee_id }}</p>
+            <div class="mt-2 grid gap-1">
+                {% for item in debug_absence_diagnostic %}
+                <div>• {{ item.date }} · {{ item.group }} · {{ item.source }} · #{{ item.record_id }}</div>
+                {% endfor %}
+            </div>
         </details>
         {% endif %}
 
@@ -362,7 +455,7 @@
                 <div class="p-6 border-b border-white/10 flex items-start justify-between">
                     <div>
                         <h2 class="text-xl font-bold text-white" x-text="empDetails?.employee?.name">Detalhes</h2>
-                        <p class="text-xs text-slate-500">Rotas do periodo selecionado.</p>
+                        <p class="text-xs text-slate-500">Rotas do período selecionado.</p>
                         <div class="flex flex-wrap items-center gap-2 mt-2">
                             <span class="text-[10px] uppercase tracking-wider text-slate-500">Selo</span>
                             <span class="text-[10px] px-2 py-0.5 rounded-full border border-slate-700 text-slate-300"
@@ -372,23 +465,61 @@
                         <p class="text-xs text-slate-500 mt-1">
                             Tempo de casa: <span x-text="empDetails?.summary?.tenure_months ?? '-'"></span>m
                             · Liga: <span x-text="empDetails?.summary?.tenure_band ?? '-'"></span>
-                            · Faltas: <span x-text="empDetails?.summary?.absences?.unjustified ?? 0"></span>
-                            · Atestados: <span x-text="empDetails?.summary?.absences?.justified ?? 0"></span>
-                            · Afastamentos: <span x-text="empDetails?.summary?.absences?.leave ?? 0"></span>
-                            · Folgas: <span x-text="empDetails?.summary?.absences?.offday ?? 0"></span>
                         </p>
                         <p class="text-[10px] text-slate-500 mt-1">
-                            Dias ativos considerados: <span x-text="empDetails?.analysis?.sample_days ?? '-'"></span>
+                            Faltas (dias): <span x-text="empDetails?.summary?.absences?.days?.unjustified ?? empDetails?.summary?.absences_days?.unjustified ?? 0"></span>
+                            · Faltas (logs): <span x-text="empDetails?.summary?.absences?.logs?.unjustified ?? empDetails?.summary?.absences_logs?.unjustified ?? empDetails?.summary?.absences_events?.unjustified ?? 0"></span>
+                        </p>
+                        <p class="text-[10px] text-slate-500 mt-1">
+                            Atestados (dias): <span x-text="empDetails?.summary?.absences?.days?.justified ?? empDetails?.summary?.absences_days?.justified ?? 0"></span>
+                            · Atestados (logs): <span x-text="empDetails?.summary?.absences?.logs?.justified ?? empDetails?.summary?.absences_logs?.justified ?? empDetails?.summary?.absences_events?.justified ?? 0"></span>
+                        </p>
+                        <p class="text-[10px] text-slate-500 mt-1">
+                            Afastamentos (dias): <span x-text="empDetails?.summary?.absences?.days?.leave ?? empDetails?.summary?.absences_days?.leave ?? 0"></span>
+                            · Folgas (dias): <span x-text="empDetails?.summary?.absences?.days?.offday ?? empDetails?.summary?.absences_days?.offday ?? 0"></span>
+                        </p>
+                        <p class="text-[10px] text-slate-500 mt-1">
+                            Dias com rota: <span x-text="empDetails?.summary?.route_days_active ?? '-'"></span>
+                        </p>
+                        <p class="text-[10px] text-slate-500 mt-1">
+                            Dias com rotina: <span x-text="empDetails?.summary?.routine_days_logged ?? '-'"></span>
+                        </p>
+                        <p class="text-[10px] text-slate-500 mt-1">
+                            Origem das ausências: <span x-text="empDetails?.analysis?.absences_source_label ?? formatAbsenceSource(empDetails?.analysis?.absences_source ?? empDetails?.summary?.absences?.source ?? empDetails?.summary?.absences_source)"></span>
                         </p>
                         <p class="text-[10px] text-amber-300 mt-1" x-show="empDetails?.analysis?.sample_small">
                             <span x-text="empDetails?.analysis?.sample_note ?? 'Amostra pequena.'"></span>
                         </p>
                         <p class="text-[10px] text-rose-300 mt-1" x-show="empDetails?.analysis?.routine_missing">
-                            <span x-text="empDetails?.analysis?.routine_missing_label ?? 'Sem rotina lancada no dia.'"></span>
+                            <span x-text="empDetails?.analysis?.routine_missing_label ?? 'Sem rotina lançada no dia.'"></span>
                         </p>
                         <p class="text-[10px] text-slate-500 mt-1">
-                            Atestado, afastamento e folga nao reduzem regularidade. Falta reduz score.
+                            Atestado, afastamento e folga não reduzem regularidade. Falta reduz score.
                         </p>
+                        <template x-if="empDetails?.analysis?.debug_absence_days?.length">
+                            <details class="mt-2 text-[10px] text-slate-400">
+                                <summary class="cursor-pointer">Debug ausências (DEV)</summary>
+                                <div class="mt-2 space-y-1 text-slate-300">
+                                    <template x-for="item in empDetails.analysis.debug_absence_days" :key="item.date + '-' + item.record_id">
+                                        <div class="flex items-center justify-between">
+                                            <span x-text="item.date"></span>
+                                            <span x-text="item.group + ' · ' + item.source + ' #' + item.record_id"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </details>
+                        </template>
+                        <template x-if="empDetails?.analysis?.debug_identity">
+                            <details class="mt-2 text-[10px] text-slate-400">
+                                <summary class="cursor-pointer">Debug identidade (DEV)</summary>
+                                <div class="mt-2 space-y-1 text-slate-300">
+                                    <div>ID: <span x-text="empDetails.analysis.debug_identity.employee_id"></span></div>
+                                    <div>Matrícula: <span x-text="empDetails.analysis.debug_identity.registration_id ?? '-'"></span></div>
+                                    <div>Rotinas: <span x-text="empDetails.analysis.debug_identity.routine_count"></span></div>
+                                    <div>Eventos: <span x-text="empDetails.analysis.debug_identity.event_count"></span></div>
+                                </div>
+                            </details>
+                        </template>
                     </div>
                     <button @click="showModal = false" class="text-slate-400 hover:text-white">Fechar</button>
                 </div>
@@ -446,6 +577,104 @@
                         </div>
                     </div>
                 </div>
+                <div class="px-4 pb-4">
+                    <div class="bg-slate-800/40 border border-white/5 rounded-xl p-4">
+                        <p class="text-xs uppercase text-slate-500 font-semibold mb-2">Recomendações (não automáticas)</p>
+                        <div class="text-[10px] text-slate-500 mb-3">
+                            Confiança: <span class="text-slate-200" x-text="empDetails?.analysis?.confidence_level ?? '-'"></span>
+                            <span class="text-slate-500" x-text="empDetails?.analysis?.confidence_note ?? ''"></span>
+                        </div>
+                        <div class="flex flex-wrap gap-2 text-[10px] mb-3">
+                            <span class="px-2 py-0.5 rounded-full border border-slate-700 text-slate-300" x-text="'Promoção: ' + (empDetails?.analysis?.readiness_for_promotion ?? '-')"></span>
+                            <span class="px-2 py-0.5 rounded-full border border-slate-700 text-slate-300" x-text="'Treinamento: ' + (empDetails?.analysis?.training_priority ?? '-')"></span>
+                            <span class="px-2 py-0.5 rounded-full border border-slate-700 text-slate-300" x-text="'Risco: ' + (empDetails?.analysis?.risk_flag ?? '-')"></span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-slate-300">
+                            <div class="space-y-2">
+                                <p class="text-[10px] uppercase tracking-wider text-slate-500">Candidatos a promoção</p>
+                                <template x-for="item in empDetails?.analysis?.recommendations?.promotion || []" :key="item.label + '-promo'">
+                                    <div class="space-y-1">
+                                        <p class="text-white font-semibold" x-text="item.label"></p>
+                                        <p class="text-[10px] text-slate-500" x-text="'Confiança: ' + (item.confidence ?? '-')"></p>
+                                        <ul class="text-[10px] text-slate-400 space-y-1">
+                                            <template x-for="evidence in item.evidence" :key="evidence">
+                                                <li x-text="'• ' + evidence"></li>
+                                            </template>
+                                        </ul>
+                                    </div>
+                                </template>
+                                <template x-if="!(empDetails?.analysis?.recommendations?.promotion || []).length">
+                                    <p class="text-[10px] text-slate-500">Sem indicação automática.</p>
+                                </template>
+                            </div>
+                            <div class="space-y-2">
+                                <p class="text-[10px] uppercase tracking-wider text-slate-500">Prioridade de treinamento</p>
+                                <template x-for="item in empDetails?.analysis?.recommendations?.training || []" :key="item.label + '-train'">
+                                    <div class="space-y-1">
+                                        <p class="text-white font-semibold" x-text="item.label"></p>
+                                        <p class="text-[10px] text-slate-500" x-text="'Confiança: ' + (item.confidence ?? '-')"></p>
+                                        <p class="text-[10px] text-slate-500" x-show="item.action" x-text="'Foco: ' + item.action"></p>
+                                        <ul class="text-[10px] text-slate-400 space-y-1">
+                                            <template x-for="evidence in item.evidence" :key="evidence">
+                                                <li x-text="'• ' + evidence"></li>
+                                            </template>
+                                        </ul>
+                                    </div>
+                                </template>
+                                <template x-if="!(empDetails?.analysis?.recommendations?.training || []).length">
+                                    <p class="text-[10px] text-slate-500">Sem indicação automática.</p>
+                                </template>
+                            </div>
+                            <div class="space-y-2">
+                                <p class="text-[10px] uppercase tracking-wider text-slate-500">Risco operacional (revisão humana)</p>
+                                <template x-for="item in empDetails?.analysis?.recommendations?.risk || []" :key="item.label + '-risk'">
+                                    <div class="space-y-1">
+                                        <p class="text-white font-semibold" x-text="item.label"></p>
+                                        <p class="text-[10px] text-slate-500" x-text="'Confiança: ' + (item.confidence ?? '-')"></p>
+                                        <ul class="text-[10px] text-slate-400 space-y-1">
+                                            <template x-for="evidence in item.evidence" :key="evidence">
+                                                <li x-text="'• ' + evidence"></li>
+                                            </template>
+                                        </ul>
+                                    </div>
+                                </template>
+                                <template x-if="!(empDetails?.analysis?.recommendations?.risk || []).length">
+                                    <p class="text-[10px] text-slate-500">Sem indicação automática.</p>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="px-4 pb-4">
+                    <div class="bg-slate-800/40 border border-white/5 rounded-xl p-4">
+                        <div class="flex items-center justify-between">
+                            <p class="text-xs uppercase text-slate-500 font-semibold">Leitura do modelo</p>
+                            <span class="text-[10px] text-slate-500" x-text="'Origem: ' + (empDetails?.analysis?.model_origin ?? '-')"></span>
+                        </div>
+                        <p class="text-[10px] text-slate-500 mt-1">Correlação não indica causa.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 text-xs text-slate-300">
+                            <div>
+                                <p class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">O que o modelo vê</p>
+                                <ul class="text-[10px] text-slate-400 space-y-1">
+                                    <template x-for="item in empDetails?.analysis?.model_notes?.sees || []" :key="item">
+                                        <li x-text="'• ' + item"></li>
+                                    </template>
+                                    <template x-if="!(empDetails?.analysis?.model_notes?.sees || []).length">
+                                        <li class="text-slate-500">Sem dados suficientes.</li>
+                                    </template>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">O que NÃO dá para concluir</p>
+                                <ul class="text-[10px] text-slate-400 space-y-1">
+                                    <template x-for="item in empDetails?.analysis?.model_notes?.not_conclude || []" :key="item">
+                                        <li x-text="'• ' + item"></li>
+                                    </template>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 px-4 pb-4">
                     <div class="bg-slate-800/40 border border-white/5 rounded-xl p-4">
                         <p class="text-xs uppercase text-slate-500 font-semibold mb-2">Como ele trabalha</p>
@@ -480,6 +709,22 @@
                         </ul>
                     </div>
                 </div>
+                <div class="px-4 pb-4">
+                    <div class="bg-slate-800/40 border border-white/5 rounded-xl p-4">
+                        <p class="text-xs uppercase text-slate-500 font-semibold mb-2">Mudança de padrão</p>
+                        <span class="inline-flex text-[10px] px-2 py-0.5 rounded-full border border-slate-700 text-slate-300 mb-2"
+                            x-text="empDetails?.analysis?.pattern_change?.label ?? 'Sem dados suficientes'"></span>
+                        <p class="text-xs text-slate-300" x-text="empDetails?.analysis?.pattern_change?.summary ?? 'Sem dados suficientes para avaliar mudança de padrão.'"></p>
+                        <div class="mt-2 space-y-1 text-[10px] text-slate-400">
+                            <template x-for="item in empDetails?.analysis?.pattern_change?.evidence || []" :key="item">
+                                <div x-text="'• ' + item"></div>
+                            </template>
+                            <template x-if="!(empDetails?.analysis?.pattern_change?.evidence || []).length">
+                                <p class="text-slate-500">Sem evidências adicionais no período.</p>
+                            </template>
+                        </div>
+                    </div>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 px-4 pb-4">
                     <div class="bg-slate-800/40 border border-white/5 rounded-xl p-4">
                         <p class="text-xs uppercase text-slate-500 font-semibold mb-2">Kg/h por dia</p>
@@ -491,28 +736,41 @@
                                 </div>
                             </template>
                             <template x-if="!(empDetails?.analysis?.timeline?.kgh_by_day || []).length">
-                                <p class="text-slate-500">Sem registros no periodo.</p>
+                                <p class="text-slate-500">Sem registros no período.</p>
                             </template>
                         </div>
                     </div>
                     <div class="bg-slate-800/40 border border-white/5 rounded-xl p-4">
-                        <p class="text-xs uppercase text-slate-500 font-semibold mb-2">Ausencias por dia</p>
-                        <div class="text-xs text-slate-300 space-y-1">
-                            <template x-for="item in empDetails?.analysis?.timeline?.absences_by_day || []" :key="item.date + item.type">
-                                <div class="flex items-center justify-between">
-                                    <span x-text="item.date"></span>
-                                    <span x-text="item.type"></span>
+                        <p class="text-xs uppercase text-slate-500 font-semibold mb-2">Ausências por dia</p>
+                        <div class="text-xs text-slate-300 space-y-2">
+                            <template x-for="item in empDetails?.analysis?.timeline?.absences_by_day || []" :key="(item.date_br ?? '') + '-' + (item.type_label ?? '')">
+                                <div class="space-y-1">
+                                    <div class="flex items-center justify-between">
+                                        <span x-text="item.date_br"></span>
+                                        <span>
+                                            <span x-text="item.type_label"></span>
+                                            <span class="text-[10px] text-slate-500" x-show="item.logs_count && item.logs_count > 1"
+                                                x-text="' +' + item.logs_count + ' logs'"></span>
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center justify-between text-[10px] text-slate-500">
+                                        <span x-text="'Origem: ' + (item.source_label ?? '-')"></span>
+                                        <span x-show="item.logs_count && item.logs_count > 0" x-text="'Logs: ' + item.logs_count"></span>
+                                    </div>
+                                    <template x-if="item.record_ids && item.record_ids.length">
+                                        <div class="text-[10px] text-slate-600" x-text="'IDs: ' + item.record_ids.join(', ')"></div>
+                                    </template>
                                 </div>
                             </template>
                             <template x-if="!(empDetails?.analysis?.timeline?.absences_by_day || []).length">
-                                <p class="text-slate-500">Sem ausencias registradas.</p>
+                                <p class="text-slate-500">Sem ausências registradas.</p>
                             </template>
                         </div>
                     </div>
                 </div>
                 <p class="text-[10px] text-slate-500 px-4 pb-4">
                     Origem do score: <span x-text="empDetails?.analysis?.sources?.score ?? '-'"></span> ·
-                    Origem da tendencia: <span x-text="empDetails?.analysis?.sources?.trend ?? '-'"></span> ·
+                    Origem da tendência: <span x-text="empDetails?.analysis?.sources?.trend ?? '-'"></span> ·
                     Origem do contexto: <span x-text="empDetails?.analysis?.sources?.context ?? '-'"></span>
                 </p>
                 <div class="flex-1 overflow-y-auto">
@@ -522,11 +780,11 @@
                                 <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase">Cliente</th>
                                 <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase text-right">Peso</th>
                                 <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase text-right">Vel.</th>
-                                <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase text-right">Duracao</th>
+                                <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase text-right">Duração</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-white/5">
-                            <template x-for="route in empDetails?.routes" :key="route.start">
+                            <template x-for="route in (empDetails?.routes || [])" :key="(route.id ?? '') + '-' + (route.start ?? '') + '-' + (route.end ?? '')">
                                 <tr class="hover:bg-white/5">
                                     <td class="px-6 py-3">
                                         <p class="text-sm font-semibold text-white" x-text="route.client"></p>
@@ -554,6 +812,33 @@
             showModal: false,
             loading: false,
             empDetails: null,
+            searchTerm: "",
+            compactMode: false,
+            showDiscipline: true,
+
+            normalizeText(value) {
+                if (!value) return "";
+                return value
+                    .toString()
+                    .normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, "")
+                    .toLowerCase();
+            },
+
+            matchesSearch(value) {
+                const term = this.normalizeText(this.searchTerm);
+                if (!term) return true;
+                return this.normalizeText(value).includes(term);
+            },
+
+            formatAbsenceSource(source) {
+                const map = {
+                    routine: "Rotina",
+                    event_fallback: "Evento (fallback)",
+                    mixed: "Rotina + fallback"
+                };
+                return map[source] || "-";
+            },
 
             formatNumber(num) {
                 if (num === undefined || num === null) return '-';
@@ -583,6 +868,9 @@
                         throw new Error(msg);
                     }
                     this.empDetails = await res.json();
+                    if (!Array.isArray(this.empDetails?.routes)) {
+                        this.empDetails.routes = [];
+                    }
                 } catch (e) {
                     console.error(e);
                     alert(e.message || 'Erro ao carregar detalhes.');

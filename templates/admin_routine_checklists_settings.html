@@ -111,12 +111,21 @@
                         </div>
                     </div>
                     {% if recipient.is_active %}
-                    <form action="/admin/routine/checklists/settings/emails/{{ recipient.id }}/delete" method="POST">
-                        <button type="submit"
-                            class="text-xs px-3 py-1.5 rounded-lg border border-red-500/30 text-red-300 hover:bg-red-500/10 hover:border-red-500/50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100">
-                            Remover
-                        </button>
-                    </form>
+                    <div class="flex items-center gap-1">
+                        <form action="/admin/routine/checklists/settings/emails/{{ recipient.id }}/test" method="POST">
+                            <button type="submit"
+                                class="text-xs px-3 py-1.5 rounded-lg border border-blue-500/30 text-blue-300 hover:bg-blue-500/10 hover:border-blue-500/50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100">
+                                Testar
+                            </button>
+                        </form>
+                        <form action="/admin/routine/checklists/settings/emails/{{ recipient.id }}/delete"
+                            method="POST">
+                            <button type="submit"
+                                class="text-xs px-3 py-1.5 rounded-lg border border-red-500/30 text-red-300 hover:bg-red-500/10 hover:border-red-500/50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100">
+                                Remover
+                            </button>
+                        </form>
+                    </div>
                     {% else %}
                     <form action="/admin/routine/checklists/settings/emails" method="POST">
                         <input type="hidden" name="email" value="{{ recipient.email }}">
@@ -230,108 +239,142 @@
         </div>
     </div>
 
-    <!-- Daily Pending Table -->
-    <div class="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden p-6 mt-6">
-        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+</div>
+
+<!-- Top Delays (Least Checklists) -->
+<div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 mb-8">
+    <h2 class="text-lg font-bold text-white flex items-center gap-2 mb-6">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-500" fill="none" viewBox="0 0 24 24"
+            stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        Menor Adesão / Atrasos (Últimos 30 dias)
+    </h2>
+
+    {% if top_delays %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {% for row in top_delays %}
+        <div class="flex items-center gap-3 bg-slate-900/40 border border-slate-700/50 rounded-xl p-3">
+            <div
+                class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center font-bold text-slate-400 border border-slate-700">
+                {{ row.count }}
+            </div>
             <div>
-                <h2 class="text-lg font-bold text-white mb-1">Acompanhamento Diário</h2>
-                <p class="text-sm text-slate-400">Status dos checklists para operadores autorizados.</p>
-            </div>
-
-            <form class="flex flex-wrap items-center gap-2 bg-slate-900/50 p-1.5 rounded-lg border border-slate-700/50">
-                <input type="date" name="date" value="{{ filters.date }}"
-                    class="rounded-md bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-white focus:border-blue-500 focus:outline-none">
-                <select name="shift"
-                    class="rounded-md bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-white focus:border-blue-500 focus:outline-none">
-                    {% for shift in ['Todos', 'Manhã', 'Tarde', 'Noite'] %}
-                    <option value="{{ shift }}" {{ 'selected' if filters.shift==shift else '' }}>{{ shift }}</option>
-                    {% endfor %}
-                </select>
-                <button type="submit"
-                    class="rounded-md bg-slate-700 hover:bg-slate-600 text-white font-semibold px-4 py-1.5 text-xs transition-colors">
-                    Atualizar
-                </button>
-            </form>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <div class="bg-slate-900/40 border border-slate-700/50 rounded-xl p-4 flex items-center justify-between">
-                <div class="text-xs font-semibold text-slate-400">Total Autorizados</div>
-                <div class="text-xl font-bold text-white">{{ stats.authorized_total }}</div>
-            </div>
-            <div class="bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-4 flex items-center justify-between">
-                <div class="text-xs font-semibold text-emerald-400">Concluídos</div>
-                <div class="text-xl font-bold text-emerald-300">{{ stats.done_count }}</div>
-            </div>
-            <div class="bg-red-500/5 border border-red-500/10 rounded-xl p-4 flex items-center justify-between">
-                <div class="text-xs font-semibold text-red-400">Pendentes</div>
-                <div class="text-xl font-bold text-red-300">{{ stats.pending_count }}</div>
+                <p class="text-sm font-bold text-white line-clamp-1">{{ row.name }}</p>
+                <p class="text-[10px] text-slate-500">{{ row.shift }}</p>
             </div>
         </div>
+        {% endfor %}
+    </div>
+    <p class="text-xs text-slate-500 mt-4">* Colaboradores com menor quantidade de checklists realizados no período.</p>
+    {% else %}
+    <div class="text-center py-8 text-slate-500">Sem dados suficientes.</div>
+    {% endif %}
+</div>
 
-        <div class="overflow-x-auto rounded-xl border border-slate-700/50">
-            <table class="w-full text-left text-sm">
-                <thead class="text-xs uppercase text-slate-500 bg-slate-900/50 border-b border-slate-700/50">
-                    <tr>
-                        <th class="py-3 px-4 font-semibold">Colaborador</th>
-                        <th class="py-3 px-4 font-semibold">Matrícula</th>
-                        <th class="py-3 px-4 font-semibold">Turno</th>
-                        <th class="py-3 px-4 font-semibold">Escala</th>
-                        <th class="py-3 px-4 font-semibold text-right">Status do Dia</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-700/50">
-                    {% if not authorized_rows %}
-                    <tr>
-                        <td colspan="5" class="py-12 text-center text-slate-500">
-                            Nenhuma pendência encontrada para os filtros selecionados.
-                        </td>
-                    </tr>
-                    {% else %}
-                    {% for row in authorized_rows %}
-                    <tr class="hover:bg-slate-700/20 transition-colors">
-                        <td class="py-3 px-4">
-                            <div class="flex items-center gap-3">
-                                <div
-                                    class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
-                                    {{ row.employee.name[0] }}
-                                </div>
-                                <span class="text-white font-medium">{{ row.employee.name }}</span>
-                            </div>
-                        </td>
-                        <td class="py-3 px-4 text-slate-400 font-mono text-xs">{{ row.employee.registration_id }}</td>
-                        <td class="py-3 px-4 text-slate-300">
-                            <span class="px-2 py-0.5 rounded bg-slate-800 text-xs">{{ row.employee.work_shift }}</span>
-                        </td>
-                        <td class="py-3 px-4 text-slate-400 text-xs">{{ row.employee.work_schedule or '-' }}</td>
-                        <td class="py-3 px-4 text-right">
-                            <div class="flex items-center justify-end gap-2">
-                                <span
-                                    class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide {{ 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' if row.done else 'bg-red-500/10 text-red-400 border border-red-500/20' }}">
-                                    {{ 'Realizado' if row.done else 'Pendente' }}
-                                </span>
-                                {% if row.done %}
-                                <a href="/admin/routine/checklists/{{ row.checklist_id }}"
-                                    class="text-xs text-blue-400 hover:text-blue-300 p-1 rounded hover:bg-blue-400/10">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                    </svg>
-                                </a>
-                                {% else %}
-                                <div class="w-6"></div>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                    {% endif %}
-                </tbody>
-            </table>
+<!-- Daily Pending Table -->
+<div class="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden p-6 mt-6">
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+            <h2 class="text-lg font-bold text-white mb-1">Acompanhamento Diário</h2>
+            <p class="text-sm text-slate-400">Status dos checklists para operadores autorizados.</p>
+        </div>
+
+        <form class="flex flex-wrap items-center gap-2 bg-slate-900/50 p-1.5 rounded-lg border border-slate-700/50">
+            <input type="date" name="date" value="{{ filters.date }}"
+                class="rounded-md bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-white focus:border-blue-500 focus:outline-none">
+            <select name="shift"
+                class="rounded-md bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-white focus:border-blue-500 focus:outline-none">
+                {% for shift in ['Todos', 'Manhã', 'Tarde', 'Noite'] %}
+                <option value="{{ shift }}" {{ 'selected' if filters.shift==shift else '' }}>{{ shift }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit"
+                class="rounded-md bg-slate-700 hover:bg-slate-600 text-white font-semibold px-4 py-1.5 text-xs transition-colors">
+                Atualizar
+            </button>
+        </form>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div class="bg-slate-900/40 border border-slate-700/50 rounded-xl p-4 flex items-center justify-between">
+            <div class="text-xs font-semibold text-slate-400">Total Autorizados</div>
+            <div class="text-xl font-bold text-white">{{ stats.authorized_total }}</div>
+        </div>
+        <div class="bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-4 flex items-center justify-between">
+            <div class="text-xs font-semibold text-emerald-400">Concluídos</div>
+            <div class="text-xl font-bold text-emerald-300">{{ stats.done_count }}</div>
+        </div>
+        <div class="bg-red-500/5 border border-red-500/10 rounded-xl p-4 flex items-center justify-between">
+            <div class="text-xs font-semibold text-red-400">Pendentes</div>
+            <div class="text-xl font-bold text-red-300">{{ stats.pending_count }}</div>
         </div>
     </div>
+
+    <div class="overflow-x-auto rounded-xl border border-slate-700/50">
+        <table class="w-full text-left text-sm">
+            <thead class="text-xs uppercase text-slate-500 bg-slate-900/50 border-b border-slate-700/50">
+                <tr>
+                    <th class="py-3 px-4 font-semibold">Colaborador</th>
+                    <th class="py-3 px-4 font-semibold">Matrícula</th>
+                    <th class="py-3 px-4 font-semibold">Turno</th>
+                    <th class="py-3 px-4 font-semibold">Escala</th>
+                    <th class="py-3 px-4 font-semibold text-right">Status do Dia</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-700/50">
+                {% if not authorized_rows %}
+                <tr>
+                    <td colspan="5" class="py-12 text-center text-slate-500">
+                        Nenhuma pendência encontrada para os filtros selecionados.
+                    </td>
+                </tr>
+                {% else %}
+                {% for row in authorized_rows %}
+                <tr class="hover:bg-slate-700/20 transition-colors">
+                    <td class="py-3 px-4">
+                        <div class="flex items-center gap-3">
+                            <div
+                                class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
+                                {{ row.employee.name[0] }}
+                            </div>
+                            <span class="text-white font-medium">{{ row.employee.name }}</span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4 text-slate-400 font-mono text-xs">{{ row.employee.registration_id }}</td>
+                    <td class="py-3 px-4 text-slate-300">
+                        <span class="px-2 py-0.5 rounded bg-slate-800 text-xs">{{ row.employee.work_shift }}</span>
+                    </td>
+                    <td class="py-3 px-4 text-slate-400 text-xs">{{ row.employee.work_schedule or '-' }}</td>
+                    <td class="py-3 px-4 text-right">
+                        <div class="flex items-center justify-end gap-2">
+                            <span
+                                class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide {{ 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' if row.done else 'bg-red-500/10 text-red-400 border border-red-500/20' }}">
+                                {{ 'Realizado' if row.done else 'Pendente' }}
+                            </span>
+                            {% if row.done %}
+                            <a href="/admin/routine/checklists/{{ row.checklist_id }}"
+                                class="text-xs text-blue-400 hover:text-blue-300 p-1 rounded hover:bg-blue-400/10">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                            </a>
+                            {% else %}
+                            <div class="w-6"></div>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
 </div>
 {% endblock %}
