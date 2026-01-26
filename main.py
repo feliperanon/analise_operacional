@@ -4222,8 +4222,10 @@ async def mobile_tickets_list(request: Request, session: Session = Depends(get_s
     employee = session.get(models.Employee, user.get("id"))
     try:
         require_mobile_module(employee, "checklist")
-    except HTTPException:
-        return RedirectResponse(url="/mobile/dashboard", status_code=303)
+    except HTTPException as exc:
+        if exc.status_code == status.HTTP_403_FORBIDDEN:
+            return RedirectResponse(url="/mobile/dashboard?module=checklist", status_code=303)
+        raise
 
     tickets = session.exec(
         select(models.EquipmentTicket)
@@ -4237,26 +4239,6 @@ async def mobile_tickets_list(request: Request, session: Session = Depends(get_s
         "tickets": tickets,
         "employee": employee
     })
-
-@app.get("/mobile/equipment/tickets/{ticket_id}", response_class=HTMLResponse)
-async def mobile_tickets_detail(ticket_id: int, request: Request, session: Session = Depends(get_session)):
-    user = require_login(request)
-    if not isinstance(user, dict) or user.get("type") != "employee":
-        return RedirectResponse(url="/mobile/login", status_code=303)
-    
-    ticket = session.get(models.EquipmentTicket, ticket_id)
-    if not ticket or ticket.employee_id != user.get("id"):
-        return RedirectResponse(url="/mobile/equipment/tickets", status_code=303)
-        
-    image_list = ticket.images or []
-    image_list = [f"/static/uploads/tickets/{img}" for img in image_list]
-
-    return templates.TemplateResponse("mobile/tickets_detail.html", {
-        "request": request, 
-        "ticket": ticket,
-        "images": image_list
-    })
-
 
 @app.get("/mobile/equipment/tickets/new", response_class=HTMLResponse)
 async def mobile_ticket_new(request: Request, session: Session = Depends(get_session)):
@@ -4287,7 +4269,44 @@ async def mobile_ticket_new(request: Request, session: Session = Depends(get_ses
             "today": today,
             "equipment_list": equipment_list
         }
-    ):
+    )
+
+
+@app.get("/mobile/equipment/tickets/{ticket_id}", response_class=HTMLResponse)
+async def mobile_tickets_detail(ticket_id: int, request: Request, session: Session = Depends(get_session)):
+    user = require_login(request)
+    if not isinstance(user, dict) or user.get("type") != "employee":
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    employee = session.get(models.Employee, user.get("id"))
+    if not employee:
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    try:
+        require_mobile_module(employee, "checklist")
+    except HTTPException as exc:
+        if exc.status_code == status.HTTP_403_FORBIDDEN:
+            return RedirectResponse(url="/mobile/dashboard?module=checklist", status_code=303)
+        raise
+
+    ticket = session.get(models.EquipmentTicket, ticket_id)
+    if not ticket or ticket.employee_id != user.get("id"):
+        return RedirectResponse(url="/mobile/equipment/tickets", status_code=303)
+
+    image_list = ticket.images or []
+    image_list = [f"/static/uploads/tickets/{img}" for img in image_list]
+
+    return templates.TemplateResponse("mobile/tickets_detail.html", {
+        "request": request,
+        "ticket": ticket,
+        "images": image_list
+    })
+
+
+@app.get("/admin/routine/checklists/dashboard", response_class=HTMLResponse)
+async def admin_checklists_dashboard(
+    request: Request,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
     days_param = request.query_params.get("days", "30")
     period_days = parse_int_env(days_param, 30)
     now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
@@ -4366,7 +4385,7 @@ async def mobile_ticket_new(request: Request, session: Session = Depends(get_ses
         "critical": f"/admin/routine/checklists?period_days={period_days}&critical=1",
         "tickets_total": f"/admin/equipment/tickets?days={period_days}",
         "tickets_open": f"/admin/equipment/tickets?days={period_days}&status=open",
-        "tickets_high": f"/admin/equipment/tickets?days={period_days}&severity=high",
+        "tickets_high": f"/admin/equipment/tickets?days={period_days}&severity=high&status=open",
     }
 
     return templates.TemplateResponse(
@@ -4743,6 +4762,7 @@ async def admin_checklists_page(
     period_days_param = request.query_params.get("period_days")
     nonconforming_param = request.query_params.get("nonconforming")
     critical_param = request.query_params.get("critical")
+    item_key_param = request.query_params.get("item_key")
     
     employee_filter_id = None
     if employee_filter:
@@ -4801,6 +4821,10 @@ async def admin_checklists_page(
             if not checklist.critical_flag:
                 include = False
         
+        if item_key_param:
+            if item_key_param not in (checklist.nonconforming_keys or []):
+                include = False
+
         if include:
             filtered_rows.append((checklist, employee))
             
@@ -5191,6 +5215,11 @@ async def api_create_checklist(
     equipment_code = (equipment_code or "").strip().upper()
     if not equipment_code:
         return JSONResponse({"error": "Equipamento obrigatório."}, status_code=400)
+    equipment = session.exec(
+        select(models.TranspalletEquipment).where(models.TranspalletEquipment.code == equipment_code)
+    ).first()
+    if not equipment:
+        return JSONResponse({"error": "Equipamento não cadastrado."}, status_code=400)
 
     payload_items = parse_items_payload(items)
     if not payload_items or len(payload_items) != len(CHECKLIST_ITEM_KEYS):

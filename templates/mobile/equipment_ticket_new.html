@@ -68,8 +68,9 @@
             const result = await res.json();
 
             if (res.status === 409) {
-                // Duplicate detected
-                statusMessage.innerHTML = `⚠️ ${result.error} <br><a href="/mobile/equipment/tickets/${result.existing_ticket_id}" class="underline text-blue-400 font-bold mt-1 block">Ver chamado existente</a>`;
+                const existingId = result.existing_ticket_id;
+                const link = existingId ? `/mobile/equipment/tickets/${existingId}` : "/mobile/equipment/tickets";
+                statusMessage.innerHTML = `Atenção: ${result.error} <br><a href="${link}" class="underline text-blue-400 font-bold mt-1 block">Ver chamado existente</a>`;
                 statusMessage.className = 'text-center text-xs text-amber-400 min-h-[1rem] bg-amber-500/10 p-2 rounded-lg mt-2';
                 submitBtn.disabled = false;
                 return;

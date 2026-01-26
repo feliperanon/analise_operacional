@@ -172,7 +172,7 @@
             {% if top_items %}
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {% for item in top_items %}
-                <div
+                <a href="/admin/routine/checklists?item_key={{ item.key }}&period_days={{ period_days }}"
                     class="flex items-center justify-between border border-slate-700/50 rounded-xl p-3 bg-slate-900/40 hover:bg-slate-900/60 transition-colors">
                     <div class="flex items-center gap-3">
                         <div
@@ -190,7 +190,7 @@
                     </div>
                     <div class="text-sm font-mono font-bold text-slate-300 bg-slate-800 px-2 py-1 rounded">{{ item.count
                         }}</div>
-                </div>
+                </a>
                 {% endfor %}
             </div>
             {% else %}
@@ -218,14 +218,14 @@
             {% if top_equipment %}
             <div class="grid grid-cols-3 sm:grid-cols-4 gap-4">
                 {% for row in top_equipment %}
-                <div
+                <a href="/admin/equipment/tickets?equipment={{ row.code }}&days={{ period_days }}"
                     class="flex flex-col items-center justify-between border border-slate-700/50 rounded-xl p-3 bg-slate-900/40 hover:bg-slate-900/60 transition-colors text-center">
                     <div class="text-xs font-bold text-white mb-1">{{ row.equipment_code }}</div>
                     <div
                         class="text-[10px] text-purple-300 font-medium bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
                         {{ row.count }} falhas
                     </div>
-                </div>
+                </a>
                 {% endfor %}
             </div>
             {% else %}

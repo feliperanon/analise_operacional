@@ -69,7 +69,7 @@
             </div>
             <select x-model="equipmentCode"
                 class="w-full bg-transparent border-none text-white font-bold text-lg focus:ring-0 p-3 appearance-none">
-                <option value="" disabled selected class="text-slate-500">Selecione o Equipamento</option>
+                <option value="" disabled selected class="text-slate-500">Selecione o equipamento</option>
                 {% if equipment_list %}
                 {% for eq in equipment_list %}
                 <option value="{{ eq.code }}" class="bg-slate-800 text-white">{{ eq.code }}</option>
@@ -192,9 +192,18 @@
                     class="bg-slate-800 border border-slate-700/50 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 hover:bg-slate-700 transition-colors group">
                     <div
                         class="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
-                        <i data-lucide="wrench" class="w-5 h-5 text-blue-400"></i>
+                        <i data-lucide="list" class="w-5 h-5 text-blue-400"></i>
                     </div>
-                    <span class="text-sm font-bold text-slate-200">Chamados</span>
+                    <span class="text-sm font-bold text-slate-200">Ver chamados</span>
+                </a>
+
+                <a href="/mobile/equipment/tickets/new"
+                    class="bg-slate-800 border border-slate-700/50 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 hover:bg-slate-700 transition-colors group">
+                    <div
+                        class="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
+                        <i data-lucide="plus" class="w-5 h-5 text-blue-400"></i>
+                    </div>
+                    <span class="text-sm font-bold text-slate-200">Novo chamado</span>
                 </a>
 
                 <a href="/mobile/routine/history"
