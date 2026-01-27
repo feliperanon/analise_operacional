@@ -71,11 +71,6 @@
 
         <!-- Global Header -->
         <nav class="relative z-50 px-5 pt-6 flex items-center gap-4">
-            <button
-                onclick="window.history.length > 1 ? window.history.back() : window.location.href='/mobile/dashboard'"
-                class="w-10 h-10 rounded-full bg-slate-800/80 border border-slate-700 text-white flex items-center justify-center active:scale-95 transition-all">
-                <i data-lucide="arrow-left" class="w-5 h-5"></i>
-            </button>
             <div class="flex-1"></div>
             <!-- Navigation Menu Button -->
             <button
@@ -179,6 +174,37 @@
 
     <script>
         lucide.createIcons();
+        
+        // Padrão de navegação: determinar rota de retorno baseada na URL atual
+        function getBackUrl() {
+            const path = window.location.pathname;
+            
+            // Mapeamento de rotas de retorno
+            const backRoutes = {
+                '/mobile/equipment/tickets/new': '/mobile/equipment/tickets',
+                '/mobile/equipment/tickets': '/mobile/dashboard',
+                '/mobile/routine/checklist': '/mobile/dashboard',
+                '/mobile/routine/history': '/mobile/routine/checklist',
+                '/mobile/achievements': '/mobile/dashboard',
+                '/mobile/game': '/mobile/dashboard'
+            };
+            
+            // Para páginas de detalhes (com ID na URL)
+            if (path.includes('/mobile/equipment/tickets/') && path !== '/mobile/equipment/tickets') {
+                // Verificar se veio da página de criação ou listagem
+                const referrer = document.referrer;
+                if (referrer.includes('/mobile/equipment/tickets/new')) {
+                    return '/mobile/equipment/tickets/new';
+                }
+                return '/mobile/equipment/tickets';
+            }
+            
+            // Retornar rota mapeada ou dashboard como padrão
+            return backRoutes[path] || '/mobile/dashboard';
+        }
+        
+        // Expor globalmente
+        window.getBackUrl = getBackUrl;
     </script>
     {% block scripts %}{% endblock %}
 </body>

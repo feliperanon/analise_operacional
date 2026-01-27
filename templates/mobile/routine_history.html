@@ -4,58 +4,79 @@
 
 {% block content %}
 <div class="min-h-screen bg-slate-900 text-slate-100 p-5 pb-24">
-    <!-- Header with Back -->
-    <div class="flex items-center gap-4 mb-6">
-        <a href="/mobile/routine/checklist"
-            class="p-2 rounded-full bg-slate-800 text-slate-400 hover:text-white transition-colors">
-            <i data-lucide="arrow-left" class="w-5 h-5"></i>
-        </a>
-        <div>
-            <h1 class="text-xl font-bold text-white">Histórico Recente</h1>
-            <p class="text-sm text-slate-400">Últimos 30 dias</p>
-        </div>
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-white">Histórico</h1>
+        <p class="text-sm text-slate-400">Checklists com problemas e chamados abertos</p>
     </div>
 
     <!-- History List -->
     {% if history_checklists %}
-    <div class="relative pl-4 border-l border-slate-700 space-y-6">
-        {% for c in history_checklists %}
-        <div class="relative group">
-            <!-- Timeline Dot -->
-            <div
-                class="absolute -left-[21px] top-1.5 w-3 h-3 rounded-full border-2 border-slate-900 {{ c.status_dot }} group-hover:scale-125 transition-transform">
+    <div class="space-y-3">
+        {% for item in history_checklists %}
+        {% if item.type == "checklist" %}
+        <!-- Checklist com Problemas -->
+        <div class="bg-slate-800 border border-slate-700/50 rounded-2xl p-4 hover:bg-slate-700/50 transition-colors">
+            <div class="flex items-start justify-between gap-3 mb-2">
+                <div class="flex items-center gap-3 flex-1">
+                    <div class="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
+                        <i data-lucide="clipboard-check" class="w-5 h-5 text-red-400"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-white font-bold text-base">{{ item.equipment_code }}</p>
+                        <p class="text-slate-400 text-xs">{{ item.submitted_at_date }} às {{ item.submitted_at_time }}</p>
+                    </div>
+                </div>
+                <span class="text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider {{ item.status_badge_class }}">
+                    {{ item.status_label }}
+                </span>
             </div>
 
-            <div
-                class="bg-slate-800 border border-slate-700/50 rounded-2xl p-4 ml-2 hover:bg-slate-700/50 transition-colors">
-                <div class="flex justify-between items-start mb-2">
-                    <div>
-                        <p class="text-white font-bold text-lg">{{ c.equipment_code }}</p>
-                        <p class="text-slate-400 text-xs">{{ c.submitted_at_date }} às {{ c.submitted_at_time }}</p>
-                    </div>
-                    <span
-                        class="text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider {{ c.status_badge_class }}">
-                        {{ c.status_label }}
-                    </span>
+            {% if item.original.nonconforming_keys %}
+            <div class="mt-3 text-xs text-amber-200/70 bg-amber-500/5 p-3 rounded-lg border border-amber-500/10">
+                <div class="flex items-center gap-1.5 mb-1.5">
+                    <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+                    <span class="font-bold">Apontamentos:</span>
                 </div>
-
-                {% if c.original.nonconforming_keys %}
-                <div class="mt-2 text-xs text-amber-200/70 bg-amber-500/5 p-2 rounded-lg border border-amber-500/10">
-                    <div class="flex items-center gap-1.5 mb-1">
-                        <i data-lucide="alert-triangle" class="w-3 h-3"></i>
-                        <span class="font-bold">Apontamentos:</span>
-                    </div>
-                    <p class="line-clamp-2">{{ c.original.nonconforming_json|default('Detalhes no sistema') }}</p>
-                </div>
-                {% endif %}
+                <p class="line-clamp-2">{{ item.original.nonconforming_json|default('Detalhes no sistema') }}</p>
             </div>
+            {% endif %}
         </div>
+        {% elif item.type == "ticket" %}
+        <!-- Chamado Aberto -->
+        <a href="/mobile/equipment/tickets/{{ item.ticket_id }}" 
+            class="block bg-slate-800 border border-slate-700/50 rounded-2xl p-4 hover:bg-slate-700/50 transition-colors">
+            <div class="flex items-start justify-between gap-3 mb-2">
+                <div class="flex items-center gap-3 flex-1">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                        <i data-lucide="alert-circle" class="w-5 h-5 text-amber-400"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                            <p class="text-white font-bold text-base">{{ item.equipment_code }}</p>
+                            <span class="text-xs text-blue-400 font-bold">#{{ item.ticket_id }}</span>
+                        </div>
+                        <p class="text-slate-400 text-xs">{{ item.submitted_at_date }} às {{ item.submitted_at_time }}</p>
+                    </div>
+                </div>
+                <span class="text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider {{ item.status_badge_class }}">
+                    {{ item.status_label }}
+                </span>
+            </div>
+            {% if item.description %}
+            <div class="mt-2 text-xs text-slate-300 bg-slate-900/50 p-2 rounded-lg">
+                <p class="line-clamp-2">{{ item.description }}</p>
+            </div>
+            {% endif %}
+        </a>
+        {% endif %}
         {% endfor %}
     </div>
     {% else %}
-    <div class="flex flex-col items-center justify-center py-12 text-slate-500">
-        <i data-lucide="history" class="w-12 h-12 mb-4 opacity-50"></i>
-        <p>Nenhum checklist recente.</p>
+    <div class="flex flex-col items-center justify-center py-16 text-slate-500">
+        <i data-lucide="check-circle" class="w-16 h-16 mb-4 opacity-50 text-emerald-500/30"></i>
+        <p class="text-base font-medium">Nenhum problema registrado</p>
+        <p class="text-sm text-slate-600 mt-1">Todos os checklists estão OK</p>
     </div>
     {% endif %}
 </div>

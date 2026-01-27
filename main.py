@@ -4365,17 +4365,58 @@ async def mobile_tickets_list(request: Request, session: Session = Depends(get_s
             return RedirectResponse(url="/mobile/dashboard?module=checklist", status_code=303)
         raise
 
-    tickets = session.exec(
+    # Buscar todos os tickets do colaborador
+    all_tickets = session.exec(
         select(models.EquipmentTicket)
         .where(models.EquipmentTicket.employee_id == employee.id)
         .order_by(desc(models.EquipmentTicket.created_at))
-        .limit(50)
+        .limit(100)
     ).all()
+    
+    # Separar por status
+    open_tickets = [t for t in all_tickets if t.status == "open"]
+    closed_tickets = [t for t in all_tickets if t.status != "open"]
+    
+    # Estatísticas
+    total_tickets = len(all_tickets)
+    open_count = len(open_tickets)
+    closed_count = len(closed_tickets)
+    high_severity_count = len([t for t in all_tickets if t.severity == "high"])
+    
+    # Tickets recentes (últimos 7 dias)
+    seven_days_ago = datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=7)
+    # Converter para naive datetime para comparação (created_at geralmente é naive no banco)
+    seven_days_ago_naive = seven_days_ago.replace(tzinfo=None)
+    recent_tickets = []
+    for t in all_tickets:
+        if t.created_at:
+            # Normalizar created_at para naive se necessário
+            ticket_date = t.created_at.replace(tzinfo=None) if t.created_at.tzinfo else t.created_at
+            if ticket_date >= seven_days_ago_naive:
+                recent_tickets.append(t)
+    
+    # Tickets por equipamento (agrupar)
+    tickets_by_equipment = {}
+    for ticket in all_tickets:
+        if ticket.equipment_code not in tickets_by_equipment:
+            tickets_by_equipment[ticket.equipment_code] = []
+        tickets_by_equipment[ticket.equipment_code].append(ticket)
 
     return templates.TemplateResponse("mobile/tickets_list.html", {
         "request": request, 
-        "tickets": tickets,
-        "employee": employee
+        "tickets": all_tickets,  # Mantido para compatibilidade
+        "all_tickets": all_tickets,
+        "open_tickets": open_tickets,
+        "closed_tickets": closed_tickets,
+        "employee": employee,
+        "stats": {
+            "total": total_tickets,
+            "open": open_count,
+            "closed": closed_count,
+            "high_severity": high_severity_count,
+            "recent": len(recent_tickets)
+        },
+        "tickets_by_equipment": tickets_by_equipment
     })
 
 @app.get("/mobile/equipment/tickets/new", response_class=HTMLResponse)
@@ -5765,12 +5806,11 @@ async def api_create_ticket(
     if not description:
         return JSONResponse({"error": "Descrição obrigatória."}, status_code=400)
 
-    # Check for duplicates (Same equipment, same day, status open)
-    # IMPORTANTE: Só valida para o mesmo dia, não importa se foi resolvido depois
+    # Verificar se existe chamado aberto no mesmo dia (apenas para aviso, não bloqueia)
     today_start = datetime.now(ZoneInfo("America/Sao_Paulo")).replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start + timedelta(days=1)
     
-    existing = session.exec(
+    existing_ticket = session.exec(
         select(models.EquipmentTicket)
         .where(models.EquipmentTicket.equipment_code == equipment_code)
         .where(models.EquipmentTicket.status == "open")
@@ -5778,12 +5818,7 @@ async def api_create_ticket(
         .where(models.EquipmentTicket.created_at < today_end)
     ).first()
     
-    if existing:
-        return JSONResponse({
-            "error": f"Já existe um chamado ABERTO hoje para o equipamento {equipment_code}. Consulte o chamado #{existing.id} antes de abrir outro.",
-            "existing_ticket_id": existing.id,
-            "success": False
-        }, status_code=409)
+    # Não bloqueia mais, apenas armazena para mencionar no email
 
 
     # Auto Severity Logic
@@ -5856,18 +5891,27 @@ async def api_create_ticket(
             "generated_at": now_br.strftime("%d/%m/%Y %H:%M:%S")
         })
         
+        # Preparar corpo do email
+        email_body_lines = [
+            f"Novo chamado de manutenção registrado.\n",
+            f"Equipamento: {equipment_code}",
+            f"Severidade: {severity_norm.upper()}",
+            f"Solicitante: {employee.name} ({employee.registration_id})",
+            f"Turno: {shift_val}",
+            f"Data/Hora: {now_br.strftime('%d/%m/%Y %H:%M')}\n",
+            f"Descrição:\n{description}\n"
+        ]
+        
+        # Mencionar chamado existente se houver
+        if existing_ticket:
+            email_body_lines.insert(1, f"\n⚠️ ATENÇÃO: Já existe um chamado ABERTO hoje para este equipamento (Chamado #{existing_ticket.id}).")
+            email_body_lines.insert(2, f"Este é um chamado adicional registrado no mesmo dia.\n")
+        
+        email_body_lines.append("\nVerifique o anexo PDF para mais detalhes e imagens.")
+        
         email_report = {
             "subject": f"ALERTA MANUTENÇÃO — {now_br.strftime('%Y-%m-%d')} — Equipamento {equipment_code}",
-            "body": (
-                f"Novo chamado de manutenção registrado.\n\n"
-                f"Equipamento: {equipment_code}\n"
-                f"Severidade: {severity_norm.upper()}\n"
-                f"Solicitante: {employee.name} ({employee.registration_id})\n"
-                f"Turno: {shift_val}\n"
-                f"Data/Hora: {now_br.strftime('%d/%m/%Y %H:%M')}\n\n"
-                f"Descrição:\n{description}\n\n"
-                "Verifique o anexo PDF para mais detalhes e imagens."
-            ),
+            "body": "\n".join(email_body_lines),
             "pdf_bytes": pdf_bytes,
             "pdf_filename": f"chamado_{ticket.id}_{equipment_code}.pdf"
         }
