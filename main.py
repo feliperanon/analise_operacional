@@ -4449,24 +4449,30 @@ async def mobile_ticket_create(
         if recipient_emails:
             ticket_link = f"{APP_BASE_URL}/admin/equipment/tickets/{ticket.id}" if APP_BASE_URL else f"/admin/equipment/tickets/{ticket.id}"
             priority_labels = {"low": "Baixa", "medium": "Média", "high": "Alta", "critical": "Crítica"}
+            date_br = now_br.strftime('%d/%m/%Y')
             
-            subject = f"CHAMADO EQUIPAMENTO — {equipment_code} — {priority_labels.get(priority, priority).upper()}"
+            subject = f"Manutenção Equipamento {equipment_code} - {date_br}"
             body_lines = [
-                f"Colaborador: {employee.name} ({employee.registration_id or '-'})",
-                f"Equipamento: {equipment_code}",
-                f"Prioridade: {priority_labels.get(priority, priority)}",
+                "Olá! Espero que se encontrem bem.",
+                "",
+                f"Segue para manutenção o equipamento {equipment_code}.",
+                "",
+                f"Operador: {employee.name} — Matrícula: {employee.registration_id or '-'}",
                 f"Data/Hora: {now_br.strftime('%d/%m/%Y %H:%M')}",
+                f"Prioridade: {priority_labels.get(priority, priority)}",
                 "",
-                f"Título: {title}",
-                "",
-                f"Descrição:",
+                "Descrição do problema:",
                 description,
                 "",
-                f"Link: {ticket_link}"
+                f"Acesse o sistema para mais detalhes: {ticket_link}",
+                "",
+                "Atenciosamente,",
+                "Sistema de Operação Inteligente"
             ]
             if images:
                 image_list = [f"/static/uploads/tickets/{img}" for img in images]
-                body_lines.extend(["", "Imagens:", *[f"- {img}" for img in image_list]])
+                body_lines.insert(-3, "")
+                body_lines.insert(-3, f"Imagens anexadas: {len(images)}")
             
             body = "\n".join(body_lines)
             report_data = {
@@ -5438,6 +5444,35 @@ async def admin_checklist_resend_email(
     label_map = checklist_item_label_map()
     nonconforming_items = checklist_nonconforming_items(checklist.nonconforming_keys)
     
+    # Montar corpo do e-mail
+    nonconforming_lines = []
+    for item in nonconforming_items:
+        critical_tag = " [CRÍTICO]" if item.get("critical") else ""
+        nonconforming_lines.append(f"  • {item.get('label', item.get('key', ''))}{critical_tag}")
+    
+    checklist_link = f"{APP_BASE_URL}/admin/routine/checklists/{checklist.id}" if APP_BASE_URL else f"/admin/routine/checklists/{checklist.id}"
+    date_br = datetime.strptime(checklist.date, "%Y-%m-%d").strftime("%d/%m/%Y") if checklist.date else now_br.strftime("%d/%m/%Y")
+    
+    body_lines = [
+        "Olá! Espero que se encontrem bem.",
+        "",
+        f"Segue para manutenção o equipamento {checklist.equipment_code}.",
+        "",
+        f"Operador: {employee.name if employee else 'Desconhecido'} — Matrícula: {employee.registration_id if employee else '-'}",
+        f"Data: {date_br}",
+        f"Turno: {checklist.shift}",
+        "",
+        "Itens que requerem atenção:",
+        *nonconforming_lines,
+        "",
+        f"Observações: {checklist.observations or '-'}",
+        "",
+        f"Acesse o sistema para mais detalhes: {checklist_link}",
+        "",
+        "Atenciosamente,",
+        "Sistema de Operação Inteligente"
+    ]
+    
     report = {
         "employee_name": employee.name if employee else "Desconhecido",
         "equipment_code": checklist.equipment_code,
@@ -5447,8 +5482,8 @@ async def admin_checklist_resend_email(
         "critical": checklist.critical_flag,
         "observations": checklist.observations or "",
         "images": [f"/static/uploads/checklists/{img}" for img in (checklist.images or [])],
-        "subject": f"CHECKLIST — {checklist.equipment_code} — {'CRÍTICO' if checklist.critical_flag else 'NÃO CONFORME'}",
-        "body": f"Checklist #{checklist.id} do equipamento {checklist.equipment_code}."
+        "subject": f"Manutenção Equipamento {checklist.equipment_code} - {date_br}",
+        "body": "\n".join(body_lines)
     }
     
     now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
@@ -5557,9 +5592,9 @@ async def api_create_checklist(
         image_list = [f"/static/uploads/checklists/{img}" for img in images]
         checklist_link = f"{APP_BASE_URL}/admin/routine/checklists/{checklist.id}" if APP_BASE_URL else f"/admin/routine/checklists/{checklist.id}"
         submitted_at = checklist.submitted_at.strftime("%d/%m/%Y %H:%M") if checklist.submitted_at else now_br.strftime("%d/%m/%Y %H:%M")
-        email_date = now_br.strftime("%Y-%m-%d")
+        email_date_br = now_br.strftime("%d/%m/%Y")
         report = {
-            "subject": f"ALERTA MANUTENÇÃO — {email_date} — Equipamento {equipment_code}",
+            "subject": f"Manutenção Equipamento {equipment_code} - {email_date_br}",
             "checklist_id": checklist.id,
             "operator_name": employee.name,
             "operator_id": employee.registration_id or "-",
@@ -5574,23 +5609,31 @@ async def api_create_checklist(
         }
         nonconforming_lines = []
         for item in report_items:
-            critical_tag = " (CRITICO)" if item["critical"] else ""
-            nonconforming_lines.append(f"- {item['label']}{critical_tag}")
+            critical_tag = " [CRÍTICO]" if item["critical"] else ""
+            nonconforming_lines.append(f"  • {item['label']}{critical_tag}")
+        
         body_lines = [
-            f"Operador: {report['operator_name']} ({report['operator_id']})",
+            "Olá! Espero que se encontrem bem.",
+            "",
+            f"Segue para manutenção o equipamento {report['equipment_code']}.",
+            "",
+            f"Operador: {report['operator_name']} — Matrícula: {report['operator_id']}",
             f"Data/Hora: {report['submitted_at']}",
             f"Turno: {report['shift']}",
-            f"Equipamento: {report['equipment_code']}",
             "",
-            "Itens NÃO CONFORME:",
+            "Itens que requerem atenção:",
             *nonconforming_lines,
             "",
             f"Observações: {report['observations']}",
             "",
-            f"Link: {report['checklist_link']}"
+            f"Acesse o sistema para mais detalhes: {report['checklist_link']}",
+            "",
+            "Atenciosamente,",
+            "Sistema de Operação Inteligente"
         ]
         if image_list:
-            body_lines.extend(["", "Imagens:", *[f"- {img}" for img in image_list]])
+            body_lines.insert(-3, "")
+            body_lines.insert(-3, f"Imagens anexadas: {len(image_list)}")
         report["body"] = "\n".join(body_lines)
         report["pdf_filename"] = f"checklist_{checklist.id}_{date_val}.pdf"
 
@@ -11218,6 +11261,145 @@ async def set_employee_vacation(
         session.rollback()
         return JSONResponse({"error": str(e)}, status_code=500)
 
+
+@app.post("/api/employees/routine/extended", response_class=JSONResponse)
+async def set_employee_routine_extended(
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """Define rotina estendida de um colaborador (múltiplos dias)"""
+    require_login(request)
+    
+    try:
+        data = await request.json()
+        employee_id = data.get("employee_id")
+        routine = data.get("routine")
+        start_date_str = data.get("start_date")
+        days = data.get("days", 1)
+        
+        if not employee_id or not routine or not start_date_str:
+            return JSONResponse({"error": "Dados incompletos"}, status_code=400)
+        
+        # Buscar colaborador
+        employee = session.get(models.Employee, int(employee_id))
+        if not employee:
+            return JSONResponse({"error": "Colaborador não encontrado"}, status_code=404)
+        
+        # Parse dates
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        end_date = start_date + timedelta(days=days - 1)
+        
+        # Validar conflitos: verificar se já existe rotina para algum dia do período
+        # Agrupar por data para mostrar apenas datas únicas
+        existing_routines = session.exec(
+            select(models.EmployeeRoutine)
+            .where(models.EmployeeRoutine.employee_id == int(employee_id))
+            .where(models.EmployeeRoutine.date >= start_date_str)
+            .where(models.EmployeeRoutine.date <= end_date.strftime("%Y-%m-%d"))
+        ).all()
+        
+        if existing_routines:
+            # Agrupar por data única
+            conflict_dates_set = set()
+            for r in existing_routines:
+                if isinstance(r.date, str):
+                    conflict_dates_set.add(r.date)
+                else:
+                    conflict_dates_set.add(r.date.strftime("%Y-%m-%d"))
+            
+            conflict_dates = sorted(list(conflict_dates_set))
+            conflict_dates_formatted = [datetime.strptime(d, "%Y-%m-%d").strftime("%d/%m/%Y") if len(d) == 10 else d for d in conflict_dates]
+            
+            return JSONResponse({
+                "error": f"Conflito detectado: já existem registros para os dias {', '.join(conflict_dates_formatted)}",
+                "conflicts": conflict_dates_formatted,
+                "success": False
+            }, status_code=400)
+        
+        # Labels em português
+        routine_labels = {
+            'present': 'Presente',
+            'vacation': 'Férias',
+            'sick': 'Atestado',
+            'away': 'Afastado',
+            'absent': 'Falta',
+            'dayoff': 'Folga'
+        }
+        
+        # Mapear tipo de evento
+        event_type_map = {
+            'sick': 'atestado',
+            'absent': 'falta',
+            'away': 'afastamento',
+            'vacation': 'ferias_hist',
+            'dayoff': 'folga',
+            'present': 'presenca'
+        }
+        event_type = event_type_map.get(routine, 'routine_change')
+        
+        # Criar rotinas e eventos para cada dia
+        created_count = 0
+        current_date = start_date
+        br_tz = ZoneInfo("America/Sao_Paulo")
+        
+        while current_date <= end_date:
+            date_str = current_date.strftime("%Y-%m-%d")
+            
+            # Criar EmployeeRoutine para cada turno
+            for shift_name in ["Manhã", "Tarde", "Noite"]:
+                new_routine = models.EmployeeRoutine(
+                    date=date_str,
+                    shift=shift_name,
+                    employee_id=int(employee_id),
+                    routine=routine
+                )
+                session.add(new_routine)
+            
+            # Criar Event para histórico (um por dia)
+            # Usar início do dia para o timestamp do evento
+            event_timestamp = datetime.combine(current_date, datetime.min.time()).replace(tzinfo=br_tz)
+            event_text = f"{employee.name}: {routine_labels.get(routine, routine)} em {current_date.strftime('%d/%m/%Y')}"
+            
+            # Verificar se já existe evento para este dia (mesmo tipo e mesma data)
+            event_start = datetime.combine(current_date, datetime.min.time()).replace(tzinfo=br_tz)
+            event_end = datetime.combine(current_date, datetime.max.time()).replace(tzinfo=br_tz)
+            
+            existing_event = session.exec(
+                select(models.Event)
+                .where(models.Event.employee_id == int(employee_id))
+                .where(models.Event.type == event_type)
+                .where(models.Event.timestamp >= event_start)
+                .where(models.Event.timestamp <= event_end)
+            ).first()
+            
+            if not existing_event:
+                new_event = models.Event(
+                    timestamp=event_timestamp,
+                    text=event_text,
+                    type=event_type,
+                    category=routine,
+                    employee_id=int(employee_id)
+                )
+                session.add(new_event)
+            
+            created_count += 1
+            current_date += timedelta(days=1)
+        
+        session.commit()
+        
+        print(f"✅ Rotina estendida criada: {employee.name} - {routine} de {start_date_str} por {days} dias ({created_count} registros)")
+        
+        return {
+            "success": True,
+            "message": f"Rotina criada com sucesso para {created_count} dias",
+            "created_days": created_count
+        }
+    except Exception as e:
+        print(f"❌ Erro ao criar rotina estendida: {e}")
+        import traceback
+        traceback.print_exc()
+        session.rollback()
+        return JSONResponse({"error": str(e), "success": False}, status_code=500)
 
 @app.post("/api/employees/routine", response_class=JSONResponse)
 async def set_employee_routine(
