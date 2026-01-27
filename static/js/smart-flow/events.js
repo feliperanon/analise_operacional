@@ -217,20 +217,59 @@ const Events = {
 
         console.log(`Extended Routine: ${empId}, ${routine}, Start: ${startDate}, Days: ${days}`);
 
-        // Validação simples
-        if (days > 1) {
-            // TODO: Implementar lógica de backend para range dates
-            alert(`ℹ️ Registro de ${days} dias: O sistema salvou o status para HOJE (${startDate}).\n\nO suporte a agendamento futuro automático será ativado na próxima atualização do Backend.`);
+        // Validação básica
+        if (!startDate) {
+            alert('Por favor, selecione uma data de início.');
+            return;
         }
 
-        // Aplica para o dia atual (lógica padrão)
-        // Se a data selecionada for diferente de hoje, avisar?
-        if (startDate !== Store.state.currentDate) {
-            alert('Atenção: Você selecionou uma data diferente da visualizada no painel. O registro será aplicado na data visualizada.');
+        if (days < 1 || days > 365) {
+            alert('A quantidade de dias deve estar entre 1 e 365.');
+            return;
         }
 
-        Store.updateRoutine(empId, routine);
-        Render.closeBottomSheet();
+        // Chamar API para criar rotina estendida
+        try {
+            const result = await API.setEmployeeRoutineExtended(empId, routine, startDate, days);
+            
+            if (result.success) {
+                // Atualizar Store localmente para refletir mudanças
+                Store.updateRoutine(empId, routine);
+                
+                // Mostrar mensagem de sucesso
+                const routineLabels = {
+                    'present': 'Presente',
+                    'vacation': 'Férias',
+                    'sick': 'Atestado',
+                    'away': 'Afastado',
+                    'absent': 'Falta',
+                    'dayoff': 'Folga'
+                };
+                const label = routineLabels[routine] || routine;
+                
+                alert(`✅ ${result.message || `Rotina de ${label} criada com sucesso para ${days} dias`}`);
+                
+                // Fechar bottom sheet
+                Render.closeBottomSheet();
+                
+                // Recarregar página se estiver na página de detalhes do colaborador
+                if (window.location.pathname.includes('/employees/')) {
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 500);
+                }
+            } else {
+                // Mostrar erro (pode ser conflito)
+                if (result.error) {
+                    alert(`❌ Erro: ${result.error}`);
+                } else {
+                    alert('❌ Erro ao criar rotina estendida.');
+                }
+            }
+        } catch (error) {
+            console.error('Error setting extended routine:', error);
+            alert(`❌ Erro: ${error.message || 'Erro ao criar rotina estendida'}`);
+        }
     },
 
     setupInputs() {

@@ -149,6 +149,39 @@ const API = {
             console.error('API Error:', error);
             return { success: false, error: error.message };
         }
+    },
+
+    /**
+     * Define rotina estendida de um colaborador (múltiplos dias)
+     */
+    async setEmployeeRoutineExtended(employeeId, routine, startDate, days) {
+        try {
+            const response = await fetch('/api/employees/routine/extended', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    employee_id: employeeId,
+                    routine: routine,
+                    start_date: startDate,
+                    days: days
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (!response.ok) {
+                // Se houver conflito, retornar erro com detalhes
+                if (result.conflicts) {
+                    throw new Error(result.error || 'Conflito detectado');
+                }
+                throw new Error(result.error || 'Erro ao definir rotina estendida');
+            }
+            
+            return result;
+        } catch (error) {
+            console.error('API Error:', error);
+            return { success: false, error: error.message };
+        }
     }
 };
 

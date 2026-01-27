@@ -23716,3 +23716,5 @@ Traceback (most recent call last):
     select(models.EquipmentTicketEvent)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 AttributeError: module 'models' has no attribute 'EquipmentTicketEvent'. Did you mean: 'EquipmentTicket'?
+2026-01-27 16:04:53,779 | INFO     | main | Enviando e-mail de manutencao | host=smtp.office365.com port=587 tls=True ssl=False from=felipe.pires@nlfrutas.com.br recipients=['feliperanon@live.com'] subject=CHECKLIST — 0001 — NÃO CONFORME
+2026-01-27 16:05:01,302 | INFO     | main | E-mail de manutencao enviado com sucesso.

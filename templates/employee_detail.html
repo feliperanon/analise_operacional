@@ -91,6 +91,14 @@
             </div>
         </div>
         <div class="ml-auto flex flex-col gap-2 items-end">
+            <button onclick="openRoutineSheet()"
+                class="text-white hover:text-emerald-400 flex items-center gap-1 text-sm bg-emerald-600/50 hover:bg-emerald-600/80 px-4 py-2 rounded-lg transition-colors border border-emerald-500/30">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Lançar Rotina
+            </button>
             <button onclick="openHeaderEdit()"
                 class="text-white hover:text-blue-400 flex items-center gap-1 text-sm bg-blue-600/50 hover:bg-blue-600/80 px-4 py-2 rounded-lg transition-colors border border-blue-500/30">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1068,4 +1076,139 @@
     </details>
     {% endif %}
 </div>
+
+<!-- Bottom Sheet para Lançar Rotinas (similar ao Smart Flow) -->
+<div id="sheet-backdrop"
+    class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] transition-opacity duration-300 opacity-0 pointer-events-none"
+    onclick="closeRoutineSheet()"></div>
+
+<div id="employee-bottom-sheet"
+    class="fixed inset-x-0 bottom-0 z-[101] transform translate-y-full transition-transform duration-300 ease-out safe-area-bottom">
+    <div class="bg-slate-800 border-t border-slate-700 rounded-t-3xl shadow-2xl p-6 pb-8 w-full max-w-3xl mx-auto max-h-[90vh] overflow-y-auto">
+        <div class="w-12 h-1.5 bg-slate-600 rounded-full mx-auto mb-6"></div>
+        <div id="sheet-content">
+            <!-- Conteúdo será injetado via JavaScript -->
+        </div>
+    </div>
+</div>
+
+<!-- Scripts do Smart Flow para funcionalidade de rotinas -->
+<script src="/static/js/smart-flow/api.js?v=20260102X"></script>
+<script src="/static/js/smart-flow/store.js?v=20260122B"></script>
+<script src="/static/js/smart-flow/render.js?v=20260102X"></script>
+<script src="/static/js/smart-flow/events.js?v=20260122A"></script>
+
+<script>
+    // Dados do colaborador
+    const employeeData = {
+        id: {{ emp.id }},
+        registration_id: "{{ emp.registration_id }}",
+        name: "{{ emp.name|replace('"', '\\"') }}",
+        role: "{{ emp.role|replace('"', '\\"') }}",
+        shift: "{{ emp.work_shift or 'Manhã' }}",
+        status: "{{ emp.status }}"
+    };
+
+    // Função para inicializar Store quando scripts carregarem
+    function initializeStore() {
+        if (typeof Store !== 'undefined' && Store.state) {
+            // Adicionar colaborador ao Store se não existir
+            const exists = Store.state.employees.find(e => e.id == employeeData.id);
+            if (!exists) {
+                Store.state.employees.push(employeeData);
+            }
+            
+            // Inicializar data e turno se necessário
+            if (!Store.state.currentDate) {
+                Store.state.currentDate = new Date().toISOString().split('T')[0];
+            }
+            if (!Store.state.currentShift) {
+                Store.state.currentShift = employeeData.shift;
+            }
+            
+            // Inicializar estruturas se necessário
+            if (!Store.state.routines) Store.state.routines = {};
+            if (!Store.state.activities) Store.state.activities = {};
+            
+            return true;
+        }
+        return false;
+    }
+
+    // Tentar inicializar imediatamente ou aguardar carregamento
+    if (!initializeStore()) {
+        // Aguardar scripts carregarem
+        const checkInterval = setInterval(() => {
+            if (initializeStore()) {
+                clearInterval(checkInterval);
+            }
+        }, 100);
+        
+        // Timeout após 5 segundos
+        setTimeout(() => clearInterval(checkInterval), 5000);
+    }
+
+    // Função para abrir o bottom sheet
+    function openRoutineSheet() {
+        // Garantir que Store está inicializado
+        initializeStore();
+        
+        const sheet = document.getElementById('employee-bottom-sheet');
+        const backdrop = document.getElementById('sheet-backdrop');
+        const content = document.getElementById('sheet-content');
+        
+        if (!sheet || !backdrop || !content) {
+            console.error('Elementos do bottom sheet não encontrados');
+            return;
+        }
+
+        // Usar Render do Smart Flow se disponível
+        if (typeof Render !== 'undefined' && Render.openBottomSheet) {
+            Render.openBottomSheet(employeeData);
+        } else if (typeof Render !== 'undefined' && Render.buildSheetContent) {
+            // Fallback: usar buildSheetContent diretamente
+            content.innerHTML = Render.buildSheetContent(employeeData);
+            backdrop.classList.remove('opacity-0', 'pointer-events-none');
+            sheet.classList.remove('translate-y-full');
+        } else {
+            // Fallback básico
+            content.innerHTML = `
+                <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold border border-slate-600">
+                            ${employeeData.name.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-white leading-tight">${employeeData.name}</h3>
+                            <p class="text-xs text-slate-400">${employeeData.role}</p>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-slate-400 text-sm text-center py-8">Carregando opções de rotina...</p>
+            `;
+            backdrop.classList.remove('opacity-0', 'pointer-events-none');
+            sheet.classList.remove('translate-y-full');
+        }
+    }
+
+    // Função para fechar o bottom sheet
+    function closeRoutineSheet() {
+        if (typeof Render !== 'undefined' && Render.closeBottomSheet) {
+            Render.closeBottomSheet();
+        } else {
+            const sheet = document.getElementById('employee-bottom-sheet');
+            const backdrop = document.getElementById('sheet-backdrop');
+            
+            if (sheet) sheet.classList.add('translate-y-full');
+            if (backdrop) {
+                backdrop.classList.add('opacity-0', 'pointer-events-none');
+                backdrop.classList.remove('opacity-100');
+            }
+        }
+    }
+
+    // Expor globalmente
+    window.openRoutineSheet = openRoutineSheet;
+    window.closeRoutineSheet = closeRoutineSheet;
+</script>
 {% endblock %}
