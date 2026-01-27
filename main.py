@@ -344,6 +344,40 @@ async def global_exception_handler(request: Request, call_next):
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+# Helper function to get user display name
+def get_user_display_name(request: Request, session: Session = None) -> tuple[str, str]:
+    """
+    Returns (display_name, initials) for the current user.
+    If session is provided, tries to get Employee name from linked User.
+    Otherwise, uses email as fallback.
+    """
+    user = get_current_user(request)
+    if not user:
+        return ("Usuário", "US")
+    
+    if isinstance(user, dict) and user.get("type") == "user":
+        user_id = user.get("id")
+        if user_id and session:
+            try:
+                db_user = session.get(models.User, user_id)
+                if db_user and db_user.employee_id:
+                    employee = session.get(models.Employee, db_user.employee_id)
+                    if employee:
+                        name = employee.name
+                        initials = "".join([n[0].upper() for n in name.split()[:2]]) if name else "US"
+                        return (name, initials[:2])
+            except Exception:
+                pass
+        
+        # Fallback to email
+        email = user.get("email", "")
+        if email:
+            name = email.split("@")[0].replace(".", " ").title()
+            initials = "".join([n[0].upper() for n in name.split()[:2]]) if name else "US"
+            return (name, initials[:2])
+    
+    return ("Usuário", "US")
+
 # --- Custom Filters ---
 def fmt_br(val):
     if val is None: return "0,0"
@@ -424,7 +458,7 @@ def is_google_enabled() -> bool:
 
 PAGE_OPTIONS = [
     {"key": "admin_game", "label": "Game Master", "path": "/admin/game", "prefixes": ["/admin/game", "/api/game"]},
-    {"key": "smart_flow", "label": "Smart Flow", "path": "/smart-flow", "prefixes": ["/smart-flow", "/api/smart-flow", "/smart-flow/load"]},
+    {"key": "smart_flow", "label": "Smart Flow", "path": "/smart-flow", "prefixes": ["/smart-flow", "/api/smart-flow", "/smart-flow/load", "/api/employees"]},
     {"key": "checklist_admin", "label": "Checklists Operacionais", "path": "/admin/routine/checklists", "prefixes": ["/admin/routine/checklists", "/api/routine/checklists"]},
     {"key": "ops_performance", "label": "Avaliacao Operacional", "path": "/operations/performance", "prefixes": ["/operations/performance", "/rankings", "/api/rankings"]}
 ]
@@ -1643,6 +1677,14 @@ async def login_page(request: Request):
             return RedirectResponse(url="/mobile/dashboard", status_code=status.HTTP_303_SEE_OTHER)
         if current.get("type") == "user":
             if (current.get("role") or "").lower() == "leader":
+                # Check if user has access to smart_flow
+                allowed_keys = request.session.get("allowed_pages", [])
+                if isinstance(allowed_keys, list):
+                    allowed_keys = [str(k) for k in allowed_keys if str(k) in PAGE_KEYS]
+                else:
+                    allowed_keys = parse_allowed_pages(allowed_keys)
+                if "smart_flow" in allowed_keys:
+                    return RedirectResponse(url="/smart-flow", status_code=status.HTTP_303_SEE_OTHER)
                 return RedirectResponse(url="/admin/game", status_code=status.HTTP_303_SEE_OTHER)
             return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
     return templates.TemplateResponse(
@@ -1677,7 +1719,16 @@ async def login(
     session.add(user)
     session.commit()
 
-    redirect_url = "/admin/game" if (user.role or "leader").lower() == "leader" else "/"
+    # Determine redirect URL
+    if (user.role or "leader").lower() == "leader":
+        # Check if user has access to smart_flow
+        allowed_keys = parse_allowed_pages(user.allowed_pages) if user.allowed_pages else []
+        if "smart_flow" in allowed_keys:
+            redirect_url = "/smart-flow"
+        else:
+            redirect_url = "/admin/game"
+    else:
+        redirect_url = "/"
     return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
 
 def get_google_redirect_uri(request: Request) -> str:
@@ -1781,7 +1832,16 @@ async def google_callback(
     request.session["auth_user_email"] = user.username
     request.session.pop("google_oauth_state", None)
 
-    redirect_url = "/admin/game" if (user.role or "leader").lower() == "leader" else "/"
+    # Determine redirect URL
+    if (user.role or "leader").lower() == "leader":
+        # Check if user has access to smart_flow
+        allowed_keys = parse_allowed_pages(user.allowed_pages) if user.allowed_pages else []
+        if "smart_flow" in allowed_keys:
+            redirect_url = "/smart-flow"
+        else:
+            redirect_url = "/admin/game"
+    else:
+        redirect_url = "/"
     return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
 
 @app.get("/reset", response_class=HTMLResponse)
@@ -4304,38 +4364,19 @@ async def mobile_ticket_new(request: Request, session: Session = Depends(get_ses
         select(models.TranspalletEquipment)
         .order_by(models.TranspalletEquipment.code)
     ).all()
-=======
-
-    employee = session.get(models.Employee, user.get("id"))
-    if not employee:
-        return RedirectResponse(url="/mobile/login", status_code=303)
-    try:
-        require_mobile_module(employee, "checklist")
-    except HTTPException as exc:
-        if exc.status_code == status.HTTP_403_FORBIDDEN:
-             return RedirectResponse(url="/mobile/dashboard?module=checklist", status_code=303)
-        raise
-
-    today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
     
     # Fix: Fetch equipment list
     equipment_list = session.exec(select(models.TranspalletEquipment).order_by(models.TranspalletEquipment.code)).all()
->>>>>>> 6a2c22b005faeb1dc10a6197a33616fe697bc93f
     
     return templates.TemplateResponse(
         "mobile/equipment_ticket_new.html",
         {
             "request": request,
             "employee": employee,
-<<<<<<< HEAD
-=======
-            "today": today,
->>>>>>> 6a2c22b005faeb1dc10a6197a33616fe697bc93f
             "equipment_list": equipment_list
         }
     )
 
-<<<<<<< HEAD
 @app.post("/mobile/equipment/tickets", response_class=JSONResponse)
 async def mobile_ticket_create(
     request: Request,
@@ -4518,37 +4559,6 @@ async def admin_equipment_ticket_update_status(
     session.commit()
     
     return RedirectResponse(url=f"/admin/equipment/tickets/{ticket_id}", status_code=status.HTTP_303_SEE_OTHER)
-=======
-
-@app.get("/mobile/equipment/tickets/{ticket_id}", response_class=HTMLResponse)
-async def mobile_tickets_detail(ticket_id: int, request: Request, session: Session = Depends(get_session)):
-    user = require_login(request)
-    if not isinstance(user, dict) or user.get("type") != "employee":
-        return RedirectResponse(url="/mobile/login", status_code=303)
-    employee = session.get(models.Employee, user.get("id"))
-    if not employee:
-        return RedirectResponse(url="/mobile/login", status_code=303)
-    try:
-        require_mobile_module(employee, "checklist")
-    except HTTPException as exc:
-        if exc.status_code == status.HTTP_403_FORBIDDEN:
-            return RedirectResponse(url="/mobile/dashboard?module=checklist", status_code=303)
-        raise
-
-    ticket = session.get(models.EquipmentTicket, ticket_id)
-    if not ticket or ticket.employee_id != user.get("id"):
-        return RedirectResponse(url="/mobile/equipment/tickets", status_code=303)
-
-    image_list = ticket.images or []
-    image_list = [f"/static/uploads/tickets/{img}" for img in image_list]
-
-    return templates.TemplateResponse("mobile/tickets_detail.html", {
-        "request": request,
-        "ticket": ticket,
-        "images": image_list
-    })
-
->>>>>>> 6a2c22b005faeb1dc10a6197a33616fe697bc93f
 
 @app.get("/admin/routine/checklists/dashboard", response_class=HTMLResponse)
 async def admin_checklists_dashboard(
@@ -4671,13 +4681,7 @@ async def admin_checklists_dashboard(
             "shift_stats": shift_stats,
             "top_items": top_items,
             "top_equipment": top_equipment,
-<<<<<<< HEAD
             "open_calls": open_calls
-=======
-            "ticket_stats": ticket_stats,
-            "ticket_top_eq": ticket_top_eq,
-            "card_urls": card_urls
->>>>>>> 6a2c22b005faeb1dc10a6197a33616fe697bc93f
         }
     )
 
@@ -7501,12 +7505,8 @@ async def operations_performance_page(
     if route_band and route_band not in ["Todos", "Geral"]:
         routes = [r for r in routes if assign_band(r["tonnage"], band_low, band_high) == route_band]
 
-<<<<<<< HEAD
     # IDs com rotas (podem ser subconjunto de todos os elegíveis)
     employee_ids = sorted({r["employee_id"] for r in routes})
-=======
-    employee_ids = sorted(allowed_ids)
->>>>>>> 6a2c22b005faeb1dc10a6197a33616fe697bc93f
     start_dt = datetime.combine(start_date, datetime.min.time()).replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
     end_dt = datetime.combine(end_date, datetime.max.time()).replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
     today_date = datetime.now(ZoneInfo("America/Sao_Paulo")).date()
@@ -7519,12 +7519,7 @@ async def operations_performance_page(
         .where(models.Event.type.in_(list(OCCURRENCE_TYPES)))
         .group_by(models.Event.employee_id)
     )
-<<<<<<< HEAD
-    if all_employee_ids:
-        event_query = event_query.where(models.Event.employee_id.in_(all_employee_ids))
-    event_rows = session.exec(event_query).all()
-    event_counts = {eid: count for eid, count in event_rows if eid}
-
+    
     # --- Contagem de ausências a partir de EmployeeRoutine (fonte única) ---
     absence_counts = {}
     _absence_unknown = {"unknown": 0, "examples": []}
@@ -7548,28 +7543,26 @@ async def operations_performance_page(
                 counts["leave"] += 1
             elif r_type in ["dayoff", "folga"]:
                 counts["offday"] += 1
-=======
+    
+    # Buscar event_counts para ocorrências
     event_counts = {}
-    if employee_ids:
-        event_query = event_query.where(models.Event.employee_id.in_(employee_ids))
+    if all_employee_ids:
+        event_query = (
+            select(models.Event.employee_id, func.count())
+            .where(models.Event.employee_id.is_not(None))
+            .where(models.Event.timestamp >= start_dt)
+            .where(models.Event.timestamp <= end_dt)
+            .where(models.Event.type.in_(list(OCCURRENCE_TYPES)))
+            .where(models.Event.employee_id.in_(all_employee_ids))
+            .group_by(models.Event.employee_id)
+        )
         try:
             event_rows = session.exec(event_query).all()
             event_counts = {eid: count for eid, count in event_rows if eid}
         except Exception:
             event_counts = {}
-        absence_counts, absence_meta = fetch_absences_agg(session, employee_ids, start_dt, end_dt)
-    else:
-        absence_counts, absence_meta = ({}, {"unknown": 0, "examples": [], "unknown_labels": [], "sources": {}, "debug_days": {}})
->>>>>>> 6a2c22b005faeb1dc10a6197a33616fe697bc93f
+    
     debug_absences = None
-    if LOG_LEVEL == logging.DEBUG and absence_meta.get("unknown"):
-        debug_absences = {
-            "unknown": absence_meta.get("unknown", 0),
-            "examples": absence_meta.get("examples", []),
-            "labels": absence_meta.get("unknown_labels", [])
-        }
-    absences_sources = absence_meta.get("sources", {})
-    absences_debug_days = absence_meta.get("debug_days", {}) if LOG_LEVEL == logging.DEBUG else {}
     debug_absence_diagnostic = None
     debug_absence_employee_id = None
     debug_absence_summary = None
@@ -8649,7 +8642,6 @@ async def get_ranking_details(
         if hours > 0:
             avg_kgh = total_tonnage / hours
             
-<<<<<<< HEAD
         # --- Contagem de ausências a partir de EmployeeRoutine (fonte única) ---
         # Buscar todas as rotinas do colaborador no período
         routines_rows = session.exec(
@@ -8675,70 +8667,9 @@ async def get_ranking_details(
                 leave_days += 1
             elif r_type in ["dayoff", "folga"]:
                 offday_days += 1
-=======
-        start_dt = datetime.combine(start_date_obj, datetime.min.time()).replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
-        end_dt = datetime.combine(end_date_obj, datetime.max.time()).replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
-        debug_info = None
-        debug_employee_id_param = request.query_params.get("debug_employee_id")
-        if LOG_LEVEL == logging.DEBUG and debug_employee_id_param:
-            try:
-                debug_employee_id = int(debug_employee_id_param)
-                if debug_employee_id == employee_id:
-                    routine_count_query = (
-                        select(func.count(models.EmployeeRoutine.id))
-                        .where(models.EmployeeRoutine.employee_id == employee_id)
-                        .where(models.EmployeeRoutine.date >= start_date_str)
-                        .where(models.EmployeeRoutine.date <= end_date_str)
-                    )
-                    event_count_query = (
-                        select(func.count(models.Event.id))
-                        .where(models.Event.employee_id == employee_id)
-                        .where(models.Event.timestamp >= start_dt)
-                        .where(models.Event.timestamp <= end_dt)
-                    )
-                    try:
-                        routine_count = session.exec(routine_count_query).one() or 0
-                    except Exception:
-                        routine_count = 0
-                    try:
-                        event_count = session.exec(event_count_query).one() or 0
-                    except Exception:
-                        event_count = 0
-                    debug_info = {
-                        "employee_id": employee.id if employee else employee_id,
-                        "registration_id": getattr(employee, "registration_id", None),
-                        "routine_count": routine_count,
-                        "event_count": event_count
-                    }
-            except Exception:
-                debug_info = None
-
-        absence_summary = get_absence_summary(
-            session,
-            employee_id,
-            start_date_obj,
-            end_date_obj,
-            include_day_map=True
-        )
-        absence_event_counts_map, absence_event_day_counts, absence_event_record_ids, _absence_event_duplicates = fetch_absence_event_logs(
-            session,
-            [employee_id],
-            start_dt,
-            end_dt,
-            include_record_ids=LOG_LEVEL == logging.DEBUG
-        )
-        absence_data = absence_summary["days"]
-        absences_source = absence_summary["source_key"]
-        absences_source_label = absence_summary["source_label"]
-        debug_absence_days = absence_summary["debug_days"] if debug_absence else []
-        justified_days = absence_data["justified"]
-        unjustified_days = absence_data["unjustified"]
-        leave_days = absence_data["leave"]
-        offday_days = absence_data["offday"]
         absence_events = absence_event_counts_map.get(employee_id, {"justified": 0, "unjustified": 0, "leave": 0, "offday": 0, "total": 0})
         absence_event_day_map = absence_event_day_counts.get(employee_id, {})
         absence_event_record_map = absence_event_record_ids.get(employee_id, {}) if LOG_LEVEL == logging.DEBUG else {}
->>>>>>> 6a2c22b005faeb1dc10a6197a33616fe697bc93f
         adjusted_denominator = max(1, total_days - justified_days - leave_days - offday_days)
         regularity_adjusted = len(active_days) / adjusted_denominator
         absence_penalty_factor = get_absence_penalty(period, unjustified_days)
@@ -10597,7 +10528,15 @@ async def update_routine(
 @app.get("/api/employees", response_class=JSONResponse)
 async def get_all_employees(request: Request, session: Session = Depends(get_session)):
     """Retorna todos os colaboradores (incluindo demitidos, mas excluindo substituídos)"""
-    require_login(request)
+    user = get_current_user(request)
+    
+    # Verificar se está logado
+    if not user:
+        raise HTTPException(status_code=403, detail="Não autenticado")
+    
+    # Permitir acesso para qualquer usuário logado (não precisa de permissão específica)
+    # Isso é necessário para o Smart Flow funcionar
+    # Bypass da verificação de permissões de página para este endpoint específico
     
     # Buscar TODOS os colaboradores não substituídos
     employees = session.exec(
@@ -13843,30 +13782,29 @@ async def admin_delete_checklist(
     except Exception as e:
         logger.exception(f"Error deleting checklist {checklist_id}")
         return HTMLResponse(f"Erro ao excluir checklist: {str(e)}", status_code=500)
-=======
-@app.get("/admin/equipment/tickets/{ticket_id}", response_class=HTMLResponse)
+
+@app.get("/admin/equipment/tickets/{ticket_id}")
 async def admin_equipment_ticket_detail(
     request: Request,
     ticket_id: int,
     session: Session = Depends(get_session),
     user=Depends(require_leader)
 ):
-    ticket = session.get(models.EquipmentTicket, ticket_id)
-    if not ticket:
-        return RedirectResponse(
-            url="/admin/equipment/tickets?message=Chamado+n%C3%A3o+encontrado&level=error", 
-            status_code=303
-        )
-    
-    employee = session.get(models.Employee, ticket.employee_id)
-    
-    # Fetch Timeline Events
-    events = session.exec(
-        select(models.Event)
-        .where(models.Event.reference_type == "ticket")
-        .where(models.Event.reference_id == ticket.id)
-        .order_by(models.Event.timestamp.asc())
-    ).all()
+    try:
+        require_login(request)
+        ticket = session.get(models.EquipmentTicket, ticket_id)
+        if not ticket:
+            return HTMLResponse("Chamado não encontrado", status_code=404)
+        
+        employee = session.get(models.Employee, ticket.employee_id) if ticket.employee_id else None
+        events = session.exec(
+            select(models.EquipmentTicketEvent)
+            .where(models.EquipmentTicketEvent.ticket_id == ticket_id)
+            .order_by(models.EquipmentTicketEvent.created_at.desc())
+        ).all()
+    except Exception as e:
+        logger.exception(f"Error loading ticket {ticket_id}")
+        return HTMLResponse(f"Erro ao carregar chamado: {str(e)}", status_code=500)
     
     ticket_data = {
         "ticket": ticket,
@@ -14016,4 +13954,3 @@ async def admin_checklists_test_email(
         return admin_checklists_settings_redirect(f"Erro ao testar: {e}", "error")
 
     return admin_checklists_settings_redirect(f"E-mail de teste enviado para {recipient.email}", "success")
->>>>>>> 6a2c22b005faeb1dc10a6197a33616fe697bc93f

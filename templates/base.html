@@ -289,12 +289,22 @@
 
             <div class="p-6 border-t border-slate-800">
                 <div class="flex items-center gap-3">
+                    {% set user_email = request.session.get("auth_user_email", "") %}
+                    {% set user_role = request.session.get("auth_user_role", "Admin") %}
+                    {% if user_email %}
+                        {% set name_parts = user_email.split("@")[0].replace(".", " ").split() %}
+                        {% set display_name = name_parts[0]|title + " " + name_parts[-1]|title if name_parts|length > 1 else name_parts[0]|title %}
+                        {% set initials = (name_parts[0][0]|upper + name_parts[-1][0]|upper) if name_parts|length > 1 else name_parts[0][:2]|upper %}
+                    {% else %}
+                        {% set display_name = "Usuário" %}
+                        {% set initials = "US" %}
+                    {% endif %}
                     <div
                         class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold">
-                        FE</div>
+                        {{ initials[:2] }}</div>
                     <div class="flex-1">
-                        <p class="text-sm font-medium text-white">Felipe Ranon</p>
-                        <p class="text-xs text-slate-500">Admin</p>
+                        <p class="text-sm font-medium text-white">{{ display_name }}</p>
+                        <p class="text-xs text-slate-500">{{ user_role|title }}</p>
                     </div>
                     <a href="/logout" class="text-slate-500 hover:text-white">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -159,17 +159,23 @@ class EquipmentTicket(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     employee_id: int = Field(foreign_key="employee.id", index=True)
     equipment_code: str = Field(index=True)
-    title: str
+    title: Optional[str] = None
     description: str
+    shift: Optional[str] = Field(default=None, index=True)
     priority: str = Field(default="medium", index=True)  # low, medium, high, critical
+    severity: str = Field(default="low", index=True)  # low, high
     status: str = Field(default="open", index=True)  # open, in_progress, resolved, closed
     images: List[str] = Field(default=[], sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=datetime.now, index=True)
     resolved_at: Optional[datetime] = None
     resolved_by: Optional[str] = None
     resolution_notes: Optional[str] = None
+    closed_at: Optional[datetime] = None
+    closed_by: Optional[str] = None
     email_sent_at: Optional[datetime] = None
     email_error: Optional[str] = None
+    maintenance_email_sent_at: Optional[datetime] = None
+    maintenance_email_error: Optional[str] = None
 
 class ChecklistEmailRecipient(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -206,21 +212,6 @@ class TranspalletChecklist(SQLModel, table=True):
     maintenance_email_sent_at: Optional[datetime] = None
     maintenance_email_error: Optional[str] = None
 
-class EquipmentTicket(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    equipment_code: str = Field(index=True)
-    employee_id: int = Field(foreign_key="employee.id", index=True)
-    created_at: datetime = Field(default_factory=datetime.now)
-    shift: Optional[str] = Field(default=None, index=True)
-    description: str
-    severity: str = Field(default="low", index=True)  # low, high
-    images: List[str] = Field(default=[], sa_column=Column(JSON))
-    status: str = Field(default="open", index=True)  # open, closed
-    closed_at: Optional[datetime] = None
-    closed_by: Optional[str] = None
-    
-    maintenance_email_sent_at: Optional[datetime] = None
-    maintenance_email_error: Optional[str] = None
 # --- Smart Flow Hierarchical Models ---
 
 class Sector(SQLModel, table=True):
