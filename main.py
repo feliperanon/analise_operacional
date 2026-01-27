@@ -1500,14 +1500,14 @@ def get_dashboard_data(session: Session, shift_filter: str):
                  
                  display_time = r.start_time # Default to raw
                  
-                 if diff_sec > 0 and diff_sec < 4 * 3600:
-                     # Correct it: Subtract 3 hours
-                     start_dt = start_dt - timedelta(hours=3)
-                     display_time = start_dt.strftime("%H:%M")
-                 elif diff_sec > 12 * 3600:
-                     # Started yesterday? (e.g. 23:00 vs 01:00)
-                     start_dt = start_dt - timedelta(days=1)
-                     # display_time remains same HH:MM usually, but context matters.
+                if diff_sec > 0 and diff_sec < 4 * 3600:
+                    # Correct it: Subtract 3 hours
+                    start_dt = start_dt - timedelta(hours=3)
+                    display_time = start_dt.strftime("%H:%M")
+                elif diff_sec > 12 * 3600:
+                    # Started yesterday? (e.g. 23:00 vs 01:00)
+                    start_dt = start_dt - timedelta(days=1)
+                    # display_time remains same HH:MM usually, but context matters.
                  
                  duration_mins = int((now_br - start_dt).total_seconds() / 60)
                  if duration_mins < 0: duration_mins = 0
@@ -4262,9 +4262,6 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
         }
     )
 
-<<<<<<< HEAD
-=======
-
 @app.get("/mobile/equipment/tickets", response_class=HTMLResponse)
 async def mobile_tickets_list(request: Request, session: Session = Depends(get_session)):
     user = require_login(request)
@@ -4291,13 +4288,11 @@ async def mobile_tickets_list(request: Request, session: Session = Depends(get_s
         "employee": employee
     })
 
->>>>>>> 6a2c22b005faeb1dc10a6197a33616fe697bc93f
 @app.get("/mobile/equipment/tickets/new", response_class=HTMLResponse)
 async def mobile_ticket_new(request: Request, session: Session = Depends(get_session)):
     user = require_login(request)
     if not isinstance(user, dict) or user.get("type") != "employee":
         return RedirectResponse(url="/mobile/login", status_code=303)
-<<<<<<< HEAD
     
     employee_id = user.get("id")
     employee = session.get(models.Employee, employee_id)
@@ -13731,7 +13726,6 @@ async def api_delete_route(route_id: int, session: Session = Depends(get_session
         logger.exception(f"Error deleting route {route_id}")
         return JSONResponse({"error": str(e)}, status_code=500)
 
-<<<<<<< HEAD
 # --- Admin Checklist Routes ---
 
 @app.get("/admin/routine/checklists", response_class=HTMLResponse)
