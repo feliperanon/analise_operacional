@@ -4156,27 +4156,57 @@ async def mobile_checklist_history(request: Request, session: Session = Depends(
     history_start = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=30)).strftime("%Y-%m-%d")
     today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
     
+    # Checklists com problemas (critical_flag ou nonconforming_keys)
     checklists = session.exec(
         select(models.TranspalletChecklist)
         .where(models.TranspalletChecklist.employee_id == employee_id)
         .where(models.TranspalletChecklist.date >= history_start)
-        # .where(models.TranspalletChecklist.date < today) # Maybe show today's too if already done? 
-        # Usually history implies past, but let's show all latest.
         .order_by(models.TranspalletChecklist.submitted_at.desc())
     ).all()
     
+    # Filtrar apenas checklists com problemas
+    checklists_with_issues = [c for c in checklists if c.critical_flag or c.nonconforming_keys]
+    
     history_view = []
-    for c in checklists:
+    for c in checklists_with_issues:
         is_fail = c.critical_flag or c.nonconforming_keys
         history_view.append({
             "equipment_code": c.equipment_code,
             "submitted_at_date": c.submitted_at.strftime("%d/%m") if c.submitted_at else "-",
             "submitted_at_time": c.submitted_at.strftime("%H:%M") if c.submitted_at else "-",
-            "status_dot": "bg-red-500" if is_fail else "bg-emerald-500",
-            "status_badge_class": "text-red-400 bg-red-500/10" if c.critical_flag else ("text-amber-400 bg-amber-500/10" if c.nonconforming_keys else "text-emerald-400 bg-emerald-500/10"),
-            "status_label": "Falha" if c.critical_flag else ("Atenção" if c.nonconforming_keys else "OK"),
-            "original": c
+            "status_dot": "bg-red-500",
+            "status_badge_class": "bg-red-500/10 text-red-400 border border-red-500/20",
+            "status_label": "Com Problemas",
+            "original": c,
+            "type": "checklist"
         })
+    
+    # Buscar chamados abertos do colaborador (últimos 30 dias)
+    three_days_ago = datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=30)
+    open_tickets = session.exec(
+        select(models.EquipmentTicket)
+        .where(models.EquipmentTicket.employee_id == employee_id)
+        .where(models.EquipmentTicket.status == "open")
+        .where(models.EquipmentTicket.created_at >= three_days_ago)
+        .order_by(models.EquipmentTicket.created_at.desc())
+    ).all()
+    
+    # Adicionar chamados abertos ao histórico
+    for ticket in open_tickets:
+        history_view.append({
+            "equipment_code": ticket.equipment_code,
+            "submitted_at_date": ticket.created_at.strftime("%d/%m") if ticket.created_at else "-",
+            "submitted_at_time": ticket.created_at.strftime("%H:%M") if ticket.created_at else "-",
+            "status_dot": "bg-amber-500",
+            "status_badge_class": "bg-amber-500/10 text-amber-400 border border-amber-500/20",
+            "status_label": "Chamado Aberto",
+            "ticket_id": ticket.id,
+            "description": ticket.description[:50] + "..." if len(ticket.description) > 50 else ticket.description,
+            "type": "ticket"
+        })
+    
+    # Ordenar por data (mais recente primeiro)
+    history_view.sort(key=lambda x: x.get("submitted_at_date", "") + " " + x.get("submitted_at_time", ""), reverse=True)
         
     return templates.TemplateResponse("mobile/routine_history.html", {
         "request": request,
@@ -4363,12 +4393,33 @@ async def mobile_ticket_new(request: Request, session: Session = Depends(get_ses
         select(models.TranspalletEquipment).order_by(models.TranspalletEquipment.code)
     ).all()
     
+    # Buscar chamados abertos dos últimos 3 dias
+    three_days_ago = datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=3)
+    open_tickets = session.exec(
+        select(models.EquipmentTicket, models.Employee)
+        .join(models.Employee, models.EquipmentTicket.employee_id == models.Employee.id)
+        .where(models.EquipmentTicket.status == "open")
+        .where(models.EquipmentTicket.created_at >= three_days_ago)
+        .order_by(models.EquipmentTicket.created_at.desc())
+    ).all()
+    
+    open_tickets_list = []
+    for ticket, emp in open_tickets:
+        open_tickets_list.append({
+            "id": ticket.id,
+            "equipment_code": ticket.equipment_code,
+            "employee_name": emp.name,
+            "created_at": ticket.created_at.strftime("%d/%m/%Y %H:%M"),
+            "description": ticket.description[:50] + "..." if len(ticket.description) > 50 else ticket.description
+        })
+    
     return templates.TemplateResponse(
         "mobile/equipment_ticket_new.html",
         {
             "request": request,
             "employee": employee,
-            "equipment_list": equipment_list
+            "equipment_list": equipment_list,
+            "open_tickets": open_tickets_list
         }
     )
 
@@ -5715,12 +5766,16 @@ async def api_create_ticket(
         return JSONResponse({"error": "Descrição obrigatória."}, status_code=400)
 
     # Check for duplicates (Same equipment, same day, status open)
+    # IMPORTANTE: Só valida para o mesmo dia, não importa se foi resolvido depois
     today_start = datetime.now(ZoneInfo("America/Sao_Paulo")).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = today_start + timedelta(days=1)
+    
     existing = session.exec(
         select(models.EquipmentTicket)
         .where(models.EquipmentTicket.equipment_code == equipment_code)
         .where(models.EquipmentTicket.status == "open")
         .where(models.EquipmentTicket.created_at >= today_start)
+        .where(models.EquipmentTicket.created_at < today_end)
     ).first()
     
     if existing:
