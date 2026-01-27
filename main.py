@@ -5273,6 +5273,14 @@ async def admin_checklist_delete(
     if checklist.xp_transaction_id:
         tx = session.get(models.GameXPTransaction, checklist.xp_transaction_id)
         if tx:
+            # Se a transação foi confirmada/aprovada, remover XP do total do colaborador
+            if tx.status in ["approved", "confirmed"]:
+                emp = session.get(models.Employee, checklist.employee_id)
+                if emp and tx.amount:
+                    # Deduzir XP do total do colaborador
+                    emp.total_xp = max(0, emp.total_xp - abs(tx.amount))
+                    session.add(emp)
+            
             note = "Checklist excluído por admin"
             tx.status = "rejected"
             if tx.reason:
@@ -5280,7 +5288,6 @@ async def admin_checklist_delete(
                     tx.reason = f"{tx.reason} | {note}"
             else:
                 tx.reason = note
-            tx.confirmed_at = now_br
             session.add(tx)
 
     session.add(models.Event(
@@ -5313,43 +5320,37 @@ async def admin_checklist_bulk_delete(
     
     # Process each checklist
     for cid in checklist_ids:
-        checklist = session.get(models.RoutineChecklist, cid)
+        checklist = session.get(models.TranspalletChecklist, cid)
         if not checklist:
             continue
             
         # If equipment was blocked by this checklist, release it
-        if checklist.equipment_status == "blocked":
-            eq = session.exec(select(models.Equipment).where(models.Equipment.code == checklist.equipment_code)).first()
-            if eq and eq.status == "blocked" and eq.last_checklist_id == checklist.id:
-                eq.status = "available"
-                eq.blocked_reason = None
-                eq.last_checklist_id = None
-                session.add(eq)
+        eq = session.exec(select(models.TranspalletEquipment).where(models.TranspalletEquipment.code == checklist.equipment_code)).first()
+        if eq and eq.status == "blocked" and eq.last_checklist_id == checklist.id:
+            eq.status = "available"
+            eq.blocked_reason = None
+            eq.last_checklist_id = None
+            session.add(eq)
         
-        # If checklist gave XP, revoke it
+        # If checklist gave XP, revoke it and remove from employee total
         if checklist.xp_transaction_id:
             tx = session.get(models.GameXPTransaction, checklist.xp_transaction_id)
-            if tx and tx.status == "approved":
-                tx.status = "revoked"
-                tx.reason = f"Revogado: Checklist #{checklist.id} excluído em lote."
-                tx.revoked_at = now_br
-                session.add(tx)
+            if tx:
+                # Se a transação foi confirmada/aprovada, remover XP do total do colaborador
+                if tx.status in ["approved", "confirmed"]:
+                    emp = session.get(models.Employee, checklist.employee_id)
+                    if emp and tx.amount:
+                        # Deduzir XP do total do colaborador
+                        emp.total_xp = max(0, emp.total_xp - abs(tx.amount))
+                        session.add(emp)
                 
-                # Revoke badge XP if exists
-                if tx.badge_id:
-                    emp = session.get(models.Employee, tx.employee_id)
-                    if emp:
-                        ach = session.exec(
-                             select(models.EmployeeAchievement)
-                             .where(
-                                 models.EmployeeAchievement.employee_id == emp.id,
-                                 models.EmployeeAchievement.badge_id == tx.badge_id
-                             )
-                        ).first()
-                        if ach:
-                            # We don't delete the achievement usually, but we might want to flag it?
-                            # Use existing revoke logic if possible, or just revoke the TX
-                            pass
+                # Revogar a transação
+                tx.status = "rejected"
+                if tx.reason:
+                    tx.reason = f"{tx.reason} | Revogado: Checklist #{checklist.id} excluído em lote."
+                else:
+                    tx.reason = f"Revogado: Checklist #{checklist.id} excluído em lote."
+                session.add(tx)
 
         session.add(models.Event(
             timestamp=now_br,
