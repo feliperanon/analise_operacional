@@ -14399,3 +14399,5 @@ fastapi.exceptions.HTTPException: 303: See Other
 2026-01-27 12:26:18,615 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
 2026-01-27 12:26:19,540 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
 2026-01-27 13:25:32,917 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-27 13:27:16,151 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
+2026-01-27 13:27:26,031 | ERROR    | main | Erro ao preparar auth: cannot access local variable 'engine' where it is not associated with a value
