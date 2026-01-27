@@ -1,136 +1,67 @@
 {% extends "mobile/layout.html" %}
 
-<<<<<<< HEAD
-{% block content %}
-<div class="min-h-screen bg-slate-900 text-slate-100 p-4 pb-safe">
-    <div class="max-w-2xl mx-auto">
-        <div class="flex items-center justify-between mb-6">
-            <h1 class="text-2xl font-bold text-white">Novo Chamado</h1>
-            <a href="/mobile/dashboard" class="text-slate-400 hover:text-white">
-                <i data-lucide="x" class="w-6 h-6"></i>
-            </a>
-        </div>
-
-        <form id="ticketForm" class="space-y-4" enctype="multipart/form-data">
-            <div>
-                <label class="block text-sm font-semibold text-slate-300 mb-2">Equipamento *</label>
-                <select name="equipment_code" required
-                    class="w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-white focus:border-blue-500 focus:outline-none">
-                    <option value="">Selecione...</option>
-                    {% for eq in equipment_list %}
-                    <option value="{{ eq.code }}">{{ eq.code }} - {{ 'Disponível' if eq.status == 'available' else 'Bloqueado' }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div>
-                <label class="block text-sm font-semibold text-slate-300 mb-2">Título *</label>
-                <input type="text" name="title" required placeholder="Ex: Problema no freio"
-                    class="w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-white focus:border-blue-500 focus:outline-none">
-            </div>
-
-            <div>
-                <label class="block text-sm font-semibold text-slate-300 mb-2">Prioridade *</label>
-                <select name="priority" required
-                    class="w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-white focus:border-blue-500 focus:outline-none">
-                    <option value="low">Baixa</option>
-                    <option value="medium" selected>Média</option>
-                    <option value="high">Alta</option>
-                    <option value="critical">Crítica</option>
-                </select>
-            </div>
-
-            <div>
-                <label class="block text-sm font-semibold text-slate-300 mb-2">Descrição *</label>
-                <textarea name="description" required rows="5" placeholder="Descreva o problema detalhadamente..."
-                    class="w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-white focus:border-blue-500 focus:outline-none"></textarea>
-            </div>
-
-            <div>
-                <label class="block text-sm font-semibold text-slate-300 mb-2">Fotos (opcional)</label>
-                <input type="file" name="files" multiple accept="image/*"
-                    class="w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-white focus:border-blue-500 focus:outline-none">
-                <p class="text-xs text-slate-500 mt-1">Máximo 15MB por imagem. Formatos: JPG, PNG, WEBP</p>
-            </div>
-
-            <button type="submit"
-                class="w-full py-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-lg transition-colors">
-                Enviar Chamado
-            </button>
-        </form>
-    </div>
-</div>
-
-<script>
-document.getElementById('ticketForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-    const originalText = submitBtn.textContent;
-    
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Enviando...';
-    
-    try {
-        const res = await fetch('/mobile/equipment/tickets', {
-            method: 'POST',
-            body: formData
-        });
-        
-        const data = await res.json();
-        if (data.success) {
-            alert('Chamado enviado com sucesso!');
-            window.location.href = '/mobile/dashboard';
-        } else {
-            alert('Erro ao enviar chamado: ' + (data.error || 'Erro desconhecido'));
-            submitBtn.disabled = false;
-            submitBtn.textContent = originalText;
-        }
-    } catch (error) {
-        alert('Erro ao enviar chamado: ' + error.message);
-        submitBtn.disabled = false;
-        submitBtn.textContent = originalText;
-    }
-});
-=======
 {% block title %}Novo Chamado{% endblock %}
 
 {% block content %}
 <div class="min-h-screen bg-slate-900 text-slate-100 p-5 pb-24">
     <div class="mb-6">
-        <h1 class="text-2xl font-bold text-white">Abrir Chamado</h1>
-        <p class="text-sm text-slate-400">Registrar falha após o checklist.</p>
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-white">Abrir Chamado</h1>
+                <p class="text-sm text-slate-400">Registrar falha no equipamento.</p>
+            </div>
+            <a href="/mobile/dashboard" class="text-slate-400 hover:text-white p-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </a>
+        </div>
     </div>
 
     <form id="ticketForm" class="space-y-4">
         <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Equipamento</label>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Equipamento *</label>
             <select name="equipment_code" required
                 class="w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-sm text-white focus:border-blue-500 focus:outline-none appearance-none">
                 <option value="" disabled selected>Selecione o equipamento</option>
                 {% if equipment_list %}
                 {% for eq in equipment_list %}
-                <option value="{{ eq.code }}">{{ eq.code }} - {{ eq.name }}</option>
+                <option value="{{ eq.code }}">{{ eq.code }} - {{ 'Disponível' if eq.status == 'available' else 'Bloqueado' }}</option>
                 {% endfor %}
                 {% else %}
                 <option value="" disabled>Nenhum equipamento cadastrado</option>
                 {% endif %}
             </select>
         </div>
+        
         <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Descrição</label>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Severidade</label>
+            <select name="severity"
+                class="w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-sm text-white focus:border-blue-500 focus:outline-none appearance-none">
+                <option value="low" selected>Baixa - Equipamento ainda funciona</option>
+                <option value="high">Alta - Precisa bloquear equipamento</option>
+            </select>
+        </div>
+        
+        <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Descrição *</label>
             <textarea name="description" rows="4" required
                 class="w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-sm text-white focus:border-blue-500 focus:outline-none"
                 placeholder="Ex: Rodas travando, alavanca com folga, vazamento..."></textarea>
         </div>
+        
         <div>
             <label class="block text-xs font-semibold text-slate-400 mb-1">Fotos (opcional)</label>
             <input type="file" name="files" multiple accept="image/*" capture="environment"
                 class="w-full text-xs text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-700 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-slate-600">
+            <p class="text-[10px] text-slate-500 mt-1">Máximo 15MB por imagem. Formatos: JPG, PNG, WEBP</p>
         </div>
 
         <button type="submit" id="submitBtn"
-            class="w-full rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 text-sm transition-colors">
+            class="w-full rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 text-sm transition-colors flex items-center justify-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
             Abrir Chamado
         </button>
         <p id="statusMessage" class="text-center text-xs text-slate-400 min-h-[1rem]"></p>
@@ -172,7 +103,7 @@ document.getElementById('ticketForm').addEventListener('submit', async (e) => {
             if (!res.ok || !result.success) {
                 throw new Error(result.error || 'Erro ao abrir chamado.');
             }
-            statusMessage.textContent = 'Chamado registrado com sucesso.';
+            statusMessage.textContent = 'Chamado registrado com sucesso!';
             statusMessage.className = 'text-center text-xs text-emerald-400 min-h-[1rem]';
             setTimeout(() => {
                 window.location.href = '/mobile/dashboard?success=chamado+criado';
@@ -183,6 +114,5 @@ document.getElementById('ticketForm').addEventListener('submit', async (e) => {
             submitBtn.disabled = false;
         }
     });
->>>>>>> 6a2c22b005faeb1dc10a6197a33616fe697bc93f
 </script>
 {% endblock %}

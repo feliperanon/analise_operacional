@@ -2551,7 +2551,7 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
                     work_dates.add(r.date)
             
             # Count consecutive days backwards from today
-            check_date = now.date()
+            check_date = today.date()
             while True:
                 # Skip weekends
                 if check_date.weekday() >= 5:  # Saturday or Sunday
@@ -2559,7 +2559,7 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
                     continue
                 
                 date_str = check_date.strftime("%Y-%m-%d")
-                if date_str in work_dates or check_date == now.date():
+                if date_str in work_dates or check_date == today.date():
                     if date_str in work_dates:
                         streak_days += 1
                     check_date -= timedelta(days=1)
@@ -4469,96 +4469,6 @@ async def mobile_ticket_create(
     
     return {"success": True, "id": ticket.id}
 
-@app.get("/admin/equipment/tickets", response_class=HTMLResponse)
-async def admin_equipment_tickets(
-    request: Request,
-    session: Session = Depends(get_session),
-    user=Depends(require_leader)
-):
-    status_filter = request.query_params.get("status", "open")
-    
-    query = (
-        select(models.EquipmentTicket, models.Employee)
-        .join(models.Employee, models.Employee.id == models.EquipmentTicket.employee_id)
-        .order_by(desc(models.EquipmentTicket.created_at))
-    )
-    
-    if status_filter and status_filter != "all":
-        query = query.where(models.EquipmentTicket.status == status_filter)
-    
-    tickets_rows = session.exec(query).all()
-    
-    tickets = []
-    for ticket, employee in tickets_rows:
-        priority_labels = {"low": "Baixa", "medium": "Média", "high": "Alta", "critical": "Crítica"}
-        status_labels = {"open": "Aberto", "in_progress": "Em Andamento", "resolved": "Resolvido", "closed": "Fechado"}
-        tickets.append({
-            "ticket": ticket,
-            "employee": employee,
-            "priority_label": priority_labels.get(ticket.priority, ticket.priority),
-            "status_label": status_labels.get(ticket.status, ticket.status),
-            "created_at_br": ticket.created_at.strftime("%d/%m/%Y %H:%M") if ticket.created_at else "-"
-        })
-    
-    return templates.TemplateResponse(
-        "admin_equipment_tickets.html",
-        {
-            "request": request,
-            "tickets": tickets,
-            "status_filter": status_filter
-        }
-    )
-
-@app.get("/admin/equipment/tickets/{ticket_id}", response_class=HTMLResponse)
-async def admin_equipment_ticket_detail(
-    ticket_id: int,
-    request: Request,
-    session: Session = Depends(get_session),
-    user=Depends(require_leader)
-):
-    ticket = session.get(models.EquipmentTicket, ticket_id)
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket não encontrado")
-    
-    employee = session.get(models.Employee, ticket.employee_id)
-    priority_labels = {"low": "Baixa", "medium": "Média", "high": "Alta", "critical": "Crítica"}
-    status_labels = {"open": "Aberto", "in_progress": "Em Andamento", "resolved": "Resolvido", "closed": "Fechado"}
-    
-    return templates.TemplateResponse(
-        "admin_equipment_ticket_detail.html",
-        {
-            "request": request,
-            "ticket": ticket,
-            "employee": employee,
-            "priority_label": priority_labels.get(ticket.priority, ticket.priority),
-            "status_label": status_labels.get(ticket.status, ticket.status)
-        }
-    )
-
-@app.post("/admin/equipment/tickets/{ticket_id}/update-status", response_class=RedirectResponse)
-async def admin_equipment_ticket_update_status(
-    ticket_id: int,
-    request: Request,
-    status: str = Form(...),
-    resolution_notes: str = Form(""),
-    session: Session = Depends(get_session),
-    user=Depends(require_leader)
-):
-    ticket = session.get(models.EquipmentTicket, ticket_id)
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket não encontrado")
-    
-    ticket.status = status
-    if resolution_notes:
-        ticket.resolution_notes = resolution_notes
-    if status in ["resolved", "closed"]:
-        ticket.resolved_at = datetime.now(ZoneInfo("America/Sao_Paulo"))
-        ticket.resolved_by = str(user)
-    
-    session.add(ticket)
-    session.commit()
-    
-    return RedirectResponse(url=f"/admin/equipment/tickets/{ticket_id}", status_code=status.HTTP_303_SEE_OTHER)
 
 @app.get("/admin/routine/checklists/dashboard", response_class=HTMLResponse)
 async def admin_checklists_dashboard(
@@ -4677,10 +4587,13 @@ async def admin_checklists_dashboard(
             "total_count": total_count,
             "critical_count": critical_count,
             "nonconforming_count": nonconforming_count,
-            "avg_resolution_hours": None, # Explicitly None
+            "avg_resolution_hours": None,
             "shift_stats": shift_stats,
             "top_items": top_items,
             "top_equipment": top_equipment,
+            "ticket_stats": ticket_stats,
+            "ticket_top_eq": ticket_top_eq,
+            "card_urls": card_urls,
             "open_calls": open_calls
         }
     )
