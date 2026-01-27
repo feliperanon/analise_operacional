@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8">
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-white">Chamado #{{ ticket.id }}</h1>
+            <p class="text-sm text-slate-400">Detalhes do ticket de equipamento.</p>
+        </div>
+        <a href="/admin/equipment/tickets"
+            class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors">
+            Voltar
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 space-y-6">
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <p class="text-xs text-slate-400">Equipamento</p>
+                        <p class="text-sm font-semibold text-white">{{ ticket.equipment_code }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400">Colaborador</p>
+                        <p class="text-sm font-semibold text-white">{{ employee.name }}</p>
+                        <p class="text-xs text-slate-500">{{ employee.registration_id }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400">Prioridade</p>
+                        <span class="text-xs px-2 py-1 rounded-full font-bold
+                            {{ 'bg-blue-500/20 text-blue-300' if ticket.priority == 'low' else '' }}
+                            {{ 'bg-yellow-500/20 text-yellow-300' if ticket.priority == 'medium' else '' }}
+                            {{ 'bg-orange-500/20 text-orange-300' if ticket.priority == 'high' else '' }}
+                            {{ 'bg-red-500/20 text-red-300' if ticket.priority == 'critical' else '' }}">
+                            {{ priority_label }}
+                        </span>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400">Status</p>
+                        <span class="text-xs px-2 py-1 rounded-full
+                            {{ 'bg-amber-500/20 text-amber-200' if ticket.status == 'open' else '' }}
+                            {{ 'bg-blue-500/20 text-blue-200' if ticket.status == 'in_progress' else '' }}
+                            {{ 'bg-emerald-500/20 text-emerald-200' if ticket.status == 'resolved' else '' }}
+                            {{ 'bg-slate-500/20 text-slate-200' if ticket.status == 'closed' else '' }}">
+                            {{ status_label }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5">
+                <h2 class="text-base font-semibold text-white mb-3">Título</h2>
+                <p class="text-sm text-slate-200">{{ ticket.title }}</p>
+            </div>
+
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5">
+                <h2 class="text-base font-semibold text-white mb-3">Descrição</h2>
+                <p class="text-sm text-slate-200 whitespace-pre-wrap">{{ ticket.description }}</p>
+            </div>
+
+            {% if ticket.images %}
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5">
+                <h2 class="text-base font-semibold text-white mb-3">Fotos</h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {% for img in ticket.images %}
+                    <a href="/static/uploads/tickets/{{ img }}" target="_blank"
+                        class="block rounded-xl overflow-hidden border border-slate-700 relative group">
+                        <img src="/static/uploads/tickets/{{ img }}" alt="Foto do chamado"
+                            class="w-full h-24 object-cover"
+                            onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\'%3E%3Crect fill=\'%23334155\' width=\'100\' height=\'100\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dy=\'.3em\' fill=\'%2394a3b8\' font-family=\'sans-serif\' font-size=\'12\'%3EImagem não encontrada%3C/text%3E%3C/svg%3E'; this.parentElement.classList.add('opacity-50');">
+                        <div class="absolute inset-0 bg-slate-900/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span class="text-xs text-white">Clique para ampliar</span>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5">
+                <h2 class="text-base font-semibold text-white mb-3">Informações</h2>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Criado em:</span>
+                        <span class="text-slate-200">{{ ticket.created_at.strftime("%d/%m/%Y %H:%M") if ticket.created_at else "-" }}</span>
+                    </div>
+                    {% if ticket.resolved_at %}
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Resolvido em:</span>
+                        <span class="text-slate-200">{{ ticket.resolved_at.strftime("%d/%m/%Y %H:%M") }}</span>
+                    </div>
+                    {% endif %}
+                    {% if ticket.resolved_by %}
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Resolvido por:</span>
+                        <span class="text-slate-200">{{ ticket.resolved_by }}</span>
+                    </div>
+                    {% endif %}
+                    {% if ticket.email_sent_at %}
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">E-mail enviado:</span>
+                        <span class="text-emerald-300">{{ ticket.email_sent_at.strftime("%d/%m/%Y %H:%M") }}</span>
+                    </div>
+                    {% endif %}
+                    {% if ticket.email_error %}
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Erro no e-mail:</span>
+                        <span class="text-red-300 text-xs">{{ ticket.email_error }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-6">
+            {% if ticket.status == "open" %}
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 space-y-3">
+                <h2 class="text-base font-semibold text-white">Ações</h2>
+                <form action="/admin/equipment/tickets/{{ ticket.id }}/update-status" method="POST" class="space-y-2">
+                    <select name="status" required
+                        class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
+                        <option value="in_progress">Em Andamento</option>
+                        <option value="resolved">Resolvido</option>
+                        <option value="closed">Fechado</option>
+                    </select>
+                    <textarea name="resolution_notes" rows="3" placeholder="Notas de resolução (opcional)"
+                        class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"></textarea>
+                    <button type="submit"
+                        class="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold">
+                        Atualizar Status
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

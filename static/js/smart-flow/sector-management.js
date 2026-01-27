@@ -465,11 +465,11 @@ const SectorManagement = {
         }
 
         const subsectorOptions = sector.subsectors.map(sub =>
-            `< option value = "${sub.id}" > ${sub.name} (${Render.getSubsectorEmployees(sub.id, Store.state).length} /${sub.max_employees})</option > `
+            `<option value="${sub.id}">${sub.name} (${Render.getSubsectorEmployees(sub.id, Store.state).length} / ${sub.max_employees})</option>`
         ).join('');
 
         const html = `
-    < div id = "subsector-selector-modal" class="fixed inset-0 z-[60] flex items-center justify-center" >
+            <div id="subsector-selector-modal" class="fixed inset-0 z-[60] flex items-center justify-center">
                 <div class="absolute inset-0 bg-black/50" onclick="document.getElementById('subsector-selector-modal').remove()"></div>
                 <div class="relative bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-md">
                     <h3 class="text-lg font-bold text-white mb-4">Selecione o Sub-setor</h3>
@@ -483,8 +483,8 @@ const SectorManagement = {
                             class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-bold">Alocar</button>
                     </div>
                 </div>
-            </div >
-    `;
+            </div>
+        `;
 
         document.body.insertAdjacentHTML('beforeend', html);
     },
@@ -651,7 +651,7 @@ const SectorManagement = {
 
     editSubsectorInline(subsectorId, sectorId, currentName, currentMax) {
         // Encontrar o elemento do subsector
-        const targetCard = document.querySelector(`[data - subsector - id= "${subsectorId}"]`);
+        const targetCard = document.querySelector(`[data-subsector-id="${subsectorId}"]`);
 
         if (!targetCard) {
             alert('Erro ao localizar sub-setor');
@@ -665,7 +665,7 @@ const SectorManagement = {
 
         // Criar formulário inline
         targetCard.innerHTML = `
-    < div class="p-4" >
+            <div class="p-4">
                 <div class="flex items-center justify-between mb-4">
                     <h4 class="text-sm font-bold text-white">Editando Sub-setor</h4>
                     <button onclick="SectorManagement.cancelEditInline(${subsectorId})"
@@ -700,17 +700,17 @@ const SectorManagement = {
                         </button>
                     </div>
                 </div>
-            </div >
-    `;
+            </div>
+        `;
 
         // Focar no campo de nome
         setTimeout(() => {
-            document.getElementById(`edit - subsector - name - ${subsectorId} `)?.focus();
+            document.getElementById(`edit-subsector-name-${subsectorId}`)?.focus();
         }, 100);
     },
 
     cancelEditInline(subsectorId) {
-        const targetCard = document.querySelector(`[data - subsector - id= "${subsectorId}"]`);
+        const targetCard = document.querySelector(`[data-subsector-id="${subsectorId}"]`);
         if (targetCard && targetCard.dataset.originalContent) {
             targetCard.innerHTML = targetCard.dataset.originalContent;
             delete targetCard.dataset.originalContent;
@@ -718,8 +718,8 @@ const SectorManagement = {
     },
 
     async saveEditInline(subsectorId, sectorId) {
-        const name = document.getElementById(`edit - subsector - name - ${subsectorId} `)?.value;
-        const maxEmployees = document.getElementById(`edit - subsector - max - ${subsectorId} `)?.value;
+        const name = document.getElementById(`edit-subsector-name-${subsectorId}`)?.value;
+        const maxEmployees = document.getElementById(`edit-subsector-max-${subsectorId}`)?.value;
 
         if (!name || !maxEmployees) {
             alert('Preencha todos os campos');
@@ -732,7 +732,7 @@ const SectorManagement = {
             formData.append('name', name);
             formData.append('max_employees', maxEmployees);
 
-            const response = await fetch(`/ api / smart - flow / subsectors / ${subsectorId} `, {
+            const response = await fetch(`/api/smart-flow/subsectors/${subsectorId}`, {
                 method: 'PUT',
                 body: formData
             });
@@ -775,7 +775,7 @@ const SectorManagement = {
         formCard.id = 'new-subsector-form';
         formCard.className = 'bg-slate-900 rounded-xl border-2 border-blue-500 p-4';
         formCard.innerHTML = `
-    < div class="mb-3" >
+            <div class="mb-3">
                 <div class="flex items-center justify-between mb-3">
                     <h4 class="text-sm font-bold text-blue-400">Novo Sub-setor</h4>
                     <button onclick="SectorManagement.cancelNewSubsectorInline()"
@@ -810,8 +810,8 @@ const SectorManagement = {
                         </button>
                     </div>
                 </div>
-            </div >
-    `;
+            </div>
+        `;
 
         // Adicionar no início da lista
         subsectorsContainer.insertBefore(formCard, subsectorsContainer.firstChild);

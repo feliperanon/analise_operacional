@@ -155,6 +155,22 @@ class TranspalletEquipment(SQLModel, table=True):
     released_by: Optional[str] = None
     last_checklist_id: Optional[int] = Field(default=None, index=True)
 
+class EquipmentTicket(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    employee_id: int = Field(foreign_key="employee.id", index=True)
+    equipment_code: str = Field(index=True)
+    title: str
+    description: str
+    priority: str = Field(default="medium", index=True)  # low, medium, high, critical
+    status: str = Field(default="open", index=True)  # open, in_progress, resolved, closed
+    images: List[str] = Field(default=[], sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=datetime.now, index=True)
+    resolved_at: Optional[datetime] = None
+    resolved_by: Optional[str] = None
+    resolution_notes: Optional[str] = None
+    email_sent_at: Optional[datetime] = None
+    email_error: Optional[str] = None
+
 class ChecklistEmailRecipient(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     email: str = Field(index=True, unique=True)

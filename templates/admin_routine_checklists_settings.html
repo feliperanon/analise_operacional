@@ -8,13 +8,17 @@
             <p class="text-sm text-slate-400">Cadastros, e-mails automáticos e pendências diárias.</p>
         </div>
         <div class="flex flex-wrap gap-2">
-            <a href="/admin/routine/checklists"
-                class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors">
-                Checklists
-            </a>
             <a href="/admin/routine/checklists/dashboard"
                 class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors">
                 Dashboard
+            </a>
+            <a href="/admin/routine/checklists"
+                class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors">
+                Lista
+            </a>
+            <a href="/admin/routine/checklists/settings"
+                class="px-4 py-2 text-sm rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors">
+                Cadastros
             </a>
         </div>
     </div>
@@ -35,7 +39,8 @@
                 </div>
             </div>
 
-            <form action="/admin/routine/checklists/settings/emails" method="POST" class="flex flex-col sm:flex-row gap-2 mb-5">
+            <form action="/admin/routine/checklists/settings/emails" method="POST"
+                class="flex flex-col sm:flex-row gap-2 mb-5">
                 <input type="email" name="email" required placeholder="manutencao@empresa.com"
                     class="flex-1 rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
                 <button type="submit"
@@ -86,7 +91,8 @@
                 </div>
             </div>
 
-            <form action="/admin/routine/checklists/settings/equipment" method="POST" class="flex flex-col sm:flex-row gap-2 mb-5">
+            <form action="/admin/routine/checklists/settings/equipment" method="POST"
+                class="flex flex-col sm:flex-row gap-2 mb-5">
                 <input type="text" name="code" required placeholder="TP-01"
                     class="flex-1 rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
                 <button type="submit"
@@ -103,7 +109,8 @@
                 <div class="flex items-center justify-between bg-slate-900/70 border border-slate-700 rounded-xl p-3">
                     <div>
                         <p class="text-sm font-semibold text-white">{{ equipment.code }}</p>
-                        <p class="text-xs {{ 'text-emerald-400' if equipment.status == 'available' else 'text-red-400' }}">
+                        <p
+                            class="text-xs {{ 'text-emerald-400' if equipment.status == 'available' else 'text-red-400' }}">
                             {{ 'Disponível' if equipment.status == 'available' else 'Bloqueado' }}
                         </p>
                         {% if equipment.blocked_reason %}
@@ -137,7 +144,7 @@
                 <select name="shift"
                     class="rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
                     {% for shift in ['Todos', 'Manhã', 'Tarde', 'Noite'] %}
-                    <option value="{{ shift }}" {{ 'selected' if filters.shift == shift else '' }}>{{ shift }}</option>
+                    <option value="{{ shift }}" {{ 'selected' if filters.shift==shift else '' }}>{{ shift }}</option>
                     {% endfor %}
                 </select>
                 <button type="submit"

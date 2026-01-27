@@ -7,15 +7,17 @@
             <h1 class="text-2xl md:text-3xl font-bold text-white">Dashboard de Checklists</h1>
             <p class="text-sm text-slate-400">Indicadores dos últimos {{ period_days }} dias.</p>
         </div>
-        <div class="flex gap-2">
-            <a href="/admin/routine/checklists/dashboard?days=7"
-                class="px-3 py-2 text-xs rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors">7 dias</a>
-            <a href="/admin/routine/checklists/dashboard?days=30"
-                class="px-3 py-2 text-xs rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors">30 dias</a>
-            <a href="/admin/routine/checklists/settings"
-                class="px-3 py-2 text-xs rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors">Cadastros</a>
+        <div class="flex flex-wrap gap-2">
+            <a href="/admin/routine/checklists/dashboard"
+                class="px-4 py-2 text-sm rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors">Dashboard</a>
             <a href="/admin/routine/checklists"
                 class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors">Lista</a>
+            <a href="/admin/routine/checklists/settings"
+                class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors">Cadastros</a>
+            <a href="/admin/equipment/tickets?status=open"
+                class="px-4 py-2 text-sm rounded-lg border border-red-500/50 bg-red-500/10 hover:bg-red-500/20 text-red-300 transition-colors">
+                Chamados
+            </a>
         </div>
     </div>
 
@@ -62,7 +64,8 @@
             {% if top_items %}
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {% for item in top_items %}
-                <div class="flex items-center justify-between border border-slate-700/70 rounded-lg p-3 bg-slate-900/40">
+                <div
+                    class="flex items-center justify-between border border-slate-700/70 rounded-lg p-3 bg-slate-900/40">
                     <div class="text-sm text-slate-200">
                         {{ item.label }}
                         {% if item.critical %}
@@ -79,7 +82,7 @@
         </div>
     </div>
 
-    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 mb-6">
         <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-3">Equipamentos com reincidência</h2>
         {% if top_equipment %}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -92,6 +95,37 @@
         </div>
         {% else %}
         <div class="text-sm text-slate-500">Sem reincidência no período.</div>
+        {% endif %}
+    </div>
+
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-bold text-white uppercase tracking-wider">Chamados Abertos</h2>
+            <a href="/admin/routine/checklists?status=submitted" class="text-xs text-blue-300 hover:text-blue-200">Ver todos</a>
+        </div>
+        {% if open_calls %}
+        <div class="space-y-3">
+            {% for call in open_calls %}
+            <div class="flex items-center justify-between border border-red-500/40 rounded-lg p-3 bg-red-900/20">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="text-sm font-semibold text-white">{{ call.equipment_code }}</span>
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-red-500/30 text-red-200">Crítico</span>
+                    </div>
+                    <p class="text-xs text-slate-300">{{ call.employee_name }} • {{ call.date_br }}</p>
+                    {% if call.blocked_items %}
+                    <p class="text-xs text-slate-400 mt-1">{{ call.blocked_items }}</p>
+                    {% endif %}
+                </div>
+                <a href="/admin/routine/checklists/{{ call.checklist_id }}" 
+                    class="text-xs px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors">
+                    Revisar
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-sm text-slate-500">Nenhum chamado aberto no momento.</div>
         {% endif %}
     </div>
 </div>

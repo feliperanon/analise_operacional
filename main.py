@@ -37,9 +37,13 @@ from urllib.error import HTTPError, URLError
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(dotenv_path=BASE_DIR / ".env")
+load_dotenv(dotenv_path=BASE_DIR / ".env", override=True)
 # Performance: Use INFO level in production, DEBUG only when explicitly enabled
 LOG_LEVEL = logging.DEBUG if os.getenv("DEBUG", "false").lower() == "true" else logging.INFO
+
+# Diagnostic
+print(f"DEBUG: Loaded .env. SMTP_HOST='{os.getenv('SMTP_HOST')}'")
+
 
 # Use RotatingFileHandler to prevent infinite log growth
 handler = RotatingFileHandler(
@@ -442,8 +446,8 @@ CHECKLIST_ITEMS = [
 CHECKLIST_ITEM_KEYS = [item["key"] for item in CHECKLIST_ITEMS]
 CHECKLIST_CRITICAL_KEYS = {item["key"] for item in CHECKLIST_ITEMS if item["critical"]}
 CHECKLIST_XP = int(os.getenv("CHECKLIST_XP", "10"))
-CHECKLIST_IMAGE_DIR = os.path.join("static", "uploads", "checklists")
-CHECKLIST_MAX_IMAGE_SIZE = 5 * 1024 * 1024
+CHECKLIST_IMAGE_DIR = os.path.join(str(BASE_DIR), "static", "uploads", "checklists")
+CHECKLIST_MAX_IMAGE_SIZE = 15 * 1024 * 1024
 MAINTENANCE_EMAIL_TO = os.getenv("MAINTENANCE_EMAIL_TO", "").strip()
 MAINTENANCE_EMAIL_FROM = os.getenv("MAINTENANCE_EMAIL_FROM", "").strip()
 MAINTENANCE_EMAIL_FROM_FIXED = "felipe.pires@nlfrutas.com.br"
@@ -477,8 +481,12 @@ def smtp_config_error(recipient_list: List[str]) -> Optional[str]:
     host_val = (SMTP_HOST or "").strip()
     if not recipient_list:
         missing.append("MAINTENANCE_EMAIL_TO")
-    if not host_val or host_val.upper() == "SEU_HOST_AQUI":
-        missing.append(f"SMTP_HOST (valor='{host_val or ''}')")
+    if not host_val or host_val.upper() == "SEU_HOST_AQUI" or len(host_val) == 0:
+        # Verificar se realmente está vazio (não apenas espaços)
+        if not host_val:
+            missing.append("SMTP_HOST")
+        else:
+            missing.append(f"SMTP_HOST (valor='{host_val}')")
     port_raw = (SMTP_PORT_RAW or "").strip()
     if not port_raw:
         missing.append("SMTP_PORT")
@@ -489,9 +497,11 @@ def smtp_config_error(recipient_list: List[str]) -> Optional[str]:
             missing.append("SMTP_PORT")
     if not (SMTP_TLS_RAW or "").strip():
         missing.append("SMTP_TLS")
-    if not (SMTP_USER or "").strip():
+    user_val = (SMTP_USER or "").strip()
+    if not user_val or len(user_val) == 0:
         missing.append("SMTP_USER")
-    if not (SMTP_PASS or ""):
+    pass_val = (SMTP_PASS or "").strip()
+    if not pass_val or len(pass_val) == 0:
         missing.append("SMTP_PASS")
     if missing:
         return "Configuração de e-mail incompleta. Variáveis faltando/invalidas: " + ", ".join(missing)
@@ -649,17 +659,56 @@ async def save_checklist_images(files: List[UploadFile]) -> List[str]:
     for file in files:
         if not file or not file.filename:
             continue
-        contents = await file.read()
-        if len(contents) > CHECKLIST_MAX_IMAGE_SIZE:
-            raise HTTPException(status_code=400, detail="Imagem muito grande (max 5MB).")
-        ext = os.path.splitext(file.filename)[1].lower()
-        if ext not in (".jpg", ".jpeg", ".png", ".webp"):
-            raise HTTPException(status_code=400, detail="Formato de imagem inválido.")
-        filename = f"{secrets.token_hex(12)}{ext}"
-        path = os.path.join(CHECKLIST_IMAGE_DIR, filename)
-        with open(path, "wb") as handle:
-            handle.write(contents)
-        saved.append(filename)
+        try:
+            contents = await file.read()
+            if len(contents) > CHECKLIST_MAX_IMAGE_SIZE:
+                logger.warning(f"Image too large: {len(contents)} > {CHECKLIST_MAX_IMAGE_SIZE}")
+                raise HTTPException(status_code=400, detail="Imagem muito grande (max 15MB).")
+            ext = os.path.splitext(file.filename)[1].lower()
+            if ext not in (".jpg", ".jpeg", ".png", ".webp"):
+                raise HTTPException(status_code=400, detail="Formato de imagem inválido.")
+            
+            filename = f"{secrets.token_hex(12)}{ext}"
+            path = os.path.join(CHECKLIST_IMAGE_DIR, filename)
+            
+            logger.info(f"Saving image: {filename} to {path}")
+            with open(path, "wb") as handle:
+                handle.write(contents)
+            saved.append(filename)
+        except Exception as e:
+            logger.error(f"Error saving image {file.filename}: {e}")
+            raise
+            
+    return saved
+
+TICKET_IMAGE_DIR = os.path.join(str(BASE_DIR), "static", "uploads", "tickets")
+def ensure_ticket_dir():
+    os.makedirs(TICKET_IMAGE_DIR, exist_ok=True)
+
+async def save_ticket_images(files: List[UploadFile]) -> List[str]:
+    ensure_ticket_dir()
+    saved = []
+    for file in files:
+        if not file or not file.filename:
+            continue
+        try:
+            contents = await file.read()
+            if len(contents) > CHECKLIST_MAX_IMAGE_SIZE:
+                raise HTTPException(status_code=400, detail="Imagem muito grande (max 15MB).")
+            ext = os.path.splitext(file.filename)[1].lower()
+            if ext not in (".jpg", ".jpeg", ".png", ".webp"):
+                raise HTTPException(status_code=400, detail="Formato de imagem inválido.")
+            
+            filename = f"{secrets.token_hex(12)}{ext}"
+            path = os.path.join(TICKET_IMAGE_DIR, filename)
+            
+            with open(path, "wb") as handle:
+                handle.write(contents)
+            saved.append(filename)
+        except Exception as e:
+            logger.error(f"Error saving ticket image {file.filename}: {e}")
+            raise
+            
     return saved
 
 def resolve_equipment(session: Session, code: str) -> models.TranspalletEquipment:
@@ -3940,6 +3989,215 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
         }
     )
 
+@app.get("/mobile/equipment/tickets/new", response_class=HTMLResponse)
+async def mobile_ticket_new(request: Request, session: Session = Depends(get_session)):
+    user = require_login(request)
+    if not isinstance(user, dict) or user.get("type") != "employee":
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    
+    employee_id = user.get("id")
+    employee = session.get(models.Employee, employee_id)
+    if not employee:
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    
+    # Buscar equipamentos disponíveis
+    equipment_list = session.exec(
+        select(models.TranspalletEquipment)
+        .order_by(models.TranspalletEquipment.code)
+    ).all()
+    
+    return templates.TemplateResponse(
+        "mobile/equipment_ticket_new.html",
+        {
+            "request": request,
+            "employee": employee,
+            "equipment_list": equipment_list
+        }
+    )
+
+@app.post("/mobile/equipment/tickets", response_class=JSONResponse)
+async def mobile_ticket_create(
+    request: Request,
+    equipment_code: str = Form(...),
+    title: str = Form(...),
+    description: str = Form(...),
+    priority: str = Form("medium"),
+    files: List[UploadFile] = File([]),
+    session: Session = Depends(get_session)
+):
+    user = require_login(request)
+    if not isinstance(user, dict) or user.get("type") != "employee":
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    
+    employee_id = user.get("id")
+    employee = session.get(models.Employee, employee_id)
+    if not employee:
+        return JSONResponse({"error": "Colaborador não encontrado"}, status_code=404)
+    
+    equipment_code = equipment_code.strip().upper()
+    images = []
+    if files:
+        images = await save_ticket_images(files)
+    
+    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    
+    ticket = models.EquipmentTicket(
+        employee_id=employee_id,
+        equipment_code=equipment_code,
+        title=title.strip(),
+        description=description.strip(),
+        priority=priority,
+        status="open",
+        images=images,
+        created_at=now_br
+    )
+    session.add(ticket)
+    session.commit()
+    session.refresh(ticket)
+    
+    # Enviar e-mail
+    try:
+        recipients = session.exec(
+            select(models.ChecklistEmailRecipient)
+            .where(models.ChecklistEmailRecipient.is_active == True)
+        ).all()
+        recipient_emails = [r.email for r in recipients]
+        
+        if recipient_emails:
+            ticket_link = f"{APP_BASE_URL}/admin/equipment/tickets/{ticket.id}" if APP_BASE_URL else f"/admin/equipment/tickets/{ticket.id}"
+            priority_labels = {"low": "Baixa", "medium": "Média", "high": "Alta", "critical": "Crítica"}
+            
+            subject = f"CHAMADO EQUIPAMENTO — {equipment_code} — {priority_labels.get(priority, priority).upper()}"
+            body_lines = [
+                f"Colaborador: {employee.name} ({employee.registration_id or '-'})",
+                f"Equipamento: {equipment_code}",
+                f"Prioridade: {priority_labels.get(priority, priority)}",
+                f"Data/Hora: {now_br.strftime('%d/%m/%Y %H:%M')}",
+                "",
+                f"Título: {title}",
+                "",
+                f"Descrição:",
+                description,
+                "",
+                f"Link: {ticket_link}"
+            ]
+            if images:
+                image_list = [f"/static/uploads/tickets/{img}" for img in images]
+                body_lines.extend(["", "Imagens:", *[f"- {img}" for img in image_list]])
+            
+            body = "\n".join(body_lines)
+            report_data = {
+                "subject": subject,
+                "body": body,
+                "image_list": [f"/static/uploads/tickets/{img}" for img in images] if images else []
+            }
+            sent, error = send_maintenance_email(report_data, recipient_emails)
+            if sent:
+                ticket.email_sent_at = now_br
+            else:
+                ticket.email_error = error or "Falha ao enviar e-mail"
+        else:
+            ticket.email_error = "Nenhum destinatário configurado"
+    except Exception as exc:
+        ticket.email_error = str(exc)
+        logger.exception(f"Erro ao enviar e-mail de ticket {ticket.id}")
+    
+    session.add(ticket)
+    session.commit()
+    
+    return {"success": True, "id": ticket.id}
+
+@app.get("/admin/equipment/tickets", response_class=HTMLResponse)
+async def admin_equipment_tickets(
+    request: Request,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    status_filter = request.query_params.get("status", "open")
+    
+    query = (
+        select(models.EquipmentTicket, models.Employee)
+        .join(models.Employee, models.Employee.id == models.EquipmentTicket.employee_id)
+        .order_by(desc(models.EquipmentTicket.created_at))
+    )
+    
+    if status_filter and status_filter != "all":
+        query = query.where(models.EquipmentTicket.status == status_filter)
+    
+    tickets_rows = session.exec(query).all()
+    
+    tickets = []
+    for ticket, employee in tickets_rows:
+        priority_labels = {"low": "Baixa", "medium": "Média", "high": "Alta", "critical": "Crítica"}
+        status_labels = {"open": "Aberto", "in_progress": "Em Andamento", "resolved": "Resolvido", "closed": "Fechado"}
+        tickets.append({
+            "ticket": ticket,
+            "employee": employee,
+            "priority_label": priority_labels.get(ticket.priority, ticket.priority),
+            "status_label": status_labels.get(ticket.status, ticket.status),
+            "created_at_br": ticket.created_at.strftime("%d/%m/%Y %H:%M") if ticket.created_at else "-"
+        })
+    
+    return templates.TemplateResponse(
+        "admin_equipment_tickets.html",
+        {
+            "request": request,
+            "tickets": tickets,
+            "status_filter": status_filter
+        }
+    )
+
+@app.get("/admin/equipment/tickets/{ticket_id}", response_class=HTMLResponse)
+async def admin_equipment_ticket_detail(
+    ticket_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    ticket = session.get(models.EquipmentTicket, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket não encontrado")
+    
+    employee = session.get(models.Employee, ticket.employee_id)
+    priority_labels = {"low": "Baixa", "medium": "Média", "high": "Alta", "critical": "Crítica"}
+    status_labels = {"open": "Aberto", "in_progress": "Em Andamento", "resolved": "Resolvido", "closed": "Fechado"}
+    
+    return templates.TemplateResponse(
+        "admin_equipment_ticket_detail.html",
+        {
+            "request": request,
+            "ticket": ticket,
+            "employee": employee,
+            "priority_label": priority_labels.get(ticket.priority, ticket.priority),
+            "status_label": status_labels.get(ticket.status, ticket.status)
+        }
+    )
+
+@app.post("/admin/equipment/tickets/{ticket_id}/update-status", response_class=RedirectResponse)
+async def admin_equipment_ticket_update_status(
+    ticket_id: int,
+    request: Request,
+    status: str = Form(...),
+    resolution_notes: str = Form(""),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    ticket = session.get(models.EquipmentTicket, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket não encontrado")
+    
+    ticket.status = status
+    if resolution_notes:
+        ticket.resolution_notes = resolution_notes
+    if status in ["resolved", "closed"]:
+        ticket.resolved_at = datetime.now(ZoneInfo("America/Sao_Paulo"))
+        ticket.resolved_by = str(user)
+    
+    session.add(ticket)
+    session.commit()
+    
+    return RedirectResponse(url=f"/admin/equipment/tickets/{ticket_id}", status_code=status.HTTP_303_SEE_OTHER)
+
 @app.get("/admin/routine/checklists/dashboard", response_class=HTMLResponse)
 async def admin_checklists_dashboard(
     request: Request,
@@ -4019,6 +4277,28 @@ async def admin_checklists_dashboard(
     if resolution_seconds:
         avg_resolution_hours = round(sum(resolution_seconds) / len(resolution_seconds) / 3600, 2)
 
+    # Chamados abertos (checklists críticos pendentes)
+    open_calls_query = (
+        select(models.TranspalletChecklist, models.Employee)
+        .join(models.Employee, models.Employee.id == models.TranspalletChecklist.employee_id)
+        .where(models.TranspalletChecklist.critical_flag == True)
+        .where(models.TranspalletChecklist.status.in_(["submitted", "reviewed"]))
+        .order_by(desc(models.TranspalletChecklist.submitted_at))
+        .limit(10)
+    )
+    open_calls_rows = session.exec(open_calls_query).all()
+    open_calls = []
+    label_map = checklist_item_label_map()
+    for checklist, employee in open_calls_rows:
+        blocked_items = ", ".join([label_map.get(k, k) for k in (checklist.nonconforming_keys or [])])
+        open_calls.append({
+            "checklist_id": checklist.id,
+            "equipment_code": checklist.equipment_code,
+            "employee_name": employee.name,
+            "date_br": fmt_ddmmyyyy(checklist.date),
+            "blocked_items": blocked_items
+        })
+
     return templates.TemplateResponse(
         "admin_routine_checklists_dashboard.html",
         {
@@ -4030,7 +4310,8 @@ async def admin_checklists_dashboard(
             "avg_resolution_hours": avg_resolution_hours,
             "shift_stats": shift_stats,
             "top_items": top_items,
-            "top_equipment": top_equipment
+            "top_equipment": top_equipment,
+            "open_calls": open_calls
         }
     )
 
@@ -5823,6 +6104,18 @@ async def operations_performance_page(
     end_date = target_date
     total_days = (end_date - start_date).days + 1
 
+    # --- Colaboradores elegíveis (habilitados no app de Separação) ---
+    employees_query = (
+        select(models.Employee)
+        .where(models.Employee.status != "fired")
+        .where(models.Employee.replaced_by.is_(None))
+        .where(models.Employee.mobile_access_separation == True)
+    )
+    if shift and shift not in ["Todos", "Geral", None]:
+        employees_query = employees_query.where(models.Employee.work_shift == shift)
+    employees = session.exec(employees_query).all()
+    all_employee_ids = [e.id for e in employees]
+
     query = (
         select(models.Route, models.Employee, models.Client)
         .join(models.Employee, models.Route.employee_id == models.Employee.id)
@@ -5866,6 +6159,7 @@ async def operations_performance_page(
     if route_band and route_band not in ["Todos", "Geral"]:
         routes = [r for r in routes if assign_band(r["tonnage"], band_low, band_high) == route_band]
 
+    # IDs com rotas (podem ser subconjunto de todos os elegíveis)
     employee_ids = sorted({r["employee_id"] for r in routes})
     start_dt = datetime.combine(start_date, datetime.min.time()).replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
     end_dt = datetime.combine(end_date, datetime.max.time()).replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
@@ -5877,15 +6171,34 @@ async def operations_performance_page(
         .where(models.Event.type.in_(list(OCCURRENCE_TYPES)))
         .group_by(models.Event.employee_id)
     )
-    if employee_ids:
-        event_query = event_query.where(models.Event.employee_id.in_(employee_ids))
+    if all_employee_ids:
+        event_query = event_query.where(models.Event.employee_id.in_(all_employee_ids))
     event_rows = session.exec(event_query).all()
     event_counts = {eid: count for eid, count in event_rows if eid}
 
-    if employee_ids:
-        absence_counts, _absence_unknown = fetch_absences_agg(session, employee_ids, start_dt, end_dt)
-    else:
-        absence_counts, _absence_unknown = ({}, {"unknown": 0, "examples": []})
+    # --- Contagem de ausências a partir de EmployeeRoutine (fonte única) ---
+    absence_counts = {}
+    _absence_unknown = {"unknown": 0, "examples": []}
+    if all_employee_ids:
+        routines_rows = session.exec(
+            select(models.EmployeeRoutine)
+            .where(models.EmployeeRoutine.employee_id.in_(all_employee_ids))
+            .where(models.EmployeeRoutine.date >= start_date.strftime("%Y-%m-%d"))
+            .where(models.EmployeeRoutine.date <= end_date.strftime("%Y-%m-%d"))
+        ).all()
+
+        for r in routines_rows:
+            emp_id = r.employee_id
+            r_type = (r.routine or "").lower()
+            counts = absence_counts.setdefault(emp_id, {"justified": 0, "unjustified": 0, "leave": 0, "offday": 0})
+            if r_type in ["absent", "falta"]:
+                counts["unjustified"] += 1
+            elif r_type in ["sick", "atestado"]:
+                counts["justified"] += 1
+            elif r_type in ["away", "afastado"]:
+                counts["leave"] += 1
+            elif r_type in ["dayoff", "folga"]:
+                counts["offday"] += 1
     debug_absences = None
     if LOG_LEVEL == logging.DEBUG and _absence_unknown.get("unknown"):
         debug_absences = _absence_unknown
@@ -5923,6 +6236,21 @@ async def operations_performance_page(
         daily_entry = payload["daily"].setdefault(item["date"], {"tonnage": 0.0, "secs": 0.0})
         daily_entry["tonnage"] += item["tonnage"]
         daily_entry["secs"] += duration
+
+    # Incluir colaboradores elegíveis sem rotas (ex.: só com faltas/atestados)
+    for emp in employees:
+        if emp.id not in stats:
+            stats[emp.id] = {
+                "employee": emp,
+                "tonnage": 0.0,
+                "secs": 0.0,
+                "count": 0,
+                "max_tonnage": 0.0,
+                "max_kgh": 0.0,
+                "days": set(),
+                "daily": {},
+                "clients": Counter()
+            }
 
     rows_all = []
     for eid, payload in stats.items():
@@ -6508,15 +6836,31 @@ async def get_ranking_details(
         if hours > 0:
             avg_kgh = total_tonnage / hours
             
-        start_dt = datetime.combine(start_date_obj, datetime.min.time()).replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
-        end_dt = datetime.combine(end_date_obj, datetime.max.time()).replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+        # --- Contagem de ausências a partir de EmployeeRoutine (fonte única) ---
+        # Buscar todas as rotinas do colaborador no período
+        routines_rows = session.exec(
+            select(models.EmployeeRoutine)
+            .where(models.EmployeeRoutine.employee_id == employee_id)
+            .where(models.EmployeeRoutine.date >= start_date_str)
+            .where(models.EmployeeRoutine.date <= end_date_str)
+        ).all()
 
-        absence_counts, _absence_unknown = fetch_absences_agg(session, [employee_id], start_dt, end_dt)
-        absence_data = absence_counts.get(employee_id, {"justified": 0, "unjustified": 0, "leave": 0, "offday": 0})
-        justified_days = absence_data["justified"]
-        unjustified_days = absence_data["unjustified"]
-        leave_days = absence_data["leave"]
-        offday_days = absence_data["offday"]
+        # Contar por tipo de rotina
+        justified_days = 0
+        unjustified_days = 0
+        leave_days = 0
+        offday_days = 0
+
+        for r in routines_rows:
+            r_type = (r.routine or "").lower()
+            if r_type in ["absent", "falta"]:
+                unjustified_days += 1
+            elif r_type in ["sick", "atestado"]:
+                justified_days += 1
+            elif r_type in ["away", "afastado"]:
+                leave_days += 1
+            elif r_type in ["dayoff", "folga"]:
+                offday_days += 1
         adjusted_denominator = max(1, total_days - justified_days - leave_days - offday_days)
         regularity_adjusted = len(active_days) / adjusted_denominator
         absence_penalty_factor = get_absence_penalty(period, unjustified_days)
@@ -8094,9 +8438,19 @@ async def save_allocations(
         return {"success": True, "message": "Dados salvos com sucesso"}
         
     except Exception as e:
-        print(f"❌ ERRO ao salvar alocações: {e}")
+        error_msg = f"❌ ERRO ao salvar alocações: {e}"
+        print(error_msg)
         import traceback
         traceback.print_exc()
+        
+        # Write to file for debugging
+        try:
+            with open("debug_alloc.log", "a", encoding="utf-8") as f:
+                f.write(f"\n{datetime.now()} - {error_msg}\n")
+                f.write(traceback.format_exc())
+        except:
+            pass
+            
         session.rollback()
         return JSONResponse({"error": str(e), "success": False}, status_code=500)
 
@@ -8245,6 +8599,38 @@ async def set_employee_routine(
             employee_id=employee_id
         )
         session.add(event)
+
+        # --- Sincronizar rotina diária (EmployeeRoutine) ---
+        # Fonte única para faltas/atestados/afastamentos usada em relatórios e performance.
+        # Por enquanto aplicamos para a data atual em todos os turnos.
+        from zoneinfo import ZoneInfo
+
+        br_tz = ZoneInfo("America/Sao_Paulo")
+        today_str = datetime.now(br_tz).strftime("%Y-%m-%d")
+
+        existing_daily = session.exec(
+            select(models.EmployeeRoutine)
+            .where(models.EmployeeRoutine.employee_id == int(employee_id))
+            .where(models.EmployeeRoutine.date == today_str)
+        ).all()
+
+        # Indexar por turno para facilitar upsert
+        existing_by_shift = {r.shift: r for r in existing_daily if getattr(r, "shift", None)}
+
+        for shift_name in ["Manhã", "Tarde", "Noite"]:
+            existing = existing_by_shift.get(shift_name)
+            if existing:
+                if existing.routine != routine:
+                    existing.routine = routine
+                    session.add(existing)
+            else:
+                new_routine = models.EmployeeRoutine(
+                    date=today_str,
+                    shift=shift_name,
+                    employee_id=int(employee_id),
+                    routine=routine
+                )
+                session.add(new_routine)
         
         session.commit()
         
@@ -10462,3 +10848,121 @@ async def api_delete_route(route_id: int, session: Session = Depends(get_session
     except Exception as e:
         logger.exception(f"Error deleting route {route_id}")
         return JSONResponse({"error": str(e)}, status_code=500)
+
+# --- Admin Checklist Routes ---
+
+@app.get("/admin/routine/checklists", response_class=HTMLResponse)
+async def admin_routine_checklists(
+    request: Request,
+    date: Optional[str] = None,
+    shift: Optional[str] = None, # Not fully supported by model yet, but kept for UI consistency
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    try:
+        require_login(request)
+        
+        # Default date: Today
+        if not date:
+            date = datetime.now().strftime("%Y-%m-%d")
+            
+        # Query Checklists
+        query = select(models.TranspalletChecklist, models.Employee).join(models.Employee)
+        query = query.where(models.TranspalletChecklist.date == date)
+        
+        # Order by newest
+        query = query.order_by(desc(models.TranspalletChecklist.submitted_at))
+        
+        results = session.exec(query).all()
+        
+        # Format
+        rows = []
+        for chk, emp in results:
+            # Determine status badge color
+            status_color = "secondary"
+            if chk.status == "submitted": status_color = "primary"
+            elif chk.status == "approved": status_color = "success"
+            elif chk.status == "rejected": status_color = "danger"
+            elif chk.critical_flag: status_color = "danger"
+            elif chk.status == "reviewed": status_color = "info"
+            
+            rows.append({
+                "id": chk.id,
+                "created_at": chk.submitted_at,
+                "employee_name": emp.name,
+                "equipment_code": chk.equipment_code,
+                "status": chk.status,
+                "status_color": status_color,
+                "critical": chk.critical_flag,
+                "photo_count": len(chk.images) if chk.images else 0
+            })
+            
+        return templates.TemplateResponse("admin_routine_checklists.html", {
+            "request": request,
+            "checklists": rows,
+            "selected_date": date,
+            "selected_shift": shift or "Todos"
+        })
+    except Exception as e:
+        logger.exception("Error loading checklists")
+        return HTMLResponse(f"Erro ao carregar checklists: {str(e)}", status_code=500)
+
+@app.get("/admin/routine/checklists/{checklist_id}", response_class=HTMLResponse)
+async def admin_routine_checklist_detail(
+    request: Request,
+    checklist_id: int,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    try:
+        require_login(request)
+        
+        chk = session.get(models.TranspalletChecklist, checklist_id)
+        if not chk:
+            return HTMLResponse(
+                f"<h1>Checklist {checklist_id} não encontrado</h1><a href='/admin/routine/checklists'>Voltar</a>", 
+                status_code=404
+            )
+            
+        emp = session.get(models.Employee, chk.employee_id)
+        
+        # JSON items
+        items_data = chk.items if chk.items else {}
+        
+        return templates.TemplateResponse("admin_routine_checklist_detail.html", {
+            "request": request,
+            "checklist": chk,
+            "employee_name": emp.name if emp else "Desconhecido",
+            "items": items_data,
+            "images": chk.images or [],
+            "debug": False
+        })
+    except Exception as e:
+        logger.exception(f"Error loading checklist {checklist_id}")
+        return HTMLResponse(f"Erro ao carregar checklist: {str(e)}", status_code=500)
+
+@app.post("/admin/routine/checklists/{checklist_id}/delete")
+async def admin_delete_checklist(
+    request: Request,
+    checklist_id: int,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    try:
+        require_login(request)
+        chk = session.get(models.TranspalletChecklist, checklist_id)
+        if not chk:
+            return JSONResponse({"error": "Checklist não encontrado"}, status_code=404)
+            
+        session.delete(chk)
+        session.commit()
+        
+        # Determine redirect target (list or dashboard)
+        # For simplicity, redirect to List
+        return RedirectResponse(
+            url="/admin/routine/checklists", 
+            status_code=status.HTTP_303_SEE_OTHER
+        )
+    except Exception as e:
+        logger.exception(f"Error deleting checklist {checklist_id}")
+        return HTMLResponse(f"Erro ao excluir checklist: {str(e)}", status_code=500)

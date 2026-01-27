@@ -1,0 +1,95 @@
+{% extends "mobile/layout.html" %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-900 text-slate-100 p-4 pb-safe">
+    <div class="max-w-2xl mx-auto">
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-2xl font-bold text-white">Novo Chamado</h1>
+            <a href="/mobile/dashboard" class="text-slate-400 hover:text-white">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </a>
+        </div>
+
+        <form id="ticketForm" class="space-y-4" enctype="multipart/form-data">
+            <div>
+                <label class="block text-sm font-semibold text-slate-300 mb-2">Equipamento *</label>
+                <select name="equipment_code" required
+                    class="w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-white focus:border-blue-500 focus:outline-none">
+                    <option value="">Selecione...</option>
+                    {% for eq in equipment_list %}
+                    <option value="{{ eq.code }}">{{ eq.code }} - {{ 'Disponível' if eq.status == 'available' else 'Bloqueado' }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-slate-300 mb-2">Título *</label>
+                <input type="text" name="title" required placeholder="Ex: Problema no freio"
+                    class="w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-white focus:border-blue-500 focus:outline-none">
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-slate-300 mb-2">Prioridade *</label>
+                <select name="priority" required
+                    class="w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-white focus:border-blue-500 focus:outline-none">
+                    <option value="low">Baixa</option>
+                    <option value="medium" selected>Média</option>
+                    <option value="high">Alta</option>
+                    <option value="critical">Crítica</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-slate-300 mb-2">Descrição *</label>
+                <textarea name="description" required rows="5" placeholder="Descreva o problema detalhadamente..."
+                    class="w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-white focus:border-blue-500 focus:outline-none"></textarea>
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-slate-300 mb-2">Fotos (opcional)</label>
+                <input type="file" name="files" multiple accept="image/*"
+                    class="w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-white focus:border-blue-500 focus:outline-none">
+                <p class="text-xs text-slate-500 mt-1">Máximo 15MB por imagem. Formatos: JPG, PNG, WEBP</p>
+            </div>
+
+            <button type="submit"
+                class="w-full py-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-lg transition-colors">
+                Enviar Chamado
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+document.getElementById('ticketForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Enviando...';
+    
+    try {
+        const res = await fetch('/mobile/equipment/tickets', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+            alert('Chamado enviado com sucesso!');
+            window.location.href = '/mobile/dashboard';
+        } else {
+            alert('Erro ao enviar chamado: ' + (data.error || 'Erro desconhecido'));
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        }
+    } catch (error) {
+        alert('Erro ao enviar chamado: ' + error.message);
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    }
+});
+</script>
+{% endblock %}
