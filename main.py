@@ -1494,20 +1494,20 @@ def get_dashboard_data(session: Session, shift_filter: str):
                      tzinfo=ZoneInfo("America/Sao_Paulo")
                  )
                  
-                # Heuristic Check
-                # If start_dt is 0-4 hours AHEAD of now, it's likely a UTC->Local mismatch (e.g. 09:00 vs 06:00)
-                diff_sec = (start_dt - now_br).total_seconds()
-                
-                display_time = r.start_time # Default to raw
-                
-                if diff_sec > 0 and diff_sec < 4 * 3600:
-                    # Correct it: Subtract 3 hours
-                    start_dt = start_dt - timedelta(hours=3)
-                    display_time = start_dt.strftime("%H:%M")
-                elif diff_sec > 12 * 3600:
-                    # Started yesterday? (e.g. 23:00 vs 01:00)
-                    start_dt = start_dt - timedelta(days=1)
-                    # display_time remains same HH:MM usually, but context matters.
+                 # Heuristic Check
+                 # If start_dt is 0-4 hours AHEAD of now, it's likely a UTC->Local mismatch (e.g. 09:00 vs 06:00)
+                 diff_sec = (start_dt - now_br).total_seconds()
+                 
+                 display_time = r.start_time # Default to raw
+                 
+                 if diff_sec > 0 and diff_sec < 4 * 3600:
+                     # Correct it: Subtract 3 hours
+                     start_dt = start_dt - timedelta(hours=3)
+                     display_time = start_dt.strftime("%H:%M")
+                 elif diff_sec > 12 * 3600:
+                     # Started yesterday? (e.g. 23:00 vs 01:00)
+                     start_dt = start_dt - timedelta(days=1)
+                     # display_time remains same HH:MM usually, but context matters.
                  
                  duration_mins = int((now_br - start_dt).total_seconds() / 60)
                  if duration_mins < 0: duration_mins = 0
