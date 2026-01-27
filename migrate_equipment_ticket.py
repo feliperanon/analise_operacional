@@ -57,6 +57,34 @@ def get_existing_columns(conn, table_name):
     columns = inspector.get_columns(table_name)
     return {col['name'].lower() for col in columns}
 
+def create_event_table(conn):
+    """Criar tabela equipmentticketevent se nao existir"""
+    inspector = inspect(conn)
+    tables = inspector.get_table_names()
+    
+    if "equipmentticketevent" not in tables:
+        print("\n[TABELA] Criando tabela 'equipmentticketevent'...")
+        sql = """
+        CREATE TABLE equipmentticketevent (
+            id SERIAL PRIMARY KEY,
+            ticket_id INTEGER NOT NULL REFERENCES equipmentticket(id),
+            event_type VARCHAR(50) NOT NULL,
+            description TEXT NOT NULL,
+            created_by VARCHAR(255),
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+        CREATE INDEX ix_equipmentticketevent_ticket_id ON equipmentticketevent(ticket_id);
+        CREATE INDEX ix_equipmentticketevent_event_type ON equipmentticketevent(event_type);
+        CREATE INDEX ix_equipmentticketevent_created_at ON equipmentticketevent(created_at);
+        """
+        conn.execute(text(sql))
+        conn.commit()
+        print("   SUCESSO: Tabela 'equipmentticketevent' criada!")
+        return True
+    else:
+        print("\n[TABELA] Tabela 'equipmentticketevent' ja existe.")
+        return False
+
 def run_migration():
     with engine.connect() as conn:
         # Verificar se tabela existe
@@ -85,6 +113,9 @@ def run_migration():
                     print(f"   AVISO: Erro ao adicionar '{col_name}': {e}")
             else:
                 print(f"   OK: Coluna '{col_name}' ja existe")
+        
+        # Criar tabela de eventos
+        create_event_table(conn)
         
         if added:
             print(f"\nSUCESSO: Migracao concluida! Colunas adicionadas: {', '.join(added)}")

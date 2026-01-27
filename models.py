@@ -177,6 +177,15 @@ class EquipmentTicket(SQLModel, table=True):
     maintenance_email_sent_at: Optional[datetime] = None
     maintenance_email_error: Optional[str] = None
 
+class EquipmentTicketEvent(SQLModel, table=True):
+    """Eventos de histórico para chamados de equipamento"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    ticket_id: int = Field(foreign_key="equipmentticket.id", index=True)
+    event_type: str = Field(index=True)  # created, status_change, comment, resolved, closed
+    description: str
+    created_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.now, index=True)
+
 class ChecklistEmailRecipient(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     email: str = Field(index=True, unique=True)
