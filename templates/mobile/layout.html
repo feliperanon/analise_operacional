@@ -69,6 +69,17 @@
             </div>
         </div>
 
+        <!-- Global Header -->
+        <nav class="relative z-50 px-5 pt-6 flex items-center gap-4">
+            <button
+                onclick="window.history.length > 1 ? window.history.back() : window.location.href='/mobile/dashboard'"
+                class="w-10 h-10 rounded-full bg-slate-800/80 border border-slate-700 text-white flex items-center justify-center active:scale-95 transition-all">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </button>
+            <div class="flex-1"></div>
+            <!-- Optional User Avatar/Menu could go here -->
+        </nav>
+
         {% include 'components/flash_messages.html' ignore missing %}
 
         <!-- Content -->

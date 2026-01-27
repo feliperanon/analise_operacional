@@ -62,13 +62,22 @@
     <div class="px-5 -mt-8 relative z-20 space-y-6">
 
         <!-- Equipamento Input Card -->
+        <!-- Equipamento Input Card -->
         <div class="bg-slate-800 border border-slate-700/50 rounded-3xl p-1.5 shadow-xl flex items-center gap-2">
             <div class="pl-4">
                 <i data-lucide="package-search" class="w-6 h-6 text-slate-400"></i>
             </div>
-            <input type="text" x-model="equipmentCode"
-                class="w-full bg-transparent border-none text-white font-bold text-lg placeholder:text-slate-600 focus:ring-0 p-3"
-                placeholder="Cód. Equipamento (Ex: TP-01)">
+            <select x-model="equipmentCode"
+                class="w-full bg-transparent border-none text-white font-bold text-lg focus:ring-0 p-3 appearance-none">
+                <option value="" disabled selected class="text-slate-500">Selecione o equipamento</option>
+                {% if equipment_list %}
+                {% for eq in equipment_list %}
+                <option value="{{ eq.code }}" class="bg-slate-800 text-white">{{ eq.code }}</option>
+                {% endfor %}
+                {% else %}
+                <option value="" disabled class="bg-slate-800">Sem cadastro</option>
+                {% endif %}
+            </select>
         </div>
 
         <!-- Action Bar -->
@@ -172,6 +181,67 @@
 
             <p x-text="statusMessage" class="text-center text-xs font-medium mt-3 h-4 transition-colors"
                 :class="statusType === 'error' ? 'text-red-400' : 'text-emerald-400'"></p>
+        </div>
+
+        <!-- DASHBOARD OPERADOR -->
+        <div class="pt-8 space-y-6">
+
+            <!-- Quick Access Grid -->
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <a href="/mobile/equipment/tickets"
+                    class="bg-slate-800 border border-slate-700/50 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 hover:bg-slate-700 transition-colors group">
+                    <div
+                        class="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
+                        <i data-lucide="list" class="w-5 h-5 text-blue-400"></i>
+                    </div>
+                    <span class="text-sm font-bold text-slate-200">Ver chamados</span>
+                </a>
+
+                <a href="/mobile/equipment/tickets/new"
+                    class="bg-slate-800 border border-slate-700/50 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 hover:bg-slate-700 transition-colors group">
+                    <div
+                        class="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
+                        <i data-lucide="plus" class="w-5 h-5 text-blue-400"></i>
+                    </div>
+                    <span class="text-sm font-bold text-slate-200">Novo chamado</span>
+                </a>
+
+                <a href="/mobile/routine/history"
+                    class="bg-slate-800 border border-slate-700/50 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 hover:bg-slate-700 transition-colors group">
+                    <div
+                        class="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
+                        <i data-lucide="history" class="w-5 h-5 text-emerald-400"></i>
+                    </div>
+                    <span class="text-sm font-bold text-slate-200">Histórico</span>
+                </a>
+            </div>
+
+            {% if missing_days %}
+            <!-- Alertas de Pendência -->
+            <div class="bg-amber-500/10 border border-amber-500/20 rounded-3xl p-5 mb-8">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
+                        <i data-lucide="calendar-off" class="w-4 h-4 text-amber-400"></i>
+                    </div>
+                    <h3 class="text-white font-bold">Dias Pendentes</h3>
+                </div>
+                <div class="space-y-2">
+                    {% for day in missing_days|default([]) %}
+                    <div
+                        class="flex items-center justify-between bg-slate-900/50 rounded-xl p-3 border border-amber-500/10">
+                        <div>
+                            <p class="text-amber-200 font-bold text-sm">{{ day.date_fmt }}</p>
+                            <p class="text-slate-500 text-xs capitalize">{{ day.weekday_pt }}</p>
+                        </div>
+                        <span class="text-xs font-bold text-amber-500 bg-amber-500/10 px-2 py-1 rounded-lg">Não
+                            Feito</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                <p class="text-center text-slate-500 text-xs mt-3">Justifique ausências com seu líder.</p>
+            </div>
+            {% endif %}
+
         </div>
 
     </div>

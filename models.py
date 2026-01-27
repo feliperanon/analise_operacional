@@ -196,7 +196,29 @@ class TranspalletChecklist(SQLModel, table=True):
     reviewed_by: Optional[str] = None
     review_comment: Optional[str] = None
 
+    edited_at: Optional[datetime] = None
+    edited_by: Optional[str] = None
+    edit_comment: Optional[str] = None
+    previous_observations: Optional[str] = None
+    previous_equipment_code: Optional[str] = None
+
     xp_transaction_id: Optional[int] = Field(default=None, index=True)
+    maintenance_email_sent_at: Optional[datetime] = None
+    maintenance_email_error: Optional[str] = None
+
+class EquipmentTicket(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    equipment_code: str = Field(index=True)
+    employee_id: int = Field(foreign_key="employee.id", index=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+    shift: Optional[str] = Field(default=None, index=True)
+    description: str
+    severity: str = Field(default="low", index=True)  # low, high
+    images: List[str] = Field(default=[], sa_column=Column(JSON))
+    status: str = Field(default="open", index=True)  # open, closed
+    closed_at: Optional[datetime] = None
+    closed_by: Optional[str] = None
+    
     maintenance_email_sent_at: Optional[datetime] = None
     maintenance_email_error: Optional[str] = None
 # --- Smart Flow Hierarchical Models ---

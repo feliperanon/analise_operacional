@@ -3,112 +3,148 @@
 {% block content %}
 <div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8" x-data="performanceController()">
     <div class="max-w-7xl mx-auto space-y-8">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-                <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Operacoes em rotas e separacao</p>
-                <h1 class="text-3xl md:text-4xl font-black text-white">Avaliacao Operacional Inteligente</h1>
-                <p class="text-sm text-slate-400 mt-2">Apenas colaboradores com rotas registradas no periodo.</p>
+        {% set period_label_map = {'daily': 'Diário', 'weekly': 'Semanal', 'monthly': 'Mensal'} %}
+        {% set period_label = period_label_map.get(filters.period, filters.period) %}
+        {% set route_label_map = {'Media': 'Média', 'Todos': 'Todas'} %}
+        {% set route_label = route_label_map.get(filters.route_band, filters.route_band) %}
+        {% set tenure_label_map = {'Consolidacao': 'Consolidação'} %}
+        {% set tenure_label = tenure_label_map.get(filters.tenure_band, filters.tenure_band) %}
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div class="space-y-2">
+                <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Operações em rotas e separação</p>
+                <h1 class="text-3xl md:text-4xl font-black text-white">Avaliação Operacional Inteligente</h1>
+                <p class="text-sm text-slate-400">Apenas colaboradores com acesso ao mobile de separação de mercadorias.</p>
             </div>
-            <div class="flex flex-wrap gap-2">
-                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Periodo: {{ filters.period }}</span>
-                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Turno: {{ filters.shift }}</span>
-                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Rota: {{ filters.route_band }}</span>
-                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Liga: {{ filters.tenure_band }}</span>
-                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Faltas: {{ absence_totals.unjustified }}</span>
-                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Atestados: {{ absence_totals.justified }}</span>
-                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Afastamentos: {{ absence_totals.leave }}</span>
-                <span class="px-3 py-1 rounded-full text-xs bg-slate-800 border border-slate-700 text-slate-300">Folgas: {{ absence_totals.offday }}</span>
+            <div class="w-full lg:w-auto bg-slate-800/60 border border-slate-700 rounded-2xl p-4">
+                <div>
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-slate-500">Intervalo analisado</p>
+                    <p class="text-sm font-semibold text-white">{{ period_range_label }}</p>
+                    <p class="text-[10px] text-slate-500">{{ period_context_label }}</p>
+                </div>
+                <div class="mt-3 flex flex-nowrap gap-2 overflow-x-auto snap-x snap-mandatory lg:flex-wrap lg:overflow-visible">
+                    <a href="#filtersForm" class="px-3 py-1 rounded-full text-xs bg-slate-900/60 border border-slate-700 text-slate-300 snap-start hover:border-slate-500">Período: {{ period_label }}</a>
+                    <a href="#filtersForm" class="px-3 py-1 rounded-full text-xs bg-slate-900/60 border border-slate-700 text-slate-300 snap-start hover:border-slate-500">Turno: {{ filters.shift }}</a>
+                    <a href="#filtersForm" class="px-3 py-1 rounded-full text-xs bg-slate-900/60 border border-slate-700 text-slate-300 snap-start hover:border-slate-500">Rota: {{ route_label }}</a>
+                    <a href="#filtersForm" class="px-3 py-1 rounded-full text-xs bg-slate-900/60 border border-slate-700 text-slate-300 snap-start hover:border-slate-500">Liga: {{ tenure_label }}</a>
+                    <span class="px-3 py-1 rounded-full text-xs bg-rose-500/10 border border-rose-500/20 text-rose-300 snap-start">Faltas: {{ absence_totals.unjustified|fmt_br_int }}</span>
+                    <span class="px-3 py-1 rounded-full text-xs bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 snap-start">Atestados: {{ absence_totals.justified|fmt_br_int }}</span>
+                    <span class="px-3 py-1 rounded-full text-xs bg-orange-500/10 border border-orange-500/20 text-orange-300 snap-start">Afastamentos: {{ absence_totals.leave|fmt_br_int }}</span>
+                    <span class="px-3 py-1 rounded-full text-xs bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 snap-start">Folgas: {{ absence_totals.offday|fmt_br_int }}</span>
+                </div>
             </div>
         </div>
 
-        <form class="grid grid-cols-1 md:grid-cols-7 gap-3 bg-slate-800/60 border border-slate-700 rounded-2xl p-4" method="get" action="/operations/performance" id="filtersForm">
-            <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1">Periodo</label>
-                <select name="period" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
-                    <option value="daily" {{ 'selected' if filters.period == 'daily' else '' }}>Diario</option>
-                    <option value="weekly" {{ 'selected' if filters.period == 'weekly' else '' }}>Semanal</option>
-                    <option value="monthly" {{ 'selected' if filters.period == 'monthly' else '' }}>Mensal</option>
-                </select>
+        <form class="bg-slate-800/60 border border-slate-700 rounded-2xl p-4 space-y-4" method="get" action="/operations/performance" id="filtersForm">
+            <div class="bg-slate-900/50 border border-slate-700 rounded-xl p-4">
+                <div class="flex items-center justify-between">
+                    <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Tempo</p>
+                    <span class="text-[10px] text-slate-500">{{ period_context_label }}</span>
+                </div>
+                <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Período</label>
+                        <select name="period" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
+                            <option value="daily" {{ 'selected' if filters.period == 'daily' else '' }}>Diário</option>
+                            <option value="weekly" {{ 'selected' if filters.period == 'weekly' else '' }}>Semanal</option>
+                            <option value="monthly" {{ 'selected' if filters.period == 'monthly' else '' }}>Mensal</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Data base</label>
+                        <input type="date" name="date" value="{{ filters.date }}" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
+                        <p class="text-[10px] text-slate-500 mt-1">{{ period_context_label }}</p>
+                    </div>
+                </div>
             </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1">Data base</label>
-                <input type="date" name="date" value="{{ filters.date }}" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
+            <div class="bg-slate-900/50 border border-slate-700 rounded-xl p-4">
+                <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Operação</p>
+                <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Turno</label>
+                        <select name="shift" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
+                            {% for opt in ['Todos','Manhã','Tarde','Noite'] %}
+                            <option value="{{ opt }}" {{ 'selected' if filters.shift == opt else '' }}>{{ opt }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Tipo de rota</label>
+                        <select name="route_band" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
+                            <option value="Todos" {{ 'selected' if filters.route_band == 'Todos' else '' }}>Todas</option>
+                            <option value="Leve" {{ 'selected' if filters.route_band == 'Leve' else '' }}>Leve ({{ band_labels.Leve }})</option>
+                            <option value="Media" {{ 'selected' if filters.route_band == 'Media' else '' }}>Média ({{ band_labels.Media }})</option>
+                            <option value="Pesada" {{ 'selected' if filters.route_band == 'Pesada' else '' }}>Pesada ({{ band_labels.Pesada }})</option>
+                        </select>
+                    </div>
+                </div>
             </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1">Turno</label>
-                <select name="shift" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
-                    {% for opt in ['Todos','Manhã','Tarde','Noite'] %}
-                    <option value="{{ opt }}" {{ 'selected' if filters.shift == opt else '' }}>{{ opt }}</option>
-                    {% endfor %}
-                </select>
+            <div class="bg-slate-900/50 border border-slate-700 rounded-xl p-4">
+                <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Pessoas</p>
+                <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Liga</label>
+                        <select name="tenure_band" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
+                            <option value="Todos" {{ 'selected' if filters.tenure_band == 'Todos' else '' }}>Todas</option>
+                            <option value="Novatos" {{ 'selected' if filters.tenure_band == 'Novatos' else '' }}>Novatos (0-3m)</option>
+                            <option value="Consolidacao" {{ 'selected' if filters.tenure_band == 'Consolidacao' else '' }}>Consolidação (3-12m)</option>
+                            <option value="Veteranos" {{ 'selected' if filters.tenure_band == 'Veteranos' else '' }}>Veteranos (12m+)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Ordenar por</label>
+                        <select name="sort_by" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
+                            <option value="score" {{ 'selected' if filters.sort_by == 'score' else '' }}>Score</option>
+                            <option value="kgh" {{ 'selected' if filters.sort_by == 'kgh' else '' }}>Kg/h</option>
+                            <option value="tonnage" {{ 'selected' if filters.sort_by == 'tonnage' else '' }}>Volume</option>
+                            <option value="consistency" {{ 'selected' if filters.sort_by == 'consistency' else '' }}>Consistência</option>
+                            <option value="trend" {{ 'selected' if filters.sort_by == 'trend' else '' }}>Tendência</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Ordem</label>
+                        <select name="order" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
+                            <option value="desc" {{ 'selected' if filters.order == 'desc' else '' }}>Maior</option>
+                            <option value="asc" {{ 'selected' if filters.order == 'asc' else '' }}>Menor</option>
+                        </select>
+                    </div>
+                </div>
             </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1">Tipo de rota</label>
-                <select name="route_band" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
-                    <option value="Todos" {{ 'selected' if filters.route_band == 'Todos' else '' }}>Todas</option>
-                    <option value="Leve" {{ 'selected' if filters.route_band == 'Leve' else '' }}>Leve ({{ band_labels.Leve }})</option>
-                    <option value="Media" {{ 'selected' if filters.route_band == 'Media' else '' }}>Media ({{ band_labels.Media }})</option>
-                    <option value="Pesada" {{ 'selected' if filters.route_band == 'Pesada' else '' }}>Pesada ({{ band_labels.Pesada }})</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1">Liga</label>
-                <select name="tenure_band" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
-                    <option value="Todos" {{ 'selected' if filters.tenure_band == 'Todos' else '' }}>Todas</option>
-                    <option value="Novatos" {{ 'selected' if filters.tenure_band == 'Novatos' else '' }}>Novatos (0-3m)</option>
-                    <option value="Consolidacao" {{ 'selected' if filters.tenure_band == 'Consolidacao' else '' }}>Consolidacao (3-12m)</option>
-                    <option value="Veteranos" {{ 'selected' if filters.tenure_band == 'Veteranos' else '' }}>Veteranos (12m+)</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1">Ordenar por</label>
-                <select name="sort_by" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
-                    <option value="score" {{ 'selected' if filters.sort_by == 'score' else '' }}>Score</option>
-                    <option value="kgh" {{ 'selected' if filters.sort_by == 'kgh' else '' }}>Kg/h</option>
-                    <option value="tonnage" {{ 'selected' if filters.sort_by == 'tonnage' else '' }}>Volume</option>
-                    <option value="consistency" {{ 'selected' if filters.sort_by == 'consistency' else '' }}>Consistencia</option>
-                    <option value="trend" {{ 'selected' if filters.sort_by == 'trend' else '' }}>Tendencia</option>
-                </select>
-            </div>
-            <div class="flex items-end gap-2">
-                <select name="order" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
-                    <option value="desc" {{ 'selected' if filters.order == 'desc' else '' }}>Maior</option>
-                    <option value="asc" {{ 'selected' if filters.order == 'asc' else '' }}>Menor</option>
-                </select>
-                <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold">Aplicar</button>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <a href="/operations/performance" class="text-xs text-slate-300 underline underline-offset-4 hover:text-white">Limpar filtros</a>
+                <button type="submit" class="w-full sm:w-auto px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold">Aplicar</button>
             </div>
         </form>
 
         {% if not rows %}
         <div class="text-center py-16 bg-slate-800/40 border border-dashed border-slate-700 rounded-3xl">
-            <p class="text-slate-400">Nenhuma rota encontrada para o periodo selecionado.</p>
+            <p class="text-slate-400">Nenhuma rota encontrada para o período selecionado.</p>
         </div>
         {% else %}
         <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
             <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
                 <p class="text-xs text-slate-400 uppercase tracking-wider">Volume total</p>
-                <p class="text-2xl font-bold text-white">{{ "{:,.0f}".format(team_stats.total_tonnage) }}</p>
+                <p class="text-2xl font-bold text-white">{{ team_stats.total_tonnage|fmt_br_int }}</p>
             </div>
             <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
-                <p class="text-xs text-slate-400 uppercase tracking-wider">Media kg/h</p>
-                <p class="text-2xl font-bold text-emerald-300">{{ "{:,.0f}".format(team_stats.avg_kgh) }}</p>
+                <p class="text-xs text-slate-400 uppercase tracking-wider">Média kg/h</p>
+                <p class="text-2xl font-bold text-emerald-300">{{ team_stats.avg_kgh|fmt_br_int }}</p>
             </div>
             <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
-                <p class="text-xs text-slate-400 uppercase tracking-wider">Tempo medio/viagem</p>
-                <p class="text-2xl font-bold text-blue-300">{{ "{:.1f}".format(team_stats.avg_trip_minutes) }} min</p>
+                <p class="text-xs text-slate-400 uppercase tracking-wider">Tempo médio/viagem</p>
+                <p class="text-2xl font-bold text-blue-300">{{ team_stats.avg_trip_minutes|fmt_br }} min</p>
             </div>
             <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
                 <p class="text-xs text-slate-400 uppercase tracking-wider">Ativos</p>
-                <p class="text-2xl font-bold text-white">{{ team_stats.active_employees }}</p>
+                <p class="text-2xl font-bold text-white">{{ team_stats.active_employees|fmt_br_int }}</p>
             </div>
             <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
-                <p class="text-xs text-slate-400 uppercase tracking-wider">Presenca ajustada</p>
-                <p class="text-2xl font-bold text-emerald-200">{{ "{:.0%}".format(team_stats.avg_presence_adjusted) }}</p>
+                <p class="text-xs text-slate-400 uppercase tracking-wider">Presença ajustada</p>
+                <p class="text-2xl font-bold text-emerald-200">{{ (team_stats.avg_presence_adjusted * 100)|fmt_br_int }}%</p>
             </div>
             <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4">
                 <p class="text-xs text-slate-400 uppercase tracking-wider">Disciplina (faltas)</p>
-                <p class="text-2xl font-bold text-amber-200">{{ "{:.0%}".format(team_stats.discipline_rate) }}</p>
-                <p class="text-[10px] text-slate-500 mt-1">Faltas: {{ team_stats.unjustified_total }}</p>
+                <p class="text-2xl font-bold text-amber-200">{{ (team_stats.discipline_rate * 100)|fmt_br_int }}%</p>
+                <p class="text-[10px] text-slate-500 mt-1">Faltas: {{ team_stats.unjustified_total|fmt_br_int }}</p>
             </div>
         </div>
 
@@ -116,7 +152,7 @@
             {% for league in league_rankings %}
             <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4">
                 <div class="flex items-center justify-between mb-3">
-                    <h3 class="text-sm font-bold text-white">{{ league.band }}</h3>
+                    <h3 class="text-sm font-bold text-white">{{ league.band_label }}</h3>
                     <a href="/operations/performance?date={{ filters.date }}&period={{ filters.period }}&shift={{ filters.shift }}&route_band={{ filters.route_band }}&sort_by={{ filters.sort_by }}&order={{ filters.order }}&tenure_band={{ league.band }}"
                         class="text-xs text-blue-300 hover:text-blue-200">Filtrar</a>
                 </div>
@@ -125,7 +161,7 @@
                     {% for item in league.top %}
                     <div class="flex items-center justify-between">
                         <span class="text-white font-semibold">{{ item.name }}</span>
-                        <span>{{ item.score }}</span>
+                        <span>{{ item.score|fmt_br_2 }}</span>
                     </div>
                     {% endfor %}
                 </div>
@@ -138,15 +174,15 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {% set insight_cards = [
-                ('Melhor do periodo', insights.best),
-                ('Maior evolucao', insights.improved),
-                ('Melhor presenca', insights.presence),
+                ('Melhor do período', insights.best),
+                ('Maior evolução', insights.improved),
+                ('Melhor presença', insights.presence),
                 ('Mais consistente', insights.consistent),
                 ('Gargalo de tempo', insights.bottleneck),
                 ('Mais faltas', insights.absences),
                 ('Maior curva de aprendizado', insights.learning),
                 ('Veterano referencia', insights.veteran),
-                ('Potencial nao explorado', insights.potential)
+                ('Potencial não explorado', insights.potential)
             ] %}
             {% for title, info in insight_cards %}
             <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4">
@@ -159,8 +195,8 @@
 
         <div class="bg-slate-800/50 border border-slate-700 rounded-3xl p-6">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-xl font-bold text-white">Top performers e porque</h2>
-                <p class="text-xs text-slate-500">Score ponderado por volume, regularidade e consistencia</p>
+                <h2 class="text-xl font-bold text-white">Top performers e por quê</h2>
+                <p class="text-xs text-slate-500">Score ponderado pelos 5 pilares (produtividade, qualidade, disciplina, evolução e contexto)</p>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {% for perf in top_performers %}
@@ -168,7 +204,12 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm font-semibold text-white">{{ perf.name }}</p>
-                            <p class="text-xs text-slate-500">Score {{ perf.score }} | {{ perf.percentile }}%</p>
+                            <p class="text-xs text-slate-500">Score {{ perf.score|fmt_br_2 }} | {{ perf.percentile|fmt_br_int }}%</p>
+                            {% if perf.badge %}
+                            <span class="mt-1 inline-flex items-center text-[10px] px-2 py-0.5 rounded-full border border-slate-700 text-slate-300">
+                                {{ perf.badge }}
+                            </span>
+                            {% endif %}
                         </div>
                         <button @click="openDetails({{ perf.id }})" class="text-xs text-blue-300 hover:text-blue-200">Detalhes</button>
                     </div>
@@ -177,7 +218,7 @@
                         <li>• {{ reason }}</li>
                         {% endfor %}
                         {% if not perf.reasons %}
-                        <li>• Sem sinais fortes no periodo</li>
+                        <li>• Sem sinais fortes no período</li>
                         {% endif %}
                     </ul>
                 </div>
@@ -189,15 +230,15 @@
             <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4">
                 <h3 class="text-sm font-bold text-white">Perfis operacionais</h3>
                 {% if rows|length < 12 %}
-                <p class="text-[10px] text-slate-500 mb-3">Perfis por regras (amostra pequena).</p>
+                <p class="text-[10px] text-slate-500 mb-3">Origem: regras (amostra pequena).</p>
                 {% else %}
-                <p class="text-[10px] text-slate-500 mb-3">Clustering estatistico do periodo.</p>
+                <p class="text-[10px] text-slate-500 mb-3">Origem: modelo estatístico do período.</p>
                 {% endif %}
                 <div class="space-y-3 text-xs text-slate-300">
                     {% for cluster in clusters %}
                     <div>
                         <p class="font-semibold text-white">{{ cluster.label }} ({{ cluster.count }})</p>
-                        <p>Media kg/h: {{ "{:,.0f}".format(cluster.avg_kgh) }} | Reg: {{ "{:.0%}".format(cluster.avg_regularity) }}</p>
+                        <p>Média kg/h: {{ cluster.avg_kgh|fmt_br_int }} | Reg: {{ (cluster.avg_regularity * 100)|fmt_br_int }}%</p>
                         <p class="text-slate-500">{{ cluster.members | join(', ') }}</p>
                     </div>
                     {% endfor %}
@@ -211,101 +252,136 @@
                 {% if rows|length < 8 %}
                 <p class="text-[10px] text-slate-500 mb-3">Amostra pequena para outliers.</p>
                 {% else %}
-                <p class="text-[10px] text-slate-500 mb-3">Z-score em kg/h.</p>
+                <p class="text-[10px] text-slate-500 mb-3">Origem: estatística (z-score em kg/h).</p>
                 {% endif %}
                 <div class="space-y-3 text-xs text-slate-300">
                     {% for out in outliers %}
                     <div>
                         <p class="font-semibold text-white">{{ out.name }}</p>
-                        <p>Kg/h: {{ "{:,.0f}".format(out.kgh) }} | z {{ "{:.2f}".format(out.zscore) }}</p>
+                        <p>Kg/h: {{ out.kgh|fmt_br_int }} | z {{ out.zscore|fmt_br_2 }}</p>
                     </div>
                     {% endfor %}
                     {% if not outliers %}
-                    <p class="text-slate-500">Sem picos anormais no periodo.</p>
+                    <p class="text-slate-500">Sem picos anormais no período.</p>
                     {% endif %}
                 </div>
             </div>
             <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4">
-                <h3 class="text-sm font-bold text-white">Drivers estatisticos do score (correlacao)</h3>
-                <p class="text-[10px] text-slate-500 mb-3">Nao indica causalidade.</p>
+                <h3 class="text-sm font-bold text-white">Drivers estatísticos do score (correlação)</h3>
+                <p class="text-[10px] text-slate-500 mb-3">Não indica causalidade.</p>
                 <div class="space-y-3 text-xs text-slate-300">
                     {% for driver in feature_drivers %}
                     <div class="flex items-center justify-between">
                         <span>{{ driver.label }}</span>
-                        <span class="text-slate-400">{{ "{:.2f}".format(driver.corr) }}</span>
+                        <span class="text-slate-400">{{ driver.corr|fmt_br_2 }}</span>
                     </div>
                     {% endfor %}
                     {% if not feature_drivers %}
-                    <p class="text-slate-500">Sem dados para correlacao.</p>
+                    <p class="text-slate-500">Sem dados para correlação.</p>
                     {% endif %}
                 </div>
             </div>
         </div>
 
         <div class="bg-slate-800/50 border border-slate-700 rounded-3xl overflow-hidden">
-            <div class="flex items-center justify-between p-6">
+            <div class="flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                    <h2 class="text-xl font-bold text-white">Mapa completo da operacao</h2>
-                    <p class="text-xs text-slate-500">Score ponderado, regularidade e eficiencia operacional.</p>
+                    <h2 class="text-xl font-bold text-white">Mapa completo da operação</h2>
+                    <p class="text-xs text-slate-500">Score ponderado · regularidade · eficiência · disciplina</p>
                 </div>
-                <span class="text-xs text-slate-500">{{ rows|length }} colaboradores</span>
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="relative">
+                        <input x-model.trim="searchTerm" type="text" placeholder="Buscar colaborador..." class="w-56 rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-xs text-white placeholder:text-slate-500">
+                    </div>
+                    <button type="button" @click="compactMode = !compactMode" :class="compactMode ? 'bg-slate-700 text-white' : 'bg-slate-900 text-slate-300'" class="px-3 py-2 rounded-lg text-xs border border-slate-700">Modo compacto</button>
+                    <button type="button" @click="showDiscipline = !showDiscipline" :class="showDiscipline ? 'bg-slate-700 text-white' : 'bg-slate-900 text-slate-300'" class="px-3 py-2 rounded-lg text-xs border border-slate-700">Mostrar disciplina</button>
+                </div>
+            </div>
+            <div class="flex items-center justify-between px-6 pb-4 text-xs text-slate-500">
+                <span>{{ rows|length }} colaboradores</span>
+                <span class="text-slate-600" x-show="searchTerm">Filtro local ativo</span>
             </div>
             <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm">
-                    <thead class="text-xs uppercase text-slate-500 border-b border-slate-700">
-                        <tr>
-                            <th class="py-3 px-4">Colaborador</th>
-                            <th class="py-3 px-4">Liga</th>
-                            <th class="py-3 px-4">Score</th>
-                            <th class="py-3 px-4">Volume</th>
-                            <th class="py-3 px-4">Kg/h</th>
-                            <th class="py-3 px-4">Viagens</th>
-                            <th class="py-3 px-4">Tempo/viagem</th>
-                            <th class="py-3 px-4">Regularidade ajustada</th>
-                            <th class="py-3 px-4">Consistencia (CV)</th>
-                            <th class="py-3 px-4">Tendencia</th>
-                            <th class="py-3 px-4">Tempo casa</th>
-                            <th class="py-3 px-4">Faltas</th>
-                            <th class="py-3 px-4">Atestados</th>
-                            <th class="py-3 px-4">Afastamentos</th>
-                            <th class="py-3 px-4">Folgas</th>
-                            <th class="py-3 px-4">Ocorrencias</th>
-                            <th class="py-3 px-4"></th>
+                <table class="w-full text-left" :class="compactMode ? 'text-xs' : 'text-sm'">
+                    <thead class="text-xs uppercase text-slate-400 bg-slate-900 sticky top-0 z-20">
+                        <tr class="border-b border-slate-800">
+                            <th rowspan="2" class="px-4 py-3 sticky left-0 bg-slate-900 z-30 border-r border-slate-800">Colaborador</th>
+                            <th rowspan="2" class="px-4 py-3">Liga</th>
+                            <th rowspan="2" class="px-4 py-3 text-right">Score</th>
+                            <th colspan="4" class="px-4 py-3 text-center">Produção</th>
+                            <th colspan="3" class="px-4 py-3 text-center">Qualidade</th>
+                            <th colspan="4" class="px-4 py-3 text-center" :class="showDiscipline ? '' : 'hidden'">Disciplina</th>
+                            <th rowspan="2" class="px-4 py-3 text-right" :class="compactMode ? 'hidden' : ''">Tempo casa</th>
+                            <th rowspan="2" class="px-4 py-3 text-right" :class="compactMode ? 'hidden' : ''">Ocorrências</th>
+                            <th rowspan="2" class="px-4 py-3"></th>
+                        </tr>
+                        <tr class="border-b border-slate-800">
+                            <th class="px-4 py-3 text-right">Volume</th>
+                            <th class="px-4 py-3 text-right">Kg/h</th>
+                            <th class="px-4 py-3 text-right">Viagens</th>
+                            <th class="px-4 py-3 text-right">Tempo/viagem</th>
+                            <th class="px-4 py-3 text-right">Regularidade</th>
+                            <th class="px-4 py-3 text-right">CV</th>
+                            <th class="px-4 py-3">Tendência</th>
+                            <th class="px-4 py-3 text-right" :class="showDiscipline ? '' : 'hidden'">Faltas</th>
+                            <th class="px-4 py-3 text-right" :class="showDiscipline ? '' : 'hidden'">Atestados</th>
+                            <th class="px-4 py-3 text-right" :class="showDiscipline ? '' : 'hidden'">Afastamentos</th>
+                            <th class="px-4 py-3 text-right" :class="showDiscipline ? '' : 'hidden'">Folgas</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-700">
+                    <tbody class="divide-y divide-slate-800">
                         {% for row in rows %}
-                        <tr class="hover:bg-slate-900/60">
-                            <td class="py-3 px-4">
+                        <tr class="odd:bg-slate-900/30 even:bg-slate-900/10 hover:bg-slate-900/60 cursor-pointer" data-search="{{ row.name }} {{ row.id }} {{ row.top_client }}"
+                            x-show="matchesSearch($el.dataset.search)" @click="openDetails({{ row.id }})">
+                            <td class="px-4 sticky left-0 bg-slate-900 z-10 border-r border-slate-800" :class="compactMode ? 'py-2' : 'py-3'">
                                 <div class="flex items-center gap-3">
                                     <div class="w-9 h-9 rounded-full bg-slate-700 overflow-hidden">
                                         <img src="{{ row.photo or 'https://ui-avatars.com/api/?background=1f2937&color=fff&name=' + row.name }}" class="w-full h-full object-cover">
                                     </div>
                                     <div>
-                                        <p class="text-white font-semibold">{{ row.name }}</p>
+                                        <div class="flex items-center gap-2">
+                                            <p class="text-white font-semibold">{{ row.name }}</p>
+                                            {% if row.badge %}
+                                            <span class="text-[10px] px-2 py-0.5 rounded-full border {{ row.badge_class }}">{{ row.badge }}</span>
+                                            {% endif %}
+                                            {% if row.sample_small %}
+                                            <span class="text-[10px] px-1.5 py-0.5 rounded-full border border-amber-500/30 text-amber-200" title="Amostra pequena (&lt;3 dias)">!</span>
+                                            {% endif %}
+                                        </div>
                                         <p class="text-xs text-slate-500">{{ row.top_client }}</p>
                                     </div>
                                 </div>
                             </td>
-                            <td class="py-3 px-4">
-                                <span class="text-xs px-2 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300">{{ row.tenure_band }}</span>
+                            <td class="px-4" :class="compactMode ? 'py-2' : 'py-3'">
+                                <span class="text-xs px-2 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300">{{ row.tenure_band_label }}</span>
                             </td>
-                            <td class="py-3 px-4 text-emerald-300 font-semibold">{{ row.score }}</td>
-                            <td class="py-3 px-4">{{ "{:,.0f}".format(row.total_tonnage) }} kg</td>
-                            <td class="py-3 px-4">{{ "{:,.0f}".format(row.avg_kgh) }}</td>
-                            <td class="py-3 px-4">{{ row.count }}</td>
-                            <td class="py-3 px-4">{{ "{:.1f}".format(row.avg_trip_minutes) }} min</td>
-                            <td class="py-3 px-4">{{ "{:.0%}".format(row.regularity_adjusted) }}</td>
-                            <td class="py-3 px-4">{{ "{:.2f}".format(row.cv) }}</td>
-                            <td class="py-3 px-4">{{ row.trend_label }}</td>
-                            <td class="py-3 px-4">{{ row.tenure_months }}m</td>
-                            <td class="py-3 px-4">{{ row.unjustified_absences }}</td>
-                            <td class="py-3 px-4">{{ row.justified_absences }}</td>
-                            <td class="py-3 px-4">{{ row.leave_absences }}</td>
-                            <td class="py-3 px-4">{{ row.offday_absences }}</td>
-                            <td class="py-3 px-4">{{ row.occurrences }}</td>
-                            <td class="py-3 px-4">
-                                <button @click="openDetails({{ row.id }})" class="text-xs text-blue-300 hover:text-blue-200">Detalhes</button>
+                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">
+                                <div class="text-emerald-300 font-semibold">{{ row.score|fmt_br_2 }}</div>
+                                {% if row.pillar_scores %}
+                                <div class="text-[10px] text-slate-500">
+                                    P: {{ row.pillar_scores.productivity|fmt_br }} |
+                                    Q: {{ row.pillar_scores.quality|fmt_br }} |
+                                    D: {{ row.pillar_scores.discipline|fmt_br }} |
+                                    E: {{ row.pillar_scores.evolution|fmt_br }} |
+                                    C: {{ row.pillar_scores.context|fmt_br }}
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">{{ row.total_tonnage|fmt_br_int }} kg</td>
+                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">{{ row.avg_kgh|fmt_br_int }}</td>
+                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">{{ row.count|fmt_br_int }}</td>
+                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">{{ row.avg_trip_minutes|fmt_br }} min</td>
+                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">{{ row.regularity_adjusted|fmt_br_pct }}</td>
+                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">{{ row.cv|fmt_br_2 }}</td>
+                            <td class="px-4" :class="compactMode ? 'py-2' : 'py-3'">{{ row.trend_label }}</td>
+                            <td class="px-4 text-right" :class="compactMode ? 'py-2 hidden' : 'py-3'">{{ row.tenure_months|fmt_br_int }}m</td>
+                            <td class="px-4 text-right" :class="(showDiscipline ? '' : 'hidden') + ' ' + (compactMode ? 'py-2' : 'py-3')">{{ row.unjustified_absences|fmt_br_int }}</td>
+                            <td class="px-4 text-right" :class="(showDiscipline ? '' : 'hidden') + ' ' + (compactMode ? 'py-2' : 'py-3')">{{ row.justified_absences|fmt_br_int }}</td>
+                            <td class="px-4 text-right" :class="(showDiscipline ? '' : 'hidden') + ' ' + (compactMode ? 'py-2' : 'py-3')">{{ row.leave_absences|fmt_br_int }}</td>
+                            <td class="px-4 text-right" :class="(showDiscipline ? '' : 'hidden') + ' ' + (compactMode ? 'py-2' : 'py-3')">{{ row.offday_absences|fmt_br_int }}</td>
+                            <td class="px-4 text-right" :class="compactMode ? 'py-2 hidden' : 'py-3'">{{ row.occurrences|fmt_br_int }}</td>
+                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">
+                                <button @click.stop="openDetails({{ row.id }})" class="text-xs text-blue-300 hover:text-blue-200">Detalhes</button>
                             </td>
                         </tr>
                         {% endfor %}
@@ -317,90 +393,403 @@
 
         {% if debug_absences %}
         <details class="bg-slate-800/60 border border-slate-700 rounded-2xl p-4 text-xs text-slate-300">
-            <summary class="cursor-pointer text-slate-400 font-semibold">Debug absencias nao classificadas</summary>
+            <summary class="cursor-pointer text-slate-400 font-semibold">Debug ausências não classificadas</summary>
             <p class="mt-2 text-slate-400">Total: {{ debug_absences.unknown }}</p>
-            {% if debug_absences.examples %}
+        {% if debug_absences.examples %}
+        <div class="mt-2 grid gap-1 text-slate-300">
+            {% for label in debug_absences.examples %}
+            <div>• {{ label }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if debug_absences.labels %}
+        <div class="mt-2 grid gap-1 text-slate-300">
+            {% for item in debug_absences.labels %}
+            <div>• {{ item.label }} ({{ item.count }})</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </details>
+    {% endif %}
+
+        {% if debug_absence_summary %}
+        <details class="bg-slate-800/60 border border-slate-700 rounded-2xl p-4 text-xs text-slate-300">
+            <summary class="cursor-pointer text-slate-400 font-semibold">Debug ausências (resumo)</summary>
             <div class="mt-2 grid gap-1 text-slate-300">
-                {% for label in debug_absences.examples %}
-                <div>• {{ label }}</div>
+                <div>Rotinas no período: {{ debug_absence_summary.routine_count|fmt_br_int }}</div>
+                <div>Eventos no período: {{ debug_absence_summary.event_count|fmt_br_int }}</div>
+                <div>Origem: {{ debug_absence_summary.source_label }}</div>
+            </div>
+            <div class="mt-2 grid gap-1 text-slate-300">
+                <div>Dias — Faltas: {{ debug_absence_summary.days.unjustified|fmt_br_int }} · Atestados: {{ debug_absence_summary.days.justified|fmt_br_int }} · Afastamentos: {{ debug_absence_summary.days.leave|fmt_br_int }} · Folgas: {{ debug_absence_summary.days.offday|fmt_br_int }}</div>
+                <div>Logs — Faltas: {{ debug_absence_summary.logs.unjustified|fmt_br_int }} · Atestados: {{ debug_absence_summary.logs.justified|fmt_br_int }} · Afastamentos: {{ debug_absence_summary.logs.leave|fmt_br_int }} · Folgas: {{ debug_absence_summary.logs.offday|fmt_br_int }}</div>
+            </div>
+            {% if debug_absence_summary.dup_examples %}
+            <div class="mt-2 grid gap-1 text-slate-300">
+                {% for item in debug_absence_summary.dup_examples %}
+                <div>• {{ item.date }} · {{ item.group }} · {{ item.count }} logs</div>
                 {% endfor %}
             </div>
             {% endif %}
         </details>
         {% endif %}
 
-        <div x-show="showModal" class="fixed inset-0 z-50 flex items-center justify-center px-4" style="display: none;">
-            <div class="absolute inset-0 bg-black/70" @click="showModal = false"></div>
-            <div class="bg-slate-900 rounded-2xl border border-white/10 shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col relative z-10 overflow-hidden">
-                <div x-show="loading" class="absolute inset-0 flex items-center justify-center bg-slate-900/60 z-20">
-                    <div class="text-slate-300 text-sm">Carregando...</div>
+        {% if debug_absence_diagnostic %}
+        <details class="bg-slate-800/60 border border-slate-700 rounded-2xl p-4 text-xs text-slate-300">
+            <summary class="cursor-pointer text-slate-400 font-semibold">Debug ausências por colaborador</summary>
+            <p class="mt-2 text-slate-400">Colaborador ID: {{ debug_absence_employee_id }}</p>
+            <div class="mt-2 grid gap-1">
+                {% for item in debug_absence_diagnostic %}
+                <div>• {{ item.date }} · {{ item.group }} · {{ item.source }} · #{{ item.record_id }}</div>
+                {% endfor %}
+            </div>
+        </details>
+        {% endif %}
+
+        
+        <!-- NEW PERFORMANCE DETAIL MODAL (Refactored) -->
+        <div x-show="showModal" class="fixed inset-0 z-50 flex items-center justify-center px-4" style="display: none;" x-cloak>
+            <!-- Backdrop -->
+            <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity" 
+                 x-show="showModal" 
+                 x-transition.opacity 
+                 @click="showModal = false"></div>
+
+            <!-- Modal Window -->
+            <div class="bg-slate-900 w-full max-w-4xl max-h-[90vh] flex flex-col relative z-10 rounded-3xl shadow-2xl border border-white/10 overflow-hidden"
+                 x-show="showModal"
+                 x-transition:enter="transition ease-out duration-300"
+                 x-transition:enter-start="opacity-0 scale-95 translate-y-4"
+                 x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+                 x-data="{ activeTab: 'overview' }">
+
+                <!-- Loading Overlay -->
+                <div x-show="loading" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/80 z-50 backdrop-blur-sm">
+                    <div class="w-10 h-10 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-3"></div>
+                    <div class="text-blue-400 font-bold text-sm animate-pulse">Carregando análise...</div>
                 </div>
-                <div class="p-6 border-b border-white/10 flex items-start justify-between">
-                    <div>
-                        <h2 class="text-xl font-bold text-white" x-text="empDetails?.employee?.name">Detalhes</h2>
-                        <p class="text-xs text-slate-500">Rotas do periodo selecionado.</p>
-                        <p class="text-xs text-slate-500 mt-1">
-                            Tempo de casa: <span x-text="empDetails?.summary?.tenure_months ?? '-'"></span>m
-                            · Liga: <span x-text="empDetails?.summary?.tenure_band ?? '-'"></span>
-                            · Faltas: <span x-text="empDetails?.summary?.absences?.unjustified ?? 0"></span>
-                            · Atestados: <span x-text="empDetails?.summary?.absences?.justified ?? 0"></span>
-                            · Afastamentos: <span x-text="empDetails?.summary?.absences?.leave ?? 0"></span>
-                            · Folgas: <span x-text="empDetails?.summary?.absences?.offday ?? 0"></span>
-                        </p>
-                        <p class="text-[10px] text-slate-500 mt-1">
-                            Atestado, afastamento e folga nao reduzem regularidade. Falta reduz score.
-                        </p>
+
+                <!-- 1. Modal Header -->
+                <div class="shrink-0 bg-slate-800/50 border-b border-white/5 p-6 flex items-start justify-between">
+                    <div class="flex items-center gap-4">
+                        <!-- Avatar -->
+                        <div class="w-16 h-16 rounded-2xl bg-slate-700/50 flex shrink-0 items-center justify-center overflow-hidden border border-white/10 shadow-lg">
+                            <img :src="empDetails?.employee?.photo_url || 'https://ui-avatars.com/api/?background=0f172a&color=fff&size=128&name=' + (empDetails?.employee?.name || 'User')" 
+                                 class="w-full h-full object-cover">
+                        </div>
+                        
+                        <!-- Info -->
+                        <div>
+                            <h2 class="text-xl md:text-2xl font-bold text-white leading-tight" x-text="empDetails?.employee?.name"></h2>
+                            <div class="flex flex-wrap items-center gap-2 mt-1.5">
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-slate-700/50 border-slate-600 text-slate-300">
+                                    <span x-text="empDetails?.summary?.tenure_band || 'N/A'"></span>
+                                    <span class="opacity-50 ml-1" x-text="'(' + (empDetails?.summary?.tenure_months || 0) + 'm)'"></span>
+                                </span>
+                                
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border"
+                                      :class="empDetails?.analysis?.badge ? 'bg-blue-500/10 border-blue-500/20 text-blue-300' : 'bg-slate-700/30 border-slate-600/30 text-slate-400'">
+                                    <span x-text="empDetails?.analysis?.badge || 'Sem Selo'"></span>
+                                </span>
+                            </div>
+                        </div>
                     </div>
-                    <button @click="showModal = false" class="text-slate-400 hover:text-white">Fechar</button>
+
+                    <button @click="showModal = false" class="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    </button>
                 </div>
-                <div class="grid grid-cols-4 gap-2 p-4 bg-slate-800/30">
-                    <div class="bg-slate-800/50 p-3 rounded-xl text-center border border-white/5">
-                        <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Volume</p>
-                        <p class="text-lg font-black text-white" x-text="formatNumber(empDetails?.summary?.total_tonnage)"></p>
-                    </div>
-                    <div class="bg-slate-800/50 p-3 rounded-xl text-center border border-white/5">
-                        <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Kg/h</p>
-                        <p class="text-lg font-black text-emerald-300" x-text="formatNumber(empDetails?.summary?.avg_kgh)"></p>
-                    </div>
-                    <div class="bg-slate-800/50 p-3 rounded-xl text-center border border-white/5">
-                        <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Tempo</p>
-                        <p class="text-lg font-black text-blue-300" x-text="empDetails?.summary?.total_hours"></p>
-                    </div>
-                    <div class="bg-slate-800/50 p-3 rounded-xl text-center border border-white/5">
-                        <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Viagens</p>
-                        <p class="text-lg font-black text-purple-300" x-text="empDetails?.summary?.count"></p>
-                    </div>
+
+                <!-- 2. Tabs Navigation -->
+                <div class="shrink-0 px-6 border-b border-white/5 flex gap-6 overflow-x-auto">
+                    <button @click="activeTab = 'overview'" 
+                            class="py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap"
+                            :class="activeTab === 'overview' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-300'">
+                        Visão Geral
+                    </button>
+                    <button @click="activeTab = 'analysis'" 
+                            class="py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap"
+                            :class="activeTab === 'analysis' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-500 hover:text-slate-300'">
+                        Análise IA
+                    </button>
+                    <button @click="activeTab = 'history'" 
+                            class="py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap"
+                            :class="activeTab === 'history' ? 'border-amber-500 text-amber-400' : 'border-transparent text-slate-500 hover:text-slate-300'">
+                        Histórico
+                    </button>
+                     <button @click="activeTab = 'routes'" 
+                            class="py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap"
+                            :class="activeTab === 'routes' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-300'">
+                        Rotas (<span x-text="empDetails?.routes?.length || 0"></span>)
+                    </button>
                 </div>
-                <div class="flex-1 overflow-y-auto">
-                    <table class="w-full text-left text-sm">
-                        <thead class="bg-slate-800/80 sticky top-0">
-                            <tr>
-                                <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase">Cliente</th>
-                                <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase text-right">Peso</th>
-                                <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase text-right">Vel.</th>
-                                <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase text-right">Duracao</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-white/5">
-                            <template x-for="route in empDetails?.routes" :key="route.start">
-                                <tr class="hover:bg-white/5">
-                                    <td class="px-6 py-3">
-                                        <p class="text-sm font-semibold text-white" x-text="route.client"></p>
-                                        <p class="text-[10px] text-slate-500" x-text="route.start + ' - ' + route.end"></p>
-                                    </td>
-                                    <td class="px-6 py-3 text-right" x-text="formatNumber(route.tonnage)"></td>
-                                    <td class="px-6 py-3 text-right" x-text="route.kgh"></td>
-                                    <td class="px-6 py-3 text-right" x-text="route.duration"></td>
-                                </tr>
-                            </template>
-                            <template x-if="!empDetails?.routes?.length">
-                                <tr><td colspan="4" class="text-center py-6 text-slate-500">Nenhuma rota.</td></tr>
-                            </template>
-                        </tbody>
-                    </table>
+
+                <!-- 3. Modal Content Body -->
+                <div class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8 bg-slate-900">
+
+                    <!-- TAB: OVERVIEW -->
+                    <div x-show="activeTab === 'overview'" class="space-y-6">
+                        
+                        <!-- High Level Cards -->
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5">
+                                <p class="text-[10px] uppercase text-slate-500 font-bold tracking-wider mb-1">Score</p>
+                                <p class="text-3xl font-black text-white" x-text="formatNumber(empDetails?.analysis?.weighted_score)"></p>
+                                <p class="text-xs text-slate-400 mt-1">Geral</p>
+                            </div>
+                            <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5">
+                                <p class="text-[10px] uppercase text-slate-500 font-bold tracking-wider mb-1">Média Kg/h</p>
+                                <p class="text-3xl font-black text-emerald-400" x-text="formatNumber(empDetails?.summary?.avg_kgh)"></p>
+                                <p class="text-xs text-slate-400 mt-1">Produtividade</p>
+                            </div>
+                            <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5">
+                                <p class="text-[10px] uppercase text-slate-500 font-bold tracking-wider mb-1">Volume</p>
+                                <p class="text-3xl font-black text-blue-400" x-text="formatNumber(empDetails?.summary?.total_tonnage)"></p>
+                                <p class="text-xs text-slate-400 mt-1">Total Kg</p>
+                            </div>
+                            <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5">
+                                <p class="text-[10px] uppercase text-slate-500 font-bold tracking-wider mb-1">Faltas</p>
+                                <p class="text-3xl font-black" 
+                                   :class="(empDetails?.summary?.absences?.days?.unjustified || 0) > 0 ? 'text-red-400' : 'text-slate-200'"
+                                   x-text="empDetails?.summary?.absences?.days?.unjustified || 0"></p>
+                                <p class="text-xs text-slate-400 mt-1">Injustificadas</p>
+                            </div>
+                        </div>
+
+                        <!-- Pillars Bars -->
+                        <div class="bg-slate-800/30 rounded-3xl p-5 border border-white/5">
+                            <h3 class="text-sm font-bold text-white mb-4">Composição do Score</h3>
+                            <div class="space-y-4">
+                                <template x-for="pilar in [
+                                    {label: 'Produtividade', key: 'productivity', color: 'bg-emerald-500'},
+                                    {label: 'Qualidade', key: 'quality', color: 'bg-blue-500'},
+                                    {label: 'Disciplina', key: 'discipline', color: 'bg-amber-500'},
+                                    {label: 'Evolução', key: 'evolution', color: 'bg-purple-500'},
+                                    {label: 'Contexto', key: 'context', color: 'bg-slate-500'}
+                                ]">
+                                    <div>
+                                        <div class="flex justify-between text-xs mb-1.5">
+                                            <span class="text-slate-300 font-medium" x-text="pilar.label"></span>
+                                            <span class="text-white font-bold" x-text="formatNumber(empDetails?.analysis?.pillars?.[pilar.key]) + '%'"></span>
+                                        </div>
+                                        <div class="h-2 w-full bg-slate-700/50 rounded-full overflow-hidden">
+                                            <div class="h-full rounded-full transition-all duration-500"
+                                                 :class="pilar.color"
+                                                 :style="'width: ' + (empDetails?.analysis?.pillars?.[pilar.key] || 0) + '%'"></div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Notices -->
+                        <div class="space-y-2">
+                             <div class="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 flex items-start gap-3" x-show="empDetails?.analysis?.routine_missing">
+                                <i data-lucide="alert-triangle" class="w-5 h-5 text-rose-400 shrink-0"></i>
+                                <div>
+                                    <p class="text-xs font-bold text-rose-300">Atenção: Ausência de Rotina</p>
+                                    <p class="text-[10px] text-rose-200/70" x-text="empDetails?.analysis?.routine_missing_label"></p>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-start gap-3" x-show="empDetails?.analysis?.sample_small">
+                                <i data-lucide="info" class="w-5 h-5 text-amber-400 shrink-0"></i>
+                                <div>
+                                    <p class="text-xs font-bold text-amber-300">Amostra Pequena</p>
+                                    <p class="text-[10px] text-amber-200/70" x-text="empDetails?.analysis?.sample_note"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB: ANALYSIS -->
+                    <div x-show="activeTab === 'analysis'" class="space-y-6">
+                        
+                        <!-- Recommendations Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Promotion -->
+                            <div class="bg-slate-800/40 rounded-2xl p-5 border border-white/5">
+                                <div class="flex items-center gap-2 mb-3">
+                                    <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400"><i data-lucide="trending-up" class="w-4 h-4"></i></div>
+                                    <h3 class="text-sm font-bold text-white">Prontidão</h3>
+                                </div>
+                                <p class="text-xs text-slate-300 mb-2">
+                                    Nível: <strong class="text-white" x-text="empDetails?.analysis?.readiness_for_promotion || '-'"></strong>
+                                </p>
+                                <div class="space-y-2">
+                                    <template x-for="item in empDetails?.analysis?.recommendations?.promotion || []" :key="item.label">
+                                        <div class="text-[10px] bg-emerald-500/5 p-2 rounded border border-emerald-500/10">
+                                            <p class="font-bold text-emerald-300" x-text="item.label"></p>
+                                            <ul class="mt-1 list-disc list-inside text-emerald-200/60">
+                                                <template x-for="ev in item.evidence" :key="ev"><li x-text="ev"></li></template>
+                                            </ul>
+                                        </div>
+                                    </template>
+                                    <div x-show="!(empDetails?.analysis?.recommendations?.promotion || []).length" class="text-[10px] text-slate-500 italic">Nada consta.</div>
+                                </div>
+                            </div>
+
+                            <!-- Risk -->
+                            <div class="bg-slate-800/40 rounded-2xl p-5 border border-white/5">
+                                <div class="flex items-center gap-2 mb-3">
+                                    <div class="p-2 rounded-lg bg-rose-500/10 text-rose-400"><i data-lucide="alert-octagon" class="w-4 h-4"></i></div>
+                                    <h3 class="text-sm font-bold text-white">Risco Operacional</h3>
+                                </div>
+                                <p class="text-xs text-slate-300 mb-2">
+                                    Nível: <strong class="text-white" x-text="empDetails?.analysis?.risk_flag || '-'"></strong>
+                                </p>
+                                <div class="space-y-2">
+                                    <template x-for="item in empDetails?.analysis?.recommendations?.risk || []" :key="item.label">
+                                        <div class="text-[10px] bg-rose-500/5 p-2 rounded border border-rose-500/10">
+                                            <p class="font-bold text-rose-300" x-text="item.label"></p>
+                                            <ul class="mt-1 list-disc list-inside text-rose-200/60">
+                                                <template x-for="ev in item.evidence" :key="ev"><li x-text="ev"></li></template>
+                                            </ul>
+                                        </div>
+                                    </template>
+                                     <div x-show="!(empDetails?.analysis?.recommendations?.risk || []).length" class="text-[10px] text-slate-500 italic">Nada consta.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Strengths & Weaknesses -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <div class="bg-slate-800/40 rounded-2xl p-5 border border-white/5">
+                                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Pontos Fortes</h3>
+                                <ul class="space-y-2">
+                                    <template x-for="str in empDetails?.analysis?.strengths || []" :key="str">
+                                        <li class="flex items-start gap-2 text-xs text-slate-300">
+                                            <i data-lucide="check" class="w-3 h-3 text-emerald-500 mt-0.5"></i>
+                                            <span x-text="str"></span>
+                                        </li>
+                                    </template>
+                                     <div x-show="!(empDetails?.analysis?.strengths || []).length" class="text-[10px] text-slate-500 italic">Sem dados.</div>
+                                </ul>
+                            </div>
+                            
+                            <div class="bg-slate-800/40 rounded-2xl p-5 border border-white/5">
+                                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Pontos de Atenção</h3>
+                                <ul class="space-y-2">
+                                    <template x-for="loss in empDetails?.analysis?.losses || []" :key="loss">
+                                        <li class="flex items-start gap-2 text-xs text-slate-300">
+                                            <i data-lucide="x" class="w-3 h-3 text-rose-500 mt-0.5"></i>
+                                            <span x-text="loss"></span>
+                                        </li>
+                                    </template>
+                                     <div x-show="!(empDetails?.analysis?.losses || []).length" class="text-[10px] text-slate-500 italic">Sem dados.</div>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB: HISTORY -->
+                    <div x-show="activeTab === 'history'" class="space-y-6">
+                        
+                        <!-- Header Stats -->
+                         <div class="grid grid-cols-4 gap-2">
+                            <div class="bg-slate-800/40 p-3 rounded-xl border border-white/5 text-center">
+                                <span class="block text-xl font-bold text-slate-200" x-text="empDetails?.summary?.count"></span>
+                                <span class="text-[10px] text-slate-500 uppercase">Viagens</span>
+                            </div>
+                             <div class="bg-slate-800/40 p-3 rounded-xl border border-white/5 text-center">
+                                <span class="block text-xl font-bold text-slate-200" x-text="empDetails?.summary?.routine_days_logged"></span>
+                                <span class="text-[10px] text-slate-500 uppercase">Rotinas</span>
+                            </div>
+                             <div class="bg-slate-800/40 p-3 rounded-xl border border-white/5 text-center">
+                                <span class="block text-xl font-bold text-slate-200" x-text="empDetails?.summary?.total_hours"></span>
+                                <span class="text-[10px] text-slate-500 uppercase">Horas</span>
+                            </div>
+                             <div class="bg-slate-800/40 p-3 rounded-xl border border-white/5 text-center">
+                                <span class="block text-xl font-bold text-slate-200" x-text="empDetails?.analysis?.time_reliability_rate + '%'"></span>
+                                <span class="text-[10px] text-slate-500 uppercase">Confiab.</span>
+                            </div>
+                        </div>
+
+                        <!-- Timeline Chart Substitute (Day by day table) -->
+                        <div class="bg-slate-800/40 rounded-2xl border border-white/5 overflow-hidden">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-900/50 text-slate-500 uppercase tracking-wider font-semibold">
+                                    <tr>
+                                        <th class="px-4 py-3">Data</th>
+                                        <th class="px-4 py-3 text-right">Kg/h</th>
+                                        <th class="px-4 py-3 text-right">Ocorrência</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-white/5">
+                                    <template x-for="day in empDetails?.analysis?.timeline?.kgh_by_day || []" :key="day.date">
+                                        <tr class="hover:bg-slate-800/30">
+                                            <td class="px-4 py-3 font-medium text-slate-300" x-text="day.date"></td>
+                                            <td class="px-4 py-3 text-right font-mono text-emerald-400" x-text="day.kgh ? formatNumber(day.kgh) : '-'"></td>
+                                            <td class="px-4 py-3 text-right text-slate-500">-</td> 
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                             <div x-show="!(empDetails?.analysis?.timeline?.kgh_by_day || []).length" class="p-6 text-center text-xs text-slate-500 italic">Sem histórico diário.</div>
+                        </div>
+
+                         <!-- Absences List -->
+                         <div class="bg-slate-800/40 rounded-2xl border border-white/5 p-4" x-show="(empDetails?.analysis?.timeline?.absences_by_day || []).length > 0">
+                            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Histórico de Ausências</h3>
+                            <div class="space-y-2">
+                                <template x-for="abs in empDetails?.analysis?.timeline?.absences_by_day || []" :key="abs.date_br">
+                                    <div class="flex items-center justify-between p-2 rounded-lg bg-slate-900/50 border border-white/5">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-800 text-slate-400 text-[10px] font-bold">
+                                                <span x-text="abs.date_br.split('/')[0]"></span>
+                                            </div>
+                                            <div>
+                                                <p class="text-xs font-bold text-white" x-text="abs.type_label"></p>
+                                                <p class="text-[10px] text-slate-500" x-text="abs.source_label"></p>
+                                            </div>
+                                        </div>
+                                         <div x-show="abs.logs_count > 1" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                                            <span x-text="abs.logs_count"></span> logs
+                                         </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                    </div>
+
+
+                    <!-- TAB: ROUTES -->
+                    <div x-show="activeTab === 'routes'">
+                        <div class="bg-slate-800/40 rounded-2xl border border-white/5 overflow-hidden">
+                             <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-900/50 text-slate-500 uppercase tracking-wider font-semibold">
+                                    <tr>
+                                        <th class="px-4 py-3">Cliente / Horário</th>
+                                        <th class="px-4 py-3 text-right">Volume</th>
+                                        <th class="px-4 py-3 text-right">Vel.</th>
+                                        <th class="px-4 py-3 text-right">Duração</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-white/5">
+                                    <template x-for="route in (empDetails?.routes || [])" :key="route.id">
+                                        <tr class="hover:bg-slate-800/30 transition-colors">
+                                            <td class="px-4 py-3">
+                                                <p class="font-bold text-white mb-0.5" x-text="route.client"></p>
+                                                <p class="text-[10px] text-slate-500 font-mono" x-text="route.start + ' ➝ ' + route.end"></p>
+                                            </td>
+                                            <td class="px-4 py-3 text-right font-mono text-blue-300" x-text="formatNumber(route.tonnage)"></td>
+                                            <td class="px-4 py-3 text-right font-mono text-emerald-300" x-text="route.kgh"></td>
+                                            <td class="px-4 py-3 text-right font-mono text-slate-400" x-text="route.duration"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                            <div x-show="!(empDetails?.routes || []).length" class="p-8 text-center text-slate-500 text-xs italic">
+                                Nenhuma rota encontrada neste período.
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
+
     </div>
 </div>
 
@@ -410,6 +799,33 @@
             showModal: false,
             loading: false,
             empDetails: null,
+            searchTerm: "",
+            compactMode: false,
+            showDiscipline: true,
+
+            normalizeText(value) {
+                if (!value) return "";
+                return value
+                    .toString()
+                    .normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, "")
+                    .toLowerCase();
+            },
+
+            matchesSearch(value) {
+                const term = this.normalizeText(this.searchTerm);
+                if (!term) return true;
+                return this.normalizeText(value).includes(term);
+            },
+
+            formatAbsenceSource(source) {
+                const map = {
+                    routine: "Rotina",
+                    event_fallback: "Evento (fallback)",
+                    mixed: "Rotina + fallback"
+                };
+                return map[source] || "-";
+            },
 
             formatNumber(num) {
                 if (num === undefined || num === null) return '-';
@@ -439,6 +855,9 @@
                         throw new Error(msg);
                     }
                     this.empDetails = await res.json();
+                    if (!Array.isArray(this.empDetails?.routes)) {
+                        this.empDetails.routes = [];
+                    }
                 } catch (e) {
                     console.error(e);
                     alert(e.message || 'Erro ao carregar detalhes.');

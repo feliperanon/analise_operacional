@@ -1,5 +1,6 @@
 {% extends "mobile/layout.html" %}
 
+<<<<<<< HEAD
 {% block content %}
 <div class="min-h-screen bg-slate-900 text-slate-100 p-4 pb-safe">
     <div class="max-w-2xl mx-auto">
@@ -91,5 +92,97 @@ document.getElementById('ticketForm').addEventListener('submit', async (e) => {
         submitBtn.textContent = originalText;
     }
 });
+=======
+{% block title %}Novo Chamado{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-900 text-slate-100 p-5 pb-24">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-white">Abrir Chamado</h1>
+        <p class="text-sm text-slate-400">Registrar falha após o checklist.</p>
+    </div>
+
+    <form id="ticketForm" class="space-y-4">
+        <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Equipamento</label>
+            <select name="equipment_code" required
+                class="w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-sm text-white focus:border-blue-500 focus:outline-none appearance-none">
+                <option value="" disabled selected>Selecione o equipamento</option>
+                {% if equipment_list %}
+                {% for eq in equipment_list %}
+                <option value="{{ eq.code }}">{{ eq.code }} - {{ eq.name }}</option>
+                {% endfor %}
+                {% else %}
+                <option value="" disabled>Nenhum equipamento cadastrado</option>
+                {% endif %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Descrição</label>
+            <textarea name="description" rows="4" required
+                class="w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-sm text-white focus:border-blue-500 focus:outline-none"
+                placeholder="Ex: Rodas travando, alavanca com folga, vazamento..."></textarea>
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Fotos (opcional)</label>
+            <input type="file" name="files" multiple accept="image/*" capture="environment"
+                class="w-full text-xs text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-700 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-slate-600">
+        </div>
+
+        <button type="submit" id="submitBtn"
+            class="w-full rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 text-sm transition-colors">
+            Abrir Chamado
+        </button>
+        <p id="statusMessage" class="text-center text-xs text-slate-400 min-h-[1rem]"></p>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const form = document.getElementById('ticketForm');
+    const statusMessage = document.getElementById('statusMessage');
+    const submitBtn = document.getElementById('submitBtn');
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (submitBtn.disabled) return;
+
+        submitBtn.disabled = true;
+        statusMessage.textContent = 'Enviando chamado...';
+        statusMessage.className = 'text-center text-xs text-slate-400 min-h-[1rem]';
+
+        const formData = new FormData(form);
+        try {
+            const res = await fetch('/api/equipment/tickets', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await res.json();
+
+            if (res.status === 409) {
+                const existingId = result.existing_ticket_id;
+                const link = existingId ? `/mobile/equipment/tickets/${existingId}` : "/mobile/equipment/tickets";
+                statusMessage.innerHTML = `Atenção: ${result.error} <br><a href="${link}" class="underline text-blue-400 font-bold mt-1 block">Ver chamado existente</a>`;
+                statusMessage.className = 'text-center text-xs text-amber-400 min-h-[1rem] bg-amber-500/10 p-2 rounded-lg mt-2';
+                submitBtn.disabled = false;
+                return;
+            }
+
+            if (!res.ok || !result.success) {
+                throw new Error(result.error || 'Erro ao abrir chamado.');
+            }
+            statusMessage.textContent = 'Chamado registrado com sucesso.';
+            statusMessage.className = 'text-center text-xs text-emerald-400 min-h-[1rem]';
+            setTimeout(() => {
+                window.location.href = '/mobile/dashboard?success=chamado+criado';
+            }, 1000);
+        } catch (err) {
+            statusMessage.textContent = err.message || 'Falha ao enviar.';
+            statusMessage.className = 'text-center text-xs text-red-400 min-h-[1rem]';
+            submitBtn.disabled = false;
+        }
+    });
+>>>>>>> 6a2c22b005faeb1dc10a6197a33616fe697bc93f
 </script>
 {% endblock %}

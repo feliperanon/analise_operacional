@@ -2,6 +2,7 @@
 
 {% block content %}
 <div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8">
+<<<<<<< HEAD
     <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
         <div>
             <h1 class="text-2xl md:text-3xl font-bold text-white">Chamado #{{ ticket.id }}</h1>
@@ -71,12 +72,97 @@
                             onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\'%3E%3Crect fill=\'%23334155\' width=\'100\' height=\'100\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dy=\'.3em\' fill=\'%2394a3b8\' font-family=\'sans-serif\' font-size=\'12\'%3EImagem não encontrada%3C/text%3E%3C/svg%3E'; this.parentElement.classList.add('opacity-50');">
                         <div class="absolute inset-0 bg-slate-900/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                             <span class="text-xs text-white">Clique para ampliar</span>
+=======
+    <div class="mb-6">
+        <a href="/admin/equipment/tickets"
+            class="inline-flex items-center text-sm text-slate-400 hover:text-white mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+            Voltar
+        </a>
+        <div class="flex items-center justify-between">
+            <h1 class="text-2xl md:text-3xl font-bold text-white flex items-center gap-2">
+                Chamado #{{ data.ticket.id }}
+                <span
+                    class="text-sm px-2 py-1 rounded-full border {{ 'bg-amber-500/10 border-amber-500/30 text-amber-300' if data.ticket.status == 'open' else 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' }}">
+                    {{ 'ABERTO' if data.ticket.status == 'open' else 'FECHADO' }}
+                </span>
+            </h1>
+            <div class="flex gap-2">
+                {% if data.ticket.status == 'open' %}
+                <form action="/admin/equipment/tickets/{{ data.ticket.id }}/close" method="POST">
+                    <button type="submit"
+                        class="px-4 py-2 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors">
+                        Encerrar Chamado
+                    </button>
+                </form>
+                {% endif %}
+                <form action="/admin/equipment/tickets/{{ data.ticket.id }}/delete" method="POST"
+                    onsubmit="return confirm('Tem certeza que deseja excluir permanentemente este chamado?');">
+                    <input type="hidden" name="confirm_delete" value="true">
+                    <button type="submit"
+                        class="px-4 py-2 text-sm rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 font-semibold transition-colors">
+                        Excluir
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <!-- Main Card -->
+        <div class="md:col-span-2 bg-slate-800 border border-slate-700 rounded-2xl p-6">
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                    <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Equipamento</p>
+                    <p class="text-xl font-bold text-white">{{ data.ticket.equipment_code }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Data Abertura</p>
+                    <p class="text-base text-white">{{ data.created_at_br }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Severidade</p>
+                    <p
+                        class="text-base {{ 'text-red-400 font-bold' if data.ticket.severity == 'high' else 'text-emerald-400' }}">
+                        {{ 'ALTA (Bloqueio)' if data.ticket.severity == 'high' else 'Baixa' }}
+                    </p>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Aberto Por</p>
+                    <p class="text-base text-white">{{ data.employee.name }} ({{ data.ticket.shift }})</p>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-2">Descrição</p>
+                <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 text-slate-200 leading-relaxed">
+                    {{ data.ticket.description }}
+                </div>
+            </div>
+
+            {% if data.image_urls %}
+            <div>
+                <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-2">Imagens</p>
+                <div class="flex flex-wrap gap-4">
+                    {% for img in data.image_urls %}
+                    <a href="{{ img }}" target="_blank"
+                        class="block w-32 h-32 relative rounded-lg overflow-hidden border border-slate-600 hover:border-blue-500 transition-colors group">
+                        <img src="{{ img }}" class="w-full h-full object-cover">
+                        <div
+                            class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                            <span class="text-xs text-white bg-black/70 px-2 py-1 rounded">Ver</span>
+>>>>>>> 6a2c22b005faeb1dc10a6197a33616fe697bc93f
                         </div>
                     </a>
                     {% endfor %}
                 </div>
             </div>
             {% endif %}
+<<<<<<< HEAD
 
             <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5">
                 <h2 class="text-base font-semibold text-white mb-3">Informações</h2>
@@ -137,3 +223,49 @@
     </div>
 </div>
 {% endblock %}
+=======
+        </div>
+
+        <!-- Sidebar / Timeline -->
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 h-fit">
+            <h3 class="text-lg font-bold text-white mb-4">Histórico</h3>
+            <div class="relative pl-4 border-l border-slate-700 space-y-6">
+                <!-- Open -->
+                <div class="relative">
+                    <div class="absolute -left-[21px] top-1.5 w-3 h-3 rounded-full bg-blue-500 border border-slate-900">
+                    </div>
+                    <p class="text-sm font-semibold text-white">Chamado Aberto</p>
+                    <p class="text-xs text-slate-400">{{ data.created_at_br }}</p>
+                </div>
+
+                <!-- Events Loop -->
+                {% for event in data.events %}
+                {% if event.type != 'ticket' %} <!-- Skip creation event which matches above -->
+                <div class="relative">
+                    <div
+                        class="absolute -left-[21px] top-1.5 w-3 h-3 rounded-full {{ 'bg-emerald-500' if 'close' in event.type else 'bg-slate-500' }} border border-slate-900">
+                    </div>
+                    <p class="text-sm text-slate-200">{{ event.text }}</p>
+                    <p class="text-xs text-slate-400">{{ event.timestamp.strftime('%d/%m/%Y %H:%M') }}</p>
+                </div>
+                {% endif %}
+                {% endfor %}
+
+                {% if data.ticket.status == 'closed' %}
+                <div class="relative">
+                    <div
+                        class="absolute -left-[21px] top-1.5 w-3 h-3 rounded-full bg-emerald-500 border border-slate-900">
+                    </div>
+                    <p class="text-sm font-semibold text-emerald-400">Encerrado</p>
+                    <p class="text-xs text-slate-400">{{ data.closed_at_br }}</p>
+                    {% if data.ticket.closed_by %}
+                    <p class="text-xs text-slate-500">Por: {{ data.ticket.closed_by }}</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+>>>>>>> 6a2c22b005faeb1dc10a6197a33616fe697bc93f

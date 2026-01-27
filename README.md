@@ -158,7 +158,22 @@ LOG_LEVEL = logging.INFO  # (ou DEBUG se DEBUG=true)
    
    # Modo Debug (desabilitado por padrão)
    DEBUG=false
+
+   # E-mail de manutencao (SMTP)
+   # Necessario para enviar alertas de checklist e teste SMTP.
+   # Microsoft 365: SMTP_HOST=smtp.office365.com / SMTP_PORT=587 / SMTP_TLS=true
+   SMTP_HOST=smtp.seudominio.com
+   SMTP_PORT=587
+   SMTP_USER=usuario@seudominio.com
+   SMTP_PASS=sua_senha
+   SMTP_TLS=true
+   SMTP_USE_SSL=false
+
+   # Destinatarios padrao (opcional se cadastrados no painel)
+   MAINTENANCE_EMAIL_TO=manutencao@empresa.com
    ```
+
+   Use `.env.example` como base para a lista completa de variaveis.
 
 5. **Aplique otimizações de índices (Recomendado)**
 
