@@ -2656,15 +2656,16 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
                 "enabled": bool(employee.mobile_access_checklist),
                 "action": None
             },
-            {
-                "key": "tickets",
-                "label": "Chamados de Equipamento",
-                "description": "Registrar falhas pós-checklist.",
-                "icon": "alert-octagon",
-                "href": "/mobile/equipment/tickets/new",
-                "enabled": bool(employee.mobile_access),
-                "action": None
-            }
+            # Removido: Chamados de Equipamento (agora disponível no checklist)
+            # {
+            #     "key": "tickets",
+            #     "label": "Chamados de Equipamento",
+            #     "description": "Registrar falhas pós-checklist.",
+            #     "icon": "alert-octagon",
+            #     "href": "/mobile/equipment/tickets/new",
+            #     "enabled": bool(employee.mobile_access),
+            #     "action": None
+            # }
         ]
         modules = [m for m in modules if m.get("enabled")]
 
@@ -7658,10 +7659,30 @@ async def operations_performance_page(
         .group_by(models.Event.employee_id)
     )
     
-    # --- Contagem de ausências a partir de EmployeeRoutine (fonte única) ---
+    # --- Contagem de ausências usando fetch_absences_agg (obtém sources também) ---
     absence_counts = {}
-    _absence_unknown = {"unknown": 0, "examples": []}
+    absences_sources = {}
+    absences_debug_days = {}
     if all_employee_ids:
+        try:
+            absence_counts, absence_meta = fetch_absences_agg(
+                session,
+                all_employee_ids,
+                start_dt,
+                end_dt,
+                include_day_map=(LOG_LEVEL == logging.DEBUG)
+            )
+            absences_sources = absence_meta.get("sources", {})
+            if LOG_LEVEL == logging.DEBUG:
+                absences_debug_days = absence_meta.get("debug_days", {})
+        except Exception as e:
+            logger.exception(f"Erro ao buscar ausências: {e}")
+            absence_counts = {}
+            absences_sources = {}
+            absences_debug_days = {}
+    
+    # Fallback: se não conseguiu buscar, usar método antigo (só se absence_counts estiver vazio)
+    if not absence_counts and all_employee_ids:
         routines_rows = session.exec(
             select(models.EmployeeRoutine)
             .where(models.EmployeeRoutine.employee_id.in_(all_employee_ids))
@@ -7681,6 +7702,9 @@ async def operations_performance_page(
                 counts["leave"] += 1
             elif r_type in ["dayoff", "folga"]:
                 counts["offday"] += 1
+            # No fallback, assumir source como "routine"
+            if emp_id not in absences_sources:
+                absences_sources[emp_id] = "routine"
     
     # Buscar event_counts para ocorrências
     event_counts = {}

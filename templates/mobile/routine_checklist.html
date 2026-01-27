@@ -21,28 +21,45 @@
         </div>
 
         <div class="relative z-10 flex items-start justify-between mb-6">
-            <div>
-                <span
-                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 text-xs font-bold uppercase tracking-wider mb-2">
-                    <i data-lucide="zap" class="w-3.5 h-3.5"></i>
-                    Checklist Diário
-                </span>
+            <div class="flex-1">
+                <div class="flex items-center gap-3 mb-3">
+                    <a href="/mobile/dashboard"
+                        class="p-2 rounded-full bg-slate-800/80 border border-slate-700 text-slate-400 hover:text-white transition-colors active:scale-95">
+                        <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                    </a>
+                    <span
+                        class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 text-xs font-bold uppercase tracking-wider">
+                        <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+                        Checklist Diário
+                    </span>
+                </div>
                 <h1 class="text-3xl font-black text-white leading-tight">
                     Transpaleteira
                 </h1>
                 <p class="text-slate-400 text-sm mt-1">Garanta sua segurança e ganhe XP</p>
             </div>
 
-            <!-- XP Reward Badge -->
-            <div class="flex flex-col items-end">
-                <div
-                    class="w-12 h-12 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/20 mb-1 transform rotate-3">
-                    <span class="text-white font-black text-xs text-center leading-none">
-                        +50<br>XP
-                    </span>
+            <!-- XP Reward Badge & Novo Chamado Button -->
+            <div class="flex flex-col items-end gap-3">
+                <div class="flex flex-col items-end">
+                    <div
+                        class="w-12 h-12 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/20 mb-1 transform rotate-3">
+                        <span class="text-white font-black text-xs text-center leading-none">
+                            +50<br>XP
+                        </span>
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{{ employee.work_shift
+                        }}</span>
                 </div>
-                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{{ employee.work_shift
-                    }}</span>
+                <!-- Novo Chamado Button -->
+                <a href="/mobile/equipment/tickets/new"
+                    class="bg-gradient-to-br from-blue-500/20 to-indigo-500/20 border border-blue-500/30 rounded-2xl p-3 flex flex-col items-center justify-center gap-1.5 hover:from-blue-500/30 hover:to-indigo-500/30 transition-all active:scale-95 shadow-lg shadow-blue-500/10 group backdrop-blur-sm">
+                    <div
+                        class="w-9 h-9 rounded-full bg-blue-500/20 flex items-center justify-center group-hover:bg-blue-500/30 transition-colors">
+                        <i data-lucide="plus" class="w-4 h-4 text-blue-300 group-hover:text-blue-100"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-blue-200 group-hover:text-white">Novo chamado</span>
+                </a>
             </div>
         </div>
 
