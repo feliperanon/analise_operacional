@@ -4359,14 +4359,9 @@ async def mobile_ticket_new(request: Request, session: Session = Depends(get_ses
     if not employee:
         return RedirectResponse(url="/mobile/login", status_code=303)
     
-    # Buscar equipamentos disponíveis
     equipment_list = session.exec(
-        select(models.TranspalletEquipment)
-        .order_by(models.TranspalletEquipment.code)
+        select(models.TranspalletEquipment).order_by(models.TranspalletEquipment.code)
     ).all()
-    
-    # Fix: Fetch equipment list
-    equipment_list = session.exec(select(models.TranspalletEquipment).order_by(models.TranspalletEquipment.code)).all()
     
     return templates.TemplateResponse(
         "mobile/equipment_ticket_new.html",
@@ -4376,6 +4371,32 @@ async def mobile_ticket_new(request: Request, session: Session = Depends(get_ses
             "equipment_list": equipment_list
         }
     )
+
+@app.get("/mobile/equipment/tickets/{ticket_id}", response_class=HTMLResponse)
+async def mobile_ticket_detail(request: Request, ticket_id: int, session: Session = Depends(get_session)):
+    user = require_login(request)
+    if not isinstance(user, dict) or user.get("type") != "employee":
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    
+    employee = session.get(models.Employee, user.get("id"))
+    if not employee:
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    
+    ticket = session.get(models.EquipmentTicket, ticket_id)
+    if not ticket:
+        return HTMLResponse("Chamado não encontrado", status_code=404)
+    
+    # Verificar se o ticket pertence ao colaborador ou se é admin
+    if ticket.employee_id != employee.id:
+        return HTMLResponse("Acesso negado", status_code=403)
+    
+    images = [f"/static/uploads/tickets/{img}" for img in (ticket.images or [])]
+    
+    return templates.TemplateResponse("mobile/tickets_detail.html", {
+        "request": request,
+        "ticket": ticket,
+        "images": images
+    })
 
 @app.post("/mobile/equipment/tickets", response_class=JSONResponse)
 async def mobile_ticket_create(
