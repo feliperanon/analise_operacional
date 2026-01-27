@@ -5404,6 +5404,68 @@ async def admin_checklist_release_equipment(
         session.commit()
     return RedirectResponse(url=f"/admin/routine/checklists/{checklist_id}", status_code=status.HTTP_303_SEE_OTHER)
 
+@app.post("/admin/routine/checklists/{checklist_id}/resend-email", response_class=RedirectResponse)
+async def admin_checklist_resend_email(
+    request: Request,
+    checklist_id: int,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    """Reenviar e-mail de manutenção do checklist"""
+    checklist = session.get(models.TranspalletChecklist, checklist_id)
+    if not checklist:
+        raise HTTPException(status_code=404, detail="Checklist não encontrado.")
+    
+    employee = session.get(models.Employee, checklist.employee_id)
+    equipment = session.exec(
+        select(models.TranspalletEquipment).where(models.TranspalletEquipment.code == checklist.equipment_code)
+    ).first()
+    
+    # Buscar destinatários
+    recipients = session.exec(
+        select(models.ChecklistEmailRecipient)
+        .where(models.ChecklistEmailRecipient.is_active == True)
+    ).all()
+    recipient_emails = [r.email for r in recipients]
+    
+    if not recipient_emails:
+        checklist.maintenance_email_error = "Nenhum destinatário configurado"
+        session.add(checklist)
+        session.commit()
+        return RedirectResponse(url=f"/admin/routine/checklists/{checklist_id}?message=Nenhum+destinatário+configurado&level=error", status_code=status.HTTP_303_SEE_OTHER)
+    
+    # Montar relatório
+    label_map = checklist_item_label_map()
+    nonconforming_items = checklist_nonconforming_items(checklist.nonconforming_keys)
+    
+    report = {
+        "employee_name": employee.name if employee else "Desconhecido",
+        "equipment_code": checklist.equipment_code,
+        "date": checklist.date,
+        "shift": checklist.shift,
+        "nonconforming_items": nonconforming_items,
+        "critical": checklist.critical_flag,
+        "observations": checklist.observations or "",
+        "images": [f"/static/uploads/checklists/{img}" for img in (checklist.images or [])],
+        "subject": f"CHECKLIST — {checklist.equipment_code} — {'CRÍTICO' if checklist.critical_flag else 'NÃO CONFORME'}",
+        "body": f"Checklist #{checklist.id} do equipamento {checklist.equipment_code}."
+    }
+    
+    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    sent, error = send_maintenance_email(report, recipient_emails)
+    
+    if sent:
+        checklist.maintenance_email_sent_at = now_br
+        checklist.maintenance_email_error = None
+        session.add(checklist)
+        session.commit()
+        return RedirectResponse(url=f"/admin/routine/checklists/{checklist_id}?message=E-mail+reenviado+com+sucesso&level=success", status_code=status.HTTP_303_SEE_OTHER)
+    else:
+        checklist.maintenance_email_error = error or "Falha ao enviar e-mail"
+        session.add(checklist)
+        session.commit()
+        return RedirectResponse(url=f"/admin/routine/checklists/{checklist_id}?message=Erro+ao+reenviar+e-mail&level=error", status_code=status.HTTP_303_SEE_OTHER)
+
 @app.post("/api/routine/checklists")
 async def api_create_checklist(
     request: Request,
