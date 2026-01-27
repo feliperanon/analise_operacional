@@ -23704,3 +23704,15 @@ LINE 1: ...cket.employee_id, equipmentticket.equipment_code, equipmentt...
 FROM equipmentticket JOIN employee ON employee.id = equipmentticket.employee_id ORDER BY equipmentticket.created_at DESC]
 (Background on this error at: https://sqlalche.me/e/20/f405)
 
+2026-01-27 15:22:51,047 | ERROR    | main | Error loading ticket 3
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 13714, in admin_equipment_ticket_detail
+    select(models.EquipmentTicketEvent)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'models' has no attribute 'EquipmentTicketEvent'. Did you mean: 'EquipmentTicket'?
+2026-01-27 15:23:57,516 | ERROR    | main | Error loading ticket 3
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 13714, in admin_equipment_ticket_detail
+    select(models.EquipmentTicketEvent)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'models' has no attribute 'EquipmentTicketEvent'. Did you mean: 'EquipmentTicket'?
