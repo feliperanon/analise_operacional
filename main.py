@@ -1498,8 +1498,8 @@ def get_dashboard_data(session: Session, shift_filter: str):
                  # If start_dt is 0-4 hours AHEAD of now, it's likely a UTC->Local mismatch (e.g. 09:00 vs 06:00)
                  diff_sec = (start_dt - now_br).total_seconds()
                  
-                 display_time = r.start_time # Default to raw
-                 
+                display_time = r.start_time # Default to raw
+                
                 if diff_sec > 0 and diff_sec < 4 * 3600:
                     # Correct it: Subtract 3 hours
                     start_dt = start_dt - timedelta(hours=3)
