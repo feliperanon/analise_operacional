@@ -39,8 +39,15 @@
                 <p class="text-slate-400 text-sm mt-1">Garanta sua segurança e ganhe XP</p>
             </div>
 
-            <!-- XP Reward Badge & Novo Chamado Button -->
-            <div class="flex flex-col items-end gap-3">
+            <!-- XP Reward Badge -->
+            <div class="flex items-center gap-3">
+                <!-- Novo Chamado Button -->
+                <a href="/mobile/equipment/tickets/new"
+                    class="flex items-center gap-2 bg-blue-500/20 border border-blue-500/30 rounded-xl px-3 py-2 hover:bg-blue-500/30 transition-all active:scale-95 group">
+                    <i data-lucide="alert-circle" class="w-4 h-4 text-blue-400 group-hover:text-blue-300"></i>
+                    <span class="text-xs font-bold text-blue-300 group-hover:text-white whitespace-nowrap">Abrir Chamado</span>
+                </a>
+                
                 <div class="flex flex-col items-end">
                     <div
                         class="w-12 h-12 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/20 mb-1 transform rotate-3">
@@ -48,18 +55,8 @@
                             +50<br>XP
                         </span>
                     </div>
-                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{{ employee.work_shift
-                        }}</span>
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{{ employee.work_shift }}</span>
                 </div>
-                <!-- Novo Chamado Button -->
-                <a href="/mobile/equipment/tickets/new"
-                    class="bg-gradient-to-br from-blue-500/20 to-indigo-500/20 border border-blue-500/30 rounded-2xl p-3 flex flex-col items-center justify-center gap-1.5 hover:from-blue-500/30 hover:to-indigo-500/30 transition-all active:scale-95 shadow-lg shadow-blue-500/10 group backdrop-blur-sm">
-                    <div
-                        class="w-9 h-9 rounded-full bg-blue-500/20 flex items-center justify-center group-hover:bg-blue-500/30 transition-colors">
-                        <i data-lucide="plus" class="w-4 h-4 text-blue-300 group-hover:text-blue-100"></i>
-                    </div>
-                    <span class="text-[10px] font-bold text-blue-200 group-hover:text-white">Novo chamado</span>
-                </a>
             </div>
         </div>
 
