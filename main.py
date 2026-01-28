@@ -4557,8 +4557,6 @@ async def mobile_ticket_create(
                 "Descrição do problema:",
                 description,
                 "",
-                f"Acesse o sistema para mais detalhes: {ticket_link}",
-                "",
                 "Atenciosamente,",
                 "Sistema de Operação Inteligente"
             ]
@@ -5561,8 +5559,6 @@ async def admin_checklist_resend_email(
         "",
         f"Observações: {checklist.observations or '-'}",
         "",
-        f"Acesse o sistema para mais detalhes: {checklist_link}",
-        "",
         "Atenciosamente,",
         "Sistema de Operação Inteligente"
     ]
@@ -5719,8 +5715,6 @@ async def api_create_checklist(
             *nonconforming_lines,
             "",
             f"Observações: {report['observations']}",
-            "",
-            f"Acesse o sistema para mais detalhes: {report['checklist_link']}",
             "",
             "Atenciosamente,",
             "Sistema de Operação Inteligente"
