@@ -9081,15 +9081,15 @@ async def get_ranking_details(
             }
 
         group_employee_ids = list(group_stats.keys())
-        group_absence_counts, _group_absence_unknown = fetch_absences_agg(session, group_employee_ids, start_dt, end_dt) if group_employee_ids else ({}, {})
+        group_absence_counts, _group_absence_unknown = fetch_absences_agg(session, group_employee_ids, start_datetime, end_datetime) if group_employee_ids else ({}, {})
 
         group_event_counts = {}
         if group_employee_ids:
             group_event_query = (
                 select(models.Event.employee_id, func.count())
                 .where(models.Event.employee_id.is_not(None))
-                .where(models.Event.timestamp >= start_dt)
-                .where(models.Event.timestamp <= end_dt)
+                .where(models.Event.timestamp >= start_datetime)
+                .where(models.Event.timestamp <= end_datetime)
                 .where(models.Event.type.in_(list(OCCURRENCE_TYPES)))
                 .where(models.Event.employee_id.in_(group_employee_ids))
                 .group_by(models.Event.employee_id)
