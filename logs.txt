@@ -24886,3 +24886,5 @@ Traceback (most recent call last):
                             ^^^^^^^^^^^^^^^^^^^^^^^
 AttributeError: module 'models' has no attribute 'RoutineChecklist'
 
+2026-01-28 07:50:38,643 | INFO     | main | Enviando e-mail de manutencao | host=smtp.office365.com port=587 tls=True ssl=False from=felipe.pires@nlfrutas.com.br recipients=['feliperanon@live.com'] subject=ALERTA MANUTENÇÃO — 2026-01-28 — Equipamento 0001
+2026-01-28 07:50:42,966 | INFO     | main | E-mail de manutencao enviado com sucesso.

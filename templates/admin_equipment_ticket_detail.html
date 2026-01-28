@@ -64,6 +64,37 @@
                     <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Aberto Por</p>
                     <p class="text-base text-white">{{ data.employee.name if data.employee else '-' }} ({{ data.ticket.shift or '-' }})</p>
                 </div>
+                <div class="col-span-2">
+                    <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Status do E-mail</p>
+                    {% set has_email_sent = data.ticket.email_sent_at or data.ticket.maintenance_email_sent_at %}
+                    {% set has_email_error = data.ticket.email_error or data.ticket.maintenance_email_error %}
+                    {% if has_email_sent %}
+                    <div class="mt-1 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                        <span class="text-xs text-emerald-200 font-semibold">
+                            E-mail enviado em
+                            {{ (data.ticket.maintenance_email_sent_at or data.ticket.email_sent_at).strftime('%d/%m/%Y %H:%M') }}
+                        </span>
+                    </div>
+                    {% elif has_email_error %}
+                    <div class="mt-1 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/30">
+                        <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                        <span class="text-xs text-red-200 font-semibold">
+                            Falha ao enviar e-mail
+                        </span>
+                    </div>
+                    <p class="mt-1 text-[11px] text-red-300/80 break-words max-w-xl">
+                        {{ data.ticket.maintenance_email_error or data.ticket.email_error }}
+                    </p>
+                    {% else %}
+                    <div class="mt-1 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800 border border-slate-600/60">
+                        <span class="w-2 h-2 rounded-full bg-slate-500"></span>
+                        <span class="text-xs text-slate-300 font-semibold">
+                            Ainda não enviado
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
 
             <div class="mb-6">
