@@ -5436,6 +5436,136 @@ async def admin_checklist_edit(
     session.commit()
     return RedirectResponse(url=f"/admin/routine/checklists/{checklist_id}", status_code=status.HTTP_303_SEE_OTHER)
 
+
+@app.post("/admin/tools/cleanup/checklists", response_class=RedirectResponse)
+async def admin_cleanup_all_checklists(
+    request: Request,
+    confirm_phrase: str = Form(...),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    """
+    Remove TODOS os checklists operacionais (TranspalletChecklist),
+    limpa histórico em todas as páginas (por exclusão no banco) e
+    remove automaticamente o XP já creditado.
+
+    Uso exclusivo para admin/líder, com confirmação forte.
+    """
+    phrase = (confirm_phrase or "").strip().lower()
+    expected = "apagar todos os checklists"
+    if phrase != expected:
+        return RedirectResponse(
+            url="/admin/routine/checklists/settings?message=Frase+de+confirma%C3%A7%C3%A3o+inv%C3%A1lida.&level=error",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+
+    # Buscar todos os checklists
+    checklists = session.exec(select(models.TranspalletChecklist)).all()
+
+    for checklist in checklists:
+        # Liberar equipamento se bloqueado por este checklist
+        if checklist.equipment_code:
+            eq = session.exec(
+                select(models.TranspalletEquipment).where(
+                    models.TranspalletEquipment.code == checklist.equipment_code
+                )
+            ).first()
+            if eq and eq.status == "blocked" and eq.last_checklist_id == checklist.id:
+                eq.status = "available"
+                eq.blocked_reason = None
+                eq.last_checklist_id = None
+                session.add(eq)
+
+        # Remover XP se houve transação
+        if checklist.xp_transaction_id:
+            tx = session.get(models.GameXPTransaction, checklist.xp_transaction_id)
+            if tx:
+                if tx.status in ["approved", "confirmed"]:
+                    emp = session.get(models.Employee, checklist.employee_id)
+                    if emp and tx.amount:
+                        emp.total_xp = max(0, emp.total_xp - abs(tx.amount))
+                        session.add(emp)
+
+                tx.status = "rejected"
+                note = f"Revogado: Checklist #{checklist.id} exclu%C3%ADdo+no+cleanup+global."
+                if tx.reason:
+                    if "Revogado: Checklist" not in tx.reason:
+                        tx.reason = f"{tx.reason} | {note}"
+                else:
+                    tx.reason = note
+                session.add(tx)
+
+        # Evento de auditoria
+        session.add(
+            models.Event(
+                timestamp=now_br,
+                text=f"Checklist #{checklist.id} excluído em limpeza global por {user}.",
+                type="checklist_delete",
+                category="processo",
+                sector=checklist.equipment_code,
+                impact="high",
+                reference_type="checklist",
+                reference_id=checklist.id,
+                employee_id=checklist.employee_id,
+            )
+        )
+
+        session.delete(checklist)
+
+    session.commit()
+    return RedirectResponse(
+        url="/admin/routine/checklists/settings?message=Todos+os+checklists+foram+apagados+com+sucesso.&level=success",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@app.post("/admin/tools/cleanup/tickets", response_class=RedirectResponse)
+async def admin_cleanup_all_tickets(
+    request: Request,
+    confirm_phrase: str = Form(...),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    """
+    Remove TODOS os chamados de equipamento (EquipmentTicket) e seus eventos
+    de histórico. Uso exclusivo para admin/líder, com confirmação forte.
+    """
+    phrase = (confirm_phrase or "").strip().lower()
+    expected = "apagar todos os chamados"
+    if phrase != expected:
+        return RedirectResponse(
+            url="/admin/equipment/tickets?message=Frase+de+confirma%C3%A7%C3%A3o+inv%C3%A1lida.&level=error",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    # Buscar todos os tickets
+    tickets = session.exec(select(models.EquipmentTicket)).all()
+
+    for ticket in tickets:
+        # Remover eventos de histórico deste ticket, se modelo existir
+        try:
+            events = session.exec(
+                select(models.EquipmentTicketEvent).where(
+                    models.EquipmentTicketEvent.ticket_id == ticket.id
+                )
+            ).all()
+            for ev in events:
+                session.delete(ev)
+        except AttributeError:
+            # Se não existir EquipmentTicketEvent no modelo, ignora silenciosamente
+            pass
+
+        # Não há XP direto amarrado ao ticket, então apenas deletamos
+        session.delete(ticket)
+
+    session.commit()
+    return RedirectResponse(
+        url="/admin/equipment/tickets?message=Todos+os+chamados+foram+apagados+com+sucesso.&level=success",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
 @app.post("/admin/routine/checklists/{checklist_id}/approve", response_class=RedirectResponse)
 async def admin_checklist_approve(
     request: Request,
@@ -7685,21 +7815,42 @@ async def operations_performance_page(
             .where(models.EmployeeRoutine.date <= end_date.strftime("%Y-%m-%d"))
         ).all()
 
+        # Usar set para contar apenas dias únicos (evita contar 3x por turno)
+        absence_days = {}  # {emp_id: {type: set(dates)}}
         for r in routines_rows:
             emp_id = r.employee_id
             r_type = (r.routine or "").lower()
-            counts = absence_counts.setdefault(emp_id, {"justified": 0, "unjustified": 0, "leave": 0, "offday": 0})
+            date_key = str(r.date) if r.date else None
+            if not date_key:
+                continue
+            
+            days_map = absence_days.setdefault(emp_id, {
+                "unjustified": set(),
+                "justified": set(),
+                "leave": set(),
+                "offday": set()
+            })
+            
             if r_type in ["absent", "falta"]:
-                counts["unjustified"] += 1
+                days_map["unjustified"].add(date_key)
             elif r_type in ["sick", "atestado"]:
-                counts["justified"] += 1
+                days_map["justified"].add(date_key)
             elif r_type in ["away", "afastado"]:
-                counts["leave"] += 1
+                days_map["leave"].add(date_key)
             elif r_type in ["dayoff", "folga"]:
-                counts["offday"] += 1
-            # No fallback, assumir source como "routine"
+                days_map["offday"].add(date_key)
+            
             if emp_id not in absences_sources:
                 absences_sources[emp_id] = "routine"
+        
+        # Converter sets para contagens
+        for emp_id, days_map in absence_days.items():
+            absence_counts[emp_id] = {
+                "unjustified": len(days_map["unjustified"]),
+                "justified": len(days_map["justified"]),
+                "leave": len(days_map["leave"]),
+                "offday": len(days_map["offday"])
+            }
     
     # Buscar event_counts para ocorrências
     event_counts = {}
@@ -8808,22 +8959,30 @@ async def get_ranking_details(
             .where(models.EmployeeRoutine.date <= end_date_str)
         ).all()
 
-        # Contar por tipo de rotina
-        justified_days = 0
-        unjustified_days = 0
-        leave_days = 0
-        offday_days = 0
+        # Contar dias únicos por tipo de rotina (evita contar 3x por turno)
+        justified_dates = set()
+        unjustified_dates = set()
+        leave_dates = set()
+        offday_dates = set()
 
         for r in routines_rows:
             r_type = (r.routine or "").lower()
+            date_key = str(r.date) if r.date else None
+            if not date_key:
+                continue
             if r_type in ["absent", "falta"]:
-                unjustified_days += 1
+                unjustified_dates.add(date_key)
             elif r_type in ["sick", "atestado"]:
-                justified_days += 1
+                justified_dates.add(date_key)
             elif r_type in ["away", "afastado"]:
-                leave_days += 1
+                leave_dates.add(date_key)
             elif r_type in ["dayoff", "folga"]:
-                offday_days += 1
+                offday_dates.add(date_key)
+        
+        justified_days = len(justified_dates)
+        unjustified_days = len(unjustified_dates)
+        leave_days = len(leave_dates)
+        offday_days = len(offday_dates)
         
         # Calcular eventos de ausência a partir dos dados já processados
         absence_events = {
