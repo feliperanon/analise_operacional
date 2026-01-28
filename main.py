@@ -8999,11 +8999,15 @@ async def get_ranking_details(
         absence_penalty_factor = get_absence_penalty(period, unjustified_days)
         discipline_rate = 1 - (unjustified_days / max(1, total_days))
 
+        # Converter datas para datetime para filtro de eventos
+        start_datetime = datetime.combine(start_date_obj, datetime.min.time())
+        end_datetime = datetime.combine(end_date_obj, datetime.max.time())
+        
         event_query = (
             select(func.count(models.Event.id))
             .where(models.Event.employee_id == employee_id)
-            .where(models.Event.timestamp >= start_dt)
-            .where(models.Event.timestamp <= end_dt)
+            .where(models.Event.timestamp >= start_datetime)
+            .where(models.Event.timestamp <= end_datetime)
             .where(models.Event.type.in_(list(OCCURRENCE_TYPES)))
         )
         try:
@@ -11574,8 +11578,7 @@ async def set_employee_routine_extended(
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
         end_date = start_date + timedelta(days=days - 1)
         
-        # Validar conflitos: verificar se já existe rotina para algum dia do período
-        # Agrupar por data para mostrar apenas datas únicas
+        # Verificar quais dias já existem para ignorá-los (não sobrescrever)
         existing_routines = session.exec(
             select(models.EmployeeRoutine)
             .where(models.EmployeeRoutine.employee_id == int(employee_id))
@@ -11583,20 +11586,25 @@ async def set_employee_routine_extended(
             .where(models.EmployeeRoutine.date <= end_date.strftime("%Y-%m-%d"))
         ).all()
         
-        if existing_routines:
-            # Agrupar por data única
-            conflict_dates_set = set()
-            for r in existing_routines:
-                if isinstance(r.date, str):
-                    conflict_dates_set.add(r.date)
-                else:
-                    conflict_dates_set.add(r.date.strftime("%Y-%m-%d"))
-            
-            conflict_dates = sorted(list(conflict_dates_set))
-            conflict_dates_formatted = [datetime.strptime(d, "%Y-%m-%d").strftime("%d/%m/%Y") if len(d) == 10 else d for d in conflict_dates]
-            
+        # Agrupar dias que já existem
+        existing_dates_set = set()
+        for r in existing_routines:
+            if isinstance(r.date, str):
+                existing_dates_set.add(r.date)
+            else:
+                existing_dates_set.add(r.date.strftime("%Y-%m-%d"))
+        
+        # Verificar se TODOS os dias já existem
+        all_dates_in_range = set()
+        check_date = start_date
+        while check_date <= end_date:
+            all_dates_in_range.add(check_date.strftime("%Y-%m-%d"))
+            check_date += timedelta(days=1)
+        
+        if existing_dates_set >= all_dates_in_range:
+            conflict_dates_formatted = [datetime.strptime(d, "%Y-%m-%d").strftime("%d/%m/%Y") for d in sorted(list(existing_dates_set))]
             return JSONResponse({
-                "error": f"Conflito detectado: já existem registros para os dias {', '.join(conflict_dates_formatted)}",
+                "error": f"Todos os dias do período já possuem registros: {', '.join(conflict_dates_formatted)}",
                 "conflicts": conflict_dates_formatted,
                 "success": False
             }, status_code=400)
@@ -11622,13 +11630,20 @@ async def set_employee_routine_extended(
         }
         event_type = event_type_map.get(routine, 'routine_change')
         
-        # Criar rotinas e eventos para cada dia
+        # Criar rotinas e eventos para cada dia (ignorando dias que já existem)
         created_count = 0
+        skipped_count = 0
         current_date = start_date
         br_tz = ZoneInfo("America/Sao_Paulo")
         
         while current_date <= end_date:
             date_str = current_date.strftime("%Y-%m-%d")
+            
+            # Pular dias que já existem
+            if date_str in existing_dates_set:
+                skipped_count += 1
+                current_date += timedelta(days=1)
+                continue
             
             # Criar EmployeeRoutine para cada turno
             for shift_name in ["Manhã", "Tarde", "Noite"]:
@@ -11672,12 +11687,19 @@ async def set_employee_routine_extended(
         
         session.commit()
         
-        print(f"✅ Rotina estendida criada: {employee.name} - {routine} de {start_date_str} por {days} dias ({created_count} registros)")
+        # Mensagem informativa
+        skipped_info = f" ({skipped_count} dias já existiam e foram ignorados)" if skipped_count > 0 else ""
+        print(f"✅ Rotina estendida criada: {employee.name} - {routine} de {start_date_str} por {days} dias ({created_count} registros criados{skipped_info})")
+        
+        message = f"Rotina criada com sucesso para {created_count} dias"
+        if skipped_count > 0:
+            message += f". {skipped_count} dia(s) já existiam e foram ignorados."
         
         return {
             "success": True,
-            "message": f"Rotina criada com sucesso para {created_count} dias",
-            "created_days": created_count
+            "message": message,
+            "created_days": created_count,
+            "skipped_days": skipped_count
         }
     except Exception as e:
         print(f"❌ Erro ao criar rotina estendida: {e}")
