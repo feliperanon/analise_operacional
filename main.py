@@ -13660,12 +13660,37 @@ def get_people_intelligence_metrics(session: Session, shift: str, start_date: Op
     # Filter routines for selected shift employees
     routines = [r for r in routines if r.employee_id in employee_ids]
     
-    # Contadores gerais (Dias)
-    total_absences = sum(1 for r in routines if r.routine in ['absent', 'falta'])
-    total_sick = sum(1 for r in routines if r.routine in ['sick', 'atestado'])
-    total_away = sum(1 for r in routines if r.routine in ['away', 'afastado'])
+    # Agrupar por dia único (employee_id + date) para evitar contagem duplicada
+    # Cada dia pode ter até 3 registros (Manhã, Tarde, Noite)
+    unique_days = {}  # (emp_id, date) -> routine_type (prioridade: absent > sick > away)
+    for r in routines:
+        key = (r.employee_id, str(r.date))
+        r_type = r.routine
+        # Normalizar tipos
+        if r_type in ['absent', 'falta']:
+            normalized = 'falta'
+        elif r_type in ['sick', 'atestado']:
+            normalized = 'atestado'
+        elif r_type in ['away', 'afastado']:
+            normalized = 'afastamento'
+        else:
+            continue  # Ignorar outros tipos (present, vacation, etc.)
+        
+        # Se já existe um registro para esse dia, manter o de maior prioridade
+        if key not in unique_days:
+            unique_days[key] = normalized
+        else:
+            # Prioridade: falta > atestado > afastamento
+            priority = {'falta': 3, 'atestado': 2, 'afastamento': 1}
+            if priority.get(normalized, 0) > priority.get(unique_days[key], 0):
+                unique_days[key] = normalized
     
-    # 2. Rankings (Top Offenders - by DAYS)
+    # Contadores gerais (Dias ÚNICOS)
+    total_absences = sum(1 for v in unique_days.values() if v == 'falta')
+    total_sick = sum(1 for v in unique_days.values() if v == 'atestado')
+    total_away = sum(1 for v in unique_days.values() if v == 'afastamento')
+    
+    # 2. Rankings (Top Offenders - by UNIQUE DAYS)
     emp_stats = {}
     
     # Initial population from employees list (to blank fill)
@@ -13675,18 +13700,11 @@ def get_people_intelligence_metrics(session: Session, shift: str, start_date: Op
                 delta = datetime.now() - emp.admission_date
                 emp_stats[emp.id]['tenure_months'] = int(delta.days / 30)
 
-    # Count Routines (Days)
-    for r in routines:
-        if r.employee_id not in emp_stats: continue # Should be covered by filter above
-        
-        # Normalize routine types
-        r_type = r.routine
-        if r_type in ['absent', 'falta']:
-            emp_stats[r.employee_id]['falta'] += 1
-        elif r_type in ['sick', 'atestado']:
-            emp_stats[r.employee_id]['atestado'] += 1
-        elif r_type in ['away', 'afastado']:
-            emp_stats[r.employee_id]['afastamento'] += 1
+    # Count unique days per employee
+    for (emp_id, day), routine_type in unique_days.items():
+        if emp_id not in emp_stats:
+            continue
+        emp_stats[emp_id][routine_type] += 1
             
     # Include Events only for "Advertencia" (which is an event, not a routine status)
     filtered_events = [e for e in events if e.employee_id in employee_ids]
@@ -13705,7 +13723,6 @@ def get_people_intelligence_metrics(session: Session, shift: str, start_date: Op
         ranking_data.append(stats)
             
     # Sorts - Only show employees with actual data
-    top_absent = sorted([r for r in ranking_data if r['falta'] > 0], key=lambda x: x['falta'], reverse=True)
     top_absent = sorted([r for r in ranking_data if r['falta'] > 0], key=lambda x: x['falta'], reverse=True)
     top_sick = sorted([r for r in ranking_data if r['atestado'] > 0], key=lambda x: x['atestado'], reverse=True)
     top_away = sorted([r for r in ranking_data if r['afastamento'] > 0], key=lambda x: x['afastamento'], reverse=True)
@@ -13806,7 +13823,6 @@ def get_people_intelligence_metrics(session: Session, shift: str, start_date: Op
             "presence_rate": presence_rate,
             "chronic_count": len(chronic_offenders)
         },
-        "top_absent": top_absent,
         "top_absent": top_absent,
         "top_sick": top_sick,
         "top_away": top_away,
