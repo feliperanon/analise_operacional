@@ -8824,9 +8824,17 @@ async def get_ranking_details(
                 leave_days += 1
             elif r_type in ["dayoff", "folga"]:
                 offday_days += 1
-        absence_events = absence_event_counts_map.get(employee_id, {"justified": 0, "unjustified": 0, "leave": 0, "offday": 0, "total": 0})
-        absence_event_day_map = absence_event_day_counts.get(employee_id, {})
-        absence_event_record_map = absence_event_record_ids.get(employee_id, {}) if LOG_LEVEL == logging.DEBUG else {}
+        
+        # Calcular eventos de ausência a partir dos dados já processados
+        absence_events = {
+            "justified": justified_days,
+            "unjustified": unjustified_days,
+            "leave": leave_days,
+            "offday": offday_days,
+            "total": justified_days + unjustified_days + leave_days + offday_days
+        }
+        absence_event_day_map = {}
+        absence_event_record_map = {}
         adjusted_denominator = max(1, total_days - justified_days - leave_days - offday_days)
         regularity_adjusted = len(active_days) / adjusted_denominator
         absence_penalty_factor = get_absence_penalty(period, unjustified_days)
