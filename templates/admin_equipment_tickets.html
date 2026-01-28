@@ -173,5 +173,42 @@
             </tbody>
         </table>
     </div>
+
+    <!-- Danger Zone: Limpeza de Chamados -->
+    <div class="mt-8 bg-red-950/40 border border-red-800/60 rounded-2xl p-6">
+        <div class="flex items-start justify-between gap-4 mb-4">
+            <div>
+                <h2 class="text-lg font-bold text-red-200 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8v4m0 4h.01M5.07 19.07A10 10 0 1118.93 5.07 10 10 0 015.07 19.07z" />
+                    </svg>
+                    Zona de Risco – Chamados de Equipamento
+                </h2>
+                <p class="text-xs text-red-200/80 mt-1 max-w-xl">
+                    Esta ação remove <span class="font-bold">TODOS os chamados de equipamento</span> e seus eventos de
+                    histórico. Use apenas em ambiente de teste/homologação ou para reset completo.
+                </p>
+            </div>
+        </div>
+
+        <form action="/admin/tools/cleanup/tickets" method="POST"
+            onsubmit="return confirm('Tem certeza absoluta que deseja APAGAR TODOS os chamados de equipamento? Esta ação não pode ser desfeita.');"
+            class="mt-2 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+            <div class="flex-1">
+                <label class="block text-[11px] font-semibold text-red-200 uppercase tracking-wide mb-1">
+                    Confirmação obrigatória
+                </label>
+                <input type="text" name="confirm_phrase" required
+                    placeholder="Digite APAGAR TODOS os CHAMADOS"
+                    class="w-full rounded-lg bg-slate-950/60 border border-red-500/40 px-3 py-2 text-sm text-red-100 placeholder:text-red-300/60 focus:border-red-400 focus:outline-none">
+            </div>
+            <button type="submit"
+                class="w-full sm:w-auto rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold px-4 py-2.5 text-sm transition-colors shadow-lg shadow-red-900/40 border border-red-500/70">
+                Apagar TODOS os Chamados
+            </button>
+        </form>
+    </div>
 </div>
 {% endblock %}
