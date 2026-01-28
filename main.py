@@ -2,7 +2,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, UploadFile, File
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response, StreamingResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from typing import Optional, List
 import json
@@ -254,6 +254,7 @@ async def lifespan(app: FastAPI):
         ensure_event_reference_schema()
         ensure_checklist_email_schema()
         ensure_checklist_edit_schema()
+        ensure_pallet_count_schema()
         with Session(engine) as session:
             ensure_default_admin(session)
     except Exception as e:
@@ -983,6 +984,130 @@ def ensure_checklist_edit_schema():
                 continue
             conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}"))
 
+def ensure_pallet_count_schema():
+    """Cria ou atualiza as tabelas do sistema de contagem de paleteiras"""
+    inspector = inspect(engine)
+    existing_tables = inspector.get_table_names()
+    
+    # Criar tabela PalletSector se não existir
+    if "palletsector" not in existing_tables:
+        with engine.begin() as conn:
+            conn.execute(text("""
+                CREATE TABLE palletsector (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    "order" INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_palletsector_name ON palletsector (name)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_palletsector_is_active ON palletsector (is_active)"))
+            print("✅ Tabela palletsector criada")
+    
+    # Verificar se sector_id tem constraint NOT NULL e remover
+    if "palletcount" in existing_tables:
+        try:
+            with engine.begin() as conn:
+                # Alterar sector_id para permitir NULL
+                conn.execute(text("ALTER TABLE palletcount ALTER COLUMN sector_id DROP NOT NULL"))
+        except Exception:
+            pass  # Já permite NULL ou erro ignorável
+    
+    # Criar tabela PalletCount se não existir ou recriar se estrutura antiga
+    if "palletcount" not in existing_tables:
+        with engine.begin() as conn:
+            conn.execute(text("""
+                CREATE TABLE palletcount (
+                    id SERIAL PRIMARY KEY,
+                    pallet_number VARCHAR(50) NOT NULL,
+                    date VARCHAR(10) NOT NULL,
+                    shift VARCHAR(20) NOT NULL,
+                    sector_id INTEGER REFERENCES palletsector(id),
+                    employee_id INTEGER NOT NULL REFERENCES employee(id),
+                    status VARCHAR(20) DEFAULT 'found',
+                    observations TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_palletcount_pallet_number ON palletcount (pallet_number)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_palletcount_date ON palletcount (date)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_palletcount_shift ON palletcount (shift)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_palletcount_status ON palletcount (status)"))
+            print("✅ Tabela palletcount criada")
+    else:
+        # Verificar se a tabela tem estrutura antiga (quantity) e migrar para nova (pallet_number)
+        existing_cols = {col["name"] for col in inspector.get_columns("palletcount")}
+        if "quantity" in existing_cols and "pallet_number" not in existing_cols:
+            # Estrutura antiga - dropar e recriar
+            with engine.begin() as conn:
+                conn.execute(text("DROP TABLE IF EXISTS palletcount CASCADE"))
+                conn.execute(text("""
+                    CREATE TABLE palletcount (
+                        id SERIAL PRIMARY KEY,
+                        pallet_number VARCHAR(50) NOT NULL,
+                        date VARCHAR(10) NOT NULL,
+                        shift VARCHAR(20) NOT NULL,
+                        sector_id INTEGER REFERENCES palletsector(id),
+                        employee_id INTEGER NOT NULL REFERENCES employee(id),
+                        status VARCHAR(20) DEFAULT 'found',
+                        observations TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_palletcount_pallet_number ON palletcount (pallet_number)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_palletcount_date ON palletcount (date)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_palletcount_shift ON palletcount (shift)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_palletcount_status ON palletcount (status)"))
+                print("✅ Tabela palletcount recriada com nova estrutura")
+    
+    # Criar tabela PalletMaintenanceTicket se não existir
+    if "palletmaintenanceticket" not in existing_tables:
+        with engine.begin() as conn:
+            conn.execute(text("""
+                CREATE TABLE palletmaintenanceticket (
+                    id SERIAL PRIMARY KEY,
+                    pallet_number VARCHAR(50) NOT NULL,
+                    sector_id INTEGER REFERENCES palletsector(id),
+                    employee_id INTEGER NOT NULL REFERENCES employee(id),
+                    issue_type VARCHAR(50) DEFAULT 'other',
+                    description TEXT NOT NULL,
+                    priority VARCHAR(20) DEFAULT 'medium',
+                    images JSON DEFAULT '[]',
+                    status VARCHAR(20) DEFAULT 'open',
+                    returned_pallet_number VARCHAR(50),
+                    return_date TIMESTAMP,
+                    return_notes TEXT,
+                    email_sent_at TIMESTAMP,
+                    email_error TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    closed_at TIMESTAMP,
+                    closed_by VARCHAR(255)
+                )
+            """))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_palletmaintenanceticket_pallet_number ON palletmaintenanceticket (pallet_number)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_palletmaintenanceticket_status ON palletmaintenanceticket (status)"))
+            print("✅ Tabela palletmaintenanceticket criada")
+    
+    # Criar tabela PalletCountEmailRecipient se não existir
+    if "palletcountemailrecipient" not in existing_tables:
+        with engine.begin() as conn:
+            conn.execute(text("""
+                CREATE TABLE palletcountemailrecipient (
+                    id SERIAL PRIMARY KEY,
+                    email VARCHAR(255) NOT NULL UNIQUE,
+                    name VARCHAR(255),
+                    alert_type VARCHAR(20) DEFAULT 'all',
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_palletcountemailrecipient_email ON palletcountemailrecipient (email)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_palletcountemailrecipient_is_active ON palletcountemailrecipient (is_active)"))
+            print("✅ Tabela palletcountemailrecipient criada")
+
 def ensure_default_admin(session: Session):
     existing = session.exec(select(models.User)).first()
     if existing:
@@ -1478,6 +1603,14 @@ async def api_reset_data(
 # --- Auth Dependencies ---
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
+    """Retorna o favicon usando o badge_1.png como ícone"""
+    try:
+        favicon_path = Path("static/badges/badge_1.png")
+        if favicon_path.exists():
+            return FileResponse(favicon_path, media_type="image/png")
+    except Exception:
+        pass
+    return Response(status_code=204)  # No Content
     return Response(status_code=204)
 
 # Moved get_current_user and require_login to top of file to fix NameError dependencies
@@ -2654,6 +2787,15 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
                 "icon": "check-square",
                 "href": "/mobile/routine/checklist",
                 "enabled": bool(employee.mobile_access_checklist),
+                "action": None
+            },
+            {
+                "key": "pallet_count",
+                "label": "Contagem de Paleteiras",
+                "description": "Registre e rastreie paleteiras.",
+                "icon": "clipboard-list",
+                "href": "/mobile/pallet-count",
+                "enabled": True,  # Habilitado para todos com acesso mobile
                 "action": None
             },
             # Removido: Chamados de Equipamento (agora disponível no checklist)
@@ -5288,9 +5430,18 @@ async def admin_checklist_delete(
                 tx.reason = note
             session.add(tx)
 
+    # Formata quem realizou a exclusão de forma mais legível
+    try:
+        if isinstance(user, dict):
+            user_label = user.get("email") or user.get("id") or "usuário"
+        else:
+            user_label = getattr(user, "email", None) or getattr(user, "name", None) or str(user)
+    except Exception:
+        user_label = "usuário"
+
     session.add(models.Event(
         timestamp=now_br,
-        text=f"Checklist #{checklist.id} excluído por {user}.",
+        text=f"Checklist #{checklist.id} excluído por {user_label}.",
         type="checklist_delete",
         category="processo",
         sector=checklist.equipment_code,
@@ -5350,9 +5501,18 @@ async def admin_checklist_bulk_delete(
                     tx.reason = f"Revogado: Checklist #{checklist.id} excluído em lote."
                 session.add(tx)
 
+        # Formata quem realizou a exclusão em lote de forma mais legível
+        try:
+            if isinstance(user, dict):
+                user_label = user.get("email") or user.get("id") or "usuário"
+            else:
+                user_label = getattr(user, "email", None) or getattr(user, "name", None) or str(user)
+        except Exception:
+            user_label = "usuário"
+
         session.add(models.Event(
             timestamp=now_br,
-            text=f"Checklist #{checklist.id} excluído em lote por {user}.",
+            text=f"Checklist #{checklist.id} excluído em lote por {user_label}.",
             type="checklist_delete",
             category="processo",
             sector=checklist.equipment_code,
@@ -7010,14 +7170,23 @@ async def strategy_page(request: Request):
 
 ABSENCE_JUSTIFIED_KEYWORDS = [
     "atestado",
+    "sick",
     "absence_justified",
     "justificativa",
     "medical_leave",
     "ausencia_justificada",
-    "justificada"
+    "justificada",
+    "medico",
+    "médico",
+    "doenca",
+    "doença",
+    "hospital",
+    "consulta",
+    "exame"
 ]
 ABSENCE_UNJUSTIFIED_KEYWORDS = [
     "falta",
+    "absent",
     "absence_unjustified",
     "no_show",
     "ausencia_injustificada",
@@ -7025,6 +7194,9 @@ ABSENCE_UNJUSTIFIED_KEYWORDS = [
 ]
 ABSENCE_LEAVE_KEYWORDS = [
     "afastamento",
+    "away",
+    "vacation",
+    "ferias",
     "inss",
     "licenca",
     "leave",
@@ -7039,6 +7211,8 @@ ABSENCE_PRESENT_KEYWORDS = [
 ]
 ABSENCE_OFFDAY_KEYWORDS = [
     "folga",
+    "dayoff",
+    "day_off",
     "dsr",
     "compensacao",
     "offday"
@@ -7050,7 +7224,9 @@ ROUTINE_AUDIT_KEYWORDS = [
     "rotina atualizada",
     "rotina marcada"
 ]
-ABSENCE_PRIORITY = {"leave": 4, "justified": 3, "offday": 2, "unjustified": 1, "present": 0}
+# Prioridade de ausências: maior valor = mais prioritário
+# justified (atestado) > unjustified (falta) - atestado SEMPRE prevalece sobre falta
+ABSENCE_PRIORITY = {"leave": 5, "justified": 4, "offday": 2, "unjustified": 1, "present": 0}
 ROUTE_BAND_LABELS = {"Leve": "Leve", "Media": "Média", "Pesada": "Pesada"}
 TENURE_BAND_LABELS = {"Novatos": "Novatos", "Consolidacao": "Consolidação", "Veteranos": "Veteranos"}
 
@@ -7076,8 +7252,6 @@ def normalize_routine_status(status: Optional[str]) -> str:
     label = normalize_event_label(status)
     if not label:
         return "unknown"
-    if any(keyword in label for keyword in ABSENCE_UNJUSTIFIED_KEYWORDS):
-        return "unjustified"
     if any(keyword in label for keyword in ABSENCE_JUSTIFIED_KEYWORDS):
         return "justified"
     if any(keyword in label for keyword in ABSENCE_LEAVE_KEYWORDS):
@@ -7086,6 +7260,8 @@ def normalize_routine_status(status: Optional[str]) -> str:
         return "offday"
     if any(keyword in label for keyword in ABSENCE_PRESENT_KEYWORDS):
         return "present"
+    if any(keyword in label for keyword in ABSENCE_UNJUSTIFIED_KEYWORDS):
+        return "unjustified"
     return "unknown"
 
 
@@ -7096,10 +7272,10 @@ def normalize_event_group_from_type(event_type: Optional[str], event_category: O
     label = normalize_event_label(combined)
     if not label:
         return "unknown"
-    if any(keyword in label for keyword in ABSENCE_UNJUSTIFIED_KEYWORDS):
-        return "unjustified"
     if any(keyword in label for keyword in ABSENCE_JUSTIFIED_KEYWORDS):
         return "justified"
+    if any(keyword in label for keyword in ABSENCE_UNJUSTIFIED_KEYWORDS):
+        return "unjustified"
     if any(keyword in label for keyword in ABSENCE_LEAVE_KEYWORDS):
         return "leave"
     if any(keyword in label for keyword in ABSENCE_OFFDAY_KEYWORDS):
@@ -7118,10 +7294,10 @@ def normalize_event_status(event_type: Optional[str], event_category: Optional[s
         return "unknown"
     if any(keyword in text_label for keyword in ROUTINE_AUDIT_KEYWORDS):
         return "unknown"
-    if any(keyword in text_label for keyword in ABSENCE_UNJUSTIFIED_KEYWORDS):
-        return "unjustified"
     if any(keyword in text_label for keyword in ABSENCE_JUSTIFIED_KEYWORDS):
         return "justified"
+    if any(keyword in text_label for keyword in ABSENCE_UNJUSTIFIED_KEYWORDS):
+        return "unjustified"
     if any(keyword in text_label for keyword in ABSENCE_LEAVE_KEYWORDS):
         return "leave"
     if any(keyword in text_label for keyword in ABSENCE_OFFDAY_KEYWORDS):
@@ -7170,10 +7346,10 @@ def classify_event_log_group(event_type: Optional[str], event_category: Optional
     text_label = normalize_event_label(event_text)
     if not text_label:
         return "unknown"
-    if any(keyword in text_label for keyword in ABSENCE_UNJUSTIFIED_KEYWORDS):
-        return "unjustified"
     if any(keyword in text_label for keyword in ABSENCE_JUSTIFIED_KEYWORDS):
         return "justified"
+    if any(keyword in text_label for keyword in ABSENCE_UNJUSTIFIED_KEYWORDS):
+        return "unjustified"
     if any(keyword in text_label for keyword in ABSENCE_LEAVE_KEYWORDS):
         return "leave"
     if any(keyword in text_label for keyword in ABSENCE_OFFDAY_KEYWORDS):
@@ -7257,11 +7433,20 @@ def fetch_absences_agg(session: Session, employee_ids: List[int], start_dt: date
     except Exception:
         rows = []
 
+    # Tipos de eventos gerados automaticamente pelo sistema de rotinas
+    # Estes não devem ser contados como fallback porque já têm EmployeeRoutine correspondente
+    ROUTINE_GENERATED_EVENT_TYPES = {"falta", "atestado", "afastamento", "folga", "ferias_hist", "ferias", "presenca", "routine_change"}
+    
     for event_id, emp_id, ev_type, ev_category, ev_text, ev_day in rows:
         if not emp_id:
             continue
         day_key = str(ev_day)
         if day_key in per_employee_routine_days.get(emp_id, set()):
+            continue
+        # Ignorar eventos que são gerados automaticamente pelo sistema de rotinas
+        # Esses eventos existem para histórico mas não devem ser contados como ausência
+        ev_type_lower = (ev_type or "").lower().strip()
+        if ev_type_lower in ROUTINE_GENERATED_EVENT_TYPES:
             continue
         group = normalize_event_status(ev_type, ev_category, ev_text)
         if group == "unknown":
@@ -8367,8 +8552,15 @@ async def operations_performance_page(
     team_avg_tonnage = safe_mean([r["total_tonnage"] for r in rows_filtered])
     team_avg_trip_minutes = safe_mean([r["avg_trip_minutes"] for r in rows_filtered])
     team_avg_presence_adjusted = safe_mean([r["regularity_adjusted"] for r in rows_filtered])
-    unjustified_total = sum(r["unjustified_absences"] for r in rows_filtered)
-    discipline_rate = 1 - (unjustified_total / max(1, total_days * len(rows_filtered)))
+
+    # Disciplina do time: considerar todos os colaboradores elegíveis (não só quem teve rota)
+    def get_absences_for_emp(emp_id: int) -> dict:
+        return absence_counts.get(emp_id, {"justified": 0, "unjustified": 0, "leave": 0, "offday": 0})
+
+    eligible_emp_ids = [e.id for e in employees if e and e.id]
+    team_unjustified_total = sum(get_absences_for_emp(eid)["unjustified"] for eid in eligible_emp_ids)
+    employee_base = max(1, len(eligible_emp_ids))
+    discipline_rate = 1 - (team_unjustified_total / max(1, total_days * employee_base))
 
     kgh_values = [r["avg_kgh"] for r in rows_filtered]
     tonnage_values = [r["total_tonnage"] for r in rows_filtered]
@@ -8652,11 +8844,12 @@ async def operations_performance_page(
         "Pesada": f">= {format_int_br(band_high)} kg" if band_high else "-"
     }
 
+    # Totais de ausências do time (dias únicos) usando o mesmo agrupamento de ausências
     absence_totals = {
-        "justified": sum(r["justified_absences"] for r in rows_filtered),
-        "unjustified": sum(r["unjustified_absences"] for r in rows_filtered),
-        "leave": sum(r["leave_absences"] for r in rows_filtered),
-        "offday": sum(r["offday_absences"] for r in rows_filtered)
+        "justified": sum(get_absences_for_emp(eid)["justified"] for eid in eligible_emp_ids),
+        "unjustified": team_unjustified_total,
+        "leave": sum(get_absences_for_emp(eid)["leave"] for eid in eligible_emp_ids),
+        "offday": sum(get_absences_for_emp(eid)["offday"] for eid in eligible_emp_ids),
     }
 
     return templates.TemplateResponse(
@@ -8686,7 +8879,7 @@ async def operations_performance_page(
                 "active_employees": len(rows_filtered),
                 "avg_presence_adjusted": team_avg_presence_adjusted,
                 "discipline_rate": max(0.0, discipline_rate),
-                "unjustified_total": unjustified_total
+                "unjustified_total": team_unjustified_total
             },
             "insights": insights,
             "top_performers": top_performers,
@@ -8950,50 +9143,44 @@ async def get_ranking_details(
         if hours > 0:
             avg_kgh = total_tonnage / hours
             
-        # --- Contagem de ausências a partir de EmployeeRoutine (fonte única) ---
-        # Buscar todas as rotinas do colaborador no período
+        # --- Contagem de ausências usando get_absence_summary (fonte única e consistente) ---
+        # Esta função usa fetch_absences_agg internamente e garante consistência
+        absence_summary = get_absence_summary(
+            session,
+            employee_id,
+            start_date_obj,
+            end_date_obj,
+            include_day_map=True
+        )
+        
+        # Extrair contagens do resumo
+        absence_days = absence_summary.get("days", {})
+        justified_days = absence_days.get("justified", 0)
+        unjustified_days = absence_days.get("unjustified", 0)
+        leave_days = absence_days.get("leave", 0)
+        offday_days = absence_days.get("offday", 0)
+        
+        # Extrair logs de ausência
+        absence_logs = absence_summary.get("logs", {})
+        absence_events = {
+            "justified": absence_logs.get("justified", 0),
+            "unjustified": absence_logs.get("unjustified", 0),
+            "leave": absence_logs.get("leave", 0),
+            "offday": absence_logs.get("offday", 0),
+            "total": absence_logs.get("total", 0)
+        }
+        
+        # Obter day_map e logs_day_map para timeline
+        absence_event_day_map = absence_summary.get("logs_day_map", {})
+        absence_event_record_map = absence_summary.get("logs_record_ids", {})
+        
+        # Buscar rotinas para timeline (fallback se day_map não estiver disponível)
         routines_rows = session.exec(
-            select(models.EmployeeRoutine)
+            select(models.EmployeeRoutine.date, models.EmployeeRoutine.routine)
             .where(models.EmployeeRoutine.employee_id == employee_id)
             .where(models.EmployeeRoutine.date >= start_date_str)
             .where(models.EmployeeRoutine.date <= end_date_str)
         ).all()
-
-        # Contar dias únicos por tipo de rotina (evita contar 3x por turno)
-        justified_dates = set()
-        unjustified_dates = set()
-        leave_dates = set()
-        offday_dates = set()
-
-        for r in routines_rows:
-            r_type = (r.routine or "").lower()
-            date_key = str(r.date) if r.date else None
-            if not date_key:
-                continue
-            if r_type in ["absent", "falta"]:
-                unjustified_dates.add(date_key)
-            elif r_type in ["sick", "atestado"]:
-                justified_dates.add(date_key)
-            elif r_type in ["away", "afastado"]:
-                leave_dates.add(date_key)
-            elif r_type in ["dayoff", "folga"]:
-                offday_dates.add(date_key)
-        
-        justified_days = len(justified_dates)
-        unjustified_days = len(unjustified_dates)
-        leave_days = len(leave_dates)
-        offday_days = len(offday_dates)
-        
-        # Calcular eventos de ausência a partir dos dados já processados
-        absence_events = {
-            "justified": justified_days,
-            "unjustified": unjustified_days,
-            "leave": leave_days,
-            "offday": offday_days,
-            "total": justified_days + unjustified_days + leave_days + offday_days
-        }
-        absence_event_day_map = {}
-        absence_event_record_map = {}
         adjusted_denominator = max(1, total_days - justified_days - leave_days - offday_days)
         regularity_adjusted = len(active_days) / adjusted_denominator
         absence_penalty_factor = get_absence_penalty(period, unjustified_days)
@@ -9081,7 +9268,12 @@ async def get_ranking_details(
             }
 
         group_employee_ids = list(group_stats.keys())
-        group_absence_counts, _group_absence_unknown = fetch_absences_agg(session, group_employee_ids, start_datetime, end_datetime) if group_employee_ids else ({}, {})
+        group_absence_counts, _group_absence_unknown = fetch_absences_agg(
+            session,
+            group_employee_ids,
+            start_datetime,
+            end_datetime
+        ) if group_employee_ids else ({}, {})
 
         group_event_counts = {}
         if group_employee_ids:
@@ -9376,14 +9568,21 @@ async def get_ranking_details(
 
         badge = build_badge()
 
+        # Extrair source das ausências (já obtido acima)
+        absences_source = absence_summary.get("source_key", "routine")
+        absences_source_label = absence_summary.get("source_label", format_absence_source_label(absences_source))
+
+        # Obter routine_days_logged do absence_summary (já calculado)
+        routine_days_logged = absence_summary.get("routine_days_logged", 0)
+        
+        # Buscar rotinas para verificar routine_missing
         routine_rows = session.exec(
             select(models.EmployeeRoutine.date, models.EmployeeRoutine.routine)
             .where(models.EmployeeRoutine.employee_id == employee_id)
             .where(models.EmployeeRoutine.date >= start_date_str)
             .where(models.EmployeeRoutine.date <= end_date_str)
         ).all()
-        routine_days = {r_date for r_date, _ in routine_rows}
-        routine_days_logged = absence_summary.get("routine_days_logged", len(routine_days))
+        routine_days = {str(r_date) for r_date, _ in routine_rows}
         if period == "daily":
             routine_missing = start_date_str not in routine_days
             routine_missing_label = "Sem rotina lançada no dia"
@@ -9926,8 +10125,6 @@ async def get_ranking_details(
         if debug_absence:
             payload["analysis"]["debug_absence_days"] = debug_absence_days
             payload["analysis"]["debug_unknown_labels"] = absence_summary.get("debug_unknown_labels", [])
-        if debug_info:
-            payload["analysis"]["debug_identity"] = debug_info
         return payload
         
     except Exception as e:
@@ -11565,6 +11762,7 @@ async def set_employee_routine_extended(
         routine = data.get("routine")
         start_date_str = data.get("start_date")
         days = data.get("days", 1)
+        update_existing = data.get("update_existing", False)  # Permite atualizar registros existentes
         
         if not employee_id or not routine or not start_date_str:
             return JSONResponse({"error": "Dados incompletos"}, status_code=400)
@@ -11578,7 +11776,7 @@ async def set_employee_routine_extended(
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
         end_date = start_date + timedelta(days=days - 1)
         
-        # Verificar quais dias já existem para ignorá-los (não sobrescrever)
+        # Verificar quais dias já existem
         existing_routines = session.exec(
             select(models.EmployeeRoutine)
             .where(models.EmployeeRoutine.employee_id == int(employee_id))
@@ -11586,28 +11784,35 @@ async def set_employee_routine_extended(
             .where(models.EmployeeRoutine.date <= end_date.strftime("%Y-%m-%d"))
         ).all()
         
-        # Agrupar dias que já existem
-        existing_dates_set = set()
+        # Agrupar rotinas existentes por data
+        existing_by_date = {}
         for r in existing_routines:
-            if isinstance(r.date, str):
-                existing_dates_set.add(r.date)
-            else:
-                existing_dates_set.add(r.date.strftime("%Y-%m-%d"))
+            date_key = r.date if isinstance(r.date, str) else r.date.strftime("%Y-%m-%d")
+            if date_key not in existing_by_date:
+                existing_by_date[date_key] = []
+            existing_by_date[date_key].append(r)
         
-        # Verificar se TODOS os dias já existem
+        existing_dates_set = set(existing_by_date.keys())
+        
+        # Verificar se TODOS os dias já existem e update_existing não foi solicitado
         all_dates_in_range = set()
         check_date = start_date
         while check_date <= end_date:
             all_dates_in_range.add(check_date.strftime("%Y-%m-%d"))
             check_date += timedelta(days=1)
         
-        if existing_dates_set >= all_dates_in_range:
-            conflict_dates_formatted = [datetime.strptime(d, "%Y-%m-%d").strftime("%d/%m/%Y") for d in sorted(list(existing_dates_set))]
+        # Verificar se há conflitos (alguns ou todos os dias já existem)
+        conflicting_dates = sorted(list(existing_dates_set.intersection(all_dates_in_range)))
+        
+        if conflicting_dates and not update_existing:
+            # Retornar com código especial para frontend perguntar se quer atualizar
+            conflict_dates_formatted = [datetime.strptime(d, "%Y-%m-%d").strftime("%d/%m/%Y") for d in conflicting_dates]
             return JSONResponse({
-                "error": f"Todos os dias do período já possuem registros: {', '.join(conflict_dates_formatted)}",
+                "error": f"Os seguintes dias já possuem registros: {', '.join(conflict_dates_formatted[:5])}{'...' if len(conflict_dates_formatted) > 5 else ''}. Deseja atualizar?",
                 "conflicts": conflict_dates_formatted,
+                "can_update": True,
                 "success": False
-            }, status_code=400)
+            }, status_code=409)  # 409 Conflict - indica que pode ser resolvido com update
         
         # Labels em português
         routine_labels = {
@@ -11630,76 +11835,154 @@ async def set_employee_routine_extended(
         }
         event_type = event_type_map.get(routine, 'routine_change')
         
-        # Criar rotinas e eventos para cada dia (ignorando dias que já existem)
+        # Criar ou atualizar rotinas e eventos para cada dia
         created_count = 0
+        updated_count = 0
         skipped_count = 0
         current_date = start_date
         br_tz = ZoneInfo("America/Sao_Paulo")
         
-        while current_date <= end_date:
-            date_str = current_date.strftime("%Y-%m-%d")
-            
-            # Pular dias que já existem
-            if date_str in existing_dates_set:
-                skipped_count += 1
+        try:
+            while current_date <= end_date:
+                date_str = current_date.strftime("%Y-%m-%d")
+                
+                if date_str in existing_dates_set:
+                    if update_existing:
+                        # Verificar se está tentando sobrescrever atestado/afastamento por falta
+                        # Atestado e afastamento têm prioridade sobre falta
+                        protected_routines = {'sick', 'away', 'vacation'}
+                        downgrade_routine = routine in {'absent', 'dayoff', 'present'}
+                        
+                        skip_update = False
+                        for existing_r in existing_by_date[date_str]:
+                            if existing_r.routine in protected_routines and downgrade_routine:
+                                # Não permitir sobrescrever atestado/afastamento por falta/folga/presente
+                                skip_update = True
+                                break
+                        
+                        if skip_update:
+                            # Pular este dia - não sobrescrever atestado/afastamento
+                            skipped_count += 1
+                            current_date += timedelta(days=1)
+                            continue
+                        
+                        # Atualizar registros existentes
+                        for existing_r in existing_by_date[date_str]:
+                            existing_r.routine = routine
+                            session.add(existing_r)
+                        updated_count += 1
+                        
+                        # Criar novo evento de alteração para histórico
+                        event_timestamp = datetime.combine(current_date, datetime.min.time()).replace(tzinfo=br_tz) + timedelta(hours=3)
+                        event_text = f"{employee.name}: Rotina alterada para {routine_labels.get(routine, routine)} em {current_date.strftime('%d/%m/%Y')}"
+                        
+                        new_event = models.Event(
+                            timestamp=event_timestamp,
+                            text=event_text,
+                            type=event_type,
+                            category=routine,
+                            employee_id=int(employee_id)
+                        )
+                        session.add(new_event)
+                    else:
+                        # Pular dias que já existem (comportamento original)
+                        skipped_count += 1
+                        current_date += timedelta(days=1)
+                        continue
+                else:
+                    # Criar EmployeeRoutine para cada turno
+                    for shift_name in ["Manhã", "Tarde", "Noite"]:
+                        new_routine = models.EmployeeRoutine(
+                            date=date_str,
+                            shift=shift_name,
+                            employee_id=int(employee_id),
+                            routine=routine
+                        )
+                        session.add(new_routine)
+                    
+                    # Criar Event para histórico (um por dia)
+                    event_timestamp = datetime.combine(current_date, datetime.min.time()).replace(tzinfo=br_tz) + timedelta(hours=3)
+                    event_text = f"{employee.name}: {routine_labels.get(routine, routine)} em {current_date.strftime('%d/%m/%Y')}"
+                    
+                    new_event = models.Event(
+                        timestamp=event_timestamp,
+                        text=event_text,
+                        type=event_type,
+                        category=routine,
+                        employee_id=int(employee_id)
+                    )
+                    session.add(new_event)
+                    created_count += 1
+                
                 current_date += timedelta(days=1)
-                continue
             
-            # Criar EmployeeRoutine para cada turno
-            for shift_name in ["Manhã", "Tarde", "Noite"]:
-                new_routine = models.EmployeeRoutine(
-                    date=date_str,
-                    shift=shift_name,
-                    employee_id=int(employee_id),
-                    routine=routine
-                )
-                session.add(new_routine)
-            
-            # Criar Event para histórico (um por dia)
-            # Usar início do dia para o timestamp do evento
-            event_timestamp = datetime.combine(current_date, datetime.min.time()).replace(tzinfo=br_tz)
-            event_text = f"{employee.name}: {routine_labels.get(routine, routine)} em {current_date.strftime('%d/%m/%Y')}"
-            
-            # Verificar se já existe evento para este dia (mesmo tipo e mesma data)
-            event_start = datetime.combine(current_date, datetime.min.time()).replace(tzinfo=br_tz)
-            event_end = datetime.combine(current_date, datetime.max.time()).replace(tzinfo=br_tz)
-            
-            existing_event = session.exec(
-                select(models.Event)
-                .where(models.Event.employee_id == int(employee_id))
-                .where(models.Event.type == event_type)
-                .where(models.Event.timestamp >= event_start)
-                .where(models.Event.timestamp <= event_end)
-            ).first()
-            
-            if not existing_event:
-                new_event = models.Event(
-                    timestamp=event_timestamp,
-                    text=event_text,
-                    type=event_type,
-                    category=routine,
-                    employee_id=int(employee_id)
-                )
-                session.add(new_event)
-            
-            created_count += 1
-            current_date += timedelta(days=1)
-        
-        session.commit()
+            session.commit()
+        except Exception as commit_error:
+            session.rollback()
+            logger.exception(f"Erro ao processar rotina estendida: {commit_error}")
+            raise commit_error
         
         # Mensagem informativa
-        skipped_info = f" ({skipped_count} dias já existiam e foram ignorados)" if skipped_count > 0 else ""
-        print(f"✅ Rotina estendida criada: {employee.name} - {routine} de {start_date_str} por {days} dias ({created_count} registros criados{skipped_info})")
+        action_parts = []
+        if created_count > 0:
+            action_parts.append(f"{created_count} criado(s)")
+        if updated_count > 0:
+            action_parts.append(f"{updated_count} atualizado(s)")
         
-        message = f"Rotina criada com sucesso para {created_count} dias"
-        if skipped_count > 0:
-            message += f". {skipped_count} dia(s) já existiam e foram ignorados."
+        action_info = ", ".join(action_parts) if action_parts else "nenhuma alteração"
+        print(f"✅ Rotina estendida: {employee.name} - {routine} de {start_date_str} por {days} dias ({action_info})")
+        
+        # ================================================================
+        # ENVIO DE E-MAIL AUTOMÁTICO PARA FALTA (ADVERTÊNCIA)
+        # ================================================================
+        email_sent = False
+        email_error = None
+        if routine == "absent" and (created_count > 0 or updated_count > 0):
+            try:
+                # Buscar destinatários ativos
+                alert_recipients = session.exec(
+                    select(models.AbsenceAlertRecipient)
+                    .where(models.AbsenceAlertRecipient.is_active == True)
+                ).all()
+                
+                if alert_recipients:
+                    recipient_emails = [r.email for r in alert_recipients]
+                    
+                    # Identificar quem registrou
+                    user_session = request.session.get("user", {})
+                    registered_by = user_session.get("username") or user_session.get("email") or "Sistema"
+                    
+                    # Enviar e-mail
+                    email_sent, email_error = send_absence_alert_email(
+                        employee=employee,
+                        absence_date=start_date_str,
+                        registered_by=registered_by,
+                        recipients=recipient_emails,
+                        days=days
+                    )
+                    
+                    if email_sent:
+                        print(f"📧 E-mail de advertência enviado para {len(recipient_emails)} destinatário(s)")
+                    else:
+                        print(f"⚠️ Falha ao enviar e-mail de advertência: {email_error}")
+                else:
+                    print("ℹ️ Nenhum destinatário configurado para alertas de falta")
+            except Exception as email_exc:
+                print(f"⚠️ Erro ao processar envio de e-mail de advertência: {email_exc}")
+                email_error = str(email_exc)
+        
+        message = f"Rotina processada com sucesso: {action_info}"
+        if routine == "absent" and email_sent:
+            message += " | E-mail de advertência enviado."
+        elif routine == "absent" and email_error:
+            message += f" | Aviso: E-mail não enviado ({email_error})"
         
         return {
             "success": True,
             "message": message,
             "created_days": created_count,
-            "skipped_days": skipped_count
+            "updated_days": updated_count,
+            "email_sent": email_sent if routine == "absent" else None
         }
     except Exception as e:
         print(f"❌ Erro ao criar rotina estendida: {e}")
@@ -11815,9 +12098,18 @@ async def set_employee_routine(
         # Indexar por turno para facilitar upsert
         existing_by_shift = {r.shift: r for r in existing_daily if getattr(r, "shift", None)}
 
+        # Proteção: não permitir sobrescrever atestado/afastamento por falta/folga/presente
+        protected_routines = {'sick', 'away', 'vacation'}
+        downgrade_routine = routine in {'absent', 'dayoff', 'present'}
+        
         for shift_name in ["Manhã", "Tarde", "Noite"]:
             existing = existing_by_shift.get(shift_name)
             if existing:
+                # Verificar se está tentando fazer downgrade de rotina protegida
+                if existing.routine in protected_routines and downgrade_routine:
+                    # Não sobrescrever atestado/afastamento por falta/folga
+                    continue
+                    
                 if existing.routine != routine:
                     existing.routine = routine
                     session.add(existing)
@@ -12783,9 +13075,25 @@ async def employee_detail(
         tenure_str = f"{years} anos, {months} meses"
 
     # Count events
-    events = session.exec(select(models.Event).where(models.Event.employee_id == employee_id).order_by(models.Event.timestamp.desc())).all()
+    all_events = session.exec(select(models.Event).where(models.Event.employee_id == employee_id).order_by(models.Event.timestamp.desc())).all()
     
-    warnings = len([e for e in events if e.type == 'advertencia'])
+    warnings = len([e for e in all_events if e.type == 'advertencia'])
+    
+    # Deduplicar eventos para timeline: manter apenas 1 por (data, tipo) para tipos de ausência
+    # Tipos que devem ser deduplicados por dia
+    DEDUPE_TYPES = {"falta", "atestado", "afastamento", "folga", "dayoff", "sick", "absent", "away"}
+    seen_day_type = set()
+    events = []
+    for ev in all_events:
+        ev_type = (ev.type or "").lower()
+        if ev_type in DEDUPE_TYPES:
+            # Extrair data do timestamp
+            ev_date = ev.timestamp.date() if ev.timestamp else None
+            dedupe_key = (ev_date, ev_type)
+            if dedupe_key in seen_day_type:
+                continue  # Já vimos esse tipo nesse dia
+            seen_day_type.add(dedupe_key)
+        events.append(ev)
     absence_counts = absence_summary["days"]
     medicals = absence_counts["justified"]
     absences = absence_counts["unjustified"]
@@ -14455,3 +14763,1122 @@ async def admin_checklists_test_email(
         return admin_checklists_settings_redirect(f"Erro ao testar: {e}", "error")
 
     return admin_checklists_settings_redirect(f"E-mail de teste enviado para {recipient.email}", "success")
+
+# ============================================================================
+# ABSENCE ALERTS (ADVERTÊNCIA) - Configuração de E-mails
+# ============================================================================
+
+def absence_alerts_settings_redirect(message: str, level: str = "success"):
+    """Redirect helper for absence alerts settings page"""
+    from urllib.parse import quote
+    return RedirectResponse(
+        url=f"/admin/absence-alerts/settings?message={quote(message)}&level={level}",
+        status_code=status.HTTP_303_SEE_OTHER
+    )
+
+def send_absence_alert_email(
+    employee: models.Employee,
+    absence_date: str,
+    registered_by: str,
+    recipients: List[str],
+    days: int = 1
+) -> tuple:
+    """
+    Envia e-mail de alerta de falta (solicitação de advertência).
+    Retorna (success: bool, error: str ou None)
+    """
+    smtp_port = parse_int_env(SMTP_PORT_RAW, 587)
+    smtp_tls = parse_bool_env(SMTP_TLS_RAW, True)
+    recipient_list = [normalize_email(r) for r in recipients if normalize_email(r)]
+    
+    if not recipient_list:
+        return False, "Nenhum destinatário configurado"
+    
+    config_error = smtp_config_error(recipient_list)
+    if config_error:
+        logger.error(config_error)
+        return False, config_error
+    
+    if SMTP_USE_SSL_RAW.strip():
+        smtp_use_ssl = parse_bool_env(SMTP_USE_SSL_RAW, False)
+    else:
+        smtp_use_ssl = smtp_port == 465
+    
+    # Formatar data
+    try:
+        date_obj = datetime.strptime(absence_date, "%Y-%m-%d")
+        formatted_date = date_obj.strftime("%d/%m/%Y")
+    except:
+        formatted_date = absence_date
+    
+    # Montar assunto
+    subject = f"🚨 SOLICITAÇÃO DE ADVERTÊNCIA — Falta Não Justificada — {employee.name}"
+    
+    # Montar corpo do e-mail
+    days_text = f"{days} dia(s)" if days > 1 else "1 dia"
+    body_html = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: #dc2626; color: white; padding: 15px 20px; border-radius: 8px 8px 0 0;">
+                <h2 style="margin: 0; font-size: 18px;">🚨 SOLICITAÇÃO DE ADVERTÊNCIA</h2>
+                <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Falta Não Justificada Registrada</p>
+            </div>
+            
+            <div style="background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none;">
+                <p>Prezados,</p>
+                
+                <p>Informamos que o colaborador abaixo foi registrado com <strong style="color: #dc2626;">FALTA</strong> no sistema:</p>
+                
+                <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin: 20px 0;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Colaborador:</strong></td>
+                            <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{employee.name}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Matrícula:</strong></td>
+                            <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{employee.registration_id}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Cargo:</strong></td>
+                            <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{employee.role or '-'}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Turno:</strong></td>
+                            <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{employee.work_shift or '-'}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Data da Falta:</strong></td>
+                            <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #dc2626; font-weight: bold;">{formatted_date}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Período:</strong></td>
+                            <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{days_text}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0;"><strong>Registrado por:</strong></td>
+                            <td style="padding: 8px 0;">{registered_by}</td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <p><strong>Solicitamos a abertura de processo de advertência conforme procedimento interno.</strong></p>
+                
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+                
+                <p style="font-size: 12px; color: #6b7280;">
+                    Este é um e-mail automático gerado pelo sistema de Análise Operacional.<br>
+                    Data/Hora do registro: {datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y às %H:%M")}
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    body_text = f"""
+SOLICITAÇÃO DE ADVERTÊNCIA - Falta Não Justificada
+
+Prezados,
+
+Informamos que o colaborador abaixo foi registrado com FALTA no sistema:
+
+- Colaborador: {employee.name}
+- Matrícula: {employee.registration_id}
+- Cargo: {employee.role or '-'}
+- Turno: {employee.work_shift or '-'}
+- Data da Falta: {formatted_date}
+- Período: {days_text}
+- Registrado por: {registered_by}
+
+Solicitamos a abertura de processo de advertência conforme procedimento interno.
+
+---
+Este é um e-mail automático gerado pelo sistema de Análise Operacional.
+Data/Hora do registro: {datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y às %H:%M")}
+    """
+    
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = MAINTENANCE_EMAIL_FROM_FIXED
+    msg["To"] = ", ".join(recipient_list)
+    msg.set_content(body_text)
+    msg.add_alternative(body_html, subtype="html")
+    
+    logger.info(
+        "Enviando e-mail de alerta de falta | host=%s port=%s tls=%s ssl=%s from=%s recipients=%s employee=%s",
+        SMTP_HOST,
+        smtp_port,
+        smtp_tls,
+        smtp_use_ssl,
+        MAINTENANCE_EMAIL_FROM_FIXED,
+        recipient_list,
+        employee.name
+    )
+    
+    try:
+        if smtp_use_ssl:
+            smtp_client = smtplib.SMTP_SSL(SMTP_HOST, smtp_port, timeout=20)
+        else:
+            smtp_client = smtplib.SMTP(SMTP_HOST, smtp_port, timeout=20)
+        with smtp_client as smtp:
+            if not smtp_use_ssl and smtp_tls:
+                smtp.starttls()
+            smtp.login(SMTP_USER, SMTP_PASS)
+            smtp.send_message(msg)
+        logger.info(f"E-mail de alerta de falta enviado com sucesso para {employee.name}.")
+        return True, None
+    except Exception as exc:
+        error_msg = str(exc)
+        logger.error(f"Erro ao enviar e-mail de alerta de falta: {error_msg}")
+        return False, error_msg
+
+@app.get("/admin/absence-alerts/settings", response_class=HTMLResponse)
+async def admin_absence_alerts_settings(
+    request: Request,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    """Página de configuração de alertas de falta (advertências)"""
+    message = request.query_params.get("message")
+    level = request.query_params.get("level", "success")
+    
+    recipients = session.exec(
+        select(models.AbsenceAlertRecipient).order_by(models.AbsenceAlertRecipient.email)
+    ).all()
+    
+    # Info SMTP para exibição
+    smtp_configured = bool(SMTP_HOST and SMTP_USER and SMTP_PASS)
+    
+    return templates.TemplateResponse(
+        "admin_absence_alerts_settings.html",
+        {
+            "request": request,
+            "user": user,
+            "recipients": recipients,
+            "message": message,
+            "level": level,
+            "smtp_host": SMTP_HOST,
+            "smtp_port": SMTP_PORT_RAW,
+            "smtp_user": SMTP_USER,
+            "smtp_configured": smtp_configured
+        }
+    )
+
+@app.post("/admin/absence-alerts/settings/emails", response_class=RedirectResponse)
+async def admin_absence_alerts_add_email(
+    request: Request,
+    email: str = Form(...),
+    name: str = Form(""),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    """Adiciona ou reativa um e-mail de destinatário de alertas de falta"""
+    email_normalized = normalize_email(email)
+    if not email_normalized:
+        return absence_alerts_settings_redirect("E-mail inválido.", "error")
+    
+    # Verificar se já existe
+    existing = session.exec(
+        select(models.AbsenceAlertRecipient).where(models.AbsenceAlertRecipient.email == email_normalized)
+    ).first()
+    
+    if existing:
+        if existing.is_active:
+            return absence_alerts_settings_redirect("E-mail já cadastrado.", "error")
+        else:
+            # Reativar
+            existing.is_active = True
+            existing.name = name.strip() if name else existing.name
+            session.add(existing)
+            session.commit()
+            return absence_alerts_settings_redirect("E-mail reativado com sucesso.", "success")
+    
+    # Criar novo
+    new_recipient = models.AbsenceAlertRecipient(
+        email=email_normalized,
+        name=name.strip() if name else None,
+        is_active=True
+    )
+    session.add(new_recipient)
+    session.commit()
+    
+    return absence_alerts_settings_redirect("E-mail cadastrado com sucesso.", "success")
+
+@app.post("/admin/absence-alerts/settings/emails/{recipient_id}/delete", response_class=RedirectResponse)
+async def admin_absence_alerts_remove_email(
+    request: Request,
+    recipient_id: int,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    """Remove (desativa) um e-mail de destinatário de alertas de falta"""
+    recipient = session.get(models.AbsenceAlertRecipient, recipient_id)
+    if not recipient:
+        return absence_alerts_settings_redirect("E-mail não encontrado.", "error")
+    
+    recipient.is_active = False
+    session.add(recipient)
+    session.commit()
+    
+    return absence_alerts_settings_redirect("E-mail removido com sucesso.", "success")
+
+@app.post("/admin/absence-alerts/settings/emails/{recipient_id}/test", response_class=RedirectResponse)
+async def admin_absence_alerts_test_email(
+    request: Request,
+    recipient_id: int,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    """Envia e-mail de teste para um destinatário"""
+    recipient = session.get(models.AbsenceAlertRecipient, recipient_id)
+    if not recipient:
+        return absence_alerts_settings_redirect("E-mail não encontrado.", "error")
+    
+    # Criar funcionário fictício para teste
+    class MockEmployee:
+        name = "FUNCIONÁRIO TESTE"
+        registration_id = "00000"
+        role = "Colaborador de Teste"
+        work_shift = "Manhã"
+    
+    mock_employee = MockEmployee()
+    today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    registered_by = str(user) if user else "Sistema"
+    
+    success, error = send_absence_alert_email(
+        employee=mock_employee,
+        absence_date=today,
+        registered_by=registered_by,
+        recipients=[recipient.email],
+        days=1
+    )
+    
+    if success:
+        return absence_alerts_settings_redirect(f"E-mail de teste enviado para {recipient.email}", "success")
+    else:
+        return absence_alerts_settings_redirect(f"Erro ao enviar: {error}", "error")
+
+# =============================================================================
+# PALLET TRUCK COUNTING SYSTEM
+# =============================================================================
+
+def pallet_count_settings_redirect(message: str, level: str = "success"):
+    """Redirect helper for pallet count settings page"""
+    from urllib.parse import quote
+    return RedirectResponse(
+        url=f"/admin/pallet-count/settings?message={quote(message)}&level={level}",
+        status_code=status.HTTP_303_SEE_OTHER
+    )
+
+def send_pallet_missing_email(
+    missing_pallets: List[dict],
+    date: str,
+    shift: str,
+    counted_by: str,
+    recipients: List[str]
+) -> tuple:
+    """
+    Envia e-mail de alerta de paleteiras não encontradas.
+    Retorna (success: bool, error: str ou None)
+    """
+    smtp_port = parse_int_env(SMTP_PORT_RAW, 587)
+    smtp_tls = parse_bool_env(SMTP_TLS_RAW, True)
+    recipient_list = [normalize_email(r) for r in recipients if normalize_email(r)]
+    
+    if not recipient_list:
+        return False, "Nenhum destinatário configurado"
+    
+    config_error = smtp_config_error(recipient_list)
+    if config_error:
+        logger.error(config_error)
+        return False, config_error
+    
+    if SMTP_USE_SSL_RAW.strip():
+        smtp_use_ssl = parse_bool_env(SMTP_USE_SSL_RAW, False)
+    else:
+        smtp_use_ssl = smtp_port == 465
+    
+    # Format date
+    try:
+        date_obj = datetime.strptime(date, "%Y-%m-%d")
+        date_formatted = date_obj.strftime("%d/%m/%Y")
+    except:
+        date_formatted = date
+    
+    # Build pallet list HTML
+    pallet_rows = ""
+    for p in missing_pallets:
+        pallet_rows += f"""
+        <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: bold; color: #dc2626;">{p.get('number', 'N/A')}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">{p.get('sector', 'N/A')}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">{p.get('last_seen', 'N/A')}</td>
+        </tr>
+        """
+    
+    subject = f"🚨 ALERTA: {len(missing_pallets)} Paleteira(s) Não Encontrada(s) — {date_formatted}"
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+    </head>
+    <body style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 20px;">
+        <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div style="background: linear-gradient(135deg, #dc2626, #991b1b); padding: 24px; text-align: center;">
+                <h1 style="color: white; margin: 0; font-size: 24px;">🚨 Alerta de Paleteiras</h1>
+                <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0;">Contagem com divergências detectadas</p>
+            </div>
+            
+            <div style="padding: 24px;">
+                <p style="color: #374151; line-height: 1.6;">
+                    A contagem de paleteiras realizada em <strong>{date_formatted}</strong> (Turno: <strong>{shift}</strong>) 
+                    identificou as seguintes paleteiras como <strong style="color: #dc2626;">NÃO ENCONTRADAS</strong>:
+                </p>
+                
+                <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                    <thead>
+                        <tr style="background: #f1f5f9;">
+                            <th style="padding: 12px 8px; text-align: left; font-weight: bold; color: #1e293b;">Número</th>
+                            <th style="padding: 12px 8px; text-align: left; font-weight: bold; color: #1e293b;">Setor</th>
+                            <th style="padding: 12px 8px; text-align: left; font-weight: bold; color: #1e293b;">Última Vez Vista</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {pallet_rows}
+                    </tbody>
+                </table>
+                
+                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin: 20px 0; border-radius: 4px;">
+                    <p style="color: #92400e; margin: 0; font-size: 14px;">
+                        <strong>Ação recomendada:</strong> Verifique se estas paleteiras foram enviadas para manutenção, 
+                        transferidas para outro setor ou se há possibilidade de extravio.
+                    </p>
+                </div>
+                
+                <div style="background: #f1f5f9; padding: 12px; border-radius: 8px; margin-top: 20px;">
+                    <p style="color: #64748b; margin: 0; font-size: 12px;">
+                        <strong>Contagem realizada por:</strong> {counted_by}<br>
+                        <strong>Data/Turno:</strong> {date_formatted} — {shift}
+                    </p>
+                </div>
+            </div>
+            
+            <div style="background: #f8fafc; padding: 16px; text-align: center; border-top: 1px solid #e2e8f0;">
+                <p style="color: #94a3b8; font-size: 11px; margin: 0;">
+                    E-mail automático do Sistema de Análise Operacional
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = SMTP_USER
+        msg["To"] = ", ".join(recipient_list)
+        msg.attach(MIMEText(html_body, "html", "utf-8"))
+        
+        if smtp_use_ssl:
+            with smtplib.SMTP_SSL(SMTP_HOST, smtp_port) as server:
+                server.login(SMTP_USER, SMTP_PASS)
+                server.sendmail(SMTP_USER, recipient_list, msg.as_string())
+        else:
+            with smtplib.SMTP(SMTP_HOST, smtp_port) as server:
+                if smtp_tls:
+                    server.starttls()
+                server.login(SMTP_USER, SMTP_PASS)
+                server.sendmail(SMTP_USER, recipient_list, msg.as_string())
+        
+        return True, None
+    except Exception as e:
+        logger.error(f"Erro ao enviar e-mail de paleteiras: {e}")
+        return False, str(e)
+
+# --- Mobile: Pallet Counting Page ---
+
+@app.get("/mobile/pallet-count", response_class=HTMLResponse)
+async def mobile_pallet_count(
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """Página mobile de contagem de paleteiras"""
+    if not isinstance(current_user, dict):
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    
+    user_id = current_user.get("id")
+    if not user_id:
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    
+    employee = session.get(models.Employee, user_id)
+    if not employee or not employee.mobile_access:
+        return RedirectResponse(url="/mobile/login?error=access_revoked", status_code=303)
+    
+    today = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    today_str = today.strftime("%Y-%m-%d")
+    yesterday = today - timedelta(days=1)
+    yesterday_str = yesterday.strftime("%Y-%m-%d")
+    
+    # Determine current shift based on time
+    hour = today.hour
+    if 5 <= hour < 14:
+        current_shift = "Manhã"
+    elif 14 <= hour < 22:
+        current_shift = "Tarde"
+    else:
+        current_shift = "Noite"
+    
+    # Get active sectors
+    sectors = session.exec(
+        select(models.PalletSector)
+        .where(models.PalletSector.is_active == True)
+        .order_by(models.PalletSector.order)
+    ).all()
+    
+    # Get yesterday's counted pallets (to show as "expected" today)
+    yesterday_counts = session.exec(
+        select(models.PalletCount)
+        .where(models.PalletCount.date == yesterday_str)
+        .where(models.PalletCount.status.in_(["found", "new"]))  # Paleteiras encontradas ontem
+    ).all()
+    
+    # Get unique pallet numbers from yesterday
+    yesterday_pallets = {}
+    for pc in yesterday_counts:
+        if pc.pallet_number not in yesterday_pallets:
+            sector = session.get(models.PalletSector, pc.sector_id) if pc.sector_id else None
+            yesterday_pallets[pc.pallet_number] = {
+                "number": pc.pallet_number,
+                "sector_id": pc.sector_id,
+                "sector_name": sector.name if sector else "Sem setor"
+            }
+    
+    # Get today's counts for current shift
+    today_counts = session.exec(
+        select(models.PalletCount)
+        .where(
+            models.PalletCount.date == today_str,
+            models.PalletCount.shift == current_shift
+        )
+    ).all()
+    
+    today_counted_numbers = {pc.pallet_number for pc in today_counts}
+    
+    # Build list of expected pallets with status
+    expected_pallets = []
+    for num, data in yesterday_pallets.items():
+        expected_pallets.append({
+            "number": num,
+            "sector_id": data["sector_id"],
+            "sector_name": data["sector_name"],
+            "counted": num in today_counted_numbers,
+            "status": next((tc.status for tc in today_counts if tc.pallet_number == num), None)
+        })
+    
+    # Sort: uncounted first, then by number
+    expected_pallets.sort(key=lambda x: (x["counted"], x["number"]))
+    
+    # Get today's NEW pallets (not in yesterday's list)
+    new_pallets = [
+        {
+            "number": pc.pallet_number,
+            "sector_id": pc.sector_id,
+            "sector_name": session.get(models.PalletSector, pc.sector_id).name if pc.sector_id else "Sem setor",
+            "status": pc.status
+        }
+        for pc in today_counts 
+        if pc.pallet_number not in yesterday_pallets and pc.status == "new"
+    ]
+    
+    # Open maintenance tickets
+    open_tickets = session.exec(
+        select(models.PalletMaintenanceTicket)
+        .where(models.PalletMaintenanceTicket.status.in_(["open", "in_progress"]))
+        .order_by(models.PalletMaintenanceTicket.created_at.desc())
+    ).all()
+    
+    # Stats
+    stats = {
+        "expected": len(yesterday_pallets),
+        "counted": len([p for p in expected_pallets if p["counted"]]),
+        "missing": len([p for p in expected_pallets if not p["counted"]]),
+        "new": len(new_pallets),
+        "maintenance": len([t for t in open_tickets])
+    }
+    
+    return templates.TemplateResponse(
+        "mobile/pallet_count.html",
+        {
+            "request": request,
+            "employee": employee,
+            "sectors": sectors,
+            "expected_pallets": expected_pallets,
+            "new_pallets": new_pallets,
+            "open_tickets": open_tickets,
+            "stats": stats,
+            "today_str": today_str,
+            "yesterday_str": yesterday_str,
+            "current_shift": current_shift
+        }
+    )
+
+@app.post("/api/mobile/pallet-count", response_class=JSONResponse)
+async def api_register_pallet_count(
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """Registra uma contagem de paleteira"""
+    if not isinstance(current_user, dict):
+        return JSONResponse({"success": False, "error": "Não autorizado"}, status_code=401)
+    
+    user_id = current_user.get("id")
+    employee = session.get(models.Employee, user_id)
+    if not employee:
+        return JSONResponse({"success": False, "error": "Funcionário não encontrado"}, status_code=404)
+    
+    data = await request.json()
+    pallet_number = data.get("pallet_number", "").strip().upper()
+    sector_id = data.get("sector_id")
+    status_val = data.get("status", "found")  # found, missing, maintenance, new
+    observations = data.get("observations", "")
+    shift = data.get("shift")
+    
+    if not pallet_number:
+        return JSONResponse({"success": False, "error": "Número da paleteira é obrigatório"}, status_code=400)
+    
+    today = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    today_str = today.strftime("%Y-%m-%d")
+    
+    if not shift:
+        hour = today.hour
+        if 5 <= hour < 14:
+            shift = "Manhã"
+        elif 14 <= hour < 22:
+            shift = "Tarde"
+        else:
+            shift = "Noite"
+    
+    # Check if already counted today (same shift)
+    existing = session.exec(
+        select(models.PalletCount)
+        .where(
+            models.PalletCount.date == today_str,
+            models.PalletCount.shift == shift,
+            models.PalletCount.pallet_number == pallet_number
+        )
+    ).first()
+    
+    if existing:
+        # Update existing record
+        existing.status = status_val
+        existing.sector_id = sector_id
+        existing.observations = observations
+        existing.updated_at = datetime.now()
+        session.add(existing)
+        session.commit()
+        return JSONResponse({
+            "success": True, 
+            "message": f"Paleteira {pallet_number} atualizada",
+            "id": existing.id,
+            "is_update": True
+        })
+    
+    # Check if this is a new pallet (not in yesterday's count)
+    yesterday = today - timedelta(days=1)
+    yesterday_str = yesterday.strftime("%Y-%m-%d")
+    
+    was_yesterday = session.exec(
+        select(models.PalletCount)
+        .where(
+            models.PalletCount.date == yesterday_str,
+            models.PalletCount.pallet_number == pallet_number,
+            models.PalletCount.status.in_(["found", "new"])
+        )
+    ).first()
+    
+    if not was_yesterday and status_val == "found":
+        status_val = "new"  # Mark as new pallet
+    
+    # Create new count record
+    new_count = models.PalletCount(
+        date=today_str,
+        shift=shift,
+        pallet_number=pallet_number,
+        sector_id=sector_id,
+        employee_id=employee.id,
+        status=status_val,
+        observations=observations
+    )
+    session.add(new_count)
+    session.commit()
+    
+    return JSONResponse({
+        "success": True,
+        "message": f"Paleteira {pallet_number} registrada como {'NOVA' if status_val == 'new' else status_val.upper()}",
+        "id": new_count.id,
+        "status": status_val,
+        "is_new": status_val == "new"
+    })
+
+@app.post("/api/mobile/pallet-count/finalize", response_class=JSONResponse)
+async def api_finalize_pallet_count(
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """Finaliza a contagem do turno e envia alertas de paleteiras não encontradas"""
+    if not isinstance(current_user, dict):
+        return JSONResponse({"success": False, "error": "Não autorizado"}, status_code=401)
+    
+    user_id = current_user.get("id")
+    employee = session.get(models.Employee, user_id)
+    if not employee:
+        return JSONResponse({"success": False, "error": "Funcionário não encontrado"}, status_code=404)
+    
+    data = await request.json()
+    shift = data.get("shift")
+    
+    today = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    today_str = today.strftime("%Y-%m-%d")
+    yesterday = today - timedelta(days=1)
+    yesterday_str = yesterday.strftime("%Y-%m-%d")
+    
+    if not shift:
+        hour = today.hour
+        if 5 <= hour < 14:
+            shift = "Manhã"
+        elif 14 <= hour < 22:
+            shift = "Tarde"
+        else:
+            shift = "Noite"
+    
+    # Get yesterday's pallets
+    yesterday_counts = session.exec(
+        select(models.PalletCount)
+        .where(
+            models.PalletCount.date == yesterday_str,
+            models.PalletCount.status.in_(["found", "new"])
+        )
+    ).all()
+    yesterday_numbers = {pc.pallet_number for pc in yesterday_counts}
+    
+    # Get today's counts
+    today_counts = session.exec(
+        select(models.PalletCount)
+        .where(
+            models.PalletCount.date == today_str,
+            models.PalletCount.shift == shift
+        )
+    ).all()
+    today_numbers = {pc.pallet_number for pc in today_counts}
+    
+    # Find missing pallets (were yesterday but not today)
+    missing_numbers = yesterday_numbers - today_numbers
+    
+    # Mark missing pallets
+    missing_pallets = []
+    for num in missing_numbers:
+        # Get info from yesterday
+        yesterday_record = next((pc for pc in yesterday_counts if pc.pallet_number == num), None)
+        sector = session.get(models.PalletSector, yesterday_record.sector_id) if yesterday_record and yesterday_record.sector_id else None
+        
+        # Create missing record for today
+        missing_count = models.PalletCount(
+            date=today_str,
+            shift=shift,
+            pallet_number=num,
+            sector_id=yesterday_record.sector_id if yesterday_record else None,
+            employee_id=employee.id,
+            status="missing"
+        )
+        session.add(missing_count)
+        
+        missing_pallets.append({
+            "number": num,
+            "sector": sector.name if sector else "Desconhecido",
+            "last_seen": yesterday_str
+        })
+    
+    session.commit()
+    
+    # Send email if there are missing pallets
+    email_sent = False
+    email_error = None
+    
+    if missing_pallets:
+        # Get recipients
+        recipients = session.exec(
+            select(models.PalletCountEmailRecipient)
+            .where(
+                models.PalletCountEmailRecipient.is_active == True,
+                models.PalletCountEmailRecipient.alert_type.in_(["all", "missing"])
+            )
+        ).all()
+        
+        recipient_emails = [r.email for r in recipients]
+        
+        if recipient_emails:
+            success, error = send_pallet_missing_email(
+                missing_pallets=missing_pallets,
+                date=today_str,
+                shift=shift,
+                counted_by=employee.name,
+                recipients=recipient_emails
+            )
+            email_sent = success
+            email_error = error
+    
+    return JSONResponse({
+        "success": True,
+        "message": f"Contagem finalizada. {len(missing_pallets)} paleteira(s) não encontrada(s).",
+        "missing_count": len(missing_pallets),
+        "missing_pallets": missing_pallets,
+        "email_sent": email_sent,
+        "email_error": email_error
+    })
+
+@app.post("/api/mobile/pallet-maintenance", response_class=JSONResponse)
+async def api_create_pallet_maintenance_ticket(
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """Cria um chamado de manutenção para paleteira"""
+    if not isinstance(current_user, dict):
+        return JSONResponse({"success": False, "error": "Não autorizado"}, status_code=401)
+    
+    user_id = current_user.get("id")
+    employee = session.get(models.Employee, user_id)
+    if not employee:
+        return JSONResponse({"success": False, "error": "Funcionário não encontrado"}, status_code=404)
+    
+    data = await request.json()
+    pallet_number = data.get("pallet_number", "").strip().upper()
+    sector_id = data.get("sector_id")
+    issue_type = data.get("issue_type", "other")
+    description = data.get("description", "")
+    priority = data.get("priority", "medium")
+    
+    if not pallet_number:
+        return JSONResponse({"success": False, "error": "Número da paleteira é obrigatório"}, status_code=400)
+    
+    if not description:
+        return JSONResponse({"success": False, "error": "Descrição do problema é obrigatória"}, status_code=400)
+    
+    # Create ticket
+    ticket = models.PalletMaintenanceTicket(
+        pallet_number=pallet_number,
+        sector_id=sector_id,
+        employee_id=employee.id,
+        issue_type=issue_type,
+        description=description,
+        priority=priority,
+        status="open"
+    )
+    session.add(ticket)
+    
+    # Also register as maintenance in today's count
+    today = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    today_str = today.strftime("%Y-%m-%d")
+    hour = today.hour
+    if 5 <= hour < 14:
+        shift = "Manhã"
+    elif 14 <= hour < 22:
+        shift = "Tarde"
+    else:
+        shift = "Noite"
+    
+    # Check if already counted today
+    existing = session.exec(
+        select(models.PalletCount)
+        .where(
+            models.PalletCount.date == today_str,
+            models.PalletCount.shift == shift,
+            models.PalletCount.pallet_number == pallet_number
+        )
+    ).first()
+    
+    if existing:
+        existing.status = "maintenance"
+        existing.observations = f"Manutenção: {description}"
+        session.add(existing)
+    else:
+        maintenance_count = models.PalletCount(
+            date=today_str,
+            shift=shift,
+            pallet_number=pallet_number,
+            sector_id=sector_id,
+            employee_id=employee.id,
+            status="maintenance",
+            observations=f"Manutenção: {description}"
+        )
+        session.add(maintenance_count)
+    
+    session.commit()
+    
+    return JSONResponse({
+        "success": True,
+        "message": f"Chamado aberto para paleteira {pallet_number}",
+        "ticket_id": ticket.id
+    })
+
+# --- Admin: Pallet Count Settings ---
+
+@app.get("/admin/pallet-count/settings", response_class=HTMLResponse)
+async def admin_pallet_count_settings(
+    request: Request,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    """Página de configuração do sistema de contagem de paleteiras"""
+    message = request.query_params.get("message")
+    level = request.query_params.get("level", "success")
+    tab = request.query_params.get("tab", "sectors")
+    
+    # Get sectors
+    sectors = session.exec(
+        select(models.PalletSector).order_by(models.PalletSector.order)
+    ).all()
+    
+    # Get email recipients
+    recipients = session.exec(
+        select(models.PalletCountEmailRecipient).order_by(models.PalletCountEmailRecipient.email)
+    ).all()
+    
+    # Get recent counts (last 7 days)
+    seven_days_ago = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=7)).strftime("%Y-%m-%d")
+    recent_counts = session.exec(
+        select(models.PalletCount)
+        .where(models.PalletCount.date >= seven_days_ago)
+        .order_by(models.PalletCount.date.desc(), models.PalletCount.created_at.desc())
+        .limit(100)
+    ).all()
+    
+    # Get open tickets
+    open_tickets = session.exec(
+        select(models.PalletMaintenanceTicket)
+        .where(models.PalletMaintenanceTicket.status.in_(["open", "in_progress"]))
+        .order_by(models.PalletMaintenanceTicket.created_at.desc())
+    ).all()
+    
+    # Get employees for display
+    employee_ids = set([c.employee_id for c in recent_counts] + [t.employee_id for t in open_tickets])
+    employees_map = {}
+    if employee_ids:
+        employees = session.exec(
+            select(models.Employee).where(models.Employee.id.in_(employee_ids))
+        ).all()
+        employees_map = {e.id: e for e in employees}
+    
+    # Sectors map for display
+    sectors_map = {s.id: s for s in sectors}
+    
+    # SMTP info
+    smtp_configured = bool(SMTP_HOST and SMTP_USER and SMTP_PASS)
+    
+    return templates.TemplateResponse(
+        "admin_pallet_count_settings.html",
+        {
+            "request": request,
+            "user": user,
+            "sectors": sectors,
+            "sectors_map": sectors_map,
+            "recipients": recipients,
+            "recent_counts": recent_counts,
+            "open_tickets": open_tickets,
+            "employees_map": employees_map,
+            "message": message,
+            "level": level,
+            "tab": tab,
+            "smtp_host": SMTP_HOST,
+            "smtp_port": SMTP_PORT_RAW,
+            "smtp_user": SMTP_USER,
+            "smtp_configured": smtp_configured
+        }
+    )
+
+@app.post("/admin/pallet-count/sectors", response_class=RedirectResponse)
+async def admin_pallet_count_add_sector(
+    request: Request,
+    name: str = Form(...),
+    description: str = Form(""),
+    order: int = Form(0),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    """Adiciona um novo setor"""
+    name = name.strip()
+    if not name:
+        return pallet_count_settings_redirect("Nome do setor é obrigatório.", "error")
+    
+    # Check if exists
+    existing = session.exec(
+        select(models.PalletSector).where(models.PalletSector.name == name)
+    ).first()
+    
+    if existing:
+        if not existing.is_active:
+            existing.is_active = True
+            existing.description = description.strip() if description else existing.description
+            existing.order = order
+            session.add(existing)
+            session.commit()
+            return pallet_count_settings_redirect(f"Setor '{name}' reativado.", "success")
+        return pallet_count_settings_redirect(f"Setor '{name}' já existe.", "error")
+    
+    new_sector = models.PalletSector(
+        name=name,
+        description=description.strip() if description else None,
+        order=order,
+        is_active=True
+    )
+    session.add(new_sector)
+    session.commit()
+    
+    return pallet_count_settings_redirect(f"Setor '{name}' criado com sucesso.", "success")
+
+@app.post("/admin/pallet-count/sectors/{sector_id}/edit", response_class=RedirectResponse)
+async def admin_pallet_count_edit_sector(
+    request: Request,
+    sector_id: int,
+    name: str = Form(...),
+    description: str = Form(""),
+    order: int = Form(0),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    """Edita um setor existente"""
+    sector = session.get(models.PalletSector, sector_id)
+    if not sector:
+        return pallet_count_settings_redirect("Setor não encontrado.", "error")
+    
+    sector.name = name.strip()
+    sector.description = description.strip() if description else None
+    sector.order = order
+    session.add(sector)
+    session.commit()
+    
+    return pallet_count_settings_redirect(f"Setor '{name}' atualizado.", "success")
+
+@app.post("/admin/pallet-count/sectors/{sector_id}/delete", response_class=RedirectResponse)
+async def admin_pallet_count_delete_sector(
+    request: Request,
+    sector_id: int,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    """Desativa um setor"""
+    sector = session.get(models.PalletSector, sector_id)
+    if not sector:
+        return pallet_count_settings_redirect("Setor não encontrado.", "error")
+    
+    sector.is_active = False
+    session.add(sector)
+    session.commit()
+    
+    return pallet_count_settings_redirect(f"Setor '{sector.name}' desativado.", "success")
+
+@app.post("/admin/pallet-count/emails", response_class=RedirectResponse)
+async def admin_pallet_count_add_email(
+    request: Request,
+    email: str = Form(...),
+    name: str = Form(""),
+    alert_type: str = Form("all"),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    """Adiciona um e-mail de destinatário"""
+    email_normalized = normalize_email(email)
+    if not email_normalized:
+        return pallet_count_settings_redirect("E-mail inválido.", "error")
+    
+    existing = session.exec(
+        select(models.PalletCountEmailRecipient).where(models.PalletCountEmailRecipient.email == email_normalized)
+    ).first()
+    
+    if existing:
+        if existing.is_active:
+            return pallet_count_settings_redirect("E-mail já cadastrado.", "error")
+        else:
+            existing.is_active = True
+            existing.name = name.strip() if name else existing.name
+            existing.alert_type = alert_type
+            session.add(existing)
+            session.commit()
+            return pallet_count_settings_redirect("E-mail reativado com sucesso.", "success")
+    
+    new_recipient = models.PalletCountEmailRecipient(
+        email=email_normalized,
+        name=name.strip() if name else None,
+        alert_type=alert_type,
+        is_active=True
+    )
+    session.add(new_recipient)
+    session.commit()
+    
+    return pallet_count_settings_redirect("E-mail cadastrado com sucesso.", "success")
+
+@app.post("/admin/pallet-count/emails/{recipient_id}/delete", response_class=RedirectResponse)
+async def admin_pallet_count_remove_email(
+    request: Request,
+    recipient_id: int,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    """Remove um e-mail de destinatário"""
+    recipient = session.get(models.PalletCountEmailRecipient, recipient_id)
+    if not recipient:
+        return pallet_count_settings_redirect("E-mail não encontrado.", "error")
+    
+    recipient.is_active = False
+    session.add(recipient)
+    session.commit()
+    
+    return pallet_count_settings_redirect("E-mail removido com sucesso.", "success")
+
+@app.post("/admin/pallet-count/tickets/{ticket_id}/close", response_class=RedirectResponse)
+async def admin_pallet_count_close_ticket(
+    request: Request,
+    ticket_id: int,
+    returned_number: str = Form(""),
+    return_notes: str = Form(""),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    """Fecha um chamado de manutenção"""
+    ticket = session.get(models.PalletMaintenanceTicket, ticket_id)
+    if not ticket:
+        return pallet_count_settings_redirect("Chamado não encontrado.", "error")
+    
+    ticket.status = "returned" if returned_number else "closed"
+    ticket.returned_pallet_number = returned_number.strip().upper() if returned_number else None
+    ticket.return_date = datetime.now()
+    ticket.return_notes = return_notes.strip() if return_notes else None
+    ticket.closed_at = datetime.now()
+    ticket.closed_by = str(user) if user else "Sistema"
+    session.add(ticket)
+    session.commit()
+    
+    msg = f"Chamado fechado."
+    if returned_number:
+        msg = f"Paleteira retornou como {returned_number.strip().upper()}."
+    
+    return pallet_count_settings_redirect(msg, "success")
+
+# ============================================================================
+# SISTEMA ANTIGO DE CONTAGEM POR QUANTIDADE - REMOVIDO
+# (Substituído pelo sistema de contagem por número individual em /mobile/pallet-count)
+# ============================================================================
+# As rotas abaixo foram removidas pois o modelo foi alterado para usar pallet_number
+# ao invés de quantity:
+# - @app.post("/api/pallets/count-by-sector") - REMOVIDO
+# - @app.get("/mobile/pallets/count") - REMOVIDO
+# O novo sistema usa /mobile/pallet-count e /api/mobile/pallet-count
+# ============================================================================

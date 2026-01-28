@@ -307,9 +307,22 @@ const Store = {
     saveTimeout: null,
     isSaving: false,
     autoSave() {
+        // Não salvar automaticamente se não estiver na página do Smart Flow
+        // Isso evita erros quando o Store é usado em outras páginas (ex: /employees/:id)
+        if (!window.location.pathname.includes('/smart-flow')) {
+            console.log('ℹ️ AutoSave ignorado - não está no Smart Flow');
+            return;
+        }
+
         // Evitar múltiplos salvamentos simultâneos
         if (this.isSaving) {
             console.log('⏳ Salvamento já em andamento, aguardando...');
+            return;
+        }
+
+        // Não salvar se não houver alocações (contexto inválido)
+        if (Object.keys(this.state.allocations).length === 0) {
+            console.log('ℹ️ AutoSave ignorado - sem alocações para salvar');
             return;
         }
 

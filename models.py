@@ -192,6 +192,14 @@ class ChecklistEmailRecipient(SQLModel, table=True):
     is_active: bool = Field(default=True, index=True)
     created_at: datetime = Field(default_factory=datetime.now)
 
+class AbsenceAlertRecipient(SQLModel, table=True):
+    """Destinatários de e-mail para alertas de falta (advertência)"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    email: str = Field(index=True, unique=True)
+    name: Optional[str] = None  # Nome do destinatário (ex: "Jurídico", "RH")
+    is_active: bool = Field(default=True, index=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+
 class TranspalletChecklist(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     employee_id: int = Field(foreign_key="employee.id", index=True)
@@ -348,4 +356,79 @@ class GameConfiguration(SQLModel, table=True):
     description: str
     category: str 
     updated_at: datetime = Field(default_factory=datetime.now)
+
+# --- Pallet Truck Counting System ---
+
+class PalletSector(SQLModel, table=True):
+    """Setor onde as paleteiras ficam alocadas"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True)  # Ex: Expedição, Câmara, Recebimento
+    description: Optional[str] = None
+    is_active: bool = Field(default=True, index=True)
+    order: int = Field(default=0)  # Ordem de exibição
+    created_at: datetime = Field(default_factory=datetime.now)
+
+class PalletCount(SQLModel, table=True):
+    """Registro de contagem diária de paleteira (por número individual)"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    pallet_number: str = Field(index=True)  # Número da paleteira (ex: "001", "A12", etc)
+    date: str = Field(index=True)  # YYYY-MM-DD
+    shift: str = Field(index=True)  # Manhã, Tarde, Noite
+    sector_id: Optional[int] = Field(default=None, index=True)  # Removido foreign_key para permitir null
+    employee_id: int = Field(foreign_key="employee.id", index=True)  # Quem registrou
+    
+    # Status da paleteira neste dia
+    # found = Encontrada na contagem
+    # missing = Não foi encontrada (estava no dia anterior)
+    # new = Nova (não existia no dia anterior)
+    # maintenance = Foi para manutenção
+    status: str = Field(default="found", index=True)
+    
+    observations: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.now, index=True)
+
+class PalletMaintenanceTicket(SQLModel, table=True):
+    """Chamado de manutenção de paleteira"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    pallet_number: str = Field(index=True)  # Número original da paleteira
+    sector_id: Optional[int] = Field(default=None, foreign_key="palletsector.id", index=True)
+    employee_id: int = Field(foreign_key="employee.id", index=True)  # Quem abriu
+    
+    # Detalhes do problema
+    issue_type: str = Field(default="other", index=True)  # battery, wheel, fork, hydraulic, electrical, other
+    description: str
+    priority: str = Field(default="medium", index=True)  # low, medium, high, critical
+    images: List[str] = Field(default=[], sa_column=Column(JSON))
+    
+    # Status do chamado
+    # open = Aguardando manutenção
+    # in_progress = Em manutenção
+    # returned = Retornou da manutenção
+    # replaced = Trocada (veio outra no lugar)
+    # closed = Fechado
+    status: str = Field(default="open", index=True)
+    
+    # Rastreio de troca
+    returned_pallet_number: Optional[str] = Field(default=None, index=True)  # Número da paleteira que voltou (pode ser diferente)
+    return_date: Optional[datetime] = None
+    return_notes: Optional[str] = None
+    
+    # E-mail
+    email_sent_at: Optional[datetime] = None
+    email_error: Optional[str] = None
+    
+    # Audit
+    created_at: datetime = Field(default_factory=datetime.now, index=True)
+    updated_at: datetime = Field(default_factory=datetime.now)
+    closed_at: Optional[datetime] = None
+    closed_by: Optional[str] = None
+
+class PalletCountEmailRecipient(SQLModel, table=True):
+    """Destinatários de e-mail para alertas de contagem de paleteiras"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    email: str = Field(index=True, unique=True)
+    name: Optional[str] = None  # Nome/Descrição (ex: "Manutenção", "Supervisor")
+    alert_type: str = Field(default="all", index=True)  # all, missing, maintenance
+    is_active: bool = Field(default=True, index=True)
+    created_at: datetime = Field(default_factory=datetime.now)
 

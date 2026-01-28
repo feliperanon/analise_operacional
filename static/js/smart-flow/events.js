@@ -230,7 +230,33 @@ const Events = {
 
         // Chamar API para criar rotina estendida
         try {
-            const result = await API.setEmployeeRoutineExtended(empId, routine, startDate, days);
+            let result = await API.setEmployeeRoutineExtended(empId, routine, startDate, days);
+            
+            // Se houver conflito e puder atualizar, perguntar ao usuário
+            if (!result.success && result.canUpdate) {
+                const routineLabels = {
+                    'present': 'Presente',
+                    'vacation': 'Férias',
+                    'sick': 'Atestado',
+                    'away': 'Afastado',
+                    'absent': 'Falta',
+                    'dayoff': 'Folga'
+                };
+                const label = routineLabels[routine] || routine;
+                
+                const confirmUpdate = confirm(
+                    `⚠️ Os dias selecionados já possuem registros.\n\n` +
+                    `Deseja ATUALIZAR para "${label}"?\n\n` +
+                    `Datas: ${result.conflicts ? result.conflicts.join(', ') : 'período selecionado'}`
+                );
+                
+                if (confirmUpdate) {
+                    // Chamar novamente com update_existing = true
+                    result = await API.setEmployeeRoutineExtended(empId, routine, startDate, days, true);
+                } else {
+                    return; // Usuário cancelou
+                }
+            }
             
             if (result.success) {
                 // Atualizar Store localmente para refletir mudanças
@@ -247,7 +273,7 @@ const Events = {
                 };
                 const label = routineLabels[routine] || routine;
                 
-                alert(`✅ ${result.message || `Rotina de ${label} criada com sucesso para ${days} dias`}`);
+                alert(`✅ ${result.message || `Rotina de ${label} processada com sucesso`}`);
                 
                 // Fechar bottom sheet
                 Render.closeBottomSheet();
@@ -259,11 +285,11 @@ const Events = {
                     }, 500);
                 }
             } else {
-                // Mostrar erro (pode ser conflito)
+                // Mostrar erro
                 if (result.error) {
                     alert(`❌ Erro: ${result.error}`);
                 } else {
-                    alert('❌ Erro ao criar rotina estendida.');
+                    alert('❌ Erro ao processar rotina.');
                 }
             }
         } catch (error) {

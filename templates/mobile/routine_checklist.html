@@ -39,24 +39,15 @@
                 <p class="text-slate-400 text-sm mt-1">Garanta sua segurança e ganhe XP</p>
             </div>
 
-            <!-- XP Reward Badge -->
-            <div class="flex items-center gap-3">
-                <!-- Novo Chamado Button -->
-                <a href="/mobile/equipment/tickets/new"
-                    class="flex items-center gap-2 bg-blue-500/20 border border-blue-500/30 rounded-xl px-3 py-2 hover:bg-blue-500/30 transition-all active:scale-95 group">
-                    <i data-lucide="alert-circle" class="w-4 h-4 text-blue-400 group-hover:text-blue-300"></i>
-                    <span class="text-xs font-bold text-blue-300 group-hover:text-white whitespace-nowrap">Abrir Chamado</span>
-                </a>
-                
-                <div class="flex flex-col items-end">
-                    <div
-                        class="w-12 h-12 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/20 mb-1 transform rotate-3">
-                        <span class="text-white font-black text-xs text-center leading-none">
-                            +50<br>XP
-                        </span>
-                    </div>
-                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{{ employee.work_shift }}</span>
+            <!-- XP Reward Badge (somente) -->
+            <div class="flex flex-col items-end">
+                <div
+                    class="w-12 h-12 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/20 mb-1 transform rotate-3">
+                    <span class="text-white font-black text-xs text-center leading-none">
+                        +50<br>XP
+                    </span>
                 </div>
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{{ employee.work_shift }}</span>
             </div>
         </div>
 
@@ -96,7 +87,14 @@
 
         <!-- Action Bar -->
         <div class="flex items-center justify-between px-2">
-            <h2 class="text-white font-bold text-lg">Itens de Verificação</h2>
+            <div class="flex flex-col gap-1">
+                <h2 class="text-white font-bold text-lg">Itens de Verificação</h2>
+                <a href="/mobile/equipment/tickets/new"
+                    class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 text-[11px] text-blue-200 hover:bg-blue-500/20 hover:border-blue-500/50 hover:text-white font-semibold transition-all active:scale-95">
+                    <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i>
+                    <span>Abrir chamado de equipamento</span>
+                </a>
+            </div>
             <button @click="markAllGood()"
                 class="active:scale-95 transition-transform flex items-center gap-2 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-full text-xs font-bold border border-emerald-500/30">
                 <i data-lucide="check-circle-2" class="w-4 h-4"></i>

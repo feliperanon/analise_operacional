@@ -1,0 +1,417 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold text-white mb-2">Contagem de Paleteiras</h1>
+                <p class="text-sm text-slate-400">Gerencie setores, destinatários de alertas e visualize o histórico de contagens.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a href="/smart-flow"
+                    class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    Voltar
+                </a>
+            </div>
+        </div>
+
+        <!-- Mensagem de Feedback -->
+        {% if message %}
+        <div class="mb-8 p-4 rounded-xl border text-sm flex items-center gap-3 backdrop-blur-md shadow-lg animate-fade-in
+            {{ 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200' if level != 'error' else 'bg-red-500/10 border-red-500/30 text-red-200' }}">
+            {% if level != 'error' %}
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {% else %}
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {% endif %}
+            {{ message }}
+        </div>
+        {% endif %}
+
+        <!-- Tabs -->
+        <div class="flex border-b border-slate-700 mb-6 overflow-x-auto">
+            <a href="?tab=sectors" 
+                class="px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap {{ 'border-blue-500 text-blue-400' if tab == 'sectors' else 'border-transparent text-slate-400 hover:text-white' }}">
+                Setores
+            </a>
+            <a href="?tab=emails" 
+                class="px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap {{ 'border-blue-500 text-blue-400' if tab == 'emails' else 'border-transparent text-slate-400 hover:text-white' }}">
+                E-mails de Alerta
+            </a>
+            <a href="?tab=history" 
+                class="px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap {{ 'border-blue-500 text-blue-400' if tab == 'history' else 'border-transparent text-slate-400 hover:text-white' }}">
+                Histórico
+            </a>
+            <a href="?tab=tickets" 
+                class="px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap {{ 'border-blue-500 text-blue-400' if tab == 'tickets' else 'border-transparent text-slate-400 hover:text-white' }}">
+                Manutenções ({{ open_tickets|length }})
+            </a>
+        </div>
+
+        <!-- Tab: Setores -->
+        {% if tab == 'sectors' %}
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+            <div class="flex items-start gap-4 mb-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-blue-200 mb-1">Setores de Paleteiras</h3>
+                    <p class="text-xs text-blue-200/80 leading-relaxed">
+                        Cadastre os setores onde as paleteiras ficam alocadas (ex: Expedição, Câmara, Recebimento).
+                        Isso ajuda a rastrear onde cada paleteira estava quando foi contada.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Formulário de Adição -->
+            <form action="/admin/pallet-count/sectors" method="POST" class="flex flex-col sm:flex-row gap-2 mb-6">
+                <input type="text" name="name" required placeholder="Nome do setor"
+                    class="flex-1 rounded-lg bg-slate-900 border border-slate-700 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none transition-colors">
+                <input type="text" name="description" placeholder="Descrição (opcional)"
+                    class="sm:w-48 rounded-lg bg-slate-900 border border-slate-700 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none transition-colors">
+                <input type="number" name="order" value="0" placeholder="Ordem"
+                    class="w-20 rounded-lg bg-slate-900 border border-slate-700 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none transition-colors">
+                <button type="submit"
+                    class="rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold px-4 py-2.5 text-sm transition-colors flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Adicionar
+                </button>
+            </form>
+
+            <!-- Lista de Setores -->
+            <div class="space-y-3">
+                {% if not sectors %}
+                <div class="text-sm text-slate-500 text-center py-8 border border-dashed border-slate-700 rounded-xl">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto mb-3 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    Nenhum setor cadastrado.<br>
+                    <span class="text-xs">Adicione setores para organizar a contagem de paleteiras.</span>
+                </div>
+                {% else %}
+                {% for sector in sectors %}
+                <div class="flex items-center justify-between bg-slate-900/40 border border-slate-700/50 rounded-xl p-4 hover:bg-slate-900/60 transition-colors group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                            <span class="text-sm font-bold text-blue-400">{{ sector.order }}</span>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-white">{{ sector.name }}</p>
+                            <p class="text-xs text-slate-400">
+                                {{ sector.description or 'Sem descrição' }}
+                                <span class="ml-2 {{ 'text-emerald-400' if sector.is_active else 'text-slate-500' }}">
+                                    {{ '● Ativo' if sector.is_active else '○ Inativo' }}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                    {% if sector.is_active %}
+                    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                        <form action="/admin/pallet-count/sectors/{{ sector.id }}/delete" method="POST">
+                            <button type="submit"
+                                class="text-xs px-3 py-1.5 rounded-lg border border-red-500/30 text-red-300 hover:bg-red-500/10 hover:border-red-500/50 transition-colors">
+                                Desativar
+                            </button>
+                        </form>
+                    </div>
+                    {% else %}
+                    <form action="/admin/pallet-count/sectors" method="POST">
+                        <input type="hidden" name="name" value="{{ sector.name }}">
+                        <input type="hidden" name="description" value="{{ sector.description or '' }}">
+                        <input type="hidden" name="order" value="{{ sector.order }}">
+                        <button type="submit"
+                            class="text-xs px-3 py-1.5 rounded-lg border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 hover:border-emerald-500/50 transition-colors">
+                            Reativar
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Tab: E-mails -->
+        {% if tab == 'emails' %}
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+            <div class="flex items-start gap-4 mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-amber-200 mb-1">Alertas de Paleteiras</h3>
+                    <p class="text-xs text-amber-200/80 leading-relaxed">
+                        Configure os e-mails que receberão alertas quando paleteiras não forem encontradas na contagem diária.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Formulário de Adição -->
+            <form action="/admin/pallet-count/emails" method="POST" class="flex flex-col sm:flex-row gap-2 mb-6">
+                <input type="text" name="name" placeholder="Nome (ex: Supervisor)"
+                    class="sm:w-40 rounded-lg bg-slate-900 border border-slate-700 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none transition-colors">
+                <input type="email" name="email" required placeholder="email@empresa.com"
+                    class="flex-1 rounded-lg bg-slate-900 border border-slate-700 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none transition-colors">
+                <select name="alert_type"
+                    class="sm:w-40 rounded-lg bg-slate-900 border border-slate-700 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none transition-colors">
+                    <option value="all">Todos alertas</option>
+                    <option value="missing">Só ausentes</option>
+                    <option value="maintenance">Só manutenção</option>
+                </select>
+                <button type="submit"
+                    class="rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-semibold px-4 py-2.5 text-sm transition-colors flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Adicionar
+                </button>
+            </form>
+
+            <!-- Lista de Destinatários -->
+            <div class="space-y-3" style="max-height: 400px; overflow-y: auto;">
+                {% if not recipients %}
+                <div class="text-sm text-slate-500 text-center py-8 border border-dashed border-slate-700 rounded-xl">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto mb-3 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    Nenhum e-mail cadastrado.<br>
+                    <span class="text-xs">Adicione destinatários para receber alertas de paleteiras ausentes.</span>
+                </div>
+                {% else %}
+                {% for recipient in recipients %}
+                <div class="flex items-center justify-between bg-slate-900/40 border border-slate-700/50 rounded-xl p-4 hover:bg-slate-900/60 transition-colors group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                            <span class="text-sm font-bold text-amber-400">{{ recipient.email[0]|upper }}</span>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-white">{{ recipient.email }}</p>
+                            <p class="text-xs text-slate-400">
+                                {{ recipient.name or 'Sem descrição' }} — 
+                                <span class="text-blue-400">{{ recipient.alert_type }}</span>
+                                <span class="ml-2 {{ 'text-emerald-400' if recipient.is_active else 'text-slate-500' }}">
+                                    {{ '● Ativo' if recipient.is_active else '○ Inativo' }}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                    {% if recipient.is_active %}
+                    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                        <form action="/admin/pallet-count/emails/{{ recipient.id }}/delete" method="POST">
+                            <button type="submit"
+                                class="text-xs px-3 py-1.5 rounded-lg border border-red-500/30 text-red-300 hover:bg-red-500/10 hover:border-red-500/50 transition-colors">
+                                Remover
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+
+            <!-- Configurações SMTP -->
+            <div class="mt-8 pt-6 border-t border-slate-700">
+                <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wide mb-4">Configurações SMTP</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-slate-900/40 rounded-lg p-3">
+                        <p class="text-[10px] text-slate-500 uppercase font-bold mb-1">Host</p>
+                        <p class="text-xs text-white font-mono truncate">{{ smtp_host or 'Não configurado' }}</p>
+                    </div>
+                    <div class="bg-slate-900/40 rounded-lg p-3">
+                        <p class="text-[10px] text-slate-500 uppercase font-bold mb-1">Porta</p>
+                        <p class="text-xs text-white font-mono">{{ smtp_port or '-' }}</p>
+                    </div>
+                    <div class="bg-slate-900/40 rounded-lg p-3">
+                        <p class="text-[10px] text-slate-500 uppercase font-bold mb-1">Usuário</p>
+                        <p class="text-xs text-white font-mono truncate">{{ smtp_user or 'Não configurado' }}</p>
+                    </div>
+                    <div class="bg-slate-900/40 rounded-lg p-3">
+                        <p class="text-[10px] text-slate-500 uppercase font-bold mb-1">Status</p>
+                        <p class="text-xs font-bold {{ 'text-emerald-400' if smtp_configured else 'text-red-400' }}">
+                            {{ 'Configurado' if smtp_configured else 'Não Configurado' }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Tab: Histórico -->
+        {% if tab == 'history' %}
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-slate-900/50 text-slate-400 uppercase tracking-wider text-xs">
+                    <tr>
+                        <th class="px-4 py-3">Data</th>
+                        <th class="px-4 py-3">Turno</th>
+                        <th class="px-4 py-3">Paleteira</th>
+                        <th class="px-4 py-3">Setor</th>
+                        <th class="px-4 py-3">Status</th>
+                        <th class="px-4 py-3">Registrado por</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700/50">
+                    {% if not recent_counts %}
+                    <tr>
+                        <td colspan="6" class="px-4 py-8 text-center text-slate-500">
+                            Nenhuma contagem registrada nos últimos 7 dias.
+                        </td>
+                    </tr>
+                    {% else %}
+                    {% for count in recent_counts %}
+                    <tr class="hover:bg-slate-800/50">
+                        <td class="px-4 py-3 font-mono text-slate-300">
+                            {{ count.date[8:10] }}/{{ count.date[5:7] }}
+                        </td>
+                        <td class="px-4 py-3 text-slate-400">{{ count.shift }}</td>
+                        <td class="px-4 py-3 font-bold text-white">{{ count.pallet_number }}</td>
+                        <td class="px-4 py-3 text-slate-400">
+                            {{ sectors_map.get(count.sector_id).name if count.sector_id and sectors_map.get(count.sector_id) else '-' }}
+                        </td>
+                        <td class="px-4 py-3">
+                            {% if count.status == 'found' %}
+                            <span class="px-2 py-0.5 rounded-full text-xs bg-green-500/20 text-green-400">Encontrada</span>
+                            {% elif count.status == 'new' %}
+                            <span class="px-2 py-0.5 rounded-full text-xs bg-yellow-500/20 text-yellow-400">Nova</span>
+                            {% elif count.status == 'missing' %}
+                            <span class="px-2 py-0.5 rounded-full text-xs bg-red-500/20 text-red-400">Ausente</span>
+                            {% elif count.status == 'maintenance' %}
+                            <span class="px-2 py-0.5 rounded-full text-xs bg-orange-500/20 text-orange-400">Manutenção</span>
+                            {% else %}
+                            <span class="px-2 py-0.5 rounded-full text-xs bg-slate-500/20 text-slate-400">{{ count.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-slate-400">
+                            {{ employees_map.get(count.employee_id).name if employees_map.get(count.employee_id) else '-' }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        <!-- Tab: Manutenções -->
+        {% if tab == 'tickets' %}
+        <div class="space-y-4">
+            {% if not open_tickets %}
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-8 text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <p class="text-slate-500">Nenhum chamado de manutenção aberto.</p>
+            </div>
+            {% else %}
+            {% for ticket in open_tickets %}
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-14 h-14 rounded-xl bg-orange-500/20 flex items-center justify-center">
+                            <span class="text-2xl font-black text-orange-400">{{ ticket.pallet_number }}</span>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-white">Paleteira {{ ticket.pallet_number }}</h3>
+                            <p class="text-sm text-slate-400">
+                                Aberto em {{ ticket.created_at.strftime('%d/%m/%Y às %H:%M') }}
+                                {% if employees_map.get(ticket.employee_id) %}
+                                por {{ employees_map.get(ticket.employee_id).name }}
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <span class="px-3 py-1 rounded-full text-xs font-bold
+                        {% if ticket.status == 'open' %}bg-orange-500/20 text-orange-400
+                        {% else %}bg-blue-500/20 text-blue-400{% endif %}">
+                        {% if ticket.status == 'open' %}Aguardando{% else %}Em andamento{% endif %}
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div class="bg-slate-900/40 rounded-lg p-3">
+                        <p class="text-[10px] text-slate-500 uppercase font-bold mb-1">Tipo</p>
+                        <p class="text-sm text-white">
+                            {% if ticket.issue_type == 'battery' %}Bateria
+                            {% elif ticket.issue_type == 'wheel' %}Roda/Pneu
+                            {% elif ticket.issue_type == 'fork' %}Garfo
+                            {% elif ticket.issue_type == 'hydraulic' %}Hidráulico
+                            {% elif ticket.issue_type == 'electrical' %}Elétrico
+                            {% else %}Outro{% endif %}
+                        </p>
+                    </div>
+                    <div class="bg-slate-900/40 rounded-lg p-3">
+                        <p class="text-[10px] text-slate-500 uppercase font-bold mb-1">Prioridade</p>
+                        <p class="text-sm font-bold
+                            {% if ticket.priority == 'critical' %}text-red-400
+                            {% elif ticket.priority == 'high' %}text-orange-400
+                            {% elif ticket.priority == 'medium' %}text-yellow-400
+                            {% else %}text-slate-400{% endif %}">
+                            {% if ticket.priority == 'critical' %}Crítica
+                            {% elif ticket.priority == 'high' %}Alta
+                            {% elif ticket.priority == 'medium' %}Média
+                            {% else %}Baixa{% endif %}
+                        </p>
+                    </div>
+                    <div class="bg-slate-900/40 rounded-lg p-3">
+                        <p class="text-[10px] text-slate-500 uppercase font-bold mb-1">Setor</p>
+                        <p class="text-sm text-white">
+                            {{ sectors_map.get(ticket.sector_id).name if ticket.sector_id and sectors_map.get(ticket.sector_id) else '-' }}
+                        </p>
+                    </div>
+                    <div class="bg-slate-900/40 rounded-lg p-3">
+                        <p class="text-[10px] text-slate-500 uppercase font-bold mb-1">Tempo Aberto</p>
+                        <p class="text-sm text-white">
+                            {% set delta = (now() - ticket.created_at) if now else None %}
+                            {% if delta %}
+                            {{ (delta.days * 24 + delta.seconds // 3600) }}h
+                            {% else %}-{% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/40 rounded-lg p-4 mb-4">
+                    <p class="text-[10px] text-slate-500 uppercase font-bold mb-2">Descrição do Problema</p>
+                    <p class="text-sm text-slate-300">{{ ticket.description }}</p>
+                </div>
+
+                <!-- Formulário para fechar chamado -->
+                <form action="/admin/pallet-count/tickets/{{ ticket.id }}/close" method="POST" class="flex flex-col sm:flex-row gap-2">
+                    <input type="text" name="returned_number" placeholder="Número da paleteira que voltou (se diferente)"
+                        class="flex-1 rounded-lg bg-slate-900 border border-slate-700 px-3 py-2.5 text-sm text-white focus:border-green-500 focus:outline-none transition-colors uppercase">
+                    <input type="text" name="return_notes" placeholder="Observações"
+                        class="sm:w-64 rounded-lg bg-slate-900 border border-slate-700 px-3 py-2.5 text-sm text-white focus:border-green-500 focus:outline-none transition-colors">
+                    <button type="submit"
+                        class="rounded-lg bg-green-600 hover:bg-green-500 text-white font-semibold px-4 py-2.5 text-sm transition-colors flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        Fechar Chamado
+                    </button>
+                </form>
+            </div>
+            {% endfor %}
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

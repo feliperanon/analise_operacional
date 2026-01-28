@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8">
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold text-white mb-2">Alertas de Falta (Advertências)</h1>
+                <p class="text-sm text-slate-400">Configure os destinatários que receberão e-mails automáticos quando uma falta for registrada.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a href="/smart-flow"
+                    class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    Voltar
+                </a>
+            </div>
+        </div>
+
+        <!-- Mensagem de Feedback -->
+        {% if message %}
+        <div
+            class="mb-8 p-4 rounded-xl border text-sm flex items-center gap-3 backdrop-blur-md shadow-lg animate-fade-in
+            {{ 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200' if level != 'error' else 'bg-red-500/10 border-red-500/30 text-red-200' }}">
+            {% if level != 'error' %}
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {% else %}
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {% endif %}
+            {{ message }}
+        </div>
+        {% endif %}
+
+        <!-- Card Principal -->
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+            <!-- Info Header -->
+            <div class="flex items-start gap-4 mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-amber-200 mb-1">Como funciona?</h3>
+                    <p class="text-xs text-amber-200/80 leading-relaxed">
+                        Quando um líder registra uma <strong>FALTA</strong> para um colaborador no Smart Flow, 
+                        um e-mail automático será enviado para todos os destinatários ativos listados abaixo, 
+                        solicitando a abertura de processo de advertência.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Seção de E-mails -->
+            <div class="mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                            Destinatários de Advertência
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">E-mails que receberão notificação de falta automaticamente.</p>
+                    </div>
+                </div>
+
+                <!-- Formulário de Adição -->
+                <form action="/admin/absence-alerts/settings/emails" method="POST" class="flex flex-col sm:flex-row gap-2 mb-6">
+                    <input type="text" name="name" placeholder="Nome (ex: Jurídico, RH)"
+                        class="sm:w-40 rounded-lg bg-slate-900 border border-slate-700 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none transition-colors">
+                    <input type="email" name="email" required placeholder="email@empresa.com"
+                        class="flex-1 rounded-lg bg-slate-900 border border-slate-700 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none transition-colors">
+                    <button type="submit"
+                        class="rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold px-4 py-2.5 text-sm transition-colors flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Adicionar
+                    </button>
+                </form>
+
+                <!-- Lista de Destinatários -->
+                <div class="space-y-3" style="max-height: 400px; overflow-y: auto;">
+                    {% if not recipients %}
+                    <div class="text-sm text-slate-500 text-center py-8 border border-dashed border-slate-700 rounded-xl">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto mb-3 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        Nenhum e-mail cadastrado.<br>
+                        <span class="text-xs">Adicione destinatários para receber alertas de falta.</span>
+                    </div>
+                    {% else %}
+                    {% for recipient in recipients %}
+                    <div
+                        class="flex items-center justify-between bg-slate-900/40 border border-slate-700/50 rounded-xl p-4 hover:bg-slate-900/60 transition-colors group">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                                <span class="text-sm font-bold text-red-400">{{ recipient.email[0]|upper }}</span>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-white">{{ recipient.email }}</p>
+                                <p class="text-xs text-slate-400">
+                                    {{ recipient.name or 'Sem descrição' }}
+                                    <span class="ml-2 {{ 'text-emerald-400' if recipient.is_active else 'text-slate-500' }}">
+                                        {{ '● Ativo' if recipient.is_active else '○ Inativo' }}
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+                        {% if recipient.is_active %}
+                        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                            <form action="/admin/absence-alerts/settings/emails/{{ recipient.id }}/test" method="POST">
+                                <button type="submit"
+                                    class="text-xs px-3 py-1.5 rounded-lg border border-blue-500/30 text-blue-300 hover:bg-blue-500/10 hover:border-blue-500/50 transition-colors">
+                                    Testar
+                                </button>
+                            </form>
+                            <form action="/admin/absence-alerts/settings/emails/{{ recipient.id }}/delete"
+                                method="POST">
+                                <button type="submit"
+                                    class="text-xs px-3 py-1.5 rounded-lg border border-red-500/30 text-red-300 hover:bg-red-500/10 hover:border-red-500/50 transition-colors">
+                                    Remover
+                                </button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <form action="/admin/absence-alerts/settings/emails" method="POST">
+                            <input type="hidden" name="email" value="{{ recipient.email }}">
+                            <input type="hidden" name="name" value="{{ recipient.name or '' }}">
+                            <button type="submit"
+                                class="text-xs px-3 py-1.5 rounded-lg border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 hover:border-emerald-500/50 transition-colors">
+                                Reativar
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Configurações SMTP -->
+            <div class="mt-8 pt-6 border-t border-slate-700">
+                <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wide mb-4">Configurações SMTP</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-slate-900/40 rounded-lg p-3">
+                        <p class="text-[10px] text-slate-500 uppercase font-bold mb-1">Host</p>
+                        <p class="text-xs text-white font-mono truncate">{{ smtp_host or 'Não configurado' }}</p>
+                    </div>
+                    <div class="bg-slate-900/40 rounded-lg p-3">
+                        <p class="text-[10px] text-slate-500 uppercase font-bold mb-1">Porta</p>
+                        <p class="text-xs text-white font-mono">{{ smtp_port or '-' }}</p>
+                    </div>
+                    <div class="bg-slate-900/40 rounded-lg p-3">
+                        <p class="text-[10px] text-slate-500 uppercase font-bold mb-1">Usuário</p>
+                        <p class="text-xs text-white font-mono truncate">{{ smtp_user or 'Não configurado' }}</p>
+                    </div>
+                    <div class="bg-slate-900/40 rounded-lg p-3">
+                        <p class="text-[10px] text-slate-500 uppercase font-bold mb-1">Status</p>
+                        <p class="text-xs font-bold {{ 'text-emerald-400' if smtp_configured else 'text-red-400' }}">
+                            {{ 'Configurado' if smtp_configured else 'Não Configurado' }}
+                        </p>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-500 mt-3">
+                    As configurações SMTP são definidas via variáveis de ambiente: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
+                </p>
+            </div>
+        </div>
+
+        <!-- Exemplo de E-mail -->
+        <div class="mt-6 bg-slate-800 border border-slate-700 rounded-2xl p-6">
+            <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wide mb-4">Prévia do E-mail</h3>
+            <div class="bg-white rounded-lg p-6 text-slate-900">
+                <div class="border-b border-slate-200 pb-4 mb-4">
+                    <p class="text-xs text-slate-500">De: {{ smtp_user or 'sistema@empresa.com' }}</p>
+                    <p class="text-xs text-slate-500">Para: destinatarios@empresa.com</p>
+                    <p class="text-sm font-bold text-red-600 mt-2">🚨 SOLICITAÇÃO DE ADVERTÊNCIA — Falta Não Justificada</p>
+                </div>
+                <div class="text-sm leading-relaxed">
+                    <p class="mb-3">Prezados,</p>
+                    <p class="mb-3">
+                        Informamos que o colaborador <strong>[Nome do Colaborador]</strong> (Matrícula: <strong>[12345]</strong>) 
+                        foi registrado com <strong class="text-red-600">FALTA</strong> no sistema em <strong>[28/01/2026]</strong>.
+                    </p>
+                    <p class="mb-3">
+                        Solicitamos a abertura de processo de advertência conforme procedimento interno.
+                    </p>
+                    <div class="bg-slate-100 rounded p-3 my-4">
+                        <p class="text-xs font-bold text-slate-600 mb-2">Detalhes:</p>
+                        <ul class="text-xs text-slate-600 space-y-1">
+                            <li>• <strong>Colaborador:</strong> [Nome do Colaborador]</li>
+                            <li>• <strong>Matrícula:</strong> [12345]</li>
+                            <li>• <strong>Turno:</strong> [Manhã]</li>
+                            <li>• <strong>Data da Falta:</strong> [28/01/2026]</li>
+                            <li>• <strong>Registrado por:</strong> [Líder/Usuário]</li>
+                        </ul>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-4">
+                        Este é um e-mail automático gerado pelo sistema de Análise Operacional.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

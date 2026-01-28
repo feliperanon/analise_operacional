@@ -153,8 +153,13 @@ const API = {
 
     /**
      * Define rotina estendida de um colaborador (múltiplos dias)
+     * @param {number} employeeId - ID do colaborador
+     * @param {string} routine - Tipo de rotina (absent, sick, etc)
+     * @param {string} startDate - Data inicial (YYYY-MM-DD)
+     * @param {number} days - Número de dias
+     * @param {boolean} updateExisting - Se true, atualiza registros existentes
      */
-    async setEmployeeRoutineExtended(employeeId, routine, startDate, days) {
+    async setEmployeeRoutineExtended(employeeId, routine, startDate, days, updateExisting = false) {
         try {
             const response = await fetch('/api/employees/routine/extended', {
                 method: 'POST',
@@ -163,24 +168,46 @@ const API = {
                     employee_id: employeeId,
                     routine: routine,
                     start_date: startDate,
-                    days: days
-                })
+                    days: days,
+                    update_existing: updateExisting
+                }),
+                signal: AbortSignal.timeout(30000) // Timeout de 30 segundos
             });
             
-            const result = await response.json();
+            // Verificar se a resposta é JSON válida
+            let result;
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                result = await response.json();
+            } else {
+                const text = await response.text();
+                throw new Error(`Resposta inválida do servidor: ${text.substring(0, 100)}`);
+            }
             
             if (!response.ok) {
-                // Se houver conflito, retornar erro com detalhes
-                if (result.conflicts) {
-                    throw new Error(result.error || 'Conflito detectado');
+                // Se houver conflito (409), retornar resultado com can_update para o chamador decidir
+                if (response.status === 409 && result.can_update) {
+                    return { 
+                        success: false, 
+                        canUpdate: true,
+                        conflicts: result.conflicts,
+                        error: result.error 
+                    };
                 }
-                throw new Error(result.error || 'Erro ao definir rotina estendida');
+                throw new Error(result.error || `Erro ${response.status}: Erro ao definir rotina estendida`);
             }
             
             return result;
         } catch (error) {
             console.error('API Error:', error);
-            return { success: false, error: error.message };
+            // Tratar diferentes tipos de erro
+            if (error.name === 'AbortError' || error.message.includes('timeout')) {
+                return { success: false, error: 'Tempo de espera esgotado. Tente novamente.' };
+            }
+            if (error.message.includes('Failed to fetch') || error.message.includes('ERR_CONNECTION_RESET')) {
+                return { success: false, error: 'Erro de conexão com o servidor. Verifique sua internet e tente novamente.' };
+            }
+            return { success: false, error: error.message || 'Erro desconhecido ao definir rotina estendida' };
         }
     }
 };
