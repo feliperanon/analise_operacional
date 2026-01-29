@@ -140,8 +140,8 @@ const Events = {
                 tonnage: Store.state.tonnage
             }).then(() => {
                 alert('✅ Turno encerrado e salvo!');
-                // Redirecionar para daily operations
-                window.location.href = `/daily_operations?date=${Store.state.currentDate}`;
+                // Redirecionar para performance de operações
+                window.location.href = `/operations/performance?date=${Store.state.currentDate}`;
             }).catch(err => {
                 console.error('Error closing shift:', err);
                 alert('❌ Erro ao encerrar turno. Verifique o console.');
@@ -232,29 +232,18 @@ const Events = {
         try {
             let result = await API.setEmployeeRoutineExtended(empId, routine, startDate, days);
             
-            // Se houver conflito e puder atualizar, perguntar ao usuário
+            // Se houver conflito e puder atualizar, atualizar automaticamente
+            // O backend já detecta se é a mesma rotina e atualiza automaticamente
             if (!result.success && result.canUpdate) {
-                const routineLabels = {
-                    'present': 'Presente',
-                    'vacation': 'Férias',
-                    'sick': 'Atestado',
-                    'away': 'Afastado',
-                    'absent': 'Falta',
-                    'dayoff': 'Folga'
-                };
-                const label = routineLabels[routine] || routine;
+                // Atualizar automaticamente sem pedir confirmação
+                // O backend já verifica se é a mesma rotina e permite atualização automática
+                result = await API.setEmployeeRoutineExtended(empId, routine, startDate, days, true);
                 
-                const confirmUpdate = confirm(
-                    `⚠️ Os dias selecionados já possuem registros.\n\n` +
-                    `Deseja ATUALIZAR para "${label}"?\n\n` +
-                    `Datas: ${result.conflicts ? result.conflicts.join(', ') : 'período selecionado'}`
-                );
-                
-                if (confirmUpdate) {
-                    // Chamar novamente com update_existing = true
-                    result = await API.setEmployeeRoutineExtended(empId, routine, startDate, days, true);
-                } else {
-                    return; // Usuário cancelou
+                // Se ainda falhar após tentar atualizar, pode ser rotina protegida
+                // Nesse caso, mostrar erro mas não pedir confirmação novamente
+                if (!result.success) {
+                    alert(result.error || 'Não foi possível atualizar a rotina. Verifique se não está tentando sobrescrever uma rotina protegida (atestado/afastamento).');
+                    return;
                 }
             }
             

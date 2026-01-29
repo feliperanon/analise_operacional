@@ -1,0 +1,1705 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organograma Operacional - {{ date }} | {{ shift }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ========== PRINT STYLES - COMPLETO ========== */
+        @media print {
+            *, *::before, *::after {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+
+            @page {
+                size: A4 landscape;
+                margin: 8mm 6mm 6mm 6mm;
+            }
+            
+            /* ===== CABEÇALHO REPETIDO EM CADA PÁGINA ===== */
+            @page {
+                @top-center {
+                    content: "Organograma Operacional - {{ date }} - {{ shift }}";
+                    font-size: 9pt;
+                    font-weight: bold;
+                    color: #1e3a5f;
+                }
+            }
+            
+            /* Cabeçalho fixo para navegadores que não suportam @page @top-center */
+            .print-header-repeat {
+                display: none !important;
+            }
+            
+            .print-header-repeat {
+                display: block !important;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background: #1e3a5f !important;
+                color: white !important;
+                padding: 4px 15px !important;
+                font-size: 9pt !important;
+                z-index: 99999 !important;
+                border-bottom: 2px solid #3b82f6 !important;
+            }
+            
+            .print-header-repeat-content {
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+            }
+            
+            .print-header-repeat-title {
+                font-weight: bold !important;
+                font-size: 10pt !important;
+            }
+            
+            .print-header-repeat-info {
+                font-size: 8pt !important;
+                display: flex !important;
+                gap: 15px !important;
+            }
+            
+            /* Espaço para o cabeçalho fixo */
+            body {
+                padding-top: 25px !important;
+            }
+
+            html, body {
+                background: white !important;
+                font-size: 9pt !important;
+                line-height: 1.3 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .no-print, .no-print * {
+                display: none !important;
+                visibility: hidden !important;
+            }
+
+            /* ===== HEADER COMPLETO - FORÇAR VISIBILIDADE ===== */
+            header, 
+            header.gradient-header,
+            .gradient-header {
+                display: block !important;
+                visibility: visible !important;
+                padding: 10px 15px !important;
+                background: #1e3a5f !important;
+                background-image: none !important;
+                border-radius: 0 !important;
+                color: white !important;
+            }
+
+            header *,
+            .gradient-header * {
+                visibility: visible !important;
+            }
+
+            header h1 {
+                display: block !important;
+                font-size: 14pt !important;
+                color: white !important;
+            }
+
+            header p {
+                display: block !important;
+                font-size: 8pt !important;
+                color: #93c5fd !important;
+            }
+
+            /* Header container */
+            header > div,
+            .gradient-header > div,
+            header [class*="max-w"] {
+                max-width: none !important;
+                display: block !important;
+            }
+
+            /* Header top row - flex between title and date */
+            header > div > div:first-child,
+            header [class*="flex"][class*="flex-col"],
+            header .flex.flex-col {
+                display: flex !important;
+                flex-direction: row !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                gap: 16px !important;
+            }
+
+            /* Logo area */
+            header .flex.items-center.gap-4 {
+                display: flex !important;
+                align-items: center !important;
+                gap: 12px !important;
+            }
+
+            /* KPIs grid row */
+            header .mt-6,
+            header [class*="mt-6"],
+            header .grid,
+            header [class*="grid"] {
+                display: grid !important;
+                grid-template-columns: repeat(7, 1fr) !important;
+                gap: 8px !important;
+                margin-top: 12px !important;
+            }
+
+            /* Date/shift badge */
+            header [class*="bg-white"],
+            header [class*="backdrop-blur"] {
+                display: block !important;
+                background: rgba(255,255,255,0.1) !important;
+                padding: 8px 12px !important;
+                border-radius: 1rem !important;
+            }
+
+            header [class*="bg-white"] .flex {
+                display: flex !important;
+                align-items: center !important;
+                gap: 12px !important;
+            }
+
+            /* ===== KPIs ===== */
+            .stats-badge,
+            header .stats-badge,
+            [class*="stats-badge"] {
+                padding: 4px 8px !important;
+                background: rgba(255,255,255,0.1) !important;
+                border-radius: 0.75rem !important;
+            }
+
+            .stats-badge p:first-child {
+                font-size: 6pt !important;
+            }
+
+            .stats-badge p:last-child {
+                font-size: 12pt !important;
+            }
+
+            .stats-badge::after {
+                display: none !important;
+            }
+
+            /* ===== ALERT BANNER ===== */
+            [class*="from-amber-500"],
+            [class*="from-amber-500"][class*="to-orange"],
+            .bg-gradient-to-r.from-amber-500 {
+                padding: 6px 12px !important;
+                background: #f59e0b !important;
+                background-image: none !important;
+            }
+
+            /* ===== MAIN CONTENT ===== */
+            main {
+                padding: 8px !important;
+            }
+
+            /* ===== SECTOR CARDS ===== */
+            .sector-card,
+            div.sector-card,
+            main .sector-card,
+            .space-y-8 > .sector-card {
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+                margin-bottom: 10px !important;
+                box-shadow: none !important;
+                border: 1px solid #cbd5e1 !important;
+                border-radius: 1rem !important;
+                overflow: hidden !important;
+            }
+
+            /* Sector header */
+            .sector-card > div:first-child,
+            div.sector-card > div:first-child {
+                padding: 8px 12px !important;
+                background: #334155 !important;
+                background-image: none !important;
+            }
+
+            .sector-card h2,
+            div.sector-card h2 {
+                font-size: 11pt !important;
+                color: white !important;
+            }
+
+            /* Sector stats row */
+            .sector-card > div:first-child .flex {
+                display: flex !important;
+                align-items: center !important;
+                gap: 8px !important;
+            }
+
+            /* ===== SUBSECTOR GRID ===== */
+            .sector-card .grid,
+            .sector-card div.grid,
+            .sector-card > div:last-child > div.grid {
+                display: grid !important;
+                gap: 6px !important;
+                padding: 8px !important;
+            }
+
+            /* Grid columns baseado no data attribute */
+            .sector-card[data-print-grid-cols="3"] .grid,
+            .sector-card.print-cols-3 .grid { grid-template-columns: repeat(3, 1fr) !important; }
+            .sector-card[data-print-grid-cols="4"] .grid,
+            .sector-card.print-cols-4 .grid { grid-template-columns: repeat(4, 1fr) !important; }
+            .sector-card[data-print-grid-cols="5"] .grid,
+            .sector-card.print-cols-5 .grid { grid-template-columns: repeat(5, 1fr) !important; }
+            .sector-card[data-print-grid-cols="6"] .grid,
+            .sector-card.print-cols-6 .grid { grid-template-columns: repeat(6, 1fr) !important; }
+            
+            /* Fallback para 3 colunas */
+            .sector-card:not([data-print-grid-cols]) .grid { grid-template-columns: repeat(3, 1fr) !important; }
+
+            /* Subsector cards */
+            .sector-card .grid > div {
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+                background: linear-gradient(to bottom right, #f8fafc, #f1f5f9) !important;
+                border: 1px solid #e2e8f0 !important;
+                border-radius: 0.75rem !important;
+                overflow: hidden !important;
+            }
+
+            /* Subsector header */
+            .sector-card .grid > div > div:first-child {
+                padding: 6px 8px !important;
+                background: white !important;
+                border-bottom: 1px solid #e2e8f0 !important;
+            }
+
+            .sector-card .grid > div h3 {
+                font-size: 8pt !important;
+                font-weight: 700 !important;
+                color: #1e293b !important;
+            }
+
+            /* ===== EMPLOYEES LIST - MÚLTIPLAS COLUNAS PARA CABER EM 1 PÁGINA ===== */
+            .employees-list,
+            .sector-card .employees-list,
+            .sector-card .grid > div > div:last-child {
+                max-height: none !important;
+                overflow: visible !important;
+                padding: 3px !important;
+                column-width: 150px !important;
+                column-gap: 6px !important;
+            }
+            
+            /* Impede que cards quebrem entre colunas */
+            .employee-card,
+            .vacancy-card {
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+                margin-bottom: 2px !important;
+                display: inline-block !important;
+                width: 100% !important;
+            }
+
+            /* ===== EMPLOYEE CARDS BASE ===== */
+            .employee-card,
+            div.employee-card,
+            .employees-list .employee-card {
+                display: flex !important;
+                align-items: center !important;
+                gap: 4px !important;
+                margin: 0 !important; /* Remove margin para grid funcionar */
+                box-shadow: none !important;
+                border: 1px solid #e2e8f0 !important;
+                background: #f8fafc !important;
+                background-image: none !important;
+                border-radius: 4px !important;
+            }
+            
+            /* Remove space-y classes */
+            .employees-list.space-y-2 > * + * {
+                margin-top: 0 !important;
+            }
+
+            /* Info container */
+            .employee-card > div:nth-child(2) {
+                flex: 1 !important;
+                min-width: 0 !important;
+            }
+
+            /* Nome COMPLETO em 1 linha */
+            .employee-name,
+            p.employee-name,
+            .employee-card .employee-name,
+            .employee-card p:first-of-type {
+                font-weight: 600 !important;
+                color: #1e293b !important;
+                line-height: 1.2 !important;
+                white-space: nowrap !important;
+            }
+            
+            /* Esconde cargo na impressão */
+            .employee-card p:last-of-type:not(:first-of-type) {
+                display: none !important;
+            }
+
+            /* Cargo */
+            .employee-card p:last-of-type {
+                color: #64748b !important;
+            }
+
+            /* Status indicator */
+            .employee-card > div:last-child {
+                border-radius: 50% !important;
+                background: #22c55e !important;
+            }
+
+            /* ===== EMPLOYEE CARDS - ESCALA DINÂMICA COMPACTA ===== */
+            /* Scale 100 - até 15 pessoas */
+            .employee-card[data-print-font-size="8pt"],
+            .sector-card.print-scale-100 .employee-card {
+                padding: 3px 5px !important;
+            }
+            .employee-card[data-print-font-size="8pt"] p,
+            .sector-card.print-scale-100 .employee-card p { font-size: 6.5pt !important; line-height: 1.1 !important; }
+            .sector-card.print-scale-100 .employee-card p:last-of-type { font-size: 5.5pt !important; }
+            .employee-card[data-print-avatar-size="24px"] > div:first-child,
+            .sector-card.print-scale-100 .employee-card > div:first-child { 
+                width: 18px !important; height: 18px !important; min-width: 18px !important; font-size: 6pt !important;
+                border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important;
+                font-weight: bold !important; color: white !important; background: linear-gradient(to bottom right, #3b82f6, #2563eb) !important;
+            }
+            .sector-card.print-scale-100 .employee-card > div:last-child { display: none !important; }
+
+            /* Scale 90 - até 25 pessoas */
+            .employee-card[data-print-font-size="7pt"],
+            .sector-card.print-scale-90 .employee-card {
+                padding: 2px 4px !important;
+            }
+            .employee-card[data-print-font-size="7pt"] p,
+            .sector-card.print-scale-90 .employee-card p { font-size: 6pt !important; line-height: 1.1 !important; }
+            .sector-card.print-scale-90 .employee-card p:last-of-type { font-size: 5pt !important; }
+            .employee-card[data-print-avatar-size="22px"] > div:first-child,
+            .sector-card.print-scale-90 .employee-card > div:first-child { 
+                width: 16px !important; height: 16px !important; min-width: 16px !important; font-size: 5.5pt !important;
+                border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important;
+                font-weight: bold !important; color: white !important; background: linear-gradient(to bottom right, #3b82f6, #2563eb) !important;
+            }
+            .sector-card.print-scale-90 .employee-card > div:last-child { display: none !important; }
+
+            /* Scale 80 - até 40 pessoas */
+            .employee-card[data-print-font-size="6.5pt"],
+            .sector-card.print-scale-80 .employee-card {
+                padding: 2px 3px !important;
+            }
+            .employee-card[data-print-font-size="6.5pt"] p,
+            .sector-card.print-scale-80 .employee-card p { font-size: 5.5pt !important; line-height: 1 !important; }
+            .sector-card.print-scale-80 .employee-card p:last-of-type { display: none !important; } /* Esconde cargo */
+            .employee-card[data-print-avatar-size="18px"] > div:first-child,
+            .sector-card.print-scale-80 .employee-card > div:first-child { 
+                width: 14px !important; height: 14px !important; min-width: 14px !important; font-size: 5pt !important;
+                border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important;
+                font-weight: bold !important; color: white !important; background: linear-gradient(to bottom right, #3b82f6, #2563eb) !important;
+            }
+            .sector-card.print-scale-80 .employee-card > div:last-child { display: none !important; }
+
+            /* Scale 70 - até 60 pessoas */
+            .employee-card[data-print-font-size="6pt"],
+            .sector-card.print-scale-70 .employee-card {
+                padding: 1px 2px !important;
+            }
+            .employee-card[data-print-font-size="6pt"] p,
+            .sector-card.print-scale-70 .employee-card p { font-size: 5pt !important; line-height: 1 !important; }
+            .sector-card.print-scale-70 .employee-card p:last-of-type { display: none !important; }
+            .employee-card[data-print-avatar-size="16px"] > div:first-child,
+            .sector-card.print-scale-70 .employee-card > div:first-child { 
+                width: 12px !important; height: 12px !important; min-width: 12px !important; font-size: 4.5pt !important;
+                border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important;
+                font-weight: bold !important; color: white !important; background: linear-gradient(to bottom right, #3b82f6, #2563eb) !important;
+            }
+            .sector-card.print-scale-70 .employee-card > div:last-child { display: none !important; }
+
+            /* Scale 60 - até 80 pessoas */
+            .employee-card[data-print-font-size="5.5pt"],
+            .sector-card.print-scale-60 .employee-card {
+                padding: 1px 2px !important;
+            }
+            .employee-card[data-print-font-size="5.5pt"] p,
+            .sector-card.print-scale-60 .employee-card p { font-size: 4.5pt !important; line-height: 1 !important; }
+            .sector-card.print-scale-60 .employee-card p:last-of-type { display: none !important; }
+            .employee-card[data-print-avatar-size="14px"] > div:first-child,
+            .sector-card.print-scale-60 .employee-card > div:first-child { 
+                width: 10px !important; height: 10px !important; min-width: 10px !important; font-size: 4pt !important;
+                border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important;
+                font-weight: bold !important; color: white !important; background: linear-gradient(to bottom right, #3b82f6, #2563eb) !important;
+            }
+            .sector-card.print-scale-60 .employee-card > div:last-child { display: none !important; }
+
+            /* Scale 50 - mais de 80 pessoas */
+            .employee-card[data-print-font-size="5pt"],
+            .sector-card.print-scale-50 .employee-card {
+                padding: 1px 1px !important;
+            }
+            .employee-card[data-print-font-size="5pt"] p,
+            .sector-card.print-scale-50 .employee-card p { font-size: 4pt !important; line-height: 1 !important; }
+            .sector-card.print-scale-50 .employee-card p:last-of-type { display: none !important; }
+            .employee-card[data-print-avatar-size="12px"] > div:first-child,
+            .sector-card.print-scale-50 .employee-card > div:first-child { 
+                width: 8px !important; height: 8px !important; min-width: 8px !important; font-size: 3.5pt !important;
+                border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important;
+                font-weight: bold !important; color: white !important; background: linear-gradient(to bottom right, #3b82f6, #2563eb) !important;
+            }
+            .sector-card.print-scale-50 .employee-card > div:last-child { display: none !important; }
+
+            /* ===== VACANCY CARDS ===== */
+            .vacancy-card,
+            div.vacancy-card {
+                animation: none !important;
+                border: 1px dashed #f59e0b !important;
+                background: linear-gradient(to bottom right, #fef3c7, #fde68a) !important;
+                padding: 5px 8px !important;
+            }
+
+            /* ===== PAGE BREAKS ===== */
+            .print-page-break {
+                page-break-after: always !important;
+                break-after: page !important;
+                border-bottom: none !important;
+                margin-bottom: 0 !important;
+                padding-bottom: 0 !important;
+            }
+
+            .print-page-break::after {
+                display: none !important;
+                content: none !important;
+            }
+
+            /* ===== TABLE ===== */
+            table {
+                font-size: 8pt !important;
+            }
+
+            table th, table td {
+                padding: 4px 6px !important;
+            }
+
+            /* ===== FOOTER ===== */
+            footer {
+                margin-top: 15px !important;
+                padding: 8px !important;
+                font-size: 7pt !important;
+            }
+
+            /* ===== UTILITIES ===== */
+            .gradient-sector,
+            .connector-vertical::before {
+                display: none !important;
+            }
+
+            ::-webkit-scrollbar {
+                display: none !important;
+            }
+
+            [class*="gradient"] {
+                background-image: none !important;
+            }
+
+            /* Esconder elementos decorativos */
+            [class*="blur"],
+            [class*="pointer-events-none"]:not(button):not(a) {
+                display: none !important;
+            }
+        }
+
+        /* ========== PRINT PREVIEW MODE (on screen) ========== */
+        /* Simula exatamente como ficará na impressão */
+        body.print-preview {
+            background: #e5e7eb !important;
+            padding: 20px !important;
+            font-size: 9pt !important;
+            line-height: 1.3 !important;
+        }
+
+        body.print-preview > *:not(.no-print) {
+            max-width: 297mm;
+            margin: 0 auto 20px auto;
+            background: white;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        body.print-preview header.gradient-header {
+            padding: 10px 15px !important;
+            background: #1e3a5f !important;
+            border-radius: 8px 8px 0 0;
+        }
+
+        body.print-preview header h1 {
+            font-size: 14pt !important;
+        }
+
+        body.print-preview header p {
+            font-size: 8pt !important;
+        }
+
+        body.print-preview .stats-badge {
+            padding: 4px 8px !important;
+        }
+
+        body.print-preview .stats-badge p:first-child {
+            font-size: 6pt !important;
+        }
+
+        body.print-preview .stats-badge p:last-child {
+            font-size: 12pt !important;
+        }
+
+        body.print-preview .sector-card {
+            box-shadow: none !important;
+            border: 1px solid #cbd5e1 !important;
+            margin-bottom: 10px !important;
+        }
+
+        body.print-preview .sector-card > div:first-child {
+            padding: 8px 12px !important;
+            background: #334155 !important;
+        }
+
+        body.print-preview .sector-card h2 {
+            font-size: 11pt !important;
+        }
+
+        body.print-preview .sector-card .grid > div > div:first-child {
+            padding: 6px 8px !important;
+        }
+
+        body.print-preview .sector-card .grid > div h3 {
+            font-size: 8pt !important;
+            font-weight: 700 !important;
+        }
+
+        body.print-preview .sector-card .grid > div > div:last-child {
+            max-height: none !important;
+            overflow: visible !important;
+            padding: 4px !important;
+        }
+
+        body.print-preview .employee-card {
+            box-shadow: none !important;
+            border: 1px solid #e2e8f0 !important;
+            background: #f8fafc !important;
+            border-radius: 6px !important;
+        }
+
+        body.print-preview .employee-name {
+            overflow: visible !important;
+            text-overflow: clip !important;
+            white-space: normal !important;
+            word-break: break-word !important;
+            line-height: 1.2 !important;
+        }
+
+        body.print-preview .employees-list {
+            max-height: none !important;
+            overflow: visible !important;
+            column-width: 150px !important;
+            column-gap: 6px !important;
+        }
+        
+        body.print-preview .employee-card,
+        body.print-preview .vacancy-card {
+            break-inside: avoid !important;
+            margin-bottom: 2px !important;
+            display: inline-block !important;
+            width: 100% !important;
+        }
+
+        /* Nomes COMPLETOS em 1 linha */
+        body.print-preview .employee-name,
+        body.print-preview .employee-card p:first-of-type {
+            line-height: 1.2 !important;
+            white-space: nowrap !important;
+        }
+        
+        /* Esconde cargo no preview */
+        body.print-preview .employee-card p:last-of-type:not(:first-of-type) {
+            display: none !important;
+        }
+
+        body.print-preview .employee-card p:first-child {
+            font-weight: 600 !important;
+        }
+
+        body.print-preview .vacancy-card {
+            animation: none !important;
+            border-width: 1px !important;
+        }
+
+        body.print-preview .stats-badge::after,
+        body.print-preview .gradient-sector,
+        body.print-preview .connector-vertical::before {
+            display: none !important;
+        }
+
+        /* Alert banner */
+        body.print-preview .bg-gradient-to-r.from-amber-500 {
+            padding: 6px 12px !important;
+            background: #f59e0b !important;
+        }
+
+        body.print-preview .bg-gradient-to-r.from-amber-500 span {
+            font-size: 9pt !important;
+        }
+
+        /* Table */
+        body.print-preview table {
+            font-size: 8pt !important;
+        }
+
+        body.print-preview table th, 
+        body.print-preview table td {
+            padding: 4px 6px !important;
+        }
+
+        /* Footer */
+        body.print-preview footer {
+            margin-top: 15px !important;
+            padding: 8px !important;
+            font-size: 7pt !important;
+        }
+
+        /* Data attribute styles para preview (igual ao print) */
+        body.print-preview .sector-card[data-print-grid-cols="3"] .grid { grid-template-columns: repeat(3, 1fr) !important; }
+        body.print-preview .sector-card[data-print-grid-cols="4"] .grid { grid-template-columns: repeat(4, 1fr) !important; }
+        body.print-preview .sector-card[data-print-grid-cols="5"] .grid { grid-template-columns: repeat(5, 1fr) !important; }
+        body.print-preview .sector-card[data-print-grid-cols="6"] .grid { grid-template-columns: repeat(6, 1fr) !important; }
+        
+        body.print-preview .employee-card[data-print-font-size="8pt"] p { font-size: 8pt !important; }
+        body.print-preview .employee-card[data-print-font-size="7pt"] p { font-size: 7pt !important; }
+        body.print-preview .employee-card[data-print-font-size="6.5pt"] p { font-size: 6.5pt !important; }
+        body.print-preview .employee-card[data-print-font-size="6pt"] p { font-size: 6pt !important; }
+        body.print-preview .employee-card[data-print-font-size="5.5pt"] p { font-size: 5.5pt !important; }
+        body.print-preview .employee-card[data-print-font-size="5pt"] p { font-size: 5pt !important; }
+        
+        body.print-preview .employee-card[data-print-padding="5px 8px"] { padding: 5px 8px !important; }
+        body.print-preview .employee-card[data-print-padding="4px 6px"] { padding: 4px 6px !important; }
+        body.print-preview .employee-card[data-print-padding="3px 5px"] { padding: 3px 5px !important; }
+        body.print-preview .employee-card[data-print-padding="2px 4px"] { padding: 2px 4px !important; }
+        body.print-preview .employee-card[data-print-padding="2px 3px"] { padding: 2px 3px !important; }
+        body.print-preview .employee-card[data-print-padding="1px 2px"] { padding: 1px 2px !important; }
+        
+        body.print-preview .employee-card[data-print-avatar-size="24px"] > div:first-child { width: 24px !important; height: 24px !important; min-width: 24px !important; }
+        body.print-preview .employee-card[data-print-avatar-size="22px"] > div:first-child { width: 22px !important; height: 22px !important; min-width: 22px !important; }
+        body.print-preview .employee-card[data-print-avatar-size="18px"] > div:first-child { width: 18px !important; height: 18px !important; min-width: 18px !important; }
+        body.print-preview .employee-card[data-print-avatar-size="16px"] > div:first-child { width: 16px !important; height: 16px !important; min-width: 16px !important; }
+        body.print-preview .employee-card[data-print-avatar-size="14px"] > div:first-child { width: 14px !important; height: 14px !important; min-width: 14px !important; }
+        body.print-preview .employee-card[data-print-avatar-size="12px"] > div:first-child { width: 12px !important; height: 12px !important; min-width: 12px !important; }
+
+        /* ========== SCREEN STYLES ========== */
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+
+        /* Glassmorphism effect */
+        .glass {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* Gradient backgrounds */
+        .gradient-header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 50%, #1e293b 100%);
+        }
+
+        .gradient-sector {
+            background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+        }
+
+        /* Vacancy pulse animation */
+        @keyframes vacancy-pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(0.98); }
+        }
+
+        .vacancy-card {
+            animation: vacancy-pulse 2s ease-in-out infinite;
+            border: 2px dashed #f59e0b;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        }
+
+        /* Connector lines */
+        .connector-vertical {
+            position: relative;
+        }
+
+        .connector-vertical::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            width: 2px;
+            height: 20px;
+            background: linear-gradient(to bottom, #3b82f6, #60a5fa);
+        }
+
+        /* Card hover effects */
+        .employee-card {
+            transition: all 0.2s ease;
+        }
+
+        .employee-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Employee name - truncate on screen only */
+        .employee-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Employees list - scrollable on screen only */
+        .employees-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        /* Print and preview: show full content */
+        @media print {
+            .employee-name {
+                overflow: visible !important;
+                text-overflow: clip !important;
+                white-space: normal !important;
+                word-break: break-word !important;
+                line-height: 1.2 !important;
+            }
+            .employees-list {
+                max-height: none !important;
+                overflow: visible !important;
+            }
+        }
+
+        /* ========== DYNAMIC SCALE CLASSES ========== */
+        /* Estilos unificados para @media print e body.print-preview */
+        
+        /* Page break between sectors */
+        @media print {
+            .print-page-break {
+                page-break-after: always !important;
+                break-after: page !important;
+                margin-bottom: 0 !important;
+                padding-bottom: 0 !important;
+                border-bottom: none !important;
+            }
+            /* CRÍTICO: Esconder o indicador de quebra na impressão real */
+            .print-page-break::after {
+                display: none !important;
+                content: none !important;
+            }
+        }
+
+        /* Preview na TELA: mostrar indicador visual de quebra */
+        body.print-preview .print-page-break {
+            border-bottom: 3px dashed #94a3b8 !important;
+            margin-bottom: 30px !important;
+            padding-bottom: 20px !important;
+            position: relative;
+        }
+
+        body.print-preview .print-page-break::after {
+            content: '— Quebra de Página —';
+            position: absolute;
+            bottom: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #e5e7eb;
+            padding: 2px 12px;
+            font-size: 10px;
+            color: #64748b;
+            border-radius: 10px;
+        }
+        
+            /* Na impressão, ajustes específicos para body.print-preview */
+            .print-page-break {
+                border-bottom: none !important;
+                margin-bottom: 0 !important;
+                padding-bottom: 0 !important;
+                page-break-after: always !important;
+                break-after: page !important;
+            }
+            .print-page-break::after {
+                display: none !important;
+                content: none !important;
+            }
+            
+            /* Preview mode ajustes na impressão */
+            body.print-preview {
+                background: white !important;
+                padding: 0 !important;
+            }
+            body.print-preview > * {
+                max-width: none !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+            }
+            body.print-preview header,
+            body.print-preview header.gradient-header {
+                display: block !important;
+                visibility: visible !important;
+                border-radius: 0 !important;
+            }
+            body.print-preview header * {
+                visibility: visible !important;
+            }
+
+        /* ========== DYNAMIC SCALE - ALTA ESPECIFICIDADE ========== */
+        
+        /* Scale 100 - até 15 pessoas */
+        @media print {
+            div.sector-card.print-scale-100 .employee-card p,
+            .sector-card.print-scale-100 .employees-list .employee-card p { font-size: 8pt !important; }
+            div.sector-card.print-scale-100 .employee-card,
+            .sector-card.print-scale-100 .employees-list .employee-card { padding: 5px 8px !important; }
+            div.sector-card.print-scale-100 .employee-card > div:first-child { width: 24px !important; height: 24px !important; min-width: 24px !important; font-size: 8pt !important; }
+        }
+        body.print-preview .sector-card.print-scale-100 .employee-card p { font-size: 8pt !important; }
+        body.print-preview .sector-card.print-scale-100 .employee-card { padding: 5px 8px !important; }
+        body.print-preview .sector-card.print-scale-100 .employee-card > div:first-child { width: 24px !important; height: 24px !important; min-width: 24px !important; font-size: 8pt !important; }
+
+        /* Scale 90 - até 25 pessoas */
+        @media print {
+            div.sector-card.print-scale-90 .employee-card p,
+            .sector-card.print-scale-90 .employees-list .employee-card p { font-size: 7pt !important; }
+            div.sector-card.print-scale-90 .employee-card,
+            .sector-card.print-scale-90 .employees-list .employee-card { padding: 4px 6px !important; margin-bottom: 2px !important; }
+            div.sector-card.print-scale-90 .employee-card > div:first-child { width: 22px !important; height: 22px !important; min-width: 22px !important; font-size: 7pt !important; }
+        }
+        body.print-preview .sector-card.print-scale-90 .employee-card p { font-size: 7pt !important; }
+        body.print-preview .sector-card.print-scale-90 .employee-card { padding: 4px 6px !important; margin-bottom: 2px !important; }
+        body.print-preview .sector-card.print-scale-90 .employee-card > div:first-child { width: 22px !important; height: 22px !important; min-width: 22px !important; font-size: 7pt !important; }
+
+        /* Scale 80 - até 40 pessoas */
+        @media print {
+            div.sector-card.print-scale-80 .employee-card p,
+            .sector-card.print-scale-80 .employees-list .employee-card p { font-size: 6.5pt !important; line-height: 1.1 !important; }
+            div.sector-card.print-scale-80 .employee-card,
+            .sector-card.print-scale-80 .employees-list .employee-card { padding: 3px 5px !important; margin-bottom: 2px !important; border-radius: 4px !important; }
+            div.sector-card.print-scale-80 .employee-card > div:first-child { width: 18px !important; height: 18px !important; min-width: 18px !important; font-size: 6pt !important; }
+            div.sector-card.print-scale-80 .vacancy-card { padding: 3px 5px !important; }
+            div.sector-card.print-scale-80 .vacancy-card p { font-size: 6pt !important; }
+        }
+        body.print-preview .sector-card.print-scale-80 .employee-card p { font-size: 6.5pt !important; line-height: 1.1 !important; }
+        body.print-preview .sector-card.print-scale-80 .employee-card { padding: 3px 5px !important; margin-bottom: 2px !important; border-radius: 4px !important; }
+        body.print-preview .sector-card.print-scale-80 .employee-card > div:first-child { width: 18px !important; height: 18px !important; min-width: 18px !important; font-size: 6pt !important; }
+        body.print-preview .sector-card.print-scale-80 .vacancy-card { padding: 3px 5px !important; }
+        body.print-preview .sector-card.print-scale-80 .vacancy-card p { font-size: 6pt !important; }
+
+        /* Scale 70 - até 60 pessoas */
+        @media print {
+            div.sector-card.print-scale-70 .employee-card p,
+            .sector-card.print-scale-70 .employees-list .employee-card p { font-size: 6pt !important; line-height: 1.1 !important; }
+            div.sector-card.print-scale-70 .employee-card,
+            .sector-card.print-scale-70 .employees-list .employee-card { padding: 2px 4px !important; margin-bottom: 1px !important; border-radius: 3px !important; gap: 4px !important; }
+            div.sector-card.print-scale-70 .employee-card > div:first-child { width: 16px !important; height: 16px !important; min-width: 16px !important; font-size: 5pt !important; }
+            div.sector-card.print-scale-70 .employee-card > div:last-child { width: 4px !important; height: 4px !important; min-width: 4px !important; }
+            div.sector-card.print-scale-70 .vacancy-card { padding: 2px 4px !important; }
+            div.sector-card.print-scale-70 .vacancy-card p { font-size: 5.5pt !important; }
+            div.sector-card.print-scale-70 .vacancy-card > div:first-child { width: 16px !important; height: 16px !important; min-width: 16px !important; }
+        }
+        body.print-preview .sector-card.print-scale-70 .employee-card p { font-size: 6pt !important; line-height: 1.1 !important; }
+        body.print-preview .sector-card.print-scale-70 .employee-card { padding: 2px 4px !important; margin-bottom: 1px !important; border-radius: 3px !important; gap: 4px !important; }
+        body.print-preview .sector-card.print-scale-70 .employee-card > div:first-child { width: 16px !important; height: 16px !important; min-width: 16px !important; font-size: 5pt !important; }
+        body.print-preview .sector-card.print-scale-70 .employee-card > div:last-child { width: 4px !important; height: 4px !important; min-width: 4px !important; }
+        body.print-preview .sector-card.print-scale-70 .vacancy-card { padding: 2px 4px !important; }
+        body.print-preview .sector-card.print-scale-70 .vacancy-card p { font-size: 5.5pt !important; }
+        body.print-preview .sector-card.print-scale-70 .vacancy-card > div:first-child { width: 16px !important; height: 16px !important; min-width: 16px !important; }
+
+        /* Scale 60 - até 80 pessoas */
+        @media print {
+            div.sector-card.print-scale-60 .employee-card p,
+            .sector-card.print-scale-60 .employees-list .employee-card p { font-size: 5.5pt !important; line-height: 1 !important; }
+            div.sector-card.print-scale-60 .employee-card p:last-child { display: none !important; }
+            div.sector-card.print-scale-60 .employee-card,
+            .sector-card.print-scale-60 .employees-list .employee-card { padding: 2px 3px !important; margin-bottom: 1px !important; border-radius: 2px !important; gap: 3px !important; }
+            div.sector-card.print-scale-60 .employee-card > div:first-child { width: 14px !important; height: 14px !important; min-width: 14px !important; font-size: 5pt !important; }
+            div.sector-card.print-scale-60 .employee-card > div:last-child { display: none !important; }
+            div.sector-card.print-scale-60 .vacancy-card { padding: 2px 3px !important; }
+            div.sector-card.print-scale-60 .vacancy-card p { font-size: 5pt !important; }
+            div.sector-card.print-scale-60 .vacancy-card > div:first-child { width: 14px !important; height: 14px !important; min-width: 14px !important; }
+        }
+        body.print-preview .sector-card.print-scale-60 .employee-card p { font-size: 5.5pt !important; line-height: 1 !important; }
+        body.print-preview .sector-card.print-scale-60 .employee-card p:last-child { display: none !important; }
+        body.print-preview .sector-card.print-scale-60 .employee-card { padding: 2px 3px !important; margin-bottom: 1px !important; border-radius: 2px !important; gap: 3px !important; }
+        body.print-preview .sector-card.print-scale-60 .employee-card > div:first-child { width: 14px !important; height: 14px !important; min-width: 14px !important; font-size: 5pt !important; }
+        body.print-preview .sector-card.print-scale-60 .employee-card > div:last-child { display: none !important; }
+        body.print-preview .sector-card.print-scale-60 .vacancy-card { padding: 2px 3px !important; }
+        body.print-preview .sector-card.print-scale-60 .vacancy-card p { font-size: 5pt !important; }
+        body.print-preview .sector-card.print-scale-60 .vacancy-card > div:first-child { width: 14px !important; height: 14px !important; min-width: 14px !important; }
+
+        /* Scale 50 - mais de 80 pessoas */
+        @media print {
+            div.sector-card.print-scale-50 .employee-card p,
+            .sector-card.print-scale-50 .employees-list .employee-card p { font-size: 5pt !important; line-height: 1 !important; }
+            div.sector-card.print-scale-50 .employee-card p:last-child { display: none !important; }
+            div.sector-card.print-scale-50 .employee-card,
+            .sector-card.print-scale-50 .employees-list .employee-card { padding: 1px 2px !important; margin-bottom: 1px !important; border-radius: 2px !important; gap: 2px !important; }
+            div.sector-card.print-scale-50 .employee-card > div:first-child { width: 12px !important; height: 12px !important; min-width: 12px !important; font-size: 4pt !important; }
+            div.sector-card.print-scale-50 .employee-card > div:last-child { display: none !important; }
+            div.sector-card.print-scale-50 .vacancy-card { padding: 1px 2px !important; }
+            div.sector-card.print-scale-50 .vacancy-card p { font-size: 4.5pt !important; }
+            div.sector-card.print-scale-50 .vacancy-card > div:first-child { width: 12px !important; height: 12px !important; min-width: 12px !important; }
+        }
+        body.print-preview .sector-card.print-scale-50 .employee-card p { font-size: 5pt !important; line-height: 1 !important; }
+        body.print-preview .sector-card.print-scale-50 .employee-card p:last-child { display: none !important; }
+        body.print-preview .sector-card.print-scale-50 .employee-card { padding: 1px 2px !important; margin-bottom: 1px !important; border-radius: 2px !important; gap: 2px !important; }
+        body.print-preview .sector-card.print-scale-50 .employee-card > div:first-child { width: 12px !important; height: 12px !important; min-width: 12px !important; font-size: 4pt !important; }
+        body.print-preview .sector-card.print-scale-50 .employee-card > div:last-child { display: none !important; }
+        body.print-preview .sector-card.print-scale-50 .vacancy-card { padding: 1px 2px !important; }
+        body.print-preview .sector-card.print-scale-50 .vacancy-card p { font-size: 4.5pt !important; }
+        body.print-preview .sector-card.print-scale-50 .vacancy-card > div:first-child { width: 12px !important; height: 12px !important; min-width: 12px !important; }
+
+        /* Dynamic grid columns - ALTA ESPECIFICIDADE */
+        @media print {
+            div.sector-card.print-cols-3 .grid,
+            .sector-card.print-cols-3 div.grid { grid-template-columns: repeat(3, 1fr) !important; gap: 6px !important; }
+            div.sector-card.print-cols-4 .grid,
+            .sector-card.print-cols-4 div.grid { grid-template-columns: repeat(4, 1fr) !important; gap: 5px !important; }
+            div.sector-card.print-cols-5 .grid,
+            .sector-card.print-cols-5 div.grid { grid-template-columns: repeat(5, 1fr) !important; gap: 4px !important; }
+            div.sector-card.print-cols-6 .grid,
+            .sector-card.print-cols-6 div.grid { grid-template-columns: repeat(6, 1fr) !important; gap: 3px !important; }
+        }
+        body.print-preview .sector-card.print-cols-3 .grid { grid-template-columns: repeat(3, 1fr) !important; gap: 6px !important; }
+        body.print-preview .sector-card.print-cols-4 .grid { grid-template-columns: repeat(4, 1fr) !important; gap: 5px !important; }
+        body.print-preview .sector-card.print-cols-5 .grid { grid-template-columns: repeat(5, 1fr) !important; gap: 4px !important; }
+        body.print-preview .sector-card.print-cols-6 .grid { grid-template-columns: repeat(6, 1fr) !important; gap: 3px !important; }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Stats badge shine effect */
+        .stats-badge {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stats-badge::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                to bottom right,
+                rgba(255, 255, 255, 0) 0%,
+                rgba(255, 255, 255, 0.1) 50%,
+                rgba(255, 255, 255, 0) 100%
+            );
+            transform: rotate(45deg);
+            animation: shine 3s infinite;
+        }
+
+        @keyframes shine {
+            0% { transform: translateX(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) rotate(45deg); }
+        }
+    </style>
+</head>
+
+<body class="bg-gradient-to-br from-slate-100 via-slate-50 to-blue-50 min-h-screen">
+
+    <!-- Floating Action Buttons -->
+    <div class="fixed bottom-6 right-6 flex flex-col gap-3 z-50 no-print">
+        <button onclick="togglePrintPreview()" id="previewBtn"
+            class="group flex items-center gap-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white px-5 py-3 rounded-2xl shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/40 transition-all duration-300 font-semibold">
+            <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+            </svg>
+            <span id="previewBtnText">Pré-visualizar Impressão</span>
+        </button>
+        <button onclick="printDocument()" 
+            class="group flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white px-5 py-3 rounded-2xl shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 transition-all duration-300 font-semibold">
+            <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+            </svg>
+            Imprimir / PDF
+        </button>
+        <a href="/smart-flow" 
+            class="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 px-5 py-3 rounded-2xl shadow-lg border border-slate-200 hover:border-slate-300 transition-all duration-300 font-medium">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Voltar
+        </a>
+    </div>
+
+    <script>
+        let isPrintPreview = false;
+        
+        // Configurações de escala baseadas no número de colaboradores
+        const SCALE_CONFIG = [
+            { maxEmployees: 15, scale: 'scale-100', gridCols: 3, fontSize: '8pt', padding: '5px 8px', avatarSize: '24px' },
+            { maxEmployees: 25, scale: 'scale-90', gridCols: 3, fontSize: '7pt', padding: '4px 6px', avatarSize: '22px' },
+            { maxEmployees: 40, scale: 'scale-80', gridCols: 4, fontSize: '6.5pt', padding: '3px 5px', avatarSize: '18px' },
+            { maxEmployees: 60, scale: 'scale-70', gridCols: 4, fontSize: '6pt', padding: '2px 4px', avatarSize: '16px' },
+            { maxEmployees: 80, scale: 'scale-60', gridCols: 5, fontSize: '5.5pt', padding: '2px 3px', avatarSize: '14px' },
+            { maxEmployees: Infinity, scale: 'scale-50', gridCols: 6, fontSize: '5pt', padding: '1px 2px', avatarSize: '12px' }
+        ];
+
+        function countSectorEmployees(sectorCard) {
+            return sectorCard.querySelectorAll('.employee-card').length + 
+                   sectorCard.querySelectorAll('.vacancy-card').length;
+        }
+
+        function getScaleForCount(count) {
+            return SCALE_CONFIG.find(c => count <= c.maxEmployees);
+        }
+
+        function preparePrintLayout() {
+            const sectors = document.querySelectorAll('.sector-card');
+            
+            sectors.forEach((sector, index) => {
+                const employeeCount = countSectorEmployees(sector);
+                const config = getScaleForCount(employeeCount);
+                
+                // Remove classes anteriores
+                sector.classList.remove('print-scale-100', 'print-scale-90', 'print-scale-80', 
+                                       'print-scale-70', 'print-scale-60', 'print-scale-50');
+                sector.classList.remove('print-cols-3', 'print-cols-4', 'print-cols-5', 'print-cols-6');
+                
+                // Aplica nova escala
+                sector.classList.add(`print-${config.scale}`);
+                sector.classList.add(`print-cols-${config.gridCols}`);
+                sector.dataset.employeeCount = employeeCount;
+                sector.dataset.printFontSize = config.fontSize;
+                sector.dataset.printPadding = config.padding;
+                sector.dataset.printAvatarSize = config.avatarSize;
+                sector.dataset.printGridCols = config.gridCols;
+                
+                // Page break após cada setor (exceto o último)
+                if (index < sectors.length - 1) {
+                    sector.classList.add('print-page-break');
+                }
+                
+                // Adiciona badge com contagem se não existir
+                const header = sector.querySelector('h2');
+                if (header && !header.querySelector('.emp-count-badge')) {
+                    const badge = document.createElement('span');
+                    badge.className = 'emp-count-badge ml-2 px-2 py-0.5 bg-white/20 rounded-full text-xs font-normal';
+                    badge.textContent = `${employeeCount} pessoas`;
+                    header.appendChild(badge);
+                }
+
+                // CRÍTICO: Aplicar estilos inline para impressão
+                // Isso garante que os estilos serão aplicados mesmo com Tailwind sobrescrevendo
+                const grid = sector.querySelector('.grid');
+                if (grid) {
+                    grid.style.setProperty('--print-cols', config.gridCols);
+                }
+                
+                // Aplica estilos inline nos employee cards para garantir
+                const employeeCards = sector.querySelectorAll('.employee-card');
+                employeeCards.forEach(card => {
+                    card.dataset.printFontSize = config.fontSize;
+                    card.dataset.printPadding = config.padding;
+                    card.dataset.printAvatarSize = config.avatarSize;
+                });
+            });
+        }
+
+        function togglePrintPreview() {
+            isPrintPreview = !isPrintPreview;
+            document.body.classList.toggle('print-preview', isPrintPreview);
+            document.getElementById('previewBtnText').textContent = isPrintPreview ? 'Voltar ao Normal' : 'Pré-visualizar Impressão';
+        }
+
+        // Aplica estilos INLINE para garantir que funcionem na impressão
+        function applyPrintStyles() {
+            // Header principal - CRÍTICO: garantir que apareça na impressão
+            const header = document.querySelector('header');
+            if (header) {
+                header.style.cssText = 'display: block !important; visibility: visible !important; padding: 10px 15px !important; background: #1e3a5f !important; color: white !important;';
+                
+                // Container max-width
+                const headerContainer = header.querySelector('.max-w-\\[1800px\\], [class*="max-w"]');
+                if (headerContainer) {
+                    headerContainer.style.cssText = 'max-width: none !important; display: block !important;';
+                }
+                
+                // Header top row (title + date) - busca por múltiplos seletores
+                const headerTopRow = header.querySelector('[class*="flex"][class*="flex-col"]');
+                if (headerTopRow) {
+                    headerTopRow.style.cssText = 'display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: space-between !important; gap: 16px !important;';
+                }
+                
+                // Logo + title area
+                const logoArea = header.querySelector('.flex.items-center.gap-4');
+                if (logoArea) {
+                    logoArea.style.cssText = 'display: flex !important; align-items: center !important; gap: 12px !important;';
+                }
+                
+                // Date badge area
+                const dateBadge = header.querySelector('[class*="bg-white/10"][class*="backdrop-blur"]');
+                if (dateBadge) {
+                    dateBadge.style.cssText = 'display: block !important; background: rgba(255,255,255,0.1) !important; padding: 8px 16px !important; border-radius: 12px !important;';
+                    
+                    const dateInnerFlex = dateBadge.querySelector('.flex.items-center');
+                    if (dateInnerFlex) {
+                        dateInnerFlex.style.cssText = 'display: flex !important; align-items: center !important; gap: 12px !important;';
+                    }
+                }
+                
+                // KPIs grid - busca mais específica
+                const kpiGrid = header.querySelector('[class*="mt-6"][class*="grid"], .grid.grid-cols-2');
+                if (kpiGrid) {
+                    kpiGrid.style.cssText = 'display: grid !important; grid-template-columns: repeat(7, 1fr) !important; gap: 8px !important; margin-top: 12px !important;';
+                    
+                    // Stats badges
+                    kpiGrid.querySelectorAll('.stats-badge, [class*="stats-badge"]').forEach(badge => {
+                        badge.style.cssText = 'display: block !important; visibility: visible !important; padding: 6px 10px !important; border-radius: 8px !important; text-align: center !important;';
+                    });
+                }
+                
+                // Todos os elementos dentro do header devem ser visíveis
+                header.querySelectorAll('*').forEach(el => {
+                    if (!el.classList.contains('no-print')) {
+                        el.style.visibility = 'visible';
+                    }
+                });
+            }
+
+            // Sector cards
+            document.querySelectorAll('.sector-card').forEach(sector => {
+                sector.style.cssText = 'border: 1px solid #cbd5e1 !important; border-radius: 1rem !important; overflow: hidden !important; margin-bottom: 10px !important; box-shadow: none !important;';
+                
+                // Sector header (primeiro div filho)
+                const sectorHeader = sector.querySelector(':scope > div:first-child');
+                if (sectorHeader) {
+                    sectorHeader.style.cssText = 'padding: 8px 12px !important; background: #334155 !important;';
+                    
+                    // Flex container do sector header (título + stats)
+                    const sectorHeaderFlex = sectorHeader.querySelector('.flex.flex-col');
+                    if (sectorHeaderFlex) {
+                        sectorHeaderFlex.style.cssText = 'display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: space-between !important; gap: 16px !important;';
+                    }
+                    
+                    // Title area
+                    const titleArea = sectorHeader.querySelector('.flex.items-center.gap-4');
+                    if (titleArea) {
+                        titleArea.style.cssText = 'display: flex !important; align-items: center !important; gap: 12px !important;';
+                    }
+                    
+                    // Stats area (Meta, Alocados, Ocupação)
+                    const statsArea = sectorHeader.querySelector('.flex.items-center.gap-3');
+                    if (statsArea) {
+                        statsArea.style.cssText = 'display: flex !important; align-items: center !important; gap: 8px !important; flex-shrink: 0 !important;';
+                        
+                        // Individual stat boxes
+                        statsArea.querySelectorAll(':scope > div').forEach(statBox => {
+                            statBox.style.cssText += 'padding: 4px 10px !important; border-radius: 8px !important; text-align: center !important;';
+                        });
+                    }
+                    
+                    // Icon container
+                    const iconContainer = sectorHeader.querySelector('.w-12.h-12');
+                    if (iconContainer) {
+                        iconContainer.style.cssText = 'width: 32px !important; height: 32px !important; min-width: 32px !important; display: flex !important; align-items: center !important; justify-content: center !important; background: rgba(255,255,255,0.1) !important; border-radius: 8px !important;';
+                        const svg = iconContainer.querySelector('svg');
+                        if (svg) {
+                            svg.style.cssText = 'width: 16px !important; height: 16px !important;';
+                        }
+                    }
+                    
+                    // H2 title
+                    const h2 = sectorHeader.querySelector('h2');
+                    if (h2) {
+                        h2.style.cssText = 'font-size: 11pt !important; font-weight: bold !important; color: white !important;';
+                    }
+                }
+                
+                // Subsector grid
+                const grid = sector.querySelector('.grid');
+                const cols = sector.dataset.printGridCols || '3';
+                if (grid) {
+                    grid.style.cssText = `display: grid !important; grid-template-columns: repeat(${cols}, 1fr) !important; gap: 6px !important; padding: 8px !important;`;
+                }
+
+                // Employee cards
+                const fontSize = sector.dataset.printFontSize || '8pt';
+                const padding = sector.dataset.printPadding || '5px 8px';
+                const avatarSize = sector.dataset.printAvatarSize || '24px';
+
+                // Employee cards COMPACTOS - cabe mais em 1 página
+                const avatarSizeNum = Math.max(14, parseInt(avatarSize) - 2);
+                const fontSizeNum = Math.max(5.5, parseFloat(fontSize) - 0.5);
+                
+                sector.querySelectorAll('.employee-card').forEach(card => {
+                    // Card compacto
+                    card.style.cssText = `display: inline-flex !important; width: 100% !important; align-items: center !important; gap: 4px !important; padding: 2px 4px !important; margin-bottom: 2px !important; border: 1px solid #e2e8f0 !important; background: #f8fafc !important; border-radius: 4px !important; box-shadow: none !important; break-inside: avoid !important;`;
+                    
+                    const avatar = card.querySelector('div:first-child');
+                    if (avatar) {
+                        avatar.style.cssText = `width: ${avatarSizeNum}px !important; height: ${avatarSizeNum}px !important; min-width: ${avatarSizeNum}px !important; border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important; font-size: ${Math.max(4.5, avatarSizeNum * 0.4)}pt !important; font-weight: bold !important; color: white !important; background: linear-gradient(to bottom right, #3b82f6, #2563eb) !important; flex-shrink: 0 !important;`;
+                    }
+                    
+                    // Container de info
+                    const infoDiv = card.querySelector('.flex-1');
+                    if (infoDiv) {
+                        infoDiv.style.cssText = `flex: 1 !important; min-width: 0 !important;`;
+                    }
+                    
+                    card.querySelectorAll('p').forEach((p, i) => {
+                        if (i === 0) {
+                            // NOME - em 1 linha
+                            p.style.cssText = `font-size: ${fontSizeNum}pt !important; font-weight: 600 !important; color: #1e293b !important; line-height: 1.1 !important; white-space: nowrap !important;`;
+                        } else {
+                            // Cargo - escondido
+                            p.style.cssText = `display: none !important;`;
+                        }
+                    });
+                    
+                    // Esconde indicador de status
+                    const statusIndicator = card.querySelector('div:last-child');
+                    if (statusIndicator && statusIndicator.classList.contains('rounded-full')) {
+                        statusIndicator.style.display = 'none';
+                    }
+                });
+            });
+
+            // Employees list - MÚLTIPLAS COLUNAS para caber em 1 página
+            document.querySelectorAll('.employees-list').forEach(list => {
+                const employeeCount = list.querySelectorAll('.employee-card').length;
+                // Calcula número de colunas: 1 coluna para cada 8 colaboradores (máximo 5)
+                const cols = Math.max(1, Math.min(5, Math.ceil(employeeCount / 8)));
+                // Usa column-width de 150px para caber mais colunas
+                list.style.cssText = `max-height: none !important; overflow: visible !important; padding: 3px !important; column-count: ${cols} !important; column-width: 150px !important; column-gap: 6px !important;`;
+            });
+            
+            // Subsector headers
+            document.querySelectorAll('.sector-card .grid > div').forEach(subsector => {
+                subsector.style.cssText = 'background: linear-gradient(to bottom right, #f8fafc, #f1f5f9) !important; border: 1px solid #e2e8f0 !important; border-radius: 12px !important; overflow: hidden !important;';
+                
+                const subHeader = subsector.querySelector(':scope > div:first-child');
+                if (subHeader) {
+                    subHeader.style.cssText = 'padding: 6px 8px !important; background: white !important; border-bottom: 1px solid #e2e8f0 !important; display: flex !important; align-items: center !important; justify-content: space-between !important;';
+                }
+            });
+        }
+
+        // NOVA FUNÇÃO: Imprime usando os estilos de preview
+        function printDocument() {
+            // Mostra dica sobre as opções de impressão
+            const confirmed = confirm(
+                '📋 DICA DE IMPRESSÃO:\n\n' +
+                '1. Marque a opção "Gráficos de segundo plano"\n' +
+                '2. Use orientação PAISAGEM\n' +
+                '3. Margem: Mínima\n\n' +
+                'Clique OK para continuar com a impressão.'
+            );
+            
+            if (!confirmed) return;
+            
+            // Força o modo preview antes de imprimir
+            const wasInPreview = isPrintPreview;
+            
+            // Aplica o modo preview
+            document.body.classList.add('print-preview');
+            
+            // Aplica estilos inline para garantir
+            applyPrintStyles();
+            
+            // Delay maior para garantir que TODOS os estilos sejam aplicados
+            setTimeout(() => {
+                // Aplica novamente por garantia
+                applyPrintStyles();
+                
+                setTimeout(() => {
+                    window.print();
+                    
+                    // Após imprimir, volta ao estado anterior
+                    if (!wasInPreview) {
+                        document.body.classList.remove('print-preview');
+                    }
+                }, 100);
+            }, 200);
+        }
+
+        // CRÍTICO: Preparar layout IMEDIATAMENTE ao carregar a página
+        document.addEventListener('DOMContentLoaded', preparePrintLayout);
+        
+        // Backup: também no beforeprint - aplica preview mode E estilos inline
+        window.addEventListener('beforeprint', () => {
+            preparePrintLayout();
+            document.body.classList.add('print-preview');
+            applyPrintStyles();
+        });
+        
+        // Após imprimir, remove preview se não estava ativo
+        window.addEventListener('afterprint', () => {
+            if (!isPrintPreview) {
+                document.body.classList.remove('print-preview');
+            }
+        });
+        
+        // Injetar CSS dinâmico para print usando data attributes
+        const printStyleSheet = document.createElement('style');
+        printStyleSheet.textContent = `
+            @media print {
+                /* Força estilos usando data attributes como backup */
+                .sector-card[data-print-grid-cols="3"] .grid { grid-template-columns: repeat(3, 1fr) !important; }
+                .sector-card[data-print-grid-cols="4"] .grid { grid-template-columns: repeat(4, 1fr) !important; }
+                .sector-card[data-print-grid-cols="5"] .grid { grid-template-columns: repeat(5, 1fr) !important; }
+                .sector-card[data-print-grid-cols="6"] .grid { grid-template-columns: repeat(6, 1fr) !important; }
+                
+                .employee-card[data-print-font-size="8pt"] p { font-size: 8pt !important; }
+                .employee-card[data-print-font-size="7pt"] p { font-size: 7pt !important; }
+                .employee-card[data-print-font-size="6.5pt"] p { font-size: 6.5pt !important; }
+                .employee-card[data-print-font-size="6pt"] p { font-size: 6pt !important; }
+                .employee-card[data-print-font-size="5.5pt"] p { font-size: 5.5pt !important; }
+                .employee-card[data-print-font-size="5pt"] p { font-size: 5pt !important; }
+                
+                .employee-card[data-print-padding="5px 8px"] { padding: 5px 8px !important; }
+                .employee-card[data-print-padding="4px 6px"] { padding: 4px 6px !important; }
+                .employee-card[data-print-padding="3px 5px"] { padding: 3px 5px !important; }
+                .employee-card[data-print-padding="2px 4px"] { padding: 2px 4px !important; }
+                .employee-card[data-print-padding="2px 3px"] { padding: 2px 3px !important; }
+                .employee-card[data-print-padding="1px 2px"] { padding: 1px 2px !important; }
+                
+                .employee-card[data-print-avatar-size="24px"] > div:first-child { width: 24px !important; height: 24px !important; min-width: 24px !important; }
+                .employee-card[data-print-avatar-size="22px"] > div:first-child { width: 22px !important; height: 22px !important; min-width: 22px !important; }
+                .employee-card[data-print-avatar-size="18px"] > div:first-child { width: 18px !important; height: 18px !important; min-width: 18px !important; }
+                .employee-card[data-print-avatar-size="16px"] > div:first-child { width: 16px !important; height: 16px !important; min-width: 16px !important; }
+                .employee-card[data-print-avatar-size="14px"] > div:first-child { width: 14px !important; height: 14px !important; min-width: 14px !important; }
+                .employee-card[data-print-avatar-size="12px"] > div:first-child { width: 12px !important; height: 12px !important; min-width: 12px !important; }
+            }
+        `;
+        document.head.appendChild(printStyleSheet);
+    </script>
+
+    <!-- Header Premium -->
+    <header class="gradient-header text-white py-6 px-8 shadow-2xl">
+        <div class="max-w-[1800px] mx-auto">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <!-- Logo & Title -->
+                <div class="flex items-center gap-4">
+                    <div class="w-14 h-14 bg-white/10 backdrop-blur rounded-2xl flex items-center justify-center border border-white/20">
+                        <svg class="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" 
+                                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold tracking-tight">Organograma Operacional</h1>
+                        <p class="text-blue-200 text-sm font-medium">Estrutura de Setores e Alocação de Equipe</p>
+                    </div>
+                </div>
+
+                <!-- Date & Shift Badge -->
+                <div class="flex items-center gap-4">
+                    <div class="bg-white/10 backdrop-blur px-6 py-3 rounded-2xl border border-white/20">
+                        <div class="flex items-center gap-4">
+                            <div class="text-center">
+                                <p class="text-[10px] text-blue-300 uppercase font-bold tracking-wider">Data</p>
+                                <p class="text-xl font-bold">{{ date }}</p>
+                            </div>
+                            <div class="w-px h-10 bg-white/20"></div>
+                            <div class="text-center">
+                                <p class="text-[10px] text-blue-300 uppercase font-bold tracking-wider">Turno</p>
+                                <p class="text-xl font-bold">{{ shift }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KPI Strip -->
+            <div class="mt-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                <div class="stats-badge bg-white/10 backdrop-blur rounded-xl p-3 border border-white/10">
+                    <p class="text-[10px] text-blue-300 uppercase font-bold">Total Setores</p>
+                    <p class="text-2xl font-black">{{ kpis.total_sectors }}</p>
+                </div>
+                <div class="stats-badge bg-white/10 backdrop-blur rounded-xl p-3 border border-white/10">
+                    <p class="text-[10px] text-blue-300 uppercase font-bold">Sub-setores</p>
+                    <p class="text-2xl font-black">{{ kpis.total_subsectors }}</p>
+                </div>
+                <div class="stats-badge bg-emerald-500/20 backdrop-blur rounded-xl p-3 border border-emerald-400/30">
+                    <p class="text-[10px] text-emerald-300 uppercase font-bold">Alocados</p>
+                    <p class="text-2xl font-black text-emerald-400">{{ kpis.total_allocated }}</p>
+                </div>
+                <div class="stats-badge bg-white/10 backdrop-blur rounded-xl p-3 border border-white/10">
+                    <p class="text-[10px] text-blue-300 uppercase font-bold">Meta Total</p>
+                    <p class="text-2xl font-black">{{ kpis.total_target }}</p>
+                </div>
+                <div class="stats-badge bg-amber-500/20 backdrop-blur rounded-xl p-3 border border-amber-400/30">
+                    <p class="text-[10px] text-amber-300 uppercase font-bold">Vagas Abertas</p>
+                    <p class="text-2xl font-black text-amber-400">{{ kpis.total_vacancies }}</p>
+                </div>
+                <div class="stats-badge bg-white/10 backdrop-blur rounded-xl p-3 border border-white/10">
+                    <p class="text-[10px] text-blue-300 uppercase font-bold">% Ocupação</p>
+                    <p class="text-2xl font-black">{{ kpis.occupation_percent }}%</p>
+                </div>
+                <div class="stats-badge bg-white/10 backdrop-blur rounded-xl p-3 border border-white/10">
+                    <p class="text-[10px] text-slate-400 uppercase font-bold">Gerado em</p>
+                    <p class="text-sm font-semibold text-slate-300">{{ generated_at }}</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Alert Banner for Vacancies -->
+    {% if kpis.total_vacancies > 0 %}
+    <div class="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 text-white py-3 px-8 shadow-lg">
+        <div class="max-w-[1800px] mx-auto flex items-center justify-center gap-3">
+            <svg class="w-6 h-6 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            <span class="font-bold text-lg">ATENÇÃO: {{ kpis.total_vacancies }} VAGA{% if kpis.total_vacancies > 1 %}S{% endif %} EM ABERTO</span>
+            <span class="text-amber-100">— Necessário ação da diretoria para preenchimento</span>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <main class="max-w-[1800px] mx-auto p-6 md:p-8">
+        
+        <!-- Sectors Grid -->
+        <div class="space-y-8">
+            {% for sector in sectors %}
+            <div class="sector-card bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
+                
+                <!-- Sector Header -->
+                <div class="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 text-white p-5">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center">
+                                <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h2 class="text-xl font-bold">{{ sector.name }}</h2>
+                                <p class="text-slate-300 text-sm">{{ sector.subsectors|length }} sub-setor{% if sector.subsectors|length != 1 %}es{% endif %}</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Sector Stats -->
+                        <div class="flex items-center gap-3">
+                            <div class="bg-white/10 rounded-xl px-4 py-2 text-center">
+                                <p class="text-[10px] text-slate-400 uppercase font-bold">Meta</p>
+                                <p class="text-lg font-bold">{{ sector.max_employees }}</p>
+                            </div>
+                            <div class="bg-emerald-500/20 rounded-xl px-4 py-2 text-center border border-emerald-400/30">
+                                <p class="text-[10px] text-emerald-300 uppercase font-bold">Alocados</p>
+                                <p class="text-lg font-bold text-emerald-400">{{ sector.allocated_count }}</p>
+                            </div>
+                            {% if sector.vacancies > 0 %}
+                            <div class="bg-amber-500/20 rounded-xl px-4 py-2 text-center border border-amber-400/30">
+                                <p class="text-[10px] text-amber-300 uppercase font-bold">Vagas</p>
+                                <p class="text-lg font-bold text-amber-400">{{ sector.vacancies }}</p>
+                            </div>
+                            {% endif %}
+                            <div class="bg-white/10 rounded-xl px-4 py-2 text-center">
+                                <p class="text-[10px] text-slate-400 uppercase font-bold">Ocupação</p>
+                                <p class="text-lg font-bold {% if sector.occupation_percent < 80 %}text-amber-400{% else %}text-emerald-400{% endif %}">{{ sector.occupation_percent }}%</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Subsectors -->
+                <div class="p-5">
+                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                        {% for subsector in sector.subsectors %}
+                        <div class="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-2xl border border-slate-200 overflow-hidden">
+                            
+                            <!-- Subsector Header -->
+                            <div class="bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-bold text-slate-800">{{ subsector.name }}</h3>
+                                        <p class="text-xs text-slate-500">
+                                            <span class="font-semibold text-slate-700">{{ subsector.employees|length }}</span> / {{ subsector.max_employees }} colaboradores
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                {% if subsector.vacancies > 0 %}
+                                <span class="px-2 py-1 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-full uppercase">
+                                    {{ subsector.vacancies }} vaga{% if subsector.vacancies > 1 %}s{% endif %}
+                                </span>
+                                {% else %}
+                                <span class="px-2 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full uppercase">
+                                    Completo
+                                </span>
+                                {% endif %}
+                            </div>
+
+                            <!-- Employees List -->
+                            <div class="p-3 space-y-2 employees-list">
+                                {% for employee in subsector.employees %}
+                                <div class="employee-card bg-white rounded-xl p-3 border border-slate-100 shadow-sm flex items-center gap-3">
+                                    <!-- Avatar -->
+                                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-sm font-bold shadow-md shrink-0">
+                                        {{ employee.initials }}
+                                    </div>
+                                    <!-- Info -->
+                                    <div class="flex-1 min-w-0">
+                                        <p class="font-semibold text-slate-800 text-sm employee-name">{{ employee.name }}</p>
+                                        <p class="text-xs text-slate-500">{{ employee.role or 'Operador' }}</p>
+                                    </div>
+                                    <!-- Status Indicator -->
+                                    <div class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></div>
+                                </div>
+                                {% endfor %}
+
+                                <!-- Vacancy Placeholders -->
+                                {% for i in range(subsector.vacancies) %}
+                                <div class="vacancy-card rounded-xl p-3 flex items-center gap-3">
+                                    <!-- Empty Avatar -->
+                                    <div class="w-10 h-10 rounded-full bg-amber-200 border-2 border-dashed border-amber-400 flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                        </svg>
+                                    </div>
+                                    <!-- Info -->
+                                    <div class="flex-1">
+                                        <p class="font-bold text-amber-800 text-sm">VAGA EM ABERTO</p>
+                                        <p class="text-xs text-amber-600">Aguardando contratação</p>
+                                    </div>
+                                    <!-- Alert Icon -->
+                                    <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                    </svg>
+                                </div>
+                                {% endfor %}
+
+                                {% if subsector.employees|length == 0 and subsector.vacancies == 0 %}
+                                <div class="text-center py-6 text-slate-400">
+                                    <svg class="w-10 h-10 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                    </svg>
+                                    <p class="text-sm">Sem colaboradores</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Summary Table for Vacancies -->
+        {% if kpis.total_vacancies > 0 %}
+        <div class="mt-10 bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden print-break">
+            <div class="bg-gradient-to-r from-amber-500 to-orange-500 text-white p-5">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold">Resumo de Vagas em Aberto</h2>
+                        <p class="text-amber-100">Relatório para análise da Diretoria</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-5">
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b-2 border-slate-200">
+                            <th class="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Setor</th>
+                            <th class="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Sub-setor</th>
+                            <th class="text-center py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Meta</th>
+                            <th class="text-center py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Alocados</th>
+                            <th class="text-center py-3 px-4 text-xs font-bold text-amber-600 uppercase tracking-wider bg-amber-50 rounded-t-lg">Vagas Abertas</th>
+                            <th class="text-center py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">% Ocupação</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for vacancy in vacancies_detail %}
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="py-3 px-4 font-semibold text-slate-800">{{ vacancy.sector_name }}</td>
+                            <td class="py-3 px-4 text-slate-600">{{ vacancy.subsector_name }}</td>
+                            <td class="py-3 px-4 text-center text-slate-700 font-medium">{{ vacancy.max_employees }}</td>
+                            <td class="py-3 px-4 text-center text-slate-700 font-medium">{{ vacancy.allocated }}</td>
+                            <td class="py-3 px-4 text-center font-bold text-amber-600 bg-amber-50">{{ vacancy.vacancies }}</td>
+                            <td class="py-3 px-4 text-center">
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold 
+                                    {% if vacancy.occupation_percent < 50 %}bg-red-100 text-red-700
+                                    {% elif vacancy.occupation_percent < 80 %}bg-amber-100 text-amber-700
+                                    {% else %}bg-emerald-100 text-emerald-700{% endif %}">
+                                    {{ vacancy.occupation_percent }}%
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="bg-slate-800 text-white font-bold">
+                            <td class="py-4 px-4 rounded-bl-xl" colspan="2">TOTAL GERAL</td>
+                            <td class="py-4 px-4 text-center">{{ kpis.total_target }}</td>
+                            <td class="py-4 px-4 text-center">{{ kpis.total_allocated }}</td>
+                            <td class="py-4 px-4 text-center bg-amber-500 text-white">{{ kpis.total_vacancies }}</td>
+                            <td class="py-4 px-4 text-center rounded-br-xl">{{ kpis.occupation_percent }}%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Footer -->
+        <footer class="mt-10 text-center text-slate-400 text-sm py-6 border-t border-slate-200">
+            <p>Relatório gerado automaticamente pelo Sistema de Gestão Operacional</p>
+            <p class="text-xs mt-1">{{ date }} • {{ shift }} • {{ generated_at }}</p>
+        </footer>
+    </main>
+
+</body>
+</html>

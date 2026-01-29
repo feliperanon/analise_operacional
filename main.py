@@ -459,7 +459,7 @@ def is_google_enabled() -> bool:
 
 PAGE_OPTIONS = [
     {"key": "admin_game", "label": "Game Master", "path": "/admin/game", "prefixes": ["/admin/game", "/api/game"]},
-    {"key": "smart_flow", "label": "Smart Flow", "path": "/smart-flow", "prefixes": ["/smart-flow", "/api/smart-flow", "/smart-flow/load", "/api/employees"]},
+    {"key": "smart_flow", "label": "Smart Flow", "path": "/smart-flow", "prefixes": ["/smart-flow", "/api/smart-flow", "/smart-flow/load", "/api/employees", "/settings", "/employees"]},
     {"key": "checklist_admin", "label": "Checklists Operacionais", "path": "/admin/routine/checklists", "prefixes": ["/admin/routine/checklists", "/api/routine/checklists"]},
     {"key": "ops_performance", "label": "Avaliacao Operacional", "path": "/operations/performance", "prefixes": ["/operations/performance", "/rankings", "/api/rankings"]}
 ]
@@ -11804,6 +11804,24 @@ async def set_employee_routine_extended(
         # Verificar se há conflitos (alguns ou todos os dias já existem)
         conflicting_dates = sorted(list(existing_dates_set.intersection(all_dates_in_range)))
         
+        # Verificar se todos os dias conflitantes já têm a mesma rotina
+        # Se sim, permitir atualização automática sem pedir confirmação
+        all_same_routine = True
+        if conflicting_dates:
+            for date_key in conflicting_dates:
+                routines_for_date = existing_by_date.get(date_key, [])
+                if routines_for_date:
+                    # Verificar se pelo menos uma rotina existente é diferente
+                    existing_routine = routines_for_date[0].routine
+                    if existing_routine != routine:
+                        all_same_routine = False
+                        break
+        
+        # Se todos os dias já têm a mesma rotina, permitir atualização automática
+        if conflicting_dates and all_same_routine and not update_existing:
+            # Mesma rotina - atualizar automaticamente sem pedir confirmação
+            update_existing = True
+        
         if conflicting_dates and not update_existing:
             # Retornar com código especial para frontend perguntar se quer atualizar
             conflict_dates_formatted = [datetime.strptime(d, "%Y-%m-%d").strftime("%d/%m/%Y") for d in conflicting_dates]
@@ -11847,45 +11865,54 @@ async def set_employee_routine_extended(
                 date_str = current_date.strftime("%Y-%m-%d")
                 
                 if date_str in existing_dates_set:
-                    if update_existing:
-                        # Verificar se está tentando sobrescrever atestado/afastamento por falta
-                        # Atestado e afastamento têm prioridade sobre falta
-                        protected_routines = {'sick', 'away', 'vacation'}
-                        downgrade_routine = routine in {'absent', 'dayoff', 'present'}
-                        
-                        skip_update = False
-                        for existing_r in existing_by_date[date_str]:
-                            if existing_r.routine in protected_routines and downgrade_routine:
-                                # Não permitir sobrescrever atestado/afastamento por falta/folga/presente
-                                skip_update = True
-                                break
-                        
-                        if skip_update:
-                            # Pular este dia - não sobrescrever atestado/afastamento
-                            skipped_count += 1
-                            current_date += timedelta(days=1)
-                            continue
+                    # Verificar se a rotina existente é a mesma
+                    existing_routines_for_date = existing_by_date.get(date_str, [])
+                    existing_routine = existing_routines_for_date[0].routine if existing_routines_for_date else None
+                    same_routine = (existing_routine == routine)
+                    
+                    if update_existing or same_routine:
+                        # Se é a mesma rotina, permitir atualização automática
+                        # Se update_existing foi solicitado, verificar proteções
+                        if not same_routine:
+                            # Verificar se está tentando sobrescrever atestado/afastamento por falta
+                            # Atestado e afastamento têm prioridade sobre falta
+                            protected_routines = {'sick', 'away', 'vacation'}
+                            downgrade_routine = routine in {'absent', 'dayoff', 'present'}
+                            
+                            skip_update = False
+                            for existing_r in existing_routines_for_date:
+                                if existing_r.routine in protected_routines and downgrade_routine:
+                                    # Não permitir sobrescrever atestado/afastamento por falta/folga/presente
+                                    skip_update = True
+                                    break
+                            
+                            if skip_update:
+                                # Pular este dia - não sobrescrever atestado/afastamento
+                                skipped_count += 1
+                                current_date += timedelta(days=1)
+                                continue
                         
                         # Atualizar registros existentes
-                        for existing_r in existing_by_date[date_str]:
+                        for existing_r in existing_routines_for_date:
                             existing_r.routine = routine
                             session.add(existing_r)
                         updated_count += 1
                         
-                        # Criar novo evento de alteração para histórico
-                        event_timestamp = datetime.combine(current_date, datetime.min.time()).replace(tzinfo=br_tz) + timedelta(hours=3)
-                        event_text = f"{employee.name}: Rotina alterada para {routine_labels.get(routine, routine)} em {current_date.strftime('%d/%m/%Y')}"
-                        
-                        new_event = models.Event(
-                            timestamp=event_timestamp,
-                            text=event_text,
-                            type=event_type,
-                            category=routine,
-                            employee_id=int(employee_id)
-                        )
-                        session.add(new_event)
+                        # Criar novo evento de alteração para histórico apenas se a rotina mudou
+                        if not same_routine:
+                            event_timestamp = datetime.combine(current_date, datetime.min.time()).replace(tzinfo=br_tz) + timedelta(hours=3)
+                            event_text = f"{employee.name}: Rotina alterada para {routine_labels.get(routine, routine)} em {current_date.strftime('%d/%m/%Y')}"
+                            
+                            new_event = models.Event(
+                                timestamp=event_timestamp,
+                                text=event_text,
+                                type=event_type,
+                                category=routine,
+                                employee_id=int(employee_id)
+                            )
+                            session.add(new_event)
                     else:
-                        # Pular dias que já existem (comportamento original)
+                        # Pular dias que já existem com rotina diferente (comportamento original)
                         skipped_count += 1
                         current_date += timedelta(days=1)
                         continue
@@ -12131,6 +12158,173 @@ async def set_employee_routine(
         print(f"❌ Erro ao atualizar rotina: {e}")
         session.rollback()
         return JSONResponse({"error": str(e)}, status_code=500)
+
+# --- Organogram Report Route ---
+
+@app.get("/smart-flow/organogram", response_class=HTMLResponse)
+async def organogram_report(
+    request: Request,
+    date: str = None,
+    shift: str = None,
+    session: Session = Depends(get_session)
+):
+    """
+    Relatório de Organograma Operacional
+    Mostra setores, sub-setores e colaboradores alocados
+    Com indicação de vagas em aberto
+    """
+    user = require_login(request)
+    try:
+        # Default to today and current shift
+        if not date:
+            date = datetime.now().strftime("%Y-%m-%d")
+        if not shift:
+            shift = "Manhã"  # Default shift
+        
+        # Fetch sectors for this shift
+        db_sectors = session.exec(
+            select(models.Sector)
+            .where(models.Sector.shift == shift)
+            .order_by(models.Sector.order)
+        ).all()
+        
+        # Fetch all subsectors
+        all_subsectors = session.exec(select(models.SubSector)).all()
+        subsector_map = {s.id: s for s in all_subsectors}
+        
+        # Fetch allocations for this date and shift
+        allocations = session.exec(
+            select(models.EmployeeAllocation)
+            .where(models.EmployeeAllocation.date == date)
+            .where(models.EmployeeAllocation.shift == shift)
+        ).all()
+        
+        # Build allocation map: subsector_id -> list of employee_ids
+        alloc_by_subsector = {}
+        for alloc in allocations:
+            if alloc.subsector_id not in alloc_by_subsector:
+                alloc_by_subsector[alloc.subsector_id] = []
+            alloc_by_subsector[alloc.subsector_id].append(alloc.employee_id)
+        
+        # Fetch all employees
+        all_employees = session.exec(select(models.Employee)).all()
+        emp_map = {e.id: e for e in all_employees}
+        
+        # Build structured data for template
+        sectors_data = []
+        total_allocated = 0
+        total_target = 0
+        total_vacancies = 0
+        total_subsectors = 0
+        vacancies_detail = []
+        
+        for sector in db_sectors:
+            # Get subsectors for this sector
+            sector_subsectors = [s for s in all_subsectors if s.sector_id == sector.id]
+            sector_subsectors.sort(key=lambda x: x.order)
+            
+            sector_allocated = 0
+            sector_max = sector.max_employees
+            subsectors_data = []
+            
+            for subsector in sector_subsectors:
+                total_subsectors += 1
+                
+                # Get employees allocated to this subsector
+                emp_ids = alloc_by_subsector.get(subsector.id, [])
+                employees_data = []
+                
+                for emp_id in emp_ids:
+                    emp = emp_map.get(emp_id)
+                    if emp:
+                        # Get initials from name
+                        name_parts = emp.name.split()
+                        if len(name_parts) >= 2:
+                            initials = name_parts[0][0] + name_parts[-1][0]
+                        else:
+                            initials = emp.name[:2] if len(emp.name) >= 2 else emp.name
+                        
+                        employees_data.append({
+                            "id": emp.id,
+                            "name": emp.name,
+                            "initials": initials.upper(),
+                            "role": emp.role or "Operador",
+                            "status": emp.status
+                        })
+                        sector_allocated += 1
+                
+                # Calculate vacancies for this subsector
+                subsector_max = subsector.max_employees or 0
+                subsector_allocated = len(employees_data)
+                subsector_vacancies = max(0, subsector_max - subsector_allocated)
+                
+                subsector_data = {
+                    "id": subsector.id,
+                    "name": subsector.name,
+                    "max_employees": subsector_max,
+                    "employees": employees_data,
+                    "allocated_count": subsector_allocated,
+                    "vacancies": subsector_vacancies,
+                    "occupation_percent": int((subsector_allocated / subsector_max * 100) if subsector_max > 0 else 0)
+                }
+                subsectors_data.append(subsector_data)
+                
+                # Track vacancies for detail table
+                if subsector_vacancies > 0:
+                    vacancies_detail.append({
+                        "sector_name": sector.name,
+                        "subsector_name": subsector.name,
+                        "max_employees": subsector_max,
+                        "allocated": subsector_allocated,
+                        "vacancies": subsector_vacancies,
+                        "occupation_percent": subsector_data["occupation_percent"]
+                    })
+            
+            # Calculate sector totals
+            sector_vacancies = max(0, sector_max - sector_allocated)
+            total_allocated += sector_allocated
+            total_target += sector_max
+            total_vacancies += sector_vacancies
+            
+            sector_data = {
+                "id": sector.id,
+                "name": sector.name,
+                "color": sector.color,
+                "max_employees": sector_max,
+                "allocated_count": sector_allocated,
+                "vacancies": sector_vacancies,
+                "occupation_percent": int((sector_allocated / sector_max * 100) if sector_max > 0 else 0),
+                "subsectors": subsectors_data
+            }
+            sectors_data.append(sector_data)
+        
+        # Build KPIs
+        kpis = {
+            "total_sectors": len(db_sectors),
+            "total_subsectors": total_subsectors,
+            "total_allocated": total_allocated,
+            "total_target": total_target,
+            "total_vacancies": total_vacancies,
+            "occupation_percent": int((total_allocated / total_target * 100) if total_target > 0 else 0)
+        }
+        
+        # Sort vacancies detail by vacancies count (descending)
+        vacancies_detail.sort(key=lambda x: x["vacancies"], reverse=True)
+        
+        return templates.TemplateResponse("organogram_report.html", {
+            "request": request,
+            "date": datetime.strptime(date, "%Y-%m-%d").strftime("%d/%m/%Y"),
+            "shift": shift,
+            "generated_at": datetime.now().strftime("%d/%m/%Y %H:%M"),
+            "sectors": sectors_data,
+            "kpis": kpis,
+            "vacancies_detail": vacancies_detail
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return HTMLResponse(content=f"<h1>Erro ao Gerar Organograma</h1><pre>{traceback.format_exc()}</pre>", status_code=500)
 
 # --- Report Route ---
 

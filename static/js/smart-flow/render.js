@@ -37,6 +37,12 @@ const Render = {
             link.href = `/routine/report?date=${state.currentDate}&shift=${state.currentShift}`;
         }
 
+        // Atualizar Link do Organograma
+        const organogramLink = document.getElementById('organogram-link');
+        if (organogramLink) {
+            organogramLink.href = `/smart-flow/organogram?date=${state.currentDate}&shift=${state.currentShift}`;
+        }
+
         // Atualizar Date Picker
         const datePicker = document.getElementById('date-picker');
         if (datePicker) {
