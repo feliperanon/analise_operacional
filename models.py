@@ -200,6 +200,15 @@ class AbsenceAlertRecipient(SQLModel, table=True):
     is_active: bool = Field(default=True, index=True)
     created_at: datetime = Field(default_factory=datetime.now)
 
+class AbsenceAlertLog(SQLModel, table=True):
+    """Registro de e-mails de advertência enviados - TRAVA DE SEGURANÇA contra duplicados"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    employee_id: int = Field(foreign_key="employee.id", index=True)
+    absence_date: str = Field(index=True)  # Data da falta (YYYY-MM-DD)
+    sent_at: datetime = Field(default_factory=datetime.now, index=True)
+    sent_by: Optional[str] = None  # Quem registrou a falta
+    recipients_count: int = Field(default=0)  # Quantos destinatários receberam
+
 class TranspalletChecklist(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     employee_id: int = Field(foreign_key="employee.id", index=True)

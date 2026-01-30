@@ -11961,39 +11961,63 @@ async def set_employee_routine_extended(
         
         # ================================================================
         # ENVIO DE E-MAIL AUTOMÁTICO PARA FALTA (ADVERTÊNCIA)
+        # COM TRAVA DE SEGURANÇA CONTRA DUPLICADOS
         # ================================================================
         email_sent = False
         email_error = None
+        email_already_sent = False
+        
         if routine == "absent" and (created_count > 0 or updated_count > 0):
             try:
-                # Buscar destinatários ativos
-                alert_recipients = session.exec(
-                    select(models.AbsenceAlertRecipient)
-                    .where(models.AbsenceAlertRecipient.is_active == True)
-                ).all()
+                # TRAVA DE SEGURANÇA: Verificar se já foi enviado e-mail para este colaborador/data
+                existing_alert = session.exec(
+                    select(models.AbsenceAlertLog)
+                    .where(models.AbsenceAlertLog.employee_id == int(employee_id))
+                    .where(models.AbsenceAlertLog.absence_date == start_date_str)
+                ).first()
                 
-                if alert_recipients:
-                    recipient_emails = [r.email for r in alert_recipients]
-                    
-                    # Identificar quem registrou
-                    user_session = request.session.get("user", {})
-                    registered_by = user_session.get("username") or user_session.get("email") or "Sistema"
-                    
-                    # Enviar e-mail
-                    email_sent, email_error = send_absence_alert_email(
-                        employee=employee,
-                        absence_date=start_date_str,
-                        registered_by=registered_by,
-                        recipients=recipient_emails,
-                        days=days
-                    )
-                    
-                    if email_sent:
-                        print(f"📧 E-mail de advertência enviado para {len(recipient_emails)} destinatário(s)")
-                    else:
-                        print(f"⚠️ Falha ao enviar e-mail de advertência: {email_error}")
+                if existing_alert:
+                    # E-mail já foi enviado anteriormente - NÃO enviar novamente
+                    email_already_sent = True
+                    print(f"🔒 E-mail de advertência já enviado para {employee.name} em {start_date_str} (enviado em {existing_alert.sent_at.strftime('%d/%m/%Y %H:%M')})")
                 else:
-                    print("ℹ️ Nenhum destinatário configurado para alertas de falta")
+                    # Buscar destinatários ativos
+                    alert_recipients = session.exec(
+                        select(models.AbsenceAlertRecipient)
+                        .where(models.AbsenceAlertRecipient.is_active == True)
+                    ).all()
+                    
+                    if alert_recipients:
+                        recipient_emails = [r.email for r in alert_recipients]
+                        
+                        # Identificar quem registrou
+                        user_session = request.session.get("user", {})
+                        registered_by = user_session.get("username") or user_session.get("email") or "Sistema"
+                        
+                        # Enviar e-mail
+                        email_sent, email_error = send_absence_alert_email(
+                            employee=employee,
+                            absence_date=start_date_str,
+                            registered_by=registered_by,
+                            recipients=recipient_emails,
+                            days=days
+                        )
+                        
+                        if email_sent:
+                            # REGISTRAR o envio para evitar duplicados futuros
+                            alert_log = models.AbsenceAlertLog(
+                                employee_id=int(employee_id),
+                                absence_date=start_date_str,
+                                sent_by=registered_by,
+                                recipients_count=len(recipient_emails)
+                            )
+                            session.add(alert_log)
+                            session.commit()
+                            print(f"📧 E-mail de advertência enviado para {len(recipient_emails)} destinatário(s)")
+                        else:
+                            print(f"⚠️ Falha ao enviar e-mail de advertência: {email_error}")
+                    else:
+                        print("ℹ️ Nenhum destinatário configurado para alertas de falta")
             except Exception as email_exc:
                 print(f"⚠️ Erro ao processar envio de e-mail de advertência: {email_exc}")
                 email_error = str(email_exc)
@@ -12001,6 +12025,8 @@ async def set_employee_routine_extended(
         message = f"Rotina processada com sucesso: {action_info}"
         if routine == "absent" and email_sent:
             message += " | E-mail de advertência enviado."
+        elif routine == "absent" and email_already_sent:
+            message += " | E-mail já enviado anteriormente (não duplicado)."
         elif routine == "absent" and email_error:
             message += f" | Aviso: E-mail não enviado ({email_error})"
         
@@ -12009,7 +12035,8 @@ async def set_employee_routine_extended(
             "message": message,
             "created_days": created_count,
             "updated_days": updated_count,
-            "email_sent": email_sent if routine == "absent" else None
+            "email_sent": email_sent if routine == "absent" else None,
+            "email_already_sent": email_already_sent if routine == "absent" else None
         }
     except Exception as e:
         print(f"❌ Erro ao criar rotina estendida: {e}")

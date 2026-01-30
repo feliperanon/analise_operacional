@@ -767,7 +767,7 @@
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-white/5">
-                                    <template x-for="route in (empDetails?.routes || [])" :key="route.id">
+                                    <template x-for="(route, routeIndex) in (empDetails?.routes || [])" :key="'route-' + routeIndex">
                                         <tr class="hover:bg-slate-800/30 transition-colors">
                                             <td class="px-4 py-3">
                                                 <p class="font-bold text-white mb-0.5" x-text="route.client"></p>

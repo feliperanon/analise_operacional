@@ -210,6 +210,28 @@ const Events = {
     },
 
     async setExtendedRoutine(empId, routine) {
+        // TRAVA DE SEGURANÇA: Evitar múltiplos cliques
+        const submitBtn = document.querySelector('[onclick*="setExtendedRoutine"], .routine-submit-btn');
+        if (submitBtn) {
+            if (submitBtn.disabled) {
+                console.log('🔒 Requisição já em andamento, ignorando clique duplicado');
+                return;
+            }
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = '0.6';
+            submitBtn.style.cursor = 'not-allowed';
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Processando...';
+            
+            // Restaurar botão após 5 segundos (fallback)
+            setTimeout(() => {
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = '1';
+                submitBtn.style.cursor = 'pointer';
+                submitBtn.textContent = originalText;
+            }, 5000);
+        }
+        
         const startDate = document.getElementById('routine-start-date').value;
         // Para 'away', days pode estar oculto/vazio. Assumir 1 ou backend deve lidar.
         const daysInput = document.getElementById('routine-days');
@@ -220,11 +242,13 @@ const Events = {
         // Validação básica
         if (!startDate) {
             alert('Por favor, selecione uma data de início.');
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = '1'; submitBtn.style.cursor = 'pointer'; }
             return;
         }
 
         if (days < 1 || days > 365) {
             alert('A quantidade de dias deve estar entre 1 e 365.');
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = '1'; submitBtn.style.cursor = 'pointer'; }
             return;
         }
 
@@ -284,6 +308,14 @@ const Events = {
         } catch (error) {
             console.error('Error setting extended routine:', error);
             alert(`❌ Erro: ${error.message || 'Erro ao criar rotina estendida'}`);
+        } finally {
+            // Restaurar botão
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = '1';
+                submitBtn.style.cursor = 'pointer';
+                submitBtn.textContent = 'Confirmar';
+            }
         }
     },
 

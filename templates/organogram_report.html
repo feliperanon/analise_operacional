@@ -296,15 +296,16 @@
                 color: #1e293b !important;
             }
 
-            /* ===== EMPLOYEES LIST - MÚLTIPLAS COLUNAS PARA CABER EM 1 PÁGINA ===== */
+            /* ===== EMPLOYEES LIST - LISTA VERTICAL SIMPLES ===== */
             .employees-list,
             .sector-card .employees-list,
             .sector-card .grid > div > div:last-child {
                 max-height: none !important;
                 overflow: visible !important;
-                padding: 3px !important;
-                column-width: 150px !important;
-                column-gap: 6px !important;
+                padding: 6px !important;
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 4px !important;
             }
             
             /* Impede que cards quebrem entre colunas */
@@ -317,19 +318,72 @@
                 width: 100% !important;
             }
 
-            /* ===== EMPLOYEE CARDS BASE ===== */
+            /* ===== EMPLOYEE CARDS - NOME COMPLETO ===== */
             .employee-card,
             div.employee-card,
             .employees-list .employee-card {
                 display: flex !important;
                 align-items: center !important;
-                gap: 4px !important;
-                margin: 0 !important; /* Remove margin para grid funcionar */
+                gap: 6px !important;
+                margin: 0 !important;
+                padding: 4px 8px !important;
                 box-shadow: none !important;
                 border: 1px solid #e2e8f0 !important;
                 background: #f8fafc !important;
-                background-image: none !important;
-                border-radius: 4px !important;
+                border-radius: 6px !important;
+                break-inside: avoid !important;
+            }
+            
+            /* Avatar */
+            .employee-card > div:first-child {
+                width: 20px !important;
+                height: 20px !important;
+                min-width: 20px !important;
+                font-size: 7pt !important;
+                flex-shrink: 0 !important;
+            }
+            
+            /* NOME COMPLETO */
+            .employee-card p:first-of-type {
+                font-size: 8pt !important;
+                line-height: 1.3 !important;
+                font-weight: 600 !important;
+                white-space: normal !important;
+                overflow: visible !important;
+            }
+            
+            /* Esconde cargo e status */
+            .employee-card p:last-of-type:not(:first-of-type),
+            .employee-card > div:last-child.rounded-full {
+                display: none !important;
+            }
+            
+            /* ===== VACANCY CARDS - MESMO ESTILO ===== */
+            .vacancy-card {
+                display: flex !important;
+                align-items: center !important;
+                gap: 6px !important;
+                padding: 4px 8px !important;
+                border: 1px dashed #f59e0b !important;
+                background: #fef3c7 !important;
+                border-radius: 6px !important;
+                break-inside: avoid !important;
+            }
+            
+            .vacancy-card > div:first-child {
+                width: 20px !important;
+                height: 20px !important;
+                min-width: 20px !important;
+            }
+            
+            .vacancy-card p:first-of-type {
+                font-size: 8pt !important;
+                font-weight: 600 !important;
+            }
+            
+            .vacancy-card p:last-of-type:not(:first-of-type),
+            .vacancy-card svg:last-child {
+                display: none !important;
             }
             
             /* Remove space-y classes */
@@ -617,8 +671,48 @@
         body.print-preview .employees-list {
             max-height: none !important;
             overflow: visible !important;
-            column-width: 150px !important;
-            column-gap: 6px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 4px !important;
+        }
+        
+        body.print-preview .employee-card {
+            display: flex !important;
+            border: 1px solid #e2e8f0 !important;
+            background: #f8fafc !important;
+            padding: 4px 8px !important;
+            border-radius: 6px !important;
+            break-inside: avoid !important;
+        }
+        
+        body.print-preview .employee-card > div:first-child {
+            width: 20px !important;
+            height: 20px !important;
+            min-width: 20px !important;
+            font-size: 7pt !important;
+        }
+        
+        body.print-preview .employee-card p:first-of-type {
+            font-size: 8pt !important;
+            font-weight: 600 !important;
+            white-space: normal !important;
+        }
+        
+        body.print-preview .vacancy-card {
+            display: flex !important;
+            padding: 4px 8px !important;
+            border: 1px dashed #f59e0b !important;
+            background: #fef3c7 !important;
+            border-radius: 6px !important;
+        }
+        
+        body.print-preview .vacancy-card > div:first-child {
+            width: 20px !important;
+            height: 20px !important;
+        }
+        
+        body.print-preview .vacancy-card p:first-of-type {
+            font-size: 8pt !important;
         }
         
         body.print-preview .employee-card,
@@ -1303,13 +1397,45 @@
                 });
             });
 
-            // Employees list - MÚLTIPLAS COLUNAS para caber em 1 página
+            // Employees list - LISTA VERTICAL
             document.querySelectorAll('.employees-list').forEach(list => {
-                const employeeCount = list.querySelectorAll('.employee-card').length;
-                // Calcula número de colunas: 1 coluna para cada 8 colaboradores (máximo 5)
-                const cols = Math.max(1, Math.min(5, Math.ceil(employeeCount / 8)));
-                // Usa column-width de 150px para caber mais colunas
-                list.style.cssText = `max-height: none !important; overflow: visible !important; padding: 3px !important; column-count: ${cols} !important; column-width: 150px !important; column-gap: 6px !important;`;
+                list.style.cssText = `max-height: none !important; overflow: visible !important; padding: 6px !important; display: flex !important; flex-direction: column !important; gap: 4px !important;`;
+            });
+            
+            // Employee cards - NOME COMPLETO
+            document.querySelectorAll('.employee-card').forEach(card => {
+                card.style.cssText = `display: flex !important; align-items: center !important; gap: 6px !important; padding: 4px 8px !important; border: 1px solid #e2e8f0 !important; background: #f8fafc !important; border-radius: 6px !important; break-inside: avoid !important;`;
+                
+                // Avatar
+                const avatar = card.querySelector('div:first-child');
+                if (avatar) avatar.style.cssText = `width: 20px !important; height: 20px !important; min-width: 20px !important; font-size: 7pt !important; flex-shrink: 0 !important;`;
+                
+                // Nome COMPLETO
+                const name = card.querySelector('p:first-of-type');
+                if (name) name.style.cssText = `font-size: 8pt !important; line-height: 1.3 !important; font-weight: 600 !important; white-space: normal !important; overflow: visible !important;`;
+                
+                // Esconde cargo e status
+                const cargo = card.querySelector('p:last-of-type:not(:first-of-type)');
+                if (cargo) cargo.style.display = 'none';
+                const status = card.querySelector('div:last-child');
+                if (status && status.classList.contains('rounded-full')) status.style.display = 'none';
+            });
+            
+            // Vacancy cards - MESMO ESTILO
+            document.querySelectorAll('.vacancy-card').forEach(card => {
+                card.style.cssText = `display: flex !important; align-items: center !important; gap: 6px !important; padding: 4px 8px !important; border: 1px dashed #f59e0b !important; background: #fef3c7 !important; border-radius: 6px !important; break-inside: avoid !important;`;
+                
+                const avatar = card.querySelector('div:first-child');
+                if (avatar) avatar.style.cssText = `width: 20px !important; height: 20px !important; min-width: 20px !important;`;
+                
+                const name = card.querySelector('p:first-of-type');
+                if (name) name.style.cssText = `font-size: 8pt !important; font-weight: 600 !important;`;
+                
+                // Esconde segunda linha e ícone
+                const subtext = card.querySelector('p:last-of-type:not(:first-of-type)');
+                if (subtext) subtext.style.display = 'none';
+                const icon = card.querySelector('svg:last-child');
+                if (icon) icon.style.display = 'none';
             });
             
             // Subsector headers

@@ -144,7 +144,7 @@
 
     <!-- 2. Active Route Card -->
     <div class="px-6 -mt-6 z-20" x-show="initialized && hasActiveRoutes" x-cloak>
-        <template x-for="route in activeRoutes" :key="route.id">
+        <template x-for="(route, routeIndex) in activeRoutes" :key="'active-' + routeIndex">
             <div
                 class="bg-slate-800/90 backdrop-blur-xl rounded-3xl p-5 border border-indigo-500/30 shadow-[0_10px_40px_-10px_rgba(79,70,229,0.3)] animate-slide-up bg-[url('/static/grid.svg')] bg-repeat opacity-95 mb-4">
                 <div class="flex justify-between items-start mb-4">
@@ -458,7 +458,7 @@
                 </div>
             </template>
 
-            <template x-for="route in completedRoutes" :key="route.id">
+            <template x-for="(route, routeIndex) in completedRoutes" :key="'completed-' + routeIndex">
                 <div class="bg-slate-800/50 border border-slate-700/50 p-4 rounded-2xl flex justify-between items-center group hover:bg-slate-800 transition-colors relative overflow-hidden"
                     @touchstart="route._touchStartX = $event.touches[0].clientX"
                     @touchend="if(route._touchStartX - $event.changedTouches[0].clientX > 60) route._expanded = true; else if($event.changedTouches[0].clientX - route._touchStartX > 60) route._expanded = false">
