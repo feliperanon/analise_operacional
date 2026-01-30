@@ -193,10 +193,11 @@ class ChecklistEmailRecipient(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.now)
 
 class AbsenceAlertRecipient(SQLModel, table=True):
-    """Destinatários de e-mail para alertas de falta (advertência)"""
+    """Destinatários de e-mail para alertas de ausência (falta, folga, atestado)"""
     id: Optional[int] = Field(default=None, primary_key=True)
-    email: str = Field(index=True, unique=True)
+    email: str = Field(index=True)
     name: Optional[str] = None  # Nome do destinatário (ex: "Jurídico", "RH")
+    alert_type: str = Field(default="absent", index=True)  # absent, dayoff, sick
     is_active: bool = Field(default=True, index=True)
     created_at: datetime = Field(default_factory=datetime.now)
 

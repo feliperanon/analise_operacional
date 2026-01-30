@@ -70,6 +70,19 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
 GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "").strip()
 
+# --- AI Configuration (Google Gemini) ---
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+gemini_client = None
+if GEMINI_API_KEY:
+    try:
+        from google import genai
+        gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+        logger.info("Google Gemini client initialized successfully")
+    except ImportError:
+        logger.warning("Google GenAI library not installed. AI reports will be unavailable.")
+    except Exception as e:
+        logger.error(f"Failed to initialize Gemini client: {e}")
+
 # --- Helper Functions ---
 def calculate_expected_work_days(
     work_days_json: str, 
@@ -8852,6 +8865,103 @@ async def operations_performance_page(
         "offday": sum(get_absences_for_emp(eid)["offday"] for eid in eligible_emp_ids),
     }
 
+    # ============================================
+    # DEBUG CÁLCULOS - Documentação de todas as fórmulas
+    # ============================================
+    calculation_debug = None
+    try:
+        calculation_debug = {
+            "period_info": {
+                "total_days": total_days,
+                "start_date": start_date.strftime("%Y-%m-%d"),
+                "end_date": end_date.strftime("%Y-%m-%d"),
+                "period_type": period
+            },
+            "formulas": {
+                "presence_adjusted": {
+                    "name": "Presença Ajustada",
+                    "formula": "dias_trabalhados / (total_dias - atestados - afastamentos - folgas)",
+                    "description": "Percentual de presença considerando apenas os dias que o colaborador deveria trabalhar",
+                    "example": "Se trabalhou 15 dias em período de 30 dias, com 5 folgas e 2 atestados: 15 / (30-2-0-5) = 65%"
+                },
+                "discipline_rate": {
+                    "name": "Taxa de Disciplina",
+                    "formula": "1 - (faltas_nao_justificadas / total_dias)",
+                    "description": "Percentual de dias sem falta não justificada no período",
+                    "example": "Se teve 2 faltas em 30 dias: 1 - (2/30) = 93%"
+                },
+                "consistency_score": {
+                    "name": "Consistência",
+                    "formula": "1 - CV (Coeficiente de Variação)",
+                    "description": "Quanto menor a variação do Kg/h diário, maior a consistência",
+                    "example": "Se CV = 0.25, consistência = 75%"
+                },
+                "avg_kgh": {
+                    "name": "Média Kg/h",
+                    "formula": "total_tonelagem / total_horas",
+                    "description": "Quilos movimentados por hora trabalhada"
+                },
+                "score": {
+                    "name": "Score Geral",
+                    "formula": "P×35% + Q×20% + D×20% + E×10% + C×15%",
+                    "description": "Nota ponderada dos 5 pilares",
+                    "weights": {"P": 35, "Q": 20, "D": 20, "E": 10, "C": 15}
+                }
+            },
+            "team_calculations": {
+                "total_days": total_days,
+                "total_employees": len(rows_filtered) if rows_filtered else 0,
+                "avg_presence_adjusted": round(team_avg_presence_adjusted * 100, 1) if team_avg_presence_adjusted else 0,
+                "total_unjustified": team_unjustified_total or 0,
+                "discipline_rate": round(discipline_rate * 100, 1) if discipline_rate else 0
+            },
+            "employees": []
+        }
+        # Adicionar dados de cada colaborador
+        for row in rows_filtered:
+            calculation_debug["employees"].append({
+                "id": row["id"],
+                "name": row["name"],
+                "calculations": {
+                    "presence": {
+                        "days_active": row.get("sample_days", 0),
+                        "total_days": total_days,
+                        "justified_days": row.get("justified_absences", 0),
+                        "leave_days": row.get("leave_absences", 0),
+                        "offday_days": row.get("offday_absences", 0),
+                        "unjustified_days": row.get("unjustified_absences", 0),
+                        "regularity_adjusted": row.get("regularity_adjusted", 0),
+                        "formula_applied": f"{row.get('sample_days', 0)} / (dias - ausencias) = {row.get('regularity_adjusted', 0):.2%}"
+                    },
+                    "discipline": {
+                        "unjustified_days": row.get("unjustified_absences", 0),
+                        "discipline_rate": row.get("discipline_rate", 0),
+                        "formula_applied": f"1 - ({row.get('unjustified_absences', 0)}/{total_days}) = {row.get('discipline_rate', 0):.2%}"
+                    },
+                    "productivity": {
+                        "total_tonnage": row.get("total_tonnage", 0),
+                        "total_hours": row.get("total_hours", 0),
+                        "avg_kgh": row.get("avg_kgh", 0),
+                        "formula_applied": f"{row.get('total_tonnage', 0):.0f}kg / {row.get('total_hours', 0):.1f}h = {row.get('avg_kgh', 0):.0f} kg/h"
+                    },
+                    "consistency": {
+                        "cv": row.get("cv", 0),
+                        "daily_std": row.get("daily_std", 0),
+                        "consistency_score": row.get("consistency_score", 0),
+                        "formula_applied": f"1 - {row.get('cv', 0):.2f} = {row.get('consistency_score', 0):.2%}"
+                    },
+                    "score": {
+                        "final_score": row.get("score", 0),
+                        "pillar_scores": row.get("pillar_scores", {}),
+                        "badge": row.get("badge", ""),
+                        "badge_reason": row.get("badge_reason", "")
+                    }
+                }
+            })
+    except Exception as e:
+        print(f"[DEBUG] Erro ao criar calculation_debug: {e}")
+        calculation_debug = None
+
     return templates.TemplateResponse(
         "rankings.html",
         {
@@ -8892,7 +9002,8 @@ async def operations_performance_page(
             "debug_absences": debug_absences,
             "debug_absence_diagnostic": debug_absence_diagnostic,
             "debug_absence_employee_id": debug_absence_employee_id,
-            "debug_absence_summary": debug_absence_summary
+            "debug_absence_summary": debug_absence_summary,
+            "calculation_debug": calculation_debug
         }
     )
 @app.get("/api/rankings/employee/{employee_id}/details")
@@ -10131,156 +10242,423 @@ async def get_ranking_details(
         import traceback
         traceback.print_exc()
         return HTMLResponse(f"Erro: {str(e)}", status_code=500)
-        query = select(models.Employee).where(models.Employee.status == 'active')
+
+
+@app.post("/api/rankings/ai-report")
+async def generate_ai_report(
+    request: Request,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    """
+    Gera relatórios de performance usando IA (OpenAI GPT-4o-mini).
+    
+    Tipos de relatório:
+    - executive: Resumo executivo para diretoria (1-2 parágrafos)
+    - detailed: Relatório detalhado por setor/turno
+    - individual: Análise individual de um colaborador
+    - recommendations: Recomendações de ação prioritárias
+    """
+    if not gemini_client:
+        return JSONResponse(
+            {"error": "Serviço de IA não configurado. Configure GEMINI_API_KEY no ambiente."},
+            status_code=503
+        )
+    
+    try:
+        data = await request.json()
+        report_type = data.get("report_type", "executive")
+        employee_id = data.get("employee_id")
+        date_str = data.get("date")
+        period = data.get("period", "weekly")
+        shift = data.get("shift", "Todos")
+        team_stats = data.get("team_stats", {})
+        rows = data.get("rows", [])
+        insights = data.get("insights", {})
         
-        # Apply Shift Filter (if specific shift selected)
-        # Note: 'Todos' or None means no filter
-        if shift and shift not in ['Todos', 'all']:
-            query = query.where(models.Employee.work_shift == shift)
-            
-        employees = session.exec(query).all()
+        # Preparar dados para os prompts (fora das f-strings para evitar erros de sintaxe)
+        top5_data = json.dumps([{"nome": r.get("name"), "score": r.get("score"), "badge": r.get("badge")} for r in rows[:5]], ensure_ascii=False, indent=2)
+        top10_data = json.dumps([{"nome": r.get("name"), "score": r.get("score"), "kgh": r.get("avg_kgh"), "badge": r.get("badge"), "tendencia": r.get("trend_label")} for r in rows[:10]], ensure_ascii=False, indent=2)
+        badge_counts = json.dumps({badge: len([r for r in rows if r.get("badge") == badge]) for badge in ["Referência", "Em evolução", "Potencial", "Atenção"]}, ensure_ascii=False)
+        atencao_data = json.dumps([{"nome": r.get("name"), "score": r.get("score"), "faltas": r.get("unjustified_absences"), "motivo": r.get("badge_reason")} for r in rows if r.get("badge") == "Atenção"][:5], ensure_ascii=False, indent=2)
+        referencia_data = json.dumps([{"nome": r.get("name"), "score": r.get("score"), "motivo": r.get("badge_reason")} for r in rows if r.get("badge") == "Referência"][:5], ensure_ascii=False, indent=2)
+        evolucao_data = json.dumps([{"nome": r.get("name"), "score": r.get("score"), "tendencia": r.get("trend_label")} for r in rows if r.get("badge") == "Em evolução"][:5], ensure_ascii=False, indent=2)
+        atencao_full_data = json.dumps([{"nome": r.get("name"), "score": r.get("score"), "faltas": r.get("unjustified_absences"), "kgh": r.get("avg_kgh"), "motivo": r.get("badge_reason")} for r in rows if r.get("badge") == "Atenção"], ensure_ascii=False, indent=2)
+        insights_data = json.dumps(insights, ensure_ascii=False, indent=2)
         
-        # Also fetch people ON VACATION, filtering by shift if needed
-        vac_query = select(models.Employee).where(models.Employee.status == 'vacation')
-        if shift and shift not in ['Todos', 'all']:
-            vac_query = vac_query.where(models.Employee.work_shift == shift)
-            
-        vacation_active_employees = session.exec(vac_query).all()
-                # Helper to get shift badge color/label
-        def get_shift_meta(s):
-            s = (s or '').lower()
-            if s == 'manhã': return {'label': 'M', 'color': 'blue'}
-            if s == 'tarde': return {'label': 'T', 'color': 'orange'}
-            if s == 'noite': return {'label': 'N', 'color': 'purple'}
-            return {'label': '-', 'color': 'slate'}
-        # 1. Birthdays (Current Month)
-        birthdays = []
-        for emp in employees:
-            if emp.birthday:
-                b_date = emp.birthday.date()
-                if b_date.month == today.month:
-                    is_today = (b_date.day == today.day)
-                    birthdays.append({
-                        "id": emp.id,
-                        "name": emp.name,
-                        "day": b_date.day,
-                        "is_today": is_today,
-                        "date": b_date,
-                        "shift": get_shift_meta(emp.work_shift)
-                    })
-        birthdays.sort(key=lambda x: x['day'])
-        # 2. Company Anniversaries (Current Month)
-        anniversaries = []
-        for emp in employees:
-            if emp.admission_date:
-                a_date = emp.admission_date.date()
-                if a_date.month == today.month and a_date.year != today.year:
-                    years = today.year - a_date.year
-                    is_today = (a_date.day == today.day)
-                    anniversaries.append({
-                        "id": emp.id,
-                        "name": emp.name,
-                        "years": years,
-                        "day": a_date.day,
-                        "is_today": is_today,
-                        "shift": get_shift_meta(emp.work_shift)
-                    })
-        anniversaries.sort(key=lambda x: x['day'])
-        # 3. Vacations (Active + Upcoming 20 days)
-        # We need to scan ACTIVE employees for UPCOMING vacations, 
-        # and VACATION employees for CURRENT status.
-        vacation_list = []
-                # A) Currently on Vacation
-        for emp in vacation_active_employees:
-            end_str = "-"
-            if emp.vacation_end:
-                end_str = emp.vacation_end.strftime('%d/%m')
-            vacation_list.append({
-                "id": emp.id,
-                "name": emp.name,
-                "status": "Em Férias",
-                "date_info": f"Volta: {end_str}",
-                "is_active": True, # Blue/Orange status
-                "shift": get_shift_meta(emp.work_shift)
-            })
-        # B) Upcoming (Next 20 days) - Scan Active Employees
-        limit_date = today + timedelta(days=20)
-        for emp in employees:
-            if emp.vacation_start:
-                v_start = emp.vacation_start.date()
-                # If starts between tomorrow and limit_date
-                if today < v_start <= limit_date:
-                    vacation_list.append({
-                        "id": emp.id,
-                        "name": emp.name,
-                        "status": "Vai sair",
-                        "date_info": f"Sai: {v_start.strftime('%d/%m')}",
-                        "is_active": False, # Future
-                        "shift": get_shift_meta(emp.work_shift),
-                        "sort_date": v_start
-                    })
-                # Sort: Current first, then upcoming by date
-        # We can use a sort key tuple: (0 for current/1 for future, date)
-        # Active vacations don't have a sort_date easily, give them today
-        # Fix: Using v_start directly in lambda can be tricky if not captured, but x['sort_date'] works.
-        vacation_list.sort(key=lambda x: (1 if x['status'] == 'Vai sair' else 0, x.get('sort_date', today)))
-        # 4. Contract Expiry (45 and 90 days)
-        contracts = []
-        for emp in employees:
-            if emp.admission_date:
-                adm = emp.admission_date.date()
-                
-                # 45 Days
-                d45 = adm + timedelta(days=45)
-                days_to_45 = (d45 - today).days
-                
-                # 90 Days
-                d90 = adm + timedelta(days=90)
-                days_to_90 = (d90 - today).days
-                
-                if 0 <= days_to_45 <= 30:
-                    contracts.append({
-                        "id": emp.id,
-                        "name": emp.name,
-                        "type": "45 Dias",
-                        "date": d45,
-                        "days_left": days_to_45,
-                        "is_today": (days_to_45 == 0),
-                        "shift": get_shift_meta(emp.work_shift)
-                    })
-                    
-                if 0 <= days_to_90 <= 30:
-                    contracts.append({
-                        "id": emp.id,
-                        "name": emp.name,
-                        "type": "90 Dias",
-                        "date": d90,
-                        "days_left": days_to_90,
-                        "is_today": (days_to_90 == 0),
-                        "shift": get_shift_meta(emp.work_shift)
-                    })
-        contracts.sort(key=lambda x: x['days_left'])
-        months_pt = {
-            1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril', 5: 'Maio', 6: 'Junho',
-            7: 'Julho', 8: 'Agosto', 9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
+        # Prompts específicos para cada tipo de relatório
+        prompts = {
+            "executive": f"""Você é um analista de operações logísticas gerando um RESUMO EXECUTIVO para a diretoria.
+
+DADOS DO PERÍODO ({period}):
+- Volume total: {team_stats.get('total_tonnage', 0):,.0f} kg
+- Média Kg/h: {team_stats.get('avg_kgh', 0):,.0f}
+- Colaboradores ativos: {team_stats.get('active_employees', 0)}
+- Taxa de presença: {team_stats.get('avg_presence_adjusted', 0)*100:.1f}%
+- Taxa de disciplina: {team_stats.get('discipline_rate', 0)*100:.1f}%
+- Faltas não justificadas: {team_stats.get('unjustified_total', 0)}
+
+DESTAQUES:
+{insights_data}
+
+TOP 5 COLABORADORES:
+{top5_data}
+
+Gere um resumo executivo de 2-3 parágrafos em português brasileiro, profissional e objetivo, destacando:
+1. Performance geral do período
+2. Pontos positivos e conquistas
+3. Pontos de atenção que requerem ação
+
+Não use markdown, apenas texto corrido.""",
+
+            "detailed": f"""Você é um analista de operações logísticas gerando um RELATÓRIO DETALHADO.
+
+DADOS DO PERÍODO ({period}) - Turno: {shift}:
+- Volume total: {team_stats.get('total_tonnage', 0):,.0f} kg
+- Média Kg/h: {team_stats.get('avg_kgh', 0):,.0f}
+- Tempo médio/viagem: {team_stats.get('avg_trip_minutes', 0):.1f} min
+- Colaboradores ativos: {team_stats.get('active_employees', 0)}
+- Taxa de presença: {team_stats.get('avg_presence_adjusted', 0)*100:.1f}%
+- Taxa de disciplina: {team_stats.get('discipline_rate', 0)*100:.1f}%
+
+ANÁLISE POR BADGE:
+{badge_counts}
+
+TOP 10 COLABORADORES:
+{top10_data}
+
+COLABORADORES QUE PRECISAM DE ATENÇÃO:
+{atencao_data}
+
+Gere um relatório detalhado em português brasileiro com seções:
+1. VISÃO GERAL DO PERÍODO
+2. ANÁLISE DE PRODUTIVIDADE
+3. ANÁLISE DE DISCIPLINA E PRESENÇA
+4. DESTAQUES POSITIVOS
+5. PONTOS DE ATENÇÃO
+6. RECOMENDAÇÕES
+
+Use formatação clara com títulos em MAIÚSCULAS e bullet points (•).""",
+
+            "recommendations": f"""Você é um consultor de gestão de pessoas gerando RECOMENDAÇÕES DE AÇÃO.
+
+CONTEXTO:
+- Período: {period}
+- Colaboradores ativos: {team_stats.get('active_employees', 0)}
+- Taxa de disciplina: {team_stats.get('discipline_rate', 0)*100:.1f}%
+- Faltas não justificadas: {team_stats.get('unjustified_total', 0)}
+
+COLABORADORES REFERÊNCIA (para reconhecer):
+{referencia_data}
+
+COLABORADORES EM EVOLUÇÃO (para acompanhar):
+{evolucao_data}
+
+COLABORADORES QUE PRECISAM DE ATENÇÃO (ação urgente):
+{atencao_full_data}
+
+Gere recomendações práticas em português brasileiro:
+1. AÇÕES IMEDIATAS (esta semana)
+2. RECONHECIMENTOS E FEEDBACK POSITIVO
+3. CONVERSAS INDIVIDUAIS NECESSÁRIAS
+4. TREINAMENTOS SUGERIDOS
+5. ALERTAS DE RISCO
+
+Seja específico, mencione nomes quando relevante. Use bullet points (•)."""
         }
-        return templates.TemplateResponse("index.html", {
-            "request": request, 
-            "message": "Operação Inteligente - Sistema Iniciado",
-            "user": user,
-            "current_shift": shift or 'Todos',
-            "people_data": {
-                "birthdays": birthdays,
-                "anniversaries": anniversaries,
-                "vacation": vacation_list,
-                "contracts": contracts,
-                "month_name": months_pt.get(today.month, today.strftime('%B'))
-            }
+        
+        # Prompt para relatório individual
+        if report_type == "individual" and employee_id:
+            emp_data = next((r for r in rows if r.get("id") == employee_id), None)
+            if emp_data:
+                prompts["individual"] = f"""Você é um gestor gerando uma AVALIAÇÃO INDIVIDUAL para feedback.
+
+COLABORADOR: {emp_data.get("name")}
+PERÍODO: {period}
+
+INDICADORES:
+- Score geral: {emp_data.get("score", 0):.1f}
+- Badge: {emp_data.get("badge")}
+- Kg/h médio: {emp_data.get("avg_kgh", 0):,.0f}
+- Volume total: {emp_data.get("total_tonnage", 0):,.0f} kg
+- Viagens: {emp_data.get("count", 0)}
+- Presença ajustada: {emp_data.get("regularity_adjusted", 0)*100:.1f}%
+- Consistência (CV): {emp_data.get("cv", 0):.2f}
+- Tendência: {emp_data.get("trend_label")}
+- Faltas não justificadas: {emp_data.get("unjustified_absences", 0)}
+- Tempo de casa: {emp_data.get("tenure_months", 0)} meses
+- Liga: {emp_data.get("tenure_band")}
+
+CONTEXTO:
+- Média Kg/h do time: {team_stats.get('avg_kgh', 0):,.0f}
+- Posição no ranking: {rows.index(emp_data) + 1 if emp_data in rows else 'N/A'} de {len(rows)}
+
+Gere uma avaliação individual em português brasileiro com:
+1. RESUMO DO DESEMPENHO (2-3 frases)
+2. PONTOS FORTES (bullets)
+3. ÁREAS DE MELHORIA (bullets)
+4. SUGESTÕES DE DESENVOLVIMENTO (bullets)
+5. PRÓXIMOS PASSOS RECOMENDADOS
+
+Tom: profissional mas construtivo, focado em desenvolvimento."""
+        
+        prompt = prompts.get(report_type, prompts["executive"])
+        
+        # Chamar Google Gemini
+        system_instruction = "Você é um analista de operações logísticas especializado em gestão de pessoas e performance operacional. Responda sempre em português brasileiro."
+        full_prompt = f"{system_instruction}\n\n{prompt}"
+        
+        response = gemini_client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=full_prompt
+        )
+        report_text = response.text
+        
+        return JSONResponse({
+            "success": True,
+            "report_type": report_type,
+            "report": report_text,
+            "generated_at": datetime.now(ZoneInfo("America/Sao_Paulo")).isoformat(),
+            "model": "gemini-2.0-flash"
         })
+        
     except Exception as e:
+        logger.error(f"Erro ao gerar relatório IA: {e}")
         import traceback
         traceback.print_exc()
-        return HTMLResponse(content=f"<h1>Error Interno (500)</h1><pre>{traceback.format_exc()}</pre>", status_code=500)
+        return JSONResponse(
+            {"error": f"Erro ao gerar relatório: {str(e)}"},
+            status_code=500
+        )
+
+
+@app.get("/operations/performance/report", response_class=HTMLResponse)
+async def export_performance_report(
+    request: Request,
+    date: Optional[str] = None,
+    period: str = "weekly",
+    shift: str = "Todos",
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    """
+    Gera relatório PDF de performance operacional.
+    Reutiliza a lógica da página principal de rankings.
+    """
+    from collections import Counter
+    
+    # Parsear data
+    target_date = safe_parse_iso_date(date) if date else datetime.now(ZoneInfo("America/Sao_Paulo")).date()
+    start_date, end_date = get_period_range(target_date, period)
+    total_days = (end_date - start_date).days + 1
+    
+    start_dt = datetime.combine(start_date, datetime.min.time())
+    end_dt = datetime.combine(end_date, datetime.max.time())
+    
+    # Labels do período
+    period_label_map = {'daily': 'Diário', 'weekly': 'Semanal', 'monthly': 'Mensal'}
+    period_label = period_label_map.get(period, period)
+    period_range_label = f"{start_date.strftime('%d/%m/%Y')} a {end_date.strftime('%d/%m/%Y')}"
+    
+    # Buscar rotas
+    query = (
+        select(models.Route)
+        .where(models.Route.tonnage > 0)
+        .where(models.Route.date >= start_date.strftime("%Y-%m-%d"))
+        .where(models.Route.date <= end_date.strftime("%Y-%m-%d"))
+    )
+    if shift and shift not in ["Todos", "Geral", None]:
+        query = query.where(models.Route.shift == shift)
+    
+    routes = session.exec(query).all()
+    
+    # Agrupar por colaborador
+    stats = {}
+    for route in routes:
+        if not route.employee_id:
+            continue
+        tonnage = float(route.tonnage or 0)
+        if tonnage <= 0:
+            continue
+        
+        entry = stats.setdefault(route.employee_id, {
+            "tonnage": 0.0,
+            "secs": 0.0,
+            "count": 0,
+            "complete_routes": 0,
+            "days": set(),
+            "daily": {},
+        })
+        entry["tonnage"] += tonnage
+        entry["count"] += 1
+        entry["days"].add(str(route.date))
+        
+        # Calcular tempo
+        diff = 0.0
+        if route.start_time and route.end_time:
+            try:
+                start_t = route.start_time if isinstance(route.start_time, time) else datetime.strptime(str(route.start_time), "%H:%M:%S").time()
+                end_t = route.end_time if isinstance(route.end_time, time) else datetime.strptime(str(route.end_time), "%H:%M:%S").time()
+                start_combined = datetime.combine(target_date, start_t)
+                end_combined = datetime.combine(target_date, end_t)
+                if end_combined < start_combined:
+                    end_combined += timedelta(days=1)
+                diff = max(0.0, (end_combined - start_combined).total_seconds())
+            except:
+                pass
+        
+        if diff > 0:
+            entry["secs"] += diff
+            entry["complete_routes"] += 1
+        
+        day_key = str(route.date)
+        day_entry = entry["daily"].setdefault(day_key, {"tonnage": 0.0, "secs": 0.0})
+        day_entry["tonnage"] += tonnage
+        day_entry["secs"] += diff
+    
+    # Buscar colaboradores
+    emp_ids = list(stats.keys())
+    employees = {}
+    if emp_ids:
+        emps = session.exec(select(models.Employee).where(models.Employee.id.in_(emp_ids))).all()
+        employees = {e.id: e for e in emps}
+    
+    # Calcular métricas
+    rows = []
+    for emp_id, data in stats.items():
+        emp = employees.get(emp_id)
+        if not emp:
+            continue
+        
+        # Kg/h médio
+        daily_kgh = []
+        for day_data in data["daily"].values():
+            if day_data["secs"] > 0:
+                daily_kgh.append(day_data["tonnage"] / (day_data["secs"] / 3600))
+        avg_kgh = statistics.mean(daily_kgh) if daily_kgh else 0
+        
+        # CV
+        cv = (statistics.pstdev(daily_kgh) / avg_kgh) if avg_kgh and len(daily_kgh) > 1 else 0
+        
+        # Tempo médio por viagem
+        avg_trip_minutes = (data["secs"] / 60 / data["count"]) if data["count"] else 0
+        
+        # Presença
+        active_days = len(data["days"])
+        regularity = active_days / max(1, total_days)
+        
+        # Tendência
+        if len(daily_kgh) >= 3:
+            half = len(daily_kgh) // 2
+            first_half = statistics.mean(daily_kgh[:half]) if daily_kgh[:half] else 0
+            second_half = statistics.mean(daily_kgh[half:]) if daily_kgh[half:] else 0
+            trend = (second_half - first_half) / first_half if first_half else 0
+        else:
+            trend = 0
+        
+        if trend > 0.05:
+            trend_label = f"↑ +{trend*100:.0f}%"
+        elif trend < -0.05:
+            trend_label = f"↓ {trend*100:.0f}%"
+        else:
+            trend_label = "→ Estável"
+        
+        # Score simples
+        score = min(100, (avg_kgh / 800 * 50) + (regularity * 30) + ((1 - cv) * 20))
+        
+        # Badge
+        if score >= 85 and regularity >= 0.8:
+            badge = "Referência"
+            badge_reason = "Alta entrega com presença consistente"
+        elif trend > 0.05:
+            badge = "Em evolução"
+            badge_reason = "Tendência positiva no período"
+        elif score < 50 or regularity < 0.5:
+            badge = "Atenção"
+            badge_reason = "Performance abaixo do esperado"
+        else:
+            badge = "Potencial"
+            badge_reason = "Margem para evolução"
+        
+        rows.append({
+            "id": emp_id,
+            "name": emp.name,
+            "score": score,
+            "avg_kgh": avg_kgh,
+            "total_tonnage": data["tonnage"],
+            "count": data["count"],
+            "regularity_adjusted": regularity,
+            "cv": cv,
+            "trend_label": trend_label,
+            "badge": badge,
+            "badge_reason": badge_reason,
+            "unjustified_absences": 0,  # Simplificado
+            "pillar_scores": {
+                "productivity": min(100, avg_kgh / 8),
+                "quality": min(100, (1 - cv) * 100),
+                "discipline": min(100, regularity * 100),
+                "evolution": min(100, 50 + trend * 100),
+                "context": 50
+            }
+        })
+    
+    # Ordenar por score
+    rows.sort(key=lambda x: x["score"], reverse=True)
+    
+    # Calcular estatísticas do time
+    team_stats = {
+        "total_tonnage": sum(r["total_tonnage"] for r in rows),
+        "avg_kgh": statistics.mean([r["avg_kgh"] for r in rows]) if rows else 0,
+        "avg_trip_minutes": statistics.mean([r.get("avg_trip_minutes", 0) for r in rows]) if rows else 0,
+        "active_employees": len(rows),
+        "avg_presence_adjusted": statistics.mean([r["regularity_adjusted"] for r in rows]) if rows else 0,
+        "discipline_rate": 0.95,  # Placeholder
+        "unjustified_total": 0
+    }
+    
+    # Contagem de badges
+    badge_counts = {
+        "referencia": len([r for r in rows if r["badge"] == "Referência"]),
+        "evolucao": len([r for r in rows if r["badge"] == "Em evolução"]),
+        "potencial": len([r for r in rows if r["badge"] == "Potencial"]),
+        "atencao": len([r for r in rows if r["badge"] == "Atenção"])
+    }
+    
+    # Insights
+    insights = {}
+    if rows:
+        insights["best"] = {"name": rows[0]["name"], "detail": f"Score {rows[0]['score']:.1f}"}
+        improved = max(rows, key=lambda x: float(x["trend_label"].replace("↑ +", "").replace("↓ ", "").replace("→ Estável", "0").replace("%", "") or 0), default=None)
+        if improved:
+            insights["improved"] = {"name": improved["name"], "detail": improved["trend_label"]}
+        best_presence = max(rows, key=lambda x: x["regularity_adjusted"], default=None)
+        if best_presence:
+            insights["presence"] = {"name": best_presence["name"], "detail": f"{best_presence['regularity_adjusted']*100:.0f}% presença"}
+        most_consistent = min(rows, key=lambda x: x["cv"], default=None)
+        if most_consistent:
+            insights["consistent"] = {"name": most_consistent["name"], "detail": f"CV {most_consistent['cv']:.2f}"}
+    
+    # Lista de atenção
+    attention_list = [r for r in rows if r["badge"] == "Atenção"]
+    
+    return templates.TemplateResponse(
+        "rankings_report_pdf.html",
+        {
+            "request": request,
+            "rows": rows,
+            "team_stats": team_stats,
+            "badge_counts": badge_counts,
+            "insights": insights,
+            "attention_list": attention_list,
+            "filters": {"shift": shift, "period": period, "date": date},
+            "period_label": period_label,
+            "period_range_label": period_range_label,
+            "generated_at": datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y %H:%M"),
+            "ai_report": None  # Pode ser preenchido se houver relatório IA em cache
+        }
+    )
+
+
 # --- Smart Flow Routes ---
 @app.get("/smart-flow", response_class=HTMLResponse)
 async def smart_flow_page(request: Request, shift: str = "Manhã", date: Optional[str] = None, session: Session = Depends(get_session)):
@@ -11960,16 +12338,27 @@ async def set_employee_routine_extended(
         print(f"✅ Rotina estendida: {employee.name} - {routine} de {start_date_str} por {days} dias ({action_info})")
         
         # ================================================================
-        # ENVIO DE E-MAIL AUTOMÁTICO PARA FALTA (ADVERTÊNCIA)
+        # ENVIO DE E-MAIL AUTOMÁTICO PARA AUSÊNCIAS (FALTA, FOLGA, ATESTADO)
         # COM TRAVA DE SEGURANÇA CONTRA DUPLICADOS
         # ================================================================
         email_sent = False
         email_error = None
         email_already_sent = False
         
-        if routine == "absent" and (created_count > 0 or updated_count > 0):
+        # Mapear rotina para tipo de alerta
+        routine_to_alert_type = {
+            "absent": "absent",   # Falta -> Advertência
+            "dayoff": "dayoff",   # Folga -> Notificação de Folga
+            "sick": "sick"        # Atestado -> Notificação Médica
+        }
+        
+        alert_type = routine_to_alert_type.get(routine)
+        alert_type_labels = {"absent": "advertência", "dayoff": "folga", "sick": "atestado"}
+        
+        # Enviar alerta se for um dos tipos configurados
+        if alert_type and (created_count > 0 or updated_count > 0):
             try:
-                # TRAVA DE SEGURANÇA: Verificar se já foi enviado e-mail para este colaborador/data
+                # TRAVA DE SEGURANÇA: Verificar se já foi enviado e-mail para este colaborador/data/tipo
                 existing_alert = session.exec(
                     select(models.AbsenceAlertLog)
                     .where(models.AbsenceAlertLog.employee_id == int(employee_id))
@@ -11979,12 +12368,13 @@ async def set_employee_routine_extended(
                 if existing_alert:
                     # E-mail já foi enviado anteriormente - NÃO enviar novamente
                     email_already_sent = True
-                    print(f"🔒 E-mail de advertência já enviado para {employee.name} em {start_date_str} (enviado em {existing_alert.sent_at.strftime('%d/%m/%Y %H:%M')})")
+                    print(f"🔒 E-mail de {alert_type_labels.get(alert_type, 'alerta')} já enviado para {employee.name} em {start_date_str} (enviado em {existing_alert.sent_at.strftime('%d/%m/%Y %H:%M')})")
                 else:
-                    # Buscar destinatários ativos
+                    # Buscar destinatários ativos para este TIPO de alerta
                     alert_recipients = session.exec(
                         select(models.AbsenceAlertRecipient)
                         .where(models.AbsenceAlertRecipient.is_active == True)
+                        .where(models.AbsenceAlertRecipient.alert_type == alert_type)
                     ).all()
                     
                     if alert_recipients:
@@ -12000,7 +12390,8 @@ async def set_employee_routine_extended(
                             absence_date=start_date_str,
                             registered_by=registered_by,
                             recipients=recipient_emails,
-                            days=days
+                            days=days,
+                            alert_type=alert_type
                         )
                         
                         if email_sent:
@@ -12013,21 +12404,21 @@ async def set_employee_routine_extended(
                             )
                             session.add(alert_log)
                             session.commit()
-                            print(f"📧 E-mail de advertência enviado para {len(recipient_emails)} destinatário(s)")
+                            print(f"📧 E-mail de {alert_type_labels.get(alert_type, 'alerta')} enviado para {len(recipient_emails)} destinatário(s)")
                         else:
-                            print(f"⚠️ Falha ao enviar e-mail de advertência: {email_error}")
+                            print(f"⚠️ Falha ao enviar e-mail de {alert_type_labels.get(alert_type, 'alerta')}: {email_error}")
                     else:
-                        print("ℹ️ Nenhum destinatário configurado para alertas de falta")
+                        print(f"ℹ️ Nenhum destinatário configurado para alertas de {alert_type_labels.get(alert_type, routine)}")
             except Exception as email_exc:
-                print(f"⚠️ Erro ao processar envio de e-mail de advertência: {email_exc}")
+                print(f"⚠️ Erro ao processar envio de e-mail de {alert_type_labels.get(alert_type, 'alerta')}: {email_exc}")
                 email_error = str(email_exc)
         
         message = f"Rotina processada com sucesso: {action_info}"
-        if routine == "absent" and email_sent:
-            message += " | E-mail de advertência enviado."
-        elif routine == "absent" and email_already_sent:
+        if alert_type and email_sent:
+            message += f" | E-mail de {alert_type_labels.get(alert_type, 'alerta')} enviado."
+        elif alert_type and email_already_sent:
             message += " | E-mail já enviado anteriormente (não duplicado)."
-        elif routine == "absent" and email_error:
+        elif alert_type and email_error:
             message += f" | Aviso: E-mail não enviado ({email_error})"
         
         return {
@@ -12035,8 +12426,8 @@ async def set_employee_routine_extended(
             "message": message,
             "created_days": created_count,
             "updated_days": updated_count,
-            "email_sent": email_sent if routine == "absent" else None,
-            "email_already_sent": email_already_sent if routine == "absent" else None
+            "email_sent": email_sent if alert_type else None,
+            "email_already_sent": email_already_sent if alert_type else None
         }
     except Exception as e:
         print(f"❌ Erro ao criar rotina estendida: {e}")
@@ -15002,10 +15393,12 @@ def send_absence_alert_email(
     absence_date: str,
     registered_by: str,
     recipients: List[str],
-    days: int = 1
+    days: int = 1,
+    alert_type: str = "absent"
 ) -> tuple:
     """
-    Envia e-mail de alerta de falta (solicitação de advertência).
+    Envia e-mail de alerta de ausência (falta, folga ou atestado).
+    alert_type: 'absent' (falta/advertência), 'dayoff' (folga), 'sick' (atestado)
     Retorna (success: bool, error: str ou None)
     """
     smtp_port = parse_int_env(SMTP_PORT_RAW, 587)
@@ -15032,24 +15425,58 @@ def send_absence_alert_email(
     except:
         formatted_date = absence_date
     
+    days_text = f"{days} dia(s)" if days > 1 else "1 dia"
+    
+    # Configuração por tipo de alerta
+    alert_configs = {
+        "absent": {
+            "emoji": "🚨",
+            "title": "SOLICITAÇÃO DE ADVERTÊNCIA",
+            "subtitle": "Falta Não Justificada Registrada",
+            "type_label": "FALTA",
+            "date_label": "Data da Falta",
+            "color": "#dc2626",
+            "action": "Solicitamos a abertura de processo de advertência conforme procedimento interno."
+        },
+        "dayoff": {
+            "emoji": "📅",
+            "title": "NOTIFICAÇÃO DE FOLGA",
+            "subtitle": "Folga Registrada no Sistema",
+            "type_label": "FOLGA",
+            "date_label": "Data da Folga",
+            "color": "#2563eb",
+            "action": "Informamos para fins de controle de escala e planejamento operacional."
+        },
+        "sick": {
+            "emoji": "🏥",
+            "title": "NOTIFICAÇÃO DE ATESTADO MÉDICO",
+            "subtitle": "Atestado Médico Registrado no Sistema",
+            "type_label": "ATESTADO MÉDICO",
+            "date_label": "Data do Atestado",
+            "color": "#d97706",
+            "action": "Informamos para fins de controle médico e registro de afastamento."
+        }
+    }
+    
+    config = alert_configs.get(alert_type, alert_configs["absent"])
+    
     # Montar assunto
-    subject = f"🚨 SOLICITAÇÃO DE ADVERTÊNCIA — Falta Não Justificada — {employee.name}"
+    subject = f"{config['emoji']} {config['title']} — {config['type_label']} — {employee.name}"
     
     # Montar corpo do e-mail
-    days_text = f"{days} dia(s)" if days > 1 else "1 dia"
     body_html = f"""
     <html>
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: #dc2626; color: white; padding: 15px 20px; border-radius: 8px 8px 0 0;">
-                <h2 style="margin: 0; font-size: 18px;">🚨 SOLICITAÇÃO DE ADVERTÊNCIA</h2>
-                <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Falta Não Justificada Registrada</p>
+            <div style="background: {config['color']}; color: white; padding: 15px 20px; border-radius: 8px 8px 0 0;">
+                <h2 style="margin: 0; font-size: 18px;">{config['emoji']} {config['title']}</h2>
+                <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">{config['subtitle']}</p>
             </div>
             
             <div style="background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none;">
                 <p>Prezados,</p>
                 
-                <p>Informamos que o colaborador abaixo foi registrado com <strong style="color: #dc2626;">FALTA</strong> no sistema:</p>
+                <p>Informamos que o colaborador abaixo foi registrado com <strong style="color: {config['color']};">{config['type_label']}</strong> no sistema:</p>
                 
                 <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin: 20px 0;">
                     <table style="width: 100%; border-collapse: collapse;">
@@ -15070,8 +15497,8 @@ def send_absence_alert_email(
                             <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{employee.work_shift or '-'}</td>
                         </tr>
                         <tr>
-                            <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Data da Falta:</strong></td>
-                            <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #dc2626; font-weight: bold;">{formatted_date}</td>
+                            <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>{config['date_label']}:</strong></td>
+                            <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: {config['color']}; font-weight: bold;">{formatted_date}</td>
                         </tr>
                         <tr>
                             <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Período:</strong></td>
@@ -15084,7 +15511,7 @@ def send_absence_alert_email(
                     </table>
                 </div>
                 
-                <p><strong>Solicitamos a abertura de processo de advertência conforme procedimento interno.</strong></p>
+                <p><strong>{config['action']}</strong></p>
                 
                 <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
                 
@@ -15099,21 +15526,21 @@ def send_absence_alert_email(
     """
     
     body_text = f"""
-SOLICITAÇÃO DE ADVERTÊNCIA - Falta Não Justificada
+{config['title']} - {config['type_label']}
 
 Prezados,
 
-Informamos que o colaborador abaixo foi registrado com FALTA no sistema:
+Informamos que o colaborador abaixo foi registrado com {config['type_label']} no sistema:
 
 - Colaborador: {employee.name}
 - Matrícula: {employee.registration_id}
 - Cargo: {employee.role or '-'}
 - Turno: {employee.work_shift or '-'}
-- Data da Falta: {formatted_date}
+- {config['date_label']}: {formatted_date}
 - Período: {days_text}
 - Registrado por: {registered_by}
 
-Solicitamos a abertura de processo de advertência conforme procedimento interno.
+{config['action']}
 
 ---
 Este é um e-mail automático gerado pelo sistema de Análise Operacional.
@@ -15128,7 +15555,8 @@ Data/Hora do registro: {datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d
     msg.add_alternative(body_html, subtype="html")
     
     logger.info(
-        "Enviando e-mail de alerta de falta | host=%s port=%s tls=%s ssl=%s from=%s recipients=%s employee=%s",
+        "Enviando e-mail de alerta (%s) | host=%s port=%s tls=%s ssl=%s from=%s recipients=%s employee=%s",
+        alert_type,
         SMTP_HOST,
         smtp_port,
         smtp_tls,
@@ -15148,11 +15576,11 @@ Data/Hora do registro: {datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d
                 smtp.starttls()
             smtp.login(SMTP_USER, SMTP_PASS)
             smtp.send_message(msg)
-        logger.info(f"E-mail de alerta de falta enviado com sucesso para {employee.name}.")
+        logger.info(f"E-mail de alerta ({alert_type}) enviado com sucesso para {employee.name}.")
         return True, None
     except Exception as exc:
         error_msg = str(exc)
-        logger.error(f"Erro ao enviar e-mail de alerta de falta: {error_msg}")
+        logger.error(f"Erro ao enviar e-mail de alerta ({alert_type}): {error_msg}")
         return False, error_msg
 
 @app.get("/admin/absence-alerts/settings", response_class=HTMLResponse)
@@ -15166,8 +15594,15 @@ async def admin_absence_alerts_settings(
     level = request.query_params.get("level", "success")
     
     recipients = session.exec(
-        select(models.AbsenceAlertRecipient).order_by(models.AbsenceAlertRecipient.email)
+        select(models.AbsenceAlertRecipient)
+        .where(models.AbsenceAlertRecipient.is_active == True)
+        .order_by(models.AbsenceAlertRecipient.email)
     ).all()
+    
+    # Filtrar por tipo para o template
+    absent_recipients = [r for r in recipients if getattr(r, 'alert_type', 'absent') == 'absent']
+    dayoff_recipients = [r for r in recipients if getattr(r, 'alert_type', None) == 'dayoff']
+    sick_recipients = [r for r in recipients if getattr(r, 'alert_type', None) == 'sick']
     
     # Info SMTP para exibição
     smtp_configured = bool(SMTP_HOST and SMTP_USER and SMTP_PASS)
@@ -15178,6 +15613,9 @@ async def admin_absence_alerts_settings(
             "request": request,
             "user": user,
             "recipients": recipients,
+            "absent_recipients": absent_recipients,
+            "dayoff_recipients": dayoff_recipients,
+            "sick_recipients": sick_recipients,
             "message": message,
             "level": level,
             "smtp_host": SMTP_HOST,
@@ -15192,40 +15630,52 @@ async def admin_absence_alerts_add_email(
     request: Request,
     email: str = Form(...),
     name: str = Form(""),
+    alert_type: str = Form("absent"),
     session: Session = Depends(get_session),
     user=Depends(require_leader)
 ):
-    """Adiciona ou reativa um e-mail de destinatário de alertas de falta"""
+    """Adiciona ou reativa um e-mail de destinatário de alertas de ausência"""
     email_normalized = normalize_email(email)
     if not email_normalized:
         return absence_alerts_settings_redirect("E-mail inválido.", "error")
     
-    # Verificar se já existe
+    # Validar alert_type
+    valid_types = ["absent", "dayoff", "sick"]
+    if alert_type not in valid_types:
+        alert_type = "absent"
+    
+    type_labels = {"absent": "Falta", "dayoff": "Folga", "sick": "Atestado"}
+    type_label = type_labels.get(alert_type, "Falta")
+    
+    # Verificar se já existe para este tipo
     existing = session.exec(
-        select(models.AbsenceAlertRecipient).where(models.AbsenceAlertRecipient.email == email_normalized)
+        select(models.AbsenceAlertRecipient)
+        .where(models.AbsenceAlertRecipient.email == email_normalized)
+        .where(models.AbsenceAlertRecipient.alert_type == alert_type)
     ).first()
     
     if existing:
         if existing.is_active:
-            return absence_alerts_settings_redirect("E-mail já cadastrado.", "error")
+            return absence_alerts_settings_redirect(f"E-mail já cadastrado para {type_label}.", "error")
         else:
             # Reativar
             existing.is_active = True
             existing.name = name.strip() if name else existing.name
             session.add(existing)
             session.commit()
-            return absence_alerts_settings_redirect("E-mail reativado com sucesso.", "success")
+            return absence_alerts_settings_redirect(f"E-mail reativado para {type_label}.", "success")
     
     # Criar novo
     new_recipient = models.AbsenceAlertRecipient(
         email=email_normalized,
         name=name.strip() if name else None,
+        alert_type=alert_type,
         is_active=True
     )
     session.add(new_recipient)
     session.commit()
     
-    return absence_alerts_settings_redirect("E-mail cadastrado com sucesso.", "success")
+    return absence_alerts_settings_redirect(f"E-mail cadastrado para {type_label}.", "success")
 
 @app.post("/admin/absence-alerts/settings/emails/{recipient_id}/delete", response_class=RedirectResponse)
 async def admin_absence_alerts_remove_email(
@@ -15268,16 +15718,23 @@ async def admin_absence_alerts_test_email(
     today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
     registered_by = str(user) if user else "Sistema"
     
+    # Determinar tipo de alerta para o teste
+    alert_type = recipient.alert_type or "absent"
+    
     success, error = send_absence_alert_email(
         employee=mock_employee,
         absence_date=today,
         registered_by=registered_by,
         recipients=[recipient.email],
-        days=1
+        days=1,
+        alert_type=alert_type
     )
     
+    type_labels = {"absent": "Falta", "dayoff": "Folga", "sick": "Atestado"}
+    type_label = type_labels.get(alert_type, "Falta")
+    
     if success:
-        return absence_alerts_settings_redirect(f"E-mail de teste enviado para {recipient.email}", "success")
+        return absence_alerts_settings_redirect(f"E-mail de teste ({type_label}) enviado para {recipient.email}", "success")
     else:
         return absence_alerts_settings_redirect(f"Erro ao enviar: {error}", "error")
 
