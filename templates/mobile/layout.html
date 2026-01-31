@@ -14,31 +14,8 @@
     <link rel="icon" type="image/png" href="/favicon.ico">
     <title>{% block title %}Portal do Colaborador{% endblock %}</title>
 
-    <!-- Tailwind CSS (Engine) -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        slate: { 800: '#1e293b', 900: '#0f172a' },
-                        gold: { 500: '#eab308' }
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                    animation: {
-                        'fade-in': 'fadeIn 0.5s ease-out forwards',
-                        'slide-up': 'slideUp 0.3s ease-out forwards'
-                    },
-                    keyframes: {
-                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
-                        slideUp: { '0%': { transform: 'translateY(20px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } }
-                    }
-                }
-            }
-        }
-    </script>
+    <!-- Tailwind CSS (compilado) -->
+    <link rel="stylesheet" href="/static/styles.css">
 
     <!-- Custom CSS (Overrides & Utilities) -->
     <link rel="stylesheet" href="{{ url_for('static', path='css/mobile.css') }}?v=4.0">
@@ -112,7 +89,7 @@
                         </div>
                     </a>
 
-                    <!-- Smart Flow (for leaders) -->
+                    <!-- Módulo Líder -->
                     {% if auth_user_id and ("smart_flow" in allowed_pages or user_role == "admin") %}
                     <a href="/smart-flow"
                         class="flex items-center gap-4 px-4 py-4 rounded-2xl bg-slate-800/50 border border-slate-700/50 hover:bg-slate-800 hover:border-slate-600 transition-all active:scale-95">
@@ -124,7 +101,49 @@
                             <p class="text-sm text-slate-400">Fluxo inteligente</p>
                         </div>
                     </a>
+                    <a href="/lider/checklists"
+                        class="flex items-center gap-4 px-4 py-4 rounded-2xl bg-slate-800/50 border border-slate-700/50 hover:bg-slate-800 hover:border-slate-600 transition-all active:scale-95">
+                        <div class="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400">
+                            <i data-lucide="clipboard-check" class="w-6 h-6"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-bold text-white text-lg">Checklists em dia</p>
+                            <p class="text-sm text-slate-400">Quem não fez</p>
+                        </div>
+                    </a>
+                    <a href="/lider/rotas"
+                        class="flex items-center gap-4 px-4 py-4 rounded-2xl bg-slate-800/50 border border-slate-700/50 hover:bg-slate-800 hover:border-slate-600 transition-all active:scale-95">
+                        <div class="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                            <i data-lucide="route" class="w-6 h-6"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-bold text-white text-lg">Rotas e velocidade</p>
+                            <p class="text-sm text-slate-400">Uso do app</p>
+                        </div>
+                    </a>
+                    <a href="/lider/tarefas"
+                        class="flex items-center gap-4 px-4 py-4 rounded-2xl bg-slate-800/50 border border-slate-700/50 hover:bg-slate-800 hover:border-slate-600 transition-all active:scale-95">
+                        <div class="w-12 h-12 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-400">
+                            <i data-lucide="list-todo" class="w-6 h-6"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-bold text-white text-lg">Tarefas</p>
+                            <p class="text-sm text-slate-400">Enviar para equipe</p>
+                        </div>
+                    </a>
                     {% endif %}
+
+                    <!-- Minhas Tarefas (colaborador) -->
+                    <a href="/mobile/tarefas"
+                        class="flex items-center gap-4 px-4 py-4 rounded-2xl bg-slate-800/50 border border-slate-700/50 hover:bg-slate-800 hover:border-slate-600 transition-all active:scale-95">
+                        <div class="w-12 h-12 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-400">
+                            <i data-lucide="list-todo" class="w-6 h-6"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-bold text-white text-lg">Minhas Tarefas</p>
+                            <p class="text-sm text-slate-400">Tarefas do líder</p>
+                        </div>
+                    </a>
 
                     <!-- Achievements -->
                     <a href="/mobile/achievements"

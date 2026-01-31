@@ -27225,3 +27225,1043 @@ NameError: name 'start_date_str' is not defined
 2026-01-30 16:25:27,100 | INFO     | main | Google Gemini client initialized successfully
 2026-01-30 16:26:44,943 | INFO     | main | Google Gemini client initialized successfully
 2026-01-30 16:28:31,962 | INFO     | main | Google Gemini client initialized successfully
+2026-01-30 21:53:05,256 | WARNING  | main | Admin padrão criado. Atualize ADMIN_EMAIL/ADMIN_PASS imediatamente.
+2026-01-30 22:17:12,159 | ERROR    | main | [500] GET http://127.0.0.1:8000/operations/performance | Trace: 1fde4e35 | Error: type Undefined doesn't define __round__ method
+  + Exception Group Traceback (most recent call last):
+  |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 79, in collapse_excgroups
+  |     yield
+  |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 192, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |                ~~~~~~~~~~~~~~~~~~~~~~~^^
+  |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 783, in __aexit__
+  |     raise BaseExceptionGroup(
+  |         "unhandled errors in a TaskGroup", self._exceptions
+  |     ) from None
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 319, in global_exception_handler
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ~~~~~~~~~~~~~~~~~~^^
+    |   File "C:\Users\felip\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    |     self.gen.throw(value)
+    |     ~~~~~~~~~~~~~~^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 300, in add_no_cache_header
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    |     await self.app(scope, receive, send_wrapper)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    |     await route.handle(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    |     await self.app(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 115, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 101, in app
+    |     response = await f(request)
+    |                ^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 355, in app
+    |     raw_response = await run_endpoint_function(
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     ...<3 lines>...
+    |     )
+    |     ^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 243, in run_endpoint_function
+    |     return await dependant.call(**values)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 8965, in operations_performance_page
+    |     return templates.TemplateResponse(
+    |            ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+    |         "rankings.html",
+    |         ^^^^^^^^^^^^^^^^
+    |     ...<40 lines>...
+    |         }
+    |         ^
+    |     )
+    |     ^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 210, in TemplateResponse
+    |     return _TemplateResponse(
+    |         template,
+    |     ...<4 lines>...
+    |         background=background,
+    |     )
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 41, in __init__
+    |     content = template.render(context)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    |     self.environment.handle_exception()
+    |     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    |     raise rewrite_traceback_stack(source=source)
+    |   File "templates\rankings.html", line 1, in top-level template code
+    |     {% extends "base.html" %}
+    |   File "templates\base.html", line 345, in top-level template code
+    |     {% block content %}{% endblock %}
+    |     ^^^^^^^^^^^^^
+    |   File "templates\rankings.html", line 1371, in block 'content'
+    |     <p class="text-xl font-bold text-cyan-300">{{ calculation_debug.team_calculations.sum_regularity_adjusted|round(2) }}</p>
+    |     
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\filters.py", line 1182, in do_round
+    |     return round(value, precision)
+    | TypeError: type Undefined doesn't define __round__ method
+    +------------------------------------
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 319, in global_exception_handler
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\felip\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    raise exc
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 300, in add_no_cache_header
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 115, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 101, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 355, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 243, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 8965, in operations_performance_page
+    return templates.TemplateResponse(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        "rankings.html",
+        ^^^^^^^^^^^^^^^^
+    ...<40 lines>...
+        }
+        ^
+    )
+    ^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 210, in TemplateResponse
+    return _TemplateResponse(
+        template,
+    ...<4 lines>...
+        background=background,
+    )
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 41, in __init__
+    content = template.render(context)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "templates\rankings.html", line 1, in top-level template code
+    {% extends "base.html" %}
+  File "templates\base.html", line 345, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^
+  File "templates\rankings.html", line 1371, in block 'content'
+    <p class="text-xl font-bold text-cyan-300">{{ calculation_debug.team_calculations.sum_regularity_adjusted|round(2) }}</p>
+    
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\filters.py", line 1182, in do_round
+    return round(value, precision)
+TypeError: type Undefined doesn't define __round__ method
+
+2026-01-30 22:18:35,789 | ERROR    | main | [500] GET http://127.0.0.1:8000/operations/performance | Trace: 32a8f863 | Error: type Undefined doesn't define __round__ method
+  + Exception Group Traceback (most recent call last):
+  |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 79, in collapse_excgroups
+  |     yield
+  |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 192, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |                ~~~~~~~~~~~~~~~~~~~~~~~^^
+  |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 783, in __aexit__
+  |     raise BaseExceptionGroup(
+  |         "unhandled errors in a TaskGroup", self._exceptions
+  |     ) from None
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 319, in global_exception_handler
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ~~~~~~~~~~~~~~~~~~^^
+    |   File "C:\Users\felip\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    |     self.gen.throw(value)
+    |     ~~~~~~~~~~~~~~^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 300, in add_no_cache_header
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    |     await self.app(scope, receive, send_wrapper)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    |     await route.handle(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    |     await self.app(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 115, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 101, in app
+    |     response = await f(request)
+    |                ^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 355, in app
+    |     raw_response = await run_endpoint_function(
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     ...<3 lines>...
+    |     )
+    |     ^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 243, in run_endpoint_function
+    |     return await dependant.call(**values)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 8965, in operations_performance_page
+    |     return templates.TemplateResponse(
+    |            ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+    |         "rankings.html",
+    |         ^^^^^^^^^^^^^^^^
+    |     ...<40 lines>...
+    |         }
+    |         ^
+    |     )
+    |     ^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 210, in TemplateResponse
+    |     return _TemplateResponse(
+    |         template,
+    |     ...<4 lines>...
+    |         background=background,
+    |     )
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 41, in __init__
+    |     content = template.render(context)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    |     self.environment.handle_exception()
+    |     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    |     raise rewrite_traceback_stack(source=source)
+    |   File "templates\rankings.html", line 1, in top-level template code
+    |     {% extends "base.html" %}
+    |   File "templates\base.html", line 345, in top-level template code
+    |     {% block content %}{% endblock %}
+    |     ^^^^^^^^^^^^^
+    |   File "templates\rankings.html", line 1371, in block 'content'
+    |     <p class="text-xl font-bold text-cyan-300">{{ calculation_debug.team_calculations.sum_regularity_adjusted|round(2) }}</p>
+    |     
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\filters.py", line 1182, in do_round
+    |     return round(value, precision)
+    | TypeError: type Undefined doesn't define __round__ method
+    +------------------------------------
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 319, in global_exception_handler
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\felip\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    raise exc
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 300, in add_no_cache_header
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 115, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 101, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 355, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 243, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 8965, in operations_performance_page
+    return templates.TemplateResponse(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        "rankings.html",
+        ^^^^^^^^^^^^^^^^
+    ...<40 lines>...
+        }
+        ^
+    )
+    ^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 210, in TemplateResponse
+    return _TemplateResponse(
+        template,
+    ...<4 lines>...
+        background=background,
+    )
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 41, in __init__
+    content = template.render(context)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "templates\rankings.html", line 1, in top-level template code
+    {% extends "base.html" %}
+  File "templates\base.html", line 345, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^
+  File "templates\rankings.html", line 1371, in block 'content'
+    <p class="text-xl font-bold text-cyan-300">{{ calculation_debug.team_calculations.sum_regularity_adjusted|round(2) }}</p>
+    
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\filters.py", line 1182, in do_round
+    return round(value, precision)
+TypeError: type Undefined doesn't define __round__ method
+
+2026-01-30 22:24:23,522 | ERROR    | main | [500] GET http://127.0.0.1:8000/operations/performance | Trace: bd5bec8a | Error: type Undefined doesn't define __round__ method
+  + Exception Group Traceback (most recent call last):
+  |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 79, in collapse_excgroups
+  |     yield
+  |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 192, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |                ~~~~~~~~~~~~~~~~~~~~~~~^^
+  |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 783, in __aexit__
+  |     raise BaseExceptionGroup(
+  |         "unhandled errors in a TaskGroup", self._exceptions
+  |     ) from None
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 320, in global_exception_handler
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ~~~~~~~~~~~~~~~~~~^^
+    |   File "C:\Users\felip\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    |     self.gen.throw(value)
+    |     ~~~~~~~~~~~~~~^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 301, in add_no_cache_header
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    |     await self.app(scope, receive, send_wrapper)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    |     await route.handle(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    |     await self.app(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 115, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 101, in app
+    |     response = await f(request)
+    |                ^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 355, in app
+    |     raw_response = await run_endpoint_function(
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     ...<3 lines>...
+    |     )
+    |     ^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 243, in run_endpoint_function
+    |     return await dependant.call(**values)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 8988, in operations_performance_page
+    |     return templates.TemplateResponse(
+    |            ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+    |         "rankings.html",
+    |         ^^^^^^^^^^^^^^^^
+    |     ...<40 lines>...
+    |         }
+    |         ^
+    |     )
+    |     ^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 210, in TemplateResponse
+    |     return _TemplateResponse(
+    |         template,
+    |     ...<4 lines>...
+    |         background=background,
+    |     )
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 41, in __init__
+    |     content = template.render(context)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    |     self.environment.handle_exception()
+    |     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    |     raise rewrite_traceback_stack(source=source)
+    |   File "templates\rankings.html", line 1, in top-level template code
+    |     {% extends "base.html" %}
+    |   File "templates\base.html", line 330, in top-level template code
+    |     {% block content %}{% endblock %}
+    |     ^^^^^^^^^^^^^
+    |   File "templates\rankings.html", line 1371, in block 'content'
+    |     <p class="text-xl font-bold text-cyan-300">{{ calculation_debug.team_calculations.sum_regularity_adjusted|round(2) }}</p>
+    |     
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\filters.py", line 1182, in do_round
+    |     return round(value, precision)
+    | TypeError: type Undefined doesn't define __round__ method
+    +------------------------------------
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 320, in global_exception_handler
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\felip\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    raise exc
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 301, in add_no_cache_header
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 115, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 101, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 355, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 243, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 8988, in operations_performance_page
+    return templates.TemplateResponse(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        "rankings.html",
+        ^^^^^^^^^^^^^^^^
+    ...<40 lines>...
+        }
+        ^
+    )
+    ^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 210, in TemplateResponse
+    return _TemplateResponse(
+        template,
+    ...<4 lines>...
+        background=background,
+    )
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 41, in __init__
+    content = template.render(context)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "templates\rankings.html", line 1, in top-level template code
+    {% extends "base.html" %}
+  File "templates\base.html", line 330, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^
+  File "templates\rankings.html", line 1371, in block 'content'
+    <p class="text-xl font-bold text-cyan-300">{{ calculation_debug.team_calculations.sum_regularity_adjusted|round(2) }}</p>
+    
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\filters.py", line 1182, in do_round
+    return round(value, precision)
+TypeError: type Undefined doesn't define __round__ method
+
+2026-01-30 22:29:36,751 | ERROR    | main | [500] GET http://127.0.0.1:8000/operations/performance | Trace: be4b8fa0 | Error: type Undefined doesn't define __round__ method
+  + Exception Group Traceback (most recent call last):
+  |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 79, in collapse_excgroups
+  |     yield
+  |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 192, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |                ~~~~~~~~~~~~~~~~~~~~~~~^^
+  |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 783, in __aexit__
+  |     raise BaseExceptionGroup(
+  |         "unhandled errors in a TaskGroup", self._exceptions
+  |     ) from None
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 320, in global_exception_handler
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ~~~~~~~~~~~~~~~~~~^^
+    |   File "C:\Users\felip\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    |     self.gen.throw(value)
+    |     ~~~~~~~~~~~~~~^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 301, in add_no_cache_header
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    |     await self.app(scope, receive, send_wrapper)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    |     await route.handle(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    |     await self.app(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 115, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 101, in app
+    |     response = await f(request)
+    |                ^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 355, in app
+    |     raw_response = await run_endpoint_function(
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     ...<3 lines>...
+    |     )
+    |     ^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 243, in run_endpoint_function
+    |     return await dependant.call(**values)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 8990, in operations_performance_page
+    |     return templates.TemplateResponse(
+    |            ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+    |         "rankings.html",
+    |         ^^^^^^^^^^^^^^^^
+    |     ...<40 lines>...
+    |         }
+    |         ^
+    |     )
+    |     ^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 210, in TemplateResponse
+    |     return _TemplateResponse(
+    |         template,
+    |     ...<4 lines>...
+    |         background=background,
+    |     )
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 41, in __init__
+    |     content = template.render(context)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    |     self.environment.handle_exception()
+    |     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    |     raise rewrite_traceback_stack(source=source)
+    |   File "templates\rankings.html", line 1, in top-level template code
+    |     {% extends "base.html" %}
+    |   File "templates\base.html", line 348, in top-level template code
+    |     {% block content %}{% endblock %}
+    |     ^^^^^^^^^^^^^
+    |   File "templates\rankings.html", line 1371, in block 'content'
+    |     <p class="text-xl font-bold text-cyan-300">{{ calculation_debug.team_calculations.sum_regularity_adjusted|round(2) }}</p>
+    |     
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\filters.py", line 1182, in do_round
+    |     return round(value, precision)
+    | TypeError: type Undefined doesn't define __round__ method
+    +------------------------------------
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 320, in global_exception_handler
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\felip\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    raise exc
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 301, in add_no_cache_header
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 115, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 101, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 355, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 243, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 8990, in operations_performance_page
+    return templates.TemplateResponse(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        "rankings.html",
+        ^^^^^^^^^^^^^^^^
+    ...<40 lines>...
+        }
+        ^
+    )
+    ^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 210, in TemplateResponse
+    return _TemplateResponse(
+        template,
+    ...<4 lines>...
+        background=background,
+    )
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 41, in __init__
+    content = template.render(context)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "templates\rankings.html", line 1, in top-level template code
+    {% extends "base.html" %}
+  File "templates\base.html", line 348, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^
+  File "templates\rankings.html", line 1371, in block 'content'
+    <p class="text-xl font-bold text-cyan-300">{{ calculation_debug.team_calculations.sum_regularity_adjusted|round(2) }}</p>
+    
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\filters.py", line 1182, in do_round
+    return round(value, precision)
+TypeError: type Undefined doesn't define __round__ method
+
+2026-01-30 22:29:52,611 | ERROR    | main | [500] GET http://127.0.0.1:8000/operations/performance | Trace: 3dea399e | Error: type Undefined doesn't define __round__ method
+  + Exception Group Traceback (most recent call last):
+  |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 79, in collapse_excgroups
+  |     yield
+  |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 192, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |                ~~~~~~~~~~~~~~~~~~~~~~~^^
+  |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 783, in __aexit__
+  |     raise BaseExceptionGroup(
+  |         "unhandled errors in a TaskGroup", self._exceptions
+  |     ) from None
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 320, in global_exception_handler
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ~~~~~~~~~~~~~~~~~~^^
+    |   File "C:\Users\felip\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    |     self.gen.throw(value)
+    |     ~~~~~~~~~~~~~~^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 301, in add_no_cache_header
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    |     await self.app(scope, receive, send_wrapper)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    |     await route.handle(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    |     await self.app(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 115, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 101, in app
+    |     response = await f(request)
+    |                ^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 355, in app
+    |     raw_response = await run_endpoint_function(
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     ...<3 lines>...
+    |     )
+    |     ^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 243, in run_endpoint_function
+    |     return await dependant.call(**values)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 8990, in operations_performance_page
+    |     return templates.TemplateResponse(
+    |            ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+    |         "rankings.html",
+    |         ^^^^^^^^^^^^^^^^
+    |     ...<40 lines>...
+    |         }
+    |         ^
+    |     )
+    |     ^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 210, in TemplateResponse
+    |     return _TemplateResponse(
+    |         template,
+    |     ...<4 lines>...
+    |         background=background,
+    |     )
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 41, in __init__
+    |     content = template.render(context)
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    |     self.environment.handle_exception()
+    |     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    |     raise rewrite_traceback_stack(source=source)
+    |   File "templates\rankings.html", line 1, in top-level template code
+    |     {% extends "base.html" %}
+    |   File "templates\base.html", line 363, in top-level template code
+    |     {% block content %}{% endblock %}
+    |     ^^^^^^^^^^^^^
+    |   File "templates\rankings.html", line 1371, in block 'content'
+    |     <p class="text-xl font-bold text-cyan-300">{{ calculation_debug.team_calculations.sum_regularity_adjusted|round(2) }}</p>
+    |     
+    |   File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\filters.py", line 1182, in do_round
+    |     return round(value, precision)
+    | TypeError: type Undefined doesn't define __round__ method
+    +------------------------------------
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 320, in global_exception_handler
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\felip\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    raise exc
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 301, in add_no_cache_header
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 115, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 101, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 355, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 243, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 8990, in operations_performance_page
+    return templates.TemplateResponse(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        "rankings.html",
+        ^^^^^^^^^^^^^^^^
+    ...<40 lines>...
+        }
+        ^
+    )
+    ^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 210, in TemplateResponse
+    return _TemplateResponse(
+        template,
+    ...<4 lines>...
+        background=background,
+    )
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 41, in __init__
+    content = template.render(context)
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "templates\rankings.html", line 1, in top-level template code
+    {% extends "base.html" %}
+  File "templates\base.html", line 363, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^
+  File "templates\rankings.html", line 1371, in block 'content'
+    <p class="text-xl font-bold text-cyan-300">{{ calculation_debug.team_calculations.sum_regularity_adjusted|round(2) }}</p>
+    
+  File "E:\Projeto\analise_operacional\analise_operacional\.venv\Lib\site-packages\jinja2\filters.py", line 1182, in do_round
+    return round(value, precision)
+TypeError: type Undefined doesn't define __round__ method
+
+2026-01-30 22:38:38,193 | ERROR    | main | Error in smart_flow_page
+Traceback (most recent call last):
+  File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 10751, in smart_flow_page
+    user = require_login(request)
+  File "E:\Projeto\analise_operacional\analise_operacional\main.py", line 1229, in require_login
+    raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/mobile/dashboard"})
+fastapi.exceptions.HTTPException: 303: See Other
+2026-01-30 22:43:04,615 | INFO     | main | Reset de senha gerado para felipe.pires@nlfrutas.com.br: http://127.0.0.1:8000/reset/wKtveFitDgLOUBLvAe6MF561YSr9BlYidGXS-atfj4U
+2026-01-30 22:43:25,208 | INFO     | main | Reset de senha gerado para felipe.pires@nlfrutas.com.br: http://127.0.0.1:8000/reset/0gYzS5VF2LzsTg1stB7qCHgOpnFNsN8Y5ge3at6GHXQ

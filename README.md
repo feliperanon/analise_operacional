@@ -295,6 +295,7 @@ cp database.db database.db.backup_$(date +%Y%m%d_%H%M%S)
 
 ## 📝 Documentação Adicional
 
+- **Deploy no Render (API-First):** Veja `RENDER.md` para publicar no Render, URLs da API (`/docs`, `/redoc`, `/openapi.json`) e boas práticas
 - **Análise de Erros:** Veja `docs/analise_erros_completa.md` para histórico de bugs e soluções
 - **Plano de Otimização:** Veja `docs/plano_otimizacao_performance.md` para detalhes técnicos
 - **Guia de Otimização:** Veja `docs/guia_otimizacao.md` para instruções passo a passo

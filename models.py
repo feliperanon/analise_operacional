@@ -442,3 +442,29 @@ class PalletCountEmailRecipient(SQLModel, table=True):
     is_active: bool = Field(default=True, index=True)
     created_at: datetime = Field(default_factory=datetime.now)
 
+
+# --- Módulo Líder: Tarefas enviadas para colaboradores ---
+
+class LeaderTask(SQLModel, table=True):
+    """Tarefa criada pelo líder para um ou mais colaboradores."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    title: str
+    description: Optional[str] = None
+    priority: str = Field(default="medium", index=True)  # low, medium, high
+    status: str = Field(default="sent", index=True)  # draft, sent, cancelled
+    created_by: Optional[str] = None  # username do líder
+    created_at: datetime = Field(default_factory=datetime.now, index=True)
+    due_at: Optional[datetime] = None
+    recipient_employee_ids: List[int] = Field(default=[], sa_column=Column(JSON))  # lista de employee.id
+
+
+class LeaderTaskResponse(SQLModel, table=True):
+    """Resposta do colaborador à tarefa (visto / concluído)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    task_id: int = Field(foreign_key="leadertask.id", index=True)
+    employee_id: int = Field(foreign_key="employee.id", index=True)
+    seen_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    note: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+

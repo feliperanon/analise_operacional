@@ -93,7 +93,7 @@
         </header>
 
         <!-- PAINEL DE FILTROS (Colapsável) -->
-        <form x-show="showFilters" x-collapse x-cloak
+        <form x-show="showFilters" x-cloak x-transition
               class="bg-gradient-to-b from-slate-800/80 to-slate-800/40 border border-slate-700 rounded-2xl overflow-hidden" 
               method="get" action="/operations/performance" id="filtersForm">
             
@@ -1419,7 +1419,7 @@
                                 </button>
 
                                 <!-- Detalhes Expandidos -->
-                                <div x-show="expanded" x-collapse class="border-t border-slate-700/50">
+                                <div x-show="expanded" x-transition class="border-t border-slate-700/50">
                                     <div class="p-4 grid gap-3 md:grid-cols-2">
                                         
                                         <!-- Cálculo de Presença -->
@@ -2064,10 +2064,11 @@
                         })
                     });
                     
-                    const data = await res.json();
+                    let data = {};
+                    try { data = await res.json(); } catch (_) {}
                     
-                    if (data.error) {
-                        this.error = data.error;
+                    if (!res.ok || data.error) {
+                        this.error = data.error || (res.status === 503 ? 'Relatório com IA não disponível. Configure GEMINI_API_KEY no servidor.' : 'Erro ao gerar relatório. Tente novamente.');
                     } else {
                         this.report = data.report;
                         this.generatedAt = new Date(data.generated_at).toLocaleString('pt-BR');

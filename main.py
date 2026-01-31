@@ -264,6 +264,7 @@ async def lifespan(app: FastAPI):
     try:
         ensure_user_auth_schema()
         ensure_employee_access_schema()
+        ensure_employee_replaced_by_schema()
         ensure_event_reference_schema()
         ensure_checklist_email_schema()
         ensure_checklist_edit_schema()
@@ -299,7 +300,7 @@ app.add_middleware(
 async def add_no_cache_header(request: Request, call_next):
     response = await call_next(request)
     # Apply to API and Smart Flow HTML pages to prevent "stale" state
-    if request.url.path.startswith("/api/") or request.url.path.startswith("/smart-flow") or request.url.path.startswith("/routine/report"):
+    if request.url.path.startswith("/api/") or request.url.path.startswith("/smart-flow") or request.url.path.startswith("/lider") or request.url.path.startswith("/routine/report"):
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
@@ -472,7 +473,7 @@ def is_google_enabled() -> bool:
 
 PAGE_OPTIONS = [
     {"key": "admin_game", "label": "Game Master", "path": "/admin/game", "prefixes": ["/admin/game", "/api/game"]},
-    {"key": "smart_flow", "label": "Smart Flow", "path": "/smart-flow", "prefixes": ["/smart-flow", "/api/smart-flow", "/smart-flow/load", "/api/employees", "/settings", "/employees"]},
+    {"key": "smart_flow", "label": "Smart Flow", "path": "/smart-flow", "prefixes": ["/smart-flow", "/api/smart-flow", "/smart-flow/load", "/api/employees", "/settings", "/employees", "/lider", "/api/lider"]},
     {"key": "checklist_admin", "label": "Checklists Operacionais", "path": "/admin/routine/checklists", "prefixes": ["/admin/routine/checklists", "/api/routine/checklists"]},
     {"key": "ops_performance", "label": "Avaliacao Operacional", "path": "/operations/performance", "prefixes": ["/operations/performance", "/rankings", "/api/rankings"]}
 ]
@@ -946,6 +947,28 @@ def ensure_employee_access_schema():
             conn.execute(text("UPDATE employee SET mobile_access_separation = mobile_access WHERE mobile_access_separation IS NULL"))
         if "mobile_access_checklist" in existing or added_checklist:
             conn.execute(text("UPDATE employee SET mobile_access_checklist = FALSE WHERE mobile_access_checklist IS NULL"))
+
+
+def ensure_employee_replaced_by_schema():
+    """Adiciona coluna replaced_by se não existir (compatibilidade com DB antigos)."""
+    inspector = inspect(engine)
+    if "employee" not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns("employee")}
+    if "replaced_by" in existing:
+        return
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE employee ADD COLUMN replaced_by INTEGER"))
+            try:
+                conn.execute(text(
+                    "ALTER TABLE employee ADD CONSTRAINT fk_employee_replaced_by "
+                    "FOREIGN KEY (replaced_by) REFERENCES employee(id)"
+                ))
+            except Exception:
+                pass  # FK pode já existir ou falhar em alguns DBs
+    except Exception as e:
+        logger.warning(f"Coluna replaced_by: {e}")
 
 def ensure_event_reference_schema():
     inspector = inspect(engine)
@@ -2066,6 +2089,34 @@ async def reset_password(
     return templates.TemplateResponse("login.html", {"request": request, "success": "Senha atualizada com sucesso.", "google_enabled": is_google_enabled()})
 
 # --- Admin: User Management ---
+@app.get("/admin/users/{user_id}/edit", response_class=HTMLResponse)
+async def admin_user_edit_page(
+    request: Request,
+    user_id: int,
+    session: Session = Depends(get_session),
+    user=Depends(require_admin)
+):
+    target = session.get(models.User, user_id)
+    if not target:
+        return RedirectResponse(url="/admin/users?message=Usuário+não+encontrado.&level=error", status_code=302)
+    employees = session.exec(
+        select(models.Employee)
+        .where(models.Employee.status != "fired")
+        .order_by(models.Employee.name)
+    ).all()
+    allowed = parse_allowed_pages(target.allowed_pages)
+    return templates.TemplateResponse(
+        "admin_user_edit.html",
+        {
+            "request": request,
+            "u": target,
+            "employees": employees,
+            "page_options": PAGE_OPTIONS,
+            "allowed": allowed,
+            "employee_map": {e.id: e for e in employees},
+        }
+    )
+
 @app.get("/admin/users", response_class=HTMLResponse)
 async def admin_users_page(
     request: Request,
@@ -2081,12 +2132,14 @@ async def admin_users_page(
     message = request.query_params.get("message")
     level = request.query_params.get("level", "success")
     user_allowed_map = {u.id: parse_allowed_pages(u.allowed_pages) for u in users}
+    employee_map = {e.id: e for e in employees}
     return templates.TemplateResponse(
         "admin_users.html",
         {
             "request": request,
             "users": users,
             "employees": employees,
+            "employee_map": employee_map,
             "page_options": PAGE_OPTIONS,
             "user_allowed_map": user_allowed_map,
             "message": message,
@@ -2939,6 +2992,14 @@ async def mobile_achievements(request: Request, current_user: dict = Depends(get
     except Exception as e:
         print(traceback.format_exc())
         return RedirectResponse(url="/mobile/dashboard", status_code=303)
+
+
+# --- Mobile Minhas Tarefas (colaborador) ---
+@app.get("/mobile/tarefas", response_class=HTMLResponse)
+async def mobile_tarefas_page(request: Request, session: Session = Depends(get_session)):
+    """Página mobile: tarefas enviadas pelo líder para o colaborador logado."""
+    require_login(request)
+    return templates.TemplateResponse("mobile/tarefas.html", {"request": request})
 
 
 # --- Mobile Game Master Route ---
@@ -7764,6 +7825,27 @@ async def operations_performance_page(
     session: Session = Depends(get_session),
     user = Depends(require_leader)
 ):
+    try:
+        return await _operations_performance_impl(request, date, period, shift, route_band, tenure_band, sort_by, order, session)
+    except Exception as e:
+        if request.query_params.get("debug") == "1":
+            import traceback
+            tb = traceback.format_exc()
+            return HTMLResponse(content=f"<pre style='background:#1e293b;color:#f8fafc;padding:1rem;overflow:auto;'>{tb}</pre>", status_code=500)
+        raise
+
+
+async def _operations_performance_impl(
+    request: Request,
+    date: Optional[str],
+    period: str,
+    shift: str,
+    route_band: str,
+    tenure_band: str,
+    sort_by: str,
+    order: str,
+    session: Session
+):
     OCCURRENCE_TYPES = {"erro", "alerta", "ocorrencia", "advertencia"}
 
     def safe_mean(values: List[float]) -> float:
@@ -8911,9 +8993,12 @@ async def operations_performance_page(
             "team_calculations": {
                 "total_days": total_days,
                 "total_employees": len(rows_filtered) if rows_filtered else 0,
-                "avg_presence_adjusted": round(team_avg_presence_adjusted * 100, 1) if team_avg_presence_adjusted else 0,
+                "avg_presence_adjusted": team_avg_presence_adjusted if team_avg_presence_adjusted is not None else 0,
+                "avg_presence_calculation": f"média de {len(rows_filtered)} colaboradores",
                 "total_unjustified": team_unjustified_total or 0,
-                "discipline_rate": round(discipline_rate * 100, 1) if discipline_rate else 0
+                "discipline_rate": discipline_rate if discipline_rate is not None else 0,
+                "discipline_calculation": f"1 - ({team_unjustified_total or 0} / max(1, {total_days}))",
+                "sum_regularity_adjusted": sum(r.get("regularity_adjusted", 0) for r in rows_filtered) if rows_filtered else 0
             },
             "employees": []
         }
@@ -14871,6 +14956,300 @@ async def smart_flow_load(request: Request, shift: str = "Manhã", date: Optiona
     except Exception as e:
         logger.error(f"Error in smart_flow_load: {e}")
         return JSONResponse(content={"error": str(e)}, status_code=500)
+
+
+# --- Módulo Líder: Checklists em dia, Rotas, Tarefas ---
+
+@app.get("/lider/checklists", response_class=HTMLResponse, dependencies=[Depends(require_leader)])
+async def lider_checklists_page(
+    request: Request,
+    date: Optional[str] = None,
+    shift: str = "Manhã",
+    session: Session = Depends(get_session),
+):
+    """Página: quem não fez checklist (paleteira) no dia/turno."""
+    user = require_login(request)
+    if not date:
+        date = datetime.now().strftime("%Y-%m-%d")
+    # Quem deveria fazer: mobile_access_checklist e ativo no turno
+    employees = session.exec(
+        select(models.Employee)
+        .where(models.Employee.status != "fired")
+        .where(models.Employee.work_shift == shift)
+        .where(models.Employee.mobile_access_checklist == True)
+    ).all()
+    # Quem fez checklist na data/turno
+    done_ids = set()
+    for row in session.exec(
+        select(models.TranspalletChecklist.employee_id)
+        .where(models.TranspalletChecklist.date == date)
+        .where(models.TranspalletChecklist.shift == shift)
+    ).all():
+        done_ids.add(row)
+    missing = [e for e in employees if e.id not in done_ids]
+    return templates.TemplateResponse("lider_checklists.html", {
+        "request": request,
+        "user": user,
+        "current_date": date,
+        "current_shift": shift,
+        "missing_paleteira": missing,
+        "total_expected": len(employees),
+        "total_done": len(done_ids),
+    })
+
+
+@app.get("/lider/rotas", response_class=HTMLResponse, dependencies=[Depends(require_leader)])
+async def lider_rotas_page(
+    request: Request,
+    date: Optional[str] = None,
+    shift: str = "Manhã",
+    session: Session = Depends(get_session),
+):
+    """Página: quem não está no app fazendo rota + velocidade da equipe."""
+    user = require_login(request)
+    if not date:
+        date = datetime.now().strftime("%Y-%m-%d")
+    # Quem deveria estar no app: mobile_access_separation, ativo, turno do dia
+    expected = session.exec(
+        select(models.Employee)
+        .where(models.Employee.status != "fired")
+        .where(models.Employee.work_shift == shift)
+        .where(models.Employee.mobile_access_separation == True)
+    ).all()
+    expected_ids = {e.id for e in expected}
+    # Quem tem rota no dia/turno
+    routes = session.exec(
+        select(models.Route)
+        .where(models.Route.date == date)
+        .where(models.Route.shift == shift)
+    ).all()
+    with_route_ids = {r.employee_id for r in routes}
+    missing_route = [e for e in expected if e.id not in with_route_ids]
+    # Velocidade: kg/h por colaborador e total
+    emp_tonnage = {}
+    for r in routes:
+        emp_tonnage[r.employee_id] = emp_tonnage.get(r.employee_id, 0) + (r.tonnage or 0)
+    total_tonnage = sum(emp_tonnage.values())
+    # Calcular kg/h aproximado (horas no turno: 8h)
+    hours_shift = 8.0
+    velocity_list = []
+    for e in expected:
+        kg = emp_tonnage.get(e.id, 0)
+        kgh = kg / hours_shift if hours_shift else 0
+        velocity_list.append({"employee": e, "tonnage": kg, "kgh": round(kgh, 1)})
+    velocity_list.sort(key=lambda x: -x["tonnage"])
+    return templates.TemplateResponse("lider_rotas.html", {
+        "request": request,
+        "user": user,
+        "current_date": date,
+        "current_shift": shift,
+        "missing_route": missing_route,
+        "velocity_list": velocity_list,
+        "total_tonnage": total_tonnage,
+        "total_with_route": len(with_route_ids),
+        "total_expected": len(expected),
+    })
+
+
+@app.get("/lider/tarefas", response_class=HTMLResponse, dependencies=[Depends(require_leader)])
+async def lider_tarefas_page(request: Request, session: Session = Depends(get_session)):
+    """Página: listar e criar tarefas para colaboradores."""
+    user = require_login(request)
+    tasks = session.exec(
+        select(models.LeaderTask)
+        .where(models.LeaderTask.status.in_(["sent", "draft"]))
+        .order_by(desc(models.LeaderTask.created_at))
+    ).all()
+    employees = session.exec(
+        select(models.Employee).where(models.Employee.status != "fired").order_by(models.Employee.name)
+    ).all()
+    return templates.TemplateResponse("lider_tarefas.html", {
+        "request": request,
+        "user": user,
+        "tasks": tasks,
+        "employees": employees,
+    })
+
+
+@app.post("/api/lider/tarefas", response_class=JSONResponse, dependencies=[Depends(require_leader)])
+async def api_lider_create_task(
+    request: Request,
+    session: Session = Depends(get_session),
+):
+    """Cria uma tarefa e envia para os colaboradores selecionados."""
+    user = require_login(request)
+    try:
+        body = await request.json()
+        title = (body.get("title") or "").strip()
+        if not title:
+            return JSONResponse({"error": "Título é obrigatório"}, status_code=400)
+        description = (body.get("description") or "").strip() or None
+        priority = (body.get("priority") or "medium").strip().lower()
+        if priority not in ("low", "medium", "high"):
+            priority = "medium"
+        recipient_ids = body.get("recipient_employee_ids") or []
+        if isinstance(recipient_ids, list):
+            recipient_ids = [int(x) for x in recipient_ids if x]
+        else:
+            recipient_ids = []
+        due_at = None
+        if body.get("due_at"):
+            try:
+                due_at = datetime.fromisoformat(body["due_at"].replace("Z", "+00:00"))
+            except Exception:
+                pass
+        username = (user.get("username") or user.get("name") or "líder") if isinstance(user, dict) else "líder"
+        task = models.LeaderTask(
+            title=title,
+            description=description,
+            priority=priority,
+            status="sent",
+            created_by=username,
+            recipient_employee_ids=recipient_ids,
+            due_at=due_at,
+        )
+        session.add(task)
+        session.commit()
+        session.refresh(task)
+        return {"success": True, "task_id": task.id}
+    except Exception as e:
+        logger.exception("Create task error")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/lider/tarefas", response_class=JSONResponse, dependencies=[Depends(require_leader)])
+async def api_lider_list_tasks(request: Request, session: Session = Depends(get_session)):
+    """Lista tarefas (líder)."""
+    require_login(request)
+    tasks = session.exec(
+        select(models.LeaderTask)
+        .where(models.LeaderTask.status.in_(["sent", "draft"]))
+        .order_by(desc(models.LeaderTask.created_at))
+    ).all()
+    out = []
+    for t in tasks:
+        out.append({
+            "id": t.id,
+            "title": t.title,
+            "description": t.description,
+            "priority": t.priority,
+            "status": t.status,
+            "created_by": t.created_by,
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+            "due_at": t.due_at.isoformat() if t.due_at else None,
+            "recipient_employee_ids": t.recipient_employee_ids or [],
+        })
+    return out
+
+
+@app.get("/api/lider/minhas-tarefas", response_class=JSONResponse)
+async def api_minhas_tarefas(request: Request, session: Session = Depends(get_session)):
+    """Lista tarefas destinadas ao colaborador logado (User.employee_id)."""
+    user = require_login(request)
+    user_id = (user.get("id") if isinstance(user, dict) else None)
+    if not user_id:
+        return []
+    db_user = session.get(models.User, user_id)
+    emp_id = db_user.employee_id if db_user else None
+    if not emp_id:
+        return []
+    tasks = session.exec(
+        select(models.LeaderTask)
+        .where(models.LeaderTask.status == "sent")
+    ).all()
+    my_tasks = [t for t in tasks if emp_id in (t.recipient_employee_ids or [])]
+    out = []
+    for t in my_tasks:
+        out.append({
+            "id": t.id,
+            "title": t.title,
+            "description": t.description,
+            "priority": t.priority,
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+            "due_at": t.due_at.isoformat() if t.due_at else None,
+        })
+    return out
+
+
+@app.post("/api/lider/tarefas/{task_id}/marcar-visto", response_class=JSONResponse)
+async def api_marcar_tarefa_visto(
+    request: Request,
+    task_id: int,
+    session: Session = Depends(get_session),
+):
+    """Colaborador marca tarefa como vista."""
+    user = require_login(request)
+    user_id = (user.get("id") if isinstance(user, dict) else None)
+    db_user = session.get(models.User, user_id) if user_id else None
+    emp_id = db_user.employee_id if db_user else None
+    if not emp_id:
+        return JSONResponse({"error": "Colaborador não identificado"}, status_code=403)
+    task = session.get(models.LeaderTask, task_id)
+    if not task or task.status != "sent":
+        return JSONResponse({"error": "Tarefa não encontrada"}, status_code=404)
+    if emp_id not in (task.recipient_employee_ids or []):
+        return JSONResponse({"error": "Tarefa não é sua"}, status_code=403)
+    existing = session.exec(
+        select(models.LeaderTaskResponse)
+        .where(models.LeaderTaskResponse.task_id == task_id)
+        .where(models.LeaderTaskResponse.employee_id == emp_id)
+    ).first()
+    if existing:
+        if not existing.seen_at:
+            existing.seen_at = datetime.now()
+            session.add(existing)
+            session.commit()
+        return {"success": True}
+    resp = models.LeaderTaskResponse(task_id=task_id, employee_id=emp_id, seen_at=datetime.now())
+    session.add(resp)
+    session.commit()
+    return {"success": True}
+
+
+@app.post("/api/lider/tarefas/{task_id}/concluir", response_class=JSONResponse)
+async def api_concluir_tarefa(
+    request: Request,
+    task_id: int,
+    session: Session = Depends(get_session),
+):
+    """Colaborador marca tarefa como concluída."""
+    user = require_login(request)
+    user_id = (user.get("id") if isinstance(user, dict) else None)
+    db_user = session.get(models.User, user_id) if user_id else None
+    emp_id = db_user.employee_id if db_user else None
+    if not emp_id:
+        return JSONResponse({"error": "Colaborador não identificado"}, status_code=403)
+    task = session.get(models.LeaderTask, task_id)
+    if not task or task.status != "sent":
+        return JSONResponse({"error": "Tarefa não encontrada"}, status_code=404)
+    if emp_id not in (task.recipient_employee_ids or []):
+        return JSONResponse({"error": "Tarefa não é sua"}, status_code=403)
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    note = (body.get("note") or "").strip() or None
+    existing = session.exec(
+        select(models.LeaderTaskResponse)
+        .where(models.LeaderTaskResponse.task_id == task_id)
+        .where(models.LeaderTaskResponse.employee_id == emp_id)
+    ).first()
+    if existing:
+        existing.completed_at = datetime.now()
+        existing.note = note
+        session.add(existing)
+    else:
+        resp = models.LeaderTaskResponse(
+            task_id=task_id,
+            employee_id=emp_id,
+            seen_at=datetime.now(),
+            completed_at=datetime.now(),
+            note=note,
+        )
+        session.add(resp)
+    session.commit()
+    return {"success": True}
+
 
 # --- Operational History Routes ---
 

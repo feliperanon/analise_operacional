@@ -17,10 +17,20 @@ Este documento detalha todos os passos necessários para configurar o ambiente d
 
 ## 🐍 Dependências Python (Backend)
 
-Instale todas as dependências com:
+Instale todas as dependências **com o ambiente virtual ativado** (veja Passo 2):
 
 ```bash
 pip install -r requirements.txt
+```
+
+Se o `pip` não for reconhecido (venv não ativado), use:
+
+```bash
+# Windows
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+
+# Linux/Mac
+.venv/bin/python -m pip install -r requirements.txt
 ```
 
 ### Lista de Pacotes
@@ -207,15 +217,17 @@ DATABASE_URL=sqlite:///database.db
 DEBUG=false
 ```
 
-### 5. Aplique os Índices de Performance
+### 5. Índices de Performance (opcional, PostgreSQL)
+
+Se usar PostgreSQL em produção, aplique os índices para melhor desempenho:
 
 ```bash
-# Windows
-.\apply_indexes.bat
-
-# Linux/Mac
-python apply_indexes.py
+# Execute o arquivo migration_add_indexes.sql no seu cliente PostgreSQL
+# Exemplo com psql:
+psql -h localhost -U seu_usuario -d analise_operacional -f migration_add_indexes.sql
 ```
+
+Para SQLite (desenvolvimento), os índices não são obrigatórios.
 
 ### 6. Execute a Aplicação
 
@@ -223,14 +235,24 @@ python apply_indexes.py
 # Windows (PowerShell)
 .\run.ps1
 
-# Ou manualmente
+# Windows (duplo clique)
+# Use INICIAR_SISTEMA.bat
+
+# Ou manualmente (com venv ativado)
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# Ou sem ativar o venv (Windows)
+.\.venv\Scripts\python.exe -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### 7. Acesse
 
 - **Aplicação**: http://localhost:8000
 - **API Docs (Swagger)**: http://localhost:8000/docs
+
+### 8. Deploy em produção (Render)
+
+Para publicar na nuvem, veja **[RENDER.md](RENDER.md)**.
 
 ---
 
@@ -239,11 +261,12 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 Execute estes comandos para verificar se tudo está correto:
 
 ```bash
-# Python
+# Python (com venv ativado)
 python --version  # Deve ser 3.10+
 
 # Dependências Python
 pip list | findstr fastapi  # Deve mostrar fastapi 0.128.0
+# No PowerShell: pip list | Select-String fastapi
 
 # Node.js
 node --version  # Deve ser 18+
@@ -251,13 +274,22 @@ node --version  # Deve ser 18+
 # TailwindCSS
 npx tailwindcss --help  # Deve mostrar as opções
 
-# Banco de dados (teste conexão)
-python check_db_connection.py
+# Banco de dados (teste iniciando o servidor)
+.\run.ps1  # Se subir sem erros, a conexão está ok
+# Para DB existente: python check_schema.py
 ```
 
 ---
 
 ## ❓ Solução de Problemas
+
+### Erro: "pip não é reconhecido"
+
+Ative o ambiente virtual antes de usar `pip`, ou use o caminho completo:
+
+```bash
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
 
 ### Erro: "ModuleNotFoundError: No module named 'xxx'"
 
