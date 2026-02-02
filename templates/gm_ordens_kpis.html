@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8">
+    <!-- Header -->
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-white mb-2">KPIs dos Líderes</h1>
+            <p class="text-sm text-slate-400">Avaliação de desempenho nas ordens de serviço (últimos 30 dias).</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+            <a href="/gm/ordens-servico" class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                Ordens
+            </a>
+            <a href="/gm/ordens-servico/historico" class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Histórico
+            </a>
+        </div>
+    </div>
+
+    <!-- Legenda dos indicadores -->
+    <div class="bg-slate-800/50 border border-slate-700 rounded-xl p-4 mb-6">
+        <h3 class="text-sm font-bold text-white uppercase tracking-wider mb-3">Legenda dos Indicadores</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                <span class="text-slate-300">90-100% Excelente</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+                <span class="text-slate-300">70-89% Bom</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-orange-500"></span>
+                <span class="text-slate-300">50-69% Atenção</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-rose-500"></span>
+                <span class="text-slate-300">&lt;50% Crítico</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ranking de Líderes -->
+    <div class="bg-slate-800/50 border border-slate-700 rounded-2xl overflow-hidden">
+        <div class="p-4 border-b border-slate-700">
+            <h2 class="text-sm font-bold text-white uppercase tracking-wider">Ranking por Score</h2>
+        </div>
+        
+        {% if kpis %}
+        <!-- Desktop Table -->
+        <div class="hidden lg:block overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-slate-900/50">
+                    <tr>
+                        <th class="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">#</th>
+                        <th class="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Líder</th>
+                        <th class="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Total</th>
+                        <th class="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Concluídas</th>
+                        <th class="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Taxa Conclusão</th>
+                        <th class="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Pontualidade</th>
+                        <th class="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Adiadas</th>
+                        <th class="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Não Feitas</th>
+                        <th class="text-center text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Score</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700">
+                    {% for kpi in kpis %}
+                    <tr class="hover:bg-slate-700/20">
+                        <td class="px-4 py-4">
+                            {% if loop.index == 1 %}
+                            <span class="text-2xl">🥇</span>
+                            {% elif loop.index == 2 %}
+                            <span class="text-2xl">🥈</span>
+                            {% elif loop.index == 3 %}
+                            <span class="text-2xl">🥉</span>
+                            {% else %}
+                            <span class="text-slate-500 font-medium">{{ loop.index }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-4">
+                            <p class="font-medium text-white">{{ kpi.leader.username }}</p>
+                        </td>
+                        <td class="px-4 py-4 text-center text-sm text-slate-300">{{ kpi.total }}</td>
+                        <td class="px-4 py-4 text-center text-sm text-slate-300">{{ kpi.completed }}</td>
+                        <td class="px-4 py-4 text-center">
+                            {% if kpi.completion_rate >= 90 %}
+                            <span class="inline-block px-2 py-1 text-xs font-bold rounded-full bg-emerald-500/20 text-emerald-400">{{ kpi.completion_rate }}%</span>
+                            {% elif kpi.completion_rate >= 70 %}
+                            <span class="inline-block px-2 py-1 text-xs font-bold rounded-full bg-amber-500/20 text-amber-400">{{ kpi.completion_rate }}%</span>
+                            {% elif kpi.completion_rate >= 50 %}
+                            <span class="inline-block px-2 py-1 text-xs font-bold rounded-full bg-orange-500/20 text-orange-400">{{ kpi.completion_rate }}%</span>
+                            {% else %}
+                            <span class="inline-block px-2 py-1 text-xs font-bold rounded-full bg-rose-500/20 text-rose-400">{{ kpi.completion_rate }}%</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-4 text-center">
+                            {% if kpi.punctuality_rate >= 90 %}
+                            <span class="inline-block px-2 py-1 text-xs font-bold rounded-full bg-emerald-500/20 text-emerald-400">{{ kpi.punctuality_rate }}%</span>
+                            {% elif kpi.punctuality_rate >= 70 %}
+                            <span class="inline-block px-2 py-1 text-xs font-bold rounded-full bg-amber-500/20 text-amber-400">{{ kpi.punctuality_rate }}%</span>
+                            {% elif kpi.punctuality_rate >= 50 %}
+                            <span class="inline-block px-2 py-1 text-xs font-bold rounded-full bg-orange-500/20 text-orange-400">{{ kpi.punctuality_rate }}%</span>
+                            {% else %}
+                            <span class="inline-block px-2 py-1 text-xs font-bold rounded-full bg-rose-500/20 text-rose-400">{{ kpi.punctuality_rate }}%</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-4 text-center">
+                            {% if kpi.postpone_rate <= 10 %}
+                            <span class="inline-block px-2 py-1 text-xs font-bold rounded-full bg-emerald-500/20 text-emerald-400">{{ kpi.postpone_rate }}%</span>
+                            {% elif kpi.postpone_rate <= 20 %}
+                            <span class="inline-block px-2 py-1 text-xs font-bold rounded-full bg-amber-500/20 text-amber-400">{{ kpi.postpone_rate }}%</span>
+                            {% elif kpi.postpone_rate <= 35 %}
+                            <span class="inline-block px-2 py-1 text-xs font-bold rounded-full bg-orange-500/20 text-orange-400">{{ kpi.postpone_rate }}%</span>
+                            {% else %}
+                            <span class="inline-block px-2 py-1 text-xs font-bold rounded-full bg-rose-500/20 text-rose-400">{{ kpi.postpone_rate }}%</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-4 text-center">
+                            {% if kpi.not_done_rate <= 5 %}
+                            <span class="inline-block px-2 py-1 text-xs font-bold rounded-full bg-emerald-500/20 text-emerald-400">{{ kpi.not_done_rate }}%</span>
+                            {% elif kpi.not_done_rate <= 15 %}
+                            <span class="inline-block px-2 py-1 text-xs font-bold rounded-full bg-amber-500/20 text-amber-400">{{ kpi.not_done_rate }}%</span>
+                            {% elif kpi.not_done_rate <= 25 %}
+                            <span class="inline-block px-2 py-1 text-xs font-bold rounded-full bg-orange-500/20 text-orange-400">{{ kpi.not_done_rate }}%</span>
+                            {% else %}
+                            <span class="inline-block px-2 py-1 text-xs font-bold rounded-full bg-rose-500/20 text-rose-400">{{ kpi.not_done_rate }}%</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-4 text-center">
+                            {% if kpi.score >= 90 %}
+                            <span class="inline-flex items-center justify-center w-12 h-12 text-lg font-bold rounded-full bg-emerald-500/20 text-emerald-400 border-2 border-emerald-500/50">{{ kpi.score|int }}</span>
+                            {% elif kpi.score >= 70 %}
+                            <span class="inline-flex items-center justify-center w-12 h-12 text-lg font-bold rounded-full bg-amber-500/20 text-amber-400 border-2 border-amber-500/50">{{ kpi.score|int }}</span>
+                            {% elif kpi.score >= 50 %}
+                            <span class="inline-flex items-center justify-center w-12 h-12 text-lg font-bold rounded-full bg-orange-500/20 text-orange-400 border-2 border-orange-500/50">{{ kpi.score|int }}</span>
+                            {% else %}
+                            <span class="inline-flex items-center justify-center w-12 h-12 text-lg font-bold rounded-full bg-rose-500/20 text-rose-400 border-2 border-rose-500/50">{{ kpi.score|int }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Mobile/Tablet Cards -->
+        <div class="lg:hidden divide-y divide-slate-700">
+            {% for kpi in kpis %}
+            <div class="p-4">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        {% if loop.index == 1 %}
+                        <span class="text-2xl">🥇</span>
+                        {% elif loop.index == 2 %}
+                        <span class="text-2xl">🥈</span>
+                        {% elif loop.index == 3 %}
+                        <span class="text-2xl">🥉</span>
+                        {% else %}
+                        <span class="w-8 h-8 flex items-center justify-center bg-slate-700 rounded-full text-slate-400 font-medium">{{ loop.index }}</span>
+                        {% endif %}
+                        <p class="font-medium text-white">{{ kpi.leader.username }}</p>
+                    </div>
+                    {% if kpi.score >= 90 %}
+                    <span class="inline-flex items-center justify-center w-14 h-14 text-xl font-bold rounded-full bg-emerald-500/20 text-emerald-400 border-2 border-emerald-500/50">{{ kpi.score|int }}</span>
+                    {% elif kpi.score >= 70 %}
+                    <span class="inline-flex items-center justify-center w-14 h-14 text-xl font-bold rounded-full bg-amber-500/20 text-amber-400 border-2 border-amber-500/50">{{ kpi.score|int }}</span>
+                    {% elif kpi.score >= 50 %}
+                    <span class="inline-flex items-center justify-center w-14 h-14 text-xl font-bold rounded-full bg-orange-500/20 text-orange-400 border-2 border-orange-500/50">{{ kpi.score|int }}</span>
+                    {% else %}
+                    <span class="inline-flex items-center justify-center w-14 h-14 text-xl font-bold rounded-full bg-rose-500/20 text-rose-400 border-2 border-rose-500/50">{{ kpi.score|int }}</span>
+                    {% endif %}
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-slate-900/50 rounded-lg p-3">
+                        <p class="text-xs text-slate-500 uppercase mb-1">Total / Concluídas</p>
+                        <p class="text-lg font-bold text-white">{{ kpi.completed }}/{{ kpi.total }}</p>
+                    </div>
+                    <div class="bg-slate-900/50 rounded-lg p-3">
+                        <p class="text-xs text-slate-500 uppercase mb-1">Taxa Conclusão</p>
+                        {% if kpi.completion_rate >= 90 %}
+                        <p class="text-lg font-bold text-emerald-400">{{ kpi.completion_rate }}%</p>
+                        {% elif kpi.completion_rate >= 70 %}
+                        <p class="text-lg font-bold text-amber-400">{{ kpi.completion_rate }}%</p>
+                        {% elif kpi.completion_rate >= 50 %}
+                        <p class="text-lg font-bold text-orange-400">{{ kpi.completion_rate }}%</p>
+                        {% else %}
+                        <p class="text-lg font-bold text-rose-400">{{ kpi.completion_rate }}%</p>
+                        {% endif %}
+                    </div>
+                    <div class="bg-slate-900/50 rounded-lg p-3">
+                        <p class="text-xs text-slate-500 uppercase mb-1">Pontualidade</p>
+                        {% if kpi.punctuality_rate >= 90 %}
+                        <p class="text-lg font-bold text-emerald-400">{{ kpi.punctuality_rate }}%</p>
+                        {% elif kpi.punctuality_rate >= 70 %}
+                        <p class="text-lg font-bold text-amber-400">{{ kpi.punctuality_rate }}%</p>
+                        {% else %}
+                        <p class="text-lg font-bold text-orange-400">{{ kpi.punctuality_rate }}%</p>
+                        {% endif %}
+                    </div>
+                    <div class="bg-slate-900/50 rounded-lg p-3">
+                        <p class="text-xs text-slate-500 uppercase mb-1">Adiadas / Não Feitas</p>
+                        <p class="text-lg font-bold text-slate-300">{{ kpi.postpone_rate }}% / {{ kpi.not_done_rate }}%</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="p-8 text-center text-slate-400">
+            <svg class="w-12 h-12 mx-auto mb-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            <p>Nenhum dado de KPI disponível.</p>
+            <p class="text-sm mt-1">Crie ordens de serviço e aguarde as execuções.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Explicação dos KPIs -->
+    <div class="mt-6 bg-slate-800/30 border border-slate-700/50 rounded-xl p-4">
+        <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Como o Score é calculado</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-400">
+            <div>
+                <p><strong class="text-white">Taxa de Conclusão (40%)</strong>: Percentual de tarefas concluídas em relação ao total atribuído.</p>
+            </div>
+            <div>
+                <p><strong class="text-white">Pontualidade (30%)</strong>: Percentual de tarefas concluídas no mesmo dia programado.</p>
+            </div>
+            <div>
+                <p><strong class="text-white">Baixo Adiamento (15%)</strong>: Quanto menor a taxa de adiamentos, maior a pontuação.</p>
+            </div>
+            <div>
+                <p><strong class="text-white">Baixa Não Execução (15%)</strong>: Quanto menor a taxa de tarefas não realizadas, maior a pontuação.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

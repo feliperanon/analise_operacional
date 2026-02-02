@@ -1845,16 +1845,9 @@ async def login_page(request: Request):
         if current.get("type") == "employee":
             return RedirectResponse(url="/mobile/dashboard", status_code=status.HTTP_303_SEE_OTHER)
         if current.get("type") == "user":
+            # Líderes sempre vão para Smart Flow
             if (current.get("role") or "").lower() == "leader":
-                # Check if user has access to smart_flow
-                allowed_keys = request.session.get("allowed_pages", [])
-                if isinstance(allowed_keys, list):
-                    allowed_keys = [str(k) for k in allowed_keys if str(k) in PAGE_KEYS]
-                else:
-                    allowed_keys = parse_allowed_pages(allowed_keys)
-                if "smart_flow" in allowed_keys:
-                    return RedirectResponse(url="/smart-flow", status_code=status.HTTP_303_SEE_OTHER)
-                return RedirectResponse(url="/admin/game", status_code=status.HTTP_303_SEE_OTHER)
+                return RedirectResponse(url="/smart-flow", status_code=status.HTTP_303_SEE_OTHER)
             return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
     return templates.TemplateResponse(
         "login.html",
@@ -1888,14 +1881,9 @@ async def login(
     session.add(user)
     session.commit()
 
-    # Determine redirect URL
+    # Determine redirect URL - Líderes sempre vão para Smart Flow
     if (user.role or "leader").lower() == "leader":
-        # Check if user has access to smart_flow
-        allowed_keys = parse_allowed_pages(user.allowed_pages) if user.allowed_pages else []
-        if "smart_flow" in allowed_keys:
-            redirect_url = "/smart-flow"
-        else:
-            redirect_url = "/admin/game"
+        redirect_url = "/smart-flow"
     else:
         redirect_url = "/"
     return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
@@ -2001,14 +1989,9 @@ async def google_callback(
     request.session["auth_user_email"] = user.username
     request.session.pop("google_oauth_state", None)
 
-    # Determine redirect URL
+    # Determine redirect URL - Líderes sempre vão para Smart Flow
     if (user.role or "leader").lower() == "leader":
-        # Check if user has access to smart_flow
-        allowed_keys = parse_allowed_pages(user.allowed_pages) if user.allowed_pages else []
-        if "smart_flow" in allowed_keys:
-            redirect_url = "/smart-flow"
-        else:
-            redirect_url = "/admin/game"
+        redirect_url = "/smart-flow"
     else:
         redirect_url = "/"
     return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
@@ -15249,6 +15232,814 @@ async def api_concluir_tarefa(
         session.add(resp)
     session.commit()
     return {"success": True}
+
+
+# --- GM: Ordens de Serviço Operacionais ---
+
+def require_gm(request: Request):
+    """Verifica se o usuário é GM (admin) para acessar ordens de serviço."""
+    user = require_login(request)
+    role = user.get("role", "").lower() if isinstance(user, dict) else ""
+    if role not in ("admin", "gm"):
+        raise HTTPException(status_code=403, detail="Acesso restrito ao Gerente")
+    return user
+
+
+@app.get("/gm/ordens-servico", response_class=HTMLResponse)
+async def gm_ordens_servico_page(request: Request, session: Session = Depends(get_session)):
+    """Página principal: criar e gerenciar ordens de serviço."""
+    user = require_gm(request)
+    
+    # Buscar tarefas ativas
+    tasks = session.exec(
+        select(models.OperationalTask)
+        .where(models.OperationalTask.status.in_(["active", "paused"]))
+        .order_by(desc(models.OperationalTask.created_at))
+    ).all()
+    
+    # Buscar líderes (usuários com role leader)
+    leaders = session.exec(
+        select(models.User)
+        .where(models.User.role == "leader")
+        .where(models.User.is_active == True)
+    ).all()
+    
+    # Buscar execuções do dia para mostrar status
+    today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    executions_today = session.exec(
+        select(models.OperationalTaskExecution)
+        .where(models.OperationalTaskExecution.scheduled_date == today)
+    ).all()
+    
+    # Mapear execuções por task_id e user_id
+    exec_map = {}
+    for ex in executions_today:
+        key = (ex.task_id, ex.user_id)
+        exec_map[key] = ex
+    
+    return templates.TemplateResponse("gm_ordens_servico.html", {
+        "request": request,
+        "user": user,
+        "tasks": tasks,
+        "leaders": leaders,
+        "executions_today": exec_map,
+        "today": today,
+    })
+
+
+@app.post("/api/gm/ordens-servico", response_class=JSONResponse)
+async def api_gm_create_ordem(request: Request, session: Session = Depends(get_session)):
+    """Criar nova ordem de serviço."""
+    user = require_gm(request)
+    try:
+        body = await request.json()
+        title = (body.get("title") or "").strip()
+        if not title:
+            return JSONResponse({"error": "Título é obrigatório"}, status_code=400)
+        
+        description = (body.get("description") or "").strip() or None
+        category = (body.get("category") or "geral").strip().lower()
+        priority = (body.get("priority") or "medium").strip().lower()
+        if priority not in ("low", "medium", "high"):
+            priority = "medium"
+        
+        recurrence_type = (body.get("recurrence_type") or "once").strip().lower()
+        if recurrence_type not in ("once", "daily", "weekly", "monthly"):
+            recurrence_type = "once"
+        
+        recurrence_days = body.get("recurrence_days") or []
+        if isinstance(recurrence_days, list):
+            recurrence_days = [int(x) for x in recurrence_days if str(x).isdigit()]
+        else:
+            recurrence_days = []
+        
+        recurrence_day_of_month = None
+        if body.get("recurrence_day_of_month"):
+            try:
+                recurrence_day_of_month = int(body["recurrence_day_of_month"])
+                if recurrence_day_of_month < 1 or recurrence_day_of_month > 31:
+                    recurrence_day_of_month = None
+            except:
+                pass
+        
+        scheduled_time = (body.get("scheduled_time") or "").strip() or None
+        estimated_duration = body.get("estimated_duration_minutes")
+        if estimated_duration:
+            try:
+                estimated_duration = int(estimated_duration)
+            except:
+                estimated_duration = None
+        
+        recipient_user_ids = body.get("recipient_user_ids") or []
+        if isinstance(recipient_user_ids, list):
+            recipient_user_ids = [int(x) for x in recipient_user_ids if x]
+        else:
+            recipient_user_ids = []
+        
+        requires_photo = bool(body.get("requires_photo"))
+        requires_note = bool(body.get("requires_note"))
+        
+        valid_from = None
+        if body.get("valid_from"):
+            try:
+                valid_from = datetime.fromisoformat(body["valid_from"].replace("Z", "+00:00"))
+            except:
+                pass
+        
+        valid_until = None
+        if body.get("valid_until"):
+            try:
+                valid_until = datetime.fromisoformat(body["valid_until"].replace("Z", "+00:00"))
+            except:
+                pass
+        
+        username = (user.get("username") or user.get("name") or "GM") if isinstance(user, dict) else "GM"
+        
+        task = models.OperationalTask(
+            title=title,
+            description=description,
+            category=category,
+            priority=priority,
+            recurrence_type=recurrence_type,
+            recurrence_days=recurrence_days,
+            recurrence_day_of_month=recurrence_day_of_month,
+            scheduled_time=scheduled_time,
+            estimated_duration_minutes=estimated_duration,
+            recipient_user_ids=recipient_user_ids,
+            requires_photo=requires_photo,
+            requires_note=requires_note,
+            valid_from=valid_from,
+            valid_until=valid_until,
+            created_by=username,
+        )
+        session.add(task)
+        session.commit()
+        session.refresh(task)
+        
+        # Gerar execuções para hoje se aplicável
+        generate_executions_for_task(session, task)
+        
+        return {"success": True, "task_id": task.id}
+    except Exception as e:
+        logger.exception("Erro ao criar ordem de serviço")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+def generate_executions_for_task(session: Session, task: models.OperationalTask, target_date: str = None):
+    """Gera execuções para uma tarefa em uma data específica."""
+    if target_date is None:
+        target_date = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    
+    target_dt = datetime.strptime(target_date, "%Y-%m-%d")
+    weekday = target_dt.weekday()  # 0=segunda, 6=domingo
+    day_of_month = target_dt.day
+    
+    # Verificar se a tarefa deve ser executada nesta data
+    should_execute = False
+    
+    if task.recurrence_type == "once":
+        # Tarefa única - executar se foi criada hoje ou se valid_from é hoje
+        if task.valid_from:
+            should_execute = task.valid_from.strftime("%Y-%m-%d") == target_date
+        else:
+            should_execute = task.created_at.strftime("%Y-%m-%d") == target_date
+    elif task.recurrence_type == "daily":
+        should_execute = True
+    elif task.recurrence_type == "weekly":
+        should_execute = weekday in (task.recurrence_days or [])
+    elif task.recurrence_type == "monthly":
+        should_execute = day_of_month == task.recurrence_day_of_month
+    
+    if not should_execute:
+        return
+    
+    # Verificar validade
+    if task.valid_from and target_dt < task.valid_from.replace(tzinfo=None):
+        return
+    if task.valid_until and target_dt > task.valid_until.replace(tzinfo=None):
+        return
+    
+    # Criar execução para cada líder responsável
+    for user_id in (task.recipient_user_ids or []):
+        # Verificar se já existe execução para este líder nesta data
+        existing = session.exec(
+            select(models.OperationalTaskExecution)
+            .where(models.OperationalTaskExecution.task_id == task.id)
+            .where(models.OperationalTaskExecution.user_id == user_id)
+            .where(models.OperationalTaskExecution.scheduled_date == target_date)
+        ).first()
+        
+        if not existing:
+            execution = models.OperationalTaskExecution(
+                task_id=task.id,
+                scheduled_date=target_date,
+                user_id=user_id,
+                status="pending",
+            )
+            session.add(execution)
+    
+    session.commit()
+
+
+@app.get("/api/gm/ordens-servico", response_class=JSONResponse)
+async def api_gm_list_ordens(request: Request, session: Session = Depends(get_session)):
+    """Listar ordens de serviço."""
+    require_gm(request)
+    tasks = session.exec(
+        select(models.OperationalTask)
+        .where(models.OperationalTask.status.in_(["active", "paused"]))
+        .order_by(desc(models.OperationalTask.created_at))
+    ).all()
+    
+    out = []
+    for t in tasks:
+        out.append({
+            "id": t.id,
+            "title": t.title,
+            "description": t.description,
+            "category": t.category,
+            "priority": t.priority,
+            "recurrence_type": t.recurrence_type,
+            "scheduled_time": t.scheduled_time,
+            "status": t.status,
+            "recipient_user_ids": t.recipient_user_ids or [],
+            "created_by": t.created_by,
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+        })
+    return out
+
+
+@app.put("/api/gm/ordens-servico/{task_id}", response_class=JSONResponse)
+async def api_gm_update_ordem(task_id: int, request: Request, session: Session = Depends(get_session)):
+    """Atualizar ordem de serviço."""
+    require_gm(request)
+    task = session.get(models.OperationalTask, task_id)
+    if not task:
+        return JSONResponse({"error": "Tarefa não encontrada"}, status_code=404)
+    
+    try:
+        body = await request.json()
+        
+        if "title" in body:
+            task.title = (body["title"] or "").strip() or task.title
+        if "description" in body:
+            task.description = (body["description"] or "").strip() or None
+        if "category" in body:
+            task.category = (body["category"] or "geral").strip().lower()
+        if "priority" in body:
+            priority = (body["priority"] or "medium").strip().lower()
+            task.priority = priority if priority in ("low", "medium", "high") else task.priority
+        if "status" in body:
+            status = (body["status"] or "active").strip().lower()
+            task.status = status if status in ("active", "paused", "archived") else task.status
+        if "recipient_user_ids" in body:
+            recipient_user_ids = body["recipient_user_ids"] or []
+            if isinstance(recipient_user_ids, list):
+                task.recipient_user_ids = [int(x) for x in recipient_user_ids if x]
+        if "scheduled_time" in body:
+            task.scheduled_time = (body["scheduled_time"] or "").strip() or None
+        if "requires_photo" in body:
+            task.requires_photo = bool(body["requires_photo"])
+        if "requires_note" in body:
+            task.requires_note = bool(body["requires_note"])
+        
+        task.updated_at = datetime.now()
+        session.add(task)
+        session.commit()
+        
+        return {"success": True}
+    except Exception as e:
+        logger.exception("Erro ao atualizar ordem de serviço")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.delete("/api/gm/ordens-servico/{task_id}", response_class=JSONResponse)
+async def api_gm_delete_ordem(task_id: int, request: Request, session: Session = Depends(get_session)):
+    """Arquivar ordem de serviço."""
+    require_gm(request)
+    task = session.get(models.OperationalTask, task_id)
+    if not task:
+        return JSONResponse({"error": "Tarefa não encontrada"}, status_code=404)
+    
+    task.status = "archived"
+    task.updated_at = datetime.now()
+    session.add(task)
+    session.commit()
+    
+    return {"success": True}
+
+
+@app.get("/gm/ordens-servico/historico", response_class=HTMLResponse)
+async def gm_ordens_historico_page(request: Request, session: Session = Depends(get_session)):
+    """Página de histórico de execuções."""
+    user = require_gm(request)
+    
+    # Buscar todas as execuções dos últimos 30 dias
+    start_date = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=30)).strftime("%Y-%m-%d")
+    
+    executions = session.exec(
+        select(models.OperationalTaskExecution)
+        .where(models.OperationalTaskExecution.scheduled_date >= start_date)
+        .order_by(desc(models.OperationalTaskExecution.scheduled_date))
+    ).all()
+    
+    # Enriquecer com dados da tarefa e líder
+    enriched = []
+    for ex in executions:
+        task = session.get(models.OperationalTask, ex.task_id)
+        leader = session.get(models.User, ex.user_id)
+        enriched.append({
+            "execution": ex,
+            "task": task,
+            "leader": leader,
+        })
+    
+    return templates.TemplateResponse("gm_ordens_historico.html", {
+        "request": request,
+        "user": user,
+        "executions": enriched,
+    })
+
+
+@app.get("/api/gm/ordens-servico/historico", response_class=JSONResponse)
+async def api_gm_historico(
+    request: Request,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    user_id: Optional[int] = None,
+    status: Optional[str] = None,
+    session: Session = Depends(get_session)
+):
+    """API para buscar histórico de execuções com filtros."""
+    require_gm(request)
+    
+    query = select(models.OperationalTaskExecution)
+    
+    if start_date:
+        query = query.where(models.OperationalTaskExecution.scheduled_date >= start_date)
+    if end_date:
+        query = query.where(models.OperationalTaskExecution.scheduled_date <= end_date)
+    if user_id:
+        query = query.where(models.OperationalTaskExecution.user_id == user_id)
+    if status:
+        query = query.where(models.OperationalTaskExecution.status == status)
+    
+    query = query.order_by(desc(models.OperationalTaskExecution.scheduled_date))
+    executions = session.exec(query).all()
+    
+    out = []
+    for ex in executions:
+        task = session.get(models.OperationalTask, ex.task_id)
+        leader = session.get(models.User, ex.user_id)
+        out.append({
+            "id": ex.id,
+            "task_id": ex.task_id,
+            "task_title": task.title if task else "—",
+            "scheduled_date": ex.scheduled_date,
+            "user_id": ex.user_id,
+            "leader_name": leader.username if leader else "—",
+            "status": ex.status,
+            "started_at": ex.started_at.isoformat() if ex.started_at else None,
+            "completed_at": ex.completed_at.isoformat() if ex.completed_at else None,
+            "note": ex.note,
+            "postponed_to": ex.postponed_to,
+            "postpone_reason": ex.postpone_reason,
+            "not_done_reason": ex.not_done_reason,
+        })
+    return out
+
+
+@app.get("/gm/ordens-servico/kpis", response_class=HTMLResponse)
+async def gm_ordens_kpis_page(request: Request, session: Session = Depends(get_session)):
+    """Página de KPIs dos líderes."""
+    user = require_gm(request)
+    
+    # Buscar líderes
+    leaders = session.exec(
+        select(models.User)
+        .where(models.User.role == "leader")
+        .where(models.User.is_active == True)
+    ).all()
+    
+    # Calcular KPIs para cada líder (últimos 30 dias)
+    start_date = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=30)).strftime("%Y-%m-%d")
+    
+    kpis = []
+    for leader in leaders:
+        executions = session.exec(
+            select(models.OperationalTaskExecution)
+            .where(models.OperationalTaskExecution.user_id == leader.id)
+            .where(models.OperationalTaskExecution.scheduled_date >= start_date)
+        ).all()
+        
+        total = len(executions)
+        completed = len([e for e in executions if e.status == "completed"])
+        in_progress = len([e for e in executions if e.status == "in_progress"])
+        pending = len([e for e in executions if e.status == "pending"])
+        postponed = len([e for e in executions if e.status == "postponed"])
+        not_done = len([e for e in executions if e.status == "not_done"])
+        justified = len([e for e in executions if e.status == "justified"])
+        
+        # Calcular taxa de conclusão
+        completion_rate = (completed / total * 100) if total > 0 else 0
+        
+        # Calcular taxa de pontualidade (completadas no dia programado)
+        on_time = 0
+        for ex in executions:
+            if ex.status == "completed" and ex.completed_at:
+                completed_date = ex.completed_at.strftime("%Y-%m-%d")
+                if completed_date == ex.scheduled_date:
+                    on_time += 1
+        punctuality_rate = (on_time / completed * 100) if completed > 0 else 0
+        
+        # Taxa de adiamento
+        postpone_rate = (postponed / total * 100) if total > 0 else 0
+        
+        # Taxa de não execução
+        not_done_rate = (not_done / total * 100) if total > 0 else 0
+        
+        # Score geral (fórmula ponderada)
+        score = (
+            completion_rate * 0.40 +
+            punctuality_rate * 0.30 +
+            (100 - postpone_rate) * 0.15 +
+            (100 - not_done_rate) * 0.15
+        )
+        
+        kpis.append({
+            "leader": leader,
+            "total": total,
+            "completed": completed,
+            "pending": pending,
+            "in_progress": in_progress,
+            "postponed": postponed,
+            "not_done": not_done,
+            "justified": justified,
+            "completion_rate": round(completion_rate, 1),
+            "punctuality_rate": round(punctuality_rate, 1),
+            "postpone_rate": round(postpone_rate, 1),
+            "not_done_rate": round(not_done_rate, 1),
+            "score": round(score, 1),
+        })
+    
+    # Ordenar por score descendente
+    kpis.sort(key=lambda x: x["score"], reverse=True)
+    
+    return templates.TemplateResponse("gm_ordens_kpis.html", {
+        "request": request,
+        "user": user,
+        "kpis": kpis,
+    })
+
+
+@app.get("/api/gm/ordens-servico/kpis", response_class=JSONResponse)
+async def api_gm_kpis(
+    request: Request,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    session: Session = Depends(get_session)
+):
+    """API para buscar KPIs com filtro de período."""
+    require_gm(request)
+    
+    if not start_date:
+        start_date = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=30)).strftime("%Y-%m-%d")
+    if not end_date:
+        end_date = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    
+    leaders = session.exec(
+        select(models.User)
+        .where(models.User.role == "leader")
+        .where(models.User.is_active == True)
+    ).all()
+    
+    kpis = []
+    for leader in leaders:
+        executions = session.exec(
+            select(models.OperationalTaskExecution)
+            .where(models.OperationalTaskExecution.user_id == leader.id)
+            .where(models.OperationalTaskExecution.scheduled_date >= start_date)
+            .where(models.OperationalTaskExecution.scheduled_date <= end_date)
+        ).all()
+        
+        total = len(executions)
+        completed = len([e for e in executions if e.status == "completed"])
+        postponed = len([e for e in executions if e.status == "postponed"])
+        not_done = len([e for e in executions if e.status == "not_done"])
+        
+        completion_rate = (completed / total * 100) if total > 0 else 0
+        
+        on_time = 0
+        for ex in executions:
+            if ex.status == "completed" and ex.completed_at:
+                completed_date = ex.completed_at.strftime("%Y-%m-%d")
+                if completed_date == ex.scheduled_date:
+                    on_time += 1
+        punctuality_rate = (on_time / completed * 100) if completed > 0 else 0
+        
+        postpone_rate = (postponed / total * 100) if total > 0 else 0
+        not_done_rate = (not_done / total * 100) if total > 0 else 0
+        
+        score = (
+            completion_rate * 0.40 +
+            punctuality_rate * 0.30 +
+            (100 - postpone_rate) * 0.15 +
+            (100 - not_done_rate) * 0.15
+        )
+        
+        kpis.append({
+            "user_id": leader.id,
+            "username": leader.username,
+            "total": total,
+            "completed": completed,
+            "completion_rate": round(completion_rate, 1),
+            "punctuality_rate": round(punctuality_rate, 1),
+            "postpone_rate": round(postpone_rate, 1),
+            "not_done_rate": round(not_done_rate, 1),
+            "score": round(score, 1),
+        })
+    
+    kpis.sort(key=lambda x: x["score"], reverse=True)
+    return kpis
+
+
+# --- Rotas para LÍDERES executarem as ordens ---
+
+@app.get("/lider/minhas-ordens", response_class=HTMLResponse)
+async def lider_minhas_ordens_page(request: Request, session: Session = Depends(get_session)):
+    """Página do líder para ver e executar suas ordens de serviço."""
+    user = require_leader(request)
+    user_id = user.get("id") if isinstance(user, dict) else None
+    
+    if not user_id:
+        return HTMLResponse("Usuário não identificado", status_code=403)
+    
+    today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    
+    # Gerar execuções do dia para todas as tarefas ativas
+    active_tasks = session.exec(
+        select(models.OperationalTask)
+        .where(models.OperationalTask.status == "active")
+    ).all()
+    
+    for task in active_tasks:
+        if user_id in (task.recipient_user_ids or []):
+            generate_executions_for_task(session, task, today)
+    
+    # Buscar execuções do líder para hoje
+    executions_today = session.exec(
+        select(models.OperationalTaskExecution)
+        .where(models.OperationalTaskExecution.user_id == user_id)
+        .where(models.OperationalTaskExecution.scheduled_date == today)
+        .order_by(models.OperationalTaskExecution.id)
+    ).all()
+    
+    # Enriquecer com dados da tarefa
+    tasks_today = []
+    for ex in executions_today:
+        task = session.get(models.OperationalTask, ex.task_id)
+        if task:
+            tasks_today.append({
+                "execution": ex,
+                "task": task,
+            })
+    
+    # Buscar histórico recente (últimos 7 dias)
+    week_ago = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=7)).strftime("%Y-%m-%d")
+    history = session.exec(
+        select(models.OperationalTaskExecution)
+        .where(models.OperationalTaskExecution.user_id == user_id)
+        .where(models.OperationalTaskExecution.scheduled_date >= week_ago)
+        .where(models.OperationalTaskExecution.scheduled_date < today)
+        .order_by(desc(models.OperationalTaskExecution.scheduled_date))
+    ).all()
+    
+    history_enriched = []
+    for ex in history:
+        task = session.get(models.OperationalTask, ex.task_id)
+        if task:
+            history_enriched.append({
+                "execution": ex,
+                "task": task,
+            })
+    
+    return templates.TemplateResponse("lider_minhas_ordens.html", {
+        "request": request,
+        "user": user,
+        "tasks_today": tasks_today,
+        "history": history_enriched,
+        "today": today,
+    })
+
+
+@app.get("/api/lider/minhas-ordens", response_class=JSONResponse)
+async def api_lider_minhas_ordens(request: Request, session: Session = Depends(get_session)):
+    """API: listar ordens do líder para hoje."""
+    user = require_leader(request)
+    user_id = user.get("id") if isinstance(user, dict) else None
+    
+    if not user_id:
+        return []
+    
+    today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    
+    executions = session.exec(
+        select(models.OperationalTaskExecution)
+        .where(models.OperationalTaskExecution.user_id == user_id)
+        .where(models.OperationalTaskExecution.scheduled_date == today)
+    ).all()
+    
+    out = []
+    for ex in executions:
+        task = session.get(models.OperationalTask, ex.task_id)
+        if task:
+            out.append({
+                "execution_id": ex.id,
+                "task_id": task.id,
+                "title": task.title,
+                "description": task.description,
+                "category": task.category,
+                "priority": task.priority,
+                "scheduled_time": task.scheduled_time,
+                "requires_photo": task.requires_photo,
+                "requires_note": task.requires_note,
+                "status": ex.status,
+                "started_at": ex.started_at.isoformat() if ex.started_at else None,
+                "completed_at": ex.completed_at.isoformat() if ex.completed_at else None,
+            })
+    return out
+
+
+@app.post("/api/lider/ordens/{execution_id}/iniciar", response_class=JSONResponse)
+async def api_lider_iniciar_ordem(execution_id: int, request: Request, session: Session = Depends(get_session)):
+    """Líder inicia execução da ordem."""
+    user = require_leader(request)
+    user_id = user.get("id") if isinstance(user, dict) else None
+    
+    execution = session.get(models.OperationalTaskExecution, execution_id)
+    if not execution:
+        return JSONResponse({"error": "Execução não encontrada"}, status_code=404)
+    if execution.user_id != user_id:
+        return JSONResponse({"error": "Esta ordem não é sua"}, status_code=403)
+    if execution.status not in ("pending",):
+        return JSONResponse({"error": f"Status atual ({execution.status}) não permite iniciar"}, status_code=400)
+    
+    execution.status = "in_progress"
+    execution.started_at = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    execution.updated_at = datetime.now()
+    session.add(execution)
+    session.commit()
+    
+    return {"success": True, "status": execution.status}
+
+
+@app.post("/api/lider/ordens/{execution_id}/concluir", response_class=JSONResponse)
+async def api_lider_concluir_ordem(execution_id: int, request: Request, session: Session = Depends(get_session)):
+    """Líder conclui execução da ordem."""
+    user = require_leader(request)
+    user_id = user.get("id") if isinstance(user, dict) else None
+    
+    execution = session.get(models.OperationalTaskExecution, execution_id)
+    if not execution:
+        return JSONResponse({"error": "Execução não encontrada"}, status_code=404)
+    if execution.user_id != user_id:
+        return JSONResponse({"error": "Esta ordem não é sua"}, status_code=403)
+    if execution.status not in ("pending", "in_progress"):
+        return JSONResponse({"error": f"Status atual ({execution.status}) não permite concluir"}, status_code=400)
+    
+    try:
+        body = await request.json()
+    except:
+        body = {}
+    
+    task = session.get(models.OperationalTask, execution.task_id)
+    
+    note = (body.get("note") or "").strip() or None
+    photo_urls = body.get("photo_urls") or []
+    
+    # Validar requisitos
+    if task and task.requires_note and not note:
+        return JSONResponse({"error": "Observação é obrigatória para esta tarefa"}, status_code=400)
+    if task and task.requires_photo and not photo_urls:
+        return JSONResponse({"error": "Foto é obrigatória para esta tarefa"}, status_code=400)
+    
+    execution.status = "completed"
+    execution.completed_at = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    execution.note = note
+    execution.photo_urls = photo_urls if isinstance(photo_urls, list) else []
+    execution.updated_at = datetime.now()
+    
+    if not execution.started_at:
+        execution.started_at = execution.completed_at
+    
+    session.add(execution)
+    session.commit()
+    
+    return {"success": True, "status": execution.status}
+
+
+@app.post("/api/lider/ordens/{execution_id}/adiar", response_class=JSONResponse)
+async def api_lider_adiar_ordem(execution_id: int, request: Request, session: Session = Depends(get_session)):
+    """Líder adia execução da ordem."""
+    user = require_leader(request)
+    user_id = user.get("id") if isinstance(user, dict) else None
+    
+    execution = session.get(models.OperationalTaskExecution, execution_id)
+    if not execution:
+        return JSONResponse({"error": "Execução não encontrada"}, status_code=404)
+    if execution.user_id != user_id:
+        return JSONResponse({"error": "Esta ordem não é sua"}, status_code=403)
+    if execution.status not in ("pending", "in_progress"):
+        return JSONResponse({"error": f"Status atual ({execution.status}) não permite adiar"}, status_code=400)
+    
+    try:
+        body = await request.json()
+    except:
+        body = {}
+    
+    postponed_to = (body.get("postponed_to") or "").strip()
+    postpone_reason = (body.get("reason") or "").strip()
+    
+    if not postponed_to:
+        return JSONResponse({"error": "Nova data é obrigatória"}, status_code=400)
+    if not postpone_reason:
+        return JSONResponse({"error": "Motivo do adiamento é obrigatório"}, status_code=400)
+    
+    execution.status = "postponed"
+    execution.postponed_to = postponed_to
+    execution.postpone_reason = postpone_reason
+    execution.updated_at = datetime.now()
+    session.add(execution)
+    session.commit()
+    
+    return {"success": True, "status": execution.status}
+
+
+@app.post("/api/lider/ordens/{execution_id}/nao-fazer", response_class=JSONResponse)
+async def api_lider_nao_fazer_ordem(execution_id: int, request: Request, session: Session = Depends(get_session)):
+    """Líder marca ordem como não realizada."""
+    user = require_leader(request)
+    user_id = user.get("id") if isinstance(user, dict) else None
+    
+    execution = session.get(models.OperationalTaskExecution, execution_id)
+    if not execution:
+        return JSONResponse({"error": "Execução não encontrada"}, status_code=404)
+    if execution.user_id != user_id:
+        return JSONResponse({"error": "Esta ordem não é sua"}, status_code=403)
+    if execution.status not in ("pending", "in_progress"):
+        return JSONResponse({"error": f"Status atual ({execution.status}) não permite esta ação"}, status_code=400)
+    
+    try:
+        body = await request.json()
+    except:
+        body = {}
+    
+    reason = (body.get("reason") or "").strip()
+    
+    if not reason:
+        return JSONResponse({"error": "Motivo é obrigatório"}, status_code=400)
+    
+    execution.status = "not_done"
+    execution.not_done_reason = reason
+    execution.updated_at = datetime.now()
+    session.add(execution)
+    session.commit()
+    
+    return {"success": True, "status": execution.status}
+
+
+# Job para gerar execuções diárias (pode ser chamado por cron ou no startup)
+@app.post("/api/gm/ordens-servico/gerar-execucoes", response_class=JSONResponse)
+async def api_gm_gerar_execucoes(request: Request, session: Session = Depends(get_session)):
+    """Gera execuções para o dia atual para todas as tarefas ativas."""
+    require_gm(request)
+    
+    today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    
+    active_tasks = session.exec(
+        select(models.OperationalTask)
+        .where(models.OperationalTask.status == "active")
+    ).all()
+    
+    generated = 0
+    for task in active_tasks:
+        before_count = session.exec(
+            select(models.OperationalTaskExecution)
+            .where(models.OperationalTaskExecution.task_id == task.id)
+            .where(models.OperationalTaskExecution.scheduled_date == today)
+        ).all()
+        
+        generate_executions_for_task(session, task, today)
+        
+        after_count = session.exec(
+            select(models.OperationalTaskExecution)
+            .where(models.OperationalTaskExecution.task_id == task.id)
+            .where(models.OperationalTaskExecution.scheduled_date == today)
+        ).all()
+        
+        generated += len(after_count) - len(before_count)
+    
+    return {"success": True, "generated": generated, "date": today}
 
 
 # --- Operational History Routes ---

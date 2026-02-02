@@ -1,0 +1,426 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8">
+    <!-- Header -->
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-white mb-2">Ordens de Serviço</h1>
+            <p class="text-sm text-slate-400">Crie e gerencie tarefas operacionais para os líderes.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+            <a href="/gm/ordens-servico/historico" class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Histórico
+            </a>
+            <a href="/gm/ordens-servico/kpis" class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                KPIs
+            </a>
+        </div>
+    </div>
+
+    <!-- Resumo do dia -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        {% set total_exec = executions_today|length %}
+        {% set completed = executions_today.values()|selectattr('status', 'equalto', 'completed')|list|length %}
+        {% set pending = executions_today.values()|selectattr('status', 'equalto', 'pending')|list|length %}
+        {% set in_progress = executions_today.values()|selectattr('status', 'equalto', 'in_progress')|list|length %}
+        
+        <div class="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+            <p class="text-xs text-slate-400 uppercase tracking-wider mb-1">Total Hoje</p>
+            <p class="text-2xl font-bold text-white">{{ total_exec }}</p>
+        </div>
+        <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4">
+            <p class="text-xs text-emerald-400 uppercase tracking-wider mb-1">Concluídas</p>
+            <p class="text-2xl font-bold text-emerald-400">{{ completed }}</p>
+        </div>
+        <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+            <p class="text-xs text-amber-400 uppercase tracking-wider mb-1">Em Andamento</p>
+            <p class="text-2xl font-bold text-amber-400">{{ in_progress }}</p>
+        </div>
+        <div class="bg-slate-500/10 border border-slate-500/30 rounded-xl p-4">
+            <p class="text-xs text-slate-400 uppercase tracking-wider mb-1">Pendentes</p>
+            <p class="text-2xl font-bold text-slate-300">{{ pending }}</p>
+        </div>
+    </div>
+
+    <!-- Botão nova ordem -->
+    <div class="mb-6">
+        <button type="button" onclick="document.getElementById('modal-nova-ordem').classList.remove('hidden')"
+            class="px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl transition-colors flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Nova Ordem de Serviço
+        </button>
+    </div>
+
+    <!-- Lista de ordens -->
+    <div class="bg-slate-800/50 border border-slate-700 rounded-2xl overflow-hidden">
+        <div class="flex items-center justify-between p-4 border-b border-slate-700">
+            <h2 class="text-sm font-bold text-white uppercase tracking-wider">Ordens Ativas</h2>
+            <span class="text-xs text-slate-500">{{ tasks|length }} ordem(ns)</span>
+        </div>
+        {% if tasks %}
+        <div class="divide-y divide-slate-700">
+            {% for t in tasks %}
+            <div class="p-4 hover:bg-slate-700/20 transition-colors">
+                <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="font-medium text-white">{{ t.title }}</span>
+                            {% if t.priority == 'high' %}
+                            <span class="text-xs bg-rose-500/20 text-rose-400 px-2 py-0.5 rounded-full">Alta</span>
+                            {% elif t.priority == 'low' %}
+                            <span class="text-xs bg-slate-500/20 text-slate-400 px-2 py-0.5 rounded-full">Baixa</span>
+                            {% else %}
+                            <span class="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">Média</span>
+                            {% endif %}
+                            
+                            {% if t.status == 'paused' %}
+                            <span class="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">Pausada</span>
+                            {% endif %}
+                        </div>
+                        
+                        {% if t.description %}
+                        <p class="text-sm text-slate-400 mb-2">{{ t.description }}</p>
+                        {% endif %}
+                        
+                        <div class="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                            <span class="flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>
+                                {{ t.category|title }}
+                            </span>
+                            <span class="flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                {% if t.recurrence_type == 'once' %}Única{% elif t.recurrence_type == 'daily' %}Diária{% elif t.recurrence_type == 'weekly' %}Semanal{% elif t.recurrence_type == 'monthly' %}Mensal{% endif %}
+                            </span>
+                            {% if t.scheduled_time %}
+                            <span class="flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                {{ t.scheduled_time }}
+                            </span>
+                            {% endif %}
+                            <span class="flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                {{ (t.recipient_user_ids or [])|length }} líder(es)
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-2">
+                        <button onclick="editOrdem({{ t.id }})" class="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors" title="Editar">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        </button>
+                        {% if t.status == 'active' %}
+                        <button onclick="pausarOrdem({{ t.id }})" class="p-2 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 rounded-lg transition-colors" title="Pausar">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </button>
+                        {% else %}
+                        <button onclick="ativarOrdem({{ t.id }})" class="p-2 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition-colors" title="Ativar">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </button>
+                        {% endif %}
+                        <button onclick="arquivarOrdem({{ t.id }})" class="p-2 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition-colors" title="Arquivar">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="p-8 text-center text-slate-400">
+            <svg class="w-12 h-12 mx-auto mb-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            <p>Nenhuma ordem de serviço ativa.</p>
+            <p class="text-sm mt-1">Clique em "Nova Ordem de Serviço" para criar.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal Nova Ordem -->
+<div id="modal-nova-ordem" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-sm flex items-start justify-center p-4 pt-10 md:pt-20">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+        <div class="sticky top-0 bg-slate-800 border-b border-slate-700 p-4 md:p-6">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-bold text-white">Nova Ordem de Serviço</h3>
+                <button type="button" onclick="document.getElementById('modal-nova-ordem').classList.add('hidden')" class="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+        </div>
+        
+        <form id="form-nova-ordem" onsubmit="submitOrdem(event)" class="p-4 md:p-6">
+            <div class="space-y-4">
+                <!-- Título -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Título *</label>
+                    <input type="text" name="title" required
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="Ex.: Verificar organização do setor">
+                </div>
+                
+                <!-- Descrição -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Descrição</label>
+                    <textarea name="description" rows="2"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="Detalhes da tarefa..."></textarea>
+                </div>
+                
+                <!-- Grid 2 colunas -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Categoria -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Categoria</label>
+                        <select name="category" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="geral">Geral</option>
+                            <option value="limpeza">Limpeza</option>
+                            <option value="conferencia">Conferência</option>
+                            <option value="manutencao">Manutenção</option>
+                            <option value="seguranca">Segurança</option>
+                            <option value="organizacao">Organização</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Prioridade -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Prioridade</label>
+                        <select name="priority" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="low">Baixa</option>
+                            <option value="medium" selected>Média</option>
+                            <option value="high">Alta</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Recorrência -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Recorrência</label>
+                    <select name="recurrence_type" id="recurrence_type" onchange="toggleRecurrenceOptions()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                        <option value="once">Única (apenas hoje)</option>
+                        <option value="daily">Diária</option>
+                        <option value="weekly">Semanal</option>
+                        <option value="monthly">Mensal</option>
+                    </select>
+                </div>
+                
+                <!-- Dias da semana (para semanal) -->
+                <div id="weekly-options" class="hidden">
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Dias da Semana</label>
+                    <div class="flex flex-wrap gap-2">
+                        <label class="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 cursor-pointer hover:bg-slate-800">
+                            <input type="checkbox" name="recurrence_days" value="0" class="rounded border-slate-600 text-blue-600 focus:ring-blue-500">
+                            <span class="text-sm text-white">Seg</span>
+                        </label>
+                        <label class="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 cursor-pointer hover:bg-slate-800">
+                            <input type="checkbox" name="recurrence_days" value="1" class="rounded border-slate-600 text-blue-600 focus:ring-blue-500">
+                            <span class="text-sm text-white">Ter</span>
+                        </label>
+                        <label class="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 cursor-pointer hover:bg-slate-800">
+                            <input type="checkbox" name="recurrence_days" value="2" class="rounded border-slate-600 text-blue-600 focus:ring-blue-500">
+                            <span class="text-sm text-white">Qua</span>
+                        </label>
+                        <label class="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 cursor-pointer hover:bg-slate-800">
+                            <input type="checkbox" name="recurrence_days" value="3" class="rounded border-slate-600 text-blue-600 focus:ring-blue-500">
+                            <span class="text-sm text-white">Qui</span>
+                        </label>
+                        <label class="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 cursor-pointer hover:bg-slate-800">
+                            <input type="checkbox" name="recurrence_days" value="4" class="rounded border-slate-600 text-blue-600 focus:ring-blue-500">
+                            <span class="text-sm text-white">Sex</span>
+                        </label>
+                        <label class="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 cursor-pointer hover:bg-slate-800">
+                            <input type="checkbox" name="recurrence_days" value="5" class="rounded border-slate-600 text-blue-600 focus:ring-blue-500">
+                            <span class="text-sm text-white">Sáb</span>
+                        </label>
+                        <label class="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 cursor-pointer hover:bg-slate-800">
+                            <input type="checkbox" name="recurrence_days" value="6" class="rounded border-slate-600 text-blue-600 focus:ring-blue-500">
+                            <span class="text-sm text-white">Dom</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Dia do mês (para mensal) -->
+                <div id="monthly-options" class="hidden">
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Dia do Mês</label>
+                    <input type="number" name="recurrence_day_of_month" min="1" max="31" placeholder="Ex.: 15"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                
+                <!-- Horário -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Horário Programado</label>
+                        <input type="time" name="scheduled_time"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Duração Estimada (min)</label>
+                        <input type="number" name="estimated_duration_minutes" min="1" placeholder="Ex.: 30"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                </div>
+                
+                <!-- Requisitos -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Requisitos</label>
+                    <div class="flex flex-wrap gap-4">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="requires_photo" class="rounded border-slate-600 text-blue-600 focus:ring-blue-500">
+                            <span class="text-sm text-white">Exigir foto</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="requires_note" class="rounded border-slate-600 text-blue-600 focus:ring-blue-500">
+                            <span class="text-sm text-white">Exigir observação</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Líderes responsáveis -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Líderes Responsáveis *</label>
+                    <div class="max-h-48 overflow-y-auto border border-slate-700 rounded-lg p-2 bg-slate-900 space-y-1">
+                        {% for leader in leaders %}
+                        <label class="flex items-center gap-2 cursor-pointer hover:bg-slate-700/30 rounded px-2 py-1.5">
+                            <input type="checkbox" name="recipient" value="{{ leader.id }}" class="rounded border-slate-600 text-blue-600 focus:ring-blue-500">
+                            <span class="text-sm text-white">{{ leader.username }}</span>
+                        </label>
+                        {% endfor %}
+                        {% if not leaders %}
+                        <p class="text-sm text-slate-500 p-2">Nenhum líder cadastrado.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex gap-2 mt-6">
+                <button type="submit" class="flex-1 md:flex-none px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors">
+                    Criar Ordem
+                </button>
+                <button type="button" onclick="document.getElementById('modal-nova-ordem').classList.add('hidden')"
+                    class="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white font-medium rounded-lg transition-colors">
+                    Cancelar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function toggleRecurrenceOptions() {
+    var type = document.getElementById('recurrence_type').value;
+    document.getElementById('weekly-options').classList.toggle('hidden', type !== 'weekly');
+    document.getElementById('monthly-options').classList.toggle('hidden', type !== 'monthly');
+}
+
+function submitOrdem(e) {
+    e.preventDefault();
+    var form = document.getElementById('form-nova-ordem');
+    var title = form.querySelector('[name=title]').value.trim();
+    var description = form.querySelector('[name=description]').value.trim();
+    var category = form.querySelector('[name=category]').value;
+    var priority = form.querySelector('[name=priority]').value;
+    var recurrence_type = form.querySelector('[name=recurrence_type]').value;
+    var scheduled_time = form.querySelector('[name=scheduled_time]').value;
+    var estimated_duration = form.querySelector('[name=estimated_duration_minutes]').value;
+    var requires_photo = form.querySelector('[name=requires_photo]').checked;
+    var requires_note = form.querySelector('[name=requires_note]').checked;
+    
+    var recurrence_days = [];
+    form.querySelectorAll('[name=recurrence_days]:checked').forEach(function(cb) {
+        recurrence_days.push(parseInt(cb.value, 10));
+    });
+    
+    var recurrence_day_of_month = form.querySelector('[name=recurrence_day_of_month]').value;
+    
+    var recipients = [];
+    form.querySelectorAll('[name=recipient]:checked').forEach(function(cb) {
+        recipients.push(parseInt(cb.value, 10));
+    });
+    
+    if (!title) {
+        alert('Título é obrigatório');
+        return;
+    }
+    if (recipients.length === 0) {
+        alert('Selecione pelo menos um líder');
+        return;
+    }
+    
+    fetch('/api/gm/ordens-servico', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            title: title,
+            description: description || null,
+            category: category,
+            priority: priority,
+            recurrence_type: recurrence_type,
+            recurrence_days: recurrence_days,
+            recurrence_day_of_month: recurrence_day_of_month || null,
+            scheduled_time: scheduled_time || null,
+            estimated_duration_minutes: estimated_duration || null,
+            requires_photo: requires_photo,
+            requires_note: requires_note,
+            recipient_user_ids: recipients
+        })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+        document.getElementById('modal-nova-ordem').classList.add('hidden');
+        window.location.reload();
+    })
+    .catch(function(err) {
+        alert('Erro ao criar ordem de serviço.');
+        console.error(err);
+    });
+}
+
+function pausarOrdem(id) {
+    if (!confirm('Deseja pausar esta ordem de serviço?')) return;
+    fetch('/api/gm/ordens-servico/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'paused' })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.error) { alert(data.error); return; }
+        window.location.reload();
+    });
+}
+
+function ativarOrdem(id) {
+    fetch('/api/gm/ordens-servico/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'active' })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.error) { alert(data.error); return; }
+        window.location.reload();
+    });
+}
+
+function arquivarOrdem(id) {
+    if (!confirm('Deseja arquivar esta ordem de serviço? Ela não aparecerá mais na lista.')) return;
+    fetch('/api/gm/ordens-servico/' + id, {
+        method: 'DELETE'
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.error) { alert(data.error); return; }
+        window.location.reload();
+    });
+}
+
+function editOrdem(id) {
+    alert('Funcionalidade de edição em desenvolvimento.');
+}
+</script>
+{% endblock %}

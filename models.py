@@ -468,3 +468,78 @@ class LeaderTaskResponse(SQLModel, table=True):
     note: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.now)
 
+
+# --- Módulo GM: Ordens de Serviço Operacionais ---
+
+class OperationalTask(SQLModel, table=True):
+    """Ordem de serviço operacional criada pelo GM para líderes."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    title: str
+    description: Optional[str] = None
+    category: str = Field(default="geral", index=True)  # limpeza, conferencia, manutencao, seguranca, geral
+    priority: str = Field(default="medium", index=True)  # low, medium, high
+    
+    # Recorrência
+    recurrence_type: str = Field(default="once", index=True)  # once, daily, weekly, monthly
+    recurrence_days: List[int] = Field(default=[], sa_column=Column(JSON))  # [0,1,2,3,4,5,6] para semanal (0=seg)
+    recurrence_day_of_month: Optional[int] = None  # 1-31 para mensal
+    
+    # Horário e duração
+    scheduled_time: Optional[str] = None  # HH:MM
+    estimated_duration_minutes: Optional[int] = None
+    
+    # Setor (opcional)
+    sector_id: Optional[int] = Field(default=None, index=True)
+    
+    # Responsáveis
+    recipient_user_ids: List[int] = Field(default=[], sa_column=Column(JSON))  # lista de user.id (líderes)
+    
+    # Requisitos
+    requires_photo: bool = Field(default=False)
+    requires_note: bool = Field(default=False)
+    
+    # Status e validade
+    status: str = Field(default="active", index=True)  # active, paused, archived
+    valid_from: Optional[datetime] = None
+    valid_until: Optional[datetime] = None
+    
+    # Auditoria
+    created_by: Optional[str] = None  # username do GM
+    created_at: datetime = Field(default_factory=datetime.now, index=True)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+
+class OperationalTaskExecution(SQLModel, table=True):
+    """Execução diária de uma ordem de serviço por um líder."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    task_id: int = Field(foreign_key="operationaltask.id", index=True)
+    scheduled_date: str = Field(index=True)  # YYYY-MM-DD
+    user_id: int = Field(foreign_key="user.id", index=True)  # líder responsável
+    
+    # Status: pending, in_progress, completed, postponed, not_done, justified
+    status: str = Field(default="pending", index=True)
+    
+    # Timestamps de execução
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    
+    # Adiamento
+    postponed_to: Optional[str] = None  # Nova data YYYY-MM-DD
+    postpone_reason: Optional[str] = None
+    
+    # Não realizado
+    not_done_reason: Optional[str] = None
+    
+    # Observações e evidências
+    note: Optional[str] = None
+    photo_urls: List[str] = Field(default=[], sa_column=Column(JSON))
+    
+    # Aprovação pelo GM (opcional)
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    rejection_reason: Optional[str] = None
+    
+    # Auditoria
+    created_at: datetime = Field(default_factory=datetime.now, index=True)
+    updated_at: datetime = Field(default_factory=datetime.now)
+

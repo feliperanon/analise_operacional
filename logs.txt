@@ -28279,3 +28279,9 @@ fastapi.exceptions.HTTPException: 303: See Other
 2026-02-02 06:27:17,251 | INFO     | main | Enviando e-mail de alerta (dayoff) | host=smtp.office365.com port=587 tls=True ssl=False from=felipe.pires@nlfrutas.com.br recipients=['camila.cunha@nlfrutas.com.br', 'felipe.pires@nlfrutas.com.br'] employee=PAULO CAETANO GOMES
 2026-02-02 06:27:19,727 | INFO     | main | E-mail de alerta (dayoff) enviado com sucesso para PAULO CAETANO GOMES.
 2026-02-02 06:30:58,124 | INFO     | main | Google Gemini client initialized successfully
+2026-02-02 07:01:07,400 | INFO     | main | Google Gemini client initialized successfully
+2026-02-02 07:08:01,135 | INFO     | main | Google Gemini client initialized successfully
+2026-02-02 07:08:56,518 | INFO     | main | Google Gemini client initialized successfully
+2026-02-02 07:19:29,434 | INFO     | main | Google Gemini client initialized successfully
+2026-02-02 07:21:18,211 | INFO     | main | Google Gemini client initialized successfully
+2026-02-02 07:31:17,384 | ERROR    | main | Erro ao gerar relatório IA: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'Resource exhausted. Please try again later. Please refer to https://cloud.google.com/vertex-ai/generative-ai/docs/error-code-429 for more details.', 'status': 'RESOURCE_EXHAUSTED'}}
