@@ -480,6 +480,152 @@
             {% block content %}{% endblock %}
         </main>
     </div>
+
+    <!-- Modal de Alertas do Líder -->
+    {% if user_role in ['leader', 'admin', 'Leader', 'Admin'] %}
+    <div id="modal-alertas" class="hidden fixed inset-0 z-[100] overflow-y-auto bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-hidden animate-fade-in">
+            <div class="bg-gradient-to-r from-amber-600 to-orange-600 p-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-white">Alertas do Dia</h3>
+                            <p class="text-xs text-white/70" id="alertas-subtitle">Carregando...</p>
+                        </div>
+                    </div>
+                    <button onclick="fecharModalAlertas()" class="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="p-4 overflow-y-auto max-h-[60vh]" id="alertas-content">
+                <div class="flex items-center justify-center py-8">
+                    <svg class="w-8 h-8 text-slate-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+            </div>
+            
+            <div class="p-4 border-t border-slate-700 flex gap-2">
+                <a href="/lider/minhas-ordens" class="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg text-center transition-colors">
+                    Ver Minhas Ordens
+                </a>
+                <button onclick="fecharModalAlertas()" class="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium rounded-lg transition-colors">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+
+    <script>
+    var alertasJaMostrados = sessionStorage.getItem('alertas_mostrados_hoje');
+    var hoje = new Date().toISOString().split('T')[0];
+
+    function fecharModalAlertas() {
+        document.getElementById('modal-alertas').classList.add('hidden');
+        sessionStorage.setItem('alertas_mostrados_hoje', hoje);
+    }
+
+    function mostrarModalAlertas() {
+        document.getElementById('modal-alertas').classList.remove('hidden');
+        carregarAlertas();
+    }
+
+    function carregarAlertas() {
+        fetch('/api/lider/alertas')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                renderizarAlertas(data);
+            })
+            .catch(function(err) {
+                document.getElementById('alertas-content').innerHTML = '<p class="text-center text-slate-400 py-4">Erro ao carregar alertas.</p>';
+            });
+    }
+
+    function renderizarAlertas(data) {
+        var html = '';
+        var total = data.total_alertas || 0;
+        
+        document.getElementById('alertas-subtitle').textContent = total + ' alerta(s) pendente(s)';
+        
+        if (total === 0) {
+            html = '<div class="text-center py-8"><svg class="w-16 h-16 mx-auto text-emerald-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><p class="text-emerald-400 font-medium">Tudo certo!</p><p class="text-slate-400 text-sm mt-1">Nenhum alerta pendente.</p></div>';
+            document.getElementById('alertas-content').innerHTML = html;
+            return;
+        }
+        
+        // Ordens atrasadas (mais urgente)
+        if (data.ordens_atrasadas && data.ordens_atrasadas.length > 0) {
+            html += '<div class="mb-4"><h4 class="text-xs font-bold text-rose-400 uppercase tracking-wider mb-2 flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Ordens Atrasadas (' + data.ordens_atrasadas.length + ')</h4><div class="space-y-2">';
+            data.ordens_atrasadas.forEach(function(o) {
+                html += '<div class="bg-rose-500/10 border border-rose-500/30 rounded-lg p-3"><p class="text-white font-medium text-sm">' + o.title + '</p><p class="text-xs text-rose-400">Horário: ' + (o.scheduled_time || 'Não definido') + '</p></div>';
+            });
+            html += '</div></div>';
+        }
+        
+        // Ordens pendentes
+        if (data.ordens_pendentes && data.ordens_pendentes.length > 0) {
+            html += '<div class="mb-4"><h4 class="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Ordens Pendentes (' + data.ordens_pendentes.length + ')</h4><div class="space-y-2">';
+            data.ordens_pendentes.forEach(function(o) {
+                html += '<div class="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3"><p class="text-white font-medium text-sm">' + o.title + '</p><p class="text-xs text-amber-400">Horário: ' + (o.scheduled_time || 'Sem horário definido') + '</p></div>';
+            });
+            html += '</div></div>';
+        }
+        
+        // Colaboradores sem checklist
+        if (data.colaboradores_sem_checklist && data.colaboradores_sem_checklist.length > 0) {
+            html += '<div class="mb-4"><h4 class="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2 flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>Sem Checklist (' + data.colaboradores_sem_checklist.length + ')</h4><div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3"><ul class="text-sm text-slate-300 space-y-1">';
+            data.colaboradores_sem_checklist.slice(0, 5).forEach(function(c) {
+                html += '<li class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-blue-400 rounded-full"></span>' + c.name + '</li>';
+            });
+            if (data.colaboradores_sem_checklist.length > 5) {
+                html += '<li class="text-xs text-slate-500">... e mais ' + (data.colaboradores_sem_checklist.length - 5) + '</li>';
+            }
+            html += '</ul></div></div>';
+        }
+        
+        // Colaboradores sem rota
+        if (data.colaboradores_sem_rota && data.colaboradores_sem_rota.length > 0) {
+            html += '<div class="mb-4"><h4 class="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2 flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>Sem Rota Aberta (' + data.colaboradores_sem_rota.length + ')</h4><div class="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3"><ul class="text-sm text-slate-300 space-y-1">';
+            data.colaboradores_sem_rota.slice(0, 5).forEach(function(c) {
+                html += '<li class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-purple-400 rounded-full"></span>' + c.name + '</li>';
+            });
+            if (data.colaboradores_sem_rota.length > 5) {
+                html += '<li class="text-xs text-slate-500">... e mais ' + (data.colaboradores_sem_rota.length - 5) + '</li>';
+            }
+            html += '</ul></div></div>';
+        }
+        
+        document.getElementById('alertas-content').innerHTML = html;
+    }
+
+    // Mostrar alertas ao carregar a página (apenas uma vez por sessão)
+    document.addEventListener('DOMContentLoaded', function() {
+        if (alertasJaMostrados !== hoje) {
+            setTimeout(function() {
+                mostrarModalAlertas();
+            }, 500);
+        }
+    });
+    </script>
+    {% endif %}
 </body>
 
 </html>

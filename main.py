@@ -15234,6 +15234,124 @@ async def api_concluir_tarefa(
     return {"success": True}
 
 
+# --- API de Alertas para Líderes ---
+
+@app.get("/api/lider/alertas", response_class=JSONResponse)
+async def api_lider_alertas(request: Request, session: Session = Depends(get_session)):
+    """Retorna alertas importantes para o líder logado."""
+    user = require_leader(request)
+    user_id = user.get("id") if isinstance(user, dict) else None
+    user_role = user.get("role", "").lower() if isinstance(user, dict) else ""
+    
+    alertas = {
+        "ordens_pendentes": [],
+        "ordens_atrasadas": [],
+        "colaboradores_sem_rota": [],
+        "colaboradores_sem_checklist": [],
+        "total_alertas": 0,
+    }
+    
+    today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    now = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    
+    # 1. Ordens de serviço pendentes do líder
+    if user_id:
+        executions = session.exec(
+            select(models.OperationalTaskExecution)
+            .where(models.OperationalTaskExecution.user_id == user_id)
+            .where(models.OperationalTaskExecution.scheduled_date == today)
+            .where(models.OperationalTaskExecution.status.in_(["pending", "in_progress"]))
+        ).all()
+        
+        for ex in executions:
+            task = session.get(models.OperationalTask, ex.task_id)
+            if task:
+                is_atrasada = False
+                if task.scheduled_time:
+                    try:
+                        scheduled_hour, scheduled_min = map(int, task.scheduled_time.split(":"))
+                        scheduled_dt = now.replace(hour=scheduled_hour, minute=scheduled_min, second=0, microsecond=0)
+                        if now > scheduled_dt:
+                            is_atrasada = True
+                    except:
+                        pass
+                
+                item = {
+                    "id": ex.id,
+                    "task_id": task.id,
+                    "title": task.title,
+                    "priority": task.priority,
+                    "scheduled_time": task.scheduled_time,
+                    "status": ex.status,
+                }
+                
+                if is_atrasada:
+                    alertas["ordens_atrasadas"].append(item)
+                else:
+                    alertas["ordens_pendentes"].append(item)
+    
+    # 2. Colaboradores sem rota hoje (apenas para líderes/admins)
+    if user_role in ("leader", "admin"):
+        # Buscar colaboradores que deveriam ter rota hoje mas não têm
+        employees_with_route = session.exec(
+            select(models.Route.employee_id)
+            .where(models.Route.date == today)
+        ).all()
+        employee_ids_with_route = set(employees_with_route)
+        
+        # Buscar colaboradores ativos do turno
+        db_user = session.get(models.User, user_id) if user_id else None
+        
+        # Buscar colaboradores presentes hoje
+        routines_today = session.exec(
+            select(models.EmployeeRoutine)
+            .where(models.EmployeeRoutine.date == today)
+            .where(models.EmployeeRoutine.routine == "present")
+        ).all()
+        
+        for routine in routines_today:
+            if routine.employee_id not in employee_ids_with_route:
+                emp = session.get(models.Employee, routine.employee_id)
+                if emp and emp.status == "active":
+                    # Verificar se deveria ter rota (colaborador de separação)
+                    if emp.role and "separ" in emp.role.lower():
+                        alertas["colaboradores_sem_rota"].append({
+                            "id": emp.id,
+                            "name": emp.name,
+                            "role": emp.role,
+                        })
+    
+    # 3. Colaboradores sem checklist hoje
+    if user_role in ("leader", "admin"):
+        # Buscar colaboradores que fizeram checklist hoje
+        checklists_today = session.exec(
+            select(models.TranspalletChecklist.employee_id)
+            .where(models.TranspalletChecklist.date == today)
+        ).all()
+        employee_ids_with_checklist = set(checklists_today)
+        
+        # Buscar colaboradores presentes que deveriam fazer checklist
+        for routine in routines_today:
+            if routine.employee_id not in employee_ids_with_checklist:
+                emp = session.get(models.Employee, routine.employee_id)
+                if emp and emp.status == "active" and emp.mobile_access_checklist:
+                    alertas["colaboradores_sem_checklist"].append({
+                        "id": emp.id,
+                        "name": emp.name,
+                        "role": emp.role,
+                    })
+    
+    # Calcular total de alertas
+    alertas["total_alertas"] = (
+        len(alertas["ordens_pendentes"]) +
+        len(alertas["ordens_atrasadas"]) +
+        len(alertas["colaboradores_sem_rota"]) +
+        len(alertas["colaboradores_sem_checklist"])
+    )
+    
+    return alertas
+
+
 # --- GM: Ordens de Serviço Operacionais ---
 
 def require_gm(request: Request):
