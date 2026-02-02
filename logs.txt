@@ -28278,3 +28278,4 @@ fastapi.exceptions.HTTPException: 303: See Other
 2026-02-02 06:13:35,840 | INFO     | main | E-mail de alerta (absent) enviado com sucesso para WAGNER OTAVIO AGANETTI COSTA DA SILVA.
 2026-02-02 06:27:17,251 | INFO     | main | Enviando e-mail de alerta (dayoff) | host=smtp.office365.com port=587 tls=True ssl=False from=felipe.pires@nlfrutas.com.br recipients=['camila.cunha@nlfrutas.com.br', 'felipe.pires@nlfrutas.com.br'] employee=PAULO CAETANO GOMES
 2026-02-02 06:27:19,727 | INFO     | main | E-mail de alerta (dayoff) enviado com sucesso para PAULO CAETANO GOMES.
+2026-02-02 06:30:58,124 | INFO     | main | Google Gemini client initialized successfully
