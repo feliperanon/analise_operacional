@@ -76,6 +76,8 @@
                     {% set user_role = request.session.get("auth_user_role", "") %}
                     {% set allowed_pages = request.session.get("allowed_pages", []) %}
                     {% set auth_user_id = request.session.get("auth_user_id") %}
+                    {# Colaborador = login por matrícula (user_id). Líder = login por e-mail (auth_user_id). Minhas Tarefas só para colaborador. #}
+                    {% set is_employee_session = request.session.get("user_id") %}
                     
                     <!-- Dashboard -->
                     <a href="/mobile/dashboard"
@@ -133,7 +135,8 @@
                     </a>
                     {% endif %}
 
-                    <!-- Minhas Tarefas (colaborador) -->
+                    <!-- Minhas Tarefas (só para quem entrou como colaborador – matrícula). Líder não vê aqui. -->
+                    {% if is_employee_session %}
                     <a href="/mobile/tarefas"
                         class="flex items-center gap-4 px-4 py-4 rounded-2xl bg-slate-800/50 border border-slate-700/50 hover:bg-slate-800 hover:border-slate-600 transition-all active:scale-95">
                         <div class="w-12 h-12 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-400">
@@ -144,6 +147,7 @@
                             <p class="text-sm text-slate-400">Tarefas do líder</p>
                         </div>
                     </a>
+                    {% endif %}
 
                     <!-- Achievements -->
                     <a href="/mobile/achievements"
