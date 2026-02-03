@@ -28288,3 +28288,27 @@ fastapi.exceptions.HTTPException: 303: See Other
 2026-02-02 09:21:25,021 | INFO     | main | Google Gemini client initialized successfully
 2026-02-02 09:58:22,520 | INFO     | main | Google Gemini client initialized successfully
 2026-02-02 10:03:28,561 | INFO     | main | Google Gemini client initialized successfully
+2026-02-02 10:13:44,540 | INFO     | main | Google Gemini client initialized successfully
+2026-02-02 10:28:54,071 | INFO     | main | Enviando e-mail de alerta (absent) | host=smtp.office365.com port=587 tls=True ssl=False from=felipe.pires@nlfrutas.com.br recipients=['felipe.pires@nlfrutas.com.br', 'monica.moura@nlfrutas.com.br', 'suellen.silva@nlfrutas.com.br', 'maycon.pardini@nlfrutas.com.br', 'debora.diniz@nlfrutas.com.br', 'joao.costa@nlfrutas.com.br', 'wesley.gracas@nlfrutas.com.br', 'leane.castro@nlfrutas.com.br'] employee=JUNIO CARLOS LINO DE OLIVEIRA
+2026-02-02 10:28:57,411 | INFO     | main | E-mail de alerta (absent) enviado com sucesso para JUNIO CARLOS LINO DE OLIVEIRA.
+2026-02-02 10:36:04,222 | INFO     | main | Google Gemini client initialized successfully
+2026-02-02 10:41:25,853 | INFO     | main | Google Gemini client initialized successfully
+2026-02-02 10:42:15,505 | INFO     | main | Google Gemini client initialized successfully
+2026-02-02 11:00:12,093 | INFO     | main | Google Gemini client initialized successfully
+2026-02-02 11:02:36,873 | INFO     | main | Google Gemini client initialized successfully
+2026-02-02 11:03:25,425 | INFO     | main | Google Gemini client initialized successfully
+2026-02-02 11:06:01,314 | INFO     | main | Google Gemini client initialized successfully
+2026-02-02 11:06:55,603 | INFO     | main | Google Gemini client initialized successfully
+2026-02-02 11:09:14,777 | INFO     | main | Google Gemini client initialized successfully
+2026-02-02 13:22:47,981 | INFO     | main | Enviando e-mail de alerta (absent) | host=smtp.office365.com port=587 tls=True ssl=False from=felipe.pires@nlfrutas.com.br recipients=['felipe.pires@nlfrutas.com.br', 'monica.moura@nlfrutas.com.br', 'suellen.silva@nlfrutas.com.br', 'maycon.pardini@nlfrutas.com.br', 'debora.diniz@nlfrutas.com.br', 'joao.costa@nlfrutas.com.br', 'wesley.gracas@nlfrutas.com.br', 'leane.castro@nlfrutas.com.br'] employee=ADRIANO ALEIXO DA SILVA DE JESUS
+2026-02-02 13:22:52,344 | INFO     | main | E-mail de alerta (absent) enviado com sucesso para ADRIANO ALEIXO DA SILVA DE JESUS.
+2026-02-02 13:27:26,905 | INFO     | main | Google Gemini client initialized successfully
+2026-02-02 13:33:23,603 | INFO     | main | Google Gemini client initialized successfully
+2026-02-02 13:45:07,872 | ERROR    | main | Erro ao gerar relatório IA: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'Resource exhausted. Please try again later. Please refer to https://cloud.google.com/vertex-ai/generative-ai/docs/error-code-429 for more details.', 'status': 'RESOURCE_EXHAUSTED'}}
+2026-02-03 07:15:46,190 | INFO     | main | Enviando e-mail de alerta (absent) | host=smtp.office365.com port=587 tls=True ssl=False from=felipe.pires@nlfrutas.com.br recipients=['felipe.pires@nlfrutas.com.br', 'monica.moura@nlfrutas.com.br', 'suellen.silva@nlfrutas.com.br', 'maycon.pardini@nlfrutas.com.br', 'debora.diniz@nlfrutas.com.br', 'joao.costa@nlfrutas.com.br', 'wesley.gracas@nlfrutas.com.br', 'leane.castro@nlfrutas.com.br'] employee=ALEXSANDRO DOMINGOS DOS SANTOS
+2026-02-03 07:15:53,018 | INFO     | main | E-mail de alerta (absent) enviado com sucesso para ALEXSANDRO DOMINGOS DOS SANTOS.
+2026-02-03 07:16:28,492 | INFO     | main | Enviando e-mail de alerta (absent) | host=smtp.office365.com port=587 tls=True ssl=False from=felipe.pires@nlfrutas.com.br recipients=['felipe.pires@nlfrutas.com.br', 'monica.moura@nlfrutas.com.br', 'suellen.silva@nlfrutas.com.br', 'maycon.pardini@nlfrutas.com.br', 'debora.diniz@nlfrutas.com.br', 'joao.costa@nlfrutas.com.br', 'wesley.gracas@nlfrutas.com.br', 'leane.castro@nlfrutas.com.br'] employee=WAGNER OTAVIO AGANETTI COSTA DA SILVA
+2026-02-03 07:16:31,271 | INFO     | main | E-mail de alerta (absent) enviado com sucesso para WAGNER OTAVIO AGANETTI COSTA DA SILVA.
+2026-02-03 07:23:50,075 | INFO     | main | Enviando e-mail de alerta (sick) | host=smtp.office365.com port=587 tls=True ssl=False from=felipe.pires@nlfrutas.com.br recipients=['camila.cunha@nlfrutas.com.br', 'wesley.gracas@nlfrutas.com.br', 'monica.moura@nlfrutas.com.br', 'suellen.silva@nlfrutas.com.br'] employee=CLÉSIO SANTANA GONÇALVES
+2026-02-03 07:23:53,153 | INFO     | main | E-mail de alerta (sick) enviado com sucesso para CLÉSIO SANTANA GONÇALVES.
+2026-02-03 10:20:04,554 | INFO     | main | Google Gemini client initialized successfully

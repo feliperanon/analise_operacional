@@ -193,50 +193,52 @@ const Store = {
         let missing = 0;
         let dayoff = 0;
 
-        // Contar status baseado em rotinas (prioridade) ou status do employee
-        // APENAS para colaboradores ALOCADOS (consistência com Relatório)
+        // IDs de colaboradores alocados
         const allocatedEmpIds = Object.keys(allocations);
 
+        // Primeiro: Contar ausências de TODOS os colaboradores do turno (não apenas alocados)
+        // Isso garante que folgas, faltas, atestados sejam contados mesmo sem alocação
+        shiftEmps.forEach(emp => {
+            const empStatus = (emp.status || 'active').toLowerCase();
+            // Pular demitidos
+            if (empStatus === 'fired' || empStatus === 'demitido') return;
+
+            const routine = this.state.routines[emp.id];
+            const normalizedRoutine = routine ? routine.toLowerCase() : null;
+
+            // Contar ausências (folga, falta, atestado, férias, afastado)
+            if (normalizedRoutine === 'dayoff' || normalizedRoutine === 'folga') {
+                dayoff++;
+            } else if (normalizedRoutine === 'absent' || normalizedRoutine === 'falta') {
+                missing++;
+            } else if (normalizedRoutine === 'sick' || normalizedRoutine === 'atestado') {
+                sick++;
+            } else if (normalizedRoutine === 'vacation' || normalizedRoutine === 'férias' || normalizedRoutine === 'ferias' ||
+                       empStatus === 'vacation' || empStatus === 'férias' || empStatus === 'ferias') {
+                vacation++;
+            } else if (normalizedRoutine === 'away' || normalizedRoutine === 'afastado' ||
+                       empStatus === 'away' || empStatus === 'afastado') {
+                away++;
+            }
+        });
+
+        // Segundo: Contar presentes apenas dos ALOCADOS (quem está trabalhando)
         allocatedEmpIds.forEach(empId => {
             const emp = employees.find(e => e.id == empId);
             if (!emp) return;
 
-            // Se está alocado neste turno, conta (não filtra por turno do cadastro)
-            // A alocação já foi feita para este turno específico
+            const empStatus = (emp.status || 'active').toLowerCase();
+            if (empStatus === 'fired' || empStatus === 'demitido') return;
 
-            // Priorizar rotina do dia, depois status do employee
             const routine = this.state.routines[empId];
-            let status;
-            if (routine) {
-                status = routine;
-            } else if (emp.status && ['vacation', 'away', 'sick'].includes(emp.status.toLowerCase())) {
-                status = emp.status;
-            } else {
-                status = 'present';
-            }
-            const normalizedStatus = status.toLowerCase();
+            const normalizedRoutine = routine ? routine.toLowerCase() : null;
 
-            // Classificar por status
-            if (normalizedStatus === 'present' ||
-                (!routine && (normalizedStatus === 'active' || normalizedStatus === 'ativo'))) {
+            // Se não tem rotina de ausência, é presente (está alocado e trabalhando)
+            const isAbsent = normalizedRoutine && 
+                ['dayoff', 'folga', 'absent', 'falta', 'sick', 'atestado', 'vacation', 'férias', 'ferias', 'away', 'afastado'].includes(normalizedRoutine);
+            
+            if (!isAbsent) {
                 present++;
-            } else if (normalizedStatus === 'sick' || normalizedStatus === 'atestado') {
-                sick++;
-            } else if (normalizedStatus === 'vacation' || normalizedStatus === 'férias' || normalizedStatus === 'ferias') {
-                vacation++;
-            } else if (normalizedStatus === 'away' || normalizedStatus === 'afastado') {
-                away++;
-            } else if (normalizedStatus === 'absent' || normalizedStatus === 'falta') {
-                missing++;
-            } else if (normalizedStatus === 'dayoff' || normalizedStatus === 'folga') {
-                dayoff++;
-            } else if (normalizedStatus === 'fired' || normalizedStatus === 'demitido') {
-                // Demitido - não conta
-            } else {
-                // Default: presente se não tiver rotina especial
-                if (!routine) {
-                    present++;
-                }
             }
         });
 

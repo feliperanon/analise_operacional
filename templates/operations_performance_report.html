@@ -1,0 +1,1791 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- ========================================
+     VERSÃO PARA IMPRESSÃO (PDF) - COMPLETA
+     ======================================== -->
+<div class="print-version" style="padding: 0; margin: 0; font-family: 'Segoe UI', Arial, sans-serif; font-size: 10px; color: #111;">
+    
+    <!-- ==================== PÁGINA 1 ==================== -->
+    <div class="print-page" style="page-break-after: always;">
+        
+        <!-- Cabeçalho -->
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #dc2626; padding-bottom: 6px; margin-bottom: 10px;">
+            <div>
+                <h1 style="font-size: 16px; font-weight: bold; color: #111; margin: 0;">RELATÓRIO DE PERFORMANCE OPERACIONAL</h1>
+                <p style="font-size: 9px; color: #666; margin: 2px 0 0 0;">Colaboradores com acesso ao App de Separação de Mercadorias</p>
+            </div>
+            <div style="text-align: right; font-size: 8px; color: #666;">
+                <p style="margin: 0;"><strong>Período:</strong> {{ period_range_label }} ({{ period_label }})</p>
+                <p style="margin: 0;"><strong>Turno:</strong> {{ shift }} | <strong>Gerado:</strong> {{ generated_at }}</p>
+            </div>
+        </div>
+        
+        <!-- KPIs em linha única compacta -->
+        <div style="display: flex; gap: 6px; margin-bottom: 10px;">
+            <div style="flex: 1; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 4px; padding: 6px; text-align: center;">
+                <p style="font-size: 7px; color: #64748b; margin: 0; text-transform: uppercase; font-weight: bold;">Headcount</p>
+                <p style="font-size: 14px; font-weight: bold; color: #0284c7; margin: 2px 0 0 0;">{{ overview.headcount }}</p>
+            </div>
+            <div style="flex: 1; background: #fef2f2; border: 1px solid #fecaca; border-radius: 4px; padding: 6px; text-align: center;">
+                <p style="font-size: 7px; color: #64748b; margin: 0; text-transform: uppercase; font-weight: bold;">Faltas</p>
+                <p style="font-size: 14px; font-weight: bold; color: #dc2626; margin: 2px 0 0 0;">{{ overview.total_absences|default(0) }}</p>
+            </div>
+            <div style="flex: 1; background: #fffbeb; border: 1px solid #fde68a; border-radius: 4px; padding: 6px; text-align: center;">
+                <p style="font-size: 7px; color: #64748b; margin: 0; text-transform: uppercase; font-weight: bold;">Atestados</p>
+                <p style="font-size: 14px; font-weight: bold; color: #d97706; margin: 2px 0 0 0;">{{ overview.total_sick|default(0) }}</p>
+            </div>
+            <div style="flex: 1; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 4px; padding: 6px; text-align: center;">
+                <p style="font-size: 7px; color: #64748b; margin: 0; text-transform: uppercase; font-weight: bold;">Advertências</p>
+                <p style="font-size: 14px; font-weight: bold; color: #7c3aed; margin: 2px 0 0 0;">{{ overview.total_warnings|default(0) }}</p>
+            </div>
+            <div style="flex: 1; background: #ecfeff; border: 1px solid #a5f3fc; border-radius: 4px; padding: 6px; text-align: center;">
+                <p style="font-size: 7px; color: #64748b; margin: 0; text-transform: uppercase; font-weight: bold;">Média Kg/h</p>
+                <p style="font-size: 14px; font-weight: bold; color: #0891b2; margin: 2px 0 0 0;">{{ overview.avg_kgh }}</p>
+            </div>
+            <div style="flex: 1; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 4px; padding: 6px; text-align: center;">
+                <p style="font-size: 7px; color: #64748b; margin: 0; text-transform: uppercase; font-weight: bold;">Presença</p>
+                <p style="font-size: 14px; font-weight: bold; color: #16a34a; margin: 2px 0 0 0;">{{ overview.presence_rate }}%</p>
+            </div>
+            <div style="flex: 1; background: {% if overview.correlation and '-' in (overview.correlation|string) %}#f0fdf4{% else %}#fef2f2{% endif %}; border: 1px solid {% if overview.correlation and '-' in (overview.correlation|string) %}#bbf7d0{% else %}#fecaca{% endif %}; border-radius: 4px; padding: 6px; text-align: center;">
+                <p style="font-size: 7px; color: #64748b; margin: 0; text-transform: uppercase; font-weight: bold;">Correlação</p>
+                <p style="font-size: 14px; font-weight: bold; color: {% if overview.correlation and '-' in (overview.correlation|string) %}#16a34a{% else %}#dc2626{% endif %}; margin: 2px 0 0 0;">{{ overview.correlation }}</p>
+            </div>
+        </div>
+        
+        <!-- DIAGNÓSTICO OPERACIONAL AUTOMÁTICO -->
+        {% if impact_analysis.diagnostics %}
+        <div style="border: 2px solid #dc2626; border-radius: 6px; margin-bottom: 10px; overflow: hidden;">
+            <div style="background: #dc2626; color: white; padding: 5px 10px;">
+                <strong style="font-size: 10px;">⚠️ DIAGNÓSTICO OPERACIONAL AUTOMÁTICO ({{ impact_analysis.diagnostics|length }} alertas)</strong>
+            </div>
+            <div style="padding: 8px; background: #fef2f2;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 8px;">
+                    {% for diag in impact_analysis.diagnostics %}
+                    <tr style="{% if diag.type == 'critical' %}background: #fee2e2;{% elif diag.type == 'warning' %}background: #fef3c7;{% endif %} border-bottom: 1px solid #fecaca;">
+                        <td style="padding: 4px; width: 24px; text-align: center; font-size: 12px;">{{ diag.icon }}</td>
+                        <td style="padding: 4px;">
+                            <strong style="color: {% if diag.type == 'critical' %}#dc2626{% elif diag.type == 'warning' %}#d97706{% else %}#0891b2{% endif %};">{{ diag.title }}</strong><br>
+                            <span style="color: #64748b;">{{ diag.description }}</span>
+                        </td>
+                        <td style="padding: 4px; text-align: right; color: #991b1b; font-weight: 500; white-space: nowrap;">
+                            {{ diag.impact }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- PROVA DE IMPACTO: AUSÊNCIAS VS PRODUTIVIDADE -->
+        <div style="border: 1px solid #7c3aed; border-radius: 6px; margin-bottom: 10px; overflow: hidden;">
+            <div style="background: #7c3aed; color: white; padding: 5px 10px;">
+                <strong style="font-size: 10px;">📊 PROVA DE IMPACTO: AUSÊNCIAS VS PRODUTIVIDADE</strong>
+            </div>
+            <div style="padding: 10px; display: flex; gap: 12px; align-items: center;">
+                <div style="flex: 1; background: #fef2f2; padding: 10px; border-radius: 6px; text-align: center; border: 2px solid #fecaca;">
+                    <p style="margin: 0; font-size: 8px; color: #666; text-transform: uppercase;">Com Ausências</p>
+                    <p style="margin: 4px 0 0 0; font-size: 20px; font-weight: bold; color: #dc2626;">{{ overview.avg_kgh_with_absences }} kg/h</p>
+                </div>
+                <div style="font-size: 24px; color: #64748b;">→</div>
+                <div style="flex: 1; background: #f0fdf4; padding: 10px; border-radius: 6px; text-align: center; border: 2px solid #bbf7d0;">
+                    <p style="margin: 0; font-size: 8px; color: #666; text-transform: uppercase;">Sem Ausências</p>
+                    <p style="margin: 4px 0 0 0; font-size: 20px; font-weight: bold; color: #16a34a;">{{ overview.avg_kgh_without_absences }} kg/h</p>
+                </div>
+                <div style="flex: 1; background: #1e293b; padding: 10px; border-radius: 6px; text-align: center;">
+                    <p style="margin: 0; font-size: 8px; color: #94a3b8; text-transform: uppercase;">Diferença</p>
+                    <p style="margin: 4px 0 0 0; font-size: 20px; font-weight: bold; color: #f97316;">{{ overview.productivity_diff }}%</p>
+                    <p style="margin: 2px 0 0 0; font-size: 7px; color: #94a3b8;">menos produtivo</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- EVOLUÇÃO DIÁRIA: AUSÊNCIAS VS PRODUTIVIDADE -->
+        <div style="border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 10px; overflow: hidden;">
+            <div style="background: #1e293b; color: white; padding: 5px 10px; display: flex; justify-content: space-between;">
+                <strong style="font-size: 10px;">📅 EVOLUÇÃO DIÁRIA: AUSÊNCIAS VS PRODUTIVIDADE</strong>
+                <span style="font-size: 8px; color: #94a3b8;">{{ impact_analysis.daily_analysis|length }} dias</span>
+            </div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 8px;">
+                <thead>
+                    <tr style="background: #f1f5f9;">
+                        <th style="padding: 4px; text-align: left; border-bottom: 1px solid #e2e8f0;">Data</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0;">M.Obra</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0; color: #dc2626;">Faltas</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0; color: #d97706;">Atest.</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0; color: #f97316;">Total</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0; color: #0891b2;">Kg/h</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0;">Tonelagem</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0;">Rotas</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for day in impact_analysis.daily_analysis %}
+                    <tr style="{% if day.absences >= 3 and day.kgh < overview.avg_kgh %}background: #fef2f2;{% elif day.absences >= 2 %}background: #fffbeb;{% elif loop.index is odd %}background: #fafafa;{% endif %}">
+                        <td style="padding: 3px 4px; border-bottom: 1px solid #f1f5f9; font-weight: 600;">{{ day.date_formatted }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9;">{{ day.workforce_available }}/{{ overview.headcount }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9; color: #dc2626; font-weight: bold;">{{ day.faltas }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9; color: #d97706; font-weight: bold;">{{ day.atestados }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9; font-weight: bold; {% if day.absences >= 3 %}color: #dc2626;{% elif day.absences >= 2 %}color: #d97706;{% endif %}">{{ day.absences }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9; font-weight: bold; {% if day.kgh >= overview.avg_kgh %}color: #16a34a;{% else %}color: #dc2626;{% endif %}">{{ day.kgh }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9;">{{ "{:,.0f}".format(day.tonnage).replace(",", ".") }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9;">{{ day.routes }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9;">
+                            {% if day.absences >= 3 and day.kgh < overview.avg_kgh %}
+                            <span style="background: #dc2626; color: white; padding: 1px 4px; border-radius: 2px; font-size: 7px; font-weight: bold;">CRÍTICO</span>
+                            {% elif day.absences >= 2 and day.kgh < overview.avg_kgh %}
+                            <span style="background: #d97706; color: white; padding: 1px 4px; border-radius: 2px; font-size: 7px; font-weight: bold;">IMPACTO</span>
+                            {% elif day.kgh < overview.avg_kgh %}
+                            <span style="background: #f97316; color: white; padding: 1px 4px; border-radius: 2px; font-size: 7px; font-weight: bold;">BAIXO</span>
+                            {% else %}
+                            <span style="background: #16a34a; color: white; padding: 1px 4px; border-radius: 2px; font-size: 7px; font-weight: bold;">OK</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Rodapé página 1 -->
+        <div style="text-align: center; font-size: 7px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 4px;">
+            Página 1/2 | Sistema de Análise Operacional | {{ generated_at }}
+        </div>
+    </div>
+    
+    <!-- ==================== PÁGINA 2 ==================== -->
+    <div class="print-page">
+        
+        <!-- Cabeçalho página 2 -->
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #dc2626; padding-bottom: 6px; margin-bottom: 10px;">
+            <div>
+                <h1 style="font-size: 14px; font-weight: bold; color: #111; margin: 0;">RELATÓRIO DE PERFORMANCE - RANKINGS</h1>
+                <p style="font-size: 9px; color: #666; margin: 0;">{{ period_range_label }} | {{ shift }}</p>
+            </div>
+        </div>
+        
+        <!-- TOP 15 PIORES COLABORADORES (SCORE NEGATIVO) -->
+        <div style="border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 10px; overflow: hidden;">
+            <div style="background: #dc2626; color: white; padding: 5px 10px;">
+                <strong style="font-size: 10px;">🚨 TOP 15 - PIORES COLABORADORES (SCORE DE RISCO)</strong>
+            </div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 8px;">
+                <thead>
+                    <tr style="background: #f1f5f9;">
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0; width: 25px;">#</th>
+                        <th style="padding: 4px; text-align: left; border-bottom: 1px solid #e2e8f0;">Colaborador</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0; color: #dc2626;">Faltas</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0; color: #d97706;">Atest.</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0; color: #7c3aed;">Advert.</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0; color: #0891b2;">Kg/h</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0;">Tonelagem</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0;">Rotas</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0;">Aprov.</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0; color: #e11d48;">Score</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in employees_ranking[:15] %}
+                    <tr style="{% if item.risk_score >= 10 %}background: #fef2f2;{% elif item.risk_score >= 5 %}background: #fffbeb;{% elif loop.index is odd %}background: #fafafa;{% endif %}">
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9; font-weight: bold;">{{ loop.index }}</td>
+                        <td style="padding: 3px 4px; border-bottom: 1px solid #f1f5f9; font-weight: 600;">{{ item.name[:25] }}{% if item.name|length > 25 %}...{% endif %}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9; color: #dc2626; font-weight: bold;">{{ item.falta }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9; color: #d97706; font-weight: bold;">{{ item.atestado }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9; color: #7c3aed; font-weight: bold;">{{ item.advertencia }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9; font-weight: bold; {% if item.kgh >= overview.avg_kgh %}color: #16a34a;{% elif item.kgh > 0 %}color: #dc2626;{% endif %}">{{ item.kgh }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9;">{{ "{:,.0f}".format(item.total_tonnage).replace(",", ".") if item.total_tonnage else '-' }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9;">{{ item.route_count if item.route_count else '-' }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9;">{{ item.utilization_rate }}%</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9; font-weight: bold; {% if item.risk_score >= 10 %}color: #dc2626;{% elif item.risk_score >= 5 %}color: #d97706;{% else %}color: #16a34a;{% endif %}">{{ item.risk_score|round(1) }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9;">
+                            {% if item.risk_score >= 10 %}
+                            <span style="background: #dc2626; color: white; padding: 1px 4px; border-radius: 2px; font-size: 7px;">CRÍTICO</span>
+                            {% elif item.risk_score >= 5 %}
+                            <span style="background: #d97706; color: white; padding: 1px 4px; border-radius: 2px; font-size: 7px;">ALERTA</span>
+                            {% else %}
+                            <span style="background: #16a34a; color: white; padding: 1px 4px; border-radius: 2px; font-size: 7px;">ATENÇÃO</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- RANKING DE PRODUTIVIDADE (Kg/h) - Colaboradores com Rotas -->
+        <div style="border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 10px; overflow: hidden;">
+            <div style="background: #0891b2; color: white; padding: 5px 10px; display: flex; justify-content: space-between;">
+                <strong style="font-size: 10px;">⚡ RANKING DE PRODUTIVIDADE (Kg/h) - COLABORADORES COM ROTAS</strong>
+                <span style="font-size: 8px;">Média: {{ overview.avg_kgh }} kg/h</span>
+            </div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 8px;">
+                <thead>
+                    <tr style="background: #f1f5f9;">
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0; width: 25px;">#</th>
+                        <th style="padding: 4px; text-align: left; border-bottom: 1px solid #e2e8f0;">Colaborador</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0; color: #0891b2;">Kg/h</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0;">Barra Visual</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0;">Tonelagem</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0;">Rotas</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0;">Horas</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0;">vs Média</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set kgh_employees = employees_ranking|selectattr('kgh', 'gt', 0)|list|sort(attribute='kgh', reverse=true) %}
+                    {% set max_kgh = kgh_employees[0].kgh if kgh_employees else 1 %}
+                    {% for item in kgh_employees[:15] %}
+                    {% set bar_width = (item.kgh / max_kgh * 100)|round %}
+                    {% set vs_avg = ((item.kgh - overview.avg_kgh) / overview.avg_kgh * 100)|round if overview.avg_kgh > 0 else 0 %}
+                    <tr style="{% if item.kgh < overview.avg_kgh %}background: #fef2f2;{% elif loop.index is odd %}background: #fafafa;{% endif %}">
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9; font-weight: bold;">{{ loop.index }}</td>
+                        <td style="padding: 3px 4px; border-bottom: 1px solid #f1f5f9; font-weight: 600;">{{ item.name[:22] }}{% if item.name|length > 22 %}...{% endif %}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #0891b2;">{{ item.kgh }}</td>
+                        <td style="padding: 3px 4px; border-bottom: 1px solid #f1f5f9;">
+                            <div style="background: #e2e8f0; border-radius: 2px; height: 10px; width: 100%;">
+                                <div style="background: {% if item.kgh >= overview.avg_kgh %}#16a34a{% else %}#dc2626{% endif %}; height: 100%; width: {{ bar_width }}%; border-radius: 2px;"></div>
+                            </div>
+                        </td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9;">{{ "{:,.0f}".format(item.total_tonnage).replace(",", ".") if item.total_tonnage else '-' }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9;">{{ item.route_count if item.route_count else '-' }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9;">{{ item.total_hours if item.total_hours else '-' }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9; font-weight: bold; {% if vs_avg >= 0 %}color: #16a34a;{% else %}color: #dc2626;{% endif %}">
+                            {% if vs_avg >= 0 %}+{% endif %}{{ vs_avg }}%
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- MAPA DE RISCO POR SETOR -->
+        <div style="border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden;">
+            <div style="background: #1e293b; color: white; padding: 5px 10px;">
+                <strong style="font-size: 10px;">🏢 MAPA DE RISCO POR SETOR</strong>
+            </div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 8px;">
+                <thead>
+                    <tr style="background: #f1f5f9;">
+                        <th style="padding: 4px; text-align: left; border-bottom: 1px solid #e2e8f0;">Setor</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0;">Headcount</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0; color: #dc2626;">Faltas</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0; color: #d97706;">Atestados</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0; color: #7c3aed;">Advertências</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0;">Índice Risco</th>
+                        <th style="padding: 4px; text-align: center; border-bottom: 1px solid #e2e8f0;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sec in sectors %}
+                    <tr style="{% if sec.risk_index > 2 %}background: #fef2f2;{% elif sec.risk_index > 1 %}background: #fffbeb;{% elif loop.index is odd %}background: #fafafa;{% endif %}">
+                        <td style="padding: 3px 4px; border-bottom: 1px solid #f1f5f9; font-weight: 600;">{{ sec.name }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9;">{{ sec.headcount }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9; color: #dc2626; font-weight: bold;">{{ sec.falta }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9; color: #d97706; font-weight: bold;">{{ sec.atestado }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9; color: #7c3aed; font-weight: bold;">{{ sec.advertencia if sec.advertencia else 0 }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9; font-weight: bold; {% if sec.risk_index > 2 %}color: #dc2626;{% elif sec.risk_index > 1 %}color: #d97706;{% else %}color: #16a34a;{% endif %}">{{ sec.risk_index }}</td>
+                        <td style="padding: 3px 4px; text-align: center; border-bottom: 1px solid #f1f5f9;">
+                            {% if sec.risk_index > 2 %}
+                            <span style="background: #dc2626; color: white; padding: 1px 4px; border-radius: 2px; font-size: 7px;">CRÍTICO</span>
+                            {% elif sec.risk_index > 1 %}
+                            <span style="background: #d97706; color: white; padding: 1px 4px; border-radius: 2px; font-size: 7px;">ALERTA</span>
+                            {% else %}
+                            <span style="background: #16a34a; color: white; padding: 1px 4px; border-radius: 2px; font-size: 7px;">OK</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Rodapé página 2 -->
+        <div style="margin-top: 8px; text-align: center; font-size: 7px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 4px;">
+            Página 2/2 | Sistema de Análise Operacional | {{ generated_at }}
+        </div>
+    </div>
+</div>
+
+<!-- ========================================
+     VERSÃO PARA TELA (Web)
+     ======================================== -->
+<div class="screen-version min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8" x-data="performanceReportController()">
+    <div class="max-w-7xl mx-auto space-y-6">
+        
+        <!-- HEADER PRINCIPAL -->
+        <header class="relative print:mb-4">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center shadow-lg shadow-red-500/20 print:hidden">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h1 class="text-2xl md:text-3xl font-bold text-white print:text-black">Relatório de Performance</h1>
+                            <p class="text-sm text-slate-400 print:text-gray-600">Colaboradores com acesso ao App de Separação de Mercadorias</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-3 print:hidden">
+                    <!-- Botão Preview PDF -->
+                    <button onclick="togglePrintPreview()" id="previewBtn" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white transition-all">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                        <span class="text-sm font-semibold">Preview PDF</span>
+                    </button>
+                    
+                    <!-- Botão Imprimir -->
+                    <button onclick="window.print()" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-all">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                        </svg>
+                        <span class="text-sm font-semibold">Imprimir</span>
+                    </button>
+                    
+                    <!-- Botão Filtros -->
+                    <button @click="showFilters = !showFilters" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition-all">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+                        </svg>
+                        <span class="text-sm font-semibold">Filtros</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Resumo do Período -->
+            <div class="mt-4 flex flex-wrap items-center gap-2 print:mt-2">
+                <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700 print:bg-gray-100 print:border-gray-300">
+                    <svg class="w-4 h-4 text-slate-400 print:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <span class="text-sm text-white font-medium print:text-black">{{ period_range_label }}</span>
+                    <span class="text-xs text-slate-500 print:text-gray-500">({{ period_label }})</span>
+                </div>
+                <div class="flex items-center gap-1 text-xs">
+                    <span class="px-2 py-1 rounded-md bg-slate-800/40 text-slate-300 border border-slate-700/50 print:bg-gray-100 print:text-gray-700 print:border-gray-300">{{ shift }}</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- PAINEL DE FILTROS -->
+        <form x-show="showFilters" x-cloak x-transition
+              class="bg-gradient-to-b from-slate-800/80 to-slate-800/40 border border-slate-700 rounded-2xl overflow-hidden print:hidden" 
+              method="get" action="/operations/performance/analysis">
+            
+            <div class="p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                        </svg>
+                        Filtrar Relatório
+                    </h3>
+                </div>
+                
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <!-- Período -->
+                    <div>
+                        <label class="block text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-1.5">Período</label>
+                        <select name="period" class="w-full rounded-lg bg-slate-900/80 border border-slate-600 px-3 py-2 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
+                            <option value="daily" {{ 'selected' if period == 'daily' else '' }}>Diário</option>
+                            <option value="weekly" {{ 'selected' if period == 'weekly' else '' }}>Semanal</option>
+                            <option value="monthly" {{ 'selected' if period == 'monthly' else '' }}>Mensal</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Data -->
+                    <div>
+                        <label class="block text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-1.5">Data Base</label>
+                        <input type="date" name="date" value="{{ date }}" 
+                               class="w-full rounded-lg bg-slate-900/80 border border-slate-600 px-3 py-2 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
+                    </div>
+                    
+                    <!-- Turno -->
+                    <div>
+                        <label class="block text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-1.5">Turno</label>
+                        <select name="shift" class="w-full rounded-lg bg-slate-900/80 border border-slate-600 px-3 py-2 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
+                            {% for opt in ['Todos','Manhã','Tarde','Noite'] %}
+                            <option value="{{ opt }}" {{ 'selected' if shift == opt else '' }}>{{ opt }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Limite -->
+                    <div>
+                        <label class="block text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-1.5">Exibir Top</label>
+                        <select name="limit" class="w-full rounded-lg bg-slate-900/80 border border-slate-600 px-3 py-2 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
+                            <option value="10" {{ 'selected' if limit == 10 else '' }}>Top 10</option>
+                            <option value="20" {{ 'selected' if limit == 20 else '' }}>Top 20</option>
+                            <option value="50" {{ 'selected' if limit == 50 else '' }}>Top 50</option>
+                            <option value="100" {{ 'selected' if limit == 100 else '' }}>Todos</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex items-center justify-between px-5 py-3 bg-slate-900/30 border-t border-slate-700/50">
+                <a href="/operations/performance/report" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    Limpar filtros
+                </a>
+                <button type="submit" class="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    Aplicar Filtros
+                </button>
+            </div>
+        </form>
+
+        <!-- KPIs PRINCIPAIS -->
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 print:gap-2 print:grid-cols-6">
+            <!-- Headcount -->
+            <div class="bg-gradient-to-br from-slate-800 to-slate-800/50 rounded-xl p-4 border border-slate-700 print:bg-gray-50 print:border-gray-200">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </div>
+                    <span class="text-[10px] uppercase tracking-wider font-bold text-slate-500 print:text-gray-500">Headcount</span>
+                </div>
+                <p class="text-2xl font-bold text-white print:text-black">{{ overview.headcount }}</p>
+            </div>
+            
+            <!-- Faltas -->
+            <div class="bg-gradient-to-br from-red-900/30 to-slate-800/50 rounded-xl p-4 border border-red-500/30 print:bg-red-50 print:border-red-200">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </div>
+                    <span class="text-[10px] uppercase tracking-wider font-bold text-red-400 print:text-red-600">Faltas</span>
+                </div>
+                <p class="text-2xl font-bold text-red-400 print:text-red-600">{{ overview.total_absences }}</p>
+            </div>
+            
+            <!-- Atestados -->
+            <div class="bg-gradient-to-br from-amber-900/30 to-slate-800/50 rounded-xl p-4 border border-amber-500/30 print:bg-amber-50 print:border-amber-200">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                    </div>
+                    <span class="text-[10px] uppercase tracking-wider font-bold text-amber-400 print:text-amber-600">Atestados</span>
+                </div>
+                <p class="text-2xl font-bold text-amber-400 print:text-amber-600">{{ overview.total_sick }}</p>
+            </div>
+            
+            <!-- Advertências -->
+            <div class="bg-gradient-to-br from-purple-900/30 to-slate-800/50 rounded-xl p-4 border border-purple-500/30 print:bg-purple-50 print:border-purple-200">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                    </div>
+                    <span class="text-[10px] uppercase tracking-wider font-bold text-purple-400 print:text-purple-600">Advertências</span>
+                </div>
+                <p class="text-2xl font-bold text-purple-400 print:text-purple-600">{{ overview.total_warnings }}</p>
+            </div>
+            
+            <!-- Taxa de Presença -->
+            <div class="bg-gradient-to-br from-emerald-900/30 to-slate-800/50 rounded-xl p-4 border border-emerald-500/30 print:bg-emerald-50 print:border-emerald-200">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <span class="text-[10px] uppercase tracking-wider font-bold text-emerald-400 print:text-emerald-600">Presença</span>
+                </div>
+                <p class="text-2xl font-bold text-emerald-400 print:text-emerald-600">{{ overview.presence_rate }}%</p>
+            </div>
+            
+            <!-- Ofensores Críticos -->
+            <div class="bg-gradient-to-br from-rose-900/30 to-slate-800/50 rounded-xl p-4 border border-rose-500/30 print:bg-rose-50 print:border-rose-200">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="w-8 h-8 rounded-lg bg-rose-500/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <span class="text-[10px] uppercase tracking-wider font-bold text-rose-400 print:text-rose-600">Críticos</span>
+                </div>
+                <p class="text-2xl font-bold text-rose-400 print:text-rose-600">{{ overview.critical_count }}</p>
+            </div>
+        </div>
+        
+        <!-- KPIs DE ROTAS -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 print:gap-2">
+            <!-- Média Kg/h -->
+            <div class="bg-gradient-to-br from-cyan-900/30 to-slate-800/50 rounded-xl p-4 border border-cyan-500/30 print:bg-cyan-50 print:border-cyan-200">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                    <span class="text-[10px] uppercase tracking-wider font-bold text-cyan-400 print:text-cyan-600">Média Kg/h</span>
+                </div>
+                <p class="text-2xl font-bold text-cyan-400 print:text-cyan-600">{{ overview.avg_kgh }} <span class="text-sm font-normal">kg/h</span></p>
+            </div>
+            
+            <!-- Total de Rotas -->
+            <div class="bg-gradient-to-br from-indigo-900/30 to-slate-800/50 rounded-xl p-4 border border-indigo-500/30 print:bg-indigo-50 print:border-indigo-200">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
+                        </svg>
+                    </div>
+                    <span class="text-[10px] uppercase tracking-wider font-bold text-indigo-400 print:text-indigo-600">Total Rotas</span>
+                </div>
+                <p class="text-2xl font-bold text-indigo-400 print:text-indigo-600">{{ overview.total_routes }}</p>
+            </div>
+            
+            <!-- Colaboradores com Rotas -->
+            <div class="bg-gradient-to-br from-teal-900/30 to-slate-800/50 rounded-xl p-4 border border-teal-500/30 print:bg-teal-50 print:border-teal-200">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="w-8 h-8 rounded-lg bg-teal-500/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </div>
+                    <span class="text-[10px] uppercase tracking-wider font-bold text-teal-400 print:text-teal-600">Com Rotas</span>
+                </div>
+                <p class="text-2xl font-bold text-teal-400 print:text-teal-600">{{ overview.employees_with_routes }}</p>
+            </div>
+        </div>
+        
+        <!-- ============================================== -->
+        <!-- SEÇÃO DE DIAGNÓSTICO E ANÁLISE DE IMPACTO -->
+        <!-- ============================================== -->
+        
+        <!-- DIAGNÓSTICOS AUTOMÁTICOS (escondidos na impressão) -->
+        {% if impact_analysis.diagnostics %}
+        <div class="bg-gradient-to-br from-slate-800 to-slate-800/50 rounded-xl p-5 border border-slate-700">
+            <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2 print:text-black">
+                <svg class="w-5 h-5 text-orange-400 print:text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                </svg>
+                Diagnóstico Operacional Automático
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for diag in impact_analysis.diagnostics %}
+                <div class="p-4 rounded-xl border
+                    {% if diag.type == 'critical' %}bg-red-900/30 border-red-500/50 print:bg-red-50 print:border-red-300
+                    {% elif diag.type == 'warning' %}bg-amber-900/30 border-amber-500/50 print:bg-amber-50 print:border-amber-300
+                    {% else %}bg-blue-900/30 border-blue-500/50 print:bg-blue-50 print:border-blue-300{% endif %}">
+                    <div class="flex items-start gap-3">
+                        <span class="text-2xl">{{ diag.icon }}</span>
+                        <div class="flex-1">
+                            <h4 class="font-bold text-white print:text-black text-sm">{{ diag.title }}</h4>
+                            <p class="text-slate-300 print:text-gray-600 text-xs mt-1">{{ diag.description }}</p>
+                            <p class="text-xs mt-2 font-semibold
+                                {% if diag.type == 'critical' %}text-red-400 print:text-red-600
+                                {% elif diag.type == 'warning' %}text-amber-400 print:text-amber-600
+                                {% else %}text-blue-400 print:text-blue-600{% endif %}">
+                                Impacto: {{ diag.impact }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- KPIs DE IMPACTO -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 print:gap-2">
+            <!-- Taxa de Absenteísmo -->
+            <div class="bg-gradient-to-br from-rose-900/30 to-slate-800/50 rounded-xl p-4 border border-rose-500/30 print:bg-rose-50 print:border-rose-200">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="w-8 h-8 rounded-lg bg-rose-500/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/>
+                        </svg>
+                    </div>
+                    <span class="text-[10px] uppercase tracking-wider font-bold text-rose-400 print:text-rose-600">Absenteísmo</span>
+                </div>
+                <p class="text-2xl font-bold text-rose-400 print:text-rose-600">{{ overview.absenteeism_rate }}%</p>
+                <p class="text-[10px] text-slate-500 mt-1">Meta: &lt; 5%</p>
+            </div>
+            
+            <!-- Homens/Hora Perdidos -->
+            <div class="bg-gradient-to-br from-orange-900/30 to-slate-800/50 rounded-xl p-4 border border-orange-500/30 print:bg-orange-50 print:border-orange-200">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <span class="text-[10px] uppercase tracking-wider font-bold text-orange-400 print:text-orange-600">H/H Perdidas</span>
+                </div>
+                <p class="text-2xl font-bold text-orange-400 print:text-orange-600">{{ overview.man_hours_lost }}h</p>
+                <p class="text-[10px] text-slate-500 mt-1">{{ overview.man_days_lost }} dias-homem</p>
+            </div>
+            
+            <!-- Tonelagem Perdida -->
+            <div class="bg-gradient-to-br from-pink-900/30 to-slate-800/50 rounded-xl p-4 border border-pink-500/30 print:bg-pink-50 print:border-pink-200">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="w-8 h-8 rounded-lg bg-pink-500/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                        </svg>
+                    </div>
+                    <span class="text-[10px] uppercase tracking-wider font-bold text-pink-400 print:text-pink-600">Ton. Perdida</span>
+                </div>
+                <p class="text-2xl font-bold text-pink-400 print:text-pink-600">{{ overview.estimated_tonnage_lost }}t</p>
+                <p class="text-[10px] text-slate-500 mt-1">Estimativa de perda</p>
+            </div>
+            
+            <!-- Correlação -->
+            <div class="bg-gradient-to-br from-violet-900/30 to-slate-800/50 rounded-xl p-4 border border-violet-500/30 print:bg-violet-50 print:border-violet-200">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+                        </svg>
+                    </div>
+                    <span class="text-[10px] uppercase tracking-wider font-bold text-violet-400 print:text-violet-600">Correlação</span>
+                </div>
+                <p class="text-2xl font-bold 
+                    {% if overview.correlation < -0.3 %}text-red-400 print:text-red-600
+                    {% elif overview.correlation < 0 %}text-amber-400 print:text-amber-600
+                    {% else %}text-emerald-400 print:text-emerald-600{% endif %}">
+                    {{ overview.correlation }}
+                </p>
+                <p class="text-[10px] text-slate-500 mt-1">
+                    {% if overview.correlation < -0.3 %}Forte negativa{% elif overview.correlation < 0 %}Negativa{% else %}Sem correlação{% endif %}
+                </p>
+            </div>
+        </div>
+        
+        <!-- COMPARATIVO: COM AUSÊNCIAS VS SEM AUSÊNCIAS (escondido na impressão) -->
+        <div class="bg-gradient-to-br from-slate-800 to-slate-800/50 rounded-xl p-5 border border-slate-700">
+            <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2 print:text-black">
+                <svg class="w-5 h-5 text-violet-400 print:text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5"/>
+                </svg>
+                Prova de Impacto: Ausências vs Produtividade
+            </h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Colaboradores SEM ausências -->
+                <div class="bg-gradient-to-br from-emerald-900/40 to-slate-800/60 rounded-xl p-5 border border-emerald-500/40">
+                    <div class="text-center">
+                        <p class="text-[10px] uppercase tracking-wider font-bold text-emerald-400 mb-2">Sem Ausências</p>
+                        <p class="text-4xl font-bold text-emerald-400">{{ overview.avg_kgh_without_absences }}</p>
+                        <p class="text-sm text-emerald-300/70">kg/h média</p>
+                        <p class="text-xs text-slate-500 mt-2">{{ overview.employees_without_absences }} colaboradores</p>
+                    </div>
+                </div>
+                
+                <!-- Diferença -->
+                <div class="flex items-center justify-center">
+                    <div class="text-center">
+                        <div class="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center mb-2">
+                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/>
+                            </svg>
+                        </div>
+                        <p class="text-3xl font-bold text-red-400">
+                            {% if overview.productivity_diff > 0 %}+{% endif %}{{ overview.productivity_diff }}%
+                        </p>
+                        <p class="text-xs text-slate-400">diferença de produtividade</p>
+                    </div>
+                </div>
+                
+                <!-- Colaboradores COM ausências -->
+                <div class="bg-gradient-to-br from-red-900/40 to-slate-800/60 rounded-xl p-5 border border-red-500/40">
+                    <div class="text-center">
+                        <p class="text-[10px] uppercase tracking-wider font-bold text-red-400 mb-2">Com Ausências</p>
+                        <p class="text-4xl font-bold text-red-400">{{ overview.avg_kgh_with_absences }}</p>
+                        <p class="text-sm text-red-300/70">kg/h média</p>
+                        <p class="text-xs text-slate-500 mt-2">{{ overview.employees_with_absences }} colaboradores</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700 print:bg-gray-100 print:border-gray-300">
+                <p class="text-sm text-slate-300 print:text-gray-700">
+                    <strong class="text-white print:text-black">Conclusão:</strong> 
+                    {% if overview.productivity_diff > 0 %}
+                    Colaboradores <span class="text-emerald-400 font-bold">sem ausências</span> produzem 
+                    <span class="text-emerald-400 font-bold">{{ overview.productivity_diff }}% mais</span> do que aqueles com faltas/atestados.
+                    Isso comprova que <span class="text-red-400 font-bold">ausências impactam diretamente a produtividade</span>.
+                    {% else %}
+                    Não foi identificada diferença significativa de produtividade neste período.
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+        
+        <!-- GRÁFICOS DE CORRELAÇÃO (escondidos na impressão) -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Gráfico: Evolução Diária (Ausências vs Produtividade) -->
+            <div class="bg-gradient-to-br from-slate-800 to-slate-800/50 rounded-xl p-5 border border-slate-700 print:bg-white print:border-gray-200">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2 print:text-black">
+                    <svg class="w-5 h-5 text-blue-400 print:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+                    </svg>
+                    Evolução Diária: Ausências vs Produtividade
+                </h3>
+                <div class="h-80 print:h-64">
+                    <canvas id="dailyCorrelationChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Gráfico: Comparativo Com/Sem Ausências -->
+            <div class="bg-gradient-to-br from-slate-800 to-slate-800/50 rounded-xl p-5 border border-slate-700 print:bg-white print:border-gray-200">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2 print:text-black">
+                    <svg class="w-5 h-5 text-violet-400 print:text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5"/>
+                    </svg>
+                    Produtividade: Com vs Sem Ausências
+                </h3>
+                <div class="h-80 print:h-64">
+                    <canvas id="absenceComparisonChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- GRÁFICOS COMPARATIVOS (escondidos na impressão) -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Gráfico de Barras - Piores Colaboradores -->
+            <div class="bg-gradient-to-br from-slate-800 to-slate-800/50 rounded-xl p-5 border border-slate-700">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/>
+                    </svg>
+                    Piores Colaboradores (Score Negativo)
+                </h3>
+                <div class="h-80">
+                    <canvas id="worstEmployeesChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Gráfico de Pizza - Distribuição de Ocorrências -->
+            <div class="bg-gradient-to-br from-slate-800 to-slate-800/50 rounded-xl p-5 border border-slate-700">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/>
+                    </svg>
+                    Distribuição de Ocorrências
+                </h3>
+                <div class="h-80">
+                    <canvas id="occurrencesDistChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRÁFICO COMPARATIVO GERAL (escondido na impressão) -->
+        <div class="bg-gradient-to-br from-slate-800 to-slate-800/50 rounded-xl p-5 border border-slate-700">
+            <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+                Comparativo Geral - Todos os Colaboradores
+            </h3>
+            <div class="h-96">
+                <canvas id="allEmployeesComparisonChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- GRÁFICO DE KG/H (escondido na impressão) -->
+        <div class="bg-gradient-to-br from-slate-800 to-slate-800/50 rounded-xl p-5 border border-slate-700">
+            <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+                Produtividade (Kg/h) - Colaboradores com Rotas
+                <span class="ml-auto text-sm font-normal text-slate-400">
+                    Média: {{ overview.avg_kgh }} kg/h
+                </span>
+            </h3>
+            <div class="h-[500px]">
+                <canvas id="kghChart"></canvas>
+            </div>
+        </div>
+
+        <!-- TABELA DE KG/H - RANKING DE PRODUTIVIDADE (escondida na impressão) -->
+        <div class="bg-gradient-to-br from-slate-800 to-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+            <div class="p-5 border-b border-slate-700 print:border-gray-200">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2 print:text-black">
+                    <svg class="w-5 h-5 text-cyan-400 print:text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    Ranking de Produtividade (Kg/h)
+                    <span class="ml-auto text-sm font-normal text-slate-400 print:text-gray-500">
+                        {{ overview.employees_with_routes }} colaboradores com rotas
+                    </span>
+                </h3>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-slate-900/50 print:bg-gray-100">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400 print:text-gray-600">#</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400 print:text-gray-600">Colaborador</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400 print:text-gray-600">Setor</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-cyan-400 print:text-cyan-600">Kg/h</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-indigo-400 print:text-indigo-600">Tonelagem</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-teal-400 print:text-teal-600">Rotas</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-slate-400 print:text-gray-600">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-700 print:divide-gray-200">
+                        {% for item in employees_ranking|selectattr('route_count', 'gt', 0)|sort(attribute='kgh', reverse=true) %}
+                        <tr class="hover:bg-slate-700/30 print:hover:bg-gray-50 {{ 'bg-emerald-900/20 print:bg-emerald-50' if item.kgh >= overview.avg_kgh else '' }}">
+                            <td class="px-4 py-3 text-slate-400 print:text-gray-500 font-mono text-xs">{{ loop.index }}</td>
+                            <td class="px-4 py-3">
+                                <div class="font-semibold text-white print:text-black">{{ item.name }}</div>
+                                <div class="text-xs text-slate-500 print:text-gray-500">{{ item.tenure_months }} meses</div>
+                            </td>
+                            <td class="px-4 py-3 text-slate-300 print:text-gray-700">{{ item.sector }}</td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold
+                                    {% if item.kgh >= overview.avg_kgh %}bg-emerald-500/20 text-emerald-300 print:bg-emerald-100 print:text-emerald-700
+                                    {% else %}bg-red-500/20 text-red-300 print:bg-red-100 print:text-red-700{% endif %}">
+                                    {{ item.kgh }} kg/h
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-center text-indigo-300 print:text-indigo-600 font-medium">
+                                {{ "{:,.0f}".format(item.total_tonnage).replace(",", ".") }} kg
+                            </td>
+                            <td class="px-4 py-3 text-center text-teal-300 print:text-teal-600 font-medium">
+                                {{ item.route_count }}
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                {% if item.kgh >= overview.avg_kgh * 1.2 %}
+                                <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 text-xs font-bold print:bg-emerald-100 print:text-emerald-700">
+                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3.293 9.707a1 1 0 010-1.414l6-6a1 1 0 011.414 0l6 6a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L4.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
+                                    TOP
+                                </span>
+                                {% elif item.kgh >= overview.avg_kgh %}
+                                <span class="inline-flex items-center px-2 py-1 rounded-lg bg-blue-500/20 text-blue-300 text-xs font-bold print:bg-blue-100 print:text-blue-700">BOM</span>
+                                {% elif item.kgh >= overview.avg_kgh * 0.8 %}
+                                <span class="inline-flex items-center px-2 py-1 rounded-lg bg-amber-500/20 text-amber-300 text-xs font-bold print:bg-amber-100 print:text-amber-700">MÉDIO</span>
+                                {% else %}
+                                <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-500/20 text-red-300 text-xs font-bold print:bg-red-100 print:text-red-700">
+                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 10.293a1 1 0 010 1.414l-6 6a1 1 0 01-1.414 0l-6-6a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l4.293-4.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                    BAIXO
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="px-4 py-8 text-center text-slate-400 print:text-gray-500">
+                                Nenhum colaborador com rotas no período.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- TABELA DETALHADA - PIORES COLABORADORES (escondida na impressão) -->
+        <div class="bg-gradient-to-br from-slate-800 to-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+            <div class="p-5 border-b border-slate-700 print:border-gray-200">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2 print:text-black">
+                    <svg class="w-5 h-5 text-rose-400 print:text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Ranking de Colaboradores - Pior Desempenho
+                    <span class="ml-auto text-sm font-normal text-slate-400 print:text-gray-500">
+                        Ordenado por Score de Risco (maior = pior)
+                    </span>
+                </h3>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-slate-900/50 print:bg-gray-100">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400 print:text-gray-600">#</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400 print:text-gray-600">Colaborador</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400 print:text-gray-600">Setor</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-red-400 print:text-red-600">Faltas</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-amber-400 print:text-amber-600">Atestados</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-purple-400 print:text-purple-600">Advertências</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-cyan-400 print:text-cyan-600">Demora Média</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-slate-400 print:text-gray-600">Dias Esp.</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-emerald-400 print:text-emerald-600">Aproveit.</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-rose-400 print:text-rose-600">Score Risco</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-slate-400 print:text-gray-600">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-700 print:divide-gray-200">
+                        {% for item in employees_ranking %}
+                        <tr class="hover:bg-slate-700/30 print:hover:bg-gray-50 {{ 'bg-red-900/20 print:bg-red-50' if item.risk_score >= 15 else ('bg-amber-900/10 print:bg-amber-50' if item.risk_score >= 10 else '') }}">
+                            <td class="px-4 py-3 text-slate-400 print:text-gray-500 font-mono text-xs">{{ loop.index }}</td>
+                            <td class="px-4 py-3">
+                                <div class="font-semibold text-white print:text-black">{{ item.name }}</div>
+                                <div class="text-xs text-slate-500 print:text-gray-500">{{ item.tenure_months }} meses</div>
+                            </td>
+                            <td class="px-4 py-3 text-slate-300 print:text-gray-700">{{ item.sector }}</td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold {{ 'bg-red-500/20 text-red-300 print:bg-red-100 print:text-red-700' if item.falta > 0 else 'bg-slate-700 text-slate-400 print:bg-gray-100 print:text-gray-500' }}">
+                                    {{ item.falta }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold {{ 'bg-amber-500/20 text-amber-300 print:bg-amber-100 print:text-amber-700' if item.atestado > 0 else 'bg-slate-700 text-slate-400 print:bg-gray-100 print:text-gray-500' }}">
+                                    {{ item.atestado }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold {{ 'bg-purple-500/20 text-purple-300 print:bg-purple-100 print:text-purple-700' if item.advertencia > 0 else 'bg-slate-700 text-slate-400 print:bg-gray-100 print:text-gray-500' }}">
+                                    {{ item.advertencia }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold {{ 'bg-cyan-500/20 text-cyan-300 print:bg-cyan-100 print:text-cyan-700' if item.avg_delay > 0 else 'bg-slate-700 text-slate-400 print:bg-gray-100 print:text-gray-500' }}">
+                                    {% if item.avg_delay > 0 %}+{{ item.avg_delay }}min{% else %}-{% endif %}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-center text-slate-300 print:text-gray-700 font-medium">
+                                {{ item.actual_work_days }}/{{ item.expected_work_days }}
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold
+                                    {% if item.utilization_rate >= 90 %}bg-emerald-500/20 text-emerald-300 print:bg-emerald-100 print:text-emerald-700
+                                    {% elif item.utilization_rate >= 75 %}bg-amber-500/20 text-amber-300 print:bg-amber-100 print:text-amber-700
+                                    {% elif item.utilization_rate >= 60 %}bg-orange-500/20 text-orange-300 print:bg-orange-100 print:text-orange-700
+                                    {% else %}bg-red-500/20 text-red-300 print:bg-red-100 print:text-red-700{% endif %}">
+                                    {{ item.utilization_rate }}%
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold
+                                    {% if item.risk_score >= 15 %}bg-red-600 text-white print:bg-red-600 print:text-white
+                                    {% elif item.risk_score >= 10 %}bg-orange-500 text-white print:bg-orange-500 print:text-white
+                                    {% elif item.risk_score >= 5 %}bg-amber-500 text-slate-900 print:bg-amber-500 print:text-black
+                                    {% else %}bg-slate-600 text-slate-200 print:bg-gray-400 print:text-white{% endif %}">
+                                    {{ item.risk_score|round(1) }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                {% if item.risk_score >= 15 %}
+                                <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-500/20 text-red-300 text-xs font-bold print:bg-red-100 print:text-red-700">
+                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                                    CRÍTICO
+                                </span>
+                                {% elif item.risk_score >= 10 %}
+                                <span class="inline-flex items-center px-2 py-1 rounded-lg bg-orange-500/20 text-orange-300 text-xs font-bold print:bg-orange-100 print:text-orange-700">ALERTA</span>
+                                {% elif item.risk_score >= 5 %}
+                                <span class="inline-flex items-center px-2 py-1 rounded-lg bg-amber-500/20 text-amber-300 text-xs font-bold print:bg-amber-100 print:text-amber-700">ATENÇÃO</span>
+                                {% else %}
+                                <span class="inline-flex items-center px-2 py-1 rounded-lg bg-slate-700 text-slate-400 text-xs font-medium print:bg-gray-200 print:text-gray-600">OK</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="11" class="px-4 py-8 text-center text-slate-400 print:text-gray-500">
+                                <svg class="w-12 h-12 mx-auto text-slate-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                Nenhum colaborador com ocorrências no período.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- MAPA DE RISCO POR SETOR (escondido na impressão - versão compacta incluída no print-only) -->
+        <div class="bg-gradient-to-br from-slate-800 to-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+            <div class="p-5 border-b border-slate-700 print:border-gray-200">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2 print:text-black">
+                    <svg class="w-5 h-5 text-indigo-400 print:text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+                    </svg>
+                    Mapa de Risco por Setor
+                </h3>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-slate-900/50 print:bg-gray-100">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400 print:text-gray-600">Setor</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-slate-400 print:text-gray-600">Headcount</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-red-400 print:text-red-600">Faltas</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-amber-400 print:text-amber-600">Atestados</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-purple-400 print:text-purple-600">Advertências</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-indigo-400 print:text-indigo-600">Índice Risco</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-slate-400 print:text-gray-600">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-700 print:divide-gray-200">
+                        {% for sec in sectors %}
+                        <tr class="hover:bg-slate-700/30 print:hover:bg-gray-50">
+                            <td class="px-4 py-3 font-semibold text-white print:text-black">{{ sec.name }}</td>
+                            <td class="px-4 py-3 text-center text-slate-300 print:text-gray-700">{{ sec.headcount }}</td>
+                            <td class="px-4 py-3 text-center text-red-400 print:text-red-600 font-bold">{{ sec.falta }}</td>
+                            <td class="px-4 py-3 text-center text-amber-400 print:text-amber-600 font-bold">{{ sec.atestado }}</td>
+                            <td class="px-4 py-3 text-center text-purple-400 print:text-purple-600 font-bold">{{ sec.advertencia }}</td>
+                            <td class="px-4 py-3 text-center font-bold
+                                {% if sec.risk_index > 2 %}text-red-400 print:text-red-600
+                                {% elif sec.risk_index > 1 %}text-amber-400 print:text-amber-600
+                                {% else %}text-emerald-400 print:text-emerald-600{% endif %}">
+                                {{ sec.risk_index }}
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                {% if sec.risk_index > 2 %}
+                                <span class="inline-flex items-center px-2 py-1 rounded-lg bg-red-500/20 text-red-300 text-xs font-bold print:bg-red-100 print:text-red-700">ALTO</span>
+                                {% elif sec.risk_index > 1 %}
+                                <span class="inline-flex items-center px-2 py-1 rounded-lg bg-orange-500/20 text-orange-300 text-xs font-bold print:bg-orange-100 print:text-orange-700">MÉDIO</span>
+                                {% else %}
+                                <span class="inline-flex items-center px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 text-xs font-bold print:bg-emerald-100 print:text-emerald-700">BAIXO</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- RECOMENDAÇÕES (escondidas na impressão) -->
+        {% if overview.critical_count > 0 %}
+        <div class="bg-gradient-to-br from-red-900/30 to-slate-800/50 rounded-xl p-5 border border-red-500/30">
+            <h3 class="text-lg font-bold text-red-400 mb-3 flex items-center gap-2 print:text-red-700">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+                Ações Recomendadas
+            </h3>
+            <div class="space-y-2 text-sm text-slate-300 print:text-gray-700">
+                <p class="flex items-start gap-2">
+                    <span class="text-red-400 print:text-red-600">1.</span>
+                    <strong>Acompanhamento Individual:</strong> Colaboradores com score >= 15 devem ter reunião de feedback imediata com liderança e RH.
+                </p>
+                <p class="flex items-start gap-2">
+                    <span class="text-amber-400 print:text-amber-600">2.</span>
+                    <strong>Plano de Ação:</strong> Definir metas de melhoria para os próximos 30 dias para colaboradores em status "ALERTA".
+                </p>
+                <p class="flex items-start gap-2">
+                    <span class="text-emerald-400 print:text-emerald-600">3.</span>
+                    <strong>Monitoramento:</strong> Acompanhar semanalmente o progresso dos colaboradores em acompanhamento.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- RODAPÉ DO RELATÓRIO -->
+        <footer class="text-center text-xs text-slate-500 pt-4 border-t border-slate-700">
+            <p>Relatório gerado em {{ generated_at }} | Sistema de Análise Operacional</p>
+            <p class="mt-1">Período: {{ period_range_label }} | Turno: {{ shift }}</p>
+        </footer>
+    </div>
+</div>
+<!-- Fim da versão para tela -->
+
+<style>
+/* ========================================
+   ESTILOS DE IMPRESSÃO - RELATÓRIO PDF
+   ======================================== */
+
+/* Esconder seção de impressão na tela por padrão */
+.print-version {
+    display: none;
+}
+
+/* Modo Preview na tela */
+.print-version.preview-active {
+    display: block !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    background: #1e293b;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.print-version.preview-active .print-page {
+    background: white;
+    max-width: 297mm;
+    min-height: 200mm;
+    margin: 0 auto 20px auto;
+    padding: 8mm 10mm;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    border-radius: 4px;
+}
+
+/* Botão fechar preview */
+.preview-close-btn {
+    position: fixed;
+    top: 20px;
+    right: 30px;
+    z-index: 10000;
+    background: #dc2626;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    display: none;
+}
+
+.preview-close-btn.active {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.preview-close-btn:hover {
+    background: #b91c1c;
+}
+
+/* Botão imprimir no preview */
+.preview-print-btn {
+    position: fixed;
+    top: 20px;
+    right: 150px;
+    z-index: 10000;
+    background: #16a34a;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    display: none;
+}
+
+.preview-print-btn.active {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.preview-print-btn:hover {
+    background: #15803d;
+}
+
+/* Indicador de página no preview */
+.page-indicator {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10000;
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 12px;
+    display: none;
+}
+
+.page-indicator.active {
+    display: block;
+}
+
+/* Esconder versão de tela quando preview está ativo */
+body.preview-mode .screen-version {
+    display: none !important;
+}
+
+/* ========== IMPRESSÃO ========== */
+@media print {
+    @page {
+        size: A4 landscape;
+        margin: 6mm;
+    }
+    
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    html, body {
+        background: white !important;
+        font-family: 'Segoe UI', Arial, sans-serif !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+    
+    /* Esconder versão de tela e botões */
+    .screen-version,
+    .preview-close-btn,
+    .preview-print-btn,
+    .page-indicator {
+        display: none !important;
+    }
+    
+    /* Remover restrições de altura/overflow do layout */
+    body > div,
+    .flex.h-screen,
+    .h-screen,
+    .overflow-hidden,
+    main,
+    main.flex-1 {
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+    
+    /* Mostrar versão de impressão */
+    .print-version {
+        display: block !important;
+        position: static !important;
+        background: white !important;
+        padding: 0 !important;
+        overflow: visible !important;
+        height: auto !important;
+    }
+    
+    .print-version .print-page {
+        background: white !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+        padding: 5mm !important;
+        max-width: none !important;
+        min-height: auto !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+    
+    /* Quebra de página entre as duas páginas definidas */
+    .print-page {
+        page-break-after: always;
+        page-break-inside: avoid;
+    }
+    
+    .print-page:last-child {
+        page-break-after: avoid;
+    }
+    
+    /* Evitar quebra dentro de tabelas e seções */
+    table {
+        page-break-inside: avoid;
+    }
+    
+    tr {
+        page-break-inside: avoid;
+    }
+    
+    /* Seções/cards não devem quebrar */
+    .print-version > div > div {
+        page-break-inside: avoid;
+    }
+}
+</style>
+
+<!-- Botões flutuantes do Preview -->
+<button class="preview-close-btn" id="previewCloseBtn" onclick="togglePrintPreview()">
+    <svg style="width:16px;height:16px" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+    </svg>
+    Fechar Preview
+</button>
+
+<button class="preview-print-btn" id="previewPrintBtn" onclick="window.print()">
+    <svg style="width:16px;height:16px" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+    </svg>
+    Imprimir PDF
+</button>
+
+<div class="page-indicator" id="pageIndicator">
+    Use a rolagem para ver as 2 páginas • Pressione ESC para fechar
+</div>
+
+<script>
+function togglePrintPreview() {
+    const printVersion = document.querySelector('.print-version');
+    const closeBtn = document.getElementById('previewCloseBtn');
+    const printBtn = document.getElementById('previewPrintBtn');
+    const pageIndicator = document.getElementById('pageIndicator');
+    const previewBtn = document.getElementById('previewBtn');
+    
+    if (printVersion.classList.contains('preview-active')) {
+        // Fechar preview
+        printVersion.classList.remove('preview-active');
+        closeBtn.classList.remove('active');
+        printBtn.classList.remove('active');
+        pageIndicator.classList.remove('active');
+        document.body.classList.remove('preview-mode');
+        previewBtn.innerHTML = `
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+            </svg>
+            <span class="text-sm font-semibold">Preview PDF</span>
+        `;
+    } else {
+        // Abrir preview
+        printVersion.classList.add('preview-active');
+        closeBtn.classList.add('active');
+        printBtn.classList.add('active');
+        pageIndicator.classList.add('active');
+        document.body.classList.add('preview-mode');
+        previewBtn.innerHTML = `
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+            <span class="text-sm font-semibold">Fechar Preview</span>
+        `;
+        // Scroll to top
+        printVersion.scrollTop = 0;
+    }
+}
+
+// Fechar com ESC
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const printVersion = document.querySelector('.print-version');
+        if (printVersion.classList.contains('preview-active')) {
+            togglePrintPreview();
+        }
+    }
+});
+</script>
+
+<script>
+function performanceReportController() {
+    return {
+        showFilters: false,
+        init() {
+            this.initCharts();
+        },
+        initCharts() {
+            // Dados do backend
+            const chartData = {{ chart_data | tojson | safe }};
+            
+            // Gráfico de Piores Colaboradores (Barras Horizontais)
+            const worstCtx = document.getElementById('worstEmployeesChart');
+            if (worstCtx && chartData.worst_employees) {
+                new Chart(worstCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: chartData.worst_employees.labels,
+                        datasets: [
+                            {
+                                label: 'Faltas',
+                                data: chartData.worst_employees.faltas,
+                                backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                                borderColor: 'rgb(239, 68, 68)',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Atestados',
+                                data: chartData.worst_employees.atestados,
+                                backgroundColor: 'rgba(245, 158, 11, 0.7)',
+                                borderColor: 'rgb(245, 158, 11)',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Advertências',
+                                data: chartData.worst_employees.advertencias,
+                                backgroundColor: 'rgba(168, 85, 247, 0.7)',
+                                borderColor: 'rgb(168, 85, 247)',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: { color: '#94a3b8' }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                stacked: true,
+                                ticks: { color: '#94a3b8' },
+                                grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                            },
+                            y: {
+                                stacked: true,
+                                ticks: { color: '#94a3b8' },
+                                grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Gráfico de Distribuição de Ocorrências (Pizza)
+            const distCtx = document.getElementById('occurrencesDistChart');
+            if (distCtx && chartData.distribution) {
+                new Chart(distCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Faltas', 'Atestados', 'Advertências'],
+                        datasets: [{
+                            data: [
+                                chartData.distribution.faltas,
+                                chartData.distribution.atestados,
+                                chartData.distribution.advertencias
+                            ],
+                            backgroundColor: [
+                                'rgba(239, 68, 68, 0.8)',
+                                'rgba(245, 158, 11, 0.8)',
+                                'rgba(168, 85, 247, 0.8)'
+                            ],
+                            borderColor: [
+                                'rgb(239, 68, 68)',
+                                'rgb(245, 158, 11)',
+                                'rgb(168, 85, 247)'
+                            ],
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: { color: '#94a3b8', padding: 20 }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Gráfico Comparativo Geral (Barras Agrupadas)
+            const compCtx = document.getElementById('allEmployeesComparisonChart');
+            if (compCtx && chartData.all_employees) {
+                new Chart(compCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: chartData.all_employees.labels,
+                        datasets: [
+                            {
+                                label: 'Faltas',
+                                data: chartData.all_employees.faltas,
+                                backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                                borderColor: 'rgb(239, 68, 68)',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Atestados',
+                                data: chartData.all_employees.atestados,
+                                backgroundColor: 'rgba(245, 158, 11, 0.7)',
+                                borderColor: 'rgb(245, 158, 11)',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Advertências',
+                                data: chartData.all_employees.advertencias,
+                                backgroundColor: 'rgba(168, 85, 247, 0.7)',
+                                borderColor: 'rgb(168, 85, 247)',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: { color: '#94a3b8' }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: { 
+                                    color: '#94a3b8',
+                                    maxRotation: 45,
+                                    minRotation: 45
+                                },
+                                grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                            },
+                            y: {
+                                ticks: { color: '#94a3b8' },
+                                grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Gráfico de Kg/h - Todos os Colaboradores com Rotas
+            const kghCtx = document.getElementById('kghChart');
+            if (kghCtx && chartData.kgh_ranking && chartData.kgh_ranking.labels.length > 0) {
+                // Calcular média para linha de referência
+                const avgKgh = {{ overview.avg_kgh }};
+                const kghData = chartData.kgh_ranking.kgh;
+                
+                // Cores baseadas na performance (acima/abaixo da média)
+                const barColors = kghData.map(val => 
+                    val >= avgKgh ? 'rgba(34, 197, 94, 0.7)' : 'rgba(239, 68, 68, 0.7)'
+                );
+                const borderColors = kghData.map(val => 
+                    val >= avgKgh ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'
+                );
+                
+                new Chart(kghCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: chartData.kgh_ranking.labels,
+                        datasets: [
+                            {
+                                label: 'Kg/h',
+                                data: kghData,
+                                backgroundColor: barColors,
+                                borderColor: borderColors,
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    afterLabel: function(context) {
+                                        const idx = context.dataIndex;
+                                        const tonnage = chartData.kgh_ranking.tonnage[idx];
+                                        const routes = chartData.kgh_ranking.routes[idx];
+                                        return [
+                                            `Tonelagem: ${tonnage.toLocaleString('pt-BR')} kg`,
+                                            `Rotas: ${routes}`
+                                        ];
+                                    }
+                                }
+                            },
+                            annotation: {
+                                annotations: {
+                                    avgLine: {
+                                        type: 'line',
+                                        xMin: avgKgh,
+                                        xMax: avgKgh,
+                                        borderColor: 'rgba(6, 182, 212, 0.8)',
+                                        borderWidth: 2,
+                                        borderDash: [6, 6],
+                                        label: {
+                                            display: true,
+                                            content: `Média: ${avgKgh} kg/h`,
+                                            position: 'start',
+                                            backgroundColor: 'rgba(6, 182, 212, 0.8)',
+                                            color: 'white',
+                                            font: { size: 11 }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Kg/h',
+                                    color: '#94a3b8'
+                                },
+                                ticks: { color: '#94a3b8' },
+                                grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                            },
+                            y: {
+                                ticks: { 
+                                    color: '#94a3b8',
+                                    font: { size: 11 }
+                                },
+                                grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Gráfico de Evolução Diária (Ausências vs Produtividade)
+            const dailyCtx = document.getElementById('dailyCorrelationChart');
+            if (dailyCtx && chartData.daily_analysis && chartData.daily_analysis.labels.length > 0) {
+                new Chart(dailyCtx, {
+                    type: 'line',
+                    data: {
+                        labels: chartData.daily_analysis.labels,
+                        datasets: [
+                            {
+                                label: 'Produtividade (Kg/h)',
+                                data: chartData.daily_analysis.kgh,
+                                borderColor: 'rgb(34, 197, 94)',
+                                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                                fill: true,
+                                tension: 0.3,
+                                yAxisID: 'y'
+                            },
+                            {
+                                label: 'Total Ausências',
+                                data: chartData.daily_analysis.absences,
+                                borderColor: 'rgb(239, 68, 68)',
+                                backgroundColor: 'rgba(239, 68, 68, 0.5)',
+                                type: 'bar',
+                                yAxisID: 'y1'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: { color: '#94a3b8' }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    afterBody: function(context) {
+                                        const idx = context[0].dataIndex;
+                                        return [
+                                            `Mão de Obra: ${chartData.daily_analysis.workforce[idx]}`,
+                                            `Tonelagem: ${chartData.daily_analysis.tonnage[idx].toLocaleString('pt-BR')} kg`
+                                        ];
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: { color: '#94a3b8' },
+                                grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                            },
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: {
+                                    display: true,
+                                    text: 'Kg/h',
+                                    color: 'rgb(34, 197, 94)'
+                                },
+                                ticks: { color: 'rgb(34, 197, 94)' },
+                                grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                title: {
+                                    display: true,
+                                    text: 'Ausências',
+                                    color: 'rgb(239, 68, 68)'
+                                },
+                                ticks: { color: 'rgb(239, 68, 68)' },
+                                grid: { drawOnChartArea: false }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Gráfico Comparativo: Com vs Sem Ausências
+            const absCompCtx = document.getElementById('absenceComparisonChart');
+            if (absCompCtx && chartData.correlation) {
+                new Chart(absCompCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Sem Ausências', 'Com Ausências'],
+                        datasets: [{
+                            label: 'Produtividade Média (Kg/h)',
+                            data: [
+                                chartData.correlation.without_absences.kgh,
+                                chartData.correlation.with_absences.kgh
+                            ],
+                            backgroundColor: [
+                                'rgba(34, 197, 94, 0.7)',
+                                'rgba(239, 68, 68, 0.7)'
+                            ],
+                            borderColor: [
+                                'rgb(34, 197, 94)',
+                                'rgb(239, 68, 68)'
+                            ],
+                            borderWidth: 2,
+                            borderRadius: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    afterLabel: function(context) {
+                                        const idx = context.dataIndex;
+                                        if (idx === 0) {
+                                            return `${chartData.correlation.without_absences.count} colaboradores`;
+                                        } else {
+                                            return `${chartData.correlation.with_absences.count} colaboradores`;
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: { 
+                                    color: '#94a3b8',
+                                    font: { size: 14, weight: 'bold' }
+                                },
+                                grid: { display: false }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Kg/h',
+                                    color: '#94a3b8'
+                                },
+                                ticks: { color: '#94a3b8' },
+                                grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

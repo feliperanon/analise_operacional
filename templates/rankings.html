@@ -29,6 +29,16 @@
                 </div>
                 
                 <div class="flex items-center gap-3">
+                    <!-- Botão Relatório de Análise -->
+                    <a href="/operations/performance/analysis?period={{ filters.period }}&date={{ filters.date }}&shift={{ filters.shift }}" 
+                       class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white transition-all group shadow-lg shadow-rose-500/20"
+                       title="Relatório completo de performance">
+                        <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <span class="text-sm font-semibold">Relatório</span>
+                    </a>
+                    
                     {% if calculation_debug %}
                     <!-- Botão de Debug de Cálculos -->
                     <button @click="showDebugPanel = true" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800/80 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 hover:text-emerald-200 transition-all group" title="Debug: Ver detalhes dos cálculos">

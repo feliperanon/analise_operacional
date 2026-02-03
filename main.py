@@ -475,7 +475,7 @@ PAGE_OPTIONS = [
     {"key": "admin_game", "label": "Game Master", "path": "/admin/game", "prefixes": ["/admin/game", "/api/game"]},
     {"key": "smart_flow", "label": "Smart Flow", "path": "/smart-flow", "prefixes": ["/smart-flow", "/api/smart-flow", "/smart-flow/load", "/api/employees", "/settings", "/employees", "/lider", "/api/lider"]},
     {"key": "checklist_admin", "label": "Checklists Operacionais", "path": "/admin/routine/checklists", "prefixes": ["/admin/routine/checklists", "/api/routine/checklists"]},
-    {"key": "ops_performance", "label": "Avaliacao Operacional", "path": "/operations/performance", "prefixes": ["/operations/performance", "/rankings", "/api/rankings"]}
+    {"key": "ops_performance", "label": "Avaliacao Operacional", "path": "/operations/performance", "prefixes": ["/operations/performance", "/operations/performance/analysis", "/rankings", "/api/rankings"]}
 ]
 PAGE_KEYS = {p["key"] for p in PAGE_OPTIONS}
 
@@ -10515,6 +10515,34 @@ async def export_performance_report(
     """
     from collections import Counter
     
+    def parse_time_value(value) -> Optional[time]:
+        """Parse time from various formats"""
+        if value is None:
+            return None
+        if isinstance(value, time):
+            return value
+        if isinstance(value, datetime):
+            return value.time()
+        if isinstance(value, str):
+            for fmt in ("%H:%M:%S", "%H:%M"):
+                try:
+                    return datetime.strptime(value.strip(), fmt).time()
+                except Exception:
+                    continue
+        return None
+    
+    def duration_seconds(start_val, end_val) -> float:
+        """Calculate duration in seconds between two time values"""
+        start_time = parse_time_value(start_val)
+        end_time = parse_time_value(end_val)
+        if not start_time or not end_time:
+            return 0.0
+        start_dt = datetime.combine(datetime.now().date(), start_time)
+        end_dt = datetime.combine(datetime.now().date(), end_time)
+        if end_dt < start_dt:
+            end_dt += timedelta(days=1)
+        return max(0.0, (end_dt - start_dt).total_seconds())
+    
     # Parsear data
     target_date = safe_parse_iso_date(date) if date else datetime.now(ZoneInfo("America/Sao_Paulo")).date()
     start_date, end_date = get_period_range(target_date, period)
@@ -10528,7 +10556,14 @@ async def export_performance_report(
     period_label = period_label_map.get(period, period)
     period_range_label = f"{start_date.strftime('%d/%m/%Y')} a {end_date.strftime('%d/%m/%Y')}"
     
-    # Buscar rotas
+    # Buscar colaboradores elegíveis (habilitados no app de Separação)
+    allowed_query = select(models.Employee).where(models.Employee.mobile_access_separation == True)
+    if shift and shift not in ["Todos", "Geral", None]:
+        allowed_query = allowed_query.where(models.Employee.work_shift == shift)
+    allowed_employees = session.exec(allowed_query).all()
+    allowed_ids = {emp.id for emp in allowed_employees if emp and emp.id}
+    
+    # Buscar rotas apenas de colaboradores elegíveis
     query = (
         select(models.Route)
         .where(models.Route.tonnage > 0)
@@ -10537,6 +10572,8 @@ async def export_performance_report(
     )
     if shift and shift not in ["Todos", "Geral", None]:
         query = query.where(models.Route.shift == shift)
+    if allowed_ids:
+        query = query.where(models.Route.employee_id.in_(allowed_ids))
     
     routes = session.exec(query).all()
     
@@ -10544,6 +10581,8 @@ async def export_performance_report(
     stats = {}
     for route in routes:
         if not route.employee_id:
+            continue
+        if allowed_ids and route.employee_id not in allowed_ids:
             continue
         tonnage = float(route.tonnage or 0)
         if tonnage <= 0:
@@ -10561,19 +10600,8 @@ async def export_performance_report(
         entry["count"] += 1
         entry["days"].add(str(route.date))
         
-        # Calcular tempo
-        diff = 0.0
-        if route.start_time and route.end_time:
-            try:
-                start_t = route.start_time if isinstance(route.start_time, time) else datetime.strptime(str(route.start_time), "%H:%M:%S").time()
-                end_t = route.end_time if isinstance(route.end_time, time) else datetime.strptime(str(route.end_time), "%H:%M:%S").time()
-                start_combined = datetime.combine(target_date, start_t)
-                end_combined = datetime.combine(target_date, end_t)
-                if end_combined < start_combined:
-                    end_combined += timedelta(days=1)
-                diff = max(0.0, (end_combined - start_combined).total_seconds())
-            except:
-                pass
+        # Calcular tempo usando função robusta
+        diff = duration_seconds(route.start_time, route.end_time)
         
         if diff > 0:
             entry["secs"] += diff
@@ -10723,6 +10751,566 @@ async def export_performance_report(
             "period_range_label": period_range_label,
             "generated_at": datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y %H:%M"),
             "ai_report": None  # Pode ser preenchido se houver relatório IA em cache
+        }
+    )
+
+
+@app.get("/operations/performance/analysis", response_class=HTMLResponse)
+async def operations_performance_analysis_report(
+    request: Request,
+    date: Optional[str] = None,
+    period: str = "weekly",
+    shift: str = "Todos",
+    limit: int = 20,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    """
+    Relatório completo de análise de performance operacional.
+    Inclui: faltas, atestados, advertências, demora em conclusão, gráficos comparativos.
+    Filtros: diário, semanal, mensal.
+    """
+    from zoneinfo import ZoneInfo
+    
+    # Parsear data
+    target_date = safe_parse_iso_date(date) if date else datetime.now(ZoneInfo("America/Sao_Paulo")).date()
+    start_date, end_date = get_period_range(target_date, period)
+    total_days = (end_date - start_date).days + 1
+    
+    start_dt = datetime.combine(start_date, datetime.min.time()).replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+    end_dt = datetime.combine(end_date, datetime.max.time()).replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+    
+    # Labels do período
+    period_label_map = {'daily': 'Diário', 'weekly': 'Semanal', 'monthly': 'Mensal'}
+    period_label = period_label_map.get(period, period)
+    period_range_label = f"{start_date.strftime('%d/%m/%Y')} a {end_date.strftime('%d/%m/%Y')}"
+    
+    # Buscar colaboradores ativos COM acesso ao App de Separação
+    employees_query = (
+        select(models.Employee)
+        .where(models.Employee.status != "fired")
+        .where(models.Employee.replaced_by.is_(None))
+        .where(models.Employee.mobile_access_separation == True)
+    )
+    if shift and shift not in ["Todos", "Geral", None]:
+        employees_query = employees_query.where(models.Employee.work_shift == shift)
+    
+    employees = session.exec(employees_query).all()
+    total_headcount = len(employees)
+    employee_ids = {e.id for e in employees}
+    emp_map = {e.id: e for e in employees}
+    
+    # --- Buscar Rotinas (faltas, atestados) ---
+    routines = session.exec(
+        select(models.EmployeeRoutine)
+        .where(models.EmployeeRoutine.date >= start_date.strftime("%Y-%m-%d"))
+        .where(models.EmployeeRoutine.date <= end_date.strftime("%Y-%m-%d"))
+    ).all()
+    
+    routines = [r for r in routines if r.employee_id in employee_ids]
+    
+    # Agrupar por dia único para evitar contagem duplicada
+    unique_days = {}
+    for r in routines:
+        key = (r.employee_id, str(r.date))
+        r_type = r.routine
+        if r_type in ['absent', 'falta']:
+            normalized = 'falta'
+        elif r_type in ['sick', 'atestado']:
+            normalized = 'atestado'
+        elif r_type in ['away', 'afastado']:
+            normalized = 'afastamento'
+        else:
+            continue
+        
+        if key not in unique_days:
+            unique_days[key] = normalized
+        else:
+            priority = {'falta': 3, 'atestado': 2, 'afastamento': 1}
+            if priority.get(normalized, 0) > priority.get(unique_days[key], 0):
+                unique_days[key] = normalized
+    
+    # Contadores gerais
+    total_absences = sum(1 for v in unique_days.values() if v == 'falta')
+    total_sick = sum(1 for v in unique_days.values() if v == 'atestado')
+    
+    # --- Buscar Advertências (da tabela Event) ---
+    warnings_query = (
+        select(models.Event)
+        .where(models.Event.timestamp >= start_dt)
+        .where(models.Event.timestamp <= end_dt)
+        .where(models.Event.type == 'advertencia')
+    )
+    warnings = session.exec(warnings_query).all()
+    warnings = [w for w in warnings if w.employee_id in employee_ids]
+    total_warnings = len(warnings)
+    
+    # --- Buscar Tarefas para calcular demora ---
+    # Usando OperationalTaskExecution para medir tempo de conclusão
+    task_executions = session.exec(
+        select(models.OperationalTaskExecution)
+        .where(models.OperationalTaskExecution.scheduled_date >= start_date.strftime("%Y-%m-%d"))
+        .where(models.OperationalTaskExecution.scheduled_date <= end_date.strftime("%Y-%m-%d"))
+        .where(models.OperationalTaskExecution.status == 'completed')
+    ).all()
+    
+    # Calcular demora por colaborador
+    delay_by_employee = {}
+    for exec in task_executions:
+        if exec.user_id and exec.started_at and exec.completed_at:
+            # Tempo de execução em minutos
+            duration = (exec.completed_at - exec.started_at).total_seconds() / 60
+            if exec.user_id not in delay_by_employee:
+                delay_by_employee[exec.user_id] = []
+            delay_by_employee[exec.user_id].append(duration)
+    
+    # --- Buscar Rotas para calcular kg/h ---
+    def parse_time_value(value):
+        if value is None:
+            return None
+        if isinstance(value, time):
+            return value
+        if isinstance(value, datetime):
+            return value.time()
+        if isinstance(value, str):
+            for fmt in ("%H:%M:%S", "%H:%M"):
+                try:
+                    return datetime.strptime(value.strip(), fmt).time()
+                except Exception:
+                    continue
+        return None
+    
+    def duration_seconds(start_val, end_val) -> float:
+        start_time = parse_time_value(start_val)
+        end_time = parse_time_value(end_val)
+        if not start_time or not end_time:
+            return 0.0
+        start_dt_local = datetime.combine(datetime.now().date(), start_time)
+        end_dt_local = datetime.combine(datetime.now().date(), end_time)
+        if end_dt_local < start_dt_local:
+            end_dt_local += timedelta(days=1)
+        return max(0.0, (end_dt_local - start_dt_local).total_seconds())
+    
+    routes_query = (
+        select(models.Route)
+        .where(models.Route.tonnage > 0)
+        .where(models.Route.date >= start_date.strftime("%Y-%m-%d"))
+        .where(models.Route.date <= end_date.strftime("%Y-%m-%d"))
+    )
+    if shift and shift not in ["Todos", "Geral", None]:
+        routes_query = routes_query.where(models.Route.shift == shift)
+    
+    routes = session.exec(routes_query).all()
+    
+    # Calcular kg/h por colaborador
+    route_stats_by_employee = {}
+    for route in routes:
+        if not route.employee_id:
+            continue
+        tonnage = float(route.tonnage or 0)
+        if tonnage <= 0:
+            continue
+        
+        diff = duration_seconds(route.start_time, route.end_time)
+        hours = diff / 3600 if diff > 0 else 0
+        
+        if route.employee_id not in route_stats_by_employee:
+            route_stats_by_employee[route.employee_id] = {
+                'total_tonnage': 0.0,
+                'total_hours': 0.0,
+                'route_count': 0
+            }
+        
+        route_stats_by_employee[route.employee_id]['total_tonnage'] += tonnage
+        route_stats_by_employee[route.employee_id]['total_hours'] += hours
+        route_stats_by_employee[route.employee_id]['route_count'] += 1
+    
+    # --- Calcular estatísticas por colaborador ---
+    emp_stats = {}
+    for emp in employees:
+        emp_stats[emp.id] = {
+            'employee_id': emp.id,
+            'name': emp.name,
+            'sector': emp.cost_center or "Geral",
+            'falta': 0,
+            'atestado': 0,
+            'advertencia': 0,
+            'afastamento': 0,
+            'avg_delay': 0,
+            'tenure_months': 0,
+            'expected_work_days': 0,
+            'actual_work_days': 0,
+            'utilization_rate': 0,
+            'risk_score': 0,
+            'kgh': 0.0,
+            'total_tonnage': 0.0,
+            'route_count': 0
+        }
+        if emp.admission_date:
+            delta = datetime.now(ZoneInfo("America/Sao_Paulo")) - emp.admission_date.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+            emp_stats[emp.id]['tenure_months'] = int(delta.days / 30)
+        
+        # Adicionar dados de rotas
+        if emp.id in route_stats_by_employee:
+            rs = route_stats_by_employee[emp.id]
+            emp_stats[emp.id]['total_tonnage'] = round(rs['total_tonnage'], 1)
+            emp_stats[emp.id]['route_count'] = rs['route_count']
+            if rs['total_hours'] > 0:
+                emp_stats[emp.id]['kgh'] = round(rs['total_tonnage'] / rs['total_hours'], 1)
+    
+    # Contar dias únicos por colaborador
+    for (emp_id, day), routine_type in unique_days.items():
+        if emp_id in emp_stats:
+            emp_stats[emp_id][routine_type] += 1
+    
+    # Contar advertências por colaborador
+    for w in warnings:
+        if w.employee_id in emp_stats:
+            emp_stats[w.employee_id]['advertencia'] += 1
+    
+    # Calcular demora média por colaborador
+    for emp_id, delays in delay_by_employee.items():
+        if emp_id in emp_stats and delays:
+            emp_stats[emp_id]['avg_delay'] = round(sum(delays) / len(delays), 1)
+    
+    # --- Calcular dias esperados e taxa de aproveitamento ---
+    for emp_id, stats in emp_stats.items():
+        emp = emp_map.get(emp_id)
+        if emp:
+            calc_start = start_dt
+            if emp.admission_date:
+                try:
+                    admission_dt = emp.admission_date.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+                    if admission_dt > start_dt:
+                        calc_start = admission_dt
+                except:
+                    pass
+            
+            expected_days = calculate_expected_work_days(
+                emp.work_days or '[]',
+                calc_start.replace(tzinfo=None),
+                end_dt.replace(tzinfo=None),
+                vacation_start=emp.vacation_start,
+                vacation_end=emp.vacation_end
+            )
+            
+            stats['expected_work_days'] = expected_days
+            combined_events = stats['falta'] + stats['atestado']
+            stats['actual_work_days'] = max(0, expected_days - combined_events)
+            stats['utilization_rate'] = round(
+                (stats['actual_work_days'] / stats['expected_work_days']) * 100, 1
+            ) if stats['expected_work_days'] > 0 else 100
+            
+            # Score de risco: quanto maior, pior o colaborador
+            # Peso: falta (3), atestado (2), advertência (4), demora (1 por 10min)
+            risk_score = (stats['falta'] * 3) + (stats['atestado'] * 2) + (stats['advertencia'] * 4) + (stats['avg_delay'] / 10)
+            stats['risk_score'] = round(risk_score, 1)
+    
+    # --- Ordenar por score de risco (pior primeiro) ---
+    employees_ranking = sorted(emp_stats.values(), key=lambda x: x['risk_score'], reverse=True)
+    
+    # Aplicar limite
+    if limit and limit < len(employees_ranking):
+        employees_ranking = employees_ranking[:limit]
+    
+    # --- Calcular estatísticas por setor ---
+    sector_stats = {}
+    for stats in emp_stats.values():
+        sec = stats['sector']
+        if sec not in sector_stats:
+            sector_stats[sec] = {'name': sec, 'falta': 0, 'atestado': 0, 'advertencia': 0, 'headcount': 0}
+        sector_stats[sec]['falta'] += stats['falta']
+        sector_stats[sec]['atestado'] += stats['atestado']
+        sector_stats[sec]['advertencia'] += stats['advertencia']
+        sector_stats[sec]['headcount'] += 1
+    
+    sectors = []
+    for sec, data in sector_stats.items():
+        if data['headcount'] > 0:
+            data['risk_index'] = round((data['falta'] + data['atestado'] + data['advertencia']) / data['headcount'], 2)
+            sectors.append(data)
+    
+    sectors.sort(key=lambda x: x['risk_index'], reverse=True)
+    
+    # --- Recalcular totais de ausências dos emp_stats (garantir consistência) ---
+    total_absences = sum(s['falta'] for s in emp_stats.values())
+    total_sick = sum(s['atestado'] for s in emp_stats.values())
+    total_warnings = sum(s['advertencia'] for s in emp_stats.values())
+    
+    # --- Calcular taxa de presença ---
+    total_expected = sum(s['expected_work_days'] for s in emp_stats.values())
+    total_events = total_absences + total_sick
+    presence_rate = round((1 - (total_events / max(1, total_expected))) * 100, 1) if total_expected > 0 else 100
+    
+    # Contar colaboradores críticos (score >= 10)
+    critical_count = len([e for e in emp_stats.values() if e['risk_score'] >= 10])
+    
+    # --- Preparar dados para gráficos ---
+    top_10_worst = employees_ranking[:10]
+    
+    # Ranking de kg/h (apenas colaboradores com rotas, ordenado por kg/h)
+    employees_with_routes = [e for e in emp_stats.values() if e['route_count'] > 0]
+    employees_kgh_ranking = sorted(employees_with_routes, key=lambda x: x['kgh'], reverse=True)
+    
+    chart_data = {
+        'worst_employees': {
+            'labels': [e['name'][:15] for e in top_10_worst],
+            'faltas': [e['falta'] for e in top_10_worst],
+            'atestados': [e['atestado'] for e in top_10_worst],
+            'advertencias': [e['advertencia'] for e in top_10_worst]
+        },
+        'distribution': {
+            'faltas': total_absences,
+            'atestados': total_sick,
+            'advertencias': total_warnings
+        },
+        'all_employees': {
+            'labels': [e['name'][:12] for e in employees_ranking[:20]],
+            'faltas': [e['falta'] for e in employees_ranking[:20]],
+            'atestados': [e['atestado'] for e in employees_ranking[:20]],
+            'advertencias': [e['advertencia'] for e in employees_ranking[:20]]
+        },
+        'kgh_ranking': {
+            'labels': [e['name'][:15] for e in employees_kgh_ranking],
+            'kgh': [e['kgh'] for e in employees_kgh_ranking],
+            'tonnage': [e['total_tonnage'] for e in employees_kgh_ranking],
+            'routes': [e['route_count'] for e in employees_kgh_ranking]
+        }
+    }
+    
+    # Calcular média de kg/h para referência
+    avg_kgh = round(sum(e['kgh'] for e in employees_kgh_ranking) / len(employees_kgh_ranking), 1) if employees_kgh_ranking else 0
+    
+    # --- ANÁLISE DE CORRELAÇÃO E IMPACTO ---
+    
+    # 1. Correlação: Ausências vs Produtividade
+    # Separar colaboradores em grupos: com ausências vs sem ausências
+    employees_with_absences = [e for e in employees_with_routes if (e['falta'] + e['atestado']) > 0]
+    employees_without_absences = [e for e in employees_with_routes if (e['falta'] + e['atestado']) == 0]
+    
+    avg_kgh_with_absences = round(sum(e['kgh'] for e in employees_with_absences) / len(employees_with_absences), 1) if employees_with_absences else 0
+    avg_kgh_without_absences = round(sum(e['kgh'] for e in employees_without_absences) / len(employees_without_absences), 1) if employees_without_absences else 0
+    
+    # Diferença percentual de produtividade
+    productivity_diff = round(((avg_kgh_without_absences - avg_kgh_with_absences) / avg_kgh_with_absences) * 100, 1) if avg_kgh_with_absences > 0 else 0
+    
+    # 2. Análise de Mão de Obra Perdida
+    # Cada ausência = 1 dia de trabalho perdido (assumindo 8h/dia)
+    total_man_days_lost = total_absences + total_sick
+    total_man_hours_lost = total_man_days_lost * 8  # 8 horas por dia
+    
+    # Estimativa de tonelagem perdida (usando média de kg/h)
+    estimated_tonnage_lost = round((avg_kgh * total_man_hours_lost) / 1000, 2)  # em toneladas
+    
+    # 3. Taxa de Absenteísmo
+    absenteeism_rate = round((total_man_days_lost / max(1, total_expected)) * 100, 2)
+    
+    # 4. Análise por Dia (agrupar rotas e ausências por data)
+    routes_by_date = {}
+    for route in routes:
+        date_key = str(route.date)
+        if date_key not in routes_by_date:
+            routes_by_date[date_key] = {'tonnage': 0, 'hours': 0, 'count': 0}
+        tonnage = float(route.tonnage or 0)
+        diff = duration_seconds(route.start_time, route.end_time)
+        hours = diff / 3600 if diff > 0 else 0
+        routes_by_date[date_key]['tonnage'] += tonnage
+        routes_by_date[date_key]['hours'] += hours
+        routes_by_date[date_key]['count'] += 1
+    
+    absences_by_date = {}
+    for (emp_id, day), routine_type in unique_days.items():
+        if day not in absences_by_date:
+            absences_by_date[day] = {'falta': 0, 'atestado': 0, 'total': 0}
+        absences_by_date[day][routine_type] += 1
+        absences_by_date[day]['total'] += 1
+    
+    # Calcular produtividade por dia - TODOS os dias do período (não só os com rotas)
+    daily_analysis = []
+    current_day = start_date
+    while current_day <= end_date:
+        date_key = current_day.strftime("%Y-%m-%d")
+        route_data = routes_by_date.get(date_key, {'tonnage': 0, 'hours': 0, 'count': 0})
+        absence_data = absences_by_date.get(date_key, {'falta': 0, 'atestado': 0, 'total': 0})
+        kgh = round(route_data['tonnage'] / route_data['hours'], 1) if route_data['hours'] > 0 else 0
+        daily_analysis.append({
+            'date': date_key,
+            'date_formatted': current_day.strftime("%d/%m"),
+            'kgh': kgh,
+            'tonnage': round(route_data['tonnage'], 1),
+            'routes': route_data['count'],
+            'absences': absence_data['total'],
+            'faltas': absence_data['falta'],
+            'atestados': absence_data['atestado'],
+            'workforce_available': total_headcount - absence_data['total']
+        })
+        current_day += timedelta(days=1)
+    
+    # 5. Calcular correlação estatística (Pearson simplificado)
+    if len(daily_analysis) >= 3:
+        absences_list = [d['absences'] for d in daily_analysis]
+        kgh_list = [d['kgh'] for d in daily_analysis]
+        
+        # Média
+        mean_abs = sum(absences_list) / len(absences_list)
+        mean_kgh = sum(kgh_list) / len(kgh_list)
+        
+        # Covariância e desvios
+        numerator = sum((a - mean_abs) * (k - mean_kgh) for a, k in zip(absences_list, kgh_list))
+        denom_abs = sum((a - mean_abs) ** 2 for a in absences_list) ** 0.5
+        denom_kgh = sum((k - mean_kgh) ** 2 for k in kgh_list) ** 0.5
+        
+        correlation = round(numerator / (denom_abs * denom_kgh), 2) if (denom_abs * denom_kgh) > 0 else 0
+    else:
+        correlation = 0
+    
+    # 6. Identificar dias críticos (alta ausência + baixa produtividade)
+    critical_days = [d for d in daily_analysis if d['absences'] >= 2 and d['kgh'] < avg_kgh]
+    
+    # 7. Diagnóstico automático
+    diagnostics = []
+    
+    if absenteeism_rate > 10:
+        diagnostics.append({
+            'type': 'critical',
+            'icon': '🚨',
+            'title': 'Taxa de Absenteísmo Crítica',
+            'description': f'Taxa de {absenteeism_rate}% está muito acima do aceitável (5%). Impacto direto na operação.',
+            'impact': f'{total_man_hours_lost}h de trabalho perdidas'
+        })
+    elif absenteeism_rate > 5:
+        diagnostics.append({
+            'type': 'warning',
+            'icon': '⚠️',
+            'title': 'Taxa de Absenteísmo Elevada',
+            'description': f'Taxa de {absenteeism_rate}% requer atenção. Meta: abaixo de 5%.',
+            'impact': f'{total_man_hours_lost}h de trabalho perdidas'
+        })
+    
+    if correlation < -0.3:
+        diagnostics.append({
+            'type': 'critical',
+            'icon': '📉',
+            'title': 'Correlação Negativa Comprovada',
+            'description': f'Correlação de {correlation} entre ausências e produtividade. Mais ausências = MENOR produtividade.',
+            'impact': f'Queda de {productivity_diff}% na produtividade de quem falta'
+        })
+    
+    if len(employees_with_absences) > len(employees_without_absences) * 0.5:
+        diagnostics.append({
+            'type': 'warning',
+            'icon': '👥',
+            'title': 'Problema Generalizado de Ausências',
+            'description': f'{len(employees_with_absences)} de {len(employees_with_routes)} colaboradores com rotas tiveram ausências no período.',
+            'impact': 'Afeta mais da metade da equipe operacional'
+        })
+    
+    if estimated_tonnage_lost > 10:
+        diagnostics.append({
+            'type': 'critical',
+            'icon': '📦',
+            'title': 'Perda Significativa de Tonelagem',
+            'description': f'Estimativa de {estimated_tonnage_lost} toneladas deixaram de ser movimentadas.',
+            'impact': 'Perda de produção por falta de mão de obra'
+        })
+    
+    if len(critical_days) > 0:
+        diagnostics.append({
+            'type': 'warning',
+            'icon': '📅',
+            'title': f'{len(critical_days)} Dias Críticos Identificados',
+            'description': 'Dias com alta ausência e produtividade abaixo da média.',
+            'impact': ', '.join([d['date_formatted'] for d in critical_days[:5]])
+        })
+    
+    if avg_kgh_with_absences < avg_kgh_without_absences:
+        diagnostics.append({
+            'type': 'info',
+            'icon': '💡',
+            'title': 'Evidência de Impacto nas Ausências',
+            'description': f'Colaboradores sem ausências produzem {avg_kgh_without_absences} kg/h vs {avg_kgh_with_absences} kg/h dos que faltam.',
+            'impact': f'Diferença de {productivity_diff}% na produtividade'
+        })
+    
+    # Adicionar dados de correlação ao chart_data
+    chart_data['correlation'] = {
+        'with_absences': {
+            'label': 'Com Ausências',
+            'kgh': avg_kgh_with_absences,
+            'count': len(employees_with_absences)
+        },
+        'without_absences': {
+            'label': 'Sem Ausências',
+            'kgh': avg_kgh_without_absences,
+            'count': len(employees_without_absences)
+        }
+    }
+    
+    chart_data['daily_analysis'] = {
+        'labels': [d['date_formatted'] for d in daily_analysis],
+        'kgh': [d['kgh'] for d in daily_analysis],
+        'absences': [d['absences'] for d in daily_analysis],
+        'workforce': [d['workforce_available'] for d in daily_analysis],
+        'tonnage': [d['tonnage'] for d in daily_analysis]
+    }
+    
+    # Dados para scatter plot de correlação individual
+    chart_data['scatter_correlation'] = {
+        'data': [
+            {'x': e['falta'] + e['atestado'], 'y': e['kgh'], 'name': e['name'][:15]}
+            for e in employees_with_routes
+        ]
+    }
+    
+    # --- Overview ---
+    overview = {
+        'headcount': total_headcount,
+        'total_absences': total_absences,
+        'total_sick': total_sick,
+        'total_warnings': total_warnings,
+        'presence_rate': presence_rate,
+        'critical_count': critical_count,
+        'avg_kgh': avg_kgh,
+        'total_routes': sum(e['route_count'] for e in employees_kgh_ranking),
+        'employees_with_routes': len(employees_kgh_ranking),
+        # Novos indicadores de impacto
+        'absenteeism_rate': absenteeism_rate,
+        'man_days_lost': total_man_days_lost,
+        'man_hours_lost': total_man_hours_lost,
+        'estimated_tonnage_lost': estimated_tonnage_lost,
+        'correlation': correlation,
+        'avg_kgh_with_absences': avg_kgh_with_absences,
+        'avg_kgh_without_absences': avg_kgh_without_absences,
+        'productivity_diff': productivity_diff,
+        'employees_with_absences': len(employees_with_absences),
+        'employees_without_absences': len(employees_without_absences),
+        'critical_days_count': len(critical_days)
+    }
+    
+    # Análise de impacto
+    impact_analysis = {
+        'diagnostics': diagnostics,
+        'critical_days': critical_days,
+        'daily_analysis': daily_analysis
+    }
+    
+    return templates.TemplateResponse(
+        "operations_performance_report.html",
+        {
+            "request": request,
+            "user": user,
+            "overview": overview,
+            "employees_ranking": employees_ranking,
+            "sectors": sectors,
+            "chart_data": chart_data,
+            "impact_analysis": impact_analysis,
+            "period": period,
+            "period_label": period_label,
+            "period_range_label": period_range_label,
+            "shift": shift,
+            "date": date or target_date.strftime("%Y-%m-%d"),
+            "limit": limit,
+            "generated_at": datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y %H:%M")
         }
     )
 
@@ -11865,19 +12453,43 @@ async def get_allocations(
             
             if previous_routines:
                 # Copiar apenas rotinas persistentes (vacation, away, sick)
+                # MAS verificar se o status atual do colaborador ainda corresponde
                 persistent_routines = ['vacation', 'away', 'sick']
                 copied_count = 0
                 
                 for prev_routine in previous_routines:
                     if prev_routine.routine in persistent_routines:
-                        new_routine = models.EmployeeRoutine(
-                            date=date,
-                            shift=shift,
-                            employee_id=prev_routine.employee_id,
-                            routine=prev_routine.routine
-                        )
-                        session.add(new_routine)
-                        copied_count += 1
+                        # Verificar status atual do colaborador no cadastro
+                        emp = session.get(models.Employee, prev_routine.employee_id)
+                        if emp:
+                            emp_status = (emp.status or 'active').lower()
+                            routine_type = prev_routine.routine.lower()
+                            
+                            # Só copiar se o status atual ainda corresponder à rotina
+                            # vacation -> status deve ser vacation/férias
+                            # away -> status deve ser away/afastado
+                            # sick -> status deve ser sick/atestado OU qualquer status (atestado pode ser temporário)
+                            should_copy = False
+                            
+                            if routine_type == 'vacation' and emp_status in ['vacation', 'férias', 'ferias']:
+                                should_copy = True
+                            elif routine_type == 'away' and emp_status in ['away', 'afastado']:
+                                should_copy = True
+                            elif routine_type == 'sick':
+                                # Atestado é temporário, copiar apenas se ainda está como sick
+                                should_copy = emp_status in ['sick', 'atestado']
+                            
+                            if should_copy:
+                                new_routine = models.EmployeeRoutine(
+                                    date=date,
+                                    shift=shift,
+                                    employee_id=prev_routine.employee_id,
+                                    routine=prev_routine.routine
+                                )
+                                session.add(new_routine)
+                                copied_count += 1
+                            else:
+                                print(f"⏭️ Não copiando rotina '{prev_routine.routine}' para {emp.name} - status atual é '{emp_status}'")
                 
                 if copied_count > 0:
                     session.commit()
