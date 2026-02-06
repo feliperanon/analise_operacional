@@ -17807,6 +17807,7 @@ async def lider_rotas_relatorio_page(
     # Calcular dias sem rota por colaborador
     report_data = []
     total_missing = 0
+    total_no_app = 0  # Total de dias que não abriram o app
     
     # Mapa de dias da semana em inglês para comparação
     weekday_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -17827,6 +17828,7 @@ async def lider_rotas_relatorio_page(
         # Dias sem rota (excluindo férias, folga, atestado, afastamento)
         missing_days = []
         justified_days = []
+        no_app_days = []  # Dias que não abriu o app (sem rota E sem rotina)
         
         # Verificar datas de férias do colaborador (vacation_start e vacation_end)
         emp_vacation_start = None
@@ -17846,6 +17848,10 @@ async def lider_rotas_relatorio_page(
             if day_weekday not in work_days_list:
                 continue  # Não é dia de trabalho, pular
             
+            # Ignorar dias futuros (não pode faltar em dia que ainda não chegou)
+            if day_date > now.date():
+                continue
+            
             routine = emp_routines.get(day_str, None)  # None = sem rotina registrada
             
             # NOVA VERIFICAÇÃO: Checar se o dia está dentro do período de férias do colaborador
@@ -17860,8 +17866,8 @@ async def lider_rotas_relatorio_page(
             # 3. Se está no período de férias (vacation_start/vacation_end) = JUSTIFICADO
             # 4. Se está afastado (status=away) = JUSTIFICADO
             # 5. Se tem justificativa na rotina (vacation, sick, away, dayoff) = JUSTIFICADO
-            # 6. Se tem routine="absent" = FALTA
-            # 7. Se não tem nada registrado = considerar PRESENTE (padrão)
+            # 6. Se tem routine="absent" = FALTA REGISTRADA
+            # 7. Se não tem rota E não tem rotina = NÃO ABRIU APP
             
             has_route = day_str in emp_routes
             
@@ -17872,9 +17878,9 @@ async def lider_rotas_relatorio_page(
                 # Colaborador estava de férias (baseado em vacation_start/vacation_end)
                 justified_days.append({
                     "date": day_str,
-                    "reason": "Férias"
+                    "reason": "Ferias"
                 })
-            elif emp_is_away and routine != "present" and not has_route:
+            elif emp_is_away:
                 # Colaborador está afastado (status=away)
                 justified_days.append({
                     "date": day_str,
@@ -17885,7 +17891,7 @@ async def lider_rotas_relatorio_page(
                 justified_days.append({
                     "date": day_str,
                     "reason": {
-                        "vacation": "Férias",
+                        "vacation": "Ferias",
                         "sick": "Atestado",
                         "away": "Afastado",
                         "dayoff": "Folga"
@@ -17894,26 +17900,30 @@ async def lider_rotas_relatorio_page(
             elif routine == "absent":
                 # Falta registrada explicitamente
                 missing_days.append(day_str)
-            # Se routine is None: sem rotina registrada = considerar presente por padrão
-            # (conforme solicitado: "se não tiver uma rotina ajustada como falta, férias, ou afastado, todos estão presentes")
+            elif routine is None and not has_route:
+                # Não abriu o app - sem rota e sem rotina registrada
+                no_app_days.append(day_str)
         
         # Calcular dias trabalhados: dias com rota OU com presença registrada no fluxo operacional
         days_with_presence = {d for d, r in emp_routines.items() if r == "present"}
         total_worked_days = len(emp_routes.union(days_with_presence))
         
-        if missing_days or justified_days:
+        if missing_days or justified_days or no_app_days:
             report_data.append({
                 "employee": emp,
                 "missing_days": missing_days,
                 "justified_days": justified_days,
+                "no_app_days": no_app_days,
                 "total_missing": len(missing_days),
                 "total_justified": len(justified_days),
+                "total_no_app": len(no_app_days),
                 "total_worked": total_worked_days
             })
             total_missing += len(missing_days)
+            total_no_app += len(no_app_days)
     
-    # Ordenar por quantidade de faltas (maior primeiro)
-    report_data.sort(key=lambda x: x["total_missing"], reverse=True)
+    # Ordenar por quantidade de ausências (faltas + não abriu app, maior primeiro)
+    report_data.sort(key=lambda x: (x["total_missing"] + x["total_no_app"]), reverse=True)
     
     return templates.TemplateResponse("lider_rotas_relatorio.html", {
         "request": request,
@@ -17926,6 +17936,7 @@ async def lider_rotas_relatorio_page(
         "total_days": len(all_days),
         "total_employees": len(employees),
         "total_missing": total_missing,
+        "total_no_app": total_no_app,
         "generated_at": now.strftime("%d/%m/%Y %H:%M"),
     })
 

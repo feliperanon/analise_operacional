@@ -1,210 +1,361 @@
-{% extends "base.html" %}
-{% block title %}Relatório de Ausências de Rota{% endblock %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Relatorio de Ausencias - {{ period_label }}</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                background: white !important;
+                color: #1e293b !important;
+            }
+            .no-print { display: none !important; }
+            .page-break { page-break-before: always; }
+            @page {
+                size: A4;
+                margin: 8mm;
+            }
+        }
 
-{% block head %}
-<style>
-    @media print {
-        .no-print { display: none !important; }
-        body { background: white !important; }
-        .print-container { 
-            background: white !important; 
-            padding: 0 !important;
-            margin: 0 !important;
+        body {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            font-size: 11px;
+            color: #1e293b;
+            background: white;
+            margin: 0;
+            padding: 0;
         }
-        .report-card {
-            break-inside: avoid;
-            page-break-inside: avoid;
-            border: 1px solid #ccc !important;
-            margin-bottom: 10px !important;
-        }
-        .header-print {
-            background: #1e293b !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-        }
-    }
-    
-    .day-chip {
-        display: inline-block;
-        padding: 2px 8px;
-        margin: 2px;
-        border-radius: 4px;
-        font-size: 11px;
-        font-weight: 500;
-    }
-    .day-missing {
-        background: #fecaca;
-        color: #991b1b;
-        border: 1px solid #f87171;
-    }
-    .day-justified {
-        background: #dbeafe;
-        color: #1e40af;
-        border: 1px solid #60a5fa;
-    }
-</style>
-{% endblock %}
 
-{% block content %}
-<div class="min-h-screen bg-slate-900 p-6 print-container">
-    <!-- Filtros (não imprime) -->
-    <div class="no-print mb-6 bg-slate-800 rounded-xl p-4 border border-slate-700">
-        <form method="GET" class="flex flex-wrap items-end gap-4">
+        .print-container {
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 15px;
+        }
+
+        h1 { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
+        h2 { font-size: 14px; font-weight: bold; margin: 15px 0 8px 0; border-bottom: 2px solid #3b82f6; padding-bottom: 4px; }
+        h3 { font-size: 12px; font-weight: 600; margin: 10px 0 5px 0; }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .header-title { font-size: 20px; font-weight: bold; color: #1e40af; }
+        .header-subtitle { font-size: 11px; color: #64748b; margin-top: 2px; }
+        .header-info { text-align: right; font-size: 10px; color: #64748b; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .stat-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 8px;
+            text-align: center;
+        }
+
+        .stat-label { font-size: 9px; color: #64748b; text-transform: uppercase; font-weight: 600; }
+        .stat-value { font-size: 18px; font-weight: bold; color: #1e293b; }
+        .stat-value.red { color: #dc2626; }
+        .stat-value.green { color: #16a34a; }
+        .stat-value.blue { color: #2563eb; }
+        .stat-value.orange { color: #ea580c; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+            font-size: 10px;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 6px 8px;
+            text-align: left;
+        }
+
+        th {
+            background: #f1f5f9;
+            font-weight: 600;
+            color: #475569;
+            font-size: 9px;
+            text-transform: uppercase;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 600;
+        }
+
+        .badge-red { background: #fecaca; color: #991b1b; }
+        .badge-green { background: #dcfce7; color: #166534; }
+        .badge-blue { background: #dbeafe; color: #1e40af; }
+        .badge-orange { background: #fed7aa; color: #9a3412; }
+        .badge-gray { background: #e2e8f0; color: #475569; }
+
+        .day-chip {
+            display: inline-block;
+            padding: 1px 5px;
+            margin: 1px;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: 500;
+        }
+
+        .day-missing { background: #fecaca; color: #991b1b; }
+        .day-justified { background: #dbeafe; color: #1e40af; }
+        .day-noapp { background: #fed7aa; color: #9a3412; }
+
+        .employee-row:nth-child(even) { background: #f8fafc; }
+        .employee-row:hover { background: #f1f5f9; }
+
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .font-bold { font-weight: bold; }
+
+        .days-cell { max-width: 200px; }
+
+        .footer {
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+            font-size: 9px;
+            color: #94a3b8;
+        }
+
+        .legend {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+            font-size: 10px;
+        }
+
+        .legend-item { display: flex; align-items: center; gap: 5px; }
+
+        /* Dark mode for screen */
+        @media screen {
+            body.dark-mode {
+                background: #0f172a;
+                color: #e2e8f0;
+            }
+            body.dark-mode .print-container { background: #1e293b; border-radius: 12px; }
+            body.dark-mode .header { border-color: #334155; }
+            body.dark-mode .header-title { color: #60a5fa; }
+            body.dark-mode .header-subtitle, body.dark-mode .header-info { color: #94a3b8; }
+            body.dark-mode .stat-card { background: #0f172a; border-color: #334155; }
+            body.dark-mode .stat-label { color: #94a3b8; }
+            body.dark-mode .stat-value { color: #f1f5f9; }
+            body.dark-mode th { background: #0f172a; color: #94a3b8; border-color: #334155; }
+            body.dark-mode td { border-color: #334155; }
+            body.dark-mode .employee-row:nth-child(even) { background: #0f172a; }
+            body.dark-mode .employee-row:hover { background: #334155; }
+            body.dark-mode .footer { border-color: #334155; color: #64748b; }
+            body.dark-mode h2 { border-color: #3b82f6; color: #60a5fa; }
+        }
+
+        .filter-bar {
+            background: #1e293b;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .filter-bar label { color: #94a3b8; font-size: 10px; font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 4px; }
+        .filter-bar input, .filter-bar select {
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+        .filter-bar button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-success { background: #16a34a; color: white; }
+        .btn-success:hover { background: #15803d; }
+        .btn-secondary { background: #475569; color: white; }
+        .btn-secondary:hover { background: #334155; }
+    </style>
+</head>
+
+<body class="dark-mode">
+    <!-- Filtros (nao imprime) -->
+    <div class="no-print" style="max-width: 210mm; margin: 15px auto;">
+        <form method="GET" class="filter-bar">
             <div>
-                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Data Início</label>
-                <input type="date" name="start_date" value="{{ start_date }}" 
-                    class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 outline-none">
+                <label>Data Inicio</label>
+                <input type="date" name="start_date" value="{{ start_date }}">
             </div>
             <div>
-                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Data Fim</label>
-                <input type="date" name="end_date" value="{{ end_date }}" 
-                    class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 outline-none">
+                <label>Data Fim</label>
+                <input type="date" name="end_date" value="{{ end_date }}">
             </div>
             <div>
-                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Turno</label>
-                <select name="shift" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 outline-none">
+                <label>Turno</label>
+                <select name="shift">
                     <option value="Todos" {% if shift == "Todos" %}selected{% endif %}>Todos</option>
-                    <option value="Manhã" {% if shift == "Manhã" %}selected{% endif %}>Manhã</option>
+                    <option value="Manhã" {% if shift == "Manhã" %}selected{% endif %}>Manha</option>
                     <option value="Tarde" {% if shift == "Tarde" %}selected{% endif %}>Tarde</option>
                     <option value="Noite" {% if shift == "Noite" %}selected{% endif %}>Noite</option>
                 </select>
             </div>
-            <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
-                Filtrar
-            </button>
-            <button type="button" onclick="window.print()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
-                </svg>
-                Imprimir
-            </button>
-            <a href="/lider/rotas" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors">
-                Voltar
-            </a>
+            <button type="submit" class="btn-primary">Filtrar</button>
+            <button type="button" onclick="window.print()" class="btn-success">Imprimir</button>
+            <a href="/lider/rotas" class="btn-secondary" style="text-decoration: none; display: inline-block;">Voltar</a>
         </form>
     </div>
 
-    <!-- Cabeçalho do Relatório -->
-    <div class="bg-slate-800 rounded-xl p-6 border border-slate-700 mb-6 header-print">
-        <div class="flex justify-between items-start">
+    <div class="print-container">
+        <!-- Cabecalho -->
+        <div class="header">
             <div>
-                <h1 class="text-2xl font-bold text-white mb-1">Relatório de Ausências de Rota</h1>
-                <p class="text-slate-400">Colaboradores que não registraram rota no período</p>
+                <div class="header-title">RELATORIO DE AUSENCIAS DE ROTA</div>
+                <div class="header-subtitle">Colaboradores sem registro de rota no periodo</div>
             </div>
-            <div class="text-right text-sm text-slate-400">
-                <p>Gerado em: <span class="text-white font-medium">{{ generated_at }}</span></p>
+            <div class="header-info">
+                <div><strong>Periodo:</strong> {{ period_label }}</div>
+                <div><strong>Turno:</strong> {{ shift }}</div>
+                <div><strong>Gerado:</strong> {{ generated_at }}</div>
             </div>
         </div>
-        
-        <div class="mt-4 grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
-                <p class="text-xs text-slate-500 uppercase">Período</p>
-                <p class="text-lg font-bold text-white">{{ period_label }}</p>
+
+        <!-- Resumo -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Dias Analisados</div>
+                <div class="stat-value">{{ total_days }}</div>
             </div>
-            <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
-                <p class="text-xs text-slate-500 uppercase">Turno</p>
-                <p class="text-lg font-bold text-blue-400">{{ shift }}</p>
+            <div class="stat-card">
+                <div class="stat-label">Colaboradores</div>
+                <div class="stat-value">{{ total_employees }}</div>
             </div>
-            <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
-                <p class="text-xs text-slate-500 uppercase">Dias no Mês</p>
-                <p class="text-lg font-bold text-white">{{ total_days }}</p>
+            <div class="stat-card">
+                <div class="stat-label">Com Ocorrencia</div>
+                <div class="stat-value orange">{{ report_data|length }}</div>
             </div>
-            <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
-                <p class="text-xs text-slate-500 uppercase">Colaboradores</p>
-                <p class="text-lg font-bold text-white">{{ total_employees }}</p>
+            <div class="stat-card">
+                <div class="stat-label">Total Ausencias</div>
+                <div class="stat-value red">{{ total_missing }}</div>
             </div>
-            <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
-                <p class="text-xs text-slate-500 uppercase">Total Ausências</p>
-                <p class="text-lg font-bold text-red-400">{{ total_missing }}</p>
+            <div class="stat-card">
+                <div class="stat-label">Nao Abriram App</div>
+                <div class="stat-value orange">{{ total_no_app }}</div>
             </div>
+        </div>
+
+        <!-- Legenda -->
+        <div class="legend">
+            <div class="legend-item"><span class="day-chip day-missing">00/00</span> Falta (sem rota)</div>
+            <div class="legend-item"><span class="day-chip day-noapp">00/00</span> Nao abriu app</div>
+            <div class="legend-item"><span class="day-chip day-justified">00/00</span> Justificado</div>
+        </div>
+
+        {% if report_data %}
+        <!-- Tabela Principal -->
+        <h2>Detalhamento por Colaborador</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 25%;">Colaborador</th>
+                    <th class="text-center" style="width: 8%;">Turno</th>
+                    <th class="text-center" style="width: 8%;">Trabalhou</th>
+                    <th class="text-center" style="width: 8%;">Faltas</th>
+                    <th class="text-center" style="width: 8%;">Sem App</th>
+                    <th class="text-center" style="width: 8%;">Justif.</th>
+                    <th style="width: 35%;">Dias com Ocorrencia</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in report_data %}
+                <tr class="employee-row">
+                    <td>
+                        <strong>{{ item.employee.name }}</strong><br>
+                        <span style="font-size: 9px; color: #64748b;">#{{ item.employee.registration_id }} - {{ item.employee.role or '-' }}</span>
+                    </td>
+                    <td class="text-center">
+                        {% if item.employee.work_shift == 'Manhã' %}
+                        <span class="badge badge-blue">M</span>
+                        {% elif item.employee.work_shift == 'Tarde' %}
+                        <span class="badge badge-orange">T</span>
+                        {% else %}
+                        <span class="badge badge-gray">N</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center font-bold" style="color: #16a34a;">{{ item.total_worked }}</td>
+                    <td class="text-center font-bold" style="color: #dc2626;">{{ item.total_missing }}</td>
+                    <td class="text-center font-bold" style="color: #ea580c;">{{ item.total_no_app }}</td>
+                    <td class="text-center font-bold" style="color: #2563eb;">{{ item.total_justified }}</td>
+                    <td class="days-cell">
+                        {% for day in item.missing_days %}
+                        {% set dp = day.split('-') %}
+                        <span class="day-chip day-missing">{{ dp[2] }}/{{ dp[1] }}</span>
+                        {% endfor %}
+                        {% for day in item.no_app_days %}
+                        {% set dp = day.split('-') %}
+                        <span class="day-chip day-noapp">{{ dp[2] }}/{{ dp[1] }}</span>
+                        {% endfor %}
+                        {% for day in item.justified_days %}
+                        {% set dp = day.date.split('-') %}
+                        <span class="day-chip day-justified" title="{{ day.reason }}">{{ dp[2] }}/{{ dp[1] }}</span>
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% else %}
+        <div style="text-align: center; padding: 40px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; margin: 20px 0;">
+            <div style="font-size: 40px; margin-bottom: 10px;">✓</div>
+            <h3 style="color: #166534; margin: 0;">Nenhuma ausencia encontrada</h3>
+            <p style="color: #15803d; font-size: 11px; margin-top: 5px;">Todos os colaboradores registraram rota ou estao justificados no periodo.</p>
+        </div>
+        {% endif %}
+
+        <!-- Rodape -->
+        <div class="footer">
+            <p>Relatorio gerado automaticamente pelo Sistema de Operacao Inteligente</p>
+            <p>{{ period_label }} | Turno: {{ shift }} | {{ generated_at }}</p>
         </div>
     </div>
 
-    <!-- Legenda -->
-    <div class="mb-4 flex items-center gap-4 text-sm no-print">
-        <span class="flex items-center gap-2">
-            <span class="day-chip day-missing">00/00</span>
-            <span class="text-slate-400">Dia sem rota (ausência)</span>
-        </span>
-        <span class="flex items-center gap-2">
-            <span class="day-chip day-justified">00/00</span>
-            <span class="text-slate-400">Justificado (férias/atestado/folga)</span>
-        </span>
-    </div>
-
-    <!-- Lista de Colaboradores -->
-    {% if report_data %}
-    <div class="space-y-4">
-        {% for item in report_data %}
-        <div class="bg-slate-800 rounded-xl p-4 border border-slate-700 report-card">
-            <div class="flex items-center justify-between mb-3">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold text-white uppercase">
-                        {{ item.employee.name[:2] }}
-                    </div>
-                    <div>
-                        <h3 class="font-bold text-white">{{ item.employee.name }}</h3>
-                        <p class="text-xs text-slate-400">
-                            #{{ item.employee.registration_id }} • {{ item.employee.role or '-' }} • {{ item.employee.work_shift }}
-                        </p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-4 text-sm">
-                    <div class="text-center">
-                        <p class="text-xs text-slate-500">Trabalhou</p>
-                        <p class="font-bold text-emerald-400">{{ item.total_worked }} dias</p>
-                    </div>
-                    <div class="text-center">
-                        <p class="text-xs text-slate-500">Ausências</p>
-                        <p class="font-bold text-red-400">{{ item.total_missing }} dias</p>
-                    </div>
-                    <div class="text-center">
-                        <p class="text-xs text-slate-500">Justificados</p>
-                        <p class="font-bold text-blue-400">{{ item.total_justified }} dias</p>
-                    </div>
-                </div>
-            </div>
-            
-            {% if item.missing_days %}
-            <div class="mb-2">
-                <p class="text-xs text-slate-500 font-bold uppercase mb-1">Dias sem rota (não justificados):</p>
-                <div class="flex flex-wrap gap-1">
-                    {% for day in item.missing_days %}
-                    {% set day_parts = day.split('-') %}
-                    <span class="day-chip day-missing">{{ day_parts[2] }}/{{ day_parts[1] }}</span>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-            
-            {% if item.justified_days %}
-            <div>
-                <p class="text-xs text-slate-500 font-bold uppercase mb-1">Dias justificados:</p>
-                <div class="flex flex-wrap gap-1">
-                    {% for day in item.justified_days %}
-                    {% set day_parts = day.date.split('-') %}
-                    <span class="day-chip day-justified" title="{{ day.reason }}">{{ day_parts[2] }}/{{ day_parts[1] }} ({{ day.reason[:3] }})</span>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div class="bg-slate-800 rounded-xl p-12 border border-slate-700 text-center">
-        <svg class="w-16 h-16 mx-auto text-emerald-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-        </svg>
-        <h3 class="text-xl font-bold text-white mb-2">Nenhuma ausência encontrada</h3>
-        <p class="text-slate-400">Todos os colaboradores registraram rota ou estão com justificativa no período selecionado.</p>
-    </div>
-    {% endif %}
-
-    <!-- Rodapé para impressão -->
-    <div class="mt-8 pt-4 border-t border-slate-700 text-center text-xs text-slate-500">
-        <p>Relatório gerado automaticamente pelo Sistema de Operação Inteligente</p>
-        <p>{{ period_label }} • Turno: {{ shift }} • {{ generated_at }}</p>
-    </div>
-</div>
-{% endblock %}
+    <script>
+        // Remove dark mode para impressao
+        window.addEventListener('beforeprint', function() {
+            document.body.classList.remove('dark-mode');
+        });
+        window.addEventListener('afterprint', function() {
+            document.body.classList.add('dark-mode');
+        });
+    </script>
+</body>
+</html>
