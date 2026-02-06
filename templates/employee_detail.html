@@ -574,6 +574,14 @@
                                     <option value="ferias_hist">Férias</option>
                                     <option value="afastamento">Afastamento</option>
                                     <option value="ocorrencia">Ocorrência Geral</option>
+                                    <option value="erro">Erro</option>
+                                    <option value="alerta">Alerta</option>
+                                    <option value="ideia">Ideia</option>
+                                    <option value="info">Informação</option>
+                                    <option value="conquista">Conquista</option>
+                                    <option value="ticket_close">Chamado Encerrado</option>
+                                    <option value="checklist_delete">Checklist Excluído</option>
+                                    <option value="equipment_force_remove">Equipamento Removido</option>
                                 </select>
                             </div>
 
@@ -849,7 +857,15 @@
             form.action = `/events/${eventId}/update_content`;
 
             // Populate Fields
-            typeInput.value = eventType; // Ensure values match options
+            // Check if eventType exists in select options, if not add it dynamically
+            const typeExists = Array.from(typeInput.options).some(opt => opt.value === eventType);
+            if (!typeExists && eventType) {
+                const newOption = document.createElement('option');
+                newOption.value = eventType;
+                newOption.text = eventType.charAt(0).toUpperCase() + eventType.slice(1).replace(/_/g, ' ');
+                typeInput.appendChild(newOption);
+            }
+            typeInput.value = eventType || 'ocorrencia'; // Fallback to 'ocorrencia' if null
             textInput.value = eventText;
 
             // Format Timestamp for datetime-local (YYYY-MM-DDTHH:MM)

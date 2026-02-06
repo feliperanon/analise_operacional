@@ -1,6 +1,6 @@
 # Force Reload for TZDATA and Models - v2
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, UploadFile, File
+from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, UploadFile, File, BackgroundTasks
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -13923,6 +13923,7 @@ async def set_employee_vacation(
 @app.post("/api/employees/routine/extended", response_class=JSONResponse)
 async def set_employee_routine_extended(
     request: Request,
+    background_tasks: BackgroundTasks,
     session: Session = Depends(get_session)
 ):
     """Define rotina estendida de um colaborador (múltiplos dias)"""
@@ -14149,7 +14150,8 @@ async def set_employee_routine_extended(
         alert_type = routine_to_alert_type.get(routine)
         alert_type_labels = {"absent": "advertência", "dayoff": "folga", "sick": "atestado"}
         
-        # Enviar alerta se for um dos tipos configurados
+        # Enviar alerta se for um dos tipos configurados (AGORA EM BACKGROUND)
+        email_scheduled = False
         if alert_type and (created_count > 0 or updated_count > 0):
             try:
                 # TRAVA DE SEGURANÇA: Verificar se já foi enviado e-mail para este colaborador/data/tipo
@@ -14178,29 +14180,22 @@ async def set_employee_routine_extended(
                         user_session = request.session.get("user", {})
                         registered_by = user_session.get("username") or user_session.get("email") or "Sistema"
                         
-                        # Enviar e-mail
-                        email_sent, email_error = send_absence_alert_email(
-                            employee=employee,
+                        # AGENDAR envio de e-mail em BACKGROUND (não bloqueia a requisição)
+                        background_tasks.add_task(
+                            send_absence_alert_email_background,
+                            employee_id=int(employee_id),
+                            employee_name=employee.name,
+                            employee_registration_id=employee.registration_id,
+                            employee_role=employee.role or "",
+                            employee_work_shift=employee.work_shift or "",
                             absence_date=start_date_str,
                             registered_by=registered_by,
                             recipients=recipient_emails,
                             days=days,
                             alert_type=alert_type
                         )
-                        
-                        if email_sent:
-                            # REGISTRAR o envio para evitar duplicados futuros
-                            alert_log = models.AbsenceAlertLog(
-                                employee_id=int(employee_id),
-                                absence_date=start_date_str,
-                                sent_by=registered_by,
-                                recipients_count=len(recipient_emails)
-                            )
-                            session.add(alert_log)
-                            session.commit()
-                            print(f"📧 E-mail de {alert_type_labels.get(alert_type, 'alerta')} enviado para {len(recipient_emails)} destinatário(s)")
-                        else:
-                            print(f"⚠️ Falha ao enviar e-mail de {alert_type_labels.get(alert_type, 'alerta')}: {email_error}")
+                        email_scheduled = True
+                        print(f"📤 E-mail de {alert_type_labels.get(alert_type, 'alerta')} agendado em background para {employee.name}")
                     else:
                         print(f"ℹ️ Nenhum destinatário configurado para alertas de {alert_type_labels.get(alert_type, routine)}")
             except Exception as email_exc:
@@ -14208,8 +14203,8 @@ async def set_employee_routine_extended(
                 email_error = str(email_exc)
         
         message = f"Rotina processada com sucesso: {action_info}"
-        if alert_type and email_sent:
-            message += f" | E-mail de {alert_type_labels.get(alert_type, 'alerta')} enviado."
+        if alert_type and email_scheduled:
+            message += f" | E-mail de {alert_type_labels.get(alert_type, 'alerta')} sendo enviado..."
         elif alert_type and email_already_sent:
             message += " | E-mail já enviado anteriormente (não duplicado)."
         elif alert_type and email_error:
@@ -14220,7 +14215,7 @@ async def set_employee_routine_extended(
             "message": message,
             "created_days": created_count,
             "updated_days": updated_count,
-            "email_sent": email_sent if alert_type else None,
+            "email_scheduled": email_scheduled if alert_type else None,
             "email_already_sent": email_already_sent if alert_type else None
         }
     except Exception as e:
@@ -18738,6 +18733,75 @@ Data/Hora do registro: {datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d
         error_msg = str(exc)
         logger.error(f"Erro ao enviar e-mail de alerta ({alert_type}): {error_msg}")
         return False, error_msg
+
+
+def send_absence_alert_email_background(
+    employee_id: int,
+    employee_name: str,
+    employee_registration_id: str,
+    employee_role: str,
+    employee_work_shift: str,
+    absence_date: str,
+    registered_by: str,
+    recipients: List[str],
+    days: int,
+    alert_type: str
+):
+    """
+    Função executada em background para enviar e-mail de alerta.
+    Recebe dados primitivos em vez de objetos SQLModel para evitar problemas de sessão.
+    """
+    from database import get_session
+    
+    # Criar objeto fake de employee apenas com os dados necessários para o e-mail
+    class EmployeeData:
+        def __init__(self, id, name, registration_id, role, work_shift):
+            self.id = id
+            self.name = name
+            self.registration_id = registration_id
+            self.role = role
+            self.work_shift = work_shift
+    
+    employee_data = EmployeeData(
+        id=employee_id,
+        name=employee_name,
+        registration_id=employee_registration_id,
+        role=employee_role,
+        work_shift=employee_work_shift
+    )
+    
+    alert_type_labels = {"absent": "advertência", "dayoff": "folga", "sick": "atestado"}
+    
+    try:
+        # Enviar e-mail
+        email_sent, email_error = send_absence_alert_email(
+            employee=employee_data,
+            absence_date=absence_date,
+            registered_by=registered_by,
+            recipients=recipients,
+            days=days,
+            alert_type=alert_type
+        )
+        
+        if email_sent:
+            # Registrar log no banco de dados usando nova sessão
+            with Session(engine) as session:
+                alert_log = models.AbsenceAlertLog(
+                    employee_id=employee_id,
+                    absence_date=absence_date,
+                    sent_by=registered_by,
+                    recipients_count=len(recipients)
+                )
+                session.add(alert_log)
+                session.commit()
+            print(f"📧 [Background] E-mail de {alert_type_labels.get(alert_type, 'alerta')} enviado para {len(recipients)} destinatário(s) - {employee_name}")
+        else:
+            print(f"⚠️ [Background] Falha ao enviar e-mail de {alert_type_labels.get(alert_type, 'alerta')}: {email_error}")
+    except Exception as exc:
+        print(f"⚠️ [Background] Erro ao processar envio de e-mail: {exc}")
+        import traceback
+        traceback.print_exc()
+
 
 @app.get("/admin/absence-alerts/settings", response_class=HTMLResponse)
 async def admin_absence_alerts_settings(
