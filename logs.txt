@@ -29777,3 +29777,12 @@ AttributeError: 'ScalarResult' object has no attribute 'scalars'
 2026-02-06 06:31:35,367 | INFO     | main | Google Gemini client initialized successfully
 2026-02-06 06:32:42,386 | INFO     | main | Google Gemini client initialized successfully
 2026-02-06 06:33:31,727 | INFO     | main | Google Gemini client initialized successfully
+2026-02-06 08:00:41,097 | INFO     | main | Google Gemini client initialized successfully
+2026-02-06 08:00:49,476 | INFO     | main | Google Gemini client initialized successfully
+2026-02-06 08:01:34,492 | ERROR    | main | Erro ao preparar auth: 'charmap' codec can't encode characters in position 0-1: character maps to <undefined>
+2026-02-06 08:03:02,540 | INFO     | main | Google Gemini client initialized successfully
+2026-02-06 08:03:44,348 | ERROR    | main | Erro ao preparar auth: 'charmap' codec can't encode characters in position 0-1: character maps to <undefined>
+2026-02-06 08:04:00,594 | INFO     | main | Google Gemini client initialized successfully
+2026-02-06 08:04:40,238 | ERROR    | main | Erro ao preparar auth: 'charmap' codec can't encode characters in position 0-1: character maps to <undefined>
+2026-02-06 08:06:55,602 | INFO     | main | Google Gemini client initialized successfully
+2026-02-06 08:07:58,649 | INFO     | main | Google Gemini client initialized successfully

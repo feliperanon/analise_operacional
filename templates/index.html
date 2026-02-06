@@ -302,16 +302,51 @@
                         <span class="text-xs font-bold text-amber-400 uppercase">Venc. Exp.</span>
                         <span class="ml-auto text-lg font-bold text-amber-400">{{ dashboard.alerts.vencimentos|length }}</span>
                     </div>
-                    <div class="space-y-2 max-h-28 overflow-y-auto custom-scrollbar">
+                    {% set shift_themes = {
+                        'manha': {
+                            'card': 'bg-blue-900/50 border-blue-500/40',
+                            'pill': 'bg-blue-500/20 border border-blue-500/40 text-blue-200'
+                        },
+                        'tarde': {
+                            'card': 'bg-orange-900/50 border-orange-500/40',
+                            'pill': 'bg-orange-500/20 border border-orange-500/40 text-orange-200'
+                        },
+                        'noite': {
+                            'card': 'bg-purple-900/50 border-purple-500/40',
+                            'pill': 'bg-purple-500/20 border border-purple-500/40 text-purple-200'
+                        },
+                        'default': {
+                            'card': 'bg-slate-900/50 border-slate-700/50',
+                            'pill': 'bg-slate-800/50 border border-slate-700/50 text-slate-300'
+                        }
+                    } %}
+                    <div class="space-y-3 max-h-28 overflow-y-auto custom-scrollbar">
                         {% for v in dashboard.alerts.vencimentos[:5] %}
-                        <div class="flex items-start gap-2">
+                        {% set shift_key = (v.shift or 'turno')|lower %}
+                        {% set theme = shift_themes['default'] %}
+                        {% if shift_key.startswith('man') %}
+                            {% set theme = shift_themes['manha'] %}
+                        {% elif shift_key.startswith('tar') %}
+                            {% set theme = shift_themes['tarde'] %}
+                        {% elif shift_key.startswith('noi') %}
+                            {% set theme = shift_themes['noite'] %}
+                        {% endif %}
+                        {% set full_name = v.full_name if v.full_name else v.name %}
+                        {% set parts = full_name.split() %}
+                        {% set display_parts = parts[:2] if parts else [] %}
+                        {% set display_name = ' '.join(display_parts) if display_parts else (parts[0] if parts else v.name) %}
+                        <div class="flex items-start gap-3">
                             <span class="w-1.5 h-1.5 rounded-full bg-amber-500 {{ 'animate-pulse' if v.days <= 3 else '' }}"></span>
-                            <div class="space-y-0.5">
-                                <p class="text-[11px] text-slate-200 font-semibold truncate">{{ v.name }}</p>
-                                <p class="text-[10px] text-slate-400">{{ v.shift }}</p>
-                                <div class="flex gap-1 text-[10px]">
-                                    <span class="text-amber-400 font-bold">{{ v.days }}d</span>
-                                    <span class="text-slate-500">({{ v.date }})</span>
+                            <div class="flex-1 rounded-2xl border border-slate-700/50 {{ theme.card }} p-3 space-y-1">
+                                <div class="flex items-center justify-between gap-2">
+                                    <p class="text-[11px] text-slate-200 font-semibold truncate">{{ display_name }}</p>
+                                    <span class="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full {{ theme.pill }}">
+                                        {{ v.shift or 'Turno' }}
+                                    </span>
+                                </div>
+                                <div class="flex items-center justify-between text-[10px] text-slate-400">
+                                    <span class="text-amber-400 font-bold">{{ v.days }}d restantes</span>
+                                    <span class="text-slate-500">Vence {{ v.date }}</span>
                                 </div>
                             </div>
                         </div>
@@ -331,49 +366,69 @@
                     </div>
                     <div class="space-y-4 max-h-44 overflow-y-auto custom-scrollbar">
                         <div class="space-y-2">
-                            <div class="flex items-center gap-2">
-                                <span class="text-[10px] font-bold text-emerald-300 uppercase tracking-wider">Em Férias</span>
-                                <span class="text-[10px] text-slate-500">({{ dashboard.alerts.vacations_active|length }})</span>
-                            </div>
-                            {% if dashboard.alerts.vacations_active %}
-                            <div class="space-y-2">
-                                {% for f in dashboard.alerts.vacations_active[:3] %}
-                                <div class="space-y-0.5">
-                                    <p class="text-[11px] text-slate-200 font-semibold truncate">{{ f.name }}</p>
-                                    <p class="text-[10px] text-slate-400">{{ f.shift }}</p>
-                                    <p class="text-[10px] text-emerald-400 font-bold">{{ f.days_left }}d</p>
-                                </div>
-                                {% endfor %}
-                            </div>
-                            {% else %}
-                            <p class="text-[10px] text-slate-400">Sem férias ativas</p>
-                            {% endif %}
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-bold text-emerald-300 uppercase tracking-wider">Em Férias</span>
+                            <span class="text-[10px] text-slate-500">({{ dashboard.alerts.vacations_active|length }})</span>
                         </div>
+                        {% if dashboard.alerts.vacations_active %}
                         <div class="space-y-2">
+                            {% for f in dashboard.alerts.vacations_active[:3] %}
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="min-w-0">
+                                    <p class="text-[11px] text-slate-200 font-semibold truncate">{{ f.name }}</p>
+                                    <p class="text-[10px] text-slate-400">{{ f.shift or 'Turno' }}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-[10px] font-bold {% if f.days_left is not none %}text-emerald-400{% else %}text-slate-500{% endif %}">
+                                        {% if f.days_left is not none %}{{ f.days_left }}d{% else %}Sem data{% endif %}
+                                    </p>
+                                    <p class="text-[10px] text-slate-400">
+                                        {% if f.start_date and f.end_date %}
+                                            {{ f.start_date }} – {{ f.end_date }}
+                                        {% elif f.end_date %}
+                                            Até {{ f.end_date }}
+                                        {% elif f.start_date %}
+                                            Início {{ f.start_date }}
+                                        {% else %}
+                                            Datas não registradas
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-[10px] text-slate-400">Sem férias ativas</p>
+                        {% endif %}
+                    </div>
+                    <div class="space-y-2">
                             <div class="flex items-center gap-2">
                                 <span class="text-[10px] font-bold text-amber-300 uppercase tracking-wider">Próximas Férias</span>
                                 <span class="text-[10px] text-slate-500">({{ dashboard.alerts.vacations_upcoming|length }})</span>
                             </div>
-                            {% if dashboard.alerts.vacations_upcoming %}
-                            <div class="space-y-2">
-                                {% for v in dashboard.alerts.vacations_upcoming[:3] %}
-                                <div class="space-y-0.5">
+                        {% if dashboard.alerts.vacations_upcoming %}
+                        <div class="space-y-2">
+                            {% for v in dashboard.alerts.vacations_upcoming[:3] %}
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="min-w-0">
                                     <p class="text-[11px] text-slate-200 font-semibold truncate">{{ v.name }}</p>
-                                    <p class="text-[10px] text-slate-400">{{ v.shift }}</p>
-                                    <p class="text-[10px] text-amber-400 font-bold">{{ v.days_until }}d</p>
+                                    <p class="text-[10px] text-slate-400">{{ v.shift or 'Turno' }}</p>
                                 </div>
-                                {% endfor %}
+                                <div class="text-right">
+                                    <p class="text-[10px] text-amber-400 font-bold">{{ v.days_until }}d</p>
+                                    <p class="text-[10px] text-slate-400">Início {{ v.start_date }}</p>
+                                </div>
                             </div>
-                            {% else %}
-                            <p class="text-[10px] text-slate-400">Sem próximas férias</p>
-                            {% endif %}
-                            {% if dashboard.alerts.vacations_upcoming|length > 3 %}
-                            <p class="text-[10px] text-slate-500 text-center">+{{ dashboard.alerts.vacations_upcoming|length - 3 }} mais</p>
-                            {% endif %}
+                            {% endfor %}
                         </div>
+                        {% else %}
+                        <p class="text-[10px] text-slate-400">Sem próximas férias</p>
+                        {% endif %}
+                        {% if dashboard.alerts.vacations_upcoming|length > 3 %}
+                        <p class="text-[10px] text-slate-500 text-center">+{{ dashboard.alerts.vacations_upcoming|length - 3 }} mais</p>
+                        {% endif %}
                     </div>
                 </div>
-                
                 <!-- Ferias Iniciando/Terminando -->
                 {% if dashboard.alerts.ferias|length > 0 %}
                 <div class="bg-slate-900/50 rounded-xl p-3 border border-slate-700/50">
@@ -681,7 +736,7 @@
                                 {% endif %}
                             </div>
                             <div class="flex-1 min-w-0">
-                                <p class="text-sm font-medium text-slate-300 truncate" title="{{ exp.full_name }}">{{ exp.name }}</p>
+                                <p class="text-sm font-medium text-slate-300 truncate" title="{{ exp.full_name }}">{{ exp.display_name }}</p>
                                 <p class="text-[10px] text-slate-500">{{ exp.role }}</p>
                             </div>
                             <div class="text-right flex-shrink-0">
