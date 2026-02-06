@@ -1980,6 +1980,8 @@ async def index(request: Request, shift: str = "Todos", session: Session = Depen
     # Fetching simplified lists for the template
     today = datetime.now(ZoneInfo("America/Sao_Paulo"))
     employees = session.exec(select(models.Employee).where(models.Employee.status != 'fired')).all()
+    today_naive = today.replace(tzinfo=None)
+    upcoming_deadline = today_naive + timedelta(days=14)
     
     # Birthdays (Month)
     birthdays = []
@@ -2147,6 +2149,8 @@ async def index(request: Request, shift: str = "Todos", session: Session = Depen
         "novatos": [],
         "total": 0
     }
+    alerts.setdefault("vacations_upcoming", [])
+    alerts.setdefault("vacations_active", [])
     
     # Helper para pegar primeiro nome + sobrenome
     def get_short_name(full_name):
@@ -2192,8 +2196,6 @@ async def index(request: Request, shift: str = "Todos", session: Session = Depen
                 vac_start = vac_start.replace(tzinfo=None)
             if hasattr(vac_end, 'tzinfo') and vac_end.tzinfo:
                 vac_end = vac_end.replace(tzinfo=None)
-            
-            today_naive = today.replace(tzinfo=None)
             
             # Check if vacation starts or ends this week
             if week_start.replace(tzinfo=None) <= vac_start <= week_end.replace(tzinfo=None):
