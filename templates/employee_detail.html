@@ -77,12 +77,14 @@
                 <span class="text-slate-300">{{ work_days_display }}</span>
                 {% endif %}
                 <!-- Work Schedule -->
-                {% if emp.work_schedule %}
                 <div class="mt-1">
                     <span class="text-slate-400">Horário: </span>
+                    {% if emp.work_schedule %}
                     <span class="text-white font-bold">{{ emp.work_schedule }}</span>
+                    {% else %}
+                    <span class="text-slate-500">Não definido</span>
+                    {% endif %}
                 </div>
-                {% endif %}
             </div>
             <div class="mt-4 flex gap-4 text-xs text-slate-500">
                 <div>Admissão: <span class="text-slate-300">{{ emp.admission_date.strftime('%d/%m/%Y') if
@@ -119,8 +121,8 @@
         </div>
     </div>
 
-    <!-- Férias Programadas (se houver) -->
-    {% if emp.vacation_start and emp.vacation_end %}
+    <!-- Férias Programadas (se houver e ainda não passaram) -->
+    {% if emp.vacation_start and emp.vacation_end and emp.vacation_end.date() >= today_date %}
     <div class="bg-gradient-to-r from-orange-900/20 to-amber-900/20 border border-orange-500/30 rounded-xl p-4">
         <div class="flex items-center gap-3">
             <div class="bg-orange-500/20 p-3 rounded-lg">
@@ -131,7 +133,11 @@
                 </svg>
             </div>
             <div class="flex-1">
+                {% if emp.vacation_start.date() <= today_date %}
+                <h3 class="text-sm font-bold text-orange-300 mb-1">🏖️ Em Férias</h3>
+                {% else %}
                 <h3 class="text-sm font-bold text-orange-300 mb-1">🏖️ Férias Programadas</h3>
+                {% endif %}
                 <p class="text-white font-medium">
                     {{ emp.vacation_start.strftime('%d/%m/%Y') }} até {{ emp.vacation_end.strftime('%d/%m/%Y') }}
                 </p>

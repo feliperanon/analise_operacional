@@ -1132,26 +1132,40 @@
         vacationAlert.classList.add('hidden');
         
         if (emp.vacation_start && emp.vacation_end) {
-            // Parse and set dates
+            // Parse dates
             const vStart = emp.vacation_start.split('T')[0];
             const vEnd = emp.vacation_end.split('T')[0];
-            vacationStartInput.value = vStart;
-            vacationEndInput.value = vEnd;
             
-            // Show alert with formatted dates
-            const startParts = vStart.split('-');
-            const endParts = vEnd.split('-');
-            const formattedStart = `${startParts[2]}/${startParts[1]}/${startParts[0]}`;
-            const formattedEnd = `${endParts[2]}/${endParts[1]}/${endParts[0]}`;
-            
-            // Calculate days
-            const startDate = new Date(vStart);
+            // Check if vacation already ended (past vacation)
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
             const endDate = new Date(vEnd);
-            const diffTime = Math.abs(endDate - startDate);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            endDate.setHours(23, 59, 59, 999);
             
-            vacationAlertText.innerHTML = `🏖️ ${formattedStart} até ${formattedEnd} <span class="text-xs text-orange-400/70">(${diffDays} dias)</span>`;
-            vacationAlert.classList.remove('hidden');
+            // Only show if vacation hasn't ended yet
+            if (endDate >= today) {
+                vacationStartInput.value = vStart;
+                vacationEndInput.value = vEnd;
+                
+                // Show alert with formatted dates
+                const startParts = vStart.split('-');
+                const endParts = vEnd.split('-');
+                const formattedStart = `${startParts[2]}/${startParts[1]}/${startParts[0]}`;
+                const formattedEnd = `${endParts[2]}/${endParts[1]}/${endParts[0]}`;
+                
+                // Calculate days
+                const startDate = new Date(vStart);
+                const diffTime = Math.abs(endDate - startDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                
+                // Check if currently on vacation or scheduled
+                const currentlyOnVacation = startDate <= today && endDate >= today;
+                const prefix = currentlyOnVacation ? '🏖️ Em Férias:' : '🏖️ Programado:';
+                
+                vacationAlertText.innerHTML = `${prefix} ${formattedStart} até ${formattedEnd} <span class="text-xs text-orange-400/70">(${diffDays} dias)</span>`;
+                vacationAlert.classList.remove('hidden');
+            }
+            // If vacation already passed, fields stay empty (will be cleared on next save)
         }
 
         document.getElementById('editModal').classList.remove('hidden');

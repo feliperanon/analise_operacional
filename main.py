@@ -185,10 +185,16 @@ class VacationSchedule(BaseModel):
 def update_vacation_statuses(session: Session, target_date: datetime):
     """
     Updates employee status based on vacation schedule vs target date.
+    Also:
+    - Clears vacation dates that have already passed
+    - Creates vacation routines for employees on vacation
     """
     check_start = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
     check_end = target_date.replace(hour=23, minute=59, second=59, microsecond=999)
+    today_str = target_date.strftime("%Y-%m-%d")
+    
     employees = session.exec(select(models.Employee).where(models.Employee.status != "fired")).all()
+    
     for emp in employees:
         if emp.vacation_start and emp.vacation_end:
             # Basic validation of dates
@@ -199,18 +205,60 @@ def update_vacation_statuses(session: Session, target_date: datetime):
             v_s = v_start.replace(hour=0, minute=0, second=0, microsecond=0)
             v_e = v_end.replace(hour=23, minute=59, second=59, microsecond=999)
             
+            # Check if vacation already ended (past vacation)
+            if v_e < check_start:
+                # Vacation ended - clear the dates and set to active
+                print(f"🏖️ Férias encerradas para {emp.name} - limpando dados de férias")
+                emp.vacation_start = None
+                emp.vacation_end = None
+                if emp.status == 'vacation':
+                    emp.status = 'active'
+                session.add(emp)
+                continue
+            
+            # Check if currently on vacation
             should_be_vacation = v_s <= check_start <= v_e
             
             if should_be_vacation:
                 if emp.status != 'vacation':
                     emp.status = 'vacation'
                     session.add(emp)
+                
+                # Create vacation routine for today if doesn't exist
+                # Check for each shift
+                for shift in ["Manhã", "Tarde", "Noite"]:
+                    # Only create for the employee's actual shift
+                    if emp.work_shift and emp.work_shift.lower() != shift.lower():
+                        continue
+                        
+                    existing_routine = session.exec(
+                        select(models.EmployeeRoutine)
+                        .where(models.EmployeeRoutine.employee_id == emp.id)
+                        .where(models.EmployeeRoutine.date == today_str)
+                        .where(models.EmployeeRoutine.shift == shift)
+                    ).first()
+                    
+                    if not existing_routine:
+                        new_routine = models.EmployeeRoutine(
+                            date=today_str,
+                            shift=shift,
+                            employee_id=emp.id,
+                            routine="vacation"
+                        )
+                        session.add(new_routine)
+                        print(f"🏖️ Criada rotina de férias para {emp.name} - {today_str} ({shift})")
+                    elif existing_routine.routine != "vacation":
+                        # Update existing routine to vacation
+                        existing_routine.routine = "vacation"
+                        session.add(existing_routine)
             else:
+                # Not yet on vacation or vacation hasn't started
                 # If currently marked as vacation but NOT in vacation period anymore (or yet)
                 # revert to active.
                 if emp.status == 'vacation':
                     emp.status = 'active'
                     session.add(emp)
+    
     session.commit()
 def sync_sectors_on_startup():
     """Sincroniza automaticamente Sector -> SectorConfiguration ao iniciar"""
@@ -15778,7 +15826,8 @@ async def employee_detail(
         "current_allocation": current_allocation,
         "current_activity": current_activity,
         "substitution_info": substitution_info,
-        "replaced_employee": replaced_employee
+        "replaced_employee": replaced_employee,
+        "today_date": datetime.now(ZoneInfo("America/Sao_Paulo")).date()
     })
 @app.post("/employees/{emp_id}/status")
 async def update_employee_status(
