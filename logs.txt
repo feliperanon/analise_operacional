@@ -28312,3 +28312,769 @@ fastapi.exceptions.HTTPException: 303: See Other
 2026-02-03 07:23:50,075 | INFO     | main | Enviando e-mail de alerta (sick) | host=smtp.office365.com port=587 tls=True ssl=False from=felipe.pires@nlfrutas.com.br recipients=['camila.cunha@nlfrutas.com.br', 'wesley.gracas@nlfrutas.com.br', 'monica.moura@nlfrutas.com.br', 'suellen.silva@nlfrutas.com.br'] employee=CLÉSIO SANTANA GONÇALVES
 2026-02-03 07:23:53,153 | INFO     | main | E-mail de alerta (sick) enviado com sucesso para CLÉSIO SANTANA GONÇALVES.
 2026-02-03 10:20:04,554 | INFO     | main | Google Gemini client initialized successfully
+2026-02-03 11:57:06,145 | INFO     | main | Google Gemini client initialized successfully
+2026-02-03 12:45:12,358 | INFO     | main | Google Gemini client initialized successfully
+2026-02-03 12:46:03,019 | INFO     | main | Google Gemini client initialized successfully
+2026-02-03 12:46:52,109 | INFO     | main | Google Gemini client initialized successfully
+2026-02-03 12:48:17,276 | INFO     | main | Google Gemini client initialized successfully
+2026-02-03 12:54:26,643 | INFO     | main | Google Gemini client initialized successfully
+2026-02-03 12:55:47,020 | INFO     | main | Google Gemini client initialized successfully
+2026-02-03 13:27:54,234 | INFO     | main | Google Gemini client initialized successfully
+2026-02-03 13:28:46,788 | INFO     | main | Google Gemini client initialized successfully
+2026-02-03 13:35:06,743 | INFO     | main | Google Gemini client initialized successfully
+2026-02-03 13:35:59,193 | INFO     | main | Google Gemini client initialized successfully
+2026-02-03 13:39:28,068 | INFO     | main | Google Gemini client initialized successfully
+2026-02-03 13:40:14,952 | ERROR    | main | [500] GET http://localhost:8000/admin/turnover-analysis | Trace: 66e6ffdf | Error: can't compare offset-naive and offset-aware datetimes
+  + Exception Group Traceback (most recent call last):
+  |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 79, in collapse_excgroups
+  |     yield
+  |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 192, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |                ~~~~~~~~~~~~~~~~~~~~~~~^^
+  |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 783, in __aexit__
+  |     raise BaseExceptionGroup(
+  |         "unhandled errors in a TaskGroup", self._exceptions
+  |     ) from None
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "C:\Projeto\analise_operacional\main.py", line 322, in global_exception_handler
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ~~~~~~~~~~~~~~~~~~^^
+    |   File "C:\Users\felipe.pires\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    |     self.gen.throw(value)
+    |     ~~~~~~~~~~~~~~^^^^^^^
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    |     raise exc
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Projeto\analise_operacional\main.py", line 303, in add_no_cache_header
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    |     await self.app(scope, receive, send_wrapper)
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    |     await route.handle(scope, receive, send)
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    |     await self.app(scope, receive, send)
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 118, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 104, in app
+    |     response = await f(request)
+    |                ^^^^^^^^^^^^^^^^
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 428, in app
+    |     raw_response = await run_endpoint_function(
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     ...<3 lines>...
+    |     )
+    |     ^
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 314, in run_endpoint_function
+    |     return await dependant.call(**values)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Projeto\analise_operacional\main.py", line 2675, in admin_turnover_analysis_page
+    |     metrics = calculate_turnover_metrics(session, start_dt, end_dt, shift)
+    |   File "C:\Projeto\analise_operacional\main.py", line 2446, in calculate_turnover_metrics
+    |     headcount_start = sum(
+    |         1 for emp in all_employees
+    |         if emp.admission_date and emp.admission_date < start_date
+    |         and (not emp.termination_date or emp.termination_date >= start_date)
+    |     )
+    |   File "C:\Projeto\analise_operacional\main.py", line 2448, in <genexpr>
+    |     if emp.admission_date and emp.admission_date < start_date
+    |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    | TypeError: can't compare offset-naive and offset-aware datetimes
+    +------------------------------------
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 322, in global_exception_handler
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\felipe.pires\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    raise exc
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projeto\analise_operacional\main.py", line 303, in add_no_cache_header
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 118, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 104, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 428, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 314, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projeto\analise_operacional\main.py", line 2675, in admin_turnover_analysis_page
+    metrics = calculate_turnover_metrics(session, start_dt, end_dt, shift)
+  File "C:\Projeto\analise_operacional\main.py", line 2446, in calculate_turnover_metrics
+    headcount_start = sum(
+        1 for emp in all_employees
+        if emp.admission_date and emp.admission_date < start_date
+        and (not emp.termination_date or emp.termination_date >= start_date)
+    )
+  File "C:\Projeto\analise_operacional\main.py", line 2448, in <genexpr>
+    if emp.admission_date and emp.admission_date < start_date
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: can't compare offset-naive and offset-aware datetimes
+
+2026-02-03 13:41:14,462 | INFO     | main | Google Gemini client initialized successfully
+2026-02-03 13:42:04,658 | INFO     | main | Google Gemini client initialized successfully
+2026-02-03 13:42:53,545 | INFO     | main | Google Gemini client initialized successfully
+2026-02-03 14:11:51,243 | ERROR    | main | [500] GET http://localhost:8000/admin/turnover-analysis | Trace: c4ee4266 | Error: too many values to unpack (expected 2)
+  + Exception Group Traceback (most recent call last):
+  |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 79, in collapse_excgroups
+  |     yield
+  |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 192, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |                ~~~~~~~~~~~~~~~~~~~~~~~^^
+  |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 783, in __aexit__
+  |     raise BaseExceptionGroup(
+  |         "unhandled errors in a TaskGroup", self._exceptions
+  |     ) from None
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "C:\Projeto\analise_operacional\main.py", line 322, in global_exception_handler
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ~~~~~~~~~~~~~~~~~~^^
+    |   File "C:\Users\felipe.pires\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    |     self.gen.throw(value)
+    |     ~~~~~~~~~~~~~~^^^^^^^
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    |     raise exc
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Projeto\analise_operacional\main.py", line 303, in add_no_cache_header
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    |     await self.app(scope, receive, send_wrapper)
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    |     await route.handle(scope, receive, send)
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    |     await self.app(scope, receive, send)
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 118, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 104, in app
+    |     response = await f(request)
+    |                ^^^^^^^^^^^^^^^^
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 428, in app
+    |     raw_response = await run_endpoint_function(
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     ...<3 lines>...
+    |     )
+    |     ^
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 314, in run_endpoint_function
+    |     return await dependant.call(**values)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Projeto\analise_operacional\main.py", line 2798, in admin_turnover_analysis_page
+    |     return templates.TemplateResponse(
+    |            ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+    |         "admin_turnover_analysis.html",
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     ...<16 lines>...
+    |         }
+    |         ^
+    |     )
+    |     ^
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 210, in TemplateResponse
+    |     return _TemplateResponse(
+    |         template,
+    |     ...<4 lines>...
+    |         background=background,
+    |     )
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 41, in __init__
+    |     content = template.render(context)
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    |     self.environment.handle_exception()
+    |     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+    |   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    |     raise rewrite_traceback_stack(source=source)
+    |   File "templates\admin_turnover_analysis.html", line 1, in top-level template code
+    |     {% extends "base.html" %}
+    |   File "templates\base.html", line 502, in top-level template code
+    |     {% block content %}{% endblock %}
+    |     ^^^^^^^^^^^^^
+    |   File "templates\admin_turnover_analysis.html", line 232, in block 'content'
+    |     {% for role, data in by_role|sort(attribute='1.rate', reverse=true) %}
+    |     ^^^^^
+    | ValueError: too many values to unpack (expected 2)
+    +------------------------------------
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 322, in global_exception_handler
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\felipe.pires\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    raise exc
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projeto\analise_operacional\main.py", line 303, in add_no_cache_header
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 118, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 104, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 428, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 314, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projeto\analise_operacional\main.py", line 2798, in admin_turnover_analysis_page
+    return templates.TemplateResponse(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        "admin_turnover_analysis.html",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<16 lines>...
+        }
+        ^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 210, in TemplateResponse
+    return _TemplateResponse(
+        template,
+    ...<4 lines>...
+        background=background,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\templating.py", line 41, in __init__
+    content = template.render(context)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "templates\admin_turnover_analysis.html", line 1, in top-level template code
+    {% extends "base.html" %}
+  File "templates\base.html", line 502, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^
+  File "templates\admin_turnover_analysis.html", line 232, in block 'content'
+    {% for role, data in by_role|sort(attribute='1.rate', reverse=true) %}
+    ^^^^^
+ValueError: too many values to unpack (expected 2)
+
+2026-02-03 14:17:27,384 | INFO     | main | Google Gemini client initialized successfully
+2026-02-03 14:18:20,052 | INFO     | main | Google Gemini client initialized successfully
+2026-02-03 18:13:29,151 | ERROR    | main | [500] POST http://localhost:8000/employees/416/status | Trace: 202fb4c6 | Error: (psycopg2.errors.ForeignKeyViolation) update or delete on table "employee" violates foreign key constraint "gamexptransaction_employee_id_fkey" on table "gamexptransaction"
+DETAIL:  Key (id)=(416) is still referenced from table "gamexptransaction".
+
+[SQL: DELETE FROM employee WHERE employee.id = %(id)s]
+[parameters: {'id': 416}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.ForeignKeyViolation: update or delete on table "employee" violates foreign key constraint "gamexptransaction_employee_id_fkey" on table "gamexptransaction"
+DETAIL:  Key (id)=(416) is still referenced from table "gamexptransaction".
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 322, in global_exception_handler
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\felipe.pires\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    raise exc
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projeto\analise_operacional\main.py", line 303, in add_no_cache_header
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 118, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 104, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 428, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 314, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projeto\analise_operacional\main.py", line 15819, in update_employee_status
+    session.commit()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2030, in commit
+    trans.commit(_to_root=True)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "<string>", line 2, in commit
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1311, in commit
+    self._prepare_impl()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "<string>", line 2, in _prepare_impl
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1286, in _prepare_impl
+    self.session.flush()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4331, in flush
+    self._flush(objects)
+    ~~~~~~~~~~~^^^^^^^^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4466, in _flush
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4427, in _flush
+    flush_context.execute()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 466, in execute
+    rec.execute(self)
+    ~~~~~~~~~~~^^^^^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 679, in execute
+    util.preloaded.orm_persistence.delete_obj(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.mapper,
+        ^^^^^^^^^^^^
+        uow.states_for_mapper_hierarchy(self.mapper, True, False),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        uow,
+        ^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\persistence.py", line 193, in delete_obj
+    _emit_delete_statements(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        base_mapper,
+        ^^^^^^^^^^^^
+    ...<3 lines>...
+        delete,
+        ^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\persistence.py", line 1471, in _emit_delete_statements
+    c = connection.execute(
+        statement, del_objects, execution_options=execution_options
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.IntegrityError: (psycopg2.errors.ForeignKeyViolation) update or delete on table "employee" violates foreign key constraint "gamexptransaction_employee_id_fkey" on table "gamexptransaction"
+DETAIL:  Key (id)=(416) is still referenced from table "gamexptransaction".
+
+[SQL: DELETE FROM employee WHERE employee.id = %(id)s]
+[parameters: {'id': 416}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+
+2026-02-03 18:13:49,459 | ERROR    | main | [500] POST http://localhost:8000/employees/416/status | Trace: 4e9b0771 | Error: (psycopg2.errors.ForeignKeyViolation) update or delete on table "employee" violates foreign key constraint "gamexptransaction_employee_id_fkey" on table "gamexptransaction"
+DETAIL:  Key (id)=(416) is still referenced from table "gamexptransaction".
+
+[SQL: DELETE FROM employee WHERE employee.id = %(id)s]
+[parameters: {'id': 416}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.ForeignKeyViolation: update or delete on table "employee" violates foreign key constraint "gamexptransaction_employee_id_fkey" on table "gamexptransaction"
+DETAIL:  Key (id)=(416) is still referenced from table "gamexptransaction".
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 322, in global_exception_handler
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\felipe.pires\AppData\Local\Python\pythoncore-3.14-64\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    raise exc
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projeto\analise_operacional\main.py", line 303, in add_no_cache_header
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\sessions.py", line 85, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 118, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 104, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 428, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\fastapi\routing.py", line 314, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projeto\analise_operacional\main.py", line 15819, in update_employee_status
+    session.commit()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2030, in commit
+    trans.commit(_to_root=True)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "<string>", line 2, in commit
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1311, in commit
+    self._prepare_impl()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "<string>", line 2, in _prepare_impl
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1286, in _prepare_impl
+    self.session.flush()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4331, in flush
+    self._flush(objects)
+    ~~~~~~~~~~~^^^^^^^^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4466, in _flush
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4427, in _flush
+    flush_context.execute()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 466, in execute
+    rec.execute(self)
+    ~~~~~~~~~~~^^^^^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 679, in execute
+    util.preloaded.orm_persistence.delete_obj(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.mapper,
+        ^^^^^^^^^^^^
+        uow.states_for_mapper_hierarchy(self.mapper, True, False),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        uow,
+        ^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\persistence.py", line 193, in delete_obj
+    _emit_delete_statements(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        base_mapper,
+        ^^^^^^^^^^^^
+    ...<3 lines>...
+        delete,
+        ^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\orm\persistence.py", line 1471, in _emit_delete_statements
+    c = connection.execute(
+        statement, del_objects, execution_options=execution_options
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.IntegrityError: (psycopg2.errors.ForeignKeyViolation) update or delete on table "employee" violates foreign key constraint "gamexptransaction_employee_id_fkey" on table "gamexptransaction"
+DETAIL:  Key (id)=(416) is still referenced from table "gamexptransaction".
+
+[SQL: DELETE FROM employee WHERE employee.id = %(id)s]
+[parameters: {'id': 416}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+
+2026-02-03 18:14:51,717 | INFO     | main | Google Gemini client initialized successfully

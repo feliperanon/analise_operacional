@@ -1,217 +1,219 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="p-6 space-y-6">
+<div class="p-4 md:p-6 space-y-5">
 
     <!-- Alerts -->
     {% if error %}
-    <div class="bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex items-center gap-3 text-red-200"
-        role="alert">
-        <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    <div class="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center gap-3 text-red-200" role="alert">
+        <svg class="w-5 h-5 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>
-        <span>{{ error }}</span>
-        <button onclick="this.parentElement.remove()" class="ml-auto text-red-400 hover:text-white"><svg class="w-4 h-4"
-                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <span class="flex-1">{{ error }}</span>
+        <button onclick="this.parentElement.remove()" class="text-red-400 hover:text-white p-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg></button>
+            </svg>
+        </button>
     </div>
     {% endif %}
     {% if success %}
-    <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 flex items-center gap-3 text-emerald-200"
-        role="alert">
-        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-center gap-3 text-emerald-200" role="alert">
+        <svg class="w-5 h-5 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
         </svg>
-        <span>{{ success }}</span>
-        <button onclick="this.parentElement.remove()" class="ml-auto text-emerald-400 hover:text-white"><svg
-                class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <span class="flex-1">{{ success }}</span>
+        <button onclick="this.parentElement.remove()" class="text-emerald-400 hover:text-white p-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg></button>
+            </svg>
+        </button>
     </div>
     {% endif %}
 
-    <!-- Dashboard Cards -->
-    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-        <!-- Total Card -->
-        <div
-            class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm relative overflow-hidden group hover:border-blue-500/50 transition-all">
-            <div class="z-10 relative">
-                <h3 class="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Total</h3>
-                <div class="flex items-baseline gap-1.5">
-                    <span class="text-2xl font-bold text-white">{{ stats.total_active }}</span>
-                    <span class="text-slate-600 text-xs font-medium">/ {{ stats.total_target }}</span>
-                </div>
-                <div class="mt-2 flex items-center justify-between">
-                    <span class="text-emerald-400 text-xs font-medium bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                        {{ "+" if stats.vacancies > 0 else "" }}{{ stats.vacancies }}
-                    </span>
-                    <button onclick="openTargetModal()"
-                        class="text-xs text-blue-400 hover:text-white hover:underline transition-colors flex items-center gap-1">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
-                            </path>
+    <!-- Header Principal -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-white">Colaboradores</h1>
+                <p class="text-sm text-slate-400">Gestão do quadro de funcionários</p>
+            </div>
+        </div>
+        
+        <!-- Ações -->
+        <div class="flex flex-wrap gap-2">
+            <div x-data="{ open: false }" class="relative">
+                <button @click="open = !open" class="h-10 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-medium transition border border-slate-700 flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                    </svg>
+                    Importar
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+                <div x-show="open" @click.away="open = false" x-transition class="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+                    <button onclick="document.getElementById('importModal').classList.remove('hidden')" class="w-full px-4 py-3 text-left text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition flex items-center gap-3">
+                        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
-                        Metas
+                        Planilha Excel
+                    </button>
+                    <button onclick="document.getElementById('bulk-occurrences-modal').classList.remove('hidden')" class="w-full px-4 py-3 text-left text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition flex items-center gap-3">
+                        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                        </svg>
+                        Ocorrências
+                    </button>
+                    <button onclick="document.getElementById('bulk-vacation-modal').classList.remove('hidden')" class="w-full px-4 py-3 text-left text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition flex items-center gap-3">
+                        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        Férias
                     </button>
                 </div>
             </div>
-        </div>
-
-        <!-- Shift Cards -->
-        {% for shift in stats.shifts %}
-        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm cursor-pointer hover:border-blue-500 hover:shadow-md transition-all group"
-            onclick="setFilter('{{ shift.name }}')">
-            <h3 class="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">{{ shift.name }}</h3>
-            <div class="flex items-baseline gap-1.5">
-                <span class="text-2xl font-bold text-white">{{ shift.count }}</span>
-                <span class="text-slate-600 text-xs font-medium">/ {{ shift.target }}</span>
-            </div>
-
-            <!-- Vacancy/Excess Status -->
-            <div class="mt-2 flex flex-col gap-1">
-                {% if shift.vacancies > 0 %}
-                <span class="text-emerald-400 text-xs font-medium flex items-center gap-1.5">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                    +{{ shift.vacancies }}
-                </span>
-                {% elif shift.vacancies < 0 %} <span class="text-red-400 text-xs font-medium flex items-center gap-1.5">
-                    <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
-                    {{ shift.vacancies }}
-                    </span>
-                    {% else %}
-                    <span class="text-slate-500 text-xs flex items-center gap-1.5">
-                        <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
-                        OK
-                    </span>
-                    {% endif %}
-
-                    <!-- Detailed Observations -->
-                    {% if shift.vacation > 0 or shift.away > 0 %}
-                    <div
-                        class="text-[10px] text-slate-500 font-medium flex gap-2 border-t border-slate-700/50 pt-1 mt-1">
-                        {% if shift.vacation > 0 %}
-                        <span class="text-blue-400/80">{{ shift.vacation }} Férias</span>
-                        {% endif %}
-                        {% if shift.away > 0 %}
-                        <span class="text-orange-400/80">{{ shift.away }} Afast.</span>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-            </div>
-        </div>
-        {% endfor %}
-
-        <!-- Status Cards -->
-        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm cursor-pointer hover:border-blue-500 hover:shadow-md transition-all group"
-            onclick="setFilter('vacation')">
-            <h3 class="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Férias</h3>
-            <div class="text-2xl font-bold text-blue-400">{{ stats.statuses.vacation }}</div>
-            <div class="mt-2 h-4 w-full bg-slate-700/50 rounded-full overflow-hidden">
-                <div class="h-full bg-blue-500/20 w-3/4"></div>
-            </div>
-        </div>
-
-        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm cursor-pointer hover:border-orange-500 hover:shadow-md transition-all group"
-            onclick="setFilter('away')">
-            <h3 class="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Afastados</h3>
-            <div class="text-2xl font-bold text-orange-400">{{ stats.statuses.away }}</div>
-            <div class="mt-2 h-4 w-full bg-slate-700/50 rounded-full overflow-hidden">
-                <div class="h-full bg-orange-500/20 w-1/2"></div>
-            </div>
-        </div>
-
-        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm cursor-pointer hover:border-red-500 hover:shadow-md transition-all group"
-            onclick="setFilter('fired')">
-            <h3 class="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Demitidos</h3>
-            <div class="text-2xl font-bold text-red-400">{{ stats.statuses.fired }}</div>
-            <div class="mt-2 h-4 w-full bg-slate-700/50 rounded-full overflow-hidden">
-                <div class="h-full bg-red-500/20 w-1/4"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Actions Bar -->
-    <div class="flex justify-between items-center">
-        <h2 class="text-xl font-semibold text-white">Banco de Dados: Colaboradores</h2>
-        <div class="flex gap-3">
-            <!-- Removed 'Definir Metas' button as it belongs to Smart Flow -->
-            <button onclick="document.getElementById('importModal').classList.remove('hidden')"
-                class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors border border-slate-600 flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
-                </svg>
-                Importar Excel
-            </button>
-
-            <button onclick="document.getElementById('bulk-occurrences-modal').classList.remove('hidden')"
-                class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors border border-slate-600 flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01">
-                    </path>
-                </svg>
-                Importar Ocorrências
-            </button>
-
-            <!--
-            <a href="/import-medical-certificates"
-                class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors border border-slate-600 flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                    </path>
-                </svg>
-                Importar Atestados
-            </a>
-            -->
-            <button onclick="document.getElementById('bulk-vacation-modal').classList.remove('hidden')"
-                class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors border border-slate-600 flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-                Importar Férias
-            </button>
-            <button onclick="document.getElementById('addModal').classList.remove('hidden')"
-                class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+            <button onclick="document.getElementById('addModal').classList.remove('hidden')" class="h-10 px-5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-sm font-semibold transition shadow-lg shadow-blue-500/25 flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                 </svg>
-                Novo
+                Novo Colaborador
             </button>
         </div>
     </div>
 
-    <!-- Search & Filters -->
-    <div
-        class="flex flex-col md:flex-row gap-4 justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700">
-        <div class="relative w-full md:w-96">
-            <input type="text" id="searchInput" placeholder="Pesquisar por nome ou matrícula..."
-                class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:border-blue-500"
-                onkeyup="filterTable()">
-            <svg class="w-5 h-5 text-slate-500 absolute left-3 top-2.5" fill="none" stroke="currentColor"
-                viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-            </svg>
+    <!-- KPIs em Grid Compacto - Todos na mesma linha -->
+    <div class="grid grid-cols-4 md:grid-cols-7 gap-2">
+        
+        <!-- Quadro Efetivo -->
+        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 cursor-pointer hover:border-blue-500/50 transition-all" onclick="openTargetModal()">
+            <div class="flex items-center justify-between">
+                <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Quadro</span>
+                <svg class="w-3 h-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                </svg>
+            </div>
+            <div class="flex items-baseline gap-1 mt-1">
+                <span class="text-2xl font-bold text-white">{{ stats.total_active }}</span>
+                <span class="text-slate-600 text-xs">/{{ stats.total_target }}</span>
+            </div>
+            <div class="flex items-center gap-2 mt-1">
+                {% if stats.vacancies > 0 %}
+                <span class="text-emerald-400 text-[10px] font-semibold flex items-center gap-1">
+                    <span class="w-1 h-1 rounded-full bg-emerald-400 animate-pulse"></span>
+                    +{{ stats.vacancies }}
+                </span>
+                {% elif stats.vacancies < 0 %}
+                <span class="text-red-400 text-[10px] font-semibold">-{{ stats.vacancies|abs }}</span>
+                {% else %}
+                <span class="text-slate-500 text-[10px]">OK</span>
+                {% endif %}
+            </div>
         </div>
-        <div class="flex gap-2">
-            <button onclick="setFilter('all')"
-                class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white hover:bg-slate-600 transition-colors active"
-                data-filter="all">Todos</button>
-            <button onclick="setFilter('Manhã')"
-                class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-900 text-slate-400 hover:text-white transition-colors"
-                data-filter="Manhã">Manhã</button>
-            <button onclick="setFilter('Tarde')"
-                class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-900 text-slate-400 hover:text-white transition-colors"
-                data-filter="Tarde">Tarde</button>
-            <button onclick="setFilter('Noite')"
-                class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-900 text-slate-400 hover:text-white transition-colors"
-                data-filter="Noite">Noite</button>
+        
+        <!-- Turnos -->
+        {% for shift in stats.shifts %}
+        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 cursor-pointer hover:border-blue-500/50 transition-all" onclick="setFilter('{{ shift.name }}')">
+            <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{{ shift.name }}</span>
+            <div class="flex items-baseline gap-1 mt-1">
+                <span class="text-2xl font-bold text-white">{{ shift.headcount }}</span>
+                <span class="text-slate-600 text-xs">/{{ shift.target }}</span>
+            </div>
+            <div class="flex items-center gap-2 mt-1">
+                {% if shift.vacancies > 0 %}
+                <span class="text-emerald-400 text-[10px] font-semibold">+{{ shift.vacancies }}</span>
+                {% elif shift.vacancies < 0 %}
+                <span class="text-red-400 text-[10px] font-semibold">-{{ shift.vacancies|abs }}</span>
+                {% endif %}
+                {% if shift.vacation > 0 %}
+                <span class="text-blue-400 text-[10px] font-medium bg-blue-500/10 px-1 rounded">{{ shift.vacation }}F</span>
+                {% endif %}
+                {% if shift.away > 0 %}
+                <span class="text-orange-400 text-[10px] font-medium bg-orange-500/10 px-1 rounded">{{ shift.away }}A</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+        
+        <!-- Férias -->
+        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 cursor-pointer hover:border-blue-500/50 transition-all" onclick="setFilter('vacation')">
+            <span class="text-[10px] text-blue-400 font-bold uppercase tracking-wider">Férias</span>
+            <p class="text-2xl font-bold text-blue-400 mt-1">{{ stats.statuses.vacation }}</p>
+        </div>
+        
+        <!-- Afastados -->
+        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 cursor-pointer hover:border-orange-500/50 transition-all relative" onclick="setFilter('away')">
+            <span class="text-[10px] text-orange-400 font-bold uppercase tracking-wider">Afastados</span>
+            <p class="text-2xl font-bold text-orange-400 mt-1">{{ stats.statuses.away }}</p>
+            {% if stats.statuses.away > 0 %}
+            <div class="absolute top-2 right-2 w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+            {% endif %}
+        </div>
+        
+        <!-- Demitidos -->
+        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 cursor-pointer hover:border-red-500/50 transition-all" onclick="setFilter('fired')">
+            <span class="text-[10px] text-red-400 font-bold uppercase tracking-wider">Demitidos</span>
+            <p class="text-2xl font-bold text-red-400 mt-1">{{ stats.statuses.fired }}</p>
+        </div>
+    </div>
+    
+    {% if stats.total_away and stats.total_away > 0 %}
+    <div class="bg-orange-500/5 border border-orange-500/20 rounded-xl px-4 py-2 flex items-center gap-2">
+        <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span class="text-xs text-orange-400">{{ stats.total_away }} colaborador{{ 'es' if stats.total_away != 1 else '' }} afastado{{ 's' if stats.total_away != 1 else '' }} gerando {{ stats.total_away }} vaga{{ 's' if stats.total_away != 1 else '' }} temporária{{ 's' if stats.total_away != 1 else '' }}</span>
+    </div>
+    {% endif %}
+
+    <!-- Barra de Pesquisa e Filtros -->
+    <div class="bg-slate-800 rounded-2xl border border-slate-700 p-3">
+        <div class="flex flex-col md:flex-row gap-3 items-center">
+            <!-- Pesquisa -->
+            <div class="relative flex-1 w-full">
+                <svg class="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+                <input type="text" id="searchInput" placeholder="Buscar por nome ou matrícula..." onkeyup="filterTable()"
+                    class="w-full h-10 bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition">
+            </div>
+            
+            <!-- Filtros de Turno -->
+            <div class="flex gap-1.5 bg-slate-900 p-1 rounded-xl">
+                <button onclick="setFilter('all')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-blue-600 text-white" data-filter="all">Todos</button>
+                <button onclick="setFilter('Manhã')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-white hover:bg-slate-800" data-filter="Manhã">Manhã</button>
+                <button onclick="setFilter('Tarde')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-white hover:bg-slate-800" data-filter="Tarde">Tarde</button>
+                <button onclick="setFilter('Noite')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-white hover:bg-slate-800" data-filter="Noite">Noite</button>
+            </div>
+            
+            <!-- Filtros de Status -->
+            <div class="flex gap-1.5">
+                <button onclick="setFilter('vacation')" class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20" data-filter="vacation" title="Férias">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                </button>
+                <button onclick="setFilter('away')" class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20" data-filter="away" title="Afastados">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                </button>
+                <button onclick="setFilter('fired')" class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20" data-filter="fired" title="Demitidos">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                </button>
+            </div>
+            
+            <!-- Separador -->
+            <div class="hidden md:block w-px h-6 bg-slate-700"></div>
+            
+            <!-- Link Substituições -->
+            <a href="/admin/substitutions" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20" title="Histórico de Substituições">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                </svg>
+                <span class="hidden lg:inline">Substituições</span>
+            </a>
         </div>
     </div>
 
@@ -1061,15 +1063,35 @@
 
     function setFilter(filter) {
         currentFilter = filter;
+        
+        // Reset todos os botões de filtro de turno
         document.querySelectorAll('.filter-btn').forEach(btn => {
-            if (btn.dataset.filter === filter) {
-                btn.classList.add('bg-slate-700', 'text-white', 'active');
-                btn.classList.remove('bg-slate-900', 'text-slate-400');
-            } else {
-                btn.classList.remove('bg-slate-700', 'text-white', 'active');
-                btn.classList.add('bg-slate-900', 'text-slate-400');
+            const btnFilter = btn.dataset.filter;
+            
+            // Botões de turno (Todos, Manhã, Tarde, Noite)
+            if (['all', 'Manhã', 'Tarde', 'Noite'].includes(btnFilter)) {
+                if (btnFilter === filter) {
+                    btn.classList.add('bg-blue-600', 'text-white');
+                    btn.classList.remove('text-slate-400', 'hover:text-white', 'hover:bg-slate-800');
+                } else {
+                    btn.classList.remove('bg-blue-600', 'text-white');
+                    btn.classList.add('text-slate-400', 'hover:text-white', 'hover:bg-slate-800');
+                }
+            }
+            
+            // Botões de status (vacation, away, fired) - destacar quando ativo
+            if (['vacation', 'away', 'fired'].includes(btnFilter)) {
+                if (btnFilter === filter) {
+                    btn.classList.add('ring-2', 'ring-offset-2', 'ring-offset-slate-900');
+                    if (btnFilter === 'vacation') btn.classList.add('ring-blue-500');
+                    if (btnFilter === 'away') btn.classList.add('ring-orange-500');
+                    if (btnFilter === 'fired') btn.classList.add('ring-red-500');
+                } else {
+                    btn.classList.remove('ring-2', 'ring-offset-2', 'ring-offset-slate-900', 'ring-blue-500', 'ring-orange-500', 'ring-red-500');
+                }
             }
         });
+        
         filterTable();
     }
 

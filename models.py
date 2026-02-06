@@ -367,6 +367,37 @@ class GameConfiguration(SQLModel, table=True):
     category: str 
     updated_at: datetime = Field(default_factory=datetime.now)
 
+
+# --- Substitution History ---
+
+class SubstitutionHistory(SQLModel, table=True):
+    """Histórico de substituições de colaboradores"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    
+    # Colaborador que saiu (foi substituído)
+    original_employee_id: int = Field(foreign_key="employee.id", index=True)
+    original_employee_name: str  # Nome para referência histórica
+    original_registration_id: str  # Matrícula para referência histórica
+    
+    # Colaborador que entrou (substituto)
+    new_employee_id: int = Field(foreign_key="employee.id", index=True)
+    new_employee_name: str  # Nome para referência histórica
+    new_registration_id: str  # Matrícula para referência histórica
+    
+    # Detalhes da substituição
+    reason: str = Field(index=True)  # fired (demitido), away (afastado)
+    substitution_date: datetime = Field(default_factory=datetime.now, index=True)
+    
+    # Informações adicionais
+    shift: Optional[str] = None  # Turno do colaborador
+    sector: Optional[str] = None  # Setor/Centro de custo
+    observations: Optional[str] = None  # Observações adicionais
+    
+    # Quem registrou
+    registered_by: Optional[str] = None  # Nome/email de quem registrou
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
 # --- Pallet Truck Counting System ---
 
 class PalletSector(SQLModel, table=True):

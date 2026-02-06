@@ -269,6 +269,8 @@ async def lifespan(app: FastAPI):
         ensure_checklist_email_schema()
         ensure_checklist_edit_schema()
         ensure_pallet_count_schema()
+        ensure_substitution_history_schema()
+        migrate_existing_substitutions()
         with Session(engine) as session:
             ensure_default_admin(session)
     except Exception as e:
@@ -1019,6 +1021,90 @@ def ensure_checklist_edit_schema():
             if col_name in existing:
                 continue
             conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}"))
+
+def ensure_substitution_history_schema():
+    """Cria tabela de histórico de substituições se não existir"""
+    inspector = inspect(engine)
+    existing_tables = inspector.get_table_names()
+    
+    if "substitutionhistory" not in existing_tables:
+        with engine.begin() as conn:
+            conn.execute(text("""
+                CREATE TABLE substitutionhistory (
+                    id SERIAL PRIMARY KEY,
+                    original_employee_id INTEGER NOT NULL REFERENCES employee(id),
+                    original_employee_name VARCHAR(255) NOT NULL,
+                    original_registration_id VARCHAR(50) NOT NULL,
+                    new_employee_id INTEGER NOT NULL REFERENCES employee(id),
+                    new_employee_name VARCHAR(255) NOT NULL,
+                    new_registration_id VARCHAR(50) NOT NULL,
+                    reason VARCHAR(50) NOT NULL,
+                    substitution_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    shift VARCHAR(50),
+                    sector VARCHAR(255),
+                    observations TEXT,
+                    registered_by VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_substitutionhistory_original_employee_id ON substitutionhistory (original_employee_id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_substitutionhistory_new_employee_id ON substitutionhistory (new_employee_id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_substitutionhistory_reason ON substitutionhistory (reason)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_substitutionhistory_substitution_date ON substitutionhistory (substitution_date)"))
+            print("✅ Tabela substitutionhistory criada")
+
+def migrate_existing_substitutions():
+    """Migra substituições existentes (replaced_by) para o histórico"""
+    with Session(engine) as session:
+        # Verificar se já existem registros no histórico
+        existing_count = session.exec(select(func.count()).select_from(models.SubstitutionHistory)).one()
+        if existing_count > 0:
+            print(f"⏭️ Histórico de substituições já possui {existing_count} registros, pulando migração")
+            return
+        
+        # Buscar colaboradores que foram substituídos (têm replaced_by preenchido)
+        replaced_employees = session.exec(
+            select(models.Employee)
+            .where(models.Employee.replaced_by.isnot(None))
+        ).all()
+        
+        if not replaced_employees:
+            print("ℹ️ Nenhuma substituição existente para migrar")
+            return
+        
+        migrated = 0
+        for old_emp in replaced_employees:
+            # Buscar o novo colaborador (que substituiu)
+            new_emp = session.get(models.Employee, old_emp.replaced_by)
+            if not new_emp:
+                continue
+            
+            # Determinar o motivo baseado no status do colaborador antigo
+            reason = 'fired' if old_emp.status == 'fired' else 'away'
+            
+            # Usar a data de admissão do novo colaborador ou data de demissão do antigo
+            sub_date = new_emp.admission_date or old_emp.termination_date or datetime.now()
+            
+            # Criar registro no histórico
+            history_record = models.SubstitutionHistory(
+                original_employee_id=old_emp.id,
+                original_employee_name=old_emp.name,
+                original_registration_id=old_emp.registration_id,
+                new_employee_id=new_emp.id,
+                new_employee_name=new_emp.name,
+                new_registration_id=new_emp.registration_id,
+                reason=reason,
+                substitution_date=sub_date,
+                shift=old_emp.work_shift,
+                sector=old_emp.cost_center,
+                registered_by="migração_automática"
+            )
+            session.add(history_record)
+            migrated += 1
+        
+        if migrated > 0:
+            session.commit()
+            print(f"✅ Migradas {migrated} substituições existentes para o histórico")
 
 def ensure_pallet_count_schema():
     """Cria ou atualiza as tabelas do sistema de contagem de paleteiras"""
@@ -2099,6 +2185,1001 @@ async def admin_user_edit_page(
             "employee_map": {e.id: e for e in employees},
         }
     )
+
+@app.get("/admin/substitutions", response_class=HTMLResponse)
+async def admin_substitutions_page(
+    request: Request,
+    period: str = "all",
+    reason: str = "all",
+    shift: str = "all",
+    start_date: str = None,
+    end_date: str = None,
+    session: Session = Depends(get_session),
+    user=Depends(require_admin)
+):
+    """Relatório de Substituições de Colaboradores"""
+    from zoneinfo import ZoneInfo
+    
+    # Buscar histórico de substituições
+    query = select(models.SubstitutionHistory).order_by(models.SubstitutionHistory.substitution_date.desc())
+    
+    # Filtro por motivo
+    if reason and reason != "all":
+        query = query.where(models.SubstitutionHistory.reason == reason)
+    
+    # Filtro por turno
+    if shift and shift != "all":
+        query = query.where(models.SubstitutionHistory.shift == shift)
+    
+    # Filtro por período personalizado (datas)
+    if start_date:
+        try:
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+            query = query.where(models.SubstitutionHistory.substitution_date >= start_dt)
+        except:
+            pass
+    
+    if end_date:
+        try:
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+            query = query.where(models.SubstitutionHistory.substitution_date <= end_dt)
+        except:
+            pass
+    
+    # Filtro por período rápido (se não tiver datas personalizadas)
+    if period and period != "all" and period != "custom" and not start_date and not end_date:
+        now = datetime.now(ZoneInfo("America/Sao_Paulo"))
+        if period == "month":
+            period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        elif period == "quarter":
+            quarter_start_month = ((now.month - 1) // 3) * 3 + 1
+            period_start = now.replace(month=quarter_start_month, day=1, hour=0, minute=0, second=0, microsecond=0)
+        elif period == "year":
+            period_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        else:
+            period_start = None
+        
+        if period_start:
+            query = query.where(models.SubstitutionHistory.substitution_date >= period_start)
+    
+    substitutions = session.exec(query).all()
+    
+    # Estatísticas
+    total = len(substitutions)
+    by_fired = len([s for s in substitutions if s.reason == 'fired'])
+    by_away = len([s for s in substitutions if s.reason == 'away'])
+    
+    # Agrupar por mês para gráfico
+    monthly_stats = {}
+    for sub in substitutions:
+        month_key = sub.substitution_date.strftime("%Y-%m")
+        if month_key not in monthly_stats:
+            monthly_stats[month_key] = {'fired': 0, 'away': 0, 'total': 0}
+        monthly_stats[month_key][sub.reason] = monthly_stats[month_key].get(sub.reason, 0) + 1
+        monthly_stats[month_key]['total'] += 1
+    
+    # Ordenar por mês
+    monthly_stats = dict(sorted(monthly_stats.items()))
+    
+    return templates.TemplateResponse(
+        "admin_substitutions.html",
+        {
+            "request": request,
+            "user": user,
+            "substitutions": substitutions,
+            "total": total,
+            "by_fired": by_fired,
+            "by_away": by_away,
+            "monthly_stats": monthly_stats,
+            "current_period": period,
+            "current_reason": reason,
+            "current_shift": shift,
+            "current_start_date": start_date,
+            "current_end_date": end_date
+        }
+    )
+
+
+@app.post("/admin/substitutions/edit")
+async def admin_substitutions_edit(
+    request: Request,
+    id: int = Form(...),
+    substitution_date: str = Form(...),
+    reason: str = Form(...),
+    shift: str = Form(None),
+    sector: str = Form(None),
+    observations: str = Form(None),
+    session: Session = Depends(get_session),
+    user=Depends(require_admin)
+):
+    """Editar uma substituição existente"""
+    sub = session.get(models.SubstitutionHistory, id)
+    if not sub:
+        return RedirectResponse(url="/admin/substitutions?error=Substituição não encontrada", status_code=303)
+    
+    # Atualizar campos
+    try:
+        sub.substitution_date = datetime.strptime(substitution_date, "%Y-%m-%d")
+    except:
+        pass
+    sub.reason = reason
+    sub.shift = shift if shift else None
+    sub.sector = sector if sector else None
+    sub.observations = observations if observations else None
+    
+    session.add(sub)
+    session.commit()
+    
+    return RedirectResponse(url="/admin/substitutions?success=Substituição atualizada com sucesso", status_code=303)
+
+
+@app.get("/admin/substitutions/export")
+async def admin_substitutions_export(
+    request: Request,
+    period: str = "all",
+    reason: str = "all",
+    shift: str = "all",
+    start_date: str = None,
+    end_date: str = None,
+    session: Session = Depends(get_session),
+    user=Depends(require_admin)
+):
+    """Exportar substituições para Excel"""
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from starlette.responses import StreamingResponse
+    
+    # Aplicar mesmos filtros da página
+    query = select(models.SubstitutionHistory).order_by(models.SubstitutionHistory.substitution_date.desc())
+    
+    if reason and reason != "all":
+        query = query.where(models.SubstitutionHistory.reason == reason)
+    
+    if shift and shift != "all":
+        query = query.where(models.SubstitutionHistory.shift == shift)
+    
+    if start_date:
+        try:
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+            query = query.where(models.SubstitutionHistory.substitution_date >= start_dt)
+        except:
+            pass
+    
+    if end_date:
+        try:
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+            query = query.where(models.SubstitutionHistory.substitution_date <= end_dt)
+        except:
+            pass
+    
+    substitutions = session.exec(query).all()
+    
+    # Criar Excel
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Substituições"
+    
+    # Estilos
+    header_fill = PatternFill(start_color="7C3AED", end_color="7C3AED", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Cabeçalhos
+    headers = ["Data", "Colaborador Anterior", "Matrícula Anterior", "Novo Colaborador", "Matrícula Novo", "Motivo", "Turno", "Setor", "Observações"]
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center')
+        cell.border = thin_border
+    
+    # Dados
+    for row, sub in enumerate(substitutions, 2):
+        ws.cell(row=row, column=1, value=sub.substitution_date.strftime('%d/%m/%Y')).border = thin_border
+        ws.cell(row=row, column=2, value=sub.original_employee_name).border = thin_border
+        ws.cell(row=row, column=3, value=sub.original_registration_id).border = thin_border
+        ws.cell(row=row, column=4, value=sub.new_employee_name).border = thin_border
+        ws.cell(row=row, column=5, value=sub.new_registration_id).border = thin_border
+        ws.cell(row=row, column=6, value="Demissão" if sub.reason == 'fired' else "Afastamento").border = thin_border
+        ws.cell(row=row, column=7, value=sub.shift or '-').border = thin_border
+        ws.cell(row=row, column=8, value=sub.sector or '-').border = thin_border
+        ws.cell(row=row, column=9, value=sub.observations or '-').border = thin_border
+    
+    # Ajustar largura das colunas
+    column_widths = [12, 30, 15, 30, 15, 15, 10, 20, 30]
+    for col, width in enumerate(column_widths, 1):
+        ws.column_dimensions[chr(64 + col)].width = width
+    
+    # Salvar em buffer
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    
+    filename = f"substituicoes_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+# =============================================================================
+# MÓDULO DE ANÁLISE DE TURNOVER E ROTATIVIDADE
+# =============================================================================
+
+def normalize_datetime_for_comparison(dt):
+    """Remove timezone de datetime para comparação segura com datas do banco."""
+    if dt is None:
+        return None
+    if hasattr(dt, 'tzinfo') and dt.tzinfo is not None:
+        return dt.replace(tzinfo=None)
+    return dt
+
+
+def calculate_turnover_metrics(session: Session, start_date: datetime = None, end_date: datetime = None, shift_filter: str = None):
+    """
+    Calcula métricas completas de turnover e rotatividade.
+    
+    Fórmula Turnover: (Saídas / Média do Quadro) * 100
+    """
+    from datetime import datetime
+    from collections import defaultdict
+    
+    # Definir período padrão se não especificado
+    if not end_date:
+        end_date = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    if not start_date:
+        start_date = end_date - timedelta(days=365)  # Último ano por padrão
+    
+    # Normalizar datas para comparação (remover timezone)
+    start_date_naive = normalize_datetime_for_comparison(start_date)
+    end_date_naive = normalize_datetime_for_comparison(end_date)
+    
+    # Buscar todos os colaboradores (ativos e demitidos)
+    query = select(models.Employee)
+    if shift_filter and shift_filter != "all":
+        query = query.where(models.Employee.work_shift == shift_filter)
+    all_employees = session.exec(query).all()
+    
+    # Colaboradores que saíram no período
+    # Se termination_date não está preenchido, considera o colaborador como saída sem filtro de data
+    exits = []
+    for emp in all_employees:
+        if emp.status in ('fired', 'away'):
+            if emp.termination_date:
+                term_date = normalize_datetime_for_comparison(emp.termination_date)
+                if term_date and start_date_naive <= term_date <= end_date_naive:
+                    exits.append(emp)
+            else:
+                # Se não tem data de demissão, considera como saída (para não perder dados)
+                exits.append(emp)
+    
+    # Colaboradores ativos no início do período (admitidos antes e não saíram antes)
+    headcount_start = 0
+    for emp in all_employees:
+        if emp.admission_date:
+            adm_date = normalize_datetime_for_comparison(emp.admission_date)
+            term_date = normalize_datetime_for_comparison(emp.termination_date)
+            if adm_date and adm_date < start_date_naive:
+                if not term_date or term_date >= start_date_naive:
+                    headcount_start += 1
+    
+    # Colaboradores ativos no final do período
+    headcount_end = 0
+    for emp in all_employees:
+        term_date = normalize_datetime_for_comparison(emp.termination_date)
+        if emp.status not in ('fired',):
+            headcount_end += 1
+        elif term_date and term_date > end_date_naive:
+            headcount_end += 1
+    
+    # Média do quadro
+    avg_headcount = (headcount_start + headcount_end) / 2 if (headcount_start + headcount_end) > 0 else 1
+    
+    # Contagem por tipo de saída
+    fired_count = len([e for e in exits if e.status == 'fired'])
+    away_count = len([e for e in exits if e.status == 'away'])
+    total_exits = len(exits)
+    
+    # Taxa de turnover
+    turnover_rate = (total_exits / avg_headcount) * 100 if avg_headcount > 0 else 0
+    
+    # Tempo médio de permanência antes da saída (em meses)
+    tenure_list = []
+    for emp in exits:
+        if emp.admission_date and emp.termination_date:
+            adm_date = normalize_datetime_for_comparison(emp.admission_date)
+            term_date = normalize_datetime_for_comparison(emp.termination_date)
+            if adm_date and term_date:
+                tenure_days = (term_date - adm_date).days
+                tenure_list.append(tenure_days / 30)  # Converter para meses
+    
+    avg_tenure_months = sum(tenure_list) / len(tenure_list) if tenure_list else 0
+    
+    # Tempo médio de substituição (baseado no histórico de substituições)
+    substitutions = session.exec(
+        select(models.SubstitutionHistory)
+    ).all()
+    
+    # Filtrar substituições no período
+    filtered_subs = []
+    for sub in substitutions:
+        sub_date = normalize_datetime_for_comparison(sub.substitution_date)
+        if sub_date and start_date_naive <= sub_date <= end_date_naive:
+            filtered_subs.append(sub)
+    
+    replacement_days_list = []
+    for sub in filtered_subs:
+        old_emp = session.get(models.Employee, sub.original_employee_id)
+        new_emp = session.get(models.Employee, sub.new_employee_id)
+        if old_emp and new_emp and old_emp.termination_date and new_emp.admission_date:
+            old_term = normalize_datetime_for_comparison(old_emp.termination_date)
+            new_adm = normalize_datetime_for_comparison(new_emp.admission_date)
+            if old_term and new_adm:
+                days = (new_adm - old_term).days
+                if days >= 0:  # Só considerar se faz sentido
+                    replacement_days_list.append(days)
+    
+    avg_replacement_days = sum(replacement_days_list) / len(replacement_days_list) if replacement_days_list else 0
+    
+    return {
+        'turnover_rate': turnover_rate,
+        'total_exits': total_exits,
+        'fired_count': fired_count,
+        'away_count': away_count,
+        'avg_headcount': round(avg_headcount),
+        'avg_tenure_months': avg_tenure_months,
+        'avg_replacement_days': avg_replacement_days,
+        'headcount_start': headcount_start,
+        'headcount_end': headcount_end
+    }
+
+
+def calculate_turnover_by_dimension(session: Session, dimension: str, start_date: datetime, end_date: datetime, shift_filter: str = None):
+    """
+    Calcula turnover agrupado por uma dimensão específica (turno, cargo, idade, setor).
+    """
+    from collections import defaultdict
+    
+    # Normalizar datas para comparação
+    start_date_naive = normalize_datetime_for_comparison(start_date)
+    end_date_naive = normalize_datetime_for_comparison(end_date)
+    now_naive = datetime.now()
+    
+    query = select(models.Employee)
+    if shift_filter and shift_filter != "all":
+        query = query.where(models.Employee.work_shift == shift_filter)
+    all_employees = session.exec(query).all()
+    
+    # Agrupar por dimensão
+    groups = defaultdict(lambda: {'total': 0, 'exits': 0, 'rate': 0})
+    
+    for emp in all_employees:
+        # Determinar o grupo baseado na dimensão
+        if dimension == 'shift':
+            group_key = emp.work_shift or 'Não Informado'
+        elif dimension == 'role':
+            group_key = emp.role or 'Não Informado'
+        elif dimension == 'sector':
+            group_key = emp.cost_center or 'Não Informado'
+        elif dimension == 'age':
+            if emp.birthday:
+                birthday_naive = normalize_datetime_for_comparison(emp.birthday)
+                if birthday_naive:
+                    age = (now_naive - birthday_naive).days // 365
+                    if age < 25:
+                        group_key = '18-24 anos'
+                    elif age < 35:
+                        group_key = '25-34 anos'
+                    elif age < 45:
+                        group_key = '35-44 anos'
+                    elif age < 55:
+                        group_key = '45-54 anos'
+                    else:
+                        group_key = '55+ anos'
+                else:
+                    group_key = 'Idade não informada'
+            else:
+                group_key = 'Idade não informada'
+        else:
+            group_key = 'Outros'
+        
+        # Normalizar datas do colaborador
+        adm_date = normalize_datetime_for_comparison(emp.admission_date)
+        term_date = normalize_datetime_for_comparison(emp.termination_date)
+        
+        # Verificar se estava ativo no período
+        # Se não tem admission_date, considera como ativo se status não é fired/away
+        # Se tem admission_date, verifica se estava no período
+        if adm_date:
+            was_active = (
+                adm_date <= end_date_naive and
+                (not term_date or term_date >= start_date_naive)
+            )
+        else:
+            # Sem data de admissão, considera ativo se não está demitido/afastado
+            # ou considera para análise mesmo sem a data
+            was_active = True
+        
+        if was_active:
+            groups[group_key]['total'] += 1
+            
+            # Verificar se saiu no período
+            if emp.status in ('fired', 'away'):
+                if term_date:
+                    if start_date_naive <= term_date <= end_date_naive:
+                        groups[group_key]['exits'] += 1
+                else:
+                    # Se não tem data de demissão, considera como saída
+                    groups[group_key]['exits'] += 1
+    
+    # Calcular taxas
+    for key in groups:
+        if groups[key]['total'] > 0:
+            groups[key]['rate'] = (groups[key]['exits'] / groups[key]['total']) * 100
+    
+    return dict(groups)
+
+
+def generate_turnover_insights(metrics, by_shift, by_role, by_age, by_sector):
+    """Gera insights e alertas automáticos baseados nas métricas."""
+    insights = []
+    
+    # Alerta de turnover alto
+    if metrics['turnover_rate'] > 20:
+        insights.append({
+            'type': 'danger',
+            'message': f"⚠️ Taxa de turnover crítica ({metrics['turnover_rate']:.1f}%). A média do mercado é 10-15%. Ações urgentes são necessárias."
+        })
+    elif metrics['turnover_rate'] > 15:
+        insights.append({
+            'type': 'warning',
+            'message': f"⚡ Taxa de turnover elevada ({metrics['turnover_rate']:.1f}%). Considere revisar políticas de retenção."
+        })
+    
+    # Tempo de substituição
+    if metrics['avg_replacement_days'] > 30:
+        insights.append({
+            'type': 'warning',
+            'message': f"⏰ Tempo médio de substituição alto ({metrics['avg_replacement_days']:.0f} dias). Isso impacta a produtividade da equipe."
+        })
+    
+    # Permanência baixa
+    if metrics['avg_tenure_months'] < 6:
+        insights.append({
+            'type': 'danger',
+            'message': f"📉 Permanência média muito baixa ({metrics['avg_tenure_months']:.1f} meses). Possível problema no onboarding ou expectativas."
+        })
+    
+    # Turno crítico
+    if by_shift:
+        worst_shift = max(by_shift.items(), key=lambda x: x[1]['rate'])
+        if worst_shift[1]['rate'] > 20 and worst_shift[1]['exits'] >= 2:
+            insights.append({
+                'type': 'warning',
+                'message': f"🌙 Turno {worst_shift[0]} com turnover de {worst_shift[1]['rate']:.1f}% - requer atenção especial."
+            })
+    
+    # Função crítica
+    if by_role:
+        critical_roles = [(k, v) for k, v in by_role.items() if v['rate'] > 25 and v['exits'] >= 2]
+        for role, data in critical_roles[:2]:  # Top 2
+            insights.append({
+                'type': 'warning',
+                'message': f"👷 Função '{role}' com turnover de {data['rate']:.0f}% ({data['exits']} saídas) - avaliar condições de trabalho."
+            })
+    
+    # Faixa etária crítica
+    if by_age:
+        young_data = by_age.get('18-24 anos', {'rate': 0, 'exits': 0})
+        if young_data['rate'] > 25 and young_data['exits'] >= 2:
+            insights.append({
+                'type': 'info',
+                'message': f"👶 Alta rotatividade na faixa 18-24 anos ({young_data['rate']:.0f}%). Comum no mercado, mas vale investir em desenvolvimento."
+            })
+    
+    return insights
+
+
+@app.get("/admin/turnover-analysis", response_class=HTMLResponse)
+async def admin_turnover_analysis_page(
+    request: Request,
+    period: str = "year",
+    shift: str = "all",
+    start_date: str = None,
+    end_date: str = None,
+    session: Session = Depends(get_session),
+    user=Depends(require_admin)
+):
+    """Página de Análise Completa de Turnover e Rotatividade"""
+    from collections import OrderedDict
+    
+    # Determinar período
+    now = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    
+    if start_date:
+        try:
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+        except:
+            start_dt = now - timedelta(days=365)
+    else:
+        if period == "month":
+            start_dt = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        elif period == "quarter":
+            quarter_start_month = ((now.month - 1) // 3) * 3 + 1
+            start_dt = now.replace(month=quarter_start_month, day=1, hour=0, minute=0, second=0, microsecond=0)
+        elif period == "semester":
+            semester_start_month = 1 if now.month <= 6 else 7
+            start_dt = now.replace(month=semester_start_month, day=1, hour=0, minute=0, second=0, microsecond=0)
+        elif period == "year":
+            start_dt = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        else:  # all
+            start_dt = now - timedelta(days=365*5)  # Últimos 5 anos
+    
+    if end_date:
+        try:
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=ZoneInfo("America/Sao_Paulo"))
+        except:
+            end_dt = now
+    else:
+        end_dt = now
+    
+    # Calcular métricas
+    metrics = calculate_turnover_metrics(session, start_dt, end_dt, shift)
+    
+    # Análises por dimensão
+    by_shift = calculate_turnover_by_dimension(session, 'shift', start_dt, end_dt, shift)
+    by_role = calculate_turnover_by_dimension(session, 'role', start_dt, end_dt, shift)
+    by_age = calculate_turnover_by_dimension(session, 'age', start_dt, end_dt, shift)
+    by_sector = calculate_turnover_by_dimension(session, 'sector', start_dt, end_dt, shift)
+    
+    # Evolução mensal
+    monthly_trend = OrderedDict()
+    current = start_dt.replace(day=1)
+    while current <= end_dt:
+        month_end = (current.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+        month_end = min(month_end.replace(hour=23, minute=59, second=59, tzinfo=ZoneInfo("America/Sao_Paulo")), end_dt)
+        
+        month_metrics = calculate_turnover_metrics(session, current, month_end, shift)
+        month_key = current.strftime("%b/%y")
+        monthly_trend[month_key] = {
+            'rate': month_metrics['turnover_rate'],
+            'fired': month_metrics['fired_count'],
+            'away': month_metrics['away_count']
+        }
+        
+        # Próximo mês
+        current = (current.replace(day=28) + timedelta(days=4)).replace(day=1)
+        if current.tzinfo is None:
+            current = current.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+    
+    # Últimas saídas (colaboradores que saíram)
+    # Inclui colaboradores sem data de demissão para não perder dados
+    query = select(models.Employee).where(
+        models.Employee.status.in_(['fired', 'away'])
+    ).order_by(models.Employee.termination_date.desc().nullslast(), models.Employee.name).limit(20)
+    
+    if shift and shift != "all":
+        query = query.where(models.Employee.work_shift == shift)
+    
+    recent_exits_raw = session.exec(query).all()
+    
+    recent_exits = []
+    now_naive = datetime.now()
+    for emp in recent_exits_raw:
+        # Calcular idade
+        age = None
+        if emp.birthday:
+            birthday_naive = normalize_datetime_for_comparison(emp.birthday)
+            if birthday_naive:
+                age = (now_naive - birthday_naive).days // 365
+        
+        # Calcular permanência
+        tenure_months = 0
+        if emp.admission_date and emp.termination_date:
+            adm_naive = normalize_datetime_for_comparison(emp.admission_date)
+            term_naive = normalize_datetime_for_comparison(emp.termination_date)
+            if adm_naive and term_naive:
+                tenure_months = round((term_naive - adm_naive).days / 30, 1)
+        
+        recent_exits.append({
+            'name': emp.name,
+            'registration_id': emp.registration_id,
+            'role': emp.role,
+            'work_shift': emp.work_shift,
+            'age': age,
+            'tenure_months': tenure_months,
+            'status': emp.status,
+            'exit_date': emp.termination_date.strftime('%d/%m/%Y') if emp.termination_date else '-'
+        })
+    
+    # Gerar insights
+    insights = generate_turnover_insights(metrics, by_shift, by_role, by_age, by_sector)
+    
+    # Verificar se Gemini está disponível
+    gemini_available = gemini_client is not None
+    
+    return templates.TemplateResponse(
+        "admin_turnover_analysis.html",
+        {
+            "request": request,
+            "user": user,
+            "metrics": metrics,
+            "by_shift": by_shift,
+            "by_role": by_role,
+            "by_age": by_age,
+            "by_sector": by_sector,
+            "monthly_trend": monthly_trend,
+            "recent_exits": recent_exits,
+            "insights": insights,
+            "gemini_available": gemini_available,
+            "current_period": period,
+            "current_shift": shift,
+            "current_start_date": start_date,
+            "current_end_date": end_date
+        }
+    )
+
+
+@app.post("/admin/turnover-analysis/ai-report")
+async def admin_turnover_ai_report(
+    request: Request,
+    session: Session = Depends(get_session),
+    user=Depends(require_admin)
+):
+    """Gera parecer executivo com IA (Gemini)"""
+    if not gemini_client:
+        return JSONResponse({"error": "Serviço de IA não configurado. Configure GEMINI_API_KEY no .env"}, status_code=400)
+    
+    try:
+        data = await request.json()
+        period = data.get('period', 'year')
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+        
+        # Calcular métricas
+        now = datetime.now(ZoneInfo("America/Sao_Paulo"))
+        
+        if start_date:
+            try:
+                start_dt = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+            except:
+                start_dt = now - timedelta(days=365)
+        else:
+            if period == "month":
+                start_dt = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            elif period == "year":
+                start_dt = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            else:
+                start_dt = now - timedelta(days=365)
+        
+        if end_date:
+            try:
+                end_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=ZoneInfo("America/Sao_Paulo"))
+            except:
+                end_dt = now
+        else:
+            end_dt = now
+        
+        metrics = calculate_turnover_metrics(session, start_dt, end_dt)
+        by_shift = calculate_turnover_by_dimension(session, 'shift', start_dt, end_dt)
+        by_role = calculate_turnover_by_dimension(session, 'role', start_dt, end_dt)
+        by_age = calculate_turnover_by_dimension(session, 'age', start_dt, end_dt)
+        
+        # Montar contexto para a IA
+        context = f"""
+        DADOS DE TURNOVER E ROTATIVIDADE - Período: {start_dt.strftime('%d/%m/%Y')} a {end_dt.strftime('%d/%m/%Y')}
+        
+        MÉTRICAS GERAIS:
+        - Taxa de Turnover: {metrics['turnover_rate']:.1f}%
+        - Total de Saídas: {metrics['total_exits']}
+        - Demissões: {metrics['fired_count']}
+        - Afastamentos: {metrics['away_count']}
+        - Quadro Médio: {metrics['avg_headcount']} colaboradores
+        - Permanência Média: {metrics['avg_tenure_months']:.1f} meses
+        - Tempo Médio de Substituição: {metrics['avg_replacement_days']:.0f} dias
+        
+        TURNOVER POR TURNO:
+        {chr(10).join([f"- {k}: {v['rate']:.1f}% ({v['exits']} saídas de {v['total']} colaboradores)" for k, v in by_shift.items()])}
+        
+        TURNOVER POR FUNÇÃO (TOP 5):
+        {chr(10).join([f"- {k}: {v['rate']:.1f}% ({v['exits']} saídas)" for k, v in sorted(by_role.items(), key=lambda x: x[1]['rate'], reverse=True)[:5]])}
+        
+        TURNOVER POR FAIXA ETÁRIA:
+        {chr(10).join([f"- {k}: {v['rate']:.1f}% ({v['exits']} saídas)" for k, v in by_age.items()])}
+        """
+        
+        prompt = f"""
+        Você é um consultor especialista em RH e Gestão de Pessoas. Analise os dados de turnover abaixo e gere um PARECER EXECUTIVO completo e profissional.
+        
+        {context}
+        
+        Gere um parecer estruturado com:
+        
+        1. **RESUMO EXECUTIVO** (2-3 parágrafos)
+        - Visão geral da situação
+        - Principais indicadores
+        
+        2. **ANÁLISE DETALHADA**
+        - Análise da taxa de turnover (comparar com benchmark do mercado ~10-15%)
+        - Análise por turno (identificar padrões)
+        - Análise por função (funções críticas)
+        - Análise por faixa etária
+        
+        3. **PONTOS DE ATENÇÃO**
+        - Liste os 3-5 principais riscos identificados
+        
+        4. **RECOMENDAÇÕES**
+        - Ações prioritárias para melhorar retenção
+        - Melhorias no processo de substituição
+        - Investimentos sugeridos em pessoas
+        
+        5. **CONCLUSÃO**
+        - Síntese e próximos passos
+        
+        Use linguagem profissional mas acessível. Seja específico nos dados e recomendações.
+        Responda em português brasileiro.
+        """
+        
+        response = gemini_client.models.generate_content(
+            model="gemini-2.0-flash-exp",
+            contents=prompt
+        )
+        
+        report = response.text if hasattr(response, 'text') else str(response)
+        
+        return JSONResponse({"report": report})
+        
+    except Exception as e:
+        logger.error(f"Erro ao gerar relatório IA: {e}")
+        return JSONResponse({"error": f"Erro ao gerar relatório: {str(e)}"}, status_code=500)
+
+
+@app.get("/admin/turnover-analysis/export")
+async def admin_turnover_export(
+    request: Request,
+    period: str = "year",
+    shift: str = "all",
+    start_date: str = None,
+    end_date: str = None,
+    session: Session = Depends(get_session),
+    user=Depends(require_admin)
+):
+    """Exportar análise de turnover para Excel"""
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.chart import BarChart, Reference
+    
+    # Determinar período
+    now = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    
+    if start_date:
+        try:
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+        except:
+            start_dt = now - timedelta(days=365)
+    else:
+        if period == "month":
+            start_dt = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        elif period == "year":
+            start_dt = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        else:
+            start_dt = now - timedelta(days=365)
+    
+    if end_date:
+        try:
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=ZoneInfo("America/Sao_Paulo"))
+        except:
+            end_dt = now
+    else:
+        end_dt = now
+    
+    # Calcular métricas
+    metrics = calculate_turnover_metrics(session, start_dt, end_dt, shift)
+    by_shift = calculate_turnover_by_dimension(session, 'shift', start_dt, end_dt, shift)
+    by_role = calculate_turnover_by_dimension(session, 'role', start_dt, end_dt, shift)
+    by_age = calculate_turnover_by_dimension(session, 'age', start_dt, end_dt, shift)
+    by_sector = calculate_turnover_by_dimension(session, 'sector', start_dt, end_dt, shift)
+    
+    # Criar Excel
+    wb = Workbook()
+    
+    # Estilos
+    header_fill = PatternFill(start_color="BE185D", end_color="BE185D", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    title_font = Font(bold=True, size=14)
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # ===== ABA 1: Resumo Executivo =====
+    ws_summary = wb.active
+    ws_summary.title = "Resumo Executivo"
+    
+    ws_summary['A1'] = "ANÁLISE DE TURNOVER E ROTATIVIDADE"
+    ws_summary['A1'].font = Font(bold=True, size=16)
+    ws_summary['A2'] = f"Período: {start_dt.strftime('%d/%m/%Y')} a {end_dt.strftime('%d/%m/%Y')}"
+    ws_summary['A2'].font = Font(italic=True)
+    
+    # KPIs
+    kpis = [
+        ("Taxa de Turnover", f"{metrics['turnover_rate']:.1f}%"),
+        ("Total de Saídas", str(metrics['total_exits'])),
+        ("Demissões", str(metrics['fired_count'])),
+        ("Afastamentos", str(metrics['away_count'])),
+        ("Quadro Médio", str(metrics['avg_headcount'])),
+        ("Permanência Média", f"{metrics['avg_tenure_months']:.1f} meses"),
+        ("Tempo Médio Substituição", f"{metrics['avg_replacement_days']:.0f} dias"),
+    ]
+    
+    row = 4
+    for label, value in kpis:
+        ws_summary.cell(row=row, column=1, value=label).font = Font(bold=True)
+        ws_summary.cell(row=row, column=2, value=value)
+        row += 1
+    
+    ws_summary.column_dimensions['A'].width = 25
+    ws_summary.column_dimensions['B'].width = 20
+    
+    # ===== ABA 2: Por Turno =====
+    ws_shift = wb.create_sheet("Por Turno")
+    ws_shift['A1'] = "TURNOVER POR TURNO"
+    ws_shift['A1'].font = title_font
+    
+    headers = ["Turno", "Total Colaboradores", "Saídas", "Taxa (%)"]
+    for col, header in enumerate(headers, 1):
+        cell = ws_shift.cell(row=3, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.border = thin_border
+    
+    row = 4
+    for shift_name, data in by_shift.items():
+        ws_shift.cell(row=row, column=1, value=shift_name).border = thin_border
+        ws_shift.cell(row=row, column=2, value=data['total']).border = thin_border
+        ws_shift.cell(row=row, column=3, value=data['exits']).border = thin_border
+        ws_shift.cell(row=row, column=4, value=round(data['rate'], 1)).border = thin_border
+        row += 1
+    
+    for col in ['A', 'B', 'C', 'D']:
+        ws_shift.column_dimensions[col].width = 20
+    
+    # ===== ABA 3: Por Função =====
+    ws_role = wb.create_sheet("Por Função")
+    ws_role['A1'] = "TURNOVER POR FUNÇÃO"
+    ws_role['A1'].font = title_font
+    
+    for col, header in enumerate(headers, 1):
+        cell = ws_role.cell(row=3, column=col, value=header.replace("Turno", "Função"))
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.border = thin_border
+    
+    row = 4
+    for role_name, data in sorted(by_role.items(), key=lambda x: x[1]['rate'], reverse=True):
+        ws_role.cell(row=row, column=1, value=role_name).border = thin_border
+        ws_role.cell(row=row, column=2, value=data['total']).border = thin_border
+        ws_role.cell(row=row, column=3, value=data['exits']).border = thin_border
+        ws_role.cell(row=row, column=4, value=round(data['rate'], 1)).border = thin_border
+        row += 1
+    
+    for col in ['A', 'B', 'C', 'D']:
+        ws_role.column_dimensions[col].width = 25
+    
+    # ===== ABA 4: Por Idade =====
+    ws_age = wb.create_sheet("Por Faixa Etária")
+    ws_age['A1'] = "TURNOVER POR FAIXA ETÁRIA"
+    ws_age['A1'].font = title_font
+    
+    for col, header in enumerate(headers, 1):
+        cell = ws_age.cell(row=3, column=col, value=header.replace("Turno", "Faixa Etária"))
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.border = thin_border
+    
+    row = 4
+    for age_range, data in by_age.items():
+        ws_age.cell(row=row, column=1, value=age_range).border = thin_border
+        ws_age.cell(row=row, column=2, value=data['total']).border = thin_border
+        ws_age.cell(row=row, column=3, value=data['exits']).border = thin_border
+        ws_age.cell(row=row, column=4, value=round(data['rate'], 1)).border = thin_border
+        row += 1
+    
+    for col in ['A', 'B', 'C', 'D']:
+        ws_age.column_dimensions[col].width = 20
+    
+    # ===== ABA 5: Por Setor =====
+    ws_sector = wb.create_sheet("Por Setor")
+    ws_sector['A1'] = "TURNOVER POR SETOR"
+    ws_sector['A1'].font = title_font
+    
+    for col, header in enumerate(headers, 1):
+        cell = ws_sector.cell(row=3, column=col, value=header.replace("Turno", "Setor"))
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.border = thin_border
+    
+    row = 4
+    for sector_name, data in sorted(by_sector.items(), key=lambda x: x[1]['rate'], reverse=True):
+        ws_sector.cell(row=row, column=1, value=sector_name or 'Não Informado').border = thin_border
+        ws_sector.cell(row=row, column=2, value=data['total']).border = thin_border
+        ws_sector.cell(row=row, column=3, value=data['exits']).border = thin_border
+        ws_sector.cell(row=row, column=4, value=round(data['rate'], 1)).border = thin_border
+        row += 1
+    
+    for col in ['A', 'B', 'C', 'D']:
+        ws_sector.column_dimensions[col].width = 25
+    
+    # ===== ABA 6: Lista de Saídas =====
+    ws_exits = wb.create_sheet("Colaboradores que Saíram")
+    ws_exits['A1'] = "COLABORADORES QUE SAÍRAM NO PERÍODO"
+    ws_exits['A1'].font = title_font
+    
+    exit_headers = ["Nome", "Matrícula", "Função", "Turno", "Setor", "Admissão", "Saída", "Permanência (meses)", "Motivo"]
+    for col, header in enumerate(exit_headers, 1):
+        cell = ws_exits.cell(row=3, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.border = thin_border
+    
+    # Buscar colaboradores que saíram (inclui sem data de demissão)
+    query = select(models.Employee).where(
+        models.Employee.status.in_(['fired', 'away'])
+    ).order_by(models.Employee.termination_date.desc().nullslast(), models.Employee.name)
+    
+    if shift and shift != "all":
+        query = query.where(models.Employee.work_shift == shift)
+    
+    exits_list = session.exec(query).all()
+    
+    row = 4
+    for emp in exits_list:
+        tenure = 0
+        if emp.admission_date and emp.termination_date:
+            adm_naive = normalize_datetime_for_comparison(emp.admission_date)
+            term_naive = normalize_datetime_for_comparison(emp.termination_date)
+            if adm_naive and term_naive:
+                tenure = round((term_naive - adm_naive).days / 30, 1)
+        
+        ws_exits.cell(row=row, column=1, value=emp.name).border = thin_border
+        ws_exits.cell(row=row, column=2, value=emp.registration_id).border = thin_border
+        ws_exits.cell(row=row, column=3, value=emp.role).border = thin_border
+        ws_exits.cell(row=row, column=4, value=emp.work_shift).border = thin_border
+        ws_exits.cell(row=row, column=5, value=emp.cost_center or '-').border = thin_border
+        ws_exits.cell(row=row, column=6, value=emp.admission_date.strftime('%d/%m/%Y') if emp.admission_date else '-').border = thin_border
+        ws_exits.cell(row=row, column=7, value=emp.termination_date.strftime('%d/%m/%Y') if emp.termination_date else '-').border = thin_border
+        ws_exits.cell(row=row, column=8, value=tenure).border = thin_border
+        ws_exits.cell(row=row, column=9, value="Demissão" if emp.status == 'fired' else "Afastamento").border = thin_border
+        row += 1
+    
+    column_widths = [30, 15, 25, 10, 20, 12, 12, 18, 15]
+    for i, width in enumerate(column_widths):
+        ws_exits.column_dimensions[chr(65 + i)].width = width
+    
+    # Salvar em buffer
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    
+    filename = f"analise_turnover_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
 
 @app.get("/admin/users", response_class=HTMLResponse)
 async def admin_users_page(
@@ -14034,40 +15115,55 @@ async def _employees_page_impl(request: Request, session: Session):
         if "tarde" in s: return "Tarde"
         # Default to Manhã only if explicitly Manhã or fallback
         return "Manhã"
-    total_real_active = 0
+    # LÓGICA ATUALIZADA:
+    # - Afastados NÃO contam no total de colaboradores (viram vagas temporárias)
+    # - Quando um afastado retornar, alguém será demitido para fechar o quadro
+    # - Total efetivo = ativos + férias (férias é temporário, retorna normalmente)
+    # - Vagas = target - total_efetivo (afastados geram vagas)
+    
+    total_effective_headcount = 0  # Ativos + Férias (exclui afastados)
+    total_away = 0  # Contador separado de afastados
+    
     for e in employees:
         if e.status == "fired":
             continue
-        # Count towards total if not fired
-        total_real_active += 1
         # Determine shift
         s_name = get_shift_name(e.work_shift)
         # Increment specific status counter for that shift
         if e.status == "active":
             shift_data[s_name]["active"] += 1
+            total_effective_headcount += 1
         elif e.status == "vacation":
             shift_data[s_name]["vacation"] += 1
+            total_effective_headcount += 1  # Férias conta no quadro (retorno normal)
         elif e.status == "away":
             shift_data[s_name]["away"] += 1
+            total_away += 1  # Afastados NÃO contam (viram vaga temporária)
         
     for s in shifts:
         data = shift_data.get(s, {"active":0, "vacation":0, "away":0})
-        active_count = data["active"] # Active presence
-        # Total head count for vacancies calculation includes active + vacation + away? 
-        # Usually vacancies = Target - Headcount (Active people).
-        # Here active_count is purely status='active' (present).
-        # We need total headcount of the shift (excluding fired).
-        total_shift_headcount = data["active"] + data["vacation"] + data["away"]
+        active_count = data["active"]
+        vacation_count = data["vacation"]
+        away_count = data["away"]
+        
+        # Headcount efetivo do turno = ativos + férias (exclui afastados)
+        # Afastados geram vagas temporárias que precisam ser preenchidas por substitutos
+        effective_shift_headcount = active_count + vacation_count
         
         target = target_map.get(s, 0)
+        
+        # Vagas = target - headcount_efetivo
+        # Afastados automaticamente viram vagas até retornarem
+        shift_vacancies = max(0, target - effective_shift_headcount)
+        
         shift_stats.append({
             "name": s,
-            "count": active_count, # Display "Active" users
-            "headcount": total_shift_headcount, # Logic for vacancies
-            "vacation": data["vacation"],
-            "away": data["away"],
+            "count": active_count,  # Ativos trabalhando
+            "headcount": effective_shift_headcount,  # Efetivo (exclui afastados)
+            "vacation": vacation_count,
+            "away": away_count,  # Afastados (mostrar separado mas não conta no quadro)
             "target": target,
-            "vacancies": max(0, target - total_shift_headcount)
+            "vacancies": shift_vacancies
         })
         
     # Status Stats (Global)
@@ -14076,17 +15172,23 @@ async def _employees_page_impl(request: Request, session: Session):
         "away": sum(1 for e in employees if e.status == "away"),
         "fired": sum(1 for e in employees if e.status == "fired")
     }
+    
+    # Vagas totais = target - headcount_efetivo
+    # Isso inclui automaticamente os afastados como vagas temporárias
+    total_vacancies = max(0, total_target - total_effective_headcount)
+    
     return templates.TemplateResponse("employees.html", {
         "request": request,
         "user": user,
         "employees": employees,
         "stats": {
-            "total_active": total_real_active,
+            "total_active": total_effective_headcount,  # Efetivo (exclui afastados)
             "total_target": total_target,
-            "vacancies": total_target - total_real_active,
+            "vacancies": total_vacancies,  # Inclui afastados como vagas
+            "total_away": total_away,  # Afastados separados (para referência)
             "shifts": shift_stats,
             "statuses": status_stats,
-            "targets_map": target_map # Pass map for editing logic
+            "targets_map": target_map
         },
         "error": request.query_params.get("error"),
         "success": request.query_params.get("success")
@@ -14221,6 +15323,27 @@ async def add_employee(
                     sector="RH"
                 )
                 session.add(old_evt)
+                
+                # 3. Registrar no Histórico de Substituições
+                try:
+                    user = require_login(request)
+                    registered_by = user.email if hasattr(user, 'email') else str(user)
+                except:
+                    registered_by = "sistema"
+                
+                substitution_record = models.SubstitutionHistory(
+                    original_employee_id=old_emp.id,
+                    original_employee_name=old_emp.name,
+                    original_registration_id=old_emp.registration_id,
+                    new_employee_id=new_employee.id,
+                    new_employee_name=new_employee.name,
+                    new_registration_id=new_employee.registration_id,
+                    reason=sub_reason or 'fired',
+                    shift=old_emp.work_shift,
+                    sector=old_emp.cost_center,
+                    registered_by=registered_by
+                )
+                session.add(substitution_record)
         
         session.commit()
         session.commit()
@@ -14566,6 +15689,42 @@ async def employee_detail(
                     if current_allocation or current_activity:
                         break
 
+    # Buscar informações de substituição
+    substitution_info = None
+    replaced_employee = None
+    
+    # Verificar se este colaborador SUBSTITUIU alguém (é novo e substituiu)
+    sub_as_new = session.exec(
+        select(models.SubstitutionHistory)
+        .where(models.SubstitutionHistory.new_employee_id == employee_id)
+    ).first()
+    
+    # Verificar se este colaborador FOI SUBSTITUÍDO (saiu e foi substituído)
+    sub_as_old = session.exec(
+        select(models.SubstitutionHistory)
+        .where(models.SubstitutionHistory.original_employee_id == employee_id)
+    ).first()
+    
+    if sub_as_new:
+        substitution_info = {
+            "type": "substituted",
+            "original_name": sub_as_new.original_employee_name,
+            "original_registration": sub_as_new.original_registration_id,
+            "original_id": sub_as_new.original_employee_id,
+            "reason": "Demissão" if sub_as_new.reason == 'fired' else "Afastamento",
+            "date": sub_as_new.substitution_date.strftime("%d/%m/%Y")
+        }
+    
+    if sub_as_old:
+        replaced_employee = {
+            "type": "was_replaced",
+            "new_name": sub_as_old.new_employee_name,
+            "new_registration": sub_as_old.new_registration_id,
+            "new_id": sub_as_old.new_employee_id,
+            "reason": "Demissão" if sub_as_old.reason == 'fired' else "Afastamento",
+            "date": sub_as_old.substitution_date.strftime("%d/%m/%Y")
+        }
+
     return templates.TemplateResponse("employee_detail.html", {
         "request": request, 
         "emp": employee, 
@@ -14589,7 +15748,9 @@ async def employee_detail(
         "absence_debug_days": absence_summary.get("debug_days", []),
         "absence_debug_unknown_labels": absence_summary.get("debug_unknown_labels", []),
         "current_allocation": current_allocation,
-        "current_activity": current_activity
+        "current_activity": current_activity,
+        "substitution_info": substitution_info,
+        "replaced_employee": replaced_employee
     })
 @app.post("/employees/{emp_id}/status")
 async def update_employee_status(
@@ -14602,12 +15763,74 @@ async def update_employee_status(
     emp = session.get(models.Employee, emp_id)
     if emp:
         if status_action == "delete":
-            # Explicitly fetch and unlink events to ensure no FK constraints block deletion
+            # Explicitly fetch and unlink all related records to ensure no FK constraints block deletion
+            
+            # Unlink Events
             stmt = select(models.Event).where(models.Event.employee_id == emp_id)
             events = session.exec(stmt).all()
             for event in events:
                 event.employee_id = None
                 session.add(event)
+            
+            # Delete GameXPTransactions (or unlink if needed)
+            from sqlmodel import delete as sql_delete
+            session.exec(sql_delete(models.GameXPTransaction).where(models.GameXPTransaction.employee_id == emp_id))
+            
+            # Delete XPLedger entries
+            session.exec(sql_delete(models.XPLedger).where(models.XPLedger.employee_id == emp_id))
+            
+            # Delete EmployeeAchievements
+            session.exec(sql_delete(models.EmployeeAchievement).where(models.EmployeeAchievement.employee_id == emp_id))
+            
+            # Delete EmployeeRoutines
+            session.exec(sql_delete(models.EmployeeRoutine).where(models.EmployeeRoutine.employee_id == emp_id))
+            
+            # Delete EmployeeAllocations
+            session.exec(sql_delete(models.EmployeeAllocation).where(models.EmployeeAllocation.employee_id == emp_id))
+            
+            # Unlink Routes
+            routes = session.exec(select(models.Route).where(models.Route.employee_id == emp_id)).all()
+            for route in routes:
+                session.delete(route)
+            
+            # Unlink TranspalletChecklists
+            checklists = session.exec(select(models.TranspalletChecklist).where(models.TranspalletChecklist.employee_id == emp_id)).all()
+            for cl in checklists:
+                session.delete(cl)
+            
+            # Unlink EquipmentTickets
+            tickets = session.exec(select(models.EquipmentTicket).where(models.EquipmentTicket.employee_id == emp_id)).all()
+            for ticket in tickets:
+                session.delete(ticket)
+            
+            # Unlink AbsenceAlertLogs
+            session.exec(sql_delete(models.AbsenceAlertLog).where(models.AbsenceAlertLog.employee_id == emp_id))
+            
+            # Unlink PalletCounts
+            session.exec(sql_delete(models.PalletCount).where(models.PalletCount.employee_id == emp_id))
+            
+            # Unlink PalletMaintenanceTickets
+            session.exec(sql_delete(models.PalletMaintenanceTicket).where(models.PalletMaintenanceTicket.employee_id == emp_id))
+            
+            # Unlink LeaderTaskResponses
+            session.exec(sql_delete(models.LeaderTaskResponse).where(models.LeaderTaskResponse.employee_id == emp_id))
+            
+            # Handle replaced_by self-reference
+            replacers = session.exec(select(models.Employee).where(models.Employee.replaced_by == emp_id)).all()
+            for r in replacers:
+                r.replaced_by = None
+                session.add(r)
+            
+            # Handle SubstitutionHistory
+            session.exec(sql_delete(models.SubstitutionHistory).where(models.SubstitutionHistory.original_employee_id == emp_id))
+            session.exec(sql_delete(models.SubstitutionHistory).where(models.SubstitutionHistory.new_employee_id == emp_id))
+            
+            # Unlink User if linked
+            user_linked = session.exec(select(models.User).where(models.User.employee_id == emp_id)).first()
+            if user_linked:
+                user_linked.employee_id = None
+                session.add(user_linked)
+            
             session.delete(emp)
         else:
             # Generate History Event

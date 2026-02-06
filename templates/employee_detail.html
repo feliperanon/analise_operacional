@@ -144,6 +144,58 @@
     </div>
     {% endif %}
 
+    <!-- Card de Substituição (se houver) -->
+    {% if substitution_info or replaced_employee %}
+    <div class="bg-gradient-to-r from-purple-900/20 to-indigo-900/20 border border-purple-500/30 rounded-xl p-4">
+        <div class="flex items-center gap-3 mb-3">
+            <div class="bg-purple-500/20 p-3 rounded-lg">
+                <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                </svg>
+            </div>
+            <h3 class="text-sm font-bold text-purple-300">📋 Histórico de Substituição</h3>
+        </div>
+        
+        {% if substitution_info %}
+        <div class="bg-slate-800/50 rounded-lg p-3 mb-2">
+            <p class="text-xs text-slate-400 uppercase font-bold mb-1">Este colaborador entrou como substituto</p>
+            <div class="flex items-center gap-2 text-white">
+                <span class="text-sm">Substituiu</span>
+                <a href="/employees/{{ substitution_info.original_id }}" class="font-bold text-purple-400 hover:text-purple-300 transition">
+                    {{ substitution_info.original_name }}
+                </a>
+                <span class="text-xs text-slate-500">(Mat: {{ substitution_info.original_registration }})</span>
+            </div>
+            <div class="flex items-center gap-3 mt-2 text-xs">
+                <span class="px-2 py-0.5 rounded bg-{% if substitution_info.reason == 'Demissão' %}red{% else %}amber{% endif %}-500/20 text-{% if substitution_info.reason == 'Demissão' %}red{% else %}amber{% endif %}-400 border border-{% if substitution_info.reason == 'Demissão' %}red{% else %}amber{% endif %}-500/30">
+                    {{ substitution_info.reason }}
+                </span>
+                <span class="text-slate-500">em {{ substitution_info.date }}</span>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if replaced_employee %}
+        <div class="bg-slate-800/50 rounded-lg p-3">
+            <p class="text-xs text-slate-400 uppercase font-bold mb-1">Este colaborador foi substituído</p>
+            <div class="flex items-center gap-2 text-white">
+                <span class="text-sm">Substituído por</span>
+                <a href="/employees/{{ replaced_employee.new_id }}" class="font-bold text-green-400 hover:text-green-300 transition">
+                    {{ replaced_employee.new_name }}
+                </a>
+                <span class="text-xs text-slate-500">(Mat: {{ replaced_employee.new_registration }})</span>
+            </div>
+            <div class="flex items-center gap-3 mt-2 text-xs">
+                <span class="px-2 py-0.5 rounded bg-{% if replaced_employee.reason == 'Demissão' %}red{% else %}amber{% endif %}-500/20 text-{% if replaced_employee.reason == 'Demissão' %}red{% else %}amber{% endif %}-400 border border-{% if replaced_employee.reason == 'Demissão' %}red{% else %}amber{% endif %}-500/30">
+                    {{ replaced_employee.reason }}
+                </span>
+                <span class="text-slate-500">em {{ replaced_employee.date }}</span>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <div class="text-xs text-slate-400">
         Período: {{ absence_period_range.start }} a {{ absence_period_range.end }} ({{ absence_period_label }})
     </div>
