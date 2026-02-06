@@ -15909,6 +15909,119 @@ async def update_employee_status(
         session.commit()
     return RedirectResponse(url="/employees", status_code=status.HTTP_303_SEE_OTHER)
 
+
+@app.post("/employees/{emp_id}/return")
+async def return_employee_from_leave(
+    emp_id: int,
+    request: Request,
+    return_date: str = Form(...),
+    session: Session = Depends(get_session)
+):
+    """
+    Retorna um colaborador de férias/atestado/afastamento.
+    Atualiza o status para 'active', limpa datas de férias e atualiza rotinas.
+    """
+    require_login(request)
+    emp = session.get(models.Employee, emp_id)
+    
+    if not emp:
+        raise HTTPException(status_code=404, detail="Colaborador não encontrado")
+    
+    previous_status = emp.status
+    br_tz = ZoneInfo("America/Sao_Paulo")
+    
+    # Parse da data de retorno
+    try:
+        return_dt = datetime.strptime(return_date, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Data de retorno inválida")
+    
+    # Map do status anterior para texto descritivo
+    status_map = {
+        "vacation": "Férias",
+        "away": "Afastamento",
+        "sick": "Atestado",
+        "fired": "Demissão",
+        "day_off": "Folga"
+    }
+    previous_status_label = status_map.get(previous_status, previous_status)
+    
+    # 1. Atualizar status do colaborador para 'active'
+    emp.status = "active"
+    
+    # 2. Limpar datas de férias se existirem
+    if emp.vacation_start or emp.vacation_end:
+        emp.vacation_start = None
+        emp.vacation_end = None
+    
+    session.add(emp)
+    
+    # 3. Criar evento de retorno
+    event_text = f"{emp.name}: Retornou de {previous_status_label} em {return_dt.strftime('%d/%m/%Y')}"
+    new_event = models.Event(
+        timestamp=datetime.now(br_tz),
+        text=event_text,
+        type="retorno",
+        category="pessoas",
+        employee_id=emp.id
+    )
+    session.add(new_event)
+    
+    # 4. Atualizar rotinas: de return_date até hoje + 30 dias, marcar como 'present'
+    today = datetime.now(br_tz).date()
+    end_update_date = today + timedelta(days=30)
+    current_date = return_dt.date()
+    
+    # Buscar rotinas existentes no período
+    existing_routines = session.exec(
+        select(models.EmployeeRoutine)
+        .where(models.EmployeeRoutine.employee_id == emp_id)
+        .where(models.EmployeeRoutine.date >= return_date)
+        .where(models.EmployeeRoutine.date <= end_update_date.strftime("%Y-%m-%d"))
+    ).all()
+    
+    # Agrupar por data
+    existing_by_date = {}
+    for r in existing_routines:
+        if r.date not in existing_by_date:
+            existing_by_date[r.date] = []
+        existing_by_date[r.date].append(r)
+    
+    # Atualizar ou criar rotinas como 'present'
+    routines_updated = 0
+    routines_created = 0
+    
+    while current_date <= end_update_date:
+        date_str = current_date.strftime("%Y-%m-%d")
+        
+        if date_str in existing_by_date:
+            # Atualizar rotinas existentes que não são 'present'
+            for routine in existing_by_date[date_str]:
+                if routine.routine in ('vacation', 'away', 'sick', 'absent'):
+                    routine.routine = 'present'
+                    session.add(routine)
+                    routines_updated += 1
+        else:
+            # Criar novas rotinas como 'present' para cada turno
+            for shift_name in ["Manhã", "Tarde", "Noite"]:
+                new_routine = models.EmployeeRoutine(
+                    date=date_str,
+                    shift=shift_name,
+                    employee_id=emp_id,
+                    routine="present"
+                )
+                session.add(new_routine)
+            routines_created += 1
+        
+        current_date += timedelta(days=1)
+    
+    session.commit()
+    
+    print(f"✅ {emp.name} retornou de {previous_status_label}. Rotinas: {routines_updated} atualizadas, {routines_created} dias criados")
+    
+    return RedirectResponse(url="/employees", status_code=status.HTTP_303_SEE_OTHER)
+
+
 @app.post("/events/{event_id}/update_content")
 async def update_event_content(
     event_id: int,
@@ -16022,6 +16135,8 @@ async def update_employee(
     work_schedule: str = Form(None),
     mobile_access_separation: bool = Form(False),
     mobile_access_checklist: bool = Form(False),
+    vacation_start: str = Form(None),
+    vacation_end: str = Form(None),
     session: Session = Depends(get_session)
 ):
     require_login(request)
@@ -16124,6 +16239,52 @@ async def update_employee(
                 emp.birthday = datetime.strptime(birthday, "%Y-%m-%d")
             except:
                 pass
+        
+        # Processar férias programadas
+        if vacation_start and vacation_end:
+            try:
+                v_start = datetime.strptime(vacation_start, "%Y-%m-%d")
+                v_end = datetime.strptime(vacation_end, "%Y-%m-%d")
+                
+                # Validar datas
+                if v_start <= v_end:
+                    old_v_start = emp.vacation_start
+                    old_v_end = emp.vacation_end
+                    
+                    emp.vacation_start = v_start
+                    emp.vacation_end = v_end
+                    
+                    # Verificar se hoje está dentro do período de férias
+                    today = datetime.now()
+                    if v_start <= today <= v_end:
+                        emp.status = 'vacation'
+                    elif emp.status == 'vacation' and today > v_end:
+                        # Férias acabaram, voltar para ativo
+                        emp.status = 'active'
+                    
+                    # Log se houve alteração
+                    if old_v_start != v_start or old_v_end != v_end:
+                        session.add(models.Event(
+                            text=f"Férias programadas: {v_start.strftime('%d/%m/%Y')} a {v_end.strftime('%d/%m/%Y')}",
+                            type="ferias",
+                            category="pessoas",
+                            employee_id=emp.id
+                        ))
+            except Exception as e:
+                print(f"Erro ao processar férias: {e}")
+        elif vacation_start == "" and vacation_end == "":
+            # Se ambos foram limpos, limpar as férias
+            if emp.vacation_start or emp.vacation_end:
+                emp.vacation_start = None
+                emp.vacation_end = None
+                if emp.status == 'vacation':
+                    emp.status = 'active'
+                session.add(models.Event(
+                    text="Férias canceladas/removidas",
+                    type="ferias",
+                    category="pessoas",
+                    employee_id=emp.id
+                ))
                 
         session.add(emp)
         session.commit()

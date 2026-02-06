@@ -313,19 +313,16 @@
 
                             {% if emp.status != 'active' %}
                             <!-- Reativar / Retornar -->
-                            <form action="/employees/{{ emp.id }}/status" method="POST" class="inline"
-                                onsubmit="return confirm('Confirmar o retorno de {{ emp.name }}?');">
-                                <input type="hidden" name="status_action" value="active">
-                                <button type="submit"
-                                    class="p-1.5 hover:bg-emerald-500/20 rounded text-emerald-400 transition-colors"
-                                    title="Reativar / Retornar">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-                                        </path>
-                                    </svg>
-                                </button>
-                            </form>
+                            <button type="button"
+                                onclick="openReturnModal('{{ emp.id }}', '{{ emp.name }}', '{{ emp.status }}')"
+                                class="p-1.5 hover:bg-emerald-500/20 rounded text-emerald-400 transition-colors"
+                                title="Reativar / Retornar">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                    </path>
+                                </svg>
+                            </button>
                             {% endif %}
 
 
@@ -798,6 +795,38 @@
                 </div>
             </div>
 
+            <!-- Férias Programadas -->
+            <div id="editVacationSection" class="border-t border-slate-700 pt-4 mt-2">
+                <div class="flex items-center gap-2 mb-3">
+                    <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    <label class="text-sm font-medium text-orange-400">Férias Programadas</label>
+                </div>
+                
+                <!-- Alerta de Férias Atual (mostrado via JS se houver) -->
+                <div id="editVacationAlert" class="hidden mb-3 bg-gradient-to-r from-orange-900/20 to-amber-900/20 border border-orange-500/30 rounded-lg p-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-orange-400 text-sm font-medium" id="editVacationAlertText"></span>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Início das Férias</label>
+                        <input type="date" name="vacation_start" id="editVacationStart"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-orange-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Fim das Férias</label>
+                        <input type="date" name="vacation_end" id="editVacationEnd"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-orange-500 text-sm">
+                    </div>
+                </div>
+                <p class="text-xs text-slate-500 mt-2">Deixe em branco para remover férias programadas.</p>
+            </div>
+
             <div class="pt-4 flex justify-end gap-3">
                 <button type="button" onclick="document.getElementById('editModal').classList.add('hidden')"
                     class="px-4 py-2 text-slate-300 hover:text-white">Cancelar</button>
@@ -1009,6 +1038,43 @@
     </div>
 </div>
 
+<!-- Return/Reactivate Modal -->
+<div id="returnModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="bg-slate-800 rounded-2xl w-full max-w-md border border-slate-700 shadow-2xl p-6">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+            </div>
+            <div>
+                <h3 class="text-lg font-bold text-white">Retorno do Colaborador</h3>
+                <p class="text-sm text-slate-400" id="return-employee-name"></p>
+                <p class="text-xs text-slate-500" id="return-employee-status"></p>
+            </div>
+        </div>
+
+        <form id="returnForm" method="POST">
+            <input type="hidden" name="status_action" value="active">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-slate-400 mb-2">Data do Retorno</label>
+                <input type="date" name="return_date" id="return-date" required
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500">
+                <p class="text-xs text-slate-500 mt-1">O sistema atualizará as rotinas a partir desta data</p>
+            </div>
+
+            <div class="flex justify-end gap-3">
+                <button type="button" onclick="closeReturnModal()"
+                    class="px-4 py-2 text-slate-300 hover:text-white">Cancelar</button>
+                <button type="submit" class="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium">
+                    Confirmar Retorno
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
     // --- Edit Modal Logic ---
     function openEditModal(emp) {
@@ -1021,25 +1087,63 @@
 
         if (emp.admission_date) {
             document.getElementById('editAdmission').value = emp.admission_date.split('T')[0];
+        } else {
+            document.getElementById('editAdmission').value = '';
         }
         if (emp.birthday) {
             document.getElementById('editBirthday').value = emp.birthday.split('T')[0];
+        } else {
+            document.getElementById('editBirthday').value = '';
         }
 
         // Populate work_days checkboxes
-        document.querySelectorAll('input[name="work_days"]').forEach(cb => cb.checked = false);
+        document.querySelectorAll('#editForm input[name="work_days"]').forEach(cb => cb.checked = false);
         if (emp.work_days) {
             try {
                 const workDays = typeof emp.work_days === 'string' ? JSON.parse(emp.work_days) : emp.work_days;
                 if (Array.isArray(workDays)) {
                     workDays.forEach(day => {
-                        const checkbox = document.querySelector(`input[name="work_days"][value="${day}"]`);
+                        const checkbox = document.querySelector(`#editForm input[name="work_days"][value="${day}"]`);
                         if (checkbox) checkbox.checked = true;
                     });
                 }
             } catch (e) {
                 console.error('Error parsing work_days:', e);
             }
+        }
+
+        // Populate vacation fields
+        const vacationStartInput = document.getElementById('editVacationStart');
+        const vacationEndInput = document.getElementById('editVacationEnd');
+        const vacationAlert = document.getElementById('editVacationAlert');
+        const vacationAlertText = document.getElementById('editVacationAlertText');
+        
+        // Reset vacation fields
+        vacationStartInput.value = '';
+        vacationEndInput.value = '';
+        vacationAlert.classList.add('hidden');
+        
+        if (emp.vacation_start && emp.vacation_end) {
+            // Parse and set dates
+            const vStart = emp.vacation_start.split('T')[0];
+            const vEnd = emp.vacation_end.split('T')[0];
+            vacationStartInput.value = vStart;
+            vacationEndInput.value = vEnd;
+            
+            // Show alert with formatted dates
+            const startParts = vStart.split('-');
+            const endParts = vEnd.split('-');
+            const formattedStart = `${startParts[2]}/${startParts[1]}/${startParts[0]}`;
+            const formattedEnd = `${endParts[2]}/${endParts[1]}/${endParts[0]}`;
+            
+            // Calculate days
+            const startDate = new Date(vStart);
+            const endDate = new Date(vEnd);
+            const diffTime = Math.abs(endDate - startDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            
+            vacationAlertText.innerHTML = `🏖️ ${formattedStart} até ${formattedEnd} <span class="text-xs text-orange-400/70">(${diffDays} dias)</span>`;
+            vacationAlert.classList.remove('hidden');
         }
 
         document.getElementById('editModal').classList.remove('hidden');
@@ -1056,6 +1160,30 @@
 
     function closeFireModal() {
         document.getElementById('fireModal').classList.add('hidden');
+    }
+
+    // --- Return Modal Logic ---
+    function openReturnModal(empId, empName, empStatus) {
+        document.getElementById('returnForm').action = '/employees/' + empId + '/return';
+        document.getElementById('return-employee-name').innerText = empName;
+        
+        // Map status to Portuguese
+        const statusMap = {
+            'vacation': 'Férias',
+            'away': 'Afastado',
+            'fired': 'Demitido',
+            'day_off': 'Folga'
+        };
+        const statusLabel = statusMap[empStatus] || empStatus;
+        document.getElementById('return-employee-status').innerText = 'Status atual: ' + statusLabel;
+        
+        // Set default date to today
+        document.getElementById('return-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('returnModal').classList.remove('hidden');
+    }
+
+    function closeReturnModal() {
+        document.getElementById('returnModal').classList.add('hidden');
     }
 
     // --- Filter Logic ---
