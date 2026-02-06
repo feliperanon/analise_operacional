@@ -13465,27 +13465,42 @@ async def get_allocations(
         .where(models.EmployeeAllocation.shift == shift)
     ).all()
     
-    # Se não houver alocações, buscar do dia anterior
+    # Se não houver alocações, buscar dos dias anteriores
+    # IMPORTANTE: Para escala 12x36 (noturno), a última alocação pode ter sido há 2-3 dias
+    # Buscamos até 4 dias para trás para cobrir escala 12x36 + feriados/fins de semana
     if not allocations:
         from datetime import datetime, timedelta
         try:
             current_date = datetime.strptime(date, "%Y-%m-%d")
-            previous_date = current_date - timedelta(days=1)
-            previous_date_str = previous_date.strftime("%Y-%m-%d")
             
-            print(f"📋 Nenhuma alocação encontrada para {date}. Buscando escala de {previous_date_str}...")
+            # Buscar até 4 dias para trás (cobre escala 12x36 + possíveis feriados)
+            MAX_DAYS_LOOKBACK = 4
+            previous_allocations = []
+            found_date_str = None
             
-            # Buscar alocações do dia anterior
-            previous_allocations = session.exec(
-                select(models.EmployeeAllocation)
-                .where(models.EmployeeAllocation.date == previous_date_str)
-                .where(models.EmployeeAllocation.shift == shift)
-            ).all()
-            
-            if previous_allocations:
-                print(f"✅ Encontradas {len(previous_allocations)} alocações do dia anterior. Copiando...")
+            for days_back in range(1, MAX_DAYS_LOOKBACK + 1):
+                previous_date = current_date - timedelta(days=days_back)
+                previous_date_str = previous_date.strftime("%Y-%m-%d")
                 
-                # Copiar alocações do dia anterior para o dia atual
+                print(f"📋 Buscando alocações de {previous_date_str} ({days_back} dia(s) atrás)...")
+                
+                previous_allocations = session.exec(
+                    select(models.EmployeeAllocation)
+                    .where(models.EmployeeAllocation.date == previous_date_str)
+                    .where(models.EmployeeAllocation.shift == shift)
+                ).all()
+                
+                if previous_allocations:
+                    found_date_str = previous_date_str
+                    print(f"✅ Encontradas {len(previous_allocations)} alocações de {found_date_str}!")
+                    break
+                else:
+                    print(f"   ⏭️ Nenhuma alocação em {previous_date_str}, tentando dia anterior...")
+            
+            if previous_allocations and found_date_str:
+                print(f"📥 Copiando {len(previous_allocations)} alocações de {found_date_str} para {date}...")
+                
+                # Copiar alocações encontradas para o dia atual
                 for prev_alloc in previous_allocations:
                     new_alloc = models.EmployeeAllocation(
                         date=date,
@@ -13504,9 +13519,11 @@ async def get_allocations(
                     .where(models.EmployeeAllocation.shift == shift)
                 ).all()
                 
-                print(f"✅ Escala copiada com sucesso! {len(allocations)} colaboradores alocados.")
+                print(f"✅ Escala copiada com sucesso! {len(allocations)} colaboradores alocados (origem: {found_date_str})")
+            else:
+                print(f"⚠️ Nenhuma alocação encontrada nos últimos {MAX_DAYS_LOOKBACK} dias para turno {shift}")
         except Exception as e:
-            print(f"❌ Erro ao copiar escala do dia anterior: {e}")
+            print(f"❌ Erro ao copiar escala de dias anteriores: {e}")
     
     # Buscar rotinas do dia atual
     routines = session.exec(
@@ -13515,24 +13532,38 @@ async def get_allocations(
         .where(models.EmployeeRoutine.shift == shift)
     ).all()
     
-    # Se não houver rotinas, copiar do dia anterior (especialmente Férias e Afastado)
+    # Se não houver rotinas, copiar de dias anteriores (especialmente Férias e Afastado)
+    # IMPORTANTE: Para escala 12x36 (noturno), buscamos até 4 dias para trás
     if not routines and allocations:
         from datetime import datetime, timedelta
         try:
             current_date = datetime.strptime(date, "%Y-%m-%d")
-            previous_date = current_date - timedelta(days=1)
-            previous_date_str = previous_date.strftime("%Y-%m-%d")
             
-            print(f"📋 Buscando rotinas de {previous_date_str}...")
+            # Buscar até 4 dias para trás (cobre escala 12x36 + possíveis feriados)
+            MAX_DAYS_LOOKBACK = 4
+            previous_routines = []
+            found_date_str = None
             
-            # Buscar rotinas do dia anterior
-            previous_routines = session.exec(
-                select(models.EmployeeRoutine)
-                .where(models.EmployeeRoutine.date == previous_date_str)
-                .where(models.EmployeeRoutine.shift == shift)
-            ).all()
+            for days_back in range(1, MAX_DAYS_LOOKBACK + 1):
+                previous_date = current_date - timedelta(days=days_back)
+                previous_date_str = previous_date.strftime("%Y-%m-%d")
+                
+                print(f"📋 Buscando rotinas de {previous_date_str} ({days_back} dia(s) atrás)...")
+                
+                previous_routines = session.exec(
+                    select(models.EmployeeRoutine)
+                    .where(models.EmployeeRoutine.date == previous_date_str)
+                    .where(models.EmployeeRoutine.shift == shift)
+                ).all()
+                
+                if previous_routines:
+                    found_date_str = previous_date_str
+                    print(f"✅ Encontradas {len(previous_routines)} rotinas de {found_date_str}!")
+                    break
+                else:
+                    print(f"   ⏭️ Nenhuma rotina em {previous_date_str}, tentando dia anterior...")
             
-            if previous_routines:
+            if previous_routines and found_date_str:
                 # Copiar apenas rotinas persistentes (vacation, away, sick)
                 # MAS verificar se o status atual do colaborador ainda corresponde
                 persistent_routines = ['vacation', 'away', 'sick']
@@ -13574,7 +13605,7 @@ async def get_allocations(
                 
                 if copied_count > 0:
                     session.commit()
-                    print(f"✅ {copied_count} rotinas persistentes copiadas (Férias/Afastado/Atestado)")
+                    print(f"✅ {copied_count} rotinas persistentes copiadas de {found_date_str} (Férias/Afastado/Atestado)")
                     
                     # Recarregar rotinas
                     routines = session.exec(
@@ -13582,6 +13613,8 @@ async def get_allocations(
                         .where(models.EmployeeRoutine.date == date)
                         .where(models.EmployeeRoutine.shift == shift)
                     ).all()
+            else:
+                print(f"⚠️ Nenhuma rotina encontrada nos últimos {MAX_DAYS_LOOKBACK} dias para turno {shift}")
         except Exception as e:
             print(f"❌ Erro ao copiar rotinas: {e}")
     
