@@ -16800,13 +16800,23 @@ async def auth_exception_handler(request: Request, exc: HTTPException):
     )
 
 # --- People Intelligence Helper ---
-def get_people_intelligence_metrics(session: Session, shift: str, start_date: Optional[str], end_date: Optional[str]):
-    # 1. Overview Data (excluindo substituídos e demitidos)
-    employees = session.exec(
-        select(models.Employee)
-        .where(models.Employee.status != "fired")
-        .where(models.Employee.replaced_by.is_(None))
-    ).all()
+def get_people_intelligence_metrics(session: Session, shift: str, start_date: Optional[str], end_date: Optional[str], status_filter: Optional[List[str]] = None):
+    # 1. Overview Data
+    # Se status_filter não for fornecido, usa comportamento padrão (excluindo demitidos)
+    if status_filter and len(status_filter) > 0:
+        # Filtro personalizado de status
+        employees = session.exec(
+            select(models.Employee)
+            .where(col(models.Employee.status).in_(status_filter))
+            .where(models.Employee.replaced_by.is_(None))
+        ).all()
+    else:
+        # Comportamento padrão: excluir demitidos
+        employees = session.exec(
+            select(models.Employee)
+            .where(models.Employee.status != "fired")
+            .where(models.Employee.replaced_by.is_(None))
+        ).all()
     
     # Filter by Shift
     if shift != "Todos":
@@ -17078,11 +17088,27 @@ async def people_intelligence_report(
     shift: str = "Todos",
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    status: Optional[str] = None,
     session: Session = Depends(get_session)
 ):
     """Print-ready version of people intelligence (no sidebar)"""
     user = require_login(request)
-    data = get_people_intelligence_metrics(session, shift, start_date, end_date)
+    
+    # Parse status filter (comma-separated list)
+    status_filter = None
+    if status:
+        status_filter = [s.strip() for s in status.split(",") if s.strip()]
+    
+    data = get_people_intelligence_metrics(session, shift, start_date, end_date, status_filter)
+    
+    # Generate status labels for display
+    status_labels = {
+        'active': 'Ativos',
+        'vacation': 'Férias',
+        'away': 'Afastados', 
+        'fired': 'Demitidos'
+    }
+    selected_status_display = ", ".join([status_labels.get(s, s) for s in (status_filter or ['active', 'vacation', 'away'])])
     
     return templates.TemplateResponse("people_intelligence_report.html", {
         "request": request,
@@ -17093,7 +17119,9 @@ async def people_intelligence_report(
         "top_absent": data['top_absent'][:10],
         "top_sick": data['top_sick'][:10],
         "sectors": data['sectors'],
-        "chronic_offenders": data['chronic_offenders'][:10]
+        "chronic_offenders": data['chronic_offenders'][:10],
+        "status_filter": status_filter or [],
+        "selected_status_display": selected_status_display
     })
 
 
