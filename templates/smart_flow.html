@@ -79,68 +79,75 @@
                 <div class="flex items-center gap-2 flex-shrink-0">
                     <a href="/routine/report?date={{ current_date }}&shift={{ current_shift }}" id="report-link"
                         target="_blank"
-                        class="h-8 w-8 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition flex items-center justify-center shadow-md"
-                        title="Relatório">
-                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
+                        aria-label="Relatório de rotina"
+                        class="flex flex-col items-center gap-1 rounded-2xl px-3 py-2 bg-purple-600 hover:bg-purple-500 text-white transition-shadow shadow-md border border-purple-700/60 text-[10px] uppercase tracking-wide">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"
                             viewBox="0 0 24 24">
                             <path
                                 d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
+                        <span class="text-[9px] text-slate-100">Relatório</span>
                     </a>
                     <a href="/smart-flow/organogram?date={{ current_date }}&shift={{ current_shift }}"
                         id="organogram-link" target="_blank"
-                        class="h-8 w-8 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-lg transition flex items-center justify-center shadow-md"
-                        title="Organograma">
-                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
+                        aria-label="Organograma"
+                        class="flex flex-col items-center gap-1 rounded-2xl px-3 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white transition-shadow shadow-md border border-cyan-500/30 text-[10px] uppercase tracking-wide">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"
                             viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round"
                                 d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                         </svg>
+                        <span class="text-[9px] text-slate-100">Organograma</span>
                     </a>
                     <a href="/lider/checklists"
-                        class="h-8 w-8 bg-amber-600/80 hover:bg-amber-600 text-white rounded-lg transition flex items-center justify-center shadow-md border border-amber-500/50"
-                        title="Checklists">
-                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
+                        aria-label="Checklists"
+                        class="flex flex-col items-center gap-1 rounded-2xl px-2.5 py-2 bg-amber-600/80 hover:bg-amber-600 text-white transition shadow-md border border-amber-500/40 text-[10px] uppercase tracking-wide">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"
                             viewBox="0 0 24 24">
                             <path
                                 d="M9 5h6m-6 4h6m-7 4h8m-5 4h2m-8 2h10a2 2 0 002-2V5a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z" />
                         </svg>
+                        <span class="text-[9px] text-slate-100">Checklists</span>
                     </a>
                     <a href="/lider/rotas"
-                        class="h-8 w-8 bg-indigo-600/80 hover:bg-indigo-600 text-white rounded-lg transition flex items-center justify-center shadow-md border border-indigo-500/50"
-                        title="Rotas">
-                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
+                        aria-label="Rotas"
+                        class="flex flex-col items-center gap-1 rounded-2xl px-2.5 py-2 bg-indigo-600/80 hover:bg-indigo-600 text-white transition shadow-md border border-indigo-500/40 text-[10px] uppercase tracking-wide">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"
                             viewBox="0 0 24 24">
                             <path
                                 d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                         </svg>
+                        <span class="text-[9px] text-slate-100">Rotas</span>
                     </a>
                     <a href="/lider/minhas-ordens"
-                        class="h-8 w-8 bg-teal-600/80 hover:bg-teal-600 text-white rounded-lg transition flex items-center justify-center shadow-md border border-teal-500/50"
-                        title="Minhas Ordens">
-                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
+                        aria-label="Minhas ordens"
+                        class="flex flex-col items-center gap-1 rounded-2xl px-2.5 py-2 bg-teal-600/80 hover:bg-teal-600 text-white transition shadow-md border border-teal-500/40 text-[10px] uppercase tracking-wide">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"
                             viewBox="0 0 24 24">
                             <path
                                 d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                         </svg>
+                        <span class="text-[9px] text-slate-100">Ordens</span>
                     </a>
                     <a href="/operational/history"
-                        class="h-8 w-8 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition flex items-center justify-center shadow-md border border-slate-600"
-                        title="Histórico">
-                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
+                        aria-label="Histórico operacional"
+                        class="flex flex-col items-center gap-1 rounded-2xl px-2.5 py-2 bg-slate-700 hover:bg-slate-600 text-white transition shadow-md border border-slate-600 text-[10px] uppercase tracking-wide">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"
                             viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round"
                                 d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
+                        <span class="text-[9px] text-slate-100">Histórico</span>
                     </a>
                     <a href="/admin/absence-alerts/settings"
-                        class="h-8 w-8 bg-red-600/80 hover:bg-red-600 text-white rounded-lg transition flex items-center justify-center shadow-md border border-red-500/50"
-                        title="Alertas">
-                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
+                        aria-label="Alertas de ausências"
+                        class="flex flex-col items-center gap-1 rounded-2xl px-2.5 py-2 bg-red-600/80 hover:bg-red-600 text-white transition shadow-md border border-red-500/40 text-[10px] uppercase tracking-wide">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"
                             viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round"
                                 d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                         </svg>
+                        <span class="text-[9px] text-slate-100">Alertas</span>
                     </a>
                 </div>
             </div>
@@ -181,95 +188,82 @@
     </header>
 
     <!-- KPI Strip (Scrollable Mobile) -->
-    <div id="kpi-strip"
-        class="shrink-0 px-4 py-3 border-b border-slate-800 bg-slate-900/95 backdrop-blur z-10 overflow-x-auto no-scrollbar">
-        <div class="flex md:grid md:grid-cols-7 gap-3 min-w-max md:min-w-0">
+<div id="kpi-strip"
+    class="shrink-0 px-4 py-3 border-b border-slate-800 bg-slate-900/95 backdrop-blur z-10">
+        <div class="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7">
 
             <!-- 1. Headcount -->
             <div onclick="KPIDetails.show('present')"
-                class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-emerald-500 transition w-32 md:w-auto">
-                <p class="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Headcount</p>
-                <div>
-                    <p class="text-lg font-bold text-white leading-none">
-                        <span id="total-present">0</span>
-                        <span class="text-slate-600 text-[10px]">/ <span id="total-target-kpi">45</span></span>
-                    </p>
-                    <p class="text-[9px] text-slate-500 mt-0.5">
-                        <span id="present-percent" class="text-emerald-400 font-bold">0%</span> presença
-                    </p>
+                class="bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-blue-500/80 cursor-pointer flex flex-col justify-between min-h-[96px]">
+                <div class="flex items-start justify-between">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Headcount</p>
+                    <span class="text-[9px] text-slate-500">Meta</span>
                 </div>
+                <p class="text-2xl font-bold text-white leading-tight mt-2">
+                    <span id="total-present">0</span>
+                    <span class="text-slate-500 text-xs">/ <span id="total-target-kpi">45</span></span>
+                </p>
+                <p class="text-[10px] text-slate-400 mt-1">
+                    <span id="present-percent" class="text-emerald-400 font-bold">0%</span> presença
+                </p>
             </div>
 
             <!-- 2. Vagas (Demitidos) -->
             <div onclick="KPIDetails.show('gap')"
-                class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-red-500 transition w-24 md:w-auto">
-                <p class="text-[10px] font-bold text-red-400 uppercase mb-0.5">Vagas</p>
-                <div>
-                    <p class="text-lg font-bold text-white leading-none" id="total-gap">0</p>
-                    <p class="text-[9px] text-slate-500 mt-0.5">Demitidos</p>
-                </div>
+                class="bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-red-500/70 cursor-pointer flex flex-col justify-between min-h-[96px]">
+                <p class="text-[10px] font-bold text-red-400 uppercase tracking-wide">Vagas</p>
+                <p class="text-2xl font-bold text-white mt-2" id="total-gap">0</p>
+                <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Demitidos</p>
             </div>
 
             <!-- 2.5 Folgas -->
             <div onclick="KPIDetails.show('dayoff')"
-                class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-blue-400 transition w-24 md:w-auto">
-                <p class="text-[10px] font-bold text-blue-400 uppercase mb-0.5">Folgas</p>
-                <div>
-                    <p class="text-lg font-bold text-white leading-none" id="total-dayoff">0</p>
-                    <p class="text-[9px] text-slate-500 mt-0.5">Colab.</p>
-                </div>
+                class="bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-blue-400/70 cursor-pointer flex flex-col justify-between min-h-[96px]">
+                <p class="text-[10px] font-bold text-blue-400 uppercase tracking-wide">Folgas</p>
+                <p class="text-2xl font-bold text-white mt-2" id="total-dayoff">0</p>
+                <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Colab.</p>
             </div>
 
             <!-- 3. Férias -->
             <div onclick="KPIDetails.show('vacation')"
-                class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-orange-500 transition w-28 md:w-auto">
-                <p class="text-[10px] font-bold text-orange-400 uppercase mb-0.5">Férias</p>
-                <div>
-                    <p class="text-lg font-bold text-white leading-none" id="total-vacation">0</p>
-                    <p class="text-[9px] text-slate-500 mt-0.5">Colab.</p>
-                </div>
+                class="bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-orange-500/70 cursor-pointer flex flex-col justify-between min-h-[96px]">
+                <p class="text-[10px] font-bold text-orange-400 uppercase tracking-wide">Férias</p>
+                <p class="text-2xl font-bold text-white mt-2" id="total-vacation">0</p>
+                <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Colab.</p>
             </div>
 
             <!-- 4. Afastados -->
             <div onclick="KPIDetails.show('away')"
-                class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-indigo-500 transition w-28 md:w-auto">
-                <p class="text-[10px] font-bold text-indigo-400 uppercase mb-0.5">Afastados</p>
-                <div>
-                    <p class="text-lg font-bold text-white leading-none" id="total-away">0</p>
-                    <p class="text-[9px] text-slate-500 mt-0.5">Colab.</p>
-                </div>
+                class="bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-indigo-500/70 cursor-pointer flex flex-col justify-between min-h-[96px]">
+                <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-wide">Afastados</p>
+                <p class="text-2xl font-bold text-white mt-2" id="total-away">0</p>
+                <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Colab.</p>
             </div>
 
             <!-- 5. Atestados -->
             <div onclick="KPIDetails.show('sick')"
-                class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-amber-500 transition w-28 md:w-auto">
-                <p class="text-[10px] font-bold text-amber-400 uppercase mb-0.5">Atestados</p>
-                <div>
-                    <p class="text-lg font-bold text-white leading-none" id="total-sick">0</p>
-                    <p class="text-[9px] text-slate-500 mt-0.5">Colab.</p>
-                </div>
+                class="bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-amber-500/70 cursor-pointer flex flex-col justify-between min-h-[96px]">
+                <p class="text-[10px] font-bold text-amber-400 uppercase tracking-wide">Atestados</p>
+                <p class="text-2xl font-bold text-white mt-2" id="total-sick">0</p>
+                <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Colab.</p>
             </div>
 
             <!-- 6. Faltas -->
             <div onclick="KPIDetails.show('missing')"
-                class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-rose-500 transition w-28 md:w-auto">
-                <p class="text-[10px] font-bold text-rose-400 uppercase mb-0.5">Faltas</p>
-                <div>
-                    <p class="text-lg font-bold text-white leading-none" id="total-missing">0</p>
-                    <p class="text-[9px] text-slate-500 mt-0.5">Colab.</p>
-                </div>
+                class="bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-rose-500/70 cursor-pointer flex flex-col justify-between min-h-[96px]">
+                <p class="text-[10px] font-bold text-rose-400 uppercase tracking-wide">Faltas</p>
+                <p class="text-2xl font-bold text-white mt-2" id="total-missing">0</p>
+                <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Colab.</p>
             </div>
 
             <!-- 7. Produção Total -->
-            <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-purple-500 transition w-36 md:w-auto"
-                onclick="editTonnage()">
-                <p class="text-[10px] font-bold text-purple-400 uppercase mb-0.5">Produção</p>
-                <div>
-                    <p class="text-lg font-bold text-white leading-none" id="total-tonnage">0 kg</p>
-                    <p class="text-[9px] text-slate-500 mt-0.5">
-                        <span id="prod-per-person" class="text-purple-400 font-bold">0</span> kg/p
-                    </p>
-                </div>
+            <div onclick="editTonnage()"
+                class="bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-purple-500/80 cursor-pointer flex flex-col justify-between min-h-[96px]">
+                <p class="text-[10px] font-bold text-purple-400 uppercase tracking-wide">Produção</p>
+                <p class="text-2xl font-bold text-white mt-2" id="total-tonnage">0 kg</p>
+                <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">
+                    <span id="prod-per-person" class="text-purple-400 font-bold">0</span> kg/p
+                </p>
             </div>
 
         </div>
@@ -289,13 +283,20 @@
 
     <!-- Bottom Sheet Container (Interação Colaborador) -->
     <!-- Bottom Sheet Backdrop (Fixo na tela inteira) -->
-    <div id="sheet-backdrop"
-        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] transition-opacity duration-300 opacity-0 pointer-events-none"
-        onclick="Render.closeBottomSheet()"></div>
+<div id="sheet-backdrop"
+    role="presentation"
+    aria-hidden="true"
+    class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] transition-opacity duration-300 opacity-0 pointer-events-none"
+    onclick="Render.closeBottomSheet()"></div>
 
     <!-- Bottom Sheet Panel (Deslizante) -->
-    <div id="employee-bottom-sheet"
-        class="fixed inset-x-0 bottom-0 z-[101] transform translate-y-full transition-transform duration-300 ease-out safe-area-bottom">
+<div id="employee-bottom-sheet"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="sheet-title"
+    aria-hidden="true"
+    tabindex="-1"
+    class="fixed inset-x-0 bottom-0 z-[101] transform translate-y-full transition-transform duration-300 ease-out safe-area-bottom">
 
         <div class="bg-slate-800 border-t border-slate-700 rounded-t-3xl shadow-2xl p-6 pb-8 w-full max-w-3xl mx-auto">
             <!-- Handle (Visual Cue) -->

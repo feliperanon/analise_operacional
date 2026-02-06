@@ -443,6 +443,37 @@ def get_user_display_name(request: Request, session: Session = None) -> tuple[st
     
     return ("Usuário", "US")
 
+def format_user_label(user) -> str:
+    """Converte o usuário logado em um rótulo legível para eventos e logs."""
+    try:
+        if isinstance(user, dict):
+            email = user.get("email")
+            if email:
+                return email
+            name = user.get("name")
+            if name:
+                return name
+            user_id = user.get("id")
+            if user_id:
+                return str(user_id)
+            role = user.get("role")
+            if role:
+                return role
+            return "usuário"
+
+        email = getattr(user, "email", None)
+        if email:
+            return email
+        username = getattr(user, "username", None)
+        if username:
+            return username
+        full_name = getattr(user, "name", None)
+        if full_name:
+            return full_name
+        return str(user)
+    except Exception:
+        return "usuário"
+
 # --- Custom Filters ---
 def fmt_br(val):
     if val is None: return "0,0"
@@ -1378,6 +1409,7 @@ def require_mobile_module(employee, module: str):
 
 def require_roles(request: Request, allowed_roles: set):
     user = require_login(request)
+    actor_label = format_user_label(user)
     if isinstance(user, dict) and user.get("type") == "user":
         if (user.get("role") or "").lower() not in allowed_roles:
             raise HTTPException(status_code=403, detail="Acesso negado.")
@@ -5793,7 +5825,7 @@ async def admin_reopen_routine(
         routine.status = "open"
         routine.end_time = None # Reset end time? Or keep history?
         # User requested: "reopened_by / reopened_reason / reopened_at"
-        routine.reopened_by = str(user)
+        routine.reopened_by = actor_label
         routine.reopened_reason = reason
         routine.reopened_at = datetime.now(ZoneInfo("America/Sao_Paulo"))
         
@@ -5804,7 +5836,7 @@ async def admin_reopen_routine(
             date=datetime.now().strftime("%Y-%m-%d"),
             employee_id=routine.employee_id,
             event_type="info",
-            description=f"Rotina reaberta por {user}: {reason}",
+            description=f"Rotina reaberta por {actor_label}: {reason}",
             severity="warning"
         ))
         session.commit()
@@ -6250,6 +6282,8 @@ async def mobile_ticket_create(
         images = await save_ticket_images(files)
     
     now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    actor_label = format_user_label(user)
+    actor_label = format_user_label(user)
     
     ticket = models.EquipmentTicket(
         employee_id=employee_id,
@@ -6553,11 +6587,12 @@ async def admin_equipment_ticket_close(
     now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
     ticket.status = "closed"
     ticket.closed_at = now_br
-    ticket.closed_by = str(user)
+    actor_label = format_user_label(user)
+    ticket.closed_by = actor_label
     session.add(ticket)
     session.add(models.Event(
         timestamp=now_br,
-        text=f"Chamado #{ticket.id} encerrado por {user}.",
+        text=f"Chamado #{ticket.id} encerrado por {actor_label}.",
         type="ticket_close",
         category="processo",
         sector=ticket.equipment_code,
@@ -7167,14 +7202,15 @@ async def admin_checklist_edit(
         changes.append(f"Imagens adicionadas: {len(new_images)}")
 
     now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    actor_label = format_user_label(user)
     checklist.edited_at = now_br
-    checklist.edited_by = str(user)
+    checklist.edited_by = actor_label
     checklist.edit_comment = comment
 
     if changes:
         session.add(models.Event(
             timestamp=now_br,
-            text=f"Checklist #{checklist.id} editado por {user}. Motivo: {comment}. Alterações: {', '.join(changes)}.",
+            text=f"Checklist #{checklist.id} editado por {actor_label}. Motivo: {comment}. Alterações: {', '.join(changes)}.",
             type="checklist_edit",
             category="processo",
             sector=checklist.equipment_code,
@@ -7253,7 +7289,7 @@ async def admin_cleanup_all_checklists(
         session.add(
             models.Event(
                 timestamp=now_br,
-                text=f"Checklist #{checklist.id} excluído em limpeza global por {user}.",
+                text=f"Checklist #{checklist.id} excluído em limpeza global por {actor_label}.",
                 type="checklist_delete",
                 category="processo",
                 sector=checklist.equipment_code,
@@ -7291,6 +7327,8 @@ async def admin_cleanup_all_tickets(
             url="/admin/equipment/tickets?message=Frase+de+confirma%C3%A7%C3%A3o+inv%C3%A1lida.&level=error",
             status_code=status.HTTP_303_SEE_OTHER,
         )
+
+    actor_label = format_user_label(user)
 
     # Buscar todos os tickets
     tickets = session.exec(select(models.EquipmentTicket)).all()
@@ -19121,6 +19159,38 @@ async def operational_history_page(request: Request, session: Session = Depends(
             .order_by(desc(models.Event.timestamp))
         ).all()
 
+        employee_ids = {evt.employee_id for evt in events if evt.employee_id}
+        employee_map = {}
+        if employee_ids:
+            employees = session.exec(
+                select(models.Employee).where(models.Employee.id.in_(employee_ids))
+            ).all()
+            employee_map = {emp.id: emp.name for emp in employees if emp}
+
+        checklist_refs = {
+            evt.reference_id
+            for evt in events
+            if evt.reference_type == "checklist" and evt.reference_id
+        }
+        existing_checklists = set()
+        if checklist_refs:
+            existing_checklists = set(
+                session.exec(
+                    select(models.TranspalletChecklist.id).where(
+                        models.TranspalletChecklist.id.in_(checklist_refs)
+                    )
+                ).all()
+            )
+
+        for evt in events:
+            if hasattr(evt, "employee_id") and evt.employee_id:
+                evt.employee_name = employee_map.get(evt.employee_id)
+            evt.reference_exists = bool(
+                evt.reference_type == "checklist"
+                and evt.reference_id
+                and evt.reference_id in existing_checklists
+            )
+
         return templates.TemplateResponse(
             "operational_history.html",
             {
@@ -19486,7 +19556,7 @@ async def admin_equipment_ticket_delete(
         
     session.add(models.Event(
         timestamp=datetime.now(ZoneInfo("America/Sao_Paulo")),
-        text=f"Chamado #{ticket.id} EXCLUÍDO por {user}.",
+        text=f"Chamado #{ticket.id} EXCLUÍDO por {actor_label}.",
         type="ticket_delete",
         category="audit",
         reference_type="ticket_deleted",

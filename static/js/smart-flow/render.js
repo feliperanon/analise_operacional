@@ -10,6 +10,25 @@ const Render = {
             flowGrid: document.getElementById('flow-grid'),
             kpiContainer: document.getElementById('kpi-strip')
         };
+
+        this.sheetElement = document.getElementById('employee-bottom-sheet');
+        this.backdropElement = document.getElementById('sheet-backdrop');
+
+        if (this.sheetElement) {
+            this.sheetElement.setAttribute('tabindex', '-1');
+            this.sheetElement.setAttribute('aria-hidden', 'true');
+        }
+
+        if (this.backdropElement) {
+            this.backdropElement.setAttribute('aria-hidden', 'true');
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && this.sheetElement && !this.sheetElement.classList.contains('translate-y-full')) {
+                event.preventDefault();
+                this.closeBottomSheet();
+            }
+        });
     },
 
     // Função Principal de Renderização
@@ -103,6 +122,7 @@ const Render = {
         // Calcular total de colaboradores alocados neste setor
         const sectorEmployeeCount = this.countSectorEmployees(sector, state.allocations);
         const percentage = sector.max_employees > 0 ? Math.round((sectorEmployeeCount / sector.max_employees) * 100) : 0;
+        const occupancyTone = percentage >= 80 ? 'emerald' : 'amber';
 
         // Calcular contagens detalhadas
         let countRealPresent = 0;
@@ -150,6 +170,12 @@ const Render = {
                     <button onclick="SectorsCRUD.openEditSector(${sector.id}, '${sector.name}', ${sector.max_employees}, '${sector.color}')" class="p-1.5 text-slate-500 hover:text-white rounded hover:bg-slate-700 transition"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
                     <button onclick="SectorsCRUD.deleteSector(${sector.id}, '${sector.name}')" class="p-1.5 text-slate-500 hover:text-red-400 rounded hover:bg-slate-700 transition"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
                 </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-3 text-[10px] uppercase tracking-wide text-slate-500 mb-3">
+                <span class="text-slate-400">Capacidade</span>
+                <span class="font-semibold text-slate-200">${sectorEmployeeCount}/${sector.max_employees}</span>
+                <span class="text-[9px] font-bold text-${occupancyTone}-400">${percentage}% ocup.</span>
             </div>
 
             <!-- Progress & Stats -->
@@ -268,6 +294,12 @@ const Render = {
         }
 
         listContainer.appendChild(employeesList);
+        listContainer.setAttribute('role', 'region');
+        listContainer.setAttribute('aria-label', `Drop zone do sub-setor ${subsector.name}`);
+        const dropHint = document.createElement('div');
+        dropHint.className = 'mt-2 text-[10px] uppercase tracking-wide text-slate-500 flex items-center gap-2';
+        dropHint.innerHTML = '<span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>Arraste colaboradores para reorganizar';
+        listContainer.appendChild(dropHint);
         card.appendChild(listContainer);
 
         // --- ACCORDION LOGIC ---
@@ -429,7 +461,7 @@ const Render = {
                         ${employee.name.substring(0, 2).toUpperCase()}
                     </div>
                     <div>
-                        <h3 class="text-base font-bold text-white leading-tight">${employee.name}</h3>
+                        <h3 id="sheet-title" class="text-base font-bold text-white leading-tight">${employee.name}</h3>
                         <p class="text-xs text-slate-400">${employee.role || 'Colaborador'}</p>
                     </div>
                 </div>
@@ -551,7 +583,7 @@ const Render = {
                         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
                     </button>
                     <div>
-                        <h3 class="text-base font-bold text-white leading-tight">Registrar ${label}</h3>
+                        <h3 id="sheet-title" class="text-base font-bold text-white leading-tight">Registrar ${label}</h3>
                         <p class="text-xs text-slate-400">Para: ${employee ? employee.name : 'Colaborador'}</p>
                     </div>
                 </div>
@@ -655,31 +687,40 @@ const Render = {
     },
 
     openBottomSheet(employee) {
-        const sheet = document.getElementById('employee-bottom-sheet');
-        const backdrop = document.getElementById('sheet-backdrop');
+        const sheet = this.sheetElement || document.getElementById('employee-bottom-sheet');
+        const backdrop = this.backdropElement || document.getElementById('sheet-backdrop');
         const content = document.getElementById('sheet-content');
 
-        if (!sheet || !backdrop || !content) {
+        if (!sheet || !content) {
             console.error('Bottom Sheet elements not found');
             return;
         }
 
-        // Renderizar conteúdo do funcionário
         content.innerHTML = this.buildSheetContent(employee);
 
-        // Mostrar Backdrop
-        backdrop.classList.remove('opacity-0', 'pointer-events-none');
+        if (backdrop) {
+            backdrop.classList.remove('opacity-0', 'pointer-events-none');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
 
-        // Deslizar Sheet para cima
         sheet.classList.remove('translate-y-full');
+        sheet.setAttribute('aria-hidden', 'false');
+        sheet.focus({ preventScroll: true });
     },
 
     closeBottomSheet() {
-        const sheet = document.getElementById('employee-bottom-sheet');
-        const backdrop = document.getElementById('sheet-backdrop');
+        const sheet = this.sheetElement || document.getElementById('employee-bottom-sheet');
+        const backdrop = this.backdropElement || document.getElementById('sheet-backdrop');
 
-        if (sheet) sheet.classList.add('translate-y-full');
-        if (backdrop) backdrop.classList.add('opacity-0', 'pointer-events-none');
+        if (sheet) {
+            sheet.classList.add('translate-y-full');
+            sheet.setAttribute('aria-hidden', 'true');
+        }
+
+        if (backdrop) {
+            backdrop.classList.add('opacity-0', 'pointer-events-none');
+            backdrop.setAttribute('aria-hidden', 'true');
+        }
     }
 };
 
@@ -691,4 +732,3 @@ window.closeEmployeeSheet = Render.closeBottomSheet; // Atalho para o onclick do
 window.updateRoutine = (empId, routine) => {
     Store.updateRoutine(empId, routine);
 };
-

@@ -29133,3 +29133,29 @@ DETAIL:  Key (id)=(416) is still referenced from table "gamexptransaction".
 2026-02-06 01:44:50,656 | INFO     | main | Google Gemini client initialized successfully
 2026-02-06 01:48:36,905 | INFO     | main | Google Gemini client initialized successfully
 2026-02-06 01:57:36,177 | INFO     | main | Google Gemini client initialized successfully
+2026-02-06 01:58:35,681 | INFO     | main | Google Gemini client initialized successfully
+2026-02-06 01:59:20,539 | INFO     | main | Google Gemini client initialized successfully
+2026-02-06 01:59:24,297 | ERROR    | main | Error in smart_flow_page
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 13053, in smart_flow_page
+    user = require_login(request)
+  File "C:\Projeto\analise_operacional\main.py", line 1341, in require_login
+    raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/login"})
+fastapi.exceptions.HTTPException: 303: See Other
+2026-02-06 01:59:33,842 | ERROR    | main | Error in smart_flow_page
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 13053, in smart_flow_page
+    user = require_login(request)
+  File "C:\Projeto\analise_operacional\main.py", line 1341, in require_login
+    raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/login"})
+fastapi.exceptions.HTTPException: 303: See Other
+2026-02-06 01:59:39,742 | ERROR    | main | Error in smart_flow_page
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 13053, in smart_flow_page
+    user = require_login(request)
+  File "C:\Projeto\analise_operacional\main.py", line 1341, in require_login
+    raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/login"})
+fastapi.exceptions.HTTPException: 303: See Other
+2026-02-06 02:10:17,765 | INFO     | main | Google Gemini client initialized successfully
+2026-02-06 02:11:06,149 | INFO     | main | Google Gemini client initialized successfully
+2026-02-06 02:11:57,449 | INFO     | main | Google Gemini client initialized successfully

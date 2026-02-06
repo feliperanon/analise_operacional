@@ -175,9 +175,14 @@
                     <div class="min-w-0">
                         <p class="text-xs text-slate-500 font-mono">{{ event.timestamp.strftime("%d/%m/%Y %H:%M") if event.timestamp else '-' }}</p>
                         <p class="text-sm text-slate-300 mt-0.5">{{ event.text }}</p>
+                        {% if event.employee_name %}
+                        <p class="text-[10px] text-slate-400 mt-1">Colaborador: {{ event.employee_name }}</p>
+                        {% endif %}
                         {% if event.reference_type == "checklist" and event.reference_id %}
-                            {% if can_view_checklist_links %}
+                            {% if event.reference_exists and can_view_checklist_links %}
                             <a href="/admin/routine/checklists/{{ event.reference_id }}" class="text-xs text-blue-400 hover:text-blue-300 mt-1 inline-block">Ver checklist →</a>
+                            {% elif not event.reference_exists %}
+                            <span class="text-xs text-slate-500 mt-1 inline-block">Checklist removido</span>
                             {% endif %}
                         {% endif %}
                     </div>
