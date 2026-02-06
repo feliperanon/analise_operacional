@@ -29174,3 +29174,10 @@ Traceback (most recent call last):
   File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\pydantic\main.py", line 1079, in _setattr_handler
     raise ValueError(f'"{cls.__name__}" object has no field "{name}"')
 ValueError: "Event" object has no field "employee_name"
+2026-02-06 02:20:56,229 | INFO     | main | Google Gemini client initialized successfully
+2026-02-06 02:22:05,460 | ERROR    | main | Error rendering operational history
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 19182, in operational_history_page
+    ).scalars().all()
+      ^^^^^^^
+AttributeError: 'ScalarResult' object has no attribute 'scalars'
