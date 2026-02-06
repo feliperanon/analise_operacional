@@ -1997,18 +1997,27 @@ async def index(request: Request, shift: str = "Todos", session: Session = Depen
     # --- Team Status (Quem está trabalhando agora) ---
     today_str = today.strftime("%Y-%m-%d")
     hour = today.hour
-    
+    minute = today.minute
+
     # Determine current shift
-    # Horarios: Manha 05:00-12:00, Tarde 12:00-18:00, Noite 18:00-05:00
-    if 5 <= hour < 12:
-        current_shift_name = "Manhã"
-        current_shift_display = "Manha"
-    elif 12 <= hour < 18:
-        current_shift_name = "Tarde"
-        current_shift_display = "Tarde"
-    else:
+    # Horarios: Manhã 05:00-13:20, Tarde 12:00-20:20, Noite 18:00-06:00
+    current_minutes = hour * 60 + minute
+    def is_within(start_h, start_m, end_h, end_m):
+        start = start_h * 60 + start_m
+        end = end_h * 60 + end_m
+        if start < end:
+            return start <= current_minutes < end
+        return current_minutes >= start or current_minutes < end
+
+    if is_within(18, 0, 6, 0):
         current_shift_name = "Noite"
         current_shift_display = "Noite"
+    elif is_within(5, 0, 13, 20):
+        current_shift_name = "Manhã"
+        current_shift_display = "Manha"
+    else:
+        current_shift_name = "Tarde"
+        current_shift_display = "Tarde"
     
     # Get employees for current shift
     shift_employees = [e for e in employees if e.work_shift == current_shift_name and e.status == 'active']
@@ -15944,7 +15953,7 @@ async def add_employee(
     elif "tarde" in s_lower:
         default_schedule = "12:00 - 20:20"
     elif "noite" in s_lower:
-        default_schedule = "19:00 - 07:00"
+        default_schedule = "18:00 - 06:00"
 
     new_employee = models.Employee(
         name=name,
@@ -17231,7 +17240,7 @@ async def import_employees(
                 elif "tarde" in s_lower:
                     default_schedule = "12:00 - 20:20"
                 elif "noite" in s_lower:
-                    default_schedule = "19:00 - 07:00"
+                    default_schedule = "18:00 - 06:00"
 
                 emp = models.Employee(
                     name=str(row.get("name", "Sem Nome")).strip(),
