@@ -75,6 +75,37 @@
                     </svg>
                 </button>
             </div>
+            
+            <!-- Clock & Shift Indicator -->
+            <div class="px-4 py-3 border-b border-slate-800 bg-slate-800/30">
+                <div class="flex items-center gap-3">
+                    <!-- Clock -->
+                    <div class="flex-1">
+                        <div id="sidebar-time" class="text-2xl font-bold text-white font-mono">--:--</div>
+                        <div id="sidebar-date" class="text-[10px] text-slate-500 uppercase tracking-wider">Carregando...</div>
+                    </div>
+                    <!-- Shift Indicator -->
+                    <div id="sidebar-shift-card" class="bg-blue-500/10 border border-blue-500/30 rounded-xl px-3 py-2 text-center min-w-[80px]">
+                        <div id="sidebar-shift-icon" class="w-6 h-6 mx-auto mb-1 text-blue-400">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                            </svg>
+                        </div>
+                        <p id="sidebar-shift-name" class="text-[10px] font-bold text-blue-400 uppercase">Manha</p>
+                    </div>
+                </div>
+                <!-- Shift Progress -->
+                <div class="mt-2">
+                    <div class="flex justify-between text-[9px] text-slate-600 mb-0.5">
+                        <span id="sidebar-shift-start">06:00</span>
+                        <span id="sidebar-shift-progress-text" class="text-slate-500">--% do turno</span>
+                        <span id="sidebar-shift-end">14:00</span>
+                    </div>
+                    <div class="w-full h-1 bg-slate-700 rounded-full overflow-hidden">
+                        <div id="sidebar-shift-bar" class="h-full bg-blue-500 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Navegação com Categorias Colapsáveis -->
             <nav class="flex-1 px-3 py-4 overflow-y-auto custom-scrollbar space-y-1" @click="if($event.target.closest('a:not(.menu-toggle)')) sidebarOpen = false">
@@ -507,6 +538,100 @@
     </style>
 
     <script>
+    // ========== SIDEBAR CLOCK & SHIFT INDICATOR ==========
+    function getCurrentShiftInfo(hour) {
+        if (hour >= 6 && hour < 14) return { name: 'Manha', color: 'blue', start: 6, end: 14 };
+        if (hour >= 14 && hour < 22) return { name: 'Tarde', color: 'orange', start: 14, end: 22 };
+        return { name: 'Noite', color: 'purple', start: 22, end: 6 };
+    }
+
+    function getShiftProgressPercent(hour, minute) {
+        var shift = getCurrentShiftInfo(hour);
+        var currentMinutes = hour * 60 + minute;
+        var startMinutes = shift.start * 60;
+        var endMinutes = shift.end * 60;
+        
+        if (shift.name === 'Noite') {
+            if (hour >= 22) {
+                currentMinutes = (hour - 22) * 60 + minute;
+            } else {
+                currentMinutes = (hour + 2) * 60 + minute;
+            }
+            startMinutes = 0;
+            endMinutes = 8 * 60;
+        }
+        
+        var total = endMinutes - startMinutes;
+        var elapsed = currentMinutes - startMinutes;
+        if (elapsed < 0) elapsed = 0;
+        
+        return Math.min(100, Math.max(0, Math.round((elapsed / total) * 100)));
+    }
+
+    function updateSidebarClock() {
+        var now = new Date();
+        var hours = now.getHours();
+        var minutes = now.getMinutes();
+        
+        var timeStr = String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0');
+        
+        var timeEl = document.getElementById('sidebar-time');
+        if (timeEl) timeEl.textContent = timeStr;
+        
+        var days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
+        var months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        var dateStr = days[now.getDay()] + ', ' + now.getDate() + ' ' + months[now.getMonth()];
+        
+        var dateEl = document.getElementById('sidebar-date');
+        if (dateEl) dateEl.textContent = dateStr;
+        
+        var shift = getCurrentShiftInfo(hours);
+        var progress = getShiftProgressPercent(hours, minutes);
+        
+        var shiftNameEl = document.getElementById('sidebar-shift-name');
+        var shiftStartEl = document.getElementById('sidebar-shift-start');
+        var shiftEndEl = document.getElementById('sidebar-shift-end');
+        var shiftBarEl = document.getElementById('sidebar-shift-bar');
+        var shiftCardEl = document.getElementById('sidebar-shift-card');
+        var shiftProgressTextEl = document.getElementById('sidebar-shift-progress-text');
+        
+        if (shiftNameEl) shiftNameEl.textContent = shift.name;
+        if (shiftStartEl) shiftStartEl.textContent = String(shift.start).padStart(2, '0') + ':00';
+        if (shiftEndEl) shiftEndEl.textContent = String(shift.end).padStart(2, '0') + ':00';
+        if (shiftProgressTextEl) shiftProgressTextEl.textContent = progress + '% do turno';
+        
+        // Update colors
+        var colorConfig = {
+            blue: { bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-400', bar: 'bg-blue-500' },
+            orange: { bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-400', bar: 'bg-orange-500' },
+            purple: { bg: 'bg-purple-500/10', border: 'border-purple-500/30', text: 'text-purple-400', bar: 'bg-purple-500' }
+        };
+        var colors = colorConfig[shift.color];
+        
+        if (shiftCardEl) {
+            shiftCardEl.className = colors.bg + ' ' + colors.border + ' border rounded-xl px-3 py-2 text-center min-w-[80px]';
+        }
+        if (shiftNameEl) {
+            shiftNameEl.className = 'text-[10px] font-bold ' + colors.text + ' uppercase';
+        }
+        if (shiftBarEl) {
+            shiftBarEl.className = 'h-full ' + colors.bar + ' rounded-full transition-all duration-1000';
+            shiftBarEl.style.width = progress + '%';
+        }
+        
+        var shiftIconEl = document.getElementById('sidebar-shift-icon');
+        if (shiftIconEl) {
+            shiftIconEl.className = 'w-6 h-6 mx-auto mb-1 ' + colors.text;
+        }
+    }
+
+    // Initialize sidebar clock
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSidebarClock();
+        setInterval(updateSidebarClock, 1000);
+    });
+
+    // ========== ALERTAS MODAL ==========
     var alertasJaMostrados = sessionStorage.getItem('alertas_mostrados_hoje');
     var hoje = new Date().toISOString().split('T')[0];
 

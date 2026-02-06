@@ -4,12 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Operação Inteligente</title>
+    <title>Login - Operacao Inteligente</title>
     <link rel="stylesheet" href="/static/styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 
-<body class="bg-slate-900 text-white flex items-center justify-center h-screen overflow-hidden relative">
+<body class="bg-slate-900 text-white flex items-center justify-center min-h-screen overflow-hidden relative">
 
     <!-- Background Effects -->
     <div class="absolute top-0 left-0 w-full h-full overflow-hidden -z-10">
@@ -19,14 +19,81 @@
         <div
             class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600 rounded-full mix-blend-multiply filter blur-[128px] opacity-20 animate-blob animation-delay-2000">
         </div>
+        <div
+            class="absolute top-[50%] left-[50%] w-[30%] h-[30%] bg-cyan-600 rounded-full mix-blend-multiply filter blur-[100px] opacity-10 animate-blob animation-delay-4000">
+        </div>
     </div>
 
-    <!-- Login Card -->
-    <div class="w-full max-w-md p-8 rounded-2xl glass shadow-2xl border border-white/10 relative z-10">
-        <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold mb-2 tracking-tight">Bem-vindo</h1>
-            <p class="text-slate-400 text-sm">Acesse o sistema de Operação Inteligente</p>
+    <!-- Main Container -->
+    <div class="w-full max-w-5xl mx-4 flex flex-col lg:flex-row gap-6 items-center justify-center relative z-10">
+        
+        <!-- Left Side - Info Panel -->
+        <div class="hidden lg:flex flex-col gap-4 w-80">
+            <!-- Clock & Date Card -->
+            <div class="bg-slate-800/60 backdrop-blur border border-slate-700/50 rounded-2xl p-5 text-center">
+                <div id="current-time" class="text-5xl font-bold text-white tracking-tight">--:--</div>
+                <div id="current-date" class="text-slate-400 text-sm mt-1">Carregando...</div>
+            </div>
+            
+            <!-- Shift Indicator -->
+            <div id="shift-card" class="bg-slate-800/60 backdrop-blur border border-slate-700/50 rounded-2xl p-4 transition-all">
+                <div class="flex items-center gap-3">
+                    <div id="shift-icon" class="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                        <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-500 uppercase tracking-wider font-bold">Turno Atual</p>
+                        <p id="shift-name" class="text-lg font-bold text-white">Carregando...</p>
+                    </div>
+                </div>
+                <!-- Progress bar -->
+                <div class="mt-3">
+                    <div class="flex justify-between text-[10px] text-slate-500 mb-1">
+                        <span id="shift-start">--:--</span>
+                        <span id="shift-end">--:--</span>
+                    </div>
+                    <div class="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                        <div id="shift-progress" class="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Stats -->
+            <div class="bg-slate-800/60 backdrop-blur border border-slate-700/50 rounded-2xl p-4">
+                <p class="text-xs text-slate-500 uppercase tracking-wider font-bold mb-3">Sistema Operacional</p>
+                <div class="space-y-2">
+                    <div class="flex items-center gap-2 text-sm">
+                        <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                        <span class="text-slate-300">Sistema Online</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-sm">
+                        <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
+                        <span class="text-slate-400">Versao 2.0</span>
+                    </div>
+                </div>
+            </div>
         </div>
+
+        <!-- Right Side - Login Card -->
+        <div class="w-full max-w-md p-8 rounded-2xl bg-slate-800/40 backdrop-blur-xl shadow-2xl border border-white/10">
+            <!-- Mobile Clock (visible only on mobile) -->
+            <div class="lg:hidden text-center mb-4 pb-4 border-b border-slate-700/50">
+                <div id="mobile-time" class="text-3xl font-bold text-white">--:--</div>
+                <div id="mobile-greeting" class="text-sm text-slate-400">Carregando...</div>
+            </div>
+            
+            <!-- Header with greeting -->
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                </div>
+                <h1 id="greeting-text" class="text-2xl font-bold mb-1 tracking-tight">Bem-vindo</h1>
+                <p class="text-slate-400 text-sm">Acesse o sistema de Operacao Inteligente</p>
+            </div>
 
         {% if error %}
         <div
@@ -93,6 +160,7 @@
         </form>
 
         <script>
+        // Toggle password visibility
         function togglePassword() {
             var passwordInput = document.getElementById('password');
             var eyeIcon = document.getElementById('eye-icon');
@@ -109,8 +177,113 @@
             }
         }
 
-        // Carregar email salvo
+        // Shift configuration
+        var shifts = {
+            manha: { name: 'Manha', start: 6, end: 14, color: 'blue', icon: 'sun' },
+            tarde: { name: 'Tarde', start: 14, end: 22, color: 'orange', icon: 'sunset' },
+            noite: { name: 'Noite', start: 22, end: 6, color: 'purple', icon: 'moon' }
+        };
+
+        function getCurrentShift(hour) {
+            if (hour >= 6 && hour < 14) return shifts.manha;
+            if (hour >= 14 && hour < 22) return shifts.tarde;
+            return shifts.noite;
+        }
+
+        function getGreeting(hour) {
+            if (hour >= 5 && hour < 12) return 'Bom dia';
+            if (hour >= 12 && hour < 18) return 'Boa tarde';
+            return 'Boa noite';
+        }
+
+        function getShiftProgress(hour, minute) {
+            var shift = getCurrentShift(hour);
+            var currentMinutes = hour * 60 + minute;
+            var startMinutes = shift.start * 60;
+            var endMinutes = shift.end * 60;
+            
+            // Handle night shift crossing midnight
+            if (shift.name === 'Noite') {
+                if (hour >= 22) {
+                    currentMinutes = (hour - 22) * 60 + minute;
+                } else {
+                    currentMinutes = (hour + 2) * 60 + minute;
+                }
+                startMinutes = 0;
+                endMinutes = 8 * 60; // 8 hours
+            }
+            
+            var total = endMinutes - startMinutes;
+            var elapsed = currentMinutes - startMinutes;
+            if (elapsed < 0) elapsed = 0;
+            
+            return Math.min(100, Math.max(0, (elapsed / total) * 100));
+        }
+
+        function updateClock() {
+            var now = new Date();
+            var hours = now.getHours();
+            var minutes = now.getMinutes();
+            var seconds = now.getSeconds();
+            
+            var timeStr = String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0');
+            var timeStrFull = timeStr + ':' + String(seconds).padStart(2, '0');
+            
+            // Update time displays
+            var timeEl = document.getElementById('current-time');
+            var mobileTimeEl = document.getElementById('mobile-time');
+            if (timeEl) timeEl.textContent = timeStrFull;
+            if (mobileTimeEl) mobileTimeEl.textContent = timeStr;
+            
+            // Update date
+            var days = ['Domingo', 'Segunda-feira', 'Terca-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sabado'];
+            var months = ['Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+            var dateStr = days[now.getDay()] + ', ' + now.getDate() + ' de ' + months[now.getMonth()];
+            
+            var dateEl = document.getElementById('current-date');
+            if (dateEl) dateEl.textContent = dateStr;
+            
+            // Update greeting
+            var greeting = getGreeting(hours);
+            var greetingEl = document.getElementById('greeting-text');
+            var mobileGreetingEl = document.getElementById('mobile-greeting');
+            if (greetingEl) greetingEl.textContent = greeting + '!';
+            if (mobileGreetingEl) mobileGreetingEl.textContent = greeting + ' - ' + dateStr;
+            
+            // Update shift info
+            var shift = getCurrentShift(hours);
+            var shiftNameEl = document.getElementById('shift-name');
+            var shiftStartEl = document.getElementById('shift-start');
+            var shiftEndEl = document.getElementById('shift-end');
+            var shiftProgressEl = document.getElementById('shift-progress');
+            var shiftCard = document.getElementById('shift-card');
+            var shiftIcon = document.getElementById('shift-icon');
+            
+            if (shiftNameEl) shiftNameEl.textContent = 'Turno ' + shift.name;
+            if (shiftStartEl) shiftStartEl.textContent = String(shift.start).padStart(2, '0') + ':00';
+            if (shiftEndEl) shiftEndEl.textContent = String(shift.end).padStart(2, '0') + ':00';
+            
+            var progress = getShiftProgress(hours, minutes);
+            if (shiftProgressEl) shiftProgressEl.style.width = progress + '%';
+            
+            // Update colors based on shift
+            if (shiftCard && shiftIcon) {
+                var colorMap = {
+                    blue: { bg: 'bg-blue-500/20', text: 'text-blue-400', gradient: 'from-blue-500 to-cyan-500' },
+                    orange: { bg: 'bg-orange-500/20', text: 'text-orange-400', gradient: 'from-orange-500 to-amber-500' },
+                    purple: { bg: 'bg-purple-500/20', text: 'text-purple-400', gradient: 'from-purple-500 to-indigo-500' }
+                };
+                var colors = colorMap[shift.color];
+                
+                shiftIcon.className = 'w-12 h-12 rounded-xl ' + colors.bg + ' flex items-center justify-center';
+                shiftIcon.querySelector('svg').className = 'w-6 h-6 ' + colors.text;
+                shiftProgressEl.className = 'h-full bg-gradient-to-r ' + colors.gradient + ' rounded-full transition-all duration-1000';
+            }
+        }
+
+        // Initialize
         document.addEventListener('DOMContentLoaded', function() {
+            // Load saved email
             var savedEmail = localStorage.getItem('remembered_email');
             var rememberCheckbox = document.getElementById('remember');
             var emailInput = document.getElementById('email');
@@ -119,9 +292,13 @@
                 emailInput.value = savedEmail;
                 rememberCheckbox.checked = true;
             }
+            
+            // Start clock
+            updateClock();
+            setInterval(updateClock, 1000);
         });
 
-        // Salvar email ao submeter
+        // Save email on submit
         document.getElementById('login-form').addEventListener('submit', function() {
             var rememberCheckbox = document.getElementById('remember');
             var emailInput = document.getElementById('email');
@@ -136,6 +313,10 @@
 
         {% if google_enabled %}
         <div class="mt-6">
+            <div class="relative flex items-center justify-center my-4">
+                <div class="border-t border-slate-700 w-full"></div>
+                <span class="px-3 text-xs text-slate-500 bg-slate-800/40 absolute">ou</span>
+            </div>
             <a href="/auth/google"
                 class="w-full inline-flex items-center justify-center gap-3 py-3 px-4 rounded-lg bg-white text-slate-900 font-semibold hover:bg-slate-100 transition-colors">
                 <svg class="w-5 h-5" viewBox="0 0 48 48" aria-hidden="true">
@@ -149,7 +330,14 @@
             </a>
         </div>
         {% endif %}
-    </div>
+        </div><!-- End Login Card -->
+    </div><!-- End Main Container -->
+
+    <style>
+        .animation-delay-4000 {
+            animation-delay: 4s;
+        }
+    </style>
 
 </body>
 

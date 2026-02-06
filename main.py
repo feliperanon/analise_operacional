@@ -1994,7 +1994,182 @@ async def index(request: Request, shift: str = "Todos", session: Session = Depen
     # Ordenar por dias restantes (mais urgentes primeiro)
     experience_expiring.sort(key=lambda x: x["days"])
     
+    # --- Team Status (Quem está trabalhando agora) ---
+    today_str = today.strftime("%Y-%m-%d")
+    hour = today.hour
+    
+    # Determine current shift
+    if 6 <= hour < 14:
+        current_shift_name = "Manhã"
+        current_shift_display = "Manha"
+    elif 14 <= hour < 22:
+        current_shift_name = "Tarde"
+        current_shift_display = "Tarde"
+    else:
+        current_shift_name = "Noite"
+        current_shift_display = "Noite"
+    
+    # Get employees for current shift
+    shift_employees = [e for e in employees if e.work_shift == current_shift_name and e.status == 'active']
+    
+    # Get today's routines
+    today_routines = session.exec(
+        select(models.EmployeeRoutine).where(
+            models.EmployeeRoutine.date == today_str,
+            models.EmployeeRoutine.shift == current_shift_name
+        )
+    ).all()
+    present_ids = {r.employee_id for r in today_routines if r.routine == 'present'}
+    
+    # Get active routes (employees currently separating)
+    active_route_ids = set()
+    for r in session.exec(
+        select(models.Route).where(
+            models.Route.date == today_str,
+            models.Route.start_time != None,
+            models.Route.end_time == None
+        )
+    ).all():
+        active_route_ids.add(r.employee_id)
+    
+    team_status = []
+    team_stats = {"em_rota": 0, "aguardando": 0, "ausente": 0}
+    
+    for emp in shift_employees[:20]:  # Limit to 20 for performance
+        if emp.id in active_route_ids:
+            status = "em_rota"
+            status_label = "Em Rota"
+            team_stats["em_rota"] += 1
+        elif emp.id in present_ids:
+            status = "aguardando"
+            status_label = "Aguardando"
+            team_stats["aguardando"] += 1
+        else:
+            status = "ausente"
+            status_label = "Nao chegou"
+            team_stats["ausente"] += 1
+        
+        team_status.append({
+            "name": emp.name.split()[0],
+            "full_name": emp.name,
+            "photo": emp.photo_url,
+            "status": status,
+            "status_label": status_label
+        })
+    
+    # Sort: em_rota first, then aguardando, then ausente
+    status_order = {"em_rota": 0, "aguardando": 1, "ausente": 2}
+    team_status.sort(key=lambda x: status_order.get(x["status"], 3))
+    
+    # --- Shifts Summary (Headcount por Turno) ---
+    shifts_summary = {}
+    
+    for shift_name in ["Manha", "Tarde", "Noite"]:
+        # Map display name to filter value
+        shift_filter_val = shift_name
+        if shift_name == "Manha":
+            shift_filter_val = "Manhã"
+        
+        # Get headcount for this shift
+        hc_query = select(models.EmployeeRoutine).where(
+            models.EmployeeRoutine.date == today_str,
+            models.EmployeeRoutine.routine == 'present',
+            models.EmployeeRoutine.shift == shift_filter_val
+        )
+        present_in_shift = len(session.exec(hc_query).all())
+        
+        # Get target for this shift
+        target_obj = session.exec(
+            select(models.HeadcountTarget).where(models.HeadcountTarget.shift_name == shift_filter_val)
+        ).first()
+        shift_target = target_obj.target_value if target_obj else 15
+        
+        # Count away/vacation in this shift
+        away_count = len([e for e in employees if e.status in ['away', 'vacation'] and e.work_shift == shift_filter_val])
+        
+        shifts_summary[shift_name.lower()] = {
+            "headcount": present_in_shift,
+            "target": shift_target,
+            "away": away_count
+        }
+    
+    # --- Alertas do Dia ---
+    alerts = {
+        "ausentes": [],
+        "vencimentos": [],
+        "ferias": [],
+        "novatos": [],
+        "total": 0
+    }
+    
+    # Ausentes hoje (funcionários ativos que deveriam estar presentes mas não estão)
+    for emp in employees:
+        if emp.status == 'active' and emp.work_shift == current_shift_name:
+            if emp.id not in present_ids:
+                alerts["ausentes"].append({
+                    "name": emp.name.split()[0],
+                    "shift": emp.work_shift[:3] if emp.work_shift else "?"
+                })
+    
+    # Vencimentos de experiência (já calculados)
+    for exp in experience_expiring[:5]:
+        alerts["vencimentos"].append({
+            "name": exp["name"],
+            "days": exp["days"]
+        })
+    
+    # Férias iniciando/terminando esta semana
+    week_start = today - timedelta(days=today.weekday())
+    week_end = week_start + timedelta(days=6)
+    
+    for emp in employees:
+        if emp.vacation_start and emp.vacation_end:
+            vac_start = emp.vacation_start
+            vac_end = emp.vacation_end
+            
+            # Normalize dates
+            if hasattr(vac_start, 'tzinfo') and vac_start.tzinfo:
+                vac_start = vac_start.replace(tzinfo=None)
+            if hasattr(vac_end, 'tzinfo') and vac_end.tzinfo:
+                vac_end = vac_end.replace(tzinfo=None)
+            
+            today_naive = today.replace(tzinfo=None)
+            
+            # Check if vacation starts or ends this week
+            if week_start.replace(tzinfo=None) <= vac_start <= week_end.replace(tzinfo=None):
+                alerts["ferias"].append({
+                    "name": emp.name.split()[0],
+                    "status": f"Inicia {vac_start.strftime('%d/%m')}"
+                })
+            elif week_start.replace(tzinfo=None) <= vac_end <= week_end.replace(tzinfo=None):
+                alerts["ferias"].append({
+                    "name": emp.name.split()[0],
+                    "status": f"Retorna {vac_end.strftime('%d/%m')}"
+                })
+    
+    # Novatos (< 30 dias de empresa)
+    for emp in employees:
+        if emp.admission_date and emp.status == 'active':
+            adm_date = emp.admission_date
+            if hasattr(adm_date, 'tzinfo') and adm_date.tzinfo:
+                adm_date = adm_date.replace(tzinfo=None)
+            
+            days_employed = (today.replace(tzinfo=None) - adm_date).days
+            
+            if 0 <= days_employed <= 30:
+                alerts["novatos"].append({
+                    "name": emp.name.split()[0],
+                    "days": days_employed
+                })
+    
+    alerts["total"] = len(alerts["ausentes"]) + len(alerts["vencimentos"]) + len(alerts["ferias"]) + len(alerts["novatos"])
+    
     # Attach to data object
+    data["shifts_summary"] = shifts_summary
+    data["team_status"] = team_status
+    data["team_stats"] = team_stats
+    data["current_shift_name"] = current_shift_display
+    data["alerts"] = alerts
     data["hr"] = {
         "birthdays": [{"name": e.name.split()[0], "day": e.birthday.day, "photo": e.photo_url} for e in birthdays],
         "vacation": [{"name": e.name.split()[0], "photo": e.photo_url} for e in on_vacation],
@@ -17503,8 +17678,8 @@ async def lider_rotas_page(
 @app.get("/lider/rotas/relatorio", response_class=HTMLResponse, dependencies=[Depends(require_leader)])
 async def lider_rotas_relatorio_page(
     request: Request,
-    month: Optional[int] = None,
-    year: Optional[int] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     shift: str = "Todos",
     session: Session = Depends(get_session),
 ):
@@ -17512,23 +17687,28 @@ async def lider_rotas_relatorio_page(
     user = require_login(request)
     br_tz = ZoneInfo("America/Sao_Paulo")
     now = datetime.now(br_tz)
-    
-    # Defaults para mês/ano atual
-    if not month:
-        month = now.month
-    if not year:
-        year = now.year
-    
-    # Calcular range de datas do mês
-    first_day = date(year, month, 1)
-    last_day_of_month = date(year, month, calendar.monthrange(year, month)[1])
-    
-    # Limitar ao dia atual - não considerar dias futuros como ausência
     today = now.date()
-    if last_day_of_month > today:
+    
+    # Defaults para primeiro dia do mês até hoje
+    if not start_date:
+        first_day = date(today.year, today.month, 1)
+    else:
+        try:
+            first_day = datetime.strptime(start_date, "%Y-%m-%d").date()
+        except:
+            first_day = date(today.year, today.month, 1)
+    
+    if not end_date:
         last_day = today
     else:
-        last_day = last_day_of_month
+        try:
+            last_day = datetime.strptime(end_date, "%Y-%m-%d").date()
+        except:
+            last_day = today
+    
+    # Limitar ao dia atual - não considerar dias futuros como ausência
+    if last_day > today:
+        last_day = today
     
     # Gerar lista de dias do mês (somente até hoje, sem dias futuros)
     all_days = []
@@ -17584,36 +17764,68 @@ async def lider_rotas_relatorio_page(
     report_data = []
     total_missing = 0
     
+    # Mapa de dias da semana em inglês para comparação
+    weekday_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    
     for emp_id, emp in emp_map.items():
         emp_routes = routes_by_emp.get(emp_id, set())
         emp_routines = routines_by_emp.get(emp_id, {})
+        
+        # Obter dias de trabalho do colaborador (padrão: segunda a sábado)
+        work_days_list = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+        try:
+            if emp.work_days:
+                import json
+                work_days_list = json.loads(emp.work_days)
+        except:
+            pass
         
         # Dias sem rota (excluindo férias, folga, atestado, afastamento)
         missing_days = []
         justified_days = []
         
         for day_str in all_days:
-            routine = emp_routines.get(day_str, "present")
+            day_date = datetime.strptime(day_str, "%Y-%m-%d").date()
+            day_weekday = weekday_names[day_date.weekday()]
             
-            if day_str not in emp_routes:
-                # Não tem rota neste dia
-                if routine in ("vacation", "sick", "away", "dayoff"):
-                    # Justificado - não deveria trabalhar
-                    justified_days.append({
-                        "date": day_str,
-                        "reason": {
-                            "vacation": "Férias",
-                            "sick": "Atestado",
-                            "away": "Afastado",
-                            "dayoff": "Folga"
-                        }.get(routine, routine)
-                    })
-                else:
-                    # Falta de rota não justificada
-                    # Verificar se é dia útil (segunda a sábado)
-                    day_date = datetime.strptime(day_str, "%Y-%m-%d").date()
-                    if day_date.weekday() != 6:  # Não é domingo
-                        missing_days.append(day_str)
+            # Verificar se é dia de trabalho do colaborador
+            if day_weekday not in work_days_list:
+                continue  # Não é dia de trabalho, pular
+            
+            routine = emp_routines.get(day_str, None)  # None = sem rotina registrada
+            
+            # Lógica de presença:
+            # 1. Se tem Route = TRABALHOU
+            # 2. Se tem EmployeeRoutine com routine="present" = TRABALHOU (fluxo operacional)
+            # 3. Se tem justificativa (vacation, sick, away, dayoff) = JUSTIFICADO
+            # 4. Se tem routine="absent" = FALTA
+            # 5. Se não tem nada registrado = considerar PRESENTE (padrão)
+            
+            has_route = day_str in emp_routes
+            
+            if has_route or routine == "present":
+                # Colaborador trabalhou (tem rota OU marcou presença no fluxo operacional)
+                continue  # Não é ausência
+            elif routine in ("vacation", "sick", "away", "dayoff"):
+                # Justificado - não deveria trabalhar
+                justified_days.append({
+                    "date": day_str,
+                    "reason": {
+                        "vacation": "Férias",
+                        "sick": "Atestado",
+                        "away": "Afastado",
+                        "dayoff": "Folga"
+                    }.get(routine, routine)
+                })
+            elif routine == "absent":
+                # Falta registrada explicitamente
+                missing_days.append(day_str)
+            # Se routine is None: sem rotina registrada = considerar presente por padrão
+            # (conforme solicitado: "se não tiver uma rotina ajustada como falta, férias, ou afastado, todos estão presentes")
+        
+        # Calcular dias trabalhados: dias com rota OU com presença registrada no fluxo operacional
+        days_with_presence = {d for d, r in emp_routines.items() if r == "present"}
+        total_worked_days = len(emp_routes.union(days_with_presence))
         
         if missing_days or justified_days:
             report_data.append({
@@ -17622,28 +17834,21 @@ async def lider_rotas_relatorio_page(
                 "justified_days": justified_days,
                 "total_missing": len(missing_days),
                 "total_justified": len(justified_days),
-                "total_worked": len(emp_routes)
+                "total_worked": total_worked_days
             })
             total_missing += len(missing_days)
     
     # Ordenar por quantidade de faltas (maior primeiro)
     report_data.sort(key=lambda x: x["total_missing"], reverse=True)
     
-    # Nome do mês em português
-    month_names = {
-        1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
-        5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
-        9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
-    }
-    
     return templates.TemplateResponse("lider_rotas_relatorio.html", {
         "request": request,
         "user": user,
         "report_data": report_data,
-        "month": month,
-        "year": year,
+        "start_date": first_day.strftime("%Y-%m-%d"),
+        "end_date": last_day.strftime("%Y-%m-%d"),
         "shift": shift,
-        "month_name": month_names.get(month, str(month)),
+        "period_label": f"{first_day.strftime('%d/%m/%Y')} a {last_day.strftime('%d/%m/%Y')}",
         "total_days": len(all_days),
         "total_employees": len(employees),
         "total_missing": total_missing,
