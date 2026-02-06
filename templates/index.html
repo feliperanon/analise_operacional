@@ -309,7 +309,10 @@
                             <div class="space-y-0.5">
                                 <p class="text-[11px] text-slate-200 font-semibold truncate">{{ v.name }}</p>
                                 <p class="text-[10px] text-slate-400">{{ v.shift }}</p>
-                                <p class="text-[10px] text-amber-400 font-bold">{{ v.days }}d</p>
+                                <div class="flex gap-1 text-[10px]">
+                                    <span class="text-amber-400 font-bold">{{ v.days }}d</span>
+                                    <span class="text-slate-500">({{ v.date }})</span>
+                                </div>
                             </div>
                         </div>
                         {% endfor %}

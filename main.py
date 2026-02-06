@@ -14846,6 +14846,7 @@ async def set_employee_routine_extended(
             'away': 'Afastado',
             'absent': 'Falta',
             'dayoff': 'Folga',
+            # Entrada adicional para saída antecipada
             'early_exit': 'Saída antecipada'
         }
         
@@ -14988,7 +14989,7 @@ async def set_employee_routine_extended(
             "absent": "advertência",
             "dayoff": "folga",
             "sick": "atestado",
-            "early_exit": "saída antecipada"
+            "early_exit": "saída antecipada"  # Regulamos esse alerta com e-mail também
         }
         
         # Enviar alerta se for um dos tipos configurados (AGORA EM BACKGROUND)
@@ -19921,7 +19922,7 @@ def send_absence_alert_email(
             "type_label": "SAÍDA ANTECIPADA",
             "date_label": "Data da Saída",
             "color": "#fb7185",
-            "action": "Solicitamos atualização do controle de jornada e validação da saída antecipada."
+            "action": "Solicitamos atualização do controle de jornada, conferência do ponto e validação da saída antecipada."
         }
     }
     
@@ -20090,7 +20091,7 @@ def send_absence_alert_email_background(
         "absent": "advertência",
         "dayoff": "folga",
         "sick": "atestado",
-        "early_exit": "saída antecipada"
+        "early_exit": "saída antecipada"  # Logado como alerta específico
     }
     
     try:
@@ -20144,6 +20145,7 @@ async def admin_absence_alerts_settings(
     absent_recipients = [r for r in recipients if getattr(r, 'alert_type', 'absent') == 'absent']
     dayoff_recipients = [r for r in recipients if getattr(r, 'alert_type', None) == 'dayoff']
     sick_recipients = [r for r in recipients if getattr(r, 'alert_type', None) == 'sick']
+    # Novo grupo de destinatários para saída antecipada
     early_exit_recipients = [r for r in recipients if getattr(r, 'alert_type', None) == 'early_exit']
     
     # Info SMTP para exibição
@@ -20184,6 +20186,7 @@ async def admin_absence_alerts_add_email(
     
     # Validar alert_type
     valid_types = ["absent", "dayoff", "sick", "early_exit"]
+    # 'early_exit' usa os mesmos destinatários das ausências críticas
     if alert_type not in valid_types:
         alert_type = "absent"
     
