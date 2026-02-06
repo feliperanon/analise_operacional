@@ -19179,7 +19179,7 @@ async def operational_history_page(request: Request, session: Session = Depends(
                     select(models.TranspalletChecklist.id).where(
                         models.TranspalletChecklist.id.in_(checklist_refs)
                     )
-                ).all()
+                ).scalars().all()
             )
 
         for evt in events:

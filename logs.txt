@@ -29159,3 +29159,18 @@ fastapi.exceptions.HTTPException: 303: See Other
 2026-02-06 02:10:17,765 | INFO     | main | Google Gemini client initialized successfully
 2026-02-06 02:11:06,149 | INFO     | main | Google Gemini client initialized successfully
 2026-02-06 02:11:57,449 | INFO     | main | Google Gemini client initialized successfully
+2026-02-06 02:12:49,128 | INFO     | main | Google Gemini client initialized successfully
+2026-02-06 02:20:09,540 | ERROR    | main | Error rendering operational history
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 19187, in operational_history_page
+    evt.employee_name = employee_map.get(evt.employee_id)
+    ^^^^^^^^^^^^^^^^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\sqlmodel\main.py", line 830, in __setattr__
+    super().__setattr__(name, value)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\pydantic\main.py", line 1032, in __setattr__
+    elif (setattr_handler := self._setattr_handler(name, value)) is not None:
+                             ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Projeto\analise_operacional\.venv\Lib\site-packages\pydantic\main.py", line 1079, in _setattr_handler
+    raise ValueError(f'"{cls.__name__}" object has no field "{name}"')
+ValueError: "Event" object has no field "employee_name"
