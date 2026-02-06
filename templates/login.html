@@ -178,20 +178,20 @@
             }
         }
 
-        // Shift configuration (usando minutos para precisão)
+        // Shift configuration
+        // Horarios: Manha 05:00-12:00, Tarde 12:00-18:00, Noite 18:00-05:00
         var shifts = {
-            manha: { name: 'Manhã', startH: 5, startM: 0, endH: 13, endM: 20, color: 'blue', icon: 'sun' },
-            tarde: { name: 'Tarde', startH: 12, startM: 0, endH: 20, endM: 20, color: 'orange', icon: 'sunset' },
-            noite: { name: 'Noite', startH: 18, startM: 0, endH: 6, endM: 0, color: 'purple', icon: 'moon' }
+            manha: { name: 'Manha', startH: 5, startM: 0, endH: 12, endM: 0, color: 'blue', icon: 'sun' },
+            tarde: { name: 'Tarde', startH: 12, startM: 0, endH: 18, endM: 0, color: 'orange', icon: 'sunset' },
+            noite: { name: 'Noite', startH: 18, startM: 0, endH: 5, endM: 0, color: 'purple', icon: 'moon' }
         };
 
         function getCurrentShift(hour, minute) {
-            var currentMinutes = hour * 60 + (minute || 0);
-            // Manhã: 05:00 - 13:20 (300 - 800 min)
-            if (currentMinutes >= 300 && currentMinutes < 800) return shifts.manha;
-            // Tarde: 12:00 - 20:20 (720 - 1220 min) - overlap com manhã é intencional
-            if (currentMinutes >= 720 && currentMinutes < 1220) return shifts.tarde;
-            // Noite: 18:00 - 06:00
+            // Manha: 05:00 - 12:00
+            if (hour >= 5 && hour < 12) return shifts.manha;
+            // Tarde: 12:00 - 18:00
+            if (hour >= 12 && hour < 18) return shifts.tarde;
+            // Noite: 18:00 - 05:00
             return shifts.noite;
         }
 
@@ -207,17 +207,15 @@
             var startMinutes = shift.startH * 60 + shift.startM;
             var endMinutes = shift.endH * 60 + shift.endM;
             
-            // Handle night shift crossing midnight (18:00 - 06:00 = 12 horas)
+            // Turno noite cruza meia-noite (18:00 - 05:00 = 11 horas)
             if (shift.name === 'Noite') {
                 if (hour >= 18) {
-                    // Das 18h até meia-noite
                     currentMinutes = (hour - 18) * 60 + minute;
                 } else {
-                    // Da meia-noite até 6h
                     currentMinutes = (hour + 6) * 60 + minute;
                 }
                 startMinutes = 0;
-                endMinutes = 12 * 60; // 12 hours total
+                endMinutes = 11 * 60; // 11 horas de turno
             }
             
             var total = endMinutes - startMinutes;

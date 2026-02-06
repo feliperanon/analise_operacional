@@ -1999,10 +1999,11 @@ async def index(request: Request, shift: str = "Todos", session: Session = Depen
     hour = today.hour
     
     # Determine current shift
-    if 6 <= hour < 14:
+    # Horarios: Manha 05:00-12:00, Tarde 12:00-18:00, Noite 18:00-05:00
+    if 5 <= hour < 12:
         current_shift_name = "Manhã"
         current_shift_display = "Manha"
-    elif 14 <= hour < 22:
+    elif 12 <= hour < 18:
         current_shift_name = "Tarde"
         current_shift_display = "Tarde"
     else:
@@ -2102,20 +2103,34 @@ async def index(request: Request, shift: str = "Todos", session: Session = Depen
         "total": 0
     }
     
+    # Helper para pegar primeiro nome + sobrenome
+    def get_short_name(full_name):
+        parts = full_name.split()
+        if len(parts) >= 2:
+            return f"{parts[0]} {parts[-1]}"
+        return parts[0] if parts else full_name
+    
     # Ausentes hoje (funcionários ativos que deveriam estar presentes mas não estão)
     for emp in employees:
         if emp.status == 'active' and emp.work_shift == current_shift_name:
             if emp.id not in present_ids:
                 alerts["ausentes"].append({
-                    "name": emp.name.split()[0],
+                    "name": get_short_name(emp.name),
                     "shift": emp.work_shift[:3] if emp.work_shift else "?"
                 })
     
-    # Vencimentos de experiência (já calculados)
+    # Vencimentos de experiência (já calculados) - adicionar turno
     for exp in experience_expiring[:5]:
+        # Buscar turno do funcionário
+        emp_shift = "?"
+        for emp in employees:
+            if get_short_name(emp.name) == exp["name"] or emp.name.split()[0] == exp["name"]:
+                emp_shift = emp.work_shift[:3] if emp.work_shift else "?"
+                break
         alerts["vencimentos"].append({
             "name": exp["name"],
-            "days": exp["days"]
+            "days": exp["days"],
+            "shift": emp_shift
         })
     
     # Férias iniciando/terminando esta semana
@@ -2138,13 +2153,15 @@ async def index(request: Request, shift: str = "Todos", session: Session = Depen
             # Check if vacation starts or ends this week
             if week_start.replace(tzinfo=None) <= vac_start <= week_end.replace(tzinfo=None):
                 alerts["ferias"].append({
-                    "name": emp.name.split()[0],
-                    "status": f"Inicia {vac_start.strftime('%d/%m')}"
+                    "name": get_short_name(emp.name),
+                    "status": f"Inicia {vac_start.strftime('%d/%m')}",
+                    "shift": emp.work_shift[:3] if emp.work_shift else "?"
                 })
             elif week_start.replace(tzinfo=None) <= vac_end <= week_end.replace(tzinfo=None):
                 alerts["ferias"].append({
-                    "name": emp.name.split()[0],
-                    "status": f"Retorna {vac_end.strftime('%d/%m')}"
+                    "name": get_short_name(emp.name),
+                    "status": f"Retorna {vac_end.strftime('%d/%m')}",
+                    "shift": emp.work_shift[:3] if emp.work_shift else "?"
                 })
     
     # Novatos (< 30 dias de empresa)
@@ -2158,8 +2175,9 @@ async def index(request: Request, shift: str = "Todos", session: Session = Depen
             
             if 0 <= days_employed <= 30:
                 alerts["novatos"].append({
-                    "name": emp.name.split()[0],
-                    "days": days_employed
+                    "name": get_short_name(emp.name),
+                    "days": days_employed,
+                    "shift": emp.work_shift[:3] if emp.work_shift else "?"
                 })
     
     alerts["total"] = len(alerts["ausentes"]) + len(alerts["vencimentos"]) + len(alerts["ferias"]) + len(alerts["novatos"])

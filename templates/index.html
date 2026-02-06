@@ -64,7 +64,7 @@
                         </div>
                         <div>
                             <h3 class="text-lg font-bold text-blue-300">MANHA</h3>
-                            <p class="text-[10px] text-slate-500 uppercase tracking-wider">06:00 - 14:00</p>
+                            <p class="text-[10px] text-slate-500 uppercase tracking-wider">05:00 - 12:00</p>
                         </div>
                     </div>
                     
@@ -105,7 +105,7 @@
                         </div>
                         <div>
                             <h3 class="text-lg font-bold text-orange-300">TARDE</h3>
-                            <p class="text-[10px] text-slate-500 uppercase tracking-wider">14:00 - 22:00</p>
+                            <p class="text-[10px] text-slate-500 uppercase tracking-wider">12:00 - 18:00</p>
                         </div>
                     </div>
                     
@@ -146,7 +146,7 @@
                         </div>
                         <div>
                             <h3 class="text-lg font-bold text-purple-300">NOITE</h3>
-                            <p class="text-[10px] text-slate-500 uppercase tracking-wider">22:00 - 06:00</p>
+                            <p class="text-[10px] text-slate-500 uppercase tracking-wider">18:00 - 05:00</p>
                         </div>
                     </div>
                     
@@ -306,8 +306,9 @@
                         {% for v in dashboard.alerts.vencimentos[:5] %}
                         <div class="flex items-center gap-2 text-[11px]">
                             <span class="w-1.5 h-1.5 bg-amber-500 rounded-full {{ 'animate-pulse' if v.days <= 3 else '' }}"></span>
-                            <span class="text-slate-300 truncate">{{ v.name }}</span>
-                            <span class="ml-auto text-amber-400 font-bold">{{ v.days }}d</span>
+                            <span class="text-slate-300 truncate flex-1">{{ v.name }}</span>
+                            <span class="text-slate-500 text-[10px]">{{ v.shift }}</span>
+                            <span class="text-amber-400 font-bold">{{ v.days }}d</span>
                         </div>
                         {% endfor %}
                     </div>
@@ -328,8 +329,9 @@
                         {% for f in dashboard.alerts.ferias[:5] %}
                         <div class="flex items-center gap-2 text-[11px]">
                             <span class="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
-                            <span class="text-slate-300 truncate">{{ f.name }}</span>
-                            <span class="ml-auto text-blue-400 text-[10px]">{{ f.status }}</span>
+                            <span class="text-slate-300 truncate flex-1">{{ f.name }}</span>
+                            <span class="text-slate-500 text-[10px]">{{ f.shift }}</span>
+                            <span class="text-blue-400 text-[10px]">{{ f.status }}</span>
                         </div>
                         {% endfor %}
                     </div>
@@ -350,8 +352,9 @@
                         {% for n in dashboard.alerts.novatos[:5] %}
                         <div class="flex items-center gap-2 text-[11px]">
                             <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-                            <span class="text-slate-300 truncate">{{ n.name }}</span>
-                            <span class="ml-auto text-emerald-400 text-[10px]">{{ n.days }}d</span>
+                            <span class="text-slate-300 truncate flex-1">{{ n.name }}</span>
+                            <span class="text-slate-500 text-[10px]">{{ n.shift }}</span>
+                            <span class="text-emerald-400 text-[10px]">{{ n.days }}d</span>
                         </div>
                         {% endfor %}
                     </div>
@@ -664,10 +667,11 @@
 
 <script>
     // Dashboard Clock & Shift Logic
+    // Horarios: Manha 05:00-12:00, Tarde 12:00-18:00, Noite 18:00-05:00
     function getCurrentShift(hour) {
-        if (hour >= 6 && hour < 14) return { name: 'Manha', color: 'blue', start: 6, end: 14 };
-        if (hour >= 14 && hour < 22) return { name: 'Tarde', color: 'orange', start: 14, end: 22 };
-        return { name: 'Noite', color: 'purple', start: 22, end: 6 };
+        if (hour >= 5 && hour < 12) return { name: 'Manha', color: 'blue', start: 5, end: 12 };
+        if (hour >= 12 && hour < 18) return { name: 'Tarde', color: 'orange', start: 12, end: 18 };
+        return { name: 'Noite', color: 'purple', start: 18, end: 5 };
     }
 
     function getShiftProgress(hour, minute) {
@@ -676,14 +680,15 @@
         var startMinutes = shift.start * 60;
         var endMinutes = shift.end * 60;
         
+        // Turno noite cruza meia-noite (18:00 - 05:00 = 11 horas)
         if (shift.name === 'Noite') {
-            if (hour >= 22) {
-                currentMinutes = (hour - 22) * 60 + minute;
+            if (hour >= 18) {
+                currentMinutes = (hour - 18) * 60 + minute;
             } else {
-                currentMinutes = (hour + 2) * 60 + minute;
+                currentMinutes = (hour + 6) * 60 + minute; // horas apos meia-noite + 6
             }
             startMinutes = 0;
-            endMinutes = 8 * 60;
+            endMinutes = 11 * 60; // 11 horas de turno
         }
         
         var total = endMinutes - startMinutes;
