@@ -11,68 +11,154 @@
             </div>
 
             <!-- Filters -->
-            <div class="bg-slate-800 p-2 rounded-xl flex items-center gap-3 border border-slate-700 shadow-lg">
-                <!-- Date -->
-                <input type="date" id="strategy-date"
-                    class="bg-transparent text-white text-sm font-bold border-none focus:ring-0 cursor-pointer outline-none">
+            <div class="flex items-center gap-3">
+                <div class="bg-slate-800 p-2 rounded-xl flex items-center gap-3 border border-slate-700 shadow-lg">
+                    <!-- Date -->
+                    <input type="date" id="strategy-date"
+                        class="bg-transparent text-white text-sm font-bold border-none focus:ring-0 cursor-pointer outline-none">
 
-                <div class="w-px h-6 bg-slate-600"></div>
+                    <div class="w-px h-6 bg-slate-600"></div>
 
-                <!-- Shift -->
-                <select id="strategy-shift"
-                    class="bg-transparent text-white text-sm font-bold border-none focus:ring-0 cursor-pointer outline-none [&>option]:bg-slate-800">
-                    <option value="Todos">Todos os Turnos</option>
-                    <option value="Manhã">Manhã</option>
-                    <option value="Tarde">Tarde</option>
-                    <option value="Noite">Noite</option>
-                </select>
+                    <!-- Shift -->
+                    <select id="strategy-shift"
+                        class="bg-transparent text-white text-sm font-bold border-none focus:ring-0 cursor-pointer outline-none [&>option]:bg-slate-800">
+                        <option value="Todos">Todos os Turnos</option>
+                        <option value="Manhã">Manhã</option>
+                        <option value="Tarde">Tarde</option>
+                        <option value="Noite">Noite</option>
+                    </select>
+                </div>
+                
+                <!-- Refresh Button -->
+                <button onclick="loadStrategyData()" id="refresh-btn"
+                    class="bg-slate-800 hover:bg-slate-700 p-2.5 rounded-xl border border-slate-700 shadow-lg transition-all group">
+                    <svg class="w-5 h-5 text-slate-400 group-hover:text-white transition-colors" id="refresh-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                </button>
+                
+                <!-- Export Button -->
+                <button onclick="exportReport()" 
+                    class="bg-green-600 hover:bg-green-500 px-4 py-2.5 rounded-xl text-white text-sm font-bold shadow-lg transition-all flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Exportar
+                </button>
             </div>
         </div>
 
-        <!-- Global KPIs (Micro Efficiency) -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg relative overflow-hidden group">
-                <div
-                    class="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+        <!-- Global KPIs -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <!-- Produtividade Global -->
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-lg relative overflow-hidden group">
+                <div class="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div class="flex justify-between items-start relative z-10">
+                    <div>
+                        <p class="text-xs font-bold text-slate-500 uppercase">Produtividade</p>
+                        <div class="mt-1 flex items-baseline gap-2">
+                            <span id="kpi-global-kgh" class="text-2xl font-bold text-white skeleton-text">---</span>
+                            <span class="text-sm text-slate-400">Kg/h</span>
+                        </div>
+                    </div>
+                    <div id="kpi-kgh-change" class="text-xs font-bold px-2 py-1 rounded hidden">
+                        <span id="kpi-kgh-change-text"></span>
+                    </div>
                 </div>
-                <p class="text-xs font-bold text-slate-500 uppercase relative z-10">Produtividade Global</p>
-                <div class="mt-2 flex items-baseline gap-2 relative z-10">
-                    <span id="kpi-global-kgh" class="text-3xl font-bold text-white">...</span>
-                    <span class="text-sm text-slate-400">Kg/h</span>
+                <div class="mt-2 flex items-center gap-2 relative z-10">
+                    <div class="flex-1 bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                        <div id="kpi-meta-bar" class="h-full bg-green-500 transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <span id="kpi-meta-text" class="text-xs text-slate-400">0% da meta</span>
                 </div>
-                <div class="mt-2 text-xs text-green-400 font-bold relative z-10">Média Sistema</div>
             </div>
 
-            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg relative overflow-hidden group">
-                <div
-                    class="absolute inset-0 bg-gradient-to-br from-red-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+            <!-- Ociosidade Média -->
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-lg relative overflow-hidden group">
+                <div class="absolute inset-0 bg-gradient-to-br from-red-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div class="relative z-10">
+                    <p class="text-xs font-bold text-slate-500 uppercase">Ociosidade Média</p>
+                    <div class="mt-1 flex items-baseline gap-2">
+                        <span id="kpi-avg-idle" class="text-2xl font-bold text-white skeleton-text">---</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-2">Por colaborador (hoje)</p>
                 </div>
-                <p class="text-xs font-bold text-slate-500 uppercase relative z-10">Ociosidade Média</p>
-                <div class="mt-2 flex items-baseline gap-2 relative z-10">
-                    <span id="kpi-avg-idle" class="text-3xl font-bold text-white">...</span>
-                </div>
-                <p class="text-xs text-slate-400 mt-2 relative z-10">Por turno (hoje)</p>
             </div>
 
-            <!-- Cost Calculator -->
-            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg col-span-2">
-                <p class="text-xs font-bold text-slate-500 uppercase mb-2">Calculadora de Custo Operacional</p>
-                <div class="flex flex-col md:flex-row gap-4 items-end">
-                    <div class="flex-1 w-full">
-                        <label class="text-xs text-slate-400 mb-1 block">Folha Mensal (R$)</label>
-                        <input type="number" id="payroll-input" placeholder="Ex: 50000"
-                            class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors"
-                            onkeyup="calcCost()">
+            <!-- Rotas Concluídas -->
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-lg relative overflow-hidden group">
+                <div class="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div class="flex justify-between items-start relative z-10">
+                    <div>
+                        <p class="text-xs font-bold text-slate-500 uppercase">Rotas Concluídas</p>
+                        <div class="mt-1 flex items-baseline gap-2">
+                            <span id="kpi-routes" class="text-2xl font-bold text-white skeleton-text">---</span>
+                            <span class="text-sm text-slate-400">rotas</span>
+                        </div>
                     </div>
-                    <div class="flex-1 w-full">
-                        <p class="text-xs text-slate-400 mb-1">Volume Total (Ref.)</p>
-                        <p class="text-lg font-mono text-slate-300 border-b border-slate-700 pb-1" id="total-vol"
-                            data-val="0">...</p>
+                    <div class="bg-blue-500/20 p-2 rounded-lg">
+                        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                        </svg>
                     </div>
-                    <div class="flex-1 bg-slate-700/50 p-2 rounded text-center w-full border border-slate-600">
-                        <p class="text-xs text-slate-400">Custo por Tonelada</p>
-                        <p class="text-xl font-bold text-green-400" id="cost-result">R$ -</p>
+                </div>
+                <p class="text-xs text-slate-400 mt-2 relative z-10">Volume: <span id="kpi-vol-day" class="font-mono text-slate-300">0 kg</span></p>
+            </div>
+
+            <!-- Colaboradores Ativos -->
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-lg relative overflow-hidden group">
+                <div class="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div class="flex justify-between items-start relative z-10">
+                    <div>
+                        <p class="text-xs font-bold text-slate-500 uppercase">Colaboradores</p>
+                        <div class="mt-1 flex items-baseline gap-2">
+                            <span id="kpi-employees" class="text-2xl font-bold text-white skeleton-text">---</span>
+                            <span class="text-sm text-slate-400">ativos</span>
+                        </div>
                     </div>
+                    <div class="bg-green-500/20 p-2 rounded-lg">
+                        <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-400 mt-2 relative z-10">Com movimentação no turno</p>
+            </div>
+        </div>
+
+        <!-- Alerts Section -->
+        <div id="alerts-section" class="mb-6">
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg p-4">
+                <div class="flex items-center gap-2 mb-3">
+                    <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <h3 class="text-sm font-bold text-white">Alertas & Insights</h3>
+                </div>
+                <div id="alerts-container" class="flex flex-wrap gap-2">
+                    <div class="skeleton-box h-8 w-48 rounded-lg"></div>
+                    <div class="skeleton-box h-8 w-56 rounded-lg"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cost Calculator -->
+        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-lg mb-6">
+            <p class="text-xs font-bold text-slate-500 uppercase mb-3">Calculadora de Custo Operacional</p>
+            <div class="flex flex-col md:flex-row gap-4 items-end">
+                <div class="flex-1 w-full">
+                    <label class="text-xs text-slate-400 mb-1 block">Folha Mensal (R$)</label>
+                    <input type="number" id="payroll-input" placeholder="Ex: 50000"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors"
+                        onkeyup="calcCost()">
+                </div>
+                <div class="flex-1 w-full">
+                    <p class="text-xs text-slate-400 mb-1">Volume Total (Ref.)</p>
+                    <p class="text-lg font-mono text-slate-300 border-b border-slate-700 pb-1" id="total-vol" data-val="0">...</p>
+                </div>
+                <div class="flex-1 bg-slate-700/50 p-3 rounded-lg text-center w-full border border-slate-600">
+                    <p class="text-xs text-slate-400">Custo por Tonelada</p>
+                    <p class="text-xl font-bold text-green-400" id="cost-result">R$ -</p>
                 </div>
             </div>
         </div>
@@ -80,15 +166,12 @@
         <!-- 1. ABC Curve -->
         <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
             <span>1. Curva ABC de Clientes</span>
-            <span
-                class="text-xs font-normal text-slate-500 bg-slate-800 px-2 py-1 rounded border border-slate-700">Pareto
-                80/20</span>
+            <span class="text-xs font-normal text-slate-500 bg-slate-800 px-2 py-1 rounded border border-slate-700">Pareto 80/20</span>
         </h2>
         <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden mb-8">
             <div class="overflow-x-auto max-h-96 custom-scrollbar">
                 <table class="w-full text-left">
-                    <thead
-                        class="bg-slate-900/80 text-xs uppercase text-slate-400 font-bold sticky top-0 backdrop-blur-sm z-10">
+                    <thead class="bg-slate-900/80 text-xs uppercase text-slate-400 font-bold sticky top-0 backdrop-blur-sm z-10">
                         <tr>
                             <th class="px-6 py-4">Classificação</th>
                             <th class="px-6 py-4">Cliente</th>
@@ -98,49 +181,102 @@
                         </tr>
                     </thead>
                     <tbody id="abc-table-body" class="divide-y divide-slate-700 text-sm">
-                        <!-- JS Rendered -->
-                        <tr>
-                            <td colspan="5" class="p-8 text-center text-slate-500">Carregando...</td>
-                        </tr>
+                        <tr><td colspan="5" class="p-8 text-center text-slate-500">Carregando...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
         <!-- 2. Productivity Chart -->
-        <h2 class="text-xl font-bold text-white mb-4">2. Evolução de Produtividade (30 dias) 📈</h2>
+        <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <span>2. Evolução de Produtividade (30 dias)</span>
+            <span class="text-xs font-normal text-slate-500 bg-slate-800 px-2 py-1 rounded border border-slate-700">📈</span>
+        </h2>
         <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg p-6 mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-4 text-xs">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        <span class="text-slate-400">Produtividade Real</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-0.5 bg-amber-500/50 border-t-2 border-dashed border-amber-500"></div>
+                        <span class="text-slate-400">Meta (<span id="chart-target-label">0</span> Kg/h)</span>
+                    </div>
+                </div>
+            </div>
             <div class="relative h-80 w-full">
                 <canvas id="prodChart"></canvas>
             </div>
         </div>
 
         <!-- 3. Individual Productivity -->
-        <h2 class="text-xl font-bold text-white mb-4 mt-8">3. Produtividade Individual & Ociosidade ⏱️</h2>
+        <h2 class="text-xl font-bold text-white mb-4 mt-8 flex items-center gap-2">
+            <span>3. Produtividade Individual & Ociosidade</span>
+            <span class="text-xs font-normal text-slate-500 bg-slate-800 px-2 py-1 rounded border border-slate-700">⏱️</span>
+        </h2>
+        
+        <!-- Search & Sort Controls -->
+        <div class="flex flex-col md:flex-row gap-3 mb-4">
+            <div class="flex-1 relative">
+                <input type="text" id="productivity-search" placeholder="Buscar colaborador..."
+                    class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 pl-10 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                    oninput="filterProductivityTable()">
+                <svg class="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="sortProductivity('kgh')" data-sort="kgh" data-dir="desc"
+                    class="sort-btn bg-slate-800 hover:bg-slate-700 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-300 border border-slate-700 transition-all flex items-center gap-2">
+                    <span>Kg/h</span>
+                    <svg class="w-4 h-4 sort-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+                <button onclick="sortProductivity('idle')" data-sort="idle" data-dir="asc"
+                    class="sort-btn bg-slate-800 hover:bg-slate-700 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-300 border border-slate-700 transition-all flex items-center gap-2">
+                    <span>Ociosidade</span>
+                    <svg class="w-4 h-4 sort-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+                <button onclick="sortProductivity('name')" data-sort="name" data-dir="asc"
+                    class="sort-btn bg-slate-800 hover:bg-slate-700 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-300 border border-slate-700 transition-all flex items-center gap-2">
+                    <span>Nome</span>
+                    <svg class="w-4 h-4 sort-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        
         <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden mb-8">
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto max-h-[500px] custom-scrollbar">
                 <table class="w-full text-left">
-                    <thead class="bg-slate-900/50 text-xs uppercase text-slate-400 font-bold">
+                    <thead class="bg-slate-900/80 text-xs uppercase text-slate-400 font-bold sticky top-0 backdrop-blur-sm z-10">
                         <tr>
+                            <th class="px-6 py-4">#</th>
                             <th class="px-6 py-4">Colaborador</th>
                             <th class="px-6 py-4">Produtividade</th>
+                            <th class="px-6 py-4">Progresso</th>
                             <th class="px-6 py-4">Tempo Ativo</th>
                             <th class="px-6 py-4">Tempo Ocioso</th>
                             <th class="px-6 py-4">Status</th>
                         </tr>
                     </thead>
                     <tbody id="productivity-table-body" class="divide-y divide-slate-700 text-sm">
-                        <!-- JS Rendered -->
-                        <tr>
-                            <td colspan="5" class="p-8 text-center text-slate-500">Carregando...</td>
-                        </tr>
+                        <tr><td colspan="7" class="p-8 text-center text-slate-500">Carregando...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
         <!-- 4. SLA Ranking -->
-        <h2 class="text-xl font-bold text-white mb-4 mt-8">4. SLA de Atendimento (Gargalos) ⏱️</h2>
+        <h2 class="text-xl font-bold text-white mb-4 mt-8 flex items-center gap-2">
+            <span>4. SLA de Atendimento (Gargalos)</span>
+            <span class="text-xs font-normal text-slate-500 bg-slate-800 px-2 py-1 rounded border border-slate-700">⏱️</span>
+        </h2>
         <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full text-left">
@@ -148,14 +284,12 @@
                         <tr>
                             <th class="px-6 py-4">Cliente</th>
                             <th class="px-6 py-4">Tempo Médio (SLA)</th>
+                            <th class="px-6 py-4">Qtd. Rotas</th>
                             <th class="px-6 py-4">Impacto</th>
                         </tr>
                     </thead>
                     <tbody id="sla-table-body" class="divide-y divide-slate-700 text-sm">
-                        <!-- JS Rendered -->
-                        <tr>
-                            <td colspan="3" class="p-8 text-center text-slate-500">Carregando...</td>
-                        </tr>
+                        <tr><td colspan="4" class="p-8 text-center text-slate-500">Carregando...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -165,24 +299,25 @@
 
 <!-- Dependencies -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 
 <!-- Logic -->
 <script>
     let prodChartInstance = null;
     let currentData = null;
+    let productivityData = [];
+    let currentSort = { field: 'kgh', dir: 'desc' };
 
     document.addEventListener('DOMContentLoaded', function () {
-        // Set Today's Date default
         const dateInput = document.getElementById('strategy-date');
         if (!dateInput.value) {
             dateInput.value = new Date().toISOString().split('T')[0];
         }
 
-        // Attach listeners
         document.getElementById('strategy-date').addEventListener('change', loadStrategyData);
         document.getElementById('strategy-shift').addEventListener('change', loadStrategyData);
 
-        // Initial Load
         loadStrategyData();
     });
 
@@ -190,8 +325,13 @@
         const date = document.getElementById('strategy-date').value;
         const shift = document.getElementById('strategy-shift').value;
 
-        // Visual Feedback (Loading state if needed, or simple opacity drop)
+        // Show loading state
+        const refreshIcon = document.getElementById('refresh-icon');
+        refreshIcon.classList.add('animate-spin');
         document.body.style.cursor = 'wait';
+        
+        // Add skeleton loading to KPIs
+        document.querySelectorAll('.skeleton-text').forEach(el => el.classList.add('animate-pulse', 'bg-slate-700', 'rounded'));
 
         try {
             const response = await fetch(`/api/strategy?date=${date}&shift=${shift}`);
@@ -199,31 +339,83 @@
 
             const data = await response.json();
             currentData = data;
+            productivityData = data.productivity || [];
             renderAll(data);
         } catch (error) {
             console.error(error);
-            alert("Erro ao carregar dados da API.");
+            showToast("Erro ao carregar dados da API.", "error");
         } finally {
             document.body.style.cursor = 'default';
+            refreshIcon.classList.remove('animate-spin');
+            document.querySelectorAll('.skeleton-text').forEach(el => el.classList.remove('animate-pulse', 'bg-slate-700', 'rounded'));
         }
     }
 
     function renderAll(data) {
         renderKPIs(data.kpi);
+        renderAlerts(data.alerts);
         renderABC(data.abc_data);
-        renderChart(data.prod_chart_labels, data.prod_chart_data);
-        renderProductivity(data.productivity);
+        renderChart(data.prod_chart_labels, data.prod_chart_data, data.prod_chart_target);
+        renderProductivity(data.productivity, data.kpi.target_kgh);
         renderSLA(data.sla_ranking);
     }
 
     function renderKPIs(kpi) {
         document.getElementById('kpi-global-kgh').innerText = kpi.global_kgh;
         document.getElementById('kpi-avg-idle').innerText = kpi.avg_idle;
+        document.getElementById('kpi-routes').innerText = kpi.routes_count || 0;
+        document.getElementById('kpi-employees').innerText = kpi.employees_count || 0;
+        document.getElementById('kpi-vol-day').innerText = kpi.total_vol + " kg";
         document.getElementById('total-vol').innerText = kpi.total_vol + " kg";
-        document.getElementById('total-vol').dataset.val = kpi.total_vol;
+        document.getElementById('total-vol').dataset.val = kpi.total_vol_raw || 0;
 
-        // Retrigger calc cost if user typed something before
+        // Meta progress bar
+        const metaPercent = Math.min(kpi.meta_percent || 0, 100);
+        document.getElementById('kpi-meta-bar').style.width = metaPercent + '%';
+        document.getElementById('kpi-meta-bar').className = `h-full transition-all duration-500 ${metaPercent >= 100 ? 'bg-green-500' : metaPercent >= 70 ? 'bg-yellow-500' : 'bg-red-500'}`;
+        document.getElementById('kpi-meta-text').innerText = `${Math.round(metaPercent)}% da meta`;
+
+        // KGH change indicator
+        const kghChange = kpi.kgh_change || 0;
+        const changeEl = document.getElementById('kpi-kgh-change');
+        const changeTextEl = document.getElementById('kpi-kgh-change-text');
+        
+        if (kghChange !== 0) {
+            changeEl.classList.remove('hidden');
+            if (kghChange > 0) {
+                changeEl.className = 'text-xs font-bold px-2 py-1 rounded bg-green-500/20 text-green-400';
+                changeTextEl.innerText = `▲ ${kghChange.toFixed(1)}%`;
+            } else {
+                changeEl.className = 'text-xs font-bold px-2 py-1 rounded bg-red-500/20 text-red-400';
+                changeTextEl.innerText = `▼ ${Math.abs(kghChange).toFixed(1)}%`;
+            }
+        } else {
+            changeEl.classList.add('hidden');
+        }
+
         calcCost();
+    }
+
+    function renderAlerts(alerts) {
+        const container = document.getElementById('alerts-container');
+        if (!alerts || alerts.length === 0) {
+            container.innerHTML = `<span class="text-slate-500 text-sm">Nenhum alerta no momento.</span>`;
+            return;
+        }
+
+        container.innerHTML = alerts.map(alert => {
+            let bgClass = 'bg-slate-700/50 border-slate-600 text-slate-300';
+            if (alert.type === 'success') bgClass = 'bg-green-500/10 border-green-500/30 text-green-400';
+            else if (alert.type === 'warning') bgClass = 'bg-amber-500/10 border-amber-500/30 text-amber-400';
+            else if (alert.type === 'danger') bgClass = 'bg-red-500/10 border-red-500/30 text-red-400';
+            
+            return `
+                <div class="px-3 py-2 rounded-lg border ${bgClass} text-sm flex items-center gap-2">
+                    <span>${alert.icon}</span>
+                    <span>${alert.message}</span>
+                </div>
+            `;
+        }).join('');
     }
 
     function renderABC(abcData) {
@@ -236,16 +428,18 @@
         tbody.innerHTML = abcData.map(row => {
             let badgeClass = "bg-slate-600/20 text-slate-400 border border-slate-600/30";
             let barColor = "bg-slate-500";
+            let label = "Classe C";
 
             if (row.class === 'A') {
                 badgeClass = "bg-green-500/20 text-green-400 border border-green-500/30";
                 barColor = "bg-green-500";
+                label = "Classe A";
             } else if (row.class === 'B') {
                 badgeClass = "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30";
                 barColor = "bg-yellow-500";
+                label = "Classe B";
             }
 
-            // Fix: API returns 'tonnage' and 'share', not 'total' and 'pct'
             const val = row.tonnage || 0;
             const share = row.share || 0;
             const name = row.name || "Desconhecido";
@@ -253,14 +447,14 @@
             return `
                 <tr class="hover:bg-slate-700/30 transition-colors">
                     <td class="px-6 py-4">
-                        <span class="px-3 py-1 rounded-full font-bold text-xs ${badgeClass}">Client ${row.class}</span>
+                        <span class="px-3 py-1 rounded-full font-bold text-xs ${badgeClass}">${label}</span>
                     </td>
                     <td class="px-6 py-4 font-medium text-white">${name}</td>
                     <td class="px-6 py-4 text-slate-300 font-mono">${fmt(val)}</td>
                     <td class="px-6 py-4 text-slate-400">${share.toFixed(1)}%</td>
                     <td class="px-6 py-4 w-48">
                         <div class="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
-                            <div class="h-full ${barColor}" style="width: ${share}%"></div>
+                            <div class="h-full ${barColor}" style="width: ${Math.min(share, 100)}%"></div>
                         </div>
                     </td>
                 </tr>
@@ -268,39 +462,61 @@
         }).join('');
     }
 
-    function renderChart(labels, values) {
+    function renderChart(labels, values, target) {
         const ctx = document.getElementById('prodChart').getContext('2d');
+        
+        document.getElementById('chart-target-label').innerText = target || 0;
 
         if (prodChartInstance) {
             prodChartInstance.destroy();
         }
 
+        // Create target line data
+        const targetLine = new Array(labels.length).fill(target || 0);
+
         prodChartInstance = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: labels,
-                datasets: [{
-                    label: 'Produtividade Média (Kg/h)',
-                    data: values,
-                    borderColor: '#34d399',
-                    backgroundColor: 'rgba(52, 211, 153, 0.1)',
-                    borderWidth: 2,
-                    tension: 0.4,
-                    pointBackgroundColor: '#10b981',
-                    pointRadius: 4,
-                    pointHoverRadius: 6,
-                    fill: true
-                }]
+                datasets: [
+                    {
+                        label: 'Produtividade (Kg/h)',
+                        data: values,
+                        borderColor: '#34d399',
+                        backgroundColor: 'rgba(52, 211, 153, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        pointBackgroundColor: '#10b981',
+                        pointRadius: 3,
+                        pointHoverRadius: 6,
+                        fill: true
+                    },
+                    {
+                        label: 'Meta',
+                        data: targetLine,
+                        borderColor: '#f59e0b',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        fill: false
+                    }
+                ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
-                        mode: 'index', intersect: false,
-                        backgroundColor: '#1e293b', titleColor: '#fff', bodyColor: '#cbd5e1',
-                        borderColor: '#334155', borderWidth: 1
+                        backgroundColor: '#1e293b',
+                        titleColor: '#fff',
+                        bodyColor: '#cbd5e1',
+                        borderColor: '#334155',
+                        borderWidth: 1
                     }
                 },
                 scales: {
@@ -319,14 +535,16 @@
         });
     }
 
-    function renderProductivity(prodList) {
+    function renderProductivity(prodList, targetKgh) {
         const tbody = document.getElementById('productivity-table-body');
         if (!prodList || prodList.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-500">Sem dados de movimentação.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-500">Sem dados de movimentação.</td></tr>`;
             return;
         }
 
-        tbody.innerHTML = prodList.map(row => {
+        const target = targetKgh || 200;
+
+        tbody.innerHTML = prodList.map((row, index) => {
             const kgh = row.kgh;
             let kghClass = kgh > 250 ? "text-green-400" : (kgh < 150 ? "text-red-400" : "text-yellow-400");
 
@@ -337,23 +555,39 @@
             const activeH = Math.floor(row.active_hours);
             const activeM = Math.floor((row.active_hours - activeH) * 60);
 
+            // Progress bar
+            const progress = Math.min((kgh / target) * 100, 100);
+            let progressColor = progress >= 100 ? 'bg-green-500' : progress >= 70 ? 'bg-yellow-500' : 'bg-red-500';
+
             let statusBadge = `<span class="bg-slate-700/50 text-slate-400 px-2 py-1 rounded text-xs">Normal</span>`;
             if (kgh > 300) statusBadge = `<span class="bg-green-500/10 text-green-400 px-2 py-1 rounded text-xs border border-green-500/20">🚀 Elite</span>`;
             else if (row.idle_hours > 2.0) statusBadge = `<span class="bg-red-500/10 text-red-400 px-2 py-1 rounded text-xs border border-red-500/20">⚠️ Ocioso</span>`;
 
+            // Rank badge
+            let rankBadge = '';
+            if (index === 0) rankBadge = '<span class="text-amber-400">🥇</span>';
+            else if (index === 1) rankBadge = '<span class="text-slate-300">🥈</span>';
+            else if (index === 2) rankBadge = '<span class="text-amber-600">🥉</span>';
+            else rankBadge = `<span class="text-slate-500">${index + 1}</span>`;
+
             return `
-                 <tr class="hover:bg-slate-700/30 transition-colors">
+                <tr class="hover:bg-slate-700/30 transition-colors productivity-row" data-name="${row.name.toLowerCase()}">
+                    <td class="px-6 py-4 font-bold">${rankBadge}</td>
                     <td class="px-6 py-4 font-medium text-white">${row.name}</td>
                     <td class="px-6 py-4">
                         <span class="font-mono ${kghClass} font-bold text-lg">${Math.round(kgh)} Kg/h</span>
                     </td>
-                    <td class="px-6 py-4 text-slate-300">
-                        ${activeH}h ${activeM}m
+                    <td class="px-6 py-4 w-32">
+                        <div class="flex items-center gap-2">
+                            <div class="flex-1 bg-slate-700 rounded-full h-2 overflow-hidden">
+                                <div class="h-full ${progressColor} transition-all" style="width: ${progress}%"></div>
+                            </div>
+                            <span class="text-xs text-slate-400">${Math.round(progress)}%</span>
+                        </div>
                     </td>
+                    <td class="px-6 py-4 text-slate-300">${activeH}h ${activeM}m</td>
                     <td class="px-6 py-4">
-                        <span class="font-mono ${idleClass} font-bold">
-                            ${idleH}h ${idleM}m
-                        </span>
+                        <span class="font-mono ${idleClass} font-bold">${idleH}h ${idleM}m</span>
                     </td>
                     <td class="px-6 py-4">${statusBadge}</td>
                 </tr>
@@ -361,16 +595,59 @@
         }).join('');
     }
 
+    function filterProductivityTable() {
+        const search = document.getElementById('productivity-search').value.toLowerCase();
+        document.querySelectorAll('.productivity-row').forEach(row => {
+            const name = row.dataset.name;
+            row.style.display = name.includes(search) ? '' : 'none';
+        });
+    }
+
+    function sortProductivity(field) {
+        const btn = document.querySelector(`[data-sort="${field}"]`);
+        let dir = btn.dataset.dir;
+        
+        // Toggle direction
+        dir = dir === 'asc' ? 'desc' : 'asc';
+        btn.dataset.dir = dir;
+        
+        // Update icon rotation
+        const icon = btn.querySelector('.sort-icon');
+        icon.style.transform = dir === 'asc' ? 'rotate(180deg)' : 'rotate(0deg)';
+        
+        // Sort data
+        productivityData.sort((a, b) => {
+            let valA, valB;
+            if (field === 'kgh') {
+                valA = a.kgh;
+                valB = b.kgh;
+            } else if (field === 'idle') {
+                valA = a.idle_hours;
+                valB = b.idle_hours;
+            } else if (field === 'name') {
+                valA = a.name.toLowerCase();
+                valB = b.name.toLowerCase();
+            }
+            
+            if (typeof valA === 'string') {
+                return dir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+            }
+            return dir === 'asc' ? valA - valB : valB - valA;
+        });
+        
+        renderProductivity(productivityData, currentData?.kpi?.target_kgh);
+    }
+
     function renderSLA(slaList) {
         const tbody = document.getElementById('sla-table-body');
         if (!slaList || slaList.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="3" class="p-8 text-center text-slate-500">Sem dados.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-slate-500">Sem dados.</td></tr>`;
             return;
         }
 
         tbody.innerHTML = slaList.map(row => {
             let impact = `<span class="text-green-400 font-bold">✅ OK</span>`;
-            if (row.sla_min > 60) impact = `<span class="text-red-400 font-bold flex items-center gap-1">⚠️ Crítico (>1h)</span>`;
+            if (row.sla_min > 60) impact = `<span class="text-red-400 font-bold flex items-center gap-1">🚨 Crítico (>1h)</span>`;
             else if (row.sla_min > 30) impact = `<span class="text-yellow-400 font-bold">⚠️ Atenção</span>`;
 
             return `
@@ -379,6 +656,7 @@
                     <td class="px-6 py-4">
                         <span class="font-mono text-slate-300">${row.sla_fmt}</span>
                     </td>
+                    <td class="px-6 py-4 text-slate-400">${row.count || 0} rotas</td>
                     <td class="px-6 py-4">${impact}</td>
                 </tr>
             `;
@@ -387,18 +665,8 @@
 
     function calcCost() {
         const payroll = parseFloat(document.getElementById('payroll-input').value) || 0;
-        // The data-val attribute contains raw float from python (converted to string? actually python sends generic string number, lets trust data attribute or parse text)
-        // Actually, Python kpi.total_vol was formatted. 
-        // Best to use raw value.
-        // I will use regex to parse the visual string if data-val is not perfectly updated or rely on data-val if generic.
-        // Let's rely on string replacement similar to Python logic
-
         let volStr = document.getElementById('total-vol').innerText;
-        // Remove dots (thousands)
-        volStr = volStr.replace(/\./g, '').replace(' kg', '');
-        // Replace comma with dot
-        volStr = volStr.replace(',', '.');
-
+        volStr = volStr.replace(/\./g, '').replace(' kg', '').replace(',', '.');
         const vol = parseFloat(volStr) || 1;
         const tons = vol / 1000;
 
@@ -414,26 +682,142 @@
         if (n === null || n === undefined) return "0,00";
         return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
+
+    function showToast(message, type = 'info') {
+        // Simple toast notification
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 transition-all transform translate-y-0 ${
+            type === 'error' ? 'bg-red-600 text-white' : 
+            type === 'success' ? 'bg-green-600 text-white' : 
+            'bg-slate-700 text-white'
+        }`;
+        toast.innerText = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.classList.add('translate-y-20', 'opacity-0');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    function exportReport() {
+        if (!currentData) {
+            showToast("Carregue os dados primeiro.", "error");
+            return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const date = document.getElementById('strategy-date').value;
+        const shift = document.getElementById('strategy-shift').value;
+        
+        // Title
+        doc.setFontSize(18);
+        doc.setTextColor(30, 41, 59);
+        doc.text("Relatório de Estratégia & Inteligência", 14, 20);
+        
+        // Subtitle
+        doc.setFontSize(10);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Data: ${date} | Turno: ${shift}`, 14, 28);
+        doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 34);
+        
+        // KPIs Section
+        doc.setFontSize(14);
+        doc.setTextColor(30, 41, 59);
+        doc.text("Indicadores Principais", 14, 46);
+        
+        const kpi = currentData.kpi;
+        doc.setFontSize(10);
+        doc.setTextColor(71, 85, 105);
+        doc.text(`Produtividade Média: ${kpi.global_kgh} Kg/h`, 14, 54);
+        doc.text(`Ociosidade Média: ${kpi.avg_idle}`, 14, 60);
+        doc.text(`Rotas Concluídas: ${kpi.routes_count}`, 14, 66);
+        doc.text(`Colaboradores Ativos: ${kpi.employees_count}`, 14, 72);
+        doc.text(`Volume Total: ${kpi.total_vol} kg`, 14, 78);
+        
+        // Productivity Table
+        if (currentData.productivity && currentData.productivity.length > 0) {
+            doc.setFontSize(14);
+            doc.setTextColor(30, 41, 59);
+            doc.text("Produtividade Individual", 14, 92);
+            
+            const prodTableData = currentData.productivity.slice(0, 15).map((p, i) => [
+                i + 1,
+                p.name,
+                `${Math.round(p.kgh)} Kg/h`,
+                `${Math.floor(p.active_hours)}h ${Math.floor((p.active_hours % 1) * 60)}m`,
+                `${Math.floor(p.idle_hours)}h ${Math.floor((p.idle_hours % 1) * 60)}m`
+            ]);
+            
+            doc.autoTable({
+                startY: 98,
+                head: [['#', 'Colaborador', 'Produtividade', 'Tempo Ativo', 'Ociosidade']],
+                body: prodTableData,
+                theme: 'striped',
+                headStyles: { fillColor: [30, 41, 59] },
+                styles: { fontSize: 8 }
+            });
+        }
+        
+        // SLA Table
+        if (currentData.sla_ranking && currentData.sla_ranking.length > 0) {
+            const startY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 15 : 150;
+            
+            doc.setFontSize(14);
+            doc.setTextColor(30, 41, 59);
+            doc.text("SLA de Atendimento", 14, startY);
+            
+            const slaTableData = currentData.sla_ranking.map(s => [
+                s.name,
+                s.sla_fmt,
+                s.count || 0,
+                s.sla_min > 60 ? 'Crítico' : s.sla_min > 30 ? 'Atenção' : 'OK'
+            ]);
+            
+            doc.autoTable({
+                startY: startY + 6,
+                head: [['Cliente', 'Tempo Médio', 'Rotas', 'Status']],
+                body: slaTableData,
+                theme: 'striped',
+                headStyles: { fillColor: [30, 41, 59] },
+                styles: { fontSize: 8 }
+            });
+        }
+        
+        // Save
+        doc.save(`relatorio_estrategia_${date}.pdf`);
+        showToast("Relatório exportado com sucesso!", "success");
+    }
 </script>
 
-<!-- Custom Scrollbar -->
+<!-- Custom Styles -->
 <style>
     .custom-scrollbar::-webkit-scrollbar {
         height: 6px;
         width: 6px;
     }
-
     .custom-scrollbar::-webkit-scrollbar-track {
         background: #1e293b;
     }
-
     .custom-scrollbar::-webkit-scrollbar-thumb {
         background: #475569;
         border-radius: 3px;
     }
-
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
         background: #64748b;
+    }
+    .skeleton-box {
+        background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+    }
+    @keyframes shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+    .sort-icon {
+        transition: transform 0.2s ease;
     }
 </style>
 {% endblock %}

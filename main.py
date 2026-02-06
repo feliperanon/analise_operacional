@@ -8172,7 +8172,7 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
         client_stats = {} 
         today = datetime.now().date()
         start_date = today - timedelta(days=30)
-        daily_stats = {start_date + timedelta(days=i): {'tonnage': 0.0, 'duration_seconds': 0.0} for i in range(31)}
+        daily_stats = {start_date + timedelta(days=i): {'tonnage': 0.0, 'duration_seconds': 0.0, 'routes': 0} for i in range(31)}
         total_sys_tonnage = 0.0
 
         emp_stats = {} 
@@ -8180,6 +8180,20 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
         emp_day_intervals = {} 
         
         all_emps = {e.id: e.name for e in session.exec(select(models.Employee)).all()}
+        
+        # Track selected day stats
+        selected_day_routes = 0
+        selected_day_tonnage = 0.0
+        selected_day_employees = set()
+        
+        # Track previous day for comparison
+        selected_date_obj = datetime.strptime(date, "%Y-%m-%d").date()
+        previous_date = selected_date_obj - timedelta(days=1)
+        previous_date_str = previous_date.strftime("%Y-%m-%d")
+        prev_day_tonnage = 0.0
+        prev_day_routes = 0
+        prev_day_kgh_sum = 0.0
+        prev_day_kgh_count = 0
         
         for r in all_routes:
             t = r.tonnage or 0.0
@@ -8197,6 +8211,7 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
                 if r.date:
                     r_date_obj = datetime.strptime(r.date, "%Y-%m-%d").date()
                     if start_date <= r_date_obj <= today:
+                        daily_stats[r_date_obj]['routes'] += 1
                         if r.start_time and r.end_time: 
                             s = datetime.strptime(r.start_time, "%H:%M")
                             e = datetime.strptime(r.end_time, "%H:%M")
@@ -8207,12 +8222,33 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
             except:
                 pass
             
+            # Previous day stats for comparison
+            if r.date == previous_date_str:
+                prev_day_tonnage += t
+                prev_day_routes += 1
+                if r.start_time and r.end_time and r.employee_id:
+                    try:
+                        s = datetime.strptime(r.start_time, "%H:%M")
+                        e = datetime.strptime(r.end_time, "%H:%M")
+                        dur = (e - s).total_seconds() / 3600
+                        if dur > 0:
+                            kgh = t / dur
+                            prev_day_kgh_sum += kgh
+                            prev_day_kgh_count += 1
+                    except:
+                        pass
+            
             # Individual Stats (Selected Date)
             if r.date == date:
+                # Count all routes for selected date (before shift filter)
+                selected_day_routes += 1
+                selected_day_tonnage += t
+                
                 if shift and shift != "Todos" and r.shift != shift:
                      continue
                      
                 if r.employee_id and r.start_time and r.end_time:
+                    selected_day_employees.add(r.employee_id)
                     try:
                         s = datetime.strptime(r.start_time, "%H:%M")
                         e = datetime.strptime(r.end_time, "%H:%M")
@@ -8329,19 +8365,119 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
         # KPI Summaries
         avg_sys_kgh = (total_kgh_sum / total_kgh_count) if total_kgh_count > 0 else 0
         avg_sys_idle = (total_idle_sum / len(productivity)) if productivity else 0
+        prev_day_kgh = (prev_day_kgh_sum / prev_day_kgh_count) if prev_day_kgh_count > 0 else 0
+        
+        # Calculate comparison percentages
+        kgh_change = ((avg_sys_kgh - prev_day_kgh) / prev_day_kgh * 100) if prev_day_kgh > 0 else 0
+        tonnage_change = ((selected_day_tonnage - prev_day_tonnage) / prev_day_tonnage * 100) if prev_day_tonnage > 0 else 0
+        
+        # Calculate weekly average for comparison
+        week_start = selected_date_obj - timedelta(days=7)
+        week_kgh_values = []
+        for d in sorted(daily_stats.keys()):
+            if week_start <= d < selected_date_obj:
+                stats = daily_stats[d]
+                if stats['duration_seconds'] > 0:
+                    week_kgh_values.append(stats['tonnage'] / (stats['duration_seconds'] / 3600))
+        week_avg_kgh = sum(week_kgh_values) / len(week_kgh_values) if week_kgh_values else 0
+        
+        # Meta/Target (use week average as reference or fixed target)
+        target_kgh = max(week_avg_kgh, 200)  # At least 200 Kg/h as minimum target
+        meta_percent = (avg_sys_kgh / target_kgh * 100) if target_kgh > 0 else 0
+        
+        # Generate Alerts/Insights
+        alerts = []
+        
+        # High idle employees
+        high_idle_count = sum(1 for p in productivity if p['idle_hours'] > 2.0)
+        if high_idle_count > 0:
+            alerts.append({
+                "type": "warning",
+                "icon": "⏱️",
+                "message": f"{high_idle_count} colaborador{'es' if high_idle_count > 1 else ''} com ociosidade > 2h",
+                "severity": "medium"
+            })
+        
+        # Critical SLA clients
+        critical_sla = [s for s in sla_ranking if s['sla_min'] > 60]
+        if critical_sla:
+            alerts.append({
+                "type": "danger",
+                "icon": "🚨",
+                "message": f"{len(critical_sla)} cliente{'s' if len(critical_sla) > 1 else ''} com SLA crítico (>1h)",
+                "severity": "high"
+            })
+        
+        # Productivity comparison
+        if kgh_change > 10:
+            alerts.append({
+                "type": "success",
+                "icon": "📈",
+                "message": f"Produtividade {kgh_change:.0f}% acima do dia anterior",
+                "severity": "low"
+            })
+        elif kgh_change < -10:
+            alerts.append({
+                "type": "warning",
+                "icon": "📉",
+                "message": f"Produtividade {abs(kgh_change):.0f}% abaixo do dia anterior",
+                "severity": "medium"
+            })
+        
+        # Elite performers
+        elite_count = sum(1 for p in productivity if p['kgh'] > 300)
+        if elite_count > 0:
+            alerts.append({
+                "type": "success",
+                "icon": "🚀",
+                "message": f"{elite_count} colaborador{'es' if elite_count > 1 else ''} com performance Elite (>300 Kg/h)",
+                "severity": "low"
+            })
+        
+        # Low performers
+        low_perf_count = sum(1 for p in productivity if 0 < p['kgh'] < 150)
+        if low_perf_count > 0:
+            alerts.append({
+                "type": "warning", 
+                "icon": "⚠️",
+                "message": f"{low_perf_count} colaborador{'es' if low_perf_count > 1 else ''} abaixo da meta (<150 Kg/h)",
+                "severity": "medium"
+            })
+        
+        # If no alerts, add positive message
+        if not alerts:
+            alerts.append({
+                "type": "success",
+                "icon": "✅",
+                "message": "Operação dentro dos parâmetros normais",
+                "severity": "low"
+            })
 
         return {
             "abc_data": abc_data,
             "prod_chart_labels": prod_chart_labels,
             "prod_chart_data": prod_chart_data,
+            "prod_chart_target": round(target_kgh, 1),
             "total_tonnage": total_sys_tonnage,
             "kpi": {
                 "global_kgh": f"{avg_sys_kgh:,.1f}".replace(".", ","),
+                "global_kgh_raw": round(avg_sys_kgh, 1),
                 "avg_idle": f"{avg_sys_idle:,.1f}h".replace(".", ","),
-                "total_vol": f"{total_sys_tonnage:,.0f}".replace(",", ".")
+                "avg_idle_raw": round(avg_sys_idle, 2),
+                "total_vol": f"{selected_day_tonnage:,.0f}".replace(",", "."),
+                "total_vol_raw": round(selected_day_tonnage, 2),
+                "routes_count": selected_day_routes,
+                "employees_count": len(selected_day_employees),
+                "kgh_change": round(kgh_change, 1),
+                "tonnage_change": round(tonnage_change, 1),
+                "meta_percent": round(meta_percent, 1),
+                "target_kgh": round(target_kgh, 1),
+                "prev_day_kgh": round(prev_day_kgh, 1),
+                "week_avg_kgh": round(week_avg_kgh, 1)
             },
             "productivity": productivity,
             "sla_ranking": sla_ranking,
+            "alerts": alerts,
             "selected_date": date,
             "selected_shift": shift or "Todos"
         }
