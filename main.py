@@ -9071,10 +9071,53 @@ def fetch_absences_agg(session: Session, employee_ids: List[int], start_dt: date
     per_employee_routine_days = {}
     per_employee_present_days = {}  # Dias com rotina "present"
     per_employee_event_days = {}
+    per_employee_vacation_periods = {}  # Períodos de férias por colaborador
     unknown_counts = Counter()
 
     start_date_str = start_dt.date().strftime("%Y-%m-%d")
     end_date_str = end_dt.date().strftime("%Y-%m-%d")
+    
+    # Buscar períodos de férias dos colaboradores (vacation_start/vacation_end)
+    employees_with_vacation = session.exec(
+        select(models.Employee.id, models.Employee.vacation_start, models.Employee.vacation_end, models.Employee.status)
+        .where(models.Employee.id.in_(employee_ids))
+    ).all()
+    
+    for emp_id, vac_start, vac_end, emp_status in employees_with_vacation:
+        if vac_start and vac_end:
+            vac_start_date = vac_start.date() if hasattr(vac_start, 'date') else vac_start
+            vac_end_date = vac_end.date() if hasattr(vac_end, 'date') else vac_end
+            per_employee_vacation_periods[emp_id] = {
+                "start": vac_start_date,
+                "end": vac_end_date,
+                "status": emp_status
+            }
+    
+    # Pré-processar dias de férias para cada colaborador no período de análise
+    analysis_start = start_dt.date()
+    analysis_end = end_dt.date()
+    
+    for emp_id, vac_info in per_employee_vacation_periods.items():
+        vac_start = vac_info["start"]
+        vac_end = vac_info["end"]
+        
+        # Verificar sobreposição com o período de análise
+        if vac_end < analysis_start or vac_start > analysis_end:
+            continue  # Sem sobreposição
+        
+        # Marcar cada dia de férias dentro do período de análise
+        current = max(vac_start, analysis_start)
+        end_mark = min(vac_end, analysis_end)
+        
+        while current <= end_mark:
+            day_key = current.strftime("%Y-%m-%d")
+            # Marcar como "leave" (férias) - maior prioridade que unjustified
+            current_group = per_employee_days.setdefault(emp_id, {}).get(day_key)
+            if not current_group or get_absence_priority("leave") > get_absence_priority(current_group):
+                per_employee_days[emp_id][day_key] = "leave"
+                per_employee_sources.setdefault(emp_id, {})[day_key] = "vacation_period"
+            current += timedelta(days=1)
+    
     routine_rows = session.exec(
         select(
             models.EmployeeRoutine.id,
@@ -9309,7 +9352,8 @@ def format_absence_source_label(source_key: str) -> str:
     label_map = {
         "routine": "Rotina",
         "event_fallback": "Evento (fallback)",
-        "mixed": "Rotina + fallback"
+        "mixed": "Rotina + fallback",
+        "vacation_period": "Periodo de Ferias"
     }
     return label_map.get(source_key, "Rotina")
 
@@ -17784,6 +17828,16 @@ async def lider_rotas_relatorio_page(
         missing_days = []
         justified_days = []
         
+        # Verificar datas de férias do colaborador (vacation_start e vacation_end)
+        emp_vacation_start = None
+        emp_vacation_end = None
+        if emp.vacation_start and emp.vacation_end:
+            emp_vacation_start = emp.vacation_start.date() if hasattr(emp.vacation_start, 'date') else emp.vacation_start
+            emp_vacation_end = emp.vacation_end.date() if hasattr(emp.vacation_end, 'date') else emp.vacation_end
+        
+        # Verificar se colaborador está afastado
+        emp_is_away = emp.status == 'away'
+        
         for day_str in all_days:
             day_date = datetime.strptime(day_str, "%Y-%m-%d").date()
             day_weekday = weekday_names[day_date.weekday()]
@@ -17794,20 +17848,40 @@ async def lider_rotas_relatorio_page(
             
             routine = emp_routines.get(day_str, None)  # None = sem rotina registrada
             
+            # NOVA VERIFICAÇÃO: Checar se o dia está dentro do período de férias do colaborador
+            is_vacation_period = False
+            if emp_vacation_start and emp_vacation_end:
+                if emp_vacation_start <= day_date <= emp_vacation_end:
+                    is_vacation_period = True
+            
             # Lógica de presença:
             # 1. Se tem Route = TRABALHOU
             # 2. Se tem EmployeeRoutine com routine="present" = TRABALHOU (fluxo operacional)
-            # 3. Se tem justificativa (vacation, sick, away, dayoff) = JUSTIFICADO
-            # 4. Se tem routine="absent" = FALTA
-            # 5. Se não tem nada registrado = considerar PRESENTE (padrão)
+            # 3. Se está no período de férias (vacation_start/vacation_end) = JUSTIFICADO
+            # 4. Se está afastado (status=away) = JUSTIFICADO
+            # 5. Se tem justificativa na rotina (vacation, sick, away, dayoff) = JUSTIFICADO
+            # 6. Se tem routine="absent" = FALTA
+            # 7. Se não tem nada registrado = considerar PRESENTE (padrão)
             
             has_route = day_str in emp_routes
             
             if has_route or routine == "present":
                 # Colaborador trabalhou (tem rota OU marcou presença no fluxo operacional)
                 continue  # Não é ausência
+            elif is_vacation_period:
+                # Colaborador estava de férias (baseado em vacation_start/vacation_end)
+                justified_days.append({
+                    "date": day_str,
+                    "reason": "Férias"
+                })
+            elif emp_is_away and routine != "present" and not has_route:
+                # Colaborador está afastado (status=away)
+                justified_days.append({
+                    "date": day_str,
+                    "reason": "Afastado"
+                })
             elif routine in ("vacation", "sick", "away", "dayoff"):
-                # Justificado - não deveria trabalhar
+                # Justificado via rotina diária - não deveria trabalhar
                 justified_days.append({
                     "date": day_str,
                     "reason": {
