@@ -1982,6 +1982,52 @@ async def index(request: Request, shift: str = "Todos", session: Session = Depen
     employees = session.exec(select(models.Employee).where(models.Employee.status != 'fired')).all()
     today_naive = today.replace(tzinfo=None)
     upcoming_deadline = today_naive + timedelta(days=14)
+
+    def get_short_name(full_name):
+        parts = full_name.split()
+        if len(parts) >= 2:
+            return f"{parts[0]} {parts[1]}"
+        return parts[0] if parts else full_name
+
+    def normalize_date(dt):
+        if not dt:
+            return None
+        if hasattr(dt, "tzinfo") and dt.tzinfo:
+            return dt.replace(tzinfo=None)
+        return dt
+
+    def normalize_shift_name(shift_name):
+        if not shift_name:
+            return ""
+        normalized = unicodedata.normalize("NFD", shift_name)
+        cleaned = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+        return cleaned.lower()
+
+    def build_shift_theme(shift_name):
+        norm = normalize_shift_name(shift_name)
+        if norm.startswith("manha"):
+            return {
+                "card": "bg-blue-900/50 border-blue-500/40",
+                "pill": "bg-blue-500/20 border border-blue-500/40 text-blue-200",
+                "text": "text-blue-300"
+            }
+        if norm.startswith("tar"):
+            return {
+                "card": "bg-orange-900/50 border-orange-500/40",
+                "pill": "bg-orange-500/20 border border-orange-500/40 text-orange-200",
+                "text": "text-orange-300"
+            }
+        if norm.startswith("noi"):
+            return {
+                "card": "bg-purple-900/50 border-purple-500/40",
+                "pill": "bg-purple-500/20 border border-purple-500/40 text-purple-200",
+                "text": "text-purple-300"
+            }
+        return {
+            "card": "bg-slate-900/50 border-slate-700/50",
+            "pill": "bg-slate-800/50 border border-slate-700/50 text-slate-300",
+            "text": "text-slate-400"
+        }
     
     # Birthdays (Month)
     birthdays = []
@@ -2151,13 +2197,6 @@ async def index(request: Request, shift: str = "Todos", session: Session = Depen
     }
     alerts.setdefault("vacations_upcoming", [])
     alerts.setdefault("vacations_active", [])
-    
-    # Helper para pegar primeiro nome + sobrenome
-    def get_short_name(full_name):
-        parts = full_name.split()
-        if len(parts) >= 2:
-            return f"{parts[0]} {parts[-1]}"
-        return parts[0] if parts else full_name
     
     # Ausentes hoje (funcionários ativos que deveriam estar presentes mas não estão)
     for emp in employees:
