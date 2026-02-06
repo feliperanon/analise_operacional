@@ -177,16 +177,20 @@
             }
         }
 
-        // Shift configuration
+        // Shift configuration (usando minutos para precisão)
         var shifts = {
-            manha: { name: 'Manha', start: 6, end: 14, color: 'blue', icon: 'sun' },
-            tarde: { name: 'Tarde', start: 14, end: 22, color: 'orange', icon: 'sunset' },
-            noite: { name: 'Noite', start: 22, end: 6, color: 'purple', icon: 'moon' }
+            manha: { name: 'Manhã', startH: 5, startM: 0, endH: 13, endM: 20, color: 'blue', icon: 'sun' },
+            tarde: { name: 'Tarde', startH: 12, startM: 0, endH: 20, endM: 20, color: 'orange', icon: 'sunset' },
+            noite: { name: 'Noite', startH: 18, startM: 0, endH: 6, endM: 0, color: 'purple', icon: 'moon' }
         };
 
-        function getCurrentShift(hour) {
-            if (hour >= 6 && hour < 14) return shifts.manha;
-            if (hour >= 14 && hour < 22) return shifts.tarde;
+        function getCurrentShift(hour, minute) {
+            var currentMinutes = hour * 60 + (minute || 0);
+            // Manhã: 05:00 - 13:20 (300 - 800 min)
+            if (currentMinutes >= 300 && currentMinutes < 800) return shifts.manha;
+            // Tarde: 12:00 - 20:20 (720 - 1220 min) - overlap com manhã é intencional
+            if (currentMinutes >= 720 && currentMinutes < 1220) return shifts.tarde;
+            // Noite: 18:00 - 06:00
             return shifts.noite;
         }
 

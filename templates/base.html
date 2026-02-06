@@ -35,9 +35,9 @@
         
         <!-- Menu Button (Fixed) - Hidden on print -->
         <button @click="sidebarOpen = true" 
-                class="fixed top-4 left-4 z-50 p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white shadow-lg hover:bg-slate-700 transition-colors print-hidden"
+                class="fixed top-2 left-2 z-50 p-1.5 rounded-lg bg-slate-800/80 border border-slate-700/50 text-white shadow-md hover:bg-slate-700 transition-colors print-hidden"
                 :class="sidebarOpen ? 'hidden' : ''">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
             </svg>
         </button>
@@ -473,7 +473,7 @@
         </aside>
 
         <!-- Main Content -->
-        <main class="flex-1 overflow-y-auto bg-slate-900 relative pt-16">
+        <main class="flex-1 overflow-y-auto bg-slate-900 relative pt-12">
             <!-- Background Effects -->
             <div class="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none -z-10">
                 <div
