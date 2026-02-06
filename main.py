@@ -8894,6 +8894,7 @@ def fetch_absences_agg(session: Session, employee_ids: List[int], start_dt: date
     per_employee_record_ids = {}
     per_employee_debug = {}
     per_employee_routine_days = {}
+    per_employee_present_days = {}  # Dias com rotina "present"
     per_employee_event_days = {}
     unknown_counts = Counter()
 
@@ -8928,6 +8929,8 @@ def fetch_absences_agg(session: Session, employee_ids: List[int], start_dt: date
                 }
             continue
         if group == "present":
+            # Contar dias presente para cálculo de presença
+            per_employee_present_days.setdefault(emp_id, set()).add(day_key)
             continue
         current = per_employee_days.setdefault(emp_id, {}).get(day_key)
         if not current or get_absence_priority(group) > get_absence_priority(current):
@@ -9006,6 +9009,7 @@ def fetch_absences_agg(session: Session, employee_ids: List[int], start_dt: date
     absence_counts = {}
     sources_map = {}
     routine_days_map = {}
+    present_days_map = {}  # Dias com status "present"
     debug_days = {}
     day_maps = {}
     for emp_id in employee_ids:
@@ -9017,8 +9021,10 @@ def fetch_absences_agg(session: Session, employee_ids: List[int], start_dt: date
         absence_counts[emp_id] = counts
 
         routine_days_count = len(per_employee_routine_days.get(emp_id, set()))
+        present_days_count = len(per_employee_present_days.get(emp_id, set()))
         event_days_count = len(per_employee_event_days.get(emp_id, set()))
         routine_days_map[emp_id] = routine_days_count
+        present_days_map[emp_id] = present_days_count
         if routine_days_count > 0 and event_days_count > 0:
             sources_map[emp_id] = "mixed"
         elif routine_days_count > 0:
@@ -9056,6 +9062,7 @@ def fetch_absences_agg(session: Session, employee_ids: List[int], start_dt: date
         "unknown_labels": unknown_examples,
         "sources": sources_map,
         "routine_days": routine_days_map,
+        "present_days": present_days_map,  # Dias trabalhados (rotina "present")
         "debug_days": debug_days,
         "day_map": day_maps if include_day_map else {}
     }
@@ -9520,6 +9527,7 @@ async def _operations_performance_impl(
     absence_counts = {}
     absences_sources = {}
     absences_debug_days = {}
+    absences_present_days = {}  # Dias com rotina "present"
     if all_employee_ids:
         try:
             absence_counts, absence_meta = fetch_absences_agg(
@@ -9530,12 +9538,14 @@ async def _operations_performance_impl(
                 include_day_map=(LOG_LEVEL == logging.DEBUG)
             )
             absences_sources = absence_meta.get("sources", {})
+            absences_present_days = absence_meta.get("present_days", {})
             if LOG_LEVEL == logging.DEBUG:
                 absences_debug_days = absence_meta.get("debug_days", {})
         except Exception as e:
             logger.exception(f"Erro ao buscar ausências: {e}")
             absence_counts = {}
             absences_sources = {}
+            absences_present_days = {}
             absences_debug_days = {}
     
     # Fallback: se não conseguiu buscar, usar método antigo (só se absence_counts estiver vazio)
@@ -9763,7 +9773,13 @@ async def _operations_performance_impl(
         unjustified_days = absence_data["unjustified"]
         leave_days = absence_data["leave"]
         offday_days = absence_data["offday"]
-        days_active = len(payload["days"])
+        
+        # Usar dias com rotina "present" se disponível, senão usa dias com rotas
+        present_days_from_routine = absences_present_days.get(eid, 0)
+        days_with_routes = len(payload["days"])
+        # Priorizar dias de rotina "present"; fallback para dias com rotas
+        days_active = present_days_from_routine if present_days_from_routine > 0 else days_with_routes
+        
         adjusted_denominator = max(1, total_days - justified_days - leave_days - offday_days)
         regularity_adjusted = days_active / adjusted_denominator
         absence_penalty_factor = get_absence_penalty(period, unjustified_days)
@@ -17505,9 +17521,16 @@ async def lider_rotas_relatorio_page(
     
     # Calcular range de datas do mês
     first_day = date(year, month, 1)
-    last_day = date(year, month, calendar.monthrange(year, month)[1])
+    last_day_of_month = date(year, month, calendar.monthrange(year, month)[1])
     
-    # Gerar lista de todos os dias do mês
+    # Limitar ao dia atual - não considerar dias futuros como ausência
+    today = now.date()
+    if last_day_of_month > today:
+        last_day = today
+    else:
+        last_day = last_day_of_month
+    
+    # Gerar lista de dias do mês (somente até hoje, sem dias futuros)
     all_days = []
     current = first_day
     while current <= last_day:

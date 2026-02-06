@@ -1036,115 +1036,92 @@
             </div>
         </div>
 
-        <div class="bg-slate-800/50 border border-slate-700 rounded-3xl overflow-hidden">
-            <div class="flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
+        <!-- Tabela Simplificada de Colaboradores -->
+        <div class="bg-slate-800/50 border border-slate-700 rounded-2xl overflow-hidden">
+            <div class="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between border-b border-slate-700">
                 <div>
-                    <h2 class="text-xl font-bold text-white">Mapa completo da operação</h2>
-                    <p class="text-xs text-slate-500">Score ponderado · regularidade · eficiência · disciplina</p>
+                    <h2 class="text-lg font-bold text-white">Visão Geral da Equipe</h2>
+                    <p class="text-[10px] text-slate-500">{{ rows|length }} colaboradores</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
-                    <div class="relative">
-                        <input x-model.trim="searchTerm" type="text" placeholder="Buscar colaborador..." class="w-56 rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-xs text-white placeholder:text-slate-500">
-                    </div>
-                    <button type="button" @click="compactMode = !compactMode" :class="compactMode ? 'bg-slate-700 text-white' : 'bg-slate-900 text-slate-300'" class="px-3 py-2 rounded-lg text-xs border border-slate-700">Modo compacto</button>
-                    <button type="button" @click="showDiscipline = !showDiscipline" :class="showDiscipline ? 'bg-slate-700 text-white' : 'bg-slate-900 text-slate-300'" class="px-3 py-2 rounded-lg text-xs border border-slate-700">Mostrar disciplina</button>
+                    <input x-model.trim="searchTerm" type="text" placeholder="Buscar..." class="w-40 rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-1.5 text-xs text-white placeholder:text-slate-500">
+                    <button type="button" @click="showDiscipline = !showDiscipline" :class="showDiscipline ? 'bg-amber-600 text-white border-amber-500' : 'bg-slate-900 text-slate-400 border-slate-700'" class="px-2.5 py-1.5 rounded-lg text-[10px] border transition">
+                        <span x-text="showDiscipline ? 'Ocultar Faltas' : 'Ver Faltas'"></span>
+                    </button>
                 </div>
             </div>
-            <div class="flex items-center justify-between px-6 pb-4 text-xs text-slate-500">
-                <span>{{ rows|length }} colaboradores</span>
-                <span class="text-slate-600" x-show="searchTerm">Filtro local ativo</span>
-            </div>
             <div class="overflow-x-auto">
-                <table class="w-full text-left" :class="compactMode ? 'text-xs' : 'text-sm'">
-                    <thead class="text-xs uppercase text-slate-400 bg-slate-900 sticky top-0 z-20">
+                <table class="w-full text-xs">
+                    <thead class="text-[10px] uppercase text-slate-400 bg-slate-900/80">
                         <tr class="border-b border-slate-800">
-                            <th rowspan="2" class="px-4 py-3 sticky left-0 bg-slate-900 z-30 border-r border-slate-800">Colaborador</th>
-                            <th rowspan="2" class="px-4 py-3">Liga</th>
-                            <th rowspan="2" class="px-4 py-3 text-right">Score</th>
-                            <th colspan="4" class="px-4 py-3 text-center">Produção</th>
-                            <th colspan="3" class="px-4 py-3 text-center">Qualidade</th>
-                            <th colspan="4" class="px-4 py-3 text-center" :class="showDiscipline ? '' : 'hidden'">Disciplina</th>
-                            <th rowspan="2" class="px-4 py-3 text-right" :class="compactMode ? 'hidden' : ''">Tempo casa</th>
-                            <th rowspan="2" class="px-4 py-3 text-right" :class="compactMode ? 'hidden' : ''">Ocorrências</th>
-                            <th rowspan="2" class="px-4 py-3"></th>
-                        </tr>
-                        <tr class="border-b border-slate-800">
-                            <th class="px-4 py-3 text-right">Volume</th>
-                            <th class="px-4 py-3 text-right">Kg/h</th>
-                            <th class="px-4 py-3 text-right">Viagens</th>
-                            <th class="px-4 py-3 text-right">Tempo/viagem</th>
-                            <th class="px-4 py-3 text-right">Regularidade</th>
-                            <th class="px-4 py-3 text-right">CV</th>
-                            <th class="px-4 py-3">Tendência</th>
-                            <th class="px-4 py-3 text-right" :class="showDiscipline ? '' : 'hidden'">Faltas</th>
-                            <th class="px-4 py-3 text-right" :class="showDiscipline ? '' : 'hidden'">Atestados</th>
-                            <th class="px-4 py-3 text-right" :class="showDiscipline ? '' : 'hidden'">Afastamentos</th>
-                            <th class="px-4 py-3 text-right" :class="showDiscipline ? '' : 'hidden'">Folgas</th>
+                            <th class="px-3 py-2.5 text-left sticky left-0 bg-slate-900 z-10">Colaborador</th>
+                            <th class="px-3 py-2.5 text-center">Score</th>
+                            <th class="px-3 py-2.5 text-right">Kg/h</th>
+                            <th class="px-3 py-2.5 text-right">Volume</th>
+                            <th class="px-3 py-2.5 text-center">Presença</th>
+                            <th class="px-3 py-2.5 text-center">Tendência</th>
+                            <th class="px-3 py-2.5 text-center" :class="showDiscipline ? '' : 'hidden'">Faltas</th>
+                            <th class="px-3 py-2.5 text-center" :class="showDiscipline ? '' : 'hidden'">Atestados</th>
+                            <th class="px-3 py-2.5 w-16"></th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-800">
+                    <tbody class="divide-y divide-slate-800/50">
                         {% for row in rows %}
-                        <tr class="odd:bg-slate-900/30 even:bg-slate-900/10 hover:bg-slate-900/60 cursor-pointer" data-search="{{ row.name }} {{ row.id }} {{ row.top_client }}"
+                        <tr class="hover:bg-slate-800/50 transition cursor-pointer" data-search="{{ row.name }} {{ row.id }} {{ row.top_client }}"
                             x-show="matchesSearch($el.dataset.search)" @click="openDetails({{ row.id }})">
-                            <td class="px-4 sticky left-0 bg-slate-900 z-10 border-r border-slate-800" :class="compactMode ? 'py-2' : 'py-3'">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-9 h-9 rounded-full bg-slate-700 overflow-hidden">
+                            <td class="px-3 py-2 sticky left-0 bg-slate-900/95 z-10">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-7 h-7 rounded-full bg-slate-700 overflow-hidden flex-shrink-0">
                                         <img src="{{ row.photo or 'https://ui-avatars.com/api/?background=1f2937&color=fff&name=' + row.name }}" class="w-full h-full object-cover">
                                     </div>
-                                    <div>
-                                        <div class="flex items-center gap-2">
-                                            <p class="text-white font-semibold">{{ row.name }}</p>
+                                    <div class="min-w-0">
+                                        <div class="flex items-center gap-1.5">
+                                            <p class="text-white font-medium truncate max-w-[180px]" title="{{ row.name }}">{{ row.name.split()[0] }} {{ row.name.split()[1] if row.name.split()|length > 1 else '' }}</p>
                                             {% if row.badge %}
-                                            <span class="text-[10px] px-2 py-0.5 rounded-full border {{ row.badge_class }}">{{ row.badge }}</span>
-                                            {% endif %}
-                                            {% if row.sample_small %}
-                                            <span class="text-[10px] px-1.5 py-0.5 rounded-full border border-amber-500/30 text-amber-200" title="Amostra pequena (&lt;3 dias)">!</span>
+                                            <span class="text-[8px] px-1.5 py-0.5 rounded-full border flex-shrink-0 {{ row.badge_class }}">{{ row.badge[:3] }}</span>
                                             {% endif %}
                                         </div>
-                                        <p class="text-xs text-slate-500">{{ row.top_client }}</p>
+                                        <p class="text-[10px] text-slate-500 truncate max-w-[180px]">{{ row.tenure_band_label }} · {{ row.tenure_months|fmt_br_int }}m</p>
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-4" :class="compactMode ? 'py-2' : 'py-3'">
-                                <span class="text-xs px-2 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300">{{ row.tenure_band_label }}</span>
-                            </td>
-                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">
-                                <div class="text-emerald-300 font-semibold">{{ row.score|fmt_br_2 }}</div>
-                                {% if row.pillar_scores %}
-                                <div class="text-[10px] text-slate-500">
-                                    P: {{ row.pillar_scores.productivity|fmt_br }} |
-                                    Q: {{ row.pillar_scores.quality|fmt_br }} |
-                                    D: {{ row.pillar_scores.discipline|fmt_br }} |
-                                    E: {{ row.pillar_scores.evolution|fmt_br }} |
-                                    C: {{ row.pillar_scores.context|fmt_br }}
+                            <td class="px-3 py-2 text-center">
+                                <div class="inline-flex flex-col items-center">
+                                    <span class="text-emerald-400 font-bold">{{ row.score|fmt_br_2 }}</span>
                                 </div>
+                            </td>
+                            <td class="px-3 py-2 text-right">
+                                <span class="text-white font-medium">{{ row.avg_kgh|fmt_br_int }}</span>
+                            </td>
+                            <td class="px-3 py-2 text-right">
+                                <span class="text-slate-300">{{ (row.total_tonnage / 1000)|round(1) }}t</span>
+                            </td>
+                            <td class="px-3 py-2 text-center">
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-medium {% if row.regularity_adjusted >= 0.9 %}bg-emerald-500/20 text-emerald-400{% elif row.regularity_adjusted >= 0.7 %}bg-amber-500/20 text-amber-400{% else %}bg-red-500/20 text-red-400{% endif %}">
+                                    {{ row.regularity_adjusted|fmt_br_pct }}
+                                </span>
+                            </td>
+                            <td class="px-3 py-2 text-center">
+                                <span class="text-[10px] {% if row.trend_label == 'Em alta' %}text-emerald-400{% elif row.trend_label == 'Em queda' %}text-red-400{% else %}text-slate-400{% endif %}">
+                                    {% if row.trend_label == 'Em alta' %}↑{% elif row.trend_label == 'Em queda' %}↓{% else %}→{% endif %} {{ row.trend_label }}
+                                </span>
+                            </td>
+                            <td class="px-3 py-2 text-center" :class="showDiscipline ? '' : 'hidden'">
+                                {% if row.unjustified_absences > 0 %}
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-500/20 text-red-400">{{ row.unjustified_absences }}</span>
+                                {% else %}
+                                <span class="text-slate-500">0</span>
                                 {% endif %}
                             </td>
-                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">{{ row.total_tonnage|fmt_br_int }} kg</td>
-                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">{{ row.avg_kgh|fmt_br_int }}</td>
-                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">{{ row.count|fmt_br_int }}</td>
-                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">{{ row.avg_trip_minutes|fmt_br }} min</td>
-                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">{{ row.regularity_adjusted|fmt_br_pct }}</td>
-                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">{{ row.cv|fmt_br_2 }}</td>
-                            <td class="px-4" :class="compactMode ? 'py-2' : 'py-3'">{{ row.trend_label }}</td>
-                            <td class="px-4 text-right" :class="compactMode ? 'py-2 hidden' : 'py-3'">{{ row.tenure_months|fmt_br_int }}m</td>
-                            <td class="px-4 text-right" :class="(showDiscipline ? '' : 'hidden') + ' ' + (compactMode ? 'py-2' : 'py-3')">{{ row.unjustified_absences|fmt_br_int }}</td>
-                            <td class="px-4 text-right" :class="(showDiscipline ? '' : 'hidden') + ' ' + (compactMode ? 'py-2' : 'py-3')">{{ row.justified_absences|fmt_br_int }}</td>
-                            <td class="px-4 text-right" :class="(showDiscipline ? '' : 'hidden') + ' ' + (compactMode ? 'py-2' : 'py-3')">{{ row.leave_absences|fmt_br_int }}</td>
-                            <td class="px-4 text-right" :class="(showDiscipline ? '' : 'hidden') + ' ' + (compactMode ? 'py-2' : 'py-3')">{{ row.offday_absences|fmt_br_int }}</td>
-                            <td class="px-4 text-right" :class="compactMode ? 'py-2 hidden' : 'py-3'">{{ row.occurrences|fmt_br_int }}</td>
-                            <td class="px-4 text-right" :class="compactMode ? 'py-2' : 'py-3'">
-                                <div class="flex items-center justify-end gap-2">
-                                    {% if calculation_debug %}
-                                    <button @click.stop="showDebugPanel = true; activeDebugTab = 'individual'; debugSearchTerm = '{{ row.name }}'" 
-                                            class="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1" title="Ver cálculos">
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
-                                        </svg>
-                                    </button>
-                                    {% endif %}
-                                    <button @click.stop="openDetails({{ row.id }})" class="text-xs text-blue-300 hover:text-blue-200">Detalhes</button>
-                                </div>
+                            <td class="px-3 py-2 text-center" :class="showDiscipline ? '' : 'hidden'">
+                                {% if row.justified_absences > 0 %}
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/20 text-amber-400">{{ row.justified_absences }}</span>
+                                {% else %}
+                                <span class="text-slate-500">0</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-3 py-2 text-right">
+                                <button @click.stop="openDetails({{ row.id }})" class="text-[10px] text-blue-400 hover:text-blue-300 transition">Ver →</button>
                             </td>
                         </tr>
                         {% endfor %}
