@@ -13162,7 +13162,40 @@ async def smart_flow_page(request: Request, shift: str = "Manhã", date: Optiona
                         initial_log[reg_id] = new_entry
                         
             daily_op = models.DailyOperation(date=date, shift=shift, attendance_log=initial_log) # Transient
-    
+
+        def _default_attendance_status(emp_status: Optional[str]) -> str:
+            normalized = (emp_status or '').lower()
+            if normalized in {'vacation', 'férias', 'ferias'}:
+                return 'vacation'
+            if normalized in {'sick', 'atestado'}:
+                return 'sick'
+            if normalized in {'away', 'afastado'}:
+                return 'away'
+            if normalized in {'dayoff', 'folga'}:
+                return 'dayoff'
+            return 'present'
+
+        def _fill_default_log_entries(log: dict):
+            for emp in employees:
+                registration_id = emp.registration_id
+                if registration_id is None:
+                    continue
+                key = str(registration_id)
+                if key in log:
+                    continue
+                log[key] = {
+                    "status": _default_attendance_status(emp.status),
+                    "sector": None,
+                    "sector_name": None,
+                    "subsector_name": None,
+                    "activity": None,
+                    "observation": None
+                }
+
+        attendance_log_snapshot = dict(daily_op.attendance_log or {})
+        _fill_default_log_entries(attendance_log_snapshot)
+        daily_op.attendance_log = attendance_log_snapshot
+
         # Get Targets (Headcount) - Official HR Target
         targets_db = session.exec(select(models.HeadcountTarget).where(models.HeadcountTarget.shift_name == shift)).first()
         shift_target_hr = targets_db.target_value if targets_db else 0
@@ -14812,7 +14845,8 @@ async def set_employee_routine_extended(
             'sick': 'Atestado',
             'away': 'Afastado',
             'absent': 'Falta',
-            'dayoff': 'Folga'
+            'dayoff': 'Folga',
+            'early_exit': 'Saída antecipada'
         }
         
         # Mapear tipo de evento
@@ -14822,6 +14856,7 @@ async def set_employee_routine_extended(
             'away': 'afastamento',
             'vacation': 'ferias_hist',
             'dayoff': 'folga',
+            'early_exit': 'saida_antecipada',
             'present': 'presenca'
         }
         event_type = event_type_map.get(routine, 'routine_change')
@@ -14944,11 +14979,17 @@ async def set_employee_routine_extended(
         routine_to_alert_type = {
             "absent": "absent",   # Falta -> Advertência
             "dayoff": "dayoff",   # Folga -> Notificação de Folga
-            "sick": "sick"        # Atestado -> Notificação Médica
+            "sick": "sick",       # Atestado -> Notificação Médica
+            "early_exit": "early_exit"  # Saída antecipada -> Alerta de saída antecipada
         }
         
         alert_type = routine_to_alert_type.get(routine)
-        alert_type_labels = {"absent": "advertência", "dayoff": "folga", "sick": "atestado"}
+        alert_type_labels = {
+            "absent": "advertência",
+            "dayoff": "folga",
+            "sick": "atestado",
+            "early_exit": "saída antecipada"
+        }
         
         # Enviar alerta se for um dos tipos configurados (AGORA EM BACKGROUND)
         email_scheduled = False
@@ -15090,7 +15131,8 @@ async def set_employee_routine(
             'sick': 'Atestado',
             'away': 'Afastado',
             'absent': 'Falta',
-            'dayoff': 'Folga'
+            'dayoff': 'Folga',
+            'early_exit': 'Saída antecipada'
         }
         
         # Determine Event Type correctly for Report
@@ -15101,6 +15143,7 @@ async def set_employee_routine(
              'away': 'afastamento',
              'vacation': 'ferias',
              'dayoff': 'folga',
+             'early_exit': 'saida_antecipada',
              'present': 'presenca'
         }
         
@@ -19291,17 +19334,28 @@ async def operational_history_page(request: Request, session: Session = Depends(
                     select(models.TranspalletChecklist.id).where(
                         models.TranspalletChecklist.id.in_(checklist_refs)
                     )
-                ).scalars().all()
+                ).all()
             )
 
+        processed_events = []
         for evt in events:
-            if hasattr(evt, "employee_id") and evt.employee_id:
-                evt.employee_name = employee_map.get(evt.employee_id)
-            evt.reference_exists = bool(
+            employee_name = employee_map.get(evt.employee_id) if evt.employee_id else None
+            reference_exists = bool(
                 evt.reference_type == "checklist"
                 and evt.reference_id
                 and evt.reference_id in existing_checklists
             )
+            processed_events.append({
+                "id": evt.id,
+                "timestamp": evt.timestamp,
+                "text": evt.text,
+                "reference_type": evt.reference_type,
+                "reference_id": evt.reference_id,
+                "sector": evt.sector,
+                "employee_name": employee_name,
+                "reference_exists": reference_exists
+            })
+        events = processed_events
 
         return templates.TemplateResponse(
             "operational_history.html",
@@ -19801,8 +19855,8 @@ def send_absence_alert_email(
     alert_type: str = "absent"
 ) -> tuple:
     """
-    Envia e-mail de alerta de ausência (falta, folga ou atestado).
-    alert_type: 'absent' (falta/advertência), 'dayoff' (folga), 'sick' (atestado)
+    Envia e-mail de alerta de ausência (falta, folga, atestado ou saída antecipada).
+    alert_type: 'absent' (falta/advertência), 'dayoff' (folga), 'sick' (atestado), 'early_exit' (saída antecipada)
     Retorna (success: bool, error: str ou None)
     """
     smtp_port = parse_int_env(SMTP_PORT_RAW, 587)
@@ -19859,6 +19913,15 @@ def send_absence_alert_email(
             "date_label": "Data do Atestado",
             "color": "#d97706",
             "action": "Informamos para fins de controle médico e registro de afastamento."
+        },
+        "early_exit": {
+            "emoji": "⏰",
+            "title": "NOTIFICAÇÃO DE SAÍDA ANTECIPADA",
+            "subtitle": "Saída antecipada registrada no sistema",
+            "type_label": "SAÍDA ANTECIPADA",
+            "date_label": "Data da Saída",
+            "color": "#fb7185",
+            "action": "Solicitamos atualização do controle de jornada e validação da saída antecipada."
         }
     }
     
@@ -20023,7 +20086,12 @@ def send_absence_alert_email_background(
         work_shift=employee_work_shift
     )
     
-    alert_type_labels = {"absent": "advertência", "dayoff": "folga", "sick": "atestado"}
+    alert_type_labels = {
+        "absent": "advertência",
+        "dayoff": "folga",
+        "sick": "atestado",
+        "early_exit": "saída antecipada"
+    }
     
     try:
         # Enviar e-mail
@@ -20076,6 +20144,7 @@ async def admin_absence_alerts_settings(
     absent_recipients = [r for r in recipients if getattr(r, 'alert_type', 'absent') == 'absent']
     dayoff_recipients = [r for r in recipients if getattr(r, 'alert_type', None) == 'dayoff']
     sick_recipients = [r for r in recipients if getattr(r, 'alert_type', None) == 'sick']
+    early_exit_recipients = [r for r in recipients if getattr(r, 'alert_type', None) == 'early_exit']
     
     # Info SMTP para exibição
     smtp_configured = bool(SMTP_HOST and SMTP_USER and SMTP_PASS)
@@ -20089,6 +20158,7 @@ async def admin_absence_alerts_settings(
             "absent_recipients": absent_recipients,
             "dayoff_recipients": dayoff_recipients,
             "sick_recipients": sick_recipients,
+            "early_exit_recipients": early_exit_recipients,
             "message": message,
             "level": level,
             "smtp_host": SMTP_HOST,
@@ -20113,11 +20183,16 @@ async def admin_absence_alerts_add_email(
         return absence_alerts_settings_redirect("E-mail inválido.", "error")
     
     # Validar alert_type
-    valid_types = ["absent", "dayoff", "sick"]
+    valid_types = ["absent", "dayoff", "sick", "early_exit"]
     if alert_type not in valid_types:
         alert_type = "absent"
     
-    type_labels = {"absent": "Falta", "dayoff": "Folga", "sick": "Atestado"}
+    type_labels = {
+        "absent": "Falta",
+        "dayoff": "Folga",
+        "sick": "Atestado",
+        "early_exit": "Saída antecipada"
+    }
     type_label = type_labels.get(alert_type, "Falta")
     
     # Verificar se já existe para este tipo
@@ -20203,7 +20278,12 @@ async def admin_absence_alerts_test_email(
         alert_type=alert_type
     )
     
-    type_labels = {"absent": "Falta", "dayoff": "Folga", "sick": "Atestado"}
+    type_labels = {
+        "absent": "Falta",
+        "dayoff": "Folga",
+        "sick": "Atestado",
+        "early_exit": "Saída antecipada"
+    }
     type_label = type_labels.get(alert_type, "Falta")
     
     if success:

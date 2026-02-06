@@ -29751,3 +29751,22 @@ NameError: name 'upcoming_deadline' is not defined
 
 2026-02-06 03:35:09,203 | INFO     | main | Google Gemini client initialized successfully
 2026-02-06 03:35:56,222 | INFO     | main | Google Gemini client initialized successfully
+2026-02-06 04:17:37,541 | INFO     | main | Google Gemini client initialized successfully
+2026-02-06 04:29:38,300 | INFO     | main | Google Gemini client initialized successfully
+2026-02-06 04:30:24,755 | ERROR    | main | Error rendering operational history
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 19327, in operational_history_page
+    ).scalars().all()
+      ^^^^^^^
+AttributeError: 'ScalarResult' object has no attribute 'scalars'
+2026-02-06 04:30:49,953 | ERROR    | main | Error rendering operational history
+Traceback (most recent call last):
+  File "C:\Projeto\analise_operacional\main.py", line 19327, in operational_history_page
+    ).scalars().all()
+      ^^^^^^^
+AttributeError: 'ScalarResult' object has no attribute 'scalars'
+2026-02-06 04:33:07,653 | INFO     | main | Google Gemini client initialized successfully
+2026-02-06 04:34:43,729 | INFO     | main | Google Gemini client initialized successfully
+2026-02-06 04:45:12,031 | INFO     | main | Google Gemini client initialized successfully
+2026-02-06 04:46:00,743 | INFO     | main | Google Gemini client initialized successfully
+2026-02-06 04:46:56,876 | INFO     | main | Google Gemini client initialized successfully

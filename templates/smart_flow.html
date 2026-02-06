@@ -79,7 +79,7 @@
                 </div>
 
                 <!-- Navegação rápida -->
-                <div class="flex items-center gap-2 flex-shrink-0">
+                <div class="flex flex-wrap items-center gap-2 flex-shrink-0 justify-end w-full md:w-auto md:flex-nowrap overflow-x-auto">
                     <a href="/routine/report?date={{ current_date }}&shift={{ current_shift }}" id="report-link"
                         target="_blank"
                         aria-label="Relatório de rotina"
@@ -193,11 +193,11 @@
     <!-- KPI Strip (Scrollable Mobile) -->
     <div id="kpi-strip"
         class="shrink-0 px-4 py-3 border-b border-slate-800 bg-slate-900/95 backdrop-blur z-10">
-        <div class="flex gap-3 overflow-x-auto py-2">
+        <div class="flex gap-3 overflow-x-auto py-2 no-scrollbar">
 
             <!-- 1. Headcount -->
             <div onclick="KPIDetails.show('present')"
-                class="flex-none w-[220px] bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-blue-500/80 cursor-pointer flex flex-col justify-between min-h-[110px]">
+                class="flex-none w-[260px] bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-blue-500/80 cursor-pointer flex flex-col justify-between min-h-[110px]">
                 <div class="flex items-start justify-between">
                     <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Headcount</p>
                     <span class="text-[9px] text-slate-500">Meta</span>
@@ -213,7 +213,7 @@
 
             <!-- 2. Vagas (Demitidos) -->
             <div onclick="KPIDetails.show('gap')"
-                class="flex-none w-[180px] bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-red-500/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
+                class="flex-none w-[200px] bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-red-500/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
                 <p class="text-[10px] font-bold text-red-400 uppercase tracking-wide">Vagas</p>
                 <p class="text-2xl font-bold text-white mt-2" id="total-gap">0</p>
                 <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Demitidos</p>
@@ -221,7 +221,7 @@
 
             <!-- 2.5 Folgas -->
             <div onclick="KPIDetails.show('dayoff')"
-                class="flex-none w-[180px] bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-blue-400/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
+                class="flex-none w-[200px] bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-blue-400/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
                 <p class="text-[10px] font-bold text-blue-400 uppercase tracking-wide">Folgas</p>
                 <p class="text-2xl font-bold text-white mt-2" id="total-dayoff">0</p>
                 <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Colab.</p>
@@ -229,7 +229,7 @@
 
             <!-- 3. Férias -->
             <div onclick="KPIDetails.show('vacation')"
-                class="flex-none w-[180px] bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-orange-500/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
+                class="flex-none w-[200px] bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-orange-500/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
                 <p class="text-[10px] font-bold text-orange-400 uppercase tracking-wide">Férias</p>
                 <p class="text-2xl font-bold text-white mt-2" id="total-vacation">0</p>
                 <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Colab.</p>
@@ -237,7 +237,7 @@
 
             <!-- 4. Afastados -->
             <div onclick="KPIDetails.show('away')"
-                class="flex-none w-[180px] bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-indigo-500/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
+                class="flex-none w-[200px] bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-indigo-500/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
                 <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-wide">Afastados</p>
                 <p class="text-2xl font-bold text-white mt-2" id="total-away">0</p>
                 <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Colab.</p>
@@ -245,7 +245,7 @@
 
             <!-- 5. Atestados -->
             <div onclick="KPIDetails.show('sick')"
-                class="flex-none w-[180px] bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-amber-500/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
+                class="flex-none w-[200px] bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-amber-500/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
                 <p class="text-[10px] font-bold text-amber-400 uppercase tracking-wide">Atestados</p>
                 <p class="text-2xl font-bold text-white mt-2" id="total-sick">0</p>
                 <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Colab.</p>
@@ -253,7 +253,7 @@
 
             <!-- 6. Faltas -->
             <div onclick="KPIDetails.show('missing')"
-                class="flex-none w-[180px] bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-rose-500/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
+                class="flex-none w-[200px] bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-rose-500/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
                 <p class="text-[10px] font-bold text-rose-400 uppercase tracking-wide">Faltas</p>
                 <p class="text-2xl font-bold text-white mt-2" id="total-missing">0</p>
                 <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Colab.</p>
