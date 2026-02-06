@@ -314,6 +314,58 @@
                     </div>
                 </div>
                 {% endif %}
+
+                <!-- Próximas Férias -->
+                <div class="bg-slate-900/50 rounded-xl p-3 border border-slate-700/50">
+                    <div class="flex items-center gap-2 mb-2">
+                        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <span class="text-xs font-bold text-amber-400 uppercase">Próximas Férias</span>
+                        <span class="ml-auto text-lg font-bold text-amber-400">{{ dashboard.alerts.vacations_upcoming|length }}</span>
+                    </div>
+                    <div class="space-y-1 max-h-20 overflow-y-auto custom-scrollbar">
+                        {% for v in dashboard.alerts.vacations_upcoming[:5] %}
+                        <div class="flex items-center gap-2 text-[11px]">
+                            <span class="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
+                            <span class="text-slate-300 truncate flex-1">{{ v.name }}</span>
+                            <span class="text-slate-500 text-[10px]">{{ v.shift }}</span>
+                            <span class="text-amber-400 font-bold text-[10px]">{{ v.days_until }}d</span>
+                        </div>
+                        {% endfor %}
+                        {% if dashboard.alerts.vacations_upcoming|length == 0 %}
+                        <p class="text-[10px] text-slate-400 text-center">Nenhuma próxima férias</p>
+                        {% elif dashboard.alerts.vacations_upcoming|length > 5 %}
+                        <p class="text-[10px] text-slate-500 text-center">+{{ dashboard.alerts.vacations_upcoming|length - 5 }} mais</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Em Férias -->
+                <div class="bg-slate-900/50 rounded-xl p-3 border border-slate-700/50">
+                    <div class="flex items-center gap-2 mb-2">
+                        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5-6l3 3-3 3"/>
+                        </svg>
+                        <span class="text-xs font-bold text-emerald-400 uppercase">Em Férias</span>
+                        <span class="ml-auto text-lg font-bold text-emerald-400">{{ dashboard.alerts.vacations_active|length }}</span>
+                    </div>
+                    <div class="space-y-1 max-h-20 overflow-y-auto custom-scrollbar">
+                        {% for f in dashboard.alerts.vacations_active[:5] %}
+                        <div class="flex items-center gap-2 text-[11px]">
+                            <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                            <span class="text-slate-300 truncate flex-1">{{ f.name }}</span>
+                            <span class="text-slate-500 text-[10px]">{{ f.shift }}</span>
+                            <span class="text-emerald-400 font-bold text-[10px]">{{ f.days_left }}d</span>
+                        </div>
+                        {% endfor %}
+                        {% if dashboard.alerts.vacations_active|length == 0 %}
+                        <p class="text-[10px] text-slate-400 text-center">Sem férias ativas</p>
+                        {% elif dashboard.alerts.vacations_active|length > 5 %}
+                        <p class="text-[10px] text-slate-500 text-center">+{{ dashboard.alerts.vacations_active|length - 5 }} mais</p>
+                        {% endif %}
+                    </div>
+                </div>
                 
                 <!-- Ferias Iniciando/Terminando -->
                 {% if dashboard.alerts.ferias|length > 0 %}

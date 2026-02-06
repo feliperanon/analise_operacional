@@ -1825,6 +1825,8 @@ def get_dashboard_data(session: Session, shift_filter: str):
     tz = ZoneInfo("America/Sao_Paulo")
     today = datetime.now(tz)
     today_str = today.strftime("%Y-%m-%d")
+    today_naive = today.replace(tzinfo=None)
+    upcoming_deadline = today_naive + timedelta(days=14)
     
     # --- 1. Operations Pulse (KPIs) ---
     
@@ -2140,6 +2142,8 @@ async def index(request: Request, shift: str = "Todos", session: Session = Depen
         "ausentes": [],
         "vencimentos": [],
         "ferias": [],
+        "vacations_upcoming": [],
+        "vacations_active": [],
         "novatos": [],
         "total": 0
     }
@@ -2204,6 +2208,20 @@ async def index(request: Request, shift: str = "Todos", session: Session = Depen
                     "status": f"Retorna {vac_end.strftime('%d/%m')}",
                     "shift": emp.work_shift[:3] if emp.work_shift else "?"
                 })
+            if vac_start > today_naive and vac_start <= upcoming_deadline:
+                alerts["vacations_upcoming"].append({
+                    "name": get_short_name(emp.name),
+                    "shift": emp.work_shift[:3] if emp.work_shift else "?",
+                    "days_until": (vac_start - today_naive).days,
+                    "start_date": vac_start.strftime("%d/%m")
+                })
+            if vac_start <= today_naive <= vac_end:
+                alerts["vacations_active"].append({
+                    "name": get_short_name(emp.name),
+                    "shift": emp.work_shift[:3] if emp.work_shift else "?",
+                    "days_left": (vac_end - today_naive).days + 1,
+                    "end_date": vac_end.strftime("%d/%m")
+                })
     
     # Novatos (< 30 dias de empresa)
     for emp in employees:
@@ -2221,7 +2239,16 @@ async def index(request: Request, shift: str = "Todos", session: Session = Depen
                     "shift": emp.work_shift[:3] if emp.work_shift else "?"
                 })
     
-    alerts["total"] = len(alerts["ausentes"]) + len(alerts["vencimentos"]) + len(alerts["ferias"]) + len(alerts["novatos"])
+    alerts["vacations_upcoming"].sort(key=lambda x: x["days_until"])
+    alerts["vacations_active"].sort(key=lambda x: x["days_left"])
+    alerts["total"] = (
+        len(alerts["ausentes"]) +
+        len(alerts["vencimentos"]) +
+        len(alerts["ferias"]) +
+        len(alerts["novatos"]) +
+        len(alerts["vacations_upcoming"]) +
+        len(alerts["vacations_active"])
+    )
     
     # Attach to data object
     data["shifts_summary"] = shifts_summary
@@ -7129,13 +7156,7 @@ async def admin_checklist_bulk_delete(
                 session.add(tx)
 
         # Formata quem realizou a exclusão em lote de forma mais legível
-        try:
-            if isinstance(user, dict):
-                user_label = user.get("email") or user.get("id") or "usuário"
-            else:
-                user_label = getattr(user, "email", None) or getattr(user, "name", None) or str(user)
-        except Exception:
-            user_label = "usuário"
+        user_label = format_user_label(user)
 
         session.add(models.Event(
             timestamp=now_br,
@@ -13183,7 +13204,87 @@ async def smart_flow_page(request: Request, shift: str = "Manhã", date: Optiona
         def fmt_num(n):
             val = n if n is not None else 0.0
             return f"{val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-            
+
+        now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+        today_date = now_br.date()
+        reg_map = {
+            str(e.registration_id): e
+            for e in employees
+            if e.registration_id is not None
+        }
+
+        def first_last(full_name: Optional[str]) -> str:
+            if not full_name:
+                return "Colaborador"
+            parts = [p for p in full_name.strip().split() if p]
+            if len(parts) >= 2:
+                return f"{parts[0]} {parts[-1]}"
+            return parts[0]
+
+        status_labels = {
+            "absent": "Falta",
+            "sick": "Atestado",
+            "away": "Afastado"
+        }
+
+        log_entries = daily_op.attendance_log or {}
+        absence_entries: List[dict] = []
+        for reg_id, entry in log_entries.items():
+            status = (entry.get("status") or "").lower()
+            if status not in {"absent", "sick", "away"}:
+                continue
+            emp = reg_map.get(str(reg_id))
+            if not emp:
+                continue
+            shift_label = entry.get("shift") or emp.work_shift or shift or "-"
+            absence_entries.append({
+                "name": first_last(emp.name),
+                "shift": shift_label,
+                "status_label": status_labels.get(status, status.title()),
+                "status": status
+            })
+
+        upcoming_vacations: List[dict] = []
+        active_vacations: List[dict] = []
+        for emp in employees:
+            if not emp.vacation_start or not emp.vacation_end:
+                continue
+            try:
+                v_start_date = emp.vacation_start.date()
+                v_end_date = emp.vacation_end.date()
+            except Exception:
+                continue
+
+            shift_label = emp.work_shift or getattr(emp, "shift", None) or "-"
+            if v_start_date > today_date:
+                days_until = (v_start_date - today_date).days
+                upcoming_vacations.append({
+                    "name": first_last(emp.name),
+                    "shift": shift_label,
+                    "start_in": f"{days_until}d" if days_until > 0 else "Hoje",
+                    "start_date": v_start_date.strftime("%d/%m"),
+                    "days_until": days_until
+                })
+            elif v_start_date <= today_date <= v_end_date:
+                days_left = (v_end_date - today_date).days + 1
+                active_vacations.append({
+                    "name": first_last(emp.name),
+                    "shift": shift_label,
+                    "end_date": v_end_date.strftime("%d/%m"),
+                    "days_left": f"{days_left}d",
+                    "days_left_count": days_left
+                })
+
+        upcoming_vacations.sort(key=lambda x: x["days_until"])
+        active_vacations.sort(key=lambda x: x["days_left_count"])
+
+        absence_preview = absence_entries[:5]
+        absence_more = max(0, len(absence_entries) - len(absence_preview))
+        upcoming_preview = upcoming_vacations[:5]
+        upcoming_more = max(0, len(upcoming_vacations) - len(upcoming_preview))
+        active_preview = active_vacations[:5]
+        active_more = max(0, len(active_vacations) - len(active_preview))
+
         # Get employees who are substituted (for Dashboard "Substituição" KPI)
         # Logic: Events where text contains "Substituído por"
         sub_events = session.exec(select(models.Event).where(col(models.Event.text).contains("Substituído por"))).all()
@@ -13203,6 +13304,15 @@ async def smart_flow_page(request: Request, shift: str = "Manhã", date: Optiona
             "total_tonnage_raw": total_tonnage_real, # Raw for JS calc
             "manual_tonnage": daily_op.tonnage or 0, # Pass raw manual value for frontend to know
             "substituted_ids": list(substituted_ids),
+            "absence_alerts": absence_preview,
+            "absence_more": absence_more,
+            "absence_total": len(absence_entries),
+            "vacations_upcoming": upcoming_preview,
+            "vacations_upcoming_more": upcoming_more,
+            "vacations_upcoming_count": len(upcoming_vacations),
+            "vacations_active": active_preview,
+            "vacations_active_more": active_more,
+            "vacations_active_count": len(active_vacations),
             # JSON data for JavaScript modules
             "employees_json": json.dumps(daily_op.attendance_log or {}),
             "config_json": json.dumps(sector_config),
