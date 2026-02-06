@@ -29091,3 +29091,16 @@ DETAIL:  Key (id)=(416) is still referenced from table "gamexptransaction".
 2026-02-05 22:13:31,021 | INFO     | main | Google Gemini client initialized successfully
 2026-02-05 22:55:22,684 | INFO     | main | Google Gemini client initialized successfully
 2026-02-05 22:56:15,801 | INFO     | main | Google Gemini client initialized successfully
+2026-02-05 23:02:17,107 | INFO     | main | Google Gemini client initialized successfully
+2026-02-05 23:22:28,207 | INFO     | main | Google Gemini client initialized successfully
+2026-02-05 23:23:21,592 | INFO     | main | Google Gemini client initialized successfully
+2026-02-05 23:24:17,637 | INFO     | main | Google Gemini client initialized successfully
+2026-02-05 23:29:34,687 | INFO     | main | Google Gemini client initialized successfully
+2026-02-05 23:30:25,976 | INFO     | main | Google Gemini client initialized successfully
+2026-02-05 23:32:34,746 | INFO     | main | Google Gemini client initialized successfully
+2026-02-05 23:50:27,277 | ERROR    | main | Erro ao gerar relatório IA: 404 NOT_FOUND. {'error': {'code': 404, 'message': 'models/gemini-2.0-flash-exp is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.', 'status': 'NOT_FOUND'}}
+2026-02-05 23:53:54,039 | INFO     | main | Google Gemini client initialized successfully
+2026-02-05 23:54:42,939 | INFO     | main | Google Gemini client initialized successfully
+2026-02-05 23:55:30,152 | INFO     | main | Google Gemini client initialized successfully
+2026-02-05 23:56:16,860 | INFO     | main | Google Gemini client initialized successfully
+2026-02-05 23:57:05,598 | INFO     | main | Google Gemini client initialized successfully

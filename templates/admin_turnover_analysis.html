@@ -48,6 +48,16 @@
                 <p class="text-sm text-slate-400">Parecer completo sobre movimentação de colaboradores</p>
             </div>
             <div class="flex flex-wrap gap-2">
+                <!-- Alerta de datas pendentes -->
+                {% set pending_count = recent_exits|selectattr('exit_date_pending')|list|length %}
+                {% if pending_count > 0 %}
+                <div class="w-full md:w-auto px-3 py-2 bg-orange-500/10 border border-orange-500/30 rounded-lg flex items-center gap-2 text-orange-400 text-xs">
+                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                    <span>{{ pending_count }} colaborador(es) sem data de saída. Acesse o cadastro para preencher.</span>
+                </div>
+                {% endif %}
                 {% if gemini_available %}
                 <button @click="showAIModal = true; generateReport()" 
                         class="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg transition flex items-center gap-2 text-sm font-medium shadow-lg">
@@ -301,6 +311,36 @@
                     {% endfor %}
                 </div>
             </div>
+            
+            <!-- Análise por Tempo de Casa -->
+            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Turnover por Tempo de Casa
+                </h3>
+                <div class="space-y-2">
+                    {% set tenure_order = ['0-6 meses', '6-12 meses', '1-2 anos', '2-5 anos', '5-10 anos', '10+ anos', 'Não informado'] %}
+                    {% for tenure in tenure_order %}
+                    {% if tenure in by_tenure %}
+                    {% set data = by_tenure[tenure] %}
+                    <div class="flex items-center justify-between bg-slate-900/50 rounded-lg p-2">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm text-white">{{ tenure }}</p>
+                            <p class="text-xs text-slate-500">{{ data.exits }}/{{ data.total }} colaboradores</p>
+                        </div>
+                        <span class="ml-2 px-2 py-1 rounded-lg text-sm font-bold {% if data.rate > 20 %}bg-red-500/20 text-red-400{% elif data.rate > 10 %}bg-amber-500/20 text-amber-400{% else %}bg-green-500/20 text-green-400{% endif %}">
+                            {{ "%.0f"|format(data.rate) }}%
+                        </span>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                    {% if not by_tenure %}
+                    <p class="text-slate-500 text-center py-4">Sem dados disponíveis</p>
+                    {% endif %}
+                </div>
+            </div>
         </div>
 
         <!-- Evolução Mensal -->
@@ -385,7 +425,13 @@
                                 <span class="px-2 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400">Afastamento</span>
                                 {% endif %}
                             </td>
-                            <td class="px-4 py-3 text-slate-300">{{ emp.exit_date }}</td>
+                            <td class="px-4 py-3">
+                                {% if emp.exit_date_pending %}
+                                <span class="px-2 py-1 rounded text-xs bg-orange-500/20 text-orange-400 border border-orange-500/30">Pendente</span>
+                                {% else %}
+                                <span class="text-slate-300">{{ emp.exit_date }}</span>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>

@@ -411,55 +411,58 @@
 </div>
 
 <!-- Target Edit Modal -->
-<div id="targetModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-    <div class="bg-slate-800 rounded-2xl w-full max-w-sm border border-slate-700 shadow-2xl p-6">
-        <div class="flex justify-between items-center mb-6">
-            <h3 class="text-lg font-bold text-white">Metas de Headcount</h3>
+<div id="targetModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+    <div class="bg-slate-800 rounded-2xl w-full max-w-xs sm:max-w-sm border border-slate-700 shadow-2xl p-4 sm:p-5 my-auto max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-base sm:text-lg font-bold text-white">Metas de Headcount</h3>
             <button onclick="document.getElementById('targetModal').classList.add('hidden')"
-                class="text-slate-400 hover:text-white">
+                class="text-slate-400 hover:text-white p-1">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
                     </path>
                 </svg>
             </button>
         </div>
-        <div class="space-y-4">
+        <div class="space-y-3">
             <!-- Global Limit -->
-            <div class="bg-slate-900/50 p-3 rounded-lg border border-blue-500/20 mb-2">
-                <label class="block text-xs font-bold text-blue-400 uppercase mb-1">Quantidade Total (Limite)</label>
+            <div class="bg-slate-900/50 p-2.5 rounded-lg border border-blue-500/20">
+                <label class="block text-[10px] sm:text-xs font-bold text-blue-400 uppercase mb-1">Quantidade Total (Limite)</label>
                 <input type="number" id="target-total" value="{{ stats.total_target }}"
-                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500 font-bold text-lg"
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500 font-bold text-base"
                     oninput="validateTargets()">
-                <p class="text-[10px] text-slate-500 mt-1">Soma dos turnos não pode exceder este valor.</p>
+                <p class="text-[9px] sm:text-[10px] text-slate-500 mt-1">Soma dos turnos não pode exceder este valor.</p>
             </div>
 
-            <div>
-                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Manhã</label>
-                <input type="number" id="target-manha" value="{{ stats.targets_map.get('Manhã', 0) }}"
-                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500"
-                    oninput="validateTargets()">
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tarde</label>
-                <input type="number" id="target-tarde" value="{{ stats.targets_map.get('Tarde', 0) }}"
-                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500"
-                    oninput="validateTargets()">
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Noite</label>
-                <input type="number" id="target-noite" value="{{ stats.targets_map.get('Noite', 0) }}"
-                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500"
-                    oninput="validateTargets()">
+            <!-- Turnos em grid para economizar espaço -->
+            <div class="grid grid-cols-3 gap-2">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Manhã</label>
+                    <input type="number" id="target-manha" value="{{ stats.targets_map.get('Manhã', 0) }}"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-2 text-white text-sm outline-none focus:border-blue-500 text-center"
+                        oninput="validateTargets()">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tarde</label>
+                    <input type="number" id="target-tarde" value="{{ stats.targets_map.get('Tarde', 0) }}"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-2 text-white text-sm outline-none focus:border-blue-500 text-center"
+                        oninput="validateTargets()">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Noite</label>
+                    <input type="number" id="target-noite" value="{{ stats.targets_map.get('Noite', 0) }}"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-2 text-white text-sm outline-none focus:border-blue-500 text-center"
+                        oninput="validateTargets()">
+                </div>
             </div>
 
             <!-- Balance Display -->
             <div id="target-balance-display"
-                class="text-xs font-bold text-center mt-2 p-2 bg-slate-700/20 rounded border border-slate-600">
+                class="text-[10px] sm:text-xs font-bold text-center p-2 bg-slate-700/20 rounded border border-slate-600">
                 Calculando saldo...
             </div>
 
             <button onclick="saveTargets()" id="btn-save-targets"
-                class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg shadow-lg shadow-blue-500/20 transition-all mt-4 disabled:opacity-50 disabled:cursor-not-allowed">
+                class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                 Salvar Metas
             </button>
         </div>

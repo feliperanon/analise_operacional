@@ -2636,6 +2636,28 @@ def calculate_turnover_by_dimension(session: Session, dimension: str, start_date
                     group_key = 'Idade não informada'
             else:
                 group_key = 'Idade não informada'
+        elif dimension == 'tenure':
+            # Tempo de casa em anos
+            if emp.admission_date:
+                adm_naive = normalize_datetime_for_comparison(emp.admission_date)
+                if adm_naive:
+                    tenure_years = (now_naive - adm_naive).days / 365
+                    if tenure_years < 0.5:
+                        group_key = '0-6 meses'
+                    elif tenure_years < 1:
+                        group_key = '6-12 meses'
+                    elif tenure_years < 2:
+                        group_key = '1-2 anos'
+                    elif tenure_years < 5:
+                        group_key = '2-5 anos'
+                    elif tenure_years < 10:
+                        group_key = '5-10 anos'
+                    else:
+                        group_key = '10+ anos'
+                else:
+                    group_key = 'Não informado'
+            else:
+                group_key = 'Não informado'
         else:
             group_key = 'Outros'
         
@@ -2676,7 +2698,7 @@ def calculate_turnover_by_dimension(session: Session, dimension: str, start_date
     return dict(groups)
 
 
-def generate_turnover_insights(metrics, by_shift, by_role, by_age, by_sector):
+def generate_turnover_insights(metrics, by_shift, by_role, by_age, by_sector, by_tenure=None):
     """Gera insights e alertas automáticos baseados nas métricas."""
     insights = []
     
@@ -2705,6 +2727,37 @@ def generate_turnover_insights(metrics, by_shift, by_role, by_age, by_sector):
             'type': 'danger',
             'message': f"📉 Permanência média muito baixa ({metrics['avg_tenure_months']:.1f} meses). Possível problema no onboarding ou expectativas."
         })
+    
+    # Análise por tempo de casa - alta rotatividade em colaboradores novos
+    if by_tenure:
+        first_year = by_tenure.get('0-6 meses', {'rate': 0, 'exits': 0})
+        second_half = by_tenure.get('6-12 meses', {'rate': 0, 'exits': 0})
+        new_hires_rate = (first_year['rate'] + second_half['rate']) / 2 if (first_year['rate'] + second_half['rate']) else 0
+        new_hires_exits = first_year['exits'] + second_half['exits']
+        
+        if new_hires_rate > 30 and new_hires_exits >= 2:
+            insights.append({
+                'type': 'danger',
+                'message': f"🆕 Alta rotatividade em colaboradores novos (<1 ano): {new_hires_exits} saídas. Revisar processo de onboarding e expectativas do cargo."
+            })
+        
+        # Colaboradores com 2-5 anos com alto turnover
+        mid_tenure = by_tenure.get('2-5 anos', {'rate': 0, 'exits': 0})
+        if mid_tenure['rate'] > 20 and mid_tenure['exits'] >= 2:
+            insights.append({
+                'type': 'warning',
+                'message': f"⏳ Turnover de {mid_tenure['rate']:.0f}% em colaboradores com 2-5 anos de casa. Possível estagnação de carreira."
+            })
+        
+        # Colaboradores veteranos saindo
+        senior_tenure = by_tenure.get('5-10 anos', {'rate': 0, 'exits': 0})
+        veteran_tenure = by_tenure.get('10+ anos', {'rate': 0, 'exits': 0})
+        senior_exits = senior_tenure['exits'] + veteran_tenure['exits']
+        if senior_exits >= 2:
+            insights.append({
+                'type': 'warning',
+                'message': f"🏆 {senior_exits} colaboradores veteranos (5+ anos) deixaram a empresa. Perda de conhecimento institucional."
+            })
     
     # Turno crítico
     if by_shift:
@@ -2787,6 +2840,7 @@ async def admin_turnover_analysis_page(
     by_role = calculate_turnover_by_dimension(session, 'role', start_dt, end_dt, shift)
     by_age = calculate_turnover_by_dimension(session, 'age', start_dt, end_dt, shift)
     by_sector = calculate_turnover_by_dimension(session, 'sector', start_dt, end_dt, shift)
+    by_tenure = calculate_turnover_by_dimension(session, 'tenure', start_dt, end_dt, shift)
     
     # Evolução mensal
     monthly_trend = OrderedDict()
@@ -2829,13 +2883,24 @@ async def admin_turnover_analysis_page(
             if birthday_naive:
                 age = (now_naive - birthday_naive).days // 365
         
-        # Calcular permanência
+        # Calcular permanência (até data de saída ou até hoje se não houver)
         tenure_months = 0
-        if emp.admission_date and emp.termination_date:
+        if emp.admission_date:
             adm_naive = normalize_datetime_for_comparison(emp.admission_date)
-            term_naive = normalize_datetime_for_comparison(emp.termination_date)
-            if adm_naive and term_naive:
-                tenure_months = round((term_naive - adm_naive).days / 30, 1)
+            if adm_naive:
+                # Se tem data de demissão, calcula até ela; senão, calcula até hoje
+                if emp.termination_date:
+                    term_naive = normalize_datetime_for_comparison(emp.termination_date)
+                    tenure_months = round((term_naive - adm_naive).days / 30, 1)
+                else:
+                    # Calcular até hoje
+                    tenure_months = round((now_naive - adm_naive).days / 30, 1)
+        
+        # Determinar texto da data de saída
+        if emp.termination_date:
+            exit_date_str = emp.termination_date.strftime('%d/%m/%Y')
+        else:
+            exit_date_str = 'Pendente'
         
         recent_exits.append({
             'name': emp.name,
@@ -2845,11 +2910,12 @@ async def admin_turnover_analysis_page(
             'age': age,
             'tenure_months': tenure_months,
             'status': emp.status,
-            'exit_date': emp.termination_date.strftime('%d/%m/%Y') if emp.termination_date else '-'
+            'exit_date': exit_date_str,
+            'exit_date_pending': emp.termination_date is None
         })
     
     # Gerar insights
-    insights = generate_turnover_insights(metrics, by_shift, by_role, by_age, by_sector)
+    insights = generate_turnover_insights(metrics, by_shift, by_role, by_age, by_sector, by_tenure)
     
     # Verificar se Gemini está disponível
     gemini_available = gemini_client is not None
@@ -2864,6 +2930,7 @@ async def admin_turnover_analysis_page(
             "by_role": by_role,
             "by_age": by_age,
             "by_sector": by_sector,
+            "by_tenure": by_tenure,
             "monthly_trend": monthly_trend,
             "recent_exits": recent_exits,
             "insights": insights,
@@ -2977,7 +3044,7 @@ async def admin_turnover_ai_report(
         """
         
         response = gemini_client.models.generate_content(
-            model="gemini-2.0-flash-exp",
+            model="gemini-2.0-flash",
             contents=prompt
         )
         
@@ -17268,6 +17335,150 @@ async def lider_rotas_page(
         "total_tonnage": total_tonnage,
         "total_with_route": len(with_route_ids),
         "total_expected": len(expected),
+    })
+
+
+@app.get("/lider/rotas/relatorio", response_class=HTMLResponse, dependencies=[Depends(require_leader)])
+async def lider_rotas_relatorio_page(
+    request: Request,
+    month: Optional[int] = None,
+    year: Optional[int] = None,
+    shift: str = "Todos",
+    session: Session = Depends(get_session),
+):
+    """Relatório de dias sem rota por colaborador - para impressão."""
+    user = require_login(request)
+    br_tz = ZoneInfo("America/Sao_Paulo")
+    now = datetime.now(br_tz)
+    
+    # Defaults para mês/ano atual
+    if not month:
+        month = now.month
+    if not year:
+        year = now.year
+    
+    # Calcular range de datas do mês
+    first_day = date(year, month, 1)
+    last_day = date(year, month, calendar.monthrange(year, month)[1])
+    
+    # Gerar lista de todos os dias do mês
+    all_days = []
+    current = first_day
+    while current <= last_day:
+        all_days.append(current.strftime("%Y-%m-%d"))
+        current += timedelta(days=1)
+    
+    # Buscar colaboradores que deveriam fazer rota
+    emp_query = select(models.Employee).where(
+        models.Employee.status != "fired",
+        models.Employee.mobile_access_separation == True
+    )
+    if shift != "Todos":
+        emp_query = emp_query.where(models.Employee.work_shift == shift)
+    emp_query = emp_query.order_by(models.Employee.name)
+    
+    employees = session.exec(emp_query).all()
+    emp_map = {e.id: e for e in employees}
+    emp_ids = list(emp_map.keys())
+    
+    # Buscar todas as rotas do período
+    routes = session.exec(
+        select(models.Route)
+        .where(models.Route.date >= first_day.strftime("%Y-%m-%d"))
+        .where(models.Route.date <= last_day.strftime("%Y-%m-%d"))
+        .where(models.Route.employee_id.in_(emp_ids) if emp_ids else True)
+    ).all()
+    
+    # Mapear: {employee_id: set(dates_with_routes)}
+    routes_by_emp = {}
+    for r in routes:
+        if r.employee_id not in routes_by_emp:
+            routes_by_emp[r.employee_id] = set()
+        routes_by_emp[r.employee_id].add(r.date)
+    
+    # Buscar rotinas para saber dias de folga/férias/atestado (para não contar como falta de rota)
+    routines = session.exec(
+        select(models.EmployeeRoutine)
+        .where(models.EmployeeRoutine.date >= first_day.strftime("%Y-%m-%d"))
+        .where(models.EmployeeRoutine.date <= last_day.strftime("%Y-%m-%d"))
+        .where(models.EmployeeRoutine.employee_id.in_(emp_ids) if emp_ids else True)
+    ).all()
+    
+    # Mapear: {employee_id: {date: routine}}
+    routines_by_emp = {}
+    for r in routines:
+        if r.employee_id not in routines_by_emp:
+            routines_by_emp[r.employee_id] = {}
+        routines_by_emp[r.employee_id][r.date] = r.routine
+    
+    # Calcular dias sem rota por colaborador
+    report_data = []
+    total_missing = 0
+    
+    for emp_id, emp in emp_map.items():
+        emp_routes = routes_by_emp.get(emp_id, set())
+        emp_routines = routines_by_emp.get(emp_id, {})
+        
+        # Dias sem rota (excluindo férias, folga, atestado, afastamento)
+        missing_days = []
+        justified_days = []
+        
+        for day_str in all_days:
+            routine = emp_routines.get(day_str, "present")
+            
+            if day_str not in emp_routes:
+                # Não tem rota neste dia
+                if routine in ("vacation", "sick", "away", "dayoff"):
+                    # Justificado - não deveria trabalhar
+                    justified_days.append({
+                        "date": day_str,
+                        "reason": {
+                            "vacation": "Férias",
+                            "sick": "Atestado",
+                            "away": "Afastado",
+                            "dayoff": "Folga"
+                        }.get(routine, routine)
+                    })
+                else:
+                    # Falta de rota não justificada
+                    # Verificar se é dia útil (segunda a sábado)
+                    day_date = datetime.strptime(day_str, "%Y-%m-%d").date()
+                    if day_date.weekday() != 6:  # Não é domingo
+                        missing_days.append(day_str)
+        
+        if missing_days or justified_days:
+            report_data.append({
+                "employee": emp,
+                "missing_days": missing_days,
+                "justified_days": justified_days,
+                "total_missing": len(missing_days),
+                "total_justified": len(justified_days),
+                "total_worked": len(emp_routes)
+            })
+            total_missing += len(missing_days)
+    
+    # Ordenar por quantidade de faltas (maior primeiro)
+    report_data.sort(key=lambda x: x["total_missing"], reverse=True)
+    
+    # Nome do mês em português
+    month_names = {
+        1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
+        5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
+        9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
+    }
+    
+    return templates.TemplateResponse("lider_rotas_relatorio.html", {
+        "request": request,
+        "user": user,
+        "report_data": report_data,
+        "month": month,
+        "year": year,
+        "shift": shift,
+        "month_name": month_names.get(month, str(month)),
+        "total_days": len(all_days),
+        "total_employees": len(employees),
+        "total_missing": total_missing,
+        "generated_at": now.strftime("%d/%m/%Y %H:%M"),
     })
 
 
