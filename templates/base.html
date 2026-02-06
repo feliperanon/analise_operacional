@@ -96,10 +96,10 @@
                 </div>
                 <!-- Shift Progress -->
                 <div class="mt-2">
-                    <div class="flex justify-between text-[9px] text-slate-600 mb-0.5">
-                        <span id="sidebar-shift-start">06:00</span>
+                    <div class="flex justify-between items-center text-[9px] mb-0.5">
+                        <span id="sidebar-shift-start" class="text-[11px] font-bold text-white">05:00</span>
                         <span id="sidebar-shift-progress-text" class="text-slate-500">--% do turno</span>
-                        <span id="sidebar-shift-end">14:00</span>
+                        <span id="sidebar-shift-end" class="text-slate-600">13:20</span>
                     </div>
                     <div class="w-full h-1 bg-slate-700 rounded-full overflow-hidden">
                         <div id="sidebar-shift-bar" class="h-full bg-blue-500 rounded-full transition-all duration-1000" style="width: 0%"></div>
@@ -539,26 +539,40 @@
 
     <script>
     // ========== SIDEBAR CLOCK & SHIFT INDICATOR ==========
-    function getCurrentShiftInfo(hour) {
-        if (hour >= 6 && hour < 14) return { name: 'Manha', color: 'blue', start: 6, end: 14 };
-        if (hour >= 14 && hour < 22) return { name: 'Tarde', color: 'orange', start: 14, end: 22 };
-        return { name: 'Noite', color: 'purple', start: 22, end: 6 };
+    // Horários dos turnos: Manhã 05:00-13:20, Tarde 12:00-20:20, Noite 18:00-06:00
+    function getCurrentShiftInfo(hour, minute) {
+        var currentMinutes = hour * 60 + (minute || 0);
+        // Manhã: 05:00 - 13:20 (300 - 800 min)
+        if (currentMinutes >= 300 && currentMinutes < 800) {
+            return { name: 'Manhã', color: 'blue', startH: 5, startM: 0, endH: 13, endM: 20 };
+        }
+        // Tarde: 12:00 - 20:20 (720 - 1220 min)
+        if (currentMinutes >= 720 && currentMinutes < 1220) {
+            return { name: 'Tarde', color: 'orange', startH: 12, startM: 0, endH: 20, endM: 20 };
+        }
+        // Noite: 18:00 - 06:00
+        return { name: 'Noite', color: 'purple', startH: 18, startM: 0, endH: 6, endM: 0 };
+    }
+    
+    function formatShiftTime(h, m) {
+        return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
     }
 
     function getShiftProgressPercent(hour, minute) {
-        var shift = getCurrentShiftInfo(hour);
+        var shift = getCurrentShiftInfo(hour, minute);
         var currentMinutes = hour * 60 + minute;
-        var startMinutes = shift.start * 60;
-        var endMinutes = shift.end * 60;
+        var startMinutes = shift.startH * 60 + shift.startM;
+        var endMinutes = shift.endH * 60 + shift.endM;
         
+        // Handle night shift crossing midnight (18:00 - 06:00 = 12 horas)
         if (shift.name === 'Noite') {
-            if (hour >= 22) {
-                currentMinutes = (hour - 22) * 60 + minute;
+            if (hour >= 18) {
+                currentMinutes = (hour - 18) * 60 + minute;
             } else {
-                currentMinutes = (hour + 2) * 60 + minute;
+                currentMinutes = (hour + 6) * 60 + minute;
             }
             startMinutes = 0;
-            endMinutes = 8 * 60;
+            endMinutes = 12 * 60; // 12 hours
         }
         
         var total = endMinutes - startMinutes;
@@ -585,7 +599,7 @@
         var dateEl = document.getElementById('sidebar-date');
         if (dateEl) dateEl.textContent = dateStr;
         
-        var shift = getCurrentShiftInfo(hours);
+        var shift = getCurrentShiftInfo(hours, minutes);
         var progress = getShiftProgressPercent(hours, minutes);
         
         var shiftNameEl = document.getElementById('sidebar-shift-name');
@@ -596,8 +610,8 @@
         var shiftProgressTextEl = document.getElementById('sidebar-shift-progress-text');
         
         if (shiftNameEl) shiftNameEl.textContent = shift.name;
-        if (shiftStartEl) shiftStartEl.textContent = String(shift.start).padStart(2, '0') + ':00';
-        if (shiftEndEl) shiftEndEl.textContent = String(shift.end).padStart(2, '0') + ':00';
+        if (shiftStartEl) shiftStartEl.textContent = formatShiftTime(shift.startH, shift.startM);
+        if (shiftEndEl) shiftEndEl.textContent = formatShiftTime(shift.endH, shift.endM);
         if (shiftProgressTextEl) shiftProgressTextEl.textContent = progress + '% do turno';
         
         // Update colors
