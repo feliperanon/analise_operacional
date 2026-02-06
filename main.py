@@ -1956,10 +1956,49 @@ async def index(request: Request, shift: str = "Todos", session: Session = Depen
     # Vacation (Active)
     on_vacation = [e for e in employees if e.status == 'vacation']
     
+    # Vencimentos de Experiência (45 e 90 dias)
+    experience_expiring = []
+    for emp in employees:
+        if emp.admission_date and emp.status == 'active':
+            adm_date = emp.admission_date
+            if hasattr(adm_date, 'tzinfo') and adm_date.tzinfo:
+                adm_date = adm_date.replace(tzinfo=None)
+            
+            days_employed = (today.replace(tzinfo=None) - adm_date).days
+            
+            # Calcular vencimentos próximos (dentro dos próximos 15 dias)
+            days_to_45 = 45 - days_employed
+            days_to_90 = 90 - days_employed
+            
+            if 0 <= days_to_45 <= 15:
+                experience_expiring.append({
+                    "name": emp.name.split()[0],
+                    "full_name": emp.name,
+                    "photo": emp.photo_url,
+                    "days": days_to_45,
+                    "type": "45",
+                    "date": (adm_date + timedelta(days=45)).strftime('%d/%m'),
+                    "role": emp.role
+                })
+            elif 0 <= days_to_90 <= 15:
+                experience_expiring.append({
+                    "name": emp.name.split()[0],
+                    "full_name": emp.name,
+                    "photo": emp.photo_url,
+                    "days": days_to_90,
+                    "type": "90",
+                    "date": (adm_date + timedelta(days=90)).strftime('%d/%m'),
+                    "role": emp.role
+                })
+    
+    # Ordenar por dias restantes (mais urgentes primeiro)
+    experience_expiring.sort(key=lambda x: x["days"])
+    
     # Attach to data object
     data["hr"] = {
         "birthdays": [{"name": e.name.split()[0], "day": e.birthday.day, "photo": e.photo_url} for e in birthdays],
-        "vacation": [{"name": e.name.split()[0], "photo": e.photo_url} for e in on_vacation]
+        "vacation": [{"name": e.name.split()[0], "photo": e.photo_url} for e in on_vacation],
+        "experience_expiring": experience_expiring
     }
 
     return templates.TemplateResponse("index.html", {
@@ -3294,6 +3333,104 @@ async def admin_turnover_export(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+
+@app.post("/admin/turnover-analysis/update-dates")
+async def admin_turnover_update_dates(
+    request: Request,
+    session: Session = Depends(get_session),
+    user=Depends(require_admin)
+):
+    """Atualiza as datas de saída de colaboradores em lote."""
+    try:
+        form_data = await request.form()
+        updated_count = 0
+        
+        for key, value in form_data.items():
+            if key.startswith("date_") and value:
+                registration_id = key.replace("date_", "")
+                # Buscar o colaborador
+                employee = session.exec(
+                    select(models.Employee).where(
+                        models.Employee.registration_id == registration_id
+                    )
+                ).first()
+                
+                if employee:
+                    # Converter a data (formato YYYY-MM-DD do input type="date")
+                    try:
+                        from datetime import datetime as dt
+                        date_value = dt.strptime(value, "%Y-%m-%d")
+                        employee.termination_date = date_value
+                        session.add(employee)
+                        updated_count += 1
+                    except ValueError:
+                        continue  # Ignora datas inválidas
+        
+        session.commit()
+        
+        return JSONResponse({
+            "success": True,
+            "message": f"{updated_count} data(s) atualizada(s) com sucesso.",
+            "updated_count": updated_count
+        })
+        
+    except Exception as e:
+        return JSONResponse({
+            "success": False,
+            "error": str(e)
+        }, status_code=500)
+
+
+@app.post("/admin/turnover-analysis/fix-dates")
+async def admin_turnover_fix_dates(
+    request: Request,
+    session: Session = Depends(get_session),
+    user=Depends(require_admin)
+):
+    """Corrige as datas de saída de colaboradores demitidos usando a data do evento de demissão."""
+    try:
+        # Buscar colaboradores demitidos/afastados sem termination_date
+        employees = session.exec(
+            select(models.Employee).where(
+                models.Employee.status.in_(['fired', 'away']),
+                models.Employee.termination_date == None
+            )
+        ).all()
+        
+        updated_count = 0
+        
+        for emp in employees:
+            # Buscar evento de demissão/afastamento mais recente do colaborador
+            event = session.exec(
+                select(models.Event).where(
+                    models.Event.employee_id == emp.id,
+                    models.Event.type.in_(['demissao', 'afastamento'])
+                ).order_by(models.Event.timestamp.desc())
+            ).first()
+            
+            if event and event.timestamp:
+                emp.termination_date = event.timestamp
+            else:
+                # Fallback: usar data atual
+                emp.termination_date = datetime.now()
+            
+            session.add(emp)
+            updated_count += 1
+        
+        session.commit()
+        
+        return JSONResponse({
+            "success": True,
+            "message": f"{updated_count} data(s) corrigida(s) com sucesso.",
+            "updated_count": updated_count
+        })
+        
+    except Exception as e:
+        return JSONResponse({
+            "success": False,
+            "error": str(e)
+        }, status_code=500)
 
 
 @app.get("/admin/users", response_class=HTMLResponse)
@@ -16157,6 +16294,15 @@ async def update_employee_status(
             )
             session.add(new_event)
             emp.status = status_action
+            
+            # Preencher termination_date automaticamente para demissão/afastamento
+            if status_action in ("fired", "away"):
+                if not emp.termination_date:
+                    emp.termination_date = datetime.now()
+            # Limpar termination_date se reativar
+            elif status_action == "active":
+                emp.termination_date = None
+            
             session.add(emp)
         session.commit()
     return RedirectResponse(url="/employees", status_code=status.HTTP_303_SEE_OTHER)

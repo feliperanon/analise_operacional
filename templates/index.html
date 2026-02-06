@@ -265,6 +265,43 @@
                     </div>
                 </div>
 
+                <!-- Vencimentos de Experiência Card -->
+                <div class="bg-slate-800/80 backdrop-blur rounded-2xl border border-slate-700 overflow-hidden">
+                    <div class="p-4 border-b border-slate-700 flex items-center justify-between bg-amber-500/5">
+                        <h3 class="font-bold text-amber-200 text-sm uppercase">Venc. Experiência</h3>
+                        <i data-lucide="clock-alert" class="w-4 h-4 text-amber-400"></i>
+                    </div>
+                    <div class="p-4 space-y-3 max-h-60 overflow-y-auto custom-scrollbar">
+                        {% if dashboard.hr.experience_expiring|length == 0 %}
+                        <p class="text-xs text-slate-500 text-center py-2">Sem vencimentos próximos.</p>
+                        {% else %}
+                        {% for exp in dashboard.hr.experience_expiring %}
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold shrink-0 {% if exp.days <= 3 %}ring-2 ring-red-500{% elif exp.days <= 7 %}ring-2 ring-amber-500{% endif %}">
+                                {% if exp.photo %}
+                                <img src="{{ exp.photo }}" class="w-full h-full rounded-full object-cover">
+                                {% else %}
+                                {{ exp.name[0] }}
+                                {% endif %}
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium text-slate-300 truncate" title="{{ exp.full_name }}">{{ exp.name }}</p>
+                                <p class="text-[10px] text-slate-500">{{ exp.role }}</p>
+                            </div>
+                            <div class="text-right flex-shrink-0">
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {% if exp.days <= 3 %}bg-red-500/20 text-red-400{% elif exp.days <= 7 %}bg-amber-500/20 text-amber-400{% else %}bg-blue-500/20 text-blue-400{% endif %}">
+                                    {{ exp.type }} dias
+                                </span>
+                                <p class="text-[10px] {% if exp.days <= 3 %}text-red-400{% elif exp.days <= 7 %}text-amber-400{% else %}text-slate-500{% endif %} mt-0.5">
+                                    {% if exp.days == 0 %}HOJE{% elif exp.days == 1 %}Amanhã{% else %}{{ exp.days }}d ({{ exp.date }}){% endif %}
+                                </p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+
             </div>
         </div>
 
