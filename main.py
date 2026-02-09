@@ -4587,6 +4587,15 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
                 "enabled": bool(employee.mobile_access_admin_start),
                 "action": "open_admin_start_modal"
             },
+            {
+                "key": "manage_routes",
+                "label": "Gerenciar Rotas",
+                "description": "Visualizar, editar e excluir rotas ativas.",
+                "icon": "list-checks",
+                "href": "/mobile/admin/routes",
+                "enabled": bool(employee.mobile_access_admin_start),
+                "action": "manage_routes"
+            },
             # Removido: Chamados de Equipamento (agora disponível no checklist)
             # {
             #     "key": "tickets",
@@ -17758,15 +17767,8 @@ async def mobile_admin_start_route(
                     models.EmployeeRoutine.date == today_str
                 )).first()
 
-        # 2. Check pending routes
-        pending = session.exec(select(models.Route).where(
-            models.Route.employee_id == target_emp.id,
-            models.Route.status == "pending"
-        )).first()
-        
-        if pending:
-            return JSONResponse({"error": "Colaborador já possui rota ativa"}, status_code=400)
-        
+
+        # 2. Create Route (Multiple routes allowed per employee)
         # 3. Create Route
         new_route = models.Route(
             employee_id=target_emp.id,
@@ -21946,3 +21948,278 @@ async def admin_pallet_count_close_ticket(
 # - @app.get("/mobile/pallets/count") - REMOVIDO
 # O novo sistema usa /mobile/pallet-count e /api/mobile/pallet-count
 # ============================================================================
+from pydantic import BaseModel
+from typing import Optional
+
+class RouteEditPayload(BaseModel):
+    employee_id: int
+    client_id: int
+    tonnage: Optional[float] = 0.0
+    reason: str
+
+class RouteDeletePayload(BaseModel):
+    reason: str
+
+
+# ============================================================================
+# MOBILE ADMIN - ROUTE MANAGEMENT
+# ============================================================================
+
+@app.get("/mobile/admin/routes", response_class=HTMLResponse)
+async def mobile_admin_routes_page(
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """Página de gestão de rotas para líderes"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    
+    try:
+        user_id = int(str(user_id))
+    except:
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    
+    employee = session.get(models.Employee, user_id)
+    if not employee or not employee.mobile_access:
+        return RedirectResponse(url="/mobile/login?error=access_revoked", status_code=303)
+    
+    if not getattr(employee, "mobile_access_admin_start", False):
+        return RedirectResponse(url="/mobile/dashboard?error=no_permission", status_code=303)
+    
+    return templates.TemplateResponse(
+        "mobile/admin_routes.html",
+        {
+            "request": request,
+            "employee": employee
+        }
+    )
+
+
+@app.get("/api/mobile/admin/routes")
+async def api_list_admin_routes(
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """API para listar rotas ativas e colaboradores sem rota"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse({"error": "Não autorizado"}, status_code=401)
+    
+    try:
+        user_id = int(str(user_id))
+    except:
+        return JSONResponse({"error": "ID inválido"}, status_code=400)
+    
+    current_emp = session.get(models.Employee, user_id)
+    if not current_emp or not getattr(current_emp, "mobile_access_admin_start", False):
+        return JSONResponse({"error": "Sem permissão"}, status_code=403)
+    
+    today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    
+    # Rotas ativas (pendentes) de hoje
+    active_routes = session.exec(
+        select(models.Route)
+        .where(
+            models.Route.date == today,
+            models.Route.status == "pending"
+        )
+        .order_by(models.Route.start_time)
+    ).all()
+    
+    routes_data = []
+    for route in active_routes:
+        emp = session.get(models.Employee, route.employee_id)
+        client = session.get(models.Client, route.client_id)
+        
+        routes_data.append({
+            "id": route.id,
+            "employee_id": route.employee_id,
+            "employee_name": emp.name if emp else "Desconhecido",
+            "employee_registration": emp.registration_id if emp else "N/A",
+            "client_id": route.client_id,
+            "client_name": client.name if client else "Desconhecido",
+            "tonnage": route.tonnage,
+            "start_time": route.start_time,
+            "shift": route.shift
+        })
+    
+    # Colaboradores ativos sem rota hoje
+    all_active_employees = session.exec(
+        select(models.Employee)
+        .where(
+            models.Employee.status == "active",
+            models.Employee.mobile_access == True
+        )
+    ).all()
+    
+    employees_with_route = {route.employee_id for route in active_routes}
+    
+    employees_without_route = []
+    for emp in all_active_employees:
+        if emp.id not in employees_with_route:
+            employees_without_route.append({
+                "id": emp.id,
+                "name": emp.name,
+                "registration_id": emp.registration_id,
+                "shift": emp.work_shift or "Manhã"
+            })
+    
+    # Buscar todos os clientes para os selects
+    all_clients = session.exec(select(models.Client).order_by(models.Client.name)).all()
+    clients_data = [{"id": c.id, "name": c.name} for c in all_clients]
+    
+    # Buscar todos os colaboradores ativos para os selects
+    all_employees_data = [
+        {
+            "id": e.id,
+            "name": e.name,
+            "registration_id": e.registration_id
+        }
+        for e in all_active_employees
+    ]
+    
+    return JSONResponse({
+        "success": True,
+        "active_routes": routes_data,
+        "employees_without_route": employees_without_route,
+        "all_clients": clients_data,
+        "all_employees": all_employees_data
+    })
+
+
+@app.post("/api/mobile/admin/routes/{route_id}/edit")
+async def api_edit_admin_route(
+    route_id: int,
+    payload: RouteEditPayload,
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """API para editar uma rota"""
+    try:
+        user_id = request.session.get("user_id")
+        if not user_id:
+            return JSONResponse({"error": "Não autorizado"}, status_code=401)
+        
+        try:
+            user_id = int(str(user_id))
+        except:
+            return JSONResponse({"error": "ID inválido"}, status_code=400)
+        
+        current_emp = session.get(models.Employee, user_id)
+        if not current_emp or not getattr(current_emp, "mobile_access_admin_start", False):
+            return JSONResponse({"error": "Sem permissão"}, status_code=403)
+        
+        # Validar justificativa
+        if not payload.reason or len(payload.reason.strip()) < 5:
+            return JSONResponse({"error": "Justificativa obrigatória (mínimo 5 caracteres)"}, status_code=400)
+        
+        # Buscar rota
+        route = session.get(models.Route, route_id)
+        if not route:
+            return JSONResponse({"error": "Rota não encontrada"}, status_code=404)
+        
+        # Validar colaborador
+        target_emp = session.get(models.Employee, payload.employee_id)
+        if not target_emp:
+            return JSONResponse({"error": "Colaborador não encontrado"}, status_code=404)
+        
+        # Validar cliente
+        client = session.get(models.Client, payload.client_id)
+        if not client:
+            return JSONResponse({"error": "Cliente não encontrado"}, status_code=404)
+        
+        # Registrar alterações
+        old_emp = session.get(models.Employee, route.employee_id)
+        old_client = session.get(models.Client, route.client_id)
+        
+        changes = []
+        if route.employee_id != payload.employee_id:
+            changes.append(f"Colaborador: {old_emp.name if old_emp else 'N/A'} → {target_emp.name}")
+        if route.client_id != payload.client_id:
+            changes.append(f"Cliente: {old_client.name if old_client else 'N/A'} → {client.name}")
+        if route.tonnage != payload.tonnage:
+            changes.append(f"Tonelagem: {route.tonnage} → {payload.tonnage}")
+        
+        # Atualizar rota
+        route.employee_id = payload.employee_id
+        route.client_id = payload.client_id
+        route.tonnage = payload.tonnage
+        session.add(route)
+        
+        # Log de auditoria
+        log = models.Event(
+            type="route_edit",
+            text=f"Rota #{route_id} editada por {current_emp.name}. Alterações: {'; '.join(changes)}. Justificativa: {payload.reason}",
+            category="processo",
+            sector="expedicao",
+            impact="medium",
+            employee_id=route.employee_id,
+            timestamp=datetime.now(ZoneInfo("America/Sao_Paulo"))
+        )
+        session.add(log)
+        
+        session.commit()
+        return JSONResponse({"success": True, "message": "Rota editada com sucesso"})
+        
+    except Exception as e:
+        logger.exception("Error editing route")
+        return JSONResponse({"error": f"Erro interno: {str(e)}"}, status_code=500)
+
+
+@app.post("/api/mobile/admin/routes/{route_id}/delete")
+async def api_delete_admin_route(
+    route_id: int,
+    payload: RouteDeletePayload,
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """API para excluir uma rota"""
+    try:
+        user_id = request.session.get("user_id")
+        if not user_id:
+            return JSONResponse({"error": "Não autorizado"}, status_code=401)
+        
+        try:
+            user_id = int(str(user_id))
+        except:
+            return JSONResponse({"error": "ID inválido"}, status_code=400)
+        
+        current_emp = session.get(models.Employee, user_id)
+        if not current_emp or not getattr(current_emp, "mobile_access_admin_start", False):
+            return JSONResponse({"error": "Sem permissão"}, status_code=403)
+        
+        # Validar justificativa
+        if not payload.reason or len(payload.reason.strip()) < 5:
+            return JSONResponse({"error": "Justificativa obrigatória (mínimo 5 caracteres)"}, status_code=400)
+        
+        # Buscar rota
+        route = session.get(models.Route, route_id)
+        if not route:
+            return JSONResponse({"error": "Rota não encontrada"}, status_code=404)
+        
+        # Guardar informações para log
+        emp = session.get(models.Employee, route.employee_id)
+        client = session.get(models.Client, route.client_id)
+        
+        # Log de auditoria
+        log = models.Event(
+            type="route_delete",
+            text=f"Rota #{route_id} excluída por {current_emp.name}. Colaborador: {emp.name if emp else 'N/A'}, Cliente: {client.name if client else 'N/A'}. Justificativa: {payload.reason}",
+            category="processo",
+            sector="expedicao",
+            impact="high",
+            employee_id=route.employee_id,
+            timestamp=datetime.now(ZoneInfo("America/Sao_Paulo"))
+        )
+        session.add(log)
+        
+        # Excluir rota
+        session.delete(route)
+        session.commit()
+        
+        return JSONResponse({"success": True, "message": "Rota excluída com sucesso"})
+        
+    except Exception as e:
+        logger.exception("Error deleting route")
+        return JSONResponse({"error": f"Erro interno: {str(e)}"}, status_code=500)

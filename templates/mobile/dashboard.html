@@ -250,6 +250,21 @@
                 <i data-lucide="chevron-right"
                     class="w-5 h-5 text-slate-500 group-hover:text-white transition-colors relative z-10"></i>
             </button>
+            {% elif module.action == "manage_routes" %}
+            <a href="/mobile/admin/routes"
+                class="w-full group relative overflow-hidden p-4 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-purple-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg text-left flex items-center gap-4">
+                <div
+                    class="w-14 h-14 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-300 group-hover:bg-purple-500 group-hover:text-white transition-colors shrink-0 z-10">
+                    <i data-lucide="{{ module.icon }}" class="w-7 h-7"></i>
+                </div>
+                <div class="relative z-10 flex-1">
+                    <p class="font-bold text-lg text-slate-100 group-hover:text-white transition-colors">{{ module.label
+                        }}</p>
+                    <p class="text-sm text-slate-400 group-hover:text-slate-300">{{ module.description }}</p>
+                </div>
+                <i data-lucide="chevron-right"
+                    class="w-5 h-5 text-slate-500 group-hover:text-white transition-colors relative z-10"></i>
+            </a>
             {% else %}
             <a href="{{ module.href }}"
                 class="w-full group relative overflow-hidden p-4 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-indigo-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg text-left flex items-center gap-4">
