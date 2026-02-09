@@ -57,15 +57,41 @@
                 {% endif %}
 
                 {% if current_activity %}
-                <div class="w-full mt-2 bg-slate-700/30 p-2 rounded-lg border border-slate-600/50">
-                    <p class="text-xs text-slate-400 font-bold uppercase mb-0.5">Atividade Atual</p>
-                    <p class="text-white text-sm">
-                        {{ current_activity.name }}
-                        {% if current_activity.observation %}
-                        <span class="block text-xs text-slate-400 font-normal mt-0.5 whitespace-pre-line">Obs: {{
-                            current_activity.observation }}</span>
-                        {% endif %}
-                    </p>
+                <div
+                    class="w-full mt-2 bg-slate-700/30 p-2 rounded-lg border border-slate-600/50 flex justify-between items-start">
+                    <div>
+                        <p class="text-xs text-slate-400 font-bold uppercase mb-0.5">Atividade Atual</p>
+                        <p class="text-white text-sm">
+                            {{ current_activity.name }}
+                            {% if current_activity.observation %}
+                            <span class="block text-xs text-slate-400 font-normal mt-0.5 whitespace-pre-line">Obs: {{
+                                current_activity.observation }}</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    {% if current_activity.type == 'route' and emp.mobile_access_admin_start %}
+                    <div class="flex items-center gap-1 shrink-0 ml-2">
+                        <button
+                            onclick="openEditRouteAdmin('{{ current_activity.id }}', '{{ current_activity.client_id }}', '{{ current_activity.tonnage }}')"
+                            class="p-1.5 hover:bg-slate-600 rounded-lg text-slate-400 hover:text-blue-400 transition"
+                            title="Editar Rotina">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                                </path>
+                            </svg>
+                        </button>
+                        <button onclick="confirmDeleteRouteAdmin('{{ current_activity.id }}')"
+                            class="p-1.5 hover:bg-slate-600 rounded-lg text-slate-400 hover:text-red-400 transition"
+                            title="Excluir Rotina">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+                    {% endif %}
                 </div>
                 {% endif %}
 
@@ -101,6 +127,16 @@
                 </svg>
                 Lançar Rotina
             </button>
+            {% if emp.mobile_access_admin_start %}
+            <button onclick="openStartRouteModal()"
+                class="text-white hover:text-indigo-400 flex items-center gap-1 text-sm bg-indigo-600/50 hover:bg-indigo-600/80 px-4 py-2 rounded-lg transition-colors border border-indigo-500/30">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Iniciar Separação
+            </button>
+            {% endif %}
             <button onclick="openHeaderEdit()"
                 class="text-white hover:text-blue-400 flex items-center gap-1 text-sm bg-blue-600/50 hover:bg-blue-600/80 px-4 py-2 rounded-lg transition-colors border border-blue-500/30">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,18 +169,18 @@
                 </svg>
             </div>
             <div class="flex-1">
-                {% if emp.vacation_start.date() <= today_date %}
-                <h3 class="text-sm font-bold text-orange-300 mb-1">🏖️ Em Férias</h3>
-                {% else %}
-                <h3 class="text-sm font-bold text-orange-300 mb-1">🏖️ Férias Programadas</h3>
-                {% endif %}
-                <p class="text-white font-medium">
-                    {{ emp.vacation_start.strftime('%d/%m/%Y') }} até {{ emp.vacation_end.strftime('%d/%m/%Y') }}
-                </p>
-                <p class="text-xs text-orange-400/70 mt-1">
-                    {% set days_diff = (emp.vacation_end - emp.vacation_start).days + 1 %}
-                    {{ days_diff }} dia{{ 's' if days_diff != 1 else '' }} de férias
-                </p>
+                {% if emp.vacation_start.date() <= today_date %} <h3 class="text-sm font-bold text-orange-300 mb-1">🏖️
+                    Em Férias</h3>
+                    {% else %}
+                    <h3 class="text-sm font-bold text-orange-300 mb-1">🏖️ Férias Programadas</h3>
+                    {% endif %}
+                    <p class="text-white font-medium">
+                        {{ emp.vacation_start.strftime('%d/%m/%Y') }} até {{ emp.vacation_end.strftime('%d/%m/%Y') }}
+                    </p>
+                    <p class="text-xs text-orange-400/70 mt-1">
+                        {% set days_diff = (emp.vacation_end - emp.vacation_start).days + 1 %}
+                        {{ days_diff }} dia{{ 's' if days_diff != 1 else '' }} de férias
+                    </p>
             </div>
         </div>
     </div>
@@ -156,43 +192,48 @@
         <div class="flex items-center gap-3 mb-3">
             <div class="bg-purple-500/20 p-3 rounded-lg">
                 <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                 </svg>
             </div>
             <h3 class="text-sm font-bold text-purple-300">📋 Histórico de Substituição</h3>
         </div>
-        
+
         {% if substitution_info %}
         <div class="bg-slate-800/50 rounded-lg p-3 mb-2">
             <p class="text-xs text-slate-400 uppercase font-bold mb-1">Este colaborador entrou como substituto</p>
             <div class="flex items-center gap-2 text-white">
                 <span class="text-sm">Substituiu</span>
-                <a href="/employees/{{ substitution_info.original_id }}" class="font-bold text-purple-400 hover:text-purple-300 transition">
+                <a href="/employees/{{ substitution_info.original_id }}"
+                    class="font-bold text-purple-400 hover:text-purple-300 transition">
                     {{ substitution_info.original_name }}
                 </a>
                 <span class="text-xs text-slate-500">(Mat: {{ substitution_info.original_registration }})</span>
             </div>
             <div class="flex items-center gap-3 mt-2 text-xs">
-                <span class="px-2 py-0.5 rounded bg-{% if substitution_info.reason == 'Demissão' %}red{% else %}amber{% endif %}-500/20 text-{% if substitution_info.reason == 'Demissão' %}red{% else %}amber{% endif %}-400 border border-{% if substitution_info.reason == 'Demissão' %}red{% else %}amber{% endif %}-500/30">
+                <span
+                    class="px-2 py-0.5 rounded bg-{% if substitution_info.reason == 'Demissão' %}red{% else %}amber{% endif %}-500/20 text-{% if substitution_info.reason == 'Demissão' %}red{% else %}amber{% endif %}-400 border border-{% if substitution_info.reason == 'Demissão' %}red{% else %}amber{% endif %}-500/30">
                     {{ substitution_info.reason }}
                 </span>
                 <span class="text-slate-500">em {{ substitution_info.date }}</span>
             </div>
         </div>
         {% endif %}
-        
+
         {% if replaced_employee %}
         <div class="bg-slate-800/50 rounded-lg p-3">
             <p class="text-xs text-slate-400 uppercase font-bold mb-1">Este colaborador foi substituído</p>
             <div class="flex items-center gap-2 text-white">
                 <span class="text-sm">Substituído por</span>
-                <a href="/employees/{{ replaced_employee.new_id }}" class="font-bold text-green-400 hover:text-green-300 transition">
+                <a href="/employees/{{ replaced_employee.new_id }}"
+                    class="font-bold text-green-400 hover:text-green-300 transition">
                     {{ replaced_employee.new_name }}
                 </a>
                 <span class="text-xs text-slate-500">(Mat: {{ replaced_employee.new_registration }})</span>
             </div>
             <div class="flex items-center gap-3 mt-2 text-xs">
-                <span class="px-2 py-0.5 rounded bg-{% if replaced_employee.reason == 'Demissão' %}red{% else %}amber{% endif %}-500/20 text-{% if replaced_employee.reason == 'Demissão' %}red{% else %}amber{% endif %}-400 border border-{% if replaced_employee.reason == 'Demissão' %}red{% else %}amber{% endif %}-500/30">
+                <span
+                    class="px-2 py-0.5 rounded bg-{% if replaced_employee.reason == 'Demissão' %}red{% else %}amber{% endif %}-500/20 text-{% if replaced_employee.reason == 'Demissão' %}red{% else %}amber{% endif %}-400 border border-{% if replaced_employee.reason == 'Demissão' %}red{% else %}amber{% endif %}-500/30">
                     {{ replaced_employee.reason }}
                 </span>
                 <span class="text-slate-500">em {{ replaced_employee.date }}</span>
@@ -247,7 +288,8 @@
                     <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
             </div>
-            <div class="text-slate-400 text-sm mb-1 font-bold uppercase tracking-wider">Faltas ({{ absence_period_label }})</div>
+            <div class="text-slate-400 text-sm mb-1 font-bold uppercase tracking-wider">Faltas ({{ absence_period_label
+                }})</div>
             <div class="text-2xl font-bold text-white group-hover:text-red-400 transition">{{ stats.faltas }}</div>
         </div>
         <div onclick="openHistory('atestado', 'Histórico de Atestados ({{ absence_period_label }})')"
@@ -257,7 +299,8 @@
                     <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
                 </svg>
             </div>
-            <div class="text-slate-400 text-sm mb-1 font-bold uppercase tracking-wider">Atestados ({{ absence_period_label }})</div>
+            <div class="text-slate-400 text-sm mb-1 font-bold uppercase tracking-wider">Atestados ({{
+                absence_period_label }})</div>
             <div class="text-2xl font-bold text-white group-hover:text-cyan-400 transition">{{ stats.atestados }}</div>
         </div>
         <div onclick="openHistory('ferias', 'Histórico de Férias')"
@@ -279,8 +322,10 @@
                     <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
             </div>
-            <div class="text-slate-400 text-sm mb-1 font-bold uppercase tracking-wider">Rotinas ({{ absence_period_label }})</div>
-            <div class="text-2xl font-bold text-white group-hover:text-emerald-400 transition">{{ stats.rotinas_periodo }}
+            <div class="text-slate-400 text-sm mb-1 font-bold uppercase tracking-wider">Rotinas ({{ absence_period_label
+                }})</div>
+            <div class="text-2xl font-bold text-white group-hover:text-emerald-400 transition">{{ stats.rotinas_periodo
+                }}
             </div>
         </div>
     </div>
@@ -735,8 +780,9 @@
                             <div class="flex flex-col justify-end pb-2 space-y-3">
                                 <label class="flex items-center gap-3 cursor-pointer group">
                                     <div class="relative">
-                                        <input type="checkbox" name="mobile_access_separation" value="true" class="sr-only peer"
-                                            {% if emp.mobile_access_separation %}checked{% endif %}>
+                                        <input type="checkbox" name="mobile_access_separation" value="true"
+                                            class="sr-only peer" {% if emp.mobile_access_separation %}checked{% endif
+                                            %}>
                                         <div
                                             class="w-10 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
                                         </div>
@@ -747,8 +793,8 @@
                                 </label>
                                 <label class="flex items-center gap-3 cursor-pointer group">
                                     <div class="relative">
-                                        <input type="checkbox" name="mobile_access_checklist" value="true" class="sr-only peer"
-                                            {% if emp.mobile_access_checklist %}checked{% endif %}>
+                                        <input type="checkbox" name="mobile_access_checklist" value="true"
+                                            class="sr-only peer" {% if emp.mobile_access_checklist %}checked{% endif %}>
                                         <div
                                             class="w-10 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
                                         </div>
@@ -756,6 +802,19 @@
                                     <span
                                         class="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">App
                                         Checklist Operacional</span>
+                                </label>
+                                <label class="flex items-center gap-3 cursor-pointer group">
+                                    <div class="relative">
+                                        <input type="checkbox" name="mobile_access_admin_start" value="true"
+                                            class="sr-only peer" {% if emp.mobile_access_admin_start %}checked{% endif
+                                            %}>
+                                        <div
+                                            class="w-10 h-6 bg-slate-700 rounded-full peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+                                        </div>
+                                    </div>
+                                    <span
+                                        class="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">Permitir
+                                        Abertura Manual (Líder)</span>
                                 </label>
                             </div>
                         </div>
@@ -1118,135 +1177,136 @@
             <div class="text-slate-500 text-sm italic">Nenhum evento registrado no prontuário.</div>
             {% endfor %}
         </div>
-    {% if absence_debug %}
-    <details class="bg-slate-800/60 border border-slate-700 rounded-2xl p-4 text-xs text-slate-300">
-        <summary class="cursor-pointer text-slate-400 font-semibold">Debug ausências (DEV)</summary>
-        {% if absence_debug_info %}
-        <div class="mt-2 grid gap-1 text-slate-400">
-            <div>ID: {{ absence_debug_info.employee_id }}</div>
-            <div>Matrícula: {{ absence_debug_info.registration_id or '-' }}</div>
-            <div>Rotinas no período: {{ absence_debug_info.routine_count }}</div>
-            <div>Eventos no período: {{ absence_debug_info.event_count }}</div>
-        </div>
+        {% if absence_debug %}
+        <details class="bg-slate-800/60 border border-slate-700 rounded-2xl p-4 text-xs text-slate-300">
+            <summary class="cursor-pointer text-slate-400 font-semibold">Debug ausências (DEV)</summary>
+            {% if absence_debug_info %}
+            <div class="mt-2 grid gap-1 text-slate-400">
+                <div>ID: {{ absence_debug_info.employee_id }}</div>
+                <div>Matrícula: {{ absence_debug_info.registration_id or '-' }}</div>
+                <div>Rotinas no período: {{ absence_debug_info.routine_count }}</div>
+                <div>Eventos no período: {{ absence_debug_info.event_count }}</div>
+            </div>
+            {% endif %}
+            {% if absence_debug_unknown_labels %}
+            <div class="mt-3 text-slate-400">Labels não classificadas:</div>
+            <div class="mt-1 grid gap-1 text-slate-300">
+                {% for item in absence_debug_unknown_labels %}
+                <div>• {{ item.label }} ({{ item.count }})</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div class="mt-3 text-slate-400">Mapa de ausências por dia:</div>
+            {% if absence_day_map %}
+            <div class="mt-1 grid gap-1 text-slate-300">
+                {% for item in absence_day_map %}
+                <div>• {{ item.date }} · {{ item.group }} · {{ item.source }} · #{{ item.record_id }}</div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="mt-1 text-slate-500">Sem ausências registradas no período.</div>
+            {% endif %}
+        </details>
         {% endif %}
-        {% if absence_debug_unknown_labels %}
-        <div class="mt-3 text-slate-400">Labels não classificadas:</div>
-        <div class="mt-1 grid gap-1 text-slate-300">
-            {% for item in absence_debug_unknown_labels %}
-            <div>• {{ item.label }} ({{ item.count }})</div>
-            {% endfor %}
-        </div>
-        {% endif %}
-        <div class="mt-3 text-slate-400">Mapa de ausências por dia:</div>
-        {% if absence_day_map %}
-        <div class="mt-1 grid gap-1 text-slate-300">
-            {% for item in absence_day_map %}
-            <div>• {{ item.date }} · {{ item.group }} · {{ item.source }} · #{{ item.record_id }}</div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="mt-1 text-slate-500">Sem ausências registradas no período.</div>
-        {% endif %}
-    </details>
-    {% endif %}
-</div>
+    </div>
 
-<!-- Bottom Sheet para Lançar Rotinas (similar ao Smart Flow) -->
-<div id="sheet-backdrop"
-    class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] transition-opacity duration-300 opacity-0 pointer-events-none"
-    onclick="closeRoutineSheet()"></div>
+    <!-- Bottom Sheet para Lançar Rotinas (similar ao Smart Flow) -->
+    <div id="sheet-backdrop"
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] transition-opacity duration-300 opacity-0 pointer-events-none"
+        onclick="closeRoutineSheet()"></div>
 
-<div id="employee-bottom-sheet"
-    class="fixed inset-x-0 bottom-0 z-[101] transform translate-y-full transition-transform duration-300 ease-out safe-area-bottom">
-    <div class="bg-slate-800 border-t border-slate-700 rounded-t-3xl shadow-2xl p-6 pb-8 w-full max-w-3xl mx-auto max-h-[90vh] overflow-y-auto">
-        <div class="w-12 h-1.5 bg-slate-600 rounded-full mx-auto mb-6"></div>
-        <div id="sheet-content">
-            <!-- Conteúdo será injetado via JavaScript -->
+    <div id="employee-bottom-sheet"
+        class="fixed inset-x-0 bottom-0 z-[101] transform translate-y-full transition-transform duration-300 ease-out safe-area-bottom">
+        <div
+            class="bg-slate-800 border-t border-slate-700 rounded-t-3xl shadow-2xl p-6 pb-8 w-full max-w-3xl mx-auto max-h-[90vh] overflow-y-auto">
+            <div class="w-12 h-1.5 bg-slate-600 rounded-full mx-auto mb-6"></div>
+            <div id="sheet-content">
+                <!-- Conteúdo será injetado via JavaScript -->
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Scripts do Smart Flow para funcionalidade de rotinas -->
-<script src="/static/js/smart-flow/api.js?v=20260102X"></script>
-<script src="/static/js/smart-flow/store.js?v=20260122B"></script>
-<script src="/static/js/smart-flow/render.js?v=20260102X"></script>
-<script src="/static/js/smart-flow/events.js?v=20260122A"></script>
+    <!-- Scripts do Smart Flow para funcionalidade de rotinas -->
+    <script src="/static/js/smart-flow/api.js?v=20260102X"></script>
+    <script src="/static/js/smart-flow/store.js?v=20260122B"></script>
+    <script src="/static/js/smart-flow/render.js?v=20260102X"></script>
+    <script src="/static/js/smart-flow/events.js?v=20260122A"></script>
 
-<script>
-    // Dados do colaborador
-    const employeeData = {
-        id: {{ emp.id }},
+    <script>
+        // Dados do colaborador
+        const employeeData = {
+            id: {{ emp.id }},
         registration_id: "{{ emp.registration_id }}",
-        name: "{{ emp.name|replace('"', '\\"') }}",
-        role: "{{ emp.role|replace('"', '\\"') }}",
-        shift: "{{ emp.work_shift or 'Manhã' }}",
-        status: "{{ emp.status }}"
-    };
+            name: "{{ emp.name|replace('"', '\\"') }}",
+                role: "{{ emp.role|replace('"', '\\"') }}",
+                    shift: "{{ emp.work_shift or 'Manhã' }}",
+                        status: "{{ emp.status }}"
+        };
 
-    // Função para inicializar Store quando scripts carregarem
-    function initializeStore() {
-        if (typeof Store !== 'undefined' && Store.state) {
-            // Adicionar colaborador ao Store se não existir
-            const exists = Store.state.employees.find(e => e.id == employeeData.id);
-            if (!exists) {
-                Store.state.employees.push(employeeData);
-            }
-            
-            // Inicializar data e turno se necessário
-            if (!Store.state.currentDate) {
-                Store.state.currentDate = new Date().toISOString().split('T')[0];
-            }
-            if (!Store.state.currentShift) {
-                Store.state.currentShift = employeeData.shift;
-            }
-            
-            // Inicializar estruturas se necessário
-            if (!Store.state.routines) Store.state.routines = {};
-            if (!Store.state.activities) Store.state.activities = {};
-            
-            return true;
-        }
-        return false;
-    }
+        // Função para inicializar Store quando scripts carregarem
+        function initializeStore() {
+            if (typeof Store !== 'undefined' && Store.state) {
+                // Adicionar colaborador ao Store se não existir
+                const exists = Store.state.employees.find(e => e.id == employeeData.id);
+                if (!exists) {
+                    Store.state.employees.push(employeeData);
+                }
 
-    // Tentar inicializar imediatamente ou aguardar carregamento
-    if (!initializeStore()) {
-        // Aguardar scripts carregarem
-        const checkInterval = setInterval(() => {
-            if (initializeStore()) {
-                clearInterval(checkInterval);
-            }
-        }, 100);
-        
-        // Timeout após 5 segundos
-        setTimeout(() => clearInterval(checkInterval), 5000);
-    }
+                // Inicializar data e turno se necessário
+                if (!Store.state.currentDate) {
+                    Store.state.currentDate = new Date().toISOString().split('T')[0];
+                }
+                if (!Store.state.currentShift) {
+                    Store.state.currentShift = employeeData.shift;
+                }
 
-    // Função para abrir o bottom sheet
-    function openRoutineSheet() {
-        // Garantir que Store está inicializado
-        initializeStore();
-        
-        const sheet = document.getElementById('employee-bottom-sheet');
-        const backdrop = document.getElementById('sheet-backdrop');
-        const content = document.getElementById('sheet-content');
-        
-        if (!sheet || !backdrop || !content) {
-            console.error('Elementos do bottom sheet não encontrados');
-            return;
+                // Inicializar estruturas se necessário
+                if (!Store.state.routines) Store.state.routines = {};
+                if (!Store.state.activities) Store.state.activities = {};
+
+                return true;
+            }
+            return false;
         }
 
-        // Usar Render do Smart Flow se disponível
-        if (typeof Render !== 'undefined' && Render.openBottomSheet) {
-            Render.openBottomSheet(employeeData);
-        } else if (typeof Render !== 'undefined' && Render.buildSheetContent) {
-            // Fallback: usar buildSheetContent diretamente
-            content.innerHTML = Render.buildSheetContent(employeeData);
-            backdrop.classList.remove('opacity-0', 'pointer-events-none');
-            sheet.classList.remove('translate-y-full');
-        } else {
-            // Fallback básico
-            content.innerHTML = `
+        // Tentar inicializar imediatamente ou aguardar carregamento
+        if (!initializeStore()) {
+            // Aguardar scripts carregarem
+            const checkInterval = setInterval(() => {
+                if (initializeStore()) {
+                    clearInterval(checkInterval);
+                }
+            }, 100);
+
+            // Timeout após 5 segundos
+            setTimeout(() => clearInterval(checkInterval), 5000);
+        }
+
+        // Função para abrir o bottom sheet
+        function openRoutineSheet() {
+            // Garantir que Store está inicializado
+            initializeStore();
+
+            const sheet = document.getElementById('employee-bottom-sheet');
+            const backdrop = document.getElementById('sheet-backdrop');
+            const content = document.getElementById('sheet-content');
+
+            if (!sheet || !backdrop || !content) {
+                console.error('Elementos do bottom sheet não encontrados');
+                return;
+            }
+
+            // Usar Render do Smart Flow se disponível
+            if (typeof Render !== 'undefined' && Render.openBottomSheet) {
+                Render.openBottomSheet(employeeData);
+            } else if (typeof Render !== 'undefined' && Render.buildSheetContent) {
+                // Fallback: usar buildSheetContent diretamente
+                content.innerHTML = Render.buildSheetContent(employeeData);
+                backdrop.classList.remove('opacity-0', 'pointer-events-none');
+                sheet.classList.remove('translate-y-full');
+            } else {
+                // Fallback básico
+                content.innerHTML = `
                 <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold border border-slate-600">
@@ -1260,29 +1320,259 @@
                 </div>
                 <p class="text-slate-400 text-sm text-center py-8">Carregando opções de rotina...</p>
             `;
-            backdrop.classList.remove('opacity-0', 'pointer-events-none');
-            sheet.classList.remove('translate-y-full');
-        }
-    }
-
-    // Função para fechar o bottom sheet
-    function closeRoutineSheet() {
-        if (typeof Render !== 'undefined' && Render.closeBottomSheet) {
-            Render.closeBottomSheet();
-        } else {
-            const sheet = document.getElementById('employee-bottom-sheet');
-            const backdrop = document.getElementById('sheet-backdrop');
-            
-            if (sheet) sheet.classList.add('translate-y-full');
-            if (backdrop) {
-                backdrop.classList.add('opacity-0', 'pointer-events-none');
-                backdrop.classList.remove('opacity-100');
+                backdrop.classList.remove('opacity-0', 'pointer-events-none');
+                sheet.classList.remove('translate-y-full');
             }
         }
-    }
 
-    // Expor globalmente
-    window.openRoutineSheet = openRoutineSheet;
-    window.closeRoutineSheet = closeRoutineSheet;
-</script>
-{% endblock %}
+        // Função para fechar o bottom sheet
+        function closeRoutineSheet() {
+            if (typeof Render !== 'undefined' && Render.closeBottomSheet) {
+                Render.closeBottomSheet();
+            } else {
+                const sheet = document.getElementById('employee-bottom-sheet');
+                const backdrop = document.getElementById('sheet-backdrop');
+
+                if (sheet) sheet.classList.add('translate-y-full');
+                if (backdrop) {
+                    backdrop.classList.add('opacity-0', 'pointer-events-none');
+                    backdrop.classList.remove('opacity-100');
+                }
+            }
+        }
+
+        // Expor globalmente
+        window.openRoutineSheet = openRoutineSheet;
+        window.closeRoutineSheet = closeRoutineSheet;
+    </script>
+    <!-- START ROUTE MODAL -->
+    <div id="start-route-modal" class="fixed inset-0 z-[80] hidden" role="dialog" aria-modal="true">
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeStartRouteModal()"></div>
+        <div class="fixed inset-0 flex items-center justify-center p-4">
+            <div
+                class="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-sm transform transition-all scale-100">
+                <div class="p-6">
+                    <h3 class="text-lg font-bold text-white mb-4">Iniciar Separação (Manual)</h3>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Cliente</label>
+                            <select id="start-route-client"
+                                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-indigo-500 outline-none">
+                                <option value="">Carregando...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Peso (Kg) - Opcional</label>
+                            <input type="number" step="0.01" id="start-route-weight" placeholder="0.00"
+                                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Hora de Início</label>
+                            <input type="time" id="start-route-time"
+                                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-indigo-500 outline-none">
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex justify-end gap-3">
+                        <button onclick="closeStartRouteModal()"
+                            class="px-3 py-2 text-sm text-slate-400 hover:text-white transition">Cancelar</button>
+                        <button onclick="confirmStartRoute()"
+                            class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition shadow-lg shadow-indigo-500/20">
+                            Iniciar Rota
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDIT ROUTE ADMIN MODAL -->
+    <div id="edit-route-admin-modal" class="fixed inset-0 z-[80] hidden" role="dialog" aria-modal="true">
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeEditRouteAdmin()"></div>
+        <div class="fixed inset-0 flex items-center justify-center p-4">
+            <div
+                class="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-sm transform transition-all scale-100">
+                <div class="p-6">
+                    <h3 class="text-lg font-bold text-white mb-4">Editar Rota (Admin)</h3>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Cliente</label>
+                            <select id="edit-route-admin-client"
+                                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 outline-none">
+                                <option value="">Carregando...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Peso (Kg)</label>
+                            <input type="number" step="0.01" id="edit-route-admin-weight"
+                                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 outline-none">
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex justify-end gap-3">
+                        <button onclick="closeEditRouteAdmin()"
+                            class="px-3 py-2 text-sm text-slate-400 hover:text-white transition">Cancelar</button>
+                        <button onclick="confirmEditRouteAdmin()"
+                            class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition shadow-lg shadow-blue-500/20">
+                            Salvar Alterações
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- ADMIN ROUTE MANAGEMENT (MANUAL START) ---
+        let adminClients = [];
+        let isClientsLoaded = false;
+
+        async function loadAdminClients() {
+            if (isClientsLoaded) return;
+            try {
+                const res = await fetch('/api/admin/clients');
+                if (res.ok) {
+                    adminClients = await res.json();
+                    populateClientSelects();
+                    isClientsLoaded = true;
+                }
+            } catch (e) {
+                console.error("Failed to load clients", e);
+            }
+        }
+
+        function populateClientSelects() {
+            // Populate Start Modal Select
+            const startSelect = document.getElementById('start-route-client');
+            if (startSelect) {
+                startSelect.innerHTML = '<option value="">Selecione um cliente...</option>';
+                adminClients.forEach(c => {
+                    startSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+                });
+            }
+            // Populate Edit Modal Select
+            const editSelect = document.getElementById('edit-route-admin-client');
+            if (editSelect) {
+                editSelect.innerHTML = '<option value="">Selecione um cliente...</option>';
+                adminClients.forEach(c => {
+                    editSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+                });
+            }
+        }
+
+        function openStartRouteModal() {
+            loadAdminClients();
+            const modal = document.getElementById('start-route-modal');
+            const now = new Date();
+            // Format HH:MM
+            const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('start-route-time').value = timeStr;
+            document.getElementById('start-route-weight').value = '';
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeStartRouteModal() {
+            document.getElementById('start-route-modal').classList.add('hidden');
+        }
+
+        async function confirmStartRoute() {
+            const clientId = document.getElementById('start-route-client').value;
+            const weight = document.getElementById('start-route-weight').value;
+            const time = document.getElementById('start-route-time').value;
+
+            if (!clientId) { alert("Selecione um cliente."); return; }
+
+            if (!confirm("Confirmar abertura manual de rota?")) return;
+
+            try {
+                const res = await fetch(`/api/admin/employees/${employeeData.id}/start-route`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        client_id: parseInt(clientId),
+                        tonnage: parseFloat(weight) || 0,
+                        start_time: time
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert("Erro: " + data.error);
+                }
+            } catch (e) {
+                alert("Erro de conexão");
+            }
+        }
+
+        // --- ADMIN ROUTE EDIT/DELETE ---
+        let currentEditRouteId = null;
+
+        function openEditRouteAdmin(routeId, clientId, weight) {
+            loadAdminClients();
+            currentEditRouteId = routeId;
+            const modal = document.getElementById('edit-route-admin-modal');
+
+            // Wait for clients to load if not already?
+            // populateClientSelects handles it, but we need to set value after population.
+            // Quick hack: timeout
+            setTimeout(() => {
+                const sel = document.getElementById('edit-route-admin-client');
+                if (sel) sel.value = clientId;
+            }, 300);
+
+            document.getElementById('edit-route-admin-weight').value = weight || '';
+            modal.classList.remove('hidden');
+        }
+
+        function closeEditRouteAdmin() {
+            document.getElementById('edit-route-admin-modal').classList.add('hidden');
+            currentEditRouteId = null;
+        }
+
+        async function confirmEditRouteAdmin() {
+            if (!currentEditRouteId) return;
+            const clientId = document.getElementById('edit-route-admin-client').value;
+            const weight = document.getElementById('edit-route-admin-weight').value;
+
+            try {
+                const res = await fetch(`/api/admin/routes/${currentEditRouteId}/update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        client_id: parseInt(clientId),
+                        tonnage: parseFloat(weight) || 0
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert("Erro: " + data.error);
+                }
+            } catch (e) {
+                alert("Erro de conexão");
+            }
+        }
+
+        async function confirmDeleteRouteAdmin(routeId) {
+            if (!confirm("Tem certeza que deseja EXCLUIR esta rota manualmente? Esta ação não pode ser desfeita.")) return;
+            try {
+                const res = await fetch(`/api/admin/routes/${routeId}/delete`, {
+                    method: 'POST'
+                });
+                const data = await res.json();
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert("Erro: " + data.error);
+                }
+            } catch (e) {
+                alert("Erro de conexão");
+            }
+        }
+    </script>
+    {% endblock %}

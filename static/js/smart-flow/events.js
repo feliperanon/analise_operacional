@@ -76,13 +76,18 @@ const Events = {
             App.loadData();
         };
 
-        window.changeShift = async (newShift) => {
+        window.changeShift = async (newShift, options = {}) => {
             // Limpar state imediatamente para evitar valores misturados durante o carregamento
             Store.state.allocations = {};
             Store.state.routines = {};
             Store.state.kpis = { present: 0, target: 0, percent: 0 };
 
             Store.setShift(newShift);
+
+            if (options.alignNightDate && newShift === 'Noite') {
+                const effectiveDate = ShiftDateUtils.getEffectiveShiftDate(newShift);
+                Store.setDate(effectiveDate);
+            }
 
             // Update layout active state on shift change
             document.querySelectorAll('[data-shift]').forEach(el => {

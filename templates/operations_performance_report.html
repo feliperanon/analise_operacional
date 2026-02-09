@@ -3,6 +3,14 @@
 {% block content %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+<div class="mb-4 flex items-center gap-3 print:hidden">
+    <a href="/" class="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-slate-300 bg-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-700 hover:bg-slate-200 transition">
+        <i data-lucide="arrow-left" class="w-3 h-3 text-slate-600"></i>
+        Voltar ao dashboard
+    </a>
+    <p class="text-[10px] text-slate-500">Visualização completa</p>
+</div>
+
 <!-- ========================================
      VERSÃO PARA IMPRESSÃO (PDF) - COMPLETA
      ======================================== -->
@@ -335,6 +343,12 @@
                 </div>
                 
                 <div class="flex items-center gap-3 print:hidden">
+                    <button type="button" onclick="window.location.href='/operations/performance'" class="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-700 hover:border-slate-500 text-white transition-all bg-slate-800/40 hover:bg-slate-700/40">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                        <span class="text-sm font-semibold">Voltar</span>
+                    </button>
                     <!-- Botão Preview PDF -->
                     <button onclick="togglePrintPreview()" id="previewBtn" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white transition-all">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -44,6 +44,7 @@ class Employee(SQLModel, table=True):
     mobile_access: bool = Field(default=False)
     mobile_access_separation: bool = Field(default=False)
     mobile_access_checklist: bool = Field(default=False)
+    mobile_access_admin_start: bool = Field(default=False) # Permissão para líder abrir rota manualmente
     
     # Gamification
     total_xp: float = Field(default=0.0) # Accumulated Tonnage/Score

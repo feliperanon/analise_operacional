@@ -156,6 +156,45 @@ def calculate_expected_work_days(
     return expected_days
 
 
+# --- Shift Date Helpers ---
+def _get_reference_datetime(reference: Optional[datetime] = None) -> datetime:
+    tz = ZoneInfo("America/Sao_Paulo")
+    if reference:
+        return reference.astimezone(tz)
+    return datetime.now(tz)
+
+
+def get_effective_shift_date(shift: str, reference: Optional[datetime] = None) -> date:
+    ref = _get_reference_datetime(reference)
+    if (shift or "").strip().lower() == "noite":
+        if ref.hour >= 18:
+            return ref.date()
+        if ref.hour < 6:
+            return (ref - timedelta(days=1)).date()
+    return ref.date()
+
+
+def normalize_shift_date(date_str: Optional[str], shift: str, reference: Optional[datetime] = None) -> Optional[str]:
+    if not date_str:
+        return date_str
+    if (shift or "").strip().lower() != "noite":
+        return date_str
+
+    ref = _get_reference_datetime(reference)
+    if not (0 <= ref.hour < 6):
+        return date_str
+
+    try:
+        provided = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return date_str
+
+    if provided == ref.date():
+        return (ref - timedelta(days=1)).date().strftime("%Y-%m-%d")
+
+    return date_str
+
+
 # API Models
 from pydantic import BaseModel
 from typing import Optional, List
@@ -1823,10 +1862,36 @@ def get_dashboard_data(session: Session, shift_filter: str):
     """
     from zoneinfo import ZoneInfo
     tz = ZoneInfo("America/Sao_Paulo")
-    today = datetime.now(tz)
+    now = datetime.now(tz)
+    hour = now.hour
+    minute = now.minute
+    current_minutes = hour * 60 + minute
+
+    def is_within(start_h, start_m, end_h, end_m):
+        start = start_h * 60 + start_m
+        end = end_h * 60 + end_m
+        if start < end:
+            return start <= current_minutes < end
+        return current_minutes >= start or current_minutes < end
+
+    if is_within(18, 0, 6, 0):
+        current_shift_name = "Noite"
+        current_shift_display = "Noite"
+    elif is_within(5, 0, 13, 20):
+        current_shift_name = "Manhã"
+        current_shift_display = "Manha"
+    else:
+        current_shift_name = "Tarde"
+        current_shift_display = "Tarde"
+
+    shift_anchor = now
+    if current_shift_name == "Noite" and hour < 6:
+        shift_anchor = now - timedelta(days=1)
+
+    today = shift_anchor
     today_str = today.strftime("%Y-%m-%d")
     today_naive = today.replace(tzinfo=None)
-    upcoming_deadline = today_naive + timedelta(days=14)
+    upcoming_deadline = today_naive + timedelta(days=30)
     
     # --- 1. Operations Pulse (KPIs) ---
     
@@ -1975,13 +2040,20 @@ async def index(request: Request, shift: str = "Todos", session: Session = Depen
 
     # 1. Fetch Dashboard Data (KPIs + Live Separation)
     data = get_dashboard_data(session, shift)
+    current_shift_name = data.get("current_shift_name", "Manhã")
     
     # 2. Add HR Data (Compact) for Carousel
     # Fetching simplified lists for the template
-    today = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    now = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    def anchor_shift_day(shift_name: str, reference: datetime) -> datetime:
+        if shift_name == "Noite" and reference.hour < 6:
+            return reference - timedelta(days=1)
+        return reference
+    today = anchor_shift_day(current_shift_name, now)
     employees = session.exec(select(models.Employee).where(models.Employee.status != 'fired')).all()
     today_naive = today.replace(tzinfo=None)
     upcoming_deadline = today_naive + timedelta(days=14)
+    today_str = today.strftime("%Y-%m-%d")
 
     def get_short_name(full_name):
         parts = full_name.split()
@@ -2077,34 +2149,11 @@ async def index(request: Request, shift: str = "Todos", session: Session = Depen
     experience_expiring.sort(key=lambda x: x["days"])
     
     # --- Team Status (Quem está trabalhando agora) ---
-    today_str = today.strftime("%Y-%m-%d")
-    hour = today.hour
-    minute = today.minute
-
-    # Determine current shift
-    # Horarios: Manhã 05:00-13:20, Tarde 12:00-20:20, Noite 18:00-06:00
-    current_minutes = hour * 60 + minute
-    def is_within(start_h, start_m, end_h, end_m):
-        start = start_h * 60 + start_m
-        end = end_h * 60 + end_m
-        if start < end:
-            return start <= current_minutes < end
-        return current_minutes >= start or current_minutes < end
-
-    if is_within(18, 0, 6, 0):
-        current_shift_name = "Noite"
-        current_shift_display = "Noite"
-    elif is_within(5, 0, 13, 20):
-        current_shift_name = "Manhã"
-        current_shift_display = "Manha"
-    else:
-        current_shift_name = "Tarde"
-        current_shift_display = "Tarde"
     
     # Get employees for current shift
     shift_employees = [e for e in employees if e.work_shift == current_shift_name and e.status == 'active']
     
-    # Get today's routines
+    # Get today's routines (current shift for team status)
     today_routines = session.exec(
         select(models.EmployeeRoutine).where(
             models.EmployeeRoutine.date == today_str,
@@ -2192,20 +2241,38 @@ async def index(request: Request, shift: str = "Todos", session: Session = Depen
         "ferias": [],
         "vacations_upcoming": [],
         "vacations_active": [],
-        "novatos": [],
+        "atestados": [],
         "total": 0
     }
     alerts.setdefault("vacations_upcoming", [])
     alerts.setdefault("vacations_active", [])
     
-    # Ausentes hoje (funcionários ativos que deveriam estar presentes mas não estão)
-    for emp in employees:
-        if emp.status == 'active' and emp.work_shift == current_shift_name:
-            if emp.id not in present_ids:
-                alerts["ausentes"].append({
-                    "name": get_short_name(emp.name),
-                    "shift": emp.work_shift[:3] if emp.work_shift else "?"
-                })
+    # Faltas confirmadas (Smart Flow - rotina 'absent' / 'falta') - TODOS os turnos do dia
+    today_routines_all = session.exec(
+        select(models.EmployeeRoutine).where(models.EmployeeRoutine.date == today_str)
+    ).all()
+    emp_map = {e.id: e for e in employees}
+    absences_by_employee = {}
+    for r in today_routines_all:
+        routine_type = (r.routine or "").lower()
+        if routine_type in ["absent", "falta"]:
+            emp = emp_map.get(r.employee_id)
+            if not emp:
+                continue
+            shift_full = emp.work_shift or r.shift or "Turno"
+            existing = absences_by_employee.get(r.employee_id)
+            if existing:
+                if existing["shift"] in (None, "Turno") and shift_full not in (None, "Turno"):
+                    existing["shift"] = shift_full
+                    existing["shift_abbr"] = shift_full[:3]
+                continue
+            absences_by_employee[r.employee_id] = {
+                "name": get_short_name(emp.name),
+                "full_name": emp.name,
+                "shift": shift_full,
+                "shift_abbr": shift_full[:3]
+            }
+    alerts["ausentes"] = list(absences_by_employee.values())
     
     # Vencimentos de experiência (já calculados) - adicionar turno
     for exp in experience_expiring[:5]:
@@ -2217,6 +2284,7 @@ async def index(request: Request, shift: str = "Todos", session: Session = Depen
                 break
         alerts["vencimentos"].append({
             "name": exp["name"],
+            "full_name": exp.get("full_name", exp["name"]),
             "days": exp["days"],
             "shift": emp_shift
         })
@@ -2238,68 +2306,97 @@ async def index(request: Request, shift: str = "Todos", session: Session = Depen
             
             # Check if vacation starts or ends this week
             if week_start.replace(tzinfo=None) <= vac_start <= week_end.replace(tzinfo=None):
+                shift_full = emp.work_shift or "Turno"
                 alerts["ferias"].append({
                     "name": get_short_name(emp.name),
+                    "full_name": emp.name,
                     "status": f"Inicia {vac_start.strftime('%d/%m')}",
-                    "shift": emp.work_shift[:3] if emp.work_shift else "?"
+                    "shift": shift_full
                 })
             elif week_start.replace(tzinfo=None) <= vac_end <= week_end.replace(tzinfo=None):
+                shift_full = emp.work_shift or "Turno"
                 alerts["ferias"].append({
                     "name": get_short_name(emp.name),
+                    "full_name": emp.name,
                     "status": f"Retorna {vac_end.strftime('%d/%m')}",
-                    "shift": emp.work_shift[:3] if emp.work_shift else "?"
+                    "shift": shift_full
                 })
             if vac_start > today_naive and vac_start <= upcoming_deadline:
                 alerts["vacations_upcoming"].append({
                     "name": get_short_name(emp.name),
-                    "shift": emp.work_shift[:3] if emp.work_shift else "?",
+                    "full_name": emp.name,
+                    "shift": emp.work_shift or "Turno",
                     "days_until": (vac_start - today_naive).days,
                     "start_date": vac_start.strftime("%d/%m")
                 })
             if vac_start <= today_naive <= vac_end:
                 alerts["vacations_active"].append({
                     "name": get_short_name(emp.name),
-                    "shift": emp.work_shift[:3] if emp.work_shift else "?",
+                    "full_name": emp.name,
+                    "shift": emp.work_shift or "Turno",
                     "days_left": (vac_end - today_naive).days + 1,
                     "end_date": vac_end.strftime("%d/%m")
                 })
-    
-    # Novatos (< 30 dias de empresa)
-    for emp in employees:
-        if emp.admission_date and emp.status == 'active':
-            adm_date = emp.admission_date
-            if hasattr(adm_date, 'tzinfo') and adm_date.tzinfo:
-                adm_date = adm_date.replace(tzinfo=None)
-            
-            days_employed = (today.replace(tzinfo=None) - adm_date).days
-            
-            if 0 <= days_employed <= 30:
-                alerts["novatos"].append({
-                    "name": get_short_name(emp.name),
-                    "days": days_employed,
-                    "shift": emp.work_shift[:3] if emp.work_shift else "?"
-                })
-    
+
+    atestado_range_start = datetime.combine(today.date(), time.min).replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+    atestado_range_end = datetime.combine((today + timedelta(days=30)).date(), time.max).replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+    upcoming_atestados = session.exec(
+        select(models.Event)
+        .where(models.Event.type == "atestado")
+        .where(models.Event.timestamp >= atestado_range_start)
+        .where(models.Event.timestamp <= atestado_range_end)
+        .order_by(models.Event.timestamp)
+    ).all()
+    atestados_map = {}
+    today_date = today_naive.date()
+    for evt in upcoming_atestados:
+        if not evt.employee_id:
+            continue
+        emp = emp_map.get(evt.employee_id)
+        if not emp:
+            continue
+        evt_date = evt.timestamp
+        if not isinstance(evt_date, datetime):
+            continue
+        evt_normalized = evt_date.replace(tzinfo=None)
+        existing = atestados_map.get(evt.employee_id)
+        if existing and existing["start_date_obj"] <= evt_normalized:
+            continue
+        atestados_map[evt.employee_id] = {
+            "name": get_short_name(emp.name),
+            "full_name": emp.name,
+            "shift": emp.work_shift or "Turno",
+            "start_date": evt_normalized.strftime("%d/%m"),
+            "days_until": max(0, (evt_normalized.date() - today_date).days),
+            "start_date_obj": evt_normalized
+        }
+    if atestados_map:
+        atestados_list = list(atestados_map.values())
+        atestados_list.sort(key=lambda x: x["days_until"])
+        for entry in atestados_list:
+            entry.pop("start_date_obj", None)
+        alerts["atestados"] = atestados_list
+
     alerts["vacations_upcoming"].sort(key=lambda x: x["days_until"])
     alerts["vacations_active"].sort(key=lambda x: x["days_left"])
     alerts["total"] = (
         len(alerts["ausentes"]) +
         len(alerts["vencimentos"]) +
         len(alerts["ferias"]) +
-        len(alerts["novatos"]) +
         len(alerts["vacations_upcoming"]) +
-        len(alerts["vacations_active"])
+        len(alerts["vacations_active"]) +
+        len(alerts["atestados"])
     )
     
     # Attach to data object
     data["shifts_summary"] = shifts_summary
     data["team_status"] = team_status
     data["team_stats"] = team_stats
-    data["current_shift_name"] = current_shift_display
+    data["current_shift_name"] = current_shift_name
     data["alerts"] = alerts
     data["hr"] = {
-        "birthdays": [{"name": e.name.split()[0], "day": e.birthday.day, "photo": e.photo_url} for e in birthdays],
-        "vacation": [{"name": e.name.split()[0], "photo": e.photo_url} for e in on_vacation],
+        "birthdays": [{"name": e.name, "day": e.birthday.day, "photo": e.photo_url} for e in birthdays],
+        "vacation": [{"name": e.name, "photo": e.photo_url, "shift": e.work_shift or "Turno"} for e in on_vacation],
         "experience_expiring": experience_expiring
     }
 
@@ -4127,7 +4224,6 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
             .join(models.Client, models.Route.client_id == models.Client.id)
             .where(
                 models.Route.employee_id == employee.id,
-                models.Route.date == today_str,
                 models.Route.status == "pending"
             )
         )
@@ -4482,6 +4578,15 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
                 "enabled": True,  # Habilitado para todos com acesso mobile
                 "action": None
             },
+            {
+                "key": "admin_start",
+                "label": "Abertura Manual (Líder)",
+                "description": "Iniciar separação para outro colaborador.",
+                "icon": "users",
+                "href": "#",
+                "enabled": bool(employee.mobile_access_admin_start),
+                "action": "open_admin_start_modal"
+            },
             # Removido: Chamados de Equipamento (agora disponível no checklist)
             # {
             #     "key": "tickets",
@@ -4495,9 +4600,21 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
         ]
         modules = [m for m in modules if m.get("enabled")]
 
+        # Active Employees for Leader Module
+        employees = session.exec(select(models.Employee).where(models.Employee.status == "active")).all()
+        employees_list = [{"id": e.id, "name": e.name, "registration_id": e.registration_id} for e in employees]
+
+        def sanitize_float(val):
+            import math
+            if val is None: return 0.0
+            if isinstance(val, float) and (math.isnan(val) or math.isinf(val)):
+                return 0.0
+            return val
+
         context = {
             "request": request,
             "employee": employee,
+            "employees_json": json.dumps(employees_list), # SAFE JSON
             "clients_json": json.dumps(clients_list), # SAFE JSON
             "active_routes": json.dumps(active_routes_list), # JSON for Alpine
             "completed_routes": json.dumps(completed_routes_list), # JSON for Alpine History
@@ -4528,9 +4645,9 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
             
             "xp_history": xp_history_list,
             "chart_labels": json.dumps(chart_labels),
-            "chart_daily_kg": json.dumps(chart_daily_kg),
-            "chart_daily_kgh": json.dumps(chart_daily_kgh),
-            "chart_cumulative_kg": json.dumps(chart_cumulative_kg),
+            "chart_daily_kg": json.dumps([sanitize_float(x) for x in chart_daily_kg]),
+            "chart_daily_kgh": json.dumps([sanitize_float(x) for x in chart_daily_kgh]),
+            "chart_cumulative_kg": json.dumps([sanitize_float(x) for x in chart_cumulative_kg]),
             "chart_bg_colors": json.dumps(chart_bg_colors),
             "upcoming_events": upcoming_events,
             "time_bonuses": time_bonuses
@@ -5595,6 +5712,254 @@ async def mobile_route_finish(
         return JSONResponse({"success": True})
     except Exception as e:
         logger.exception(f"Error finishing route {route_id}: {e}")
+class MobileDeletePayload(BaseModel):
+    registration_id: str
+
+class MobileUpdatePayload(BaseModel):
+    client_id: Optional[int] = None
+    tonnage: Optional[float] = None
+
+class AdminStartRoutePayload(BaseModel):
+    client_id: int
+    tonnage: Optional[float] = 0.0
+    start_time: Optional[str] = None # HH:MM, defaults to now
+
+def ensure_column(engine, table_name, column_name, column_type_sql):
+    """Adds a column to a table if it doesn't exist (SQLite specific)."""
+    with engine.connect() as conn:
+        try:
+            # Check if column exists
+            columns = inspect(engine).get_columns(table_name)
+            column_names = [c["name"] for c in columns]
+            if column_name not in column_names:
+                logger.info(f"Adding column {column_name} to table {table_name}")
+                conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type_sql}"))
+                conn.commit()
+        except Exception as e:
+            logger.error(f"Error adding column {column_name}: {e}")
+
+@app.on_event("startup")
+def on_startup():
+    create_db_and_tables()
+    ensure_default_admin()
+    ensure_pallet_count_schema()
+    # Migration for new column
+    ensure_column(engine, "employee", "mobile_access_admin_start", "BOOLEAN DEFAULT FALSE")
+
+@app.get("/api/admin/clients", dependencies=[Depends(require_leader)])
+async def api_get_admin_clients(session: Session = Depends(get_session)):
+    """Get all clients for admin purposes."""
+    clients = session.exec(select(models.Client)).all()
+    return [client.model_dump() for client in clients]
+
+@app.post("/mobile/route/{route_id}/delete", response_class=JSONResponse)
+async def mobile_route_delete(
+    request: Request, 
+    route_id: int, 
+    payload: MobileDeletePayload,
+    session: Session = Depends(get_session)
+):
+    try:
+        user_id = request.session.get("user_id")
+        if not user_id:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
+        employee = session.get(models.Employee, user_id)
+        if not employee:
+            return JSONResponse({"error": "Colaborador não encontrado."}, status_code=404)
+        
+        # Verificar Matrícula para confirmação de segurança
+        # Remove zeros a esquerda para comparação flexível se necessário, ou validação exata
+        if payload.registration_id.strip() != employee.registration_id.strip():
+             return JSONResponse({"error": "Matrícula incorreta. A exclusão requer sua confirmação."}, status_code=403)
+
+        route = session.get(models.Route, route_id)
+        if not route:
+             return JSONResponse({"error": "Rota não encontrada"}, status_code=404)
+             
+        if route.employee_id != user_id:
+             return JSONResponse({"error": "Não autorizado: Rota pertence a outro colaborador"}, status_code=403)
+        
+        if route.status == "completed":
+             return JSONResponse({"error": "Não é possível excluir uma rota já finalizada."}, status_code=400)
+
+        # Deletar
+        session.delete(route)
+        session.commit()
+        
+        return JSONResponse({"success": True})
+    except Exception as e:
+        logger.exception(f"Error deleting route {route_id}: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.post("/mobile/route/{route_id}/update", response_class=JSONResponse)
+async def mobile_route_update(
+    request: Request,
+    route_id: int,
+    payload: MobileUpdatePayload,
+    session: Session = Depends(get_session)
+):
+    try:
+        user_id = request.session.get("user_id")
+        if not user_id:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
+        route = session.get(models.Route, route_id)
+        if not route:
+             return JSONResponse({"error": "Rota não encontrada"}, status_code=404)
+
+        if route.employee_id != user_id:
+             return JSONResponse({"error": "Não autorizado"}, status_code=403)
+
+        if route.status == "completed":
+             return JSONResponse({"error": "Não é possível editar uma rota já finalizada."}, status_code=400)
+
+        # Atualizar campos se fornecidos
+        if payload.client_id:
+            client = session.get(models.Client, payload.client_id)
+            if not client:
+                return JSONResponse({"error": "Cliente inválido"}, status_code=404)
+            route.client_id = payload.client_id
+
+        if payload.tonnage is not None:
+            if payload.tonnage <= 0:
+                 return JSONResponse({"error": "Peso deve ser maior que zero"}, status_code=400)
+            route.tonnage = payload.tonnage
+
+        session.add(route)
+        session.commit()
+
+        return JSONResponse({"success": True})
+    except Exception as e:
+        logger.exception(f"Error updating route {route_id}: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+# --- ADMIN ROUTE MANAGEMENT ---
+
+@app.post("/api/admin/employees/{employee_id}/start-route", response_class=JSONResponse)
+async def api_admin_start_route(
+    request: Request,
+    employee_id: int,
+    payload: AdminStartRoutePayload,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    try:
+        employee = session.get(models.Employee, employee_id)
+        if not employee:
+            return JSONResponse({"error": "Colaborador não encontrado"}, status_code=404)
+            
+        if not employee.mobile_access_admin_start:
+             return JSONResponse({"error": "Colaborador não possui permissão para abertura manual por líder."}, status_code=403)
+
+        from datetime import datetime
+        now = datetime.now(ZoneInfo("America/Sao_Paulo"))
+        today_str = now.strftime("%Y-%m-%d")
+        
+        # Check for existing routine
+        routine = session.exec(select(models.EmployeeRoutine).where(
+            models.EmployeeRoutine.employee_id == employee.id,
+            models.EmployeeRoutine.date == today_str
+        )).first()
+        
+        if not routine:
+            # Create Routine
+            routine = models.EmployeeRoutine(
+                employee_id=employee.id,
+                date=today_str,
+                shift=employee.work_shift or "Manhã",
+                status="present",
+                arrival_time=payload.start_time or now.strftime("%H:%M")
+            )
+            session.add(routine)
+            session.commit()
+            session.refresh(routine)
+            
+        # Create Route
+        start_time = payload.start_time or now.strftime("%H:%M")
+        
+        # Check if already has active route?
+        active_route = session.exec(select(models.Route).where(
+            models.Route.employee_id == employee.id,
+            models.Route.status == "pending"
+        )).first()
+        
+        if active_route:
+             return JSONResponse({"error": "Colaborador já possui uma rota ativa."}, status_code=400)
+             
+        new_route = models.Route(
+            date=today_str,
+            shift=routine.shift,
+            employee_id=employee.id,
+            client_id=payload.client_id,
+            start_time=start_time,
+            tonnage=payload.tonnage or 0.0,
+            status="pending"
+        )
+        session.add(new_route)
+        
+        # Log event
+        log = models.Event(
+            type="routine_change",
+            text=f"Rota MANUAL iniciada por líder({user['username']}) para {employee.name}",
+            category="processo",
+            sector="expedicao",
+            impact="low",
+            employee_id=employee.id
+        )
+        session.add(log)
+        
+        session.commit()
+        
+        return JSONResponse({"success": True})
+    except Exception as e:
+        logger.exception(f"Error starting manual route for emp {employee_id}: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.post("/api/admin/routes/{route_id}/delete", response_class=JSONResponse)
+async def api_admin_delete_route(
+    route_id: int,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    try:
+        route = session.get(models.Route, route_id)
+        if not route:
+             return JSONResponse({"error": "Rota não encontrada"}, status_code=404)
+        
+        session.delete(route)
+        session.commit()
+        return JSONResponse({"success": True})
+    except Exception as e:
+        logger.exception(f"Error deleting route {route_id} (admin): {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.post("/api/admin/routes/{route_id}/update", response_class=JSONResponse)
+async def api_admin_update_route(
+    route_id: int,
+    payload: MobileUpdatePayload,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    try:
+        route = session.get(models.Route, route_id)
+        if not route:
+             return JSONResponse({"error": "Rota não encontrada"}, status_code=404)
+             
+        if payload.client_id:
+             client = session.get(models.Client, payload.client_id)
+             if not client: return JSONResponse({"error": "Cliente inválido"}, status_code=400)
+             route.client_id = payload.client_id
+             
+        if payload.tonnage is not None:
+             if payload.tonnage < 0: return JSONResponse({"error": "Peso deve ser positivo"}, status_code=400)
+             route.tonnage = payload.tonnage
+             
+        session.add(route)
+        session.commit()
+        return JSONResponse({"success": True})
+    except Exception as e:
+        logger.exception(f"Error updating route {route_id} (admin): {e}")
         return JSONResponse({"error": str(e)}, status_code=500)
 
 class MobileAllocationItem(BaseModel):
@@ -13153,6 +13518,7 @@ async def smart_flow_page(request: Request, shift: str = "Manhã", date: Optiona
         user = require_login(request)
         # Get Employees for "Available Pool" (Active, Sick, Vacation, Away - Everyone except Fired)
         # Auto-Update Vacation Status Check
+        now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
         if date:
             try:
                 update_vacation_statuses(session, datetime.strptime(date, "%Y-%m-%d"))
@@ -13164,7 +13530,9 @@ async def smart_flow_page(request: Request, shift: str = "Manhã", date: Optiona
         
         # Get Daily Op
         if not date:
-            date = datetime.now().strftime("%Y-%m-%d")
+            date = get_effective_shift_date(shift, now_br).strftime("%Y-%m-%d")
+        else:
+            date = normalize_shift_date(date, shift, now_br)
             
         daily_op = session.exec(
             select(models.DailyOperation)
@@ -14520,11 +14888,308 @@ async def get_allocations(
         elif "noite" in sec.shift.lower(): sec_shift_norm = "Noite"
         target_map[sec_shift_norm] += sec.max_employees
 
+    # Buscar alocações do dia atual
+    allocations = session.exec(
+        select(models.EmployeeAllocation)
+        .where(models.EmployeeAllocation.date == date)
+        .where(models.EmployeeAllocation.shift == shift)
+    ).all()
+    
+    # Se não houver alocações, buscar dos dias anteriores
+    # IMPORTANTE: Para escala 12x36 (noturno), a última alocação pode ter sido há 2-3 dias
+    # Buscamos até 4 dias para trás para cobrir escala 12x36 + feriados/fins de semana
+    if not allocations:
+        from datetime import datetime, timedelta
+        try:
+            current_date = datetime.strptime(date, "%Y-%m-%d")
+            
+            # Buscar até 4 dias para trás (cobre escala 12x36 + possíveis feriados)
+            MAX_DAYS_LOOKBACK = 4
+            previous_allocations = []
+            found_date_str = None
+            
+            for days_back in range(1, MAX_DAYS_LOOKBACK + 1):
+                previous_date = current_date - timedelta(days=days_back)
+                previous_date_str = previous_date.strftime("%Y-%m-%d")
+                
+                print(f"📋 Buscando alocações de {previous_date_str} ({days_back} dia(s) atrás)...")
+                
+                previous_allocations = session.exec(
+                    select(models.EmployeeAllocation)
+                    .where(models.EmployeeAllocation.date == previous_date_str)
+                    .where(models.EmployeeAllocation.shift == shift)
+                ).all()
+                
+                if previous_allocations:
+                    found_date_str = previous_date_str
+                    print(f"✅ Encontradas {len(previous_allocations)} alocações de {found_date_str}!")
+                    break
+                else:
+                    print(f"   ⏭️ Nenhuma alocação em {previous_date_str}, tentando dia anterior...")
+            
+            if previous_allocations and found_date_str:
+                print(f"📥 Copiando {len(previous_allocations)} alocações de {found_date_str} para {date}...")
+                
+                # Copiar alocações encontradas para o dia atual
+                for prev_alloc in previous_allocations:
+                    new_alloc = models.EmployeeAllocation(
+                        date=date,
+                        shift=shift,
+                        employee_id=prev_alloc.employee_id,
+                        subsector_id=prev_alloc.subsector_id
+                    )
+                    session.add(new_alloc)
+                
+                session.commit()
+                
+                # Recarregar alocações criadas
+                allocations = session.exec(
+                    select(models.EmployeeAllocation)
+                    .where(models.EmployeeAllocation.date == date)
+                    .where(models.EmployeeAllocation.shift == shift)
+                ).all()
+                
+                print(f"✅ Escala copiada com sucesso! {len(allocations)} colaboradores alocados (origem: {found_date_str})")
+            else:
+                print(f"⚠️ Nenhuma alocação encontrada nos últimos {MAX_DAYS_LOOKBACK} dias para turno {shift}")
+        except Exception as e:
+            print(f"❌ Erro ao copiar escala de dias anteriores: {e}")
+    
+    # Buscar rotinas do dia atual
+    routines = session.exec(
+        select(models.EmployeeRoutine)
+        .where(models.EmployeeRoutine.date == date)
+        .where(models.EmployeeRoutine.shift == shift)
+    ).all()
+    
+    # Se não houver rotinas, copiar de dias anteriores (especialmente Férias e Afastado)
+    # IMPORTANTE: Para escala 12x36 (noturno), buscamos até 4 dias para trás
+    if not routines and allocations:
+        from datetime import datetime, timedelta
+        try:
+            current_date = datetime.strptime(date, "%Y-%m-%d")
+            
+            # Buscar até 4 dias para trás (cobre escala 12x36 + possíveis feriados)
+            MAX_DAYS_LOOKBACK = 4
+            previous_routines = []
+            found_date_str = None
+            
+            for days_back in range(1, MAX_DAYS_LOOKBACK + 1):
+                previous_date = current_date - timedelta(days=days_back)
+                previous_date_str = previous_date.strftime("%Y-%m-%d")
+                
+                print(f"📋 Buscando rotinas de {previous_date_str} ({days_back} dia(s) atrás)...")
+                
+                previous_routines = session.exec(
+                    select(models.EmployeeRoutine)
+                    .where(models.EmployeeRoutine.date == previous_date_str)
+                    .where(models.EmployeeRoutine.shift == shift)
+                ).all()
+                
+                if previous_routines:
+                    found_date_str = previous_date_str
+                    print(f"✅ Encontradas {len(previous_routines)} rotinas de {found_date_str}!")
+                    break
+                else:
+                    print(f"   ⏭️ Nenhuma rotina em {previous_date_str}, tentando dia anterior...")
+            
+            if previous_routines and found_date_str:
+                # Copiar apenas rotinas persistentes (vacation, away, sick)
+                # MAS verificar se o status atual do colaborador ainda corresponde
+                persistent_routines = ['vacation', 'away', 'sick']
+                copied_count = 0
+                
+                for prev_routine in previous_routines:
+                    if prev_routine.routine in persistent_routines:
+                        # Verificar status atual do colaborador no cadastro
+                        emp = session.get(models.Employee, prev_routine.employee_id)
+                        if emp:
+                            emp_status = (emp.status or 'active').lower()
+                            routine_type = prev_routine.routine.lower()
+                            
+                            # Só copiar se o status atual ainda corresponder à rotina
+                            # vacation -> status deve ser vacation/férias
+                            # away -> status deve ser away/afastado
+                            # sick -> status deve ser sick/atestado OU qualquer status (atestado pode ser temporário)
+                            should_copy = False
+                            
+                            if routine_type == 'vacation' and emp_status in ['vacation', 'férias', 'ferias']:
+                                should_copy = True
+                            elif routine_type == 'away' and emp_status in ['away', 'afastado']:
+                                should_copy = True
+                            elif routine_type == 'sick':
+                                # Atestado é temporário, copiar apenas se ainda está como sick
+                                should_copy = emp_status in ['sick', 'atestado']
+                            
+                            if should_copy:
+                                new_routine = models.EmployeeRoutine(
+                                    date=date,
+                                    shift=shift,
+                                    employee_id=prev_routine.employee_id,
+                                    routine=prev_routine.routine
+                                )
+                                session.add(new_routine)
+                                copied_count += 1
+                            else:
+                                print(f"⏭️ Não copiando rotina '{prev_routine.routine}' para {emp.name} - status atual é '{emp_status}'")
+                
+                if copied_count > 0:
+                    session.commit()
+                    print(f"✅ {copied_count} rotinas persistentes copiadas de {found_date_str} (Férias/Afastado/Atestado)")
+                    
+                    # Recarregar rotinas
+                    routines = session.exec(
+                        select(models.EmployeeRoutine)
+                        .where(models.EmployeeRoutine.date == date)
+                        .where(models.EmployeeRoutine.shift == shift)
+                    ).all()
+            else:
+                print(f"⚠️ Nenhuma rotina encontrada nos últimos {MAX_DAYS_LOOKBACK} dias para turno {shift}")
+        except Exception as e:
+            print(f"❌ Erro ao copiar rotinas: {e}")
+    
+    # Montar resposta - APENAS subsector_id, não objeto completo
+    allocations_map = {}
+    for alloc in allocations:
+        allocations_map[alloc.employee_id] = alloc.subsector_id
+    
+    routines_map = {}
+    for routine in routines:
+        routines_map[routine.employee_id] = routine.routine
+    
+    # Buscar tonélagem das ROTAS (Automático)
+    # Requisito: "Favor puxar os dados da tonelagem das rotas"
+    route_tonnage = session.exec(
+        select(func.sum(models.Route.tonnage))
+        .where(models.Route.date == date)
+        .where(models.Route.shift == shift) # Filter by shift to match operation context
+        .where(models.Route.tonnage > 0)
+    ).one()
+    
+    tonnage = route_tonnage if route_tonnage else 0.0
+
+    # Fetch Targets - SEMPRE usar soma dos setores (SOURCE OF TRUTH)
+    # HeadcountTarget é legado e pode estar desatualizado
+    all_sectors = session.exec(select(models.Sector)).all()
+    target_map = {"Manhã": 0, "Tarde": 0, "Noite": 0}
+    for sec in all_sectors:
+        sec_shift_norm = "Manhã"
+        if "tarde" in sec.shift.lower(): sec_shift_norm = "Tarde"
+        elif "noite" in sec.shift.lower(): sec_shift_norm = "Noite"
+        target_map[sec_shift_norm] += sec.max_employees
+
     return {
         "allocations": allocations_map,
         "routines": routines_map,
         "tonnage": tonnage,
         "targets": target_map
+    }
+
+@app.get("/api/smart-flow/routine", response_class=JSONResponse)
+async def get_routine(
+    request: Request,
+    date: str,
+    shift: str,
+    session: Session = Depends(get_session)
+):
+    """Retorna dados da rotina diária (KPIs, Log, Config)"""
+    require_login(request)
+    
+    # 1. Buscar Operação Diária
+    daily = session.exec(
+        select(models.DailyOperation)
+        .where(models.DailyOperation.date == date)
+        .where(models.DailyOperation.shift == shift)
+    ).first()
+    
+    log = daily.attendance_log if daily and daily.attendance_log else {}
+    tonnage = daily.tonnage if daily and daily.tonnage else 0.0
+    
+    # 2. Calcular KPIs a partir do Log
+    kpis = {
+        "present": 0,
+        "dayoff": 0,
+        "sick": 0,
+        "missing": 0,
+        "vacation": 0,
+        "away": 0,
+        "target": 0,
+        "gap": 0,
+        "percent": 0,
+        "tonnage": tonnage,
+        "productivity": 0
+    }
+    
+    # Helper normalização simples
+    def normalize_status(val):
+        if not val: return ""
+        s = str(val).lower().strip()
+        # Mapeamentos comuns
+        if s in ['presenca', 'trabalhando', 'presente']: return 'present'
+        if s in ['folga', 'compensacao', 'dsr']: return 'dayoff'
+        if s in ['atestado', 'medico', 'doenca']: return 'sick'
+        if s in ['falta', 'ausencia', 'injustificada']: return 'absent'
+        if s in ['ferias']: return 'vacation'
+        if s in ['afastado', 'licenca', 'inss']: return 'away'
+        return s
+
+    # Iterar sobre o log de presença (Source of Truth do dia)
+    for emp_id, entry in log.items():
+        raw_status = entry.get('status')
+        status = normalize_status(raw_status)
+        
+        if status == 'present':
+            kpis['present'] += 1
+        elif status == 'dayoff':
+            kpis['dayoff'] += 1
+        elif status == 'sick':
+            kpis['sick'] += 1
+        elif status in ['absent', 'missing']: # missing n é padrão mas vai que
+            kpis['missing'] += 1
+        elif status == 'vacation':
+            kpis['vacation'] += 1
+        elif status == 'away':
+            kpis['away'] += 1
+            
+    # 3. Calcular Meta (Soma dos targets dos setores do turno)
+    sectors = session.exec(select(models.Sector).where(models.Sector.shift == shift)).all()
+    total_target = sum(s.max_employees for s in sectors)
+    kpis['target'] = total_target
+    
+    # 4. KPIs Derivados
+    if kpis['present'] < kpis['target']:
+        kpis['gap'] = kpis['target'] - kpis['present']
+    else:
+        kpis['gap'] = 0 # Sem gap negativo visualmente, ou pode ser negativo pra mostrar excesso? Render.js só mostra o valor. Deixar 0 se superavit ou negativo? O padrão gap é "falta", então positivo é ruim.
+        # Se tem 10 vagas e 12 presentes, gap é -2 (sobra)? Ou 0 (não falta)?
+        # Geralmente Gap = Meta - Real. Se Meta 10, Real 8, Gap 2. Se Meta 10, Real 12, Gap -2.
+        # render.js: setText('total-gap', kpis.gap || 0);
+        # Vamos manter matemática simples.
+        kpis['gap'] = kpis['target'] - kpis['present']
+
+    if kpis['target'] > 0:
+        kpis['percent'] = int((kpis['present'] / kpis['target']) * 100)
+    else:
+        kpis['percent'] = 100 if kpis['present'] > 0 else 0
+        
+    if kpis['present'] > 0:
+        kpis['productivity'] = int(tonnage / kpis['present'])
+        
+    # 5. Configuração de Setores (Se salva no daily)
+    # Alguns componentes usam sectors_config para saber estado de accordion etc, 
+    # mas o principal vem de /api/smart-flow/sectors
+    sectors_config = [] 
+    if daily and daily.report:
+        try:
+             # Tentar extrair se existir no report json, senao vazio
+             pass
+        except: pass
+
+    return {
+        "log": log,
+        "tonnage": tonnage,
+        "sectors_config": sectors_config,
+        "kpis": kpis
     }
 
 @app.post("/api/smart-flow/allocations/save", response_class=JSONResponse, dependencies=[Depends(require_leader)])
@@ -14545,8 +15210,10 @@ async def save_allocations(
         
         if not date or not shift:
             return JSONResponse({"error": "Data e turno são obrigatórios"}, status_code=400)
-            
+
         print(f"⚡ [SmartFlow] Salvando alocações para {date} - {shift}")
+        now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+        date = normalize_shift_date(date, shift, now_br)
         
         # --- 1. Pre-Fetch Data (Cache in Memory) ---
         # Fetch ALL employees (needed for validation and sync)
@@ -17013,6 +17680,125 @@ async def update_vacation_event(
         raise HTTPException(status_code=400, detail="Data inválida")
         
     return RedirectResponse(url=f"/employees/{emp.id}", status_code=status.HTTP_303_SEE_OTHER)
+class MobileAdminStartPayload(BaseModel):
+    registration_id: str
+    client_id: int
+    tonnage: Optional[float] = 0.0
+
+@app.post("/mobile/admin/start-route")
+async def mobile_admin_start_route(
+    payload: MobileAdminStartPayload,
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    try:
+        # Check if logged in user is leader
+        user_id = request.session.get("user_id")
+        if not user_id:
+            # Fallback for Web Admin testing on mobile view
+            auth_user_id = request.session.get("auth_user_id")
+            if auth_user_id:
+                # If logged in as User, try to find linked Employee
+                user = session.get(models.User, auth_user_id)
+                if user and user.employee_id:
+                    user_id = user.employee_id
+                else:
+                    return JSONResponse({"error": "Usuário web sem colaborador vinculado"}, status_code=403)
+            else:
+                return JSONResponse({"error": "Não autorizado"}, status_code=401)
+            
+        try:
+            user_id = int(str(user_id))
+        except:
+             return JSONResponse({"error": "ID de usuário inválido"}, status_code=400)
+            
+        current_emp = session.get(models.Employee, user_id)
+        if not current_emp:
+             return JSONResponse({"error": "Líder não encontrado"}, status_code=403)
+             
+        if not getattr(current_emp, "mobile_access_admin_start", False):
+             return JSONResponse({"error": "Sem permissão de líder"}, status_code=403)
+
+        # Find Target Employee
+        target_emp = session.exec(select(models.Employee).where(models.Employee.registration_id == payload.registration_id)).first()
+        if not target_emp:
+            return JSONResponse({"error": "Matrícula não encontrada"}, status_code=404)
+            
+        # Verify Client Existence (Prevent FK Error)
+        client = session.get(models.Client, payload.client_id)
+        if not client:
+             return JSONResponse({"error": "Cliente não encontrado"}, status_code=404)
+
+        # 1. Create Routine if needed (Safely)
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        
+        routine = session.exec(select(models.EmployeeRoutine).where(
+            models.EmployeeRoutine.employee_id == target_emp.id,
+            models.EmployeeRoutine.date == today_str
+        )).first()
+        
+        if not routine:
+            try:
+                routine = models.EmployeeRoutine(
+                    employee_id=target_emp.id,
+                    date=today_str,
+                    shift=target_emp.work_shift or "Manhã",
+                    start_time=datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M"),
+                    routine="present",
+                    status="open"
+                )
+                session.add(routine)
+                session.commit()
+                session.refresh(routine)
+            except Exception as e:
+                # Ignore duplicate key if it was created in parallel
+                session.rollback()
+                routine = session.exec(select(models.EmployeeRoutine).where(
+                    models.EmployeeRoutine.employee_id == target_emp.id,
+                    models.EmployeeRoutine.date == today_str
+                )).first()
+
+        # 2. Check pending routes
+        pending = session.exec(select(models.Route).where(
+            models.Route.employee_id == target_emp.id,
+            models.Route.status == "pending"
+        )).first()
+        
+        if pending:
+            return JSONResponse({"error": "Colaborador já possui rota ativa"}, status_code=400)
+        
+        # 3. Create Route
+        new_route = models.Route(
+            employee_id=target_emp.id,
+            client_id=payload.client_id,
+            date=today_str,
+            shift=target_emp.work_shift or "Manhã",
+            start_time=datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M"),
+            status="pending",
+            tonnage=payload.tonnage
+        )
+        session.add(new_route)
+        
+        # 4. Log
+        log = models.Event(
+            type="routine_change",
+            text=f"Rota iniciada via Mobile (Líder {current_emp.name}) para {target_emp.name}",
+            category="processo",
+            sector="expedicao",
+            impact="low",
+            employee_id=target_emp.id,
+            timestamp=datetime.now(ZoneInfo("America/Sao_Paulo"))
+        )
+        session.add(log)
+        
+        session.commit()
+        return JSONResponse({"success": True})
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"error": f"Erro interno: {str(e)}"}, status_code=500)
+
 @app.post("/employees/{emp_id}/update")
 async def update_employee(
     emp_id: int,
@@ -17028,6 +17814,7 @@ async def update_employee(
     work_schedule: str = Form(None),
     mobile_access_separation: bool = Form(False),
     mobile_access_checklist: bool = Form(False),
+    mobile_access_admin_start: bool = Form(False),
     vacation_start: str = Form(None),
     vacation_end: str = Form(None),
     session: Session = Depends(get_session)
@@ -17069,6 +17856,7 @@ async def update_employee(
         emp.work_schedule = work_schedule
         emp.mobile_access_separation = mobile_access_separation
         emp.mobile_access_checklist = mobile_access_checklist
+        emp.mobile_access_admin_start = mobile_access_admin_start
         emp.mobile_access = bool(mobile_access_separation or mobile_access_checklist)
 
         # Update Work Days
@@ -17837,8 +18625,11 @@ async def people_intelligence_report(
 @app.get("/smart-flow/load", response_class=JSONResponse, dependencies=[Depends(require_leader)])
 async def smart_flow_load(request: Request, shift: str = "Manhã", date: Optional[str] = None, session: Session = Depends(get_session)):
     try:
+        now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
         if not date:
-            date = datetime.now().strftime("%Y-%m-%d")
+            date = get_effective_shift_date(shift, now_br).strftime("%Y-%m-%d")
+        else:
+            date = normalize_shift_date(date, shift, now_br)
 
         # Get Sector Config
         sector_config_db = session.exec(select(models.SectorConfiguration).where(models.SectorConfiguration.shift_name == shift)).first()

@@ -4,10 +4,68 @@
  * Single Source of Truth.
  */
 
+const ShiftDateUtils = (() => {
+    const toLocalISO = (ref = new Date()) => {
+        const local = new Date(ref.getTime() - ref.getTimezoneOffset() * 60000);
+        return local.toISOString().split('T')[0];
+    };
+
+    const getNightShiftStartDate = (ref = new Date()) => {
+        const local = new Date(ref);
+        const hour = local.getHours();
+        if (hour >= 18) {
+            return toLocalISO(local);
+        }
+        if (hour < 6) {
+            local.setDate(local.getDate() - 1);
+            return toLocalISO(local);
+        }
+        return toLocalISO(local);
+    };
+
+    const getEffectiveShiftDate = (shift, ref = new Date()) => {
+        if ((shift || '').trim().toLowerCase() === 'noite') {
+            return getNightShiftStartDate(ref);
+        }
+        return toLocalISO(ref);
+    };
+
+    const normalizeDateForShift = (dateStr, shift, ref = new Date()) => {
+        if (!dateStr || (shift || '').trim().toLowerCase() !== 'noite') {
+            return dateStr;
+        }
+
+        const [year, month, day] = dateStr.split('-').map(num => Number(num));
+        if (!year || !month || !day) {
+            return dateStr;
+        }
+
+        const provided = new Date(year, month - 1, day);
+        const today = new Date(ref);
+        if (
+            provided.getFullYear() === today.getFullYear() &&
+            provided.getMonth() === today.getMonth() &&
+            provided.getDate() === today.getDate() &&
+            today.getHours() >= 0 &&
+            today.getHours() < 6
+        ) {
+            return getNightShiftStartDate(ref);
+        }
+
+        return dateStr;
+    };
+
+    return {
+        getEffectiveShiftDate,
+        getNightShiftStartDate,
+        normalizeDateForShift
+    };
+})();
+
 const Store = {
     // --- Estado ---
     state: {
-        currentDate: new Date().toISOString().split('T')[0],
+        currentDate: ShiftDateUtils.getEffectiveShiftDate('Manhã'),
         currentShift: 'Manhã',
         employees: [],      // Lista completa de colaboradores
         sectors: [],        // Setores hierárquicos com sub-setores
@@ -378,3 +436,4 @@ const Store = {
 };
 
 window.Store = Store; // Expor globalmente
+window.ShiftDateUtils = ShiftDateUtils;

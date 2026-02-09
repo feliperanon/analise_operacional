@@ -146,8 +146,14 @@
     <div class="px-6 -mt-6 z-20" x-show="initialized && hasActiveRoutes" x-cloak>
         <template x-for="(route, routeIndex) in activeRoutes" :key="'active-' + routeIndex">
             <div
-                class="bg-slate-800/90 backdrop-blur-xl rounded-3xl p-5 border border-indigo-500/30 shadow-[0_10px_40px_-10px_rgba(79,70,229,0.3)] animate-slide-up bg-[url('/static/grid.svg')] bg-repeat opacity-95 mb-4">
-                <div class="flex justify-between items-start mb-4">
+                class="bg-slate-800/90 backdrop-blur-xl rounded-3xl p-5 border border-indigo-500/30 shadow-[0_10px_40px_-10px_rgba(79,70,229,0.3)] animate-slide-up bg-[url('/static/grid.svg')] bg-repeat opacity-95 mb-4 relative overflow-hidden group">
+
+                <!-- Background Pattern -->
+                <div
+                    class="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-[50px] rounded-full pointer-events-none">
+                </div>
+
+                <div class="flex justify-between items-start mb-4 relative z-10">
                     <div class="flex items-center space-x-3">
                         <div class="p-2.5 bg-indigo-500/20 rounded-xl animate-pulse">
                             <i data-lucide="truck" class="w-6 h-6 text-indigo-400"></i>
@@ -160,9 +166,21 @@
                             <p class="text-indigo-300 text-sm font-medium" x-text="route.client_name"></p>
                         </div>
                     </div>
+
+                    <!-- Edit/Delete Actions -->
+                    <div class="flex gap-2">
+                        <button @click="openEditModal(route)"
+                            class="p-2 rounded-full bg-slate-700/50 text-slate-300 hover:bg-indigo-500 hover:text-white transition-colors">
+                            <i data-lucide="pencil" class="w-4 h-4"></i>
+                        </button>
+                        <button @click="openDeleteModal(route)"
+                            class="p-2 rounded-full bg-slate-700/50 text-slate-300 hover:bg-red-500 hover:text-white transition-colors">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
                 </div>
 
-                <div class="flex flex-wrap items-end justify-between gap-4">
+                <div class="flex flex-wrap items-end justify-between gap-4 relative z-10">
                     <div class="flex gap-6">
                         <div>
                             <p class="text-[10px] text-slate-400 uppercase tracking-wider font-bold mb-1">Tempo</p>
@@ -204,6 +222,21 @@
             {% for module in modules %}
             {% if module.action == "start_separation" %}
             <button @click="openStartModal()"
+                class="w-full group relative overflow-hidden p-4 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-indigo-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg text-left flex items-center gap-4">
+                <div
+                    class="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-300 group-hover:bg-indigo-500 group-hover:text-white transition-colors shrink-0 z-10">
+                    <i data-lucide="{{ module.icon }}" class="w-7 h-7"></i>
+                </div>
+                <div class="relative z-10 flex-1">
+                    <p class="font-bold text-lg text-slate-100 group-hover:text-white transition-colors">{{ module.label
+                        }}</p>
+                    <p class="text-sm text-slate-400 group-hover:text-slate-300">{{ module.description }}</p>
+                </div>
+                <i data-lucide="chevron-right"
+                    class="w-5 h-5 text-slate-500 group-hover:text-white transition-colors relative z-10"></i>
+            </button>
+            {% elif module.action == "open_admin_start_modal" %}
+            <button @click="open_admin_start_modal()"
                 class="w-full group relative overflow-hidden p-4 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-indigo-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg text-left flex items-center gap-4">
                 <div
                     class="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-300 group-hover:bg-indigo-500 group-hover:text-white transition-colors shrink-0 z-10">
@@ -627,6 +660,210 @@
         </div>
     </div>
 
+    <!-- Edit Route Modal -->
+    <div x-show="showEditModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+        x-transition.opacity x-cloak>
+        <div class="bg-slate-900 w-full max-w-md rounded-[32px] border border-indigo-500/20 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            @click.away="showEditModal = false">
+
+            <div class="bg-indigo-500/10 p-6 text-center border-b border-indigo-500/10 shrink-0">
+                <div
+                    class="w-16 h-16 bg-indigo-500/20 rounded-2xl flex items-center justify-center mx-auto mb-3 text-indigo-400">
+                    <i data-lucide="pencil" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-xl font-bold text-white">Editar Separação</h3>
+                <p class="text-slate-400 text-sm" x-text="selectedRoute?.client_name"></p>
+            </div>
+
+            <div class="p-6 space-y-6 overflow-y-auto custom-scrollbar">
+                <!-- Change Client Search -->
+                <div>
+                    <label class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2 block">Alterar Cliente
+                        (Opcional)</label>
+                    <div class="relative">
+                        <i data-lucide="search" class="absolute left-4 top-3.5 w-5 h-5 text-slate-500"></i>
+                        <input type="text" x-model="editSearch" placeholder="Buscar novo cliente..."
+                            class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-12 pr-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
+                    </div>
+                    <!-- Results -->
+                    <div class="mt-2 max-h-40 overflow-y-auto custom-scrollbar space-y-1"
+                        x-show="editSearch.length > 0">
+                        <template x-for="client in filteredEditClients" :key="client.id">
+                            <button @click="selectEditClient(client)"
+                                class="w-full text-left p-3 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-between group"
+                                :class="{'bg-indigo-500/20 border border-indigo-500/50': editForm.client_id === client.id}">
+                                <span class="text-slate-200 text-sm font-medium" x-text="client.name"></span>
+                                <i data-lucide="check" class="w-4 h-4 text-indigo-400"
+                                    x-show="editForm.client_id === client.id"></i>
+                            </button>
+                        </template>
+                    </div>
+                    <div x-show="editForm.client_name"
+                        class="mt-2 text-sm text-green-400 flex items-center gap-2 bg-green-400/10 p-2 rounded-lg">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i>
+                        <span x-text="'Novo cliente: ' + editForm.client_name"></span>
+                    </div>
+                </div>
+
+                <!-- Change Weight -->
+                <div>
+                    <label class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2 block">Peso Total
+                        (Kg)</label>
+                    <div class="relative">
+                        <input type="tel" inputmode="numeric" x-model="editForm.weightInput"
+                            @input="let v = $event.target.value.replace(/\D/g,''); if(!v) v='0'; editForm.weightInput = (parseInt(v)/100).toLocaleString('pt-BR', {minimumFractionDigits: 2});"
+                            class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-lg font-mono focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
+                        <span class="absolute right-4 top-3.5 text-slate-500 font-medium">kg</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6 border-t border-white/5 bg-slate-800/50 flex gap-3">
+                <button @click="showEditModal = false"
+                    class="flex-1 py-3 bg-slate-700 text-slate-300 rounded-xl font-medium">Cancelar</button>
+                <button @click="confirmEdit()" :class="{'btn-loading': isLoading}"
+                    class="flex-1 py-3 bg-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20">
+                    <span x-text="isLoading ? 'Salvando...' : 'Salvar'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Route Modal -->
+    <div x-show="showDeleteModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
+        x-transition.opacity x-cloak>
+        <div class="bg-slate-900 w-full max-w-sm rounded-[32px] border border-red-500/30 shadow-2xl relative overflow-hidden text-center p-6"
+            @click.away="showDeleteModal = false">
+
+            <div class="absolute -top-10 -left-10 w-32 h-32 bg-red-600/20 blur-[50px] rounded-full pointer-events-none">
+            </div>
+
+            <i data-lucide="trash-2" class="w-12 h-12 text-red-500 mx-auto mb-4"></i>
+
+            <h3 class="text-xl font-bold text-white mb-2">Excluir Separação?</h3>
+            <p class="text-slate-400 text-sm mb-6">Esta ação não pode ser desfeita. Digite sua matrícula para confirmar.
+            </p>
+
+            <div class="mb-6">
+                <input type="tel" x-model="deleteConfirmation" placeholder="Sua Matrícula"
+                    class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-center text-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none">
+            </div>
+
+            <div class="space-y-3">
+                <button @click="confirmDelete()" :class="{'btn-loading': isLoading}" :disabled="!deleteConfirmation"
+                    class="w-full py-3 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-xl font-bold shadow-lg shadow-red-500/25 transition-all">
+                    <span x-text="isLoading ? 'Excluindo...' : 'Confirmar Exclusão'"></span>
+                </button>
+                <button @click="showDeleteModal = false"
+                    class="w-full py-3 bg-slate-800 text-slate-400 rounded-xl font-medium">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Start Modal -->
+    <div x-show="showAdminStartModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
+        x-transition.opacity x-cloak>
+        <div class="bg-slate-900 w-full max-w-sm rounded-[32px] border border-indigo-500/30 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]"
+            @click.away="showAdminStartModal = false">
+
+            <div class="bg-indigo-500/10 p-6 text-center border-b border-indigo-500/10 shrink-0">
+                <div
+                    class="w-16 h-16 bg-indigo-500/20 rounded-2xl flex items-center justify-center mx-auto mb-3 text-indigo-400">
+                    <i data-lucide="users" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-xl font-bold text-white">Abertura Manual (Líder)</h3>
+                <p class="text-slate-400 text-sm">Iniciar rota para outro colaborador</p>
+            </div>
+
+            <div class="p-6 space-y-6 overflow-y-auto custom-scrollbar">
+                <!-- Employee Search -->
+                <div>
+                    <label
+                        class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2 block">Colaborador</label>
+                    <div class="relative">
+                        <i data-lucide="user" class="absolute left-4 top-3.5 w-5 h-5 text-slate-500"></i>
+                        <input type="text" x-model="adminStartForm.employeeSearch"
+                            placeholder="Buscar por Nome ou Matrícula..."
+                            class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-12 pr-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
+                    </div>
+                    <!-- Results -->
+                    <div class="mt-2 max-h-40 overflow-y-auto custom-scrollbar space-y-1"
+                        x-show="adminStartForm.employeeSearch.length > 0">
+                        <template x-for="emp in filteredAdminStartEmployees" :key="emp.id">
+                            <button @click="selectAdminStartEmployee(emp)"
+                                class="w-full text-left p-3 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-between group"
+                                :class="{'bg-indigo-500/20 border border-indigo-500/50': adminStartForm.registrationId === emp.registration_id}">
+                                <div>
+                                    <p class="text-slate-200 text-sm font-medium" x-text="emp.name"></p>
+                                    <p class="text-xs text-slate-500" x-text="emp.registration_id"></p>
+                                </div>
+                                <i data-lucide="check" class="w-4 h-4 text-indigo-400"
+                                    x-show="adminStartForm.registrationId === emp.registration_id"></i>
+                            </button>
+                        </template>
+                    </div>
+                    <div x-show="adminStartForm.employee_name"
+                        class="mt-2 text-sm text-green-400 flex items-center gap-2 bg-green-400/10 p-2 rounded-lg">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i>
+                        <span x-text="adminStartForm.employee_name + ' (' + adminStartForm.registrationId + ')'"></span>
+                    </div>
+                </div>
+
+                <!-- Client Search -->
+                <div>
+                    <label class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2 block">Cliente</label>
+                    <div class="relative">
+                        <i data-lucide="search" class="absolute left-4 top-3.5 w-5 h-5 text-slate-500"></i>
+                        <input type="text" x-model="adminStartForm.clientSearch" placeholder="Buscar cliente..."
+                            class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-12 pr-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
+                    </div>
+                    <!-- Results -->
+                    <div class="mt-2 max-h-40 overflow-y-auto custom-scrollbar space-y-1"
+                        x-show="adminStartForm.clientSearch.length > 0">
+                        <template x-for="client in filteredAdminStartClients" :key="client.id">
+                            <button @click="selectAdminStartClient(client)"
+                                class="w-full text-left p-3 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-between group"
+                                :class="{'bg-indigo-500/20 border border-indigo-500/50': adminStartForm.client_id === client.id}">
+                                <span class="text-slate-200 text-sm font-medium" x-text="client.name"></span>
+                                <i data-lucide="check" class="w-4 h-4 text-indigo-400"
+                                    x-show="adminStartForm.client_id === client.id"></i>
+                            </button>
+                        </template>
+                    </div>
+                    <div x-show="adminStartForm.client_name"
+                        class="mt-2 text-sm text-green-400 flex items-center gap-2 bg-green-400/10 p-2 rounded-lg">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i>
+                        <span x-text="adminStartForm.client_name"></span>
+                    </div>
+                </div>
+
+                <!-- Weight -->
+                <div>
+                    <label class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2 block">Peso
+                        (Kg)</label>
+                    <div class="relative">
+                        <input type="tel" inputmode="numeric" x-model="adminStartForm.weightInput"
+                            @input="let v = $event.target.value.replace(/\D/g,''); if(!v) v='0'; adminStartForm.weightInput = (parseInt(v)/100).toLocaleString('pt-BR', {minimumFractionDigits: 2});"
+                            class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-lg font-mono focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
+                        <span class="absolute right-4 top-3.5 text-slate-500 font-medium">kg</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6 border-t border-white/5 bg-slate-800/50 flex gap-3">
+                <button @click="showAdminStartModal = false"
+                    class="flex-1 py-3 bg-slate-700 text-slate-300 rounded-xl font-medium">Cancelar</button>
+                <button @click="confirmAdminStart()" :class="{'btn-loading': isLoading}"
+                    class="flex-1 py-3 bg-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20">
+                    <span x-text="isLoading ? 'Iniciando...' : 'Iniciar'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- End Day Modal -->
     <div x-show="showEndDayModal"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
@@ -773,6 +1010,7 @@
 <script id="server-data" type="application/json">
         {
             "clients": {{ clients_json | safe }},
+            "employees": {{ employees_json | safe }},
         "activeRoutes": {{ active_routes | safe}},
         "completedRoutes": {{ completed_routes | safe}},
         "dailyXp": {{ daily_xp_gain }},
@@ -791,7 +1029,7 @@
     } catch (e) {
         console.error("Critical: Failed to parse initial data", e);
         window.INITIAL_DATA = {
-            clients: [], activeRoutes: [], completedRoutes: [], dailyXp: 0,
+            clients: [], employees: [], activeRoutes: [], completedRoutes: [], dailyXp: 0,
             labels: [], dataKg: [], dataKgh: [], bgColors: []
         };
     }
@@ -817,28 +1055,30 @@
             tempWeight: '',
 
             // Data from Global Initial Data
-            clients: window.INITIAL_DATA.clients || [],
-            activeRoutes: window.INITIAL_DATA.activeRoutes || [],
-            completedRoutes: window.INITIAL_DATA.completedRoutes || [],
+            clients: Array.isArray(window.INITIAL_DATA.clients) ? window.INITIAL_DATA.clients : [],
+            activeRoutes: Array.isArray(window.INITIAL_DATA.activeRoutes) ? window.INITIAL_DATA.activeRoutes : [],
+            completedRoutes: Array.isArray(window.INITIAL_DATA.completedRoutes) ? window.INITIAL_DATA.completedRoutes : [],
             dailyXp: window.INITIAL_DATA.dailyXp || 0,
+            employees: Array.isArray(window.INITIAL_DATA.employees) ? window.INITIAL_DATA.employees : [],
 
             // Charts Data
-            labels: window.INITIAL_DATA.labels || [],
-            dataKg: window.INITIAL_DATA.dataKg || [],
-            dataKgh: window.INITIAL_DATA.dataKgh || [],
-            bgColors: window.INITIAL_DATA.bgColors || [],
+            labels: Array.isArray(window.INITIAL_DATA.labels) ? window.INITIAL_DATA.labels : [],
+            dataKg: Array.isArray(window.INITIAL_DATA.dataKg) ? window.INITIAL_DATA.dataKg : [],
+            dataKgh: Array.isArray(window.INITIAL_DATA.dataKgh) ? window.INITIAL_DATA.dataKgh : [],
+            bgColors: Array.isArray(window.INITIAL_DATA.bgColors) ? window.INITIAL_DATA.bgColors : [],
 
             selectedRoute: null,
 
             get filteredClients() {
                 if (this.searchClient === '') return []; // Only show on search
+                if (!this.clients || !Array.isArray(this.clients)) return [];
                 return this.clients.filter(client =>
                     client.name.toLowerCase().includes(this.searchClient.toLowerCase())
                 ).slice(0, 10); // Limit results
             },
 
             get hasActiveRoutes() {
-                return this.activeRoutes.length > 0;
+                return this.activeRoutes && this.activeRoutes.length > 0;
             },
 
             init() {
@@ -849,7 +1089,7 @@
                     this.initialized = true;
                     this.$nextTick(() => {
                         lucide.createIcons();
-                        if (this.labels.length > 0) {
+                        if (this.labels && this.labels.length > 0) {
                             this.initChart();
                         }
                     });
@@ -1120,6 +1360,200 @@
                 fetch('/mobile/routine/stop', { method: 'POST' })
                     .then(() => {
                         window.location.href = '/mobile/login';
+                    });
+            },
+
+            // --- Edit & Delete Logic ---
+            showEditModal: false,
+            showDeleteModal: false,
+            editSearch: '',
+            editForm: { client_id: null, client_name: '', weightInput: '' },
+            deleteConfirmation: '',
+
+            get filteredEditClients() {
+                if (this.editSearch === '') return [];
+                if (!this.clients || !Array.isArray(this.clients)) return [];
+                return this.clients.filter(client =>
+                    client.name.toLowerCase().includes(this.editSearch.toLowerCase())
+                ).slice(0, 5);
+            },
+
+            openEditModal(route) {
+                this.selectedRoute = route;
+                this.editSearch = '';
+                this.editForm = {
+                    client_id: null, // Keep null unless changed
+                    client_name: '',
+                    weightInput: route.tonnage ? route.tonnage.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '0,00'
+                };
+                this.showEditModal = true;
+            },
+
+            selectEditClient(client) {
+                this.editForm.client_id = client.id;
+                this.editForm.client_name = client.name;
+                this.editSearch = ''; // Clear search
+            },
+
+            confirmEdit() {
+                if (!this.selectedRoute || this.isLoading) return;
+
+                let weight = 0;
+                if (this.editForm.weightInput) {
+                    let clean = this.editForm.weightInput.replace(/\./g, '').replace(',', '.');
+                    weight = parseFloat(clean);
+                }
+
+                if (weight <= 0) {
+                    alert("Peso inválido."); return;
+                }
+
+                this.isLoading = true;
+                this.haptic('medium');
+
+                fetch(`/mobile/route/${this.selectedRoute.id}/update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        client_id: this.editForm.client_id,
+                        tonnage: weight
+                    })
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.haptic('success');
+                            window.location.reload();
+                        } else {
+                            this.isLoading = false;
+                            this.haptic('error');
+                            alert("Erro: " + (data.error || "Falha ao atualizar"));
+                        }
+                    })
+                    .catch(e => {
+                        this.isLoading = false;
+                        alert("Erro de conexão");
+                    });
+            },
+
+            openDeleteModal(route) {
+                this.selectedRoute = route;
+                this.deleteConfirmation = '';
+                this.showDeleteModal = true;
+            },
+
+            confirmDelete() {
+                if (!this.selectedRoute || this.isLoading) return;
+                if (!this.deleteConfirmation) {
+                    alert("Digite sua matrícula."); return;
+                }
+
+                this.isLoading = true;
+                this.haptic('medium');
+
+                fetch(`/mobile/route/${this.selectedRoute.id}/delete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        registration_id: this.deleteConfirmation
+                    })
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.haptic('success');
+                            window.location.reload();
+                        } else {
+                            this.isLoading = false;
+                            this.haptic('error');
+                            alert("Erro: " + (data.error || "Falha ao excluir"));
+                        }
+                    })
+                    .catch(e => {
+                        this.isLoading = false;
+                        alert("Erro de conexão");
+                    });
+            },
+
+            // --- Admin Start Logic ---
+            showAdminStartModal: false,
+            adminStartForm: { employeeSearch: '', registrationId: '', employee_name: '', clientSearch: '', client_id: null, client_name: '', weightInput: '' },
+
+            open_admin_start_modal() {
+                this.showAdminStartModal = true;
+                this.adminStartForm = { employeeSearch: '', registrationId: '', employee_name: '', clientSearch: '', client_id: null, client_name: '', weightInput: '' };
+            },
+
+            get filteredAdminStartEmployees() {
+                const searchRaw = this.adminStartForm?.employeeSearch || '';
+                const normalizedSearch = searchRaw.trim().toLowerCase();
+                if (!normalizedSearch) return [];
+                const availableEmployees = Array.isArray(this.employees) ? this.employees : [];
+                return availableEmployees.filter(emp => {
+                    const name = ((emp && emp.name) || "").toLowerCase();
+                    const registration = (((emp && emp.registration_id) || "") + "").toLowerCase();
+                    return name.includes(normalizedSearch) || registration.includes(normalizedSearch);
+                }).slice(0, 5);
+            },
+
+            selectAdminStartEmployee(emp) {
+                this.adminStartForm.registrationId = emp.registration_id;
+                this.adminStartForm.employee_name = emp.name;
+                this.adminStartForm.employeeSearch = '';
+            },
+
+            get filteredAdminStartClients() {
+                if (this.adminStartForm.clientSearch === '') return [];
+                if (!this.clients || !Array.isArray(this.clients)) return [];
+                return this.clients.filter(client =>
+                    client.name.toLowerCase().includes(this.adminStartForm.clientSearch.toLowerCase())
+                ).slice(0, 5);
+            },
+
+            selectAdminStartClient(client) {
+                this.adminStartForm.client_id = client.id;
+                this.adminStartForm.client_name = client.name;
+                this.adminStartForm.clientSearch = '';
+            },
+
+            confirmAdminStart() {
+                if (this.isLoading) return;
+                if (!this.adminStartForm.registrationId) { alert("Informe a matrícula."); return; }
+                if (!this.adminStartForm.client_id) { alert("Selecione um cliente."); return; }
+
+                let weight = 0;
+                if (this.adminStartForm.weightInput) {
+                    let clean = this.adminStartForm.weightInput.replace(/\./g, '').replace(',', '.');
+                    weight = parseFloat(clean);
+                }
+
+                this.isLoading = true;
+                this.haptic('medium');
+
+                fetch('/mobile/admin/start-route', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        registration_id: this.adminStartForm.registrationId,
+                        client_id: this.adminStartForm.client_id,
+                        tonnage: weight
+                    })
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        this.isLoading = false;
+                        if (data.success) {
+                            this.haptic('success');
+                            this.showAdminStartModal = false;
+                            alert("Rota iniciada com sucesso!");
+                        } else {
+                            this.haptic('error');
+                            alert("Erro: " + (data.error || "Falha ao iniciar"));
+                        }
+                    })
+                    .catch(e => {
+                        this.isLoading = false;
+                        alert("Erro de conexão");
                     });
             },
 

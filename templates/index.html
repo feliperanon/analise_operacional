@@ -250,514 +250,253 @@
             </div>
         </div>
 
-        <!-- ALERTAS DO DIA (Condensed) -->
-        {% if dashboard.alerts and dashboard.alerts.total > 0 %}
-        <div class="bg-gradient-to-r from-rose-900/30 to-slate-800/60 backdrop-blur border border-rose-500/30 rounded-2xl p-4">
-            <div class="flex items-center justify-between mb-3">
-                <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-lg bg-rose-500/20 flex items-center justify-center">
-                        <svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                        </svg>
-                    </div>
-                    <h3 class="text-sm font-bold text-rose-200 uppercase tracking-wider">Alertas do Dia</h3>
-                    <span class="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 text-xs font-bold">{{ dashboard.alerts.total }}</span>
-                </div>
-                <a href="/employees?filter=away" class="text-xs text-slate-400 hover:text-white transition-colors">Ver todos</a>
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <!-- Ausentes Hoje -->
-                {% if dashboard.alerts.ausentes|length > 0 %}
-                <div class="bg-slate-900/50 rounded-xl p-3 border border-slate-700/50">
-                    <div class="flex items-center gap-2 mb-2">
-                        <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
-                        </svg>
-                        <span class="text-xs font-bold text-red-400 uppercase">Ausentes</span>
-                        <span class="ml-auto text-lg font-bold text-red-400">{{ dashboard.alerts.ausentes|length }}</span>
-                    </div>
-                    <div class="space-y-1 max-h-20 overflow-y-auto custom-scrollbar">
-                        {% for a in dashboard.alerts.ausentes[:5] %}
-                        <div class="flex items-center gap-2 text-[11px]">
-                            <span class="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
-                            <span class="text-slate-300 truncate">{{ a.name }}</span>
-                            <span class="ml-auto text-slate-500">{{ a.shift }}</span>
-                        </div>
-                        {% endfor %}
-                        {% if dashboard.alerts.ausentes|length > 5 %}
-                        <p class="text-[10px] text-slate-500 text-center">+{{ dashboard.alerts.ausentes|length - 5 }} mais</p>
-                        {% endif %}
-                    </div>
-                </div>
-                {% endif %}
-                
-                <!-- Vencimentos Proximos -->
-                {% if dashboard.alerts.vencimentos|length > 0 %}
-                <div class="bg-slate-900/50 rounded-xl p-3 border border-slate-700/50">
-                    <div class="flex items-center gap-2 mb-2">
-                        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                        <span class="text-xs font-bold text-amber-400 uppercase">Venc. Exp.</span>
-                        <span class="ml-auto text-lg font-bold text-amber-400">{{ dashboard.alerts.vencimentos|length }}</span>
-                    </div>
-                    {% set shift_themes = {
-                        'manha': {
-                            'card': 'bg-blue-900/50 border-blue-500/40',
-                            'pill': 'bg-blue-500/20 border border-blue-500/40 text-blue-200'
-                        },
-                        'tarde': {
-                            'card': 'bg-orange-900/50 border-orange-500/40',
-                            'pill': 'bg-orange-500/20 border border-orange-500/40 text-orange-200'
-                        },
-                        'noite': {
-                            'card': 'bg-purple-900/50 border-purple-500/40',
-                            'pill': 'bg-purple-500/20 border border-purple-500/40 text-purple-200'
-                        },
-                        'default': {
-                            'card': 'bg-slate-900/50 border-slate-700/50',
-                            'pill': 'bg-slate-800/50 border border-slate-700/50 text-slate-300'
-                        }
-                    } %}
-                    <div class="space-y-3 max-h-28 overflow-y-auto custom-scrollbar">
-                        {% for v in dashboard.alerts.vencimentos[:5] %}
-                        {% set shift_key = (v.shift or 'turno')|lower %}
-                        {% set theme = shift_themes['default'] %}
-                        {% if shift_key.startswith('man') %}
-                            {% set theme = shift_themes['manha'] %}
-                        {% elif shift_key.startswith('tar') %}
-                            {% set theme = shift_themes['tarde'] %}
-                        {% elif shift_key.startswith('noi') %}
-                            {% set theme = shift_themes['noite'] %}
-                        {% endif %}
-                        {% set full_name = v.full_name if v.full_name else v.name %}
-                        {% set parts = full_name.split() %}
-                        {% set display_parts = parts[:2] if parts else [] %}
-                        {% set display_name = ' '.join(display_parts) if display_parts else (parts[0] if parts else v.name) %}
-                        <div class="flex items-start gap-3">
-                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 {{ 'animate-pulse' if v.days <= 3 else '' }}"></span>
-                            <div class="flex-1 rounded-2xl border border-slate-700/50 {{ theme.card }} p-3 space-y-1">
-                                <div class="flex items-center justify-between gap-2">
-                                    <p class="text-[11px] text-slate-200 font-semibold truncate">{{ display_name }}</p>
-                                    <span class="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full {{ theme.pill }}">
-                                        {{ v.shift or 'Turno' }}
-                                    </span>
-                                </div>
-                                <div class="flex items-center justify-between text-[10px] text-slate-400">
-                                    <span class="text-amber-400 font-bold">{{ v.days }}d restantes</span>
-                                    <span class="text-slate-500">Vence {{ v.date }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
+        <!-- 2. DASHBOARD CARDS -->
+        <div class="grid grid-cols-1 gap-6">
 
-                <!-- Férias -->
-                <div class="bg-slate-900/50 rounded-xl p-3 border border-slate-700/50">
-                    <div class="flex items-center gap-2 mb-2">
-                        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5-6l3 3-3 3"/>
-                        </svg>
-                        <span class="text-xs font-bold text-emerald-400 uppercase">Férias</span>
-                        <span class="ml-auto text-lg font-bold text-emerald-400">{{ (dashboard.alerts.vacations_active|length + dashboard.alerts.vacations_upcoming|length) }}</span>
+            <!-- RADAR RH -->
+            <div>
+                <div class="bg-slate-800/80 backdrop-blur rounded-2xl border border-slate-700 overflow-hidden">
+                    <div class="p-4 border-b border-slate-700 flex items-center justify-between gap-4">
+                        <div>
+                            <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Radar RH</p>
+                            <p class="text-sm font-semibold text-white">Visao completa do turno {{ dashboard.current_shift_name }}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] text-slate-500 uppercase tracking-wider">Turno base</p>
+                            <p class="text-sm font-bold text-white">{{ dashboard.current_shift_name }}</p>
+                        </div>
                     </div>
-                    <div class="space-y-4 max-h-44 overflow-y-auto custom-scrollbar">
-                        <div class="space-y-2">
-                        <div class="flex items-center gap-2">
-                            <span class="text-[10px] font-bold text-emerald-300 uppercase tracking-wider">Em Férias</span>
-                            <span class="text-[10px] text-slate-500">({{ dashboard.alerts.vacations_active|length }})</span>
+                    <div class="p-4 space-y-4">
+                        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                            <section class="bg-slate-900/60 backdrop-blur border border-slate-700/30 rounded-2xl p-4 space-y-3">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div>
+                                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Faltas confirmadas</p>
+                                        <p class="text-sm font-semibold text-white">{{ dashboard.alerts.ausentes|length }} colaboradores</p>
+                                    </div>
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase text-red-300 bg-red-500/10">Radar</span>
+                                </div>
+                                <div class="space-y-2 max-h-44 overflow-y-auto custom-scrollbar">
+                                    {% if dashboard.alerts.ausentes %}
+                                    {% for absence in dashboard.alerts.ausentes[:6] %}
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-semibold text-white truncate">{{ absence.full_name }}</p>
+                                            <p class="text-[10px] text-slate-400">{{ absence.shift }}</p>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-red-400">Falta</span>
+                                    </div>
+                                    {% endfor %}
+                                    {% else %}
+                                    <p class="text-[10px] text-slate-500">Nenhuma falta confirmada.</p>
+                                    {% endif %}
+                                </div>
+                            </section>
+
+                            <section class="bg-slate-900/60 backdrop-blur border border-slate-700/30 rounded-2xl p-4 space-y-3">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div>
+                                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Atestados</p>
+                                        <p class="text-sm font-semibold text-white">{{ dashboard.alerts.atestados|length }} registros</p>
+                                    </div>
+                                    <i data-lucide="activity" class="w-4 h-4 text-amber-300"></i>
+                                </div>
+                                <div class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                                    {% if dashboard.alerts.atestados %}
+                                    {% for atestado in dashboard.alerts.atestados[:5] %}
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-semibold text-white truncate">{{ atestado.full_name }}</p>
+                                            <p class="text-[10px] text-slate-400">{{ atestado.shift }} - Início {{ atestado.start_date }}</p>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-amber-300">Atestado · {{ atestado.days_until }}d</span>
+                                    </div>
+                                    {% endfor %}
+                                    {% else %}
+                                    <p class="text-[10px] text-slate-500">Nenhum atestado previsto nos próximos 30 dias.</p>
+                                    {% endif %}
+                                </div>
+                            </section>
+
+                            <section class="bg-slate-900/60 backdrop-blur border border-slate-700/30 rounded-2xl p-4 space-y-3">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div>
+                                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Fim de experiencia</p>
+                                        <p class="text-sm font-semibold text-white">{{ dashboard.hr.experience_expiring|length }} proximos</p>
+                                    </div>
+                                    <i data-lucide="clock-alert" class="w-4 h-4 text-purple-300"></i>
+                                </div>
+                                <div class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                                    {% if dashboard.hr.experience_expiring %}
+                                    {% for exp in dashboard.hr.experience_expiring[:4] %}
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-semibold text-white truncate">{{ exp.full_name }}</p>
+                                            <p class="text-[10px] text-slate-400">{{ exp.role }}</p>
+                                        </div>
+                                        <div class="flex flex-col items-end">
+                                            <p class="text-[10px] text-slate-400">{{ exp.type }} dias - {{ exp.date }}</p>
+                                            <span class="text-[10px] font-bold {% if exp.days <= 3 %}text-red-500{% else %}text-emerald-300{% endif %}">{{ exp.days }}d</span>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                    {% else %}
+                                    <p class="text-[10px] text-slate-500">Nenhum vencimento proximo.</p>
+                                    {% endif %}
+                                </div>
+                            </section>
+
+                            <section class="bg-slate-900/60 backdrop-blur border border-slate-700/30 rounded-2xl p-4 space-y-3">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div>
+                                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Aniversariantes</p>
+                                        <p class="text-sm font-semibold text-white">{{ dashboard.hr.birthdays|length }} este mes</p>
+                                    </div>
+                                    <i data-lucide="cake" class="w-4 h-4 text-pink-300"></i>
+                                </div>
+                                <div class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                                    {% if dashboard.hr.birthdays %}
+                                    {% for b in dashboard.hr.birthdays[:5] %}
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-semibold text-white truncate">{{ b.name }}</p>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-pink-300">Dia {{ b.day }}</span>
+                                    </div>
+                                    {% endfor %}
+                                    {% else %}
+                                    <p class="text-[10px] text-slate-500">Sem aniversariantes previstos.</p>
+                                    {% endif %}
+                                </div>
+                            </section>
+
+                            <section class="bg-slate-900/60 backdrop-blur border border-slate-700/30 rounded-2xl p-4 space-y-3">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div>
+                                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Ferias ativas</p>
+                                        <p class="text-sm font-semibold text-white">{{ dashboard.hr.vacation|length }} em descanso</p>
+                                    </div>
+                                    <i data-lucide="sun" class="w-4 h-4 text-emerald-300"></i>
+                                </div>
+                                <div class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                                    {% if dashboard.hr.vacation %}
+                                    {% for v in dashboard.hr.vacation[:4] %}
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-semibold text-white truncate">{{ v.name }}</p>
+                                            <p class="text-[10px] text-slate-400">{{ v.shift }}</p>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-emerald-300">Ferias</span>
+                                    </div>
+                                    {% endfor %}
+                                    {% else %}
+                                    <p class="text-[10px] text-slate-500">Ninguem em ferias neste momento.</p>
+                                    {% endif %}
+                                </div>
+                            </section>
+
+                            <section class="bg-slate-900/60 backdrop-blur border border-slate-700/30 rounded-2xl p-4 space-y-3">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div>
+                                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Férias próximas (30 dias)</p>
+                                        <p class="text-sm font-semibold text-white">{{ dashboard.alerts.vacations_upcoming|length }} programadas</p>
+                                    </div>
+                                    <i data-lucide="calendar-clock" class="w-4 h-4 text-cyan-300"></i>
+                                </div>
+                                <div class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                                    {% if dashboard.alerts.vacations_upcoming %}
+                                    {% for v in dashboard.alerts.vacations_upcoming[:4] %}
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-semibold text-white truncate">{{ v.full_name }}</p>
+                                            <p class="text-[10px] text-slate-400">{{ v.shift }} - Inicio {{ v.start_date }}</p>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-cyan-300">{{ v.days_until }}d</span>
+                                    </div>
+                                    {% endfor %}
+                                    {% else %}
+                                    <p class="text-[10px] text-slate-500">Nenhuma programacao futura cadastrada.</p>
+                                    {% endif %}
+                                </div>
+                            </section>
                         </div>
-                        {% if dashboard.alerts.vacations_active %}
-                        <div class="space-y-2">
-                            {% for f in dashboard.alerts.vacations_active[:3] %}
-                            <div class="flex items-center justify-between gap-2">
-                                <div class="min-w-0">
-                                    <p class="text-[11px] text-slate-200 font-semibold truncate">{{ f.name }}</p>
-                                    <p class="text-[10px] text-slate-400">{{ f.shift or 'Turno' }}</p>
-                                </div>
-                                <div class="text-right">
-                                    <p class="text-[10px] font-bold {% if f.days_left is not none %}text-emerald-400{% else %}text-slate-500{% endif %}">
-                                        {% if f.days_left is not none %}{{ f.days_left }}d{% else %}Sem data{% endif %}
-                                    </p>
-                                    <p class="text-[10px] text-slate-400">
-                                        {% if f.start_date and f.end_date %}
-                                            {{ f.start_date }} – {{ f.end_date }}
-                                        {% elif f.end_date %}
-                                            Até {{ f.end_date }}
-                                        {% elif f.start_date %}
-                                            Início {{ f.start_date }}
-                                        {% else %}
-                                            Datas não registradas
-                                        {% endif %}
-                                    </p>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        {% else %}
-                        <p class="text-[10px] text-slate-400">Sem férias ativas</p>
-                        {% endif %}
-                    </div>
-                    <div class="space-y-2">
-                            <div class="flex items-center gap-2">
-                                <span class="text-[10px] font-bold text-amber-300 uppercase tracking-wider">Próximas Férias</span>
-                                <span class="text-[10px] text-slate-500">({{ dashboard.alerts.vacations_upcoming|length }})</span>
-                            </div>
-                        {% if dashboard.alerts.vacations_upcoming %}
-                        <div class="space-y-2">
-                            {% for v in dashboard.alerts.vacations_upcoming[:3] %}
-                            <div class="flex items-center justify-between gap-2">
-                                <div class="min-w-0">
-                                    <p class="text-[11px] text-slate-200 font-semibold truncate">{{ v.name }}</p>
-                                    <p class="text-[10px] text-slate-400">{{ v.shift or 'Turno' }}</p>
-                                </div>
-                                <div class="text-right">
-                                    <p class="text-[10px] text-amber-400 font-bold">{{ v.days_until }}d</p>
-                                    <p class="text-[10px] text-slate-400">Início {{ v.start_date }}</p>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        {% else %}
-                        <p class="text-[10px] text-slate-400">Sem próximas férias</p>
-                        {% endif %}
-                        {% if dashboard.alerts.vacations_upcoming|length > 3 %}
-                        <p class="text-[10px] text-slate-500 text-center">+{{ dashboard.alerts.vacations_upcoming|length - 3 }} mais</p>
-                        {% endif %}
                     </div>
                 </div>
-                <!-- Ferias Iniciando/Terminando -->
-                {% if dashboard.alerts.ferias|length > 0 %}
-                <div class="bg-slate-900/50 rounded-xl p-3 border border-slate-700/50">
-                    <div class="flex items-center gap-2 mb-2">
-                        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                        </svg>
-                        <span class="text-xs font-bold text-blue-400 uppercase">Ferias</span>
-                        <span class="ml-auto text-lg font-bold text-blue-400">{{ dashboard.alerts.ferias|length }}</span>
-                    </div>
-                    <div class="space-y-1 max-h-20 overflow-y-auto custom-scrollbar">
-                        {% for f in dashboard.alerts.ferias[:5] %}
-                        <div class="flex items-center gap-2 text-[11px]">
-                            <span class="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
-                            <span class="text-slate-300 truncate flex-1">{{ f.name }}</span>
-                            <span class="text-slate-500 text-[10px]">{{ f.shift }}</span>
-                            <span class="text-blue-400 text-[10px]">{{ f.status }}</span>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-                
-                <!-- Novatos (< 30 dias) -->
-                {% if dashboard.alerts.novatos|length > 0 %}
-                <div class="bg-slate-900/50 rounded-xl p-3 border border-slate-700/50">
-                    <div class="flex items-center gap-2 mb-2">
-                        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
-                        </svg>
-                        <span class="text-xs font-bold text-emerald-400 uppercase">Novatos</span>
-                        <span class="ml-auto text-lg font-bold text-emerald-400">{{ dashboard.alerts.novatos|length }}</span>
-                    </div>
-                    <div class="space-y-1 max-h-20 overflow-y-auto custom-scrollbar">
-                        {% for n in dashboard.alerts.novatos[:5] %}
-                        <div class="flex items-center gap-2 text-[11px]">
-                            <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-                            <span class="text-slate-300 truncate flex-1">{{ n.name }}</span>
-                            <span class="text-slate-500 text-[10px]">{{ n.shift }}</span>
-                            <span class="text-emerald-400 text-[10px]">{{ n.days }}d</span>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
             </div>
         </div>
-        {% endif %}
 
-        <!-- 2. MAIN CONTENT SPLIT -->
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-
-            <!-- LEFT: LIVE SEPARATION (3 Cols Wide) -->
-            <div class="lg:col-span-3 space-y-4">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-xl font-bold flex items-center gap-2">
-                        <span class="relative flex h-3 w-3">
-                            <span
-                                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                            <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                        </span>
-                        Separação em Tempo Real
-                        <span
-                            class="px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-xs text-slate-300 font-mono">
-                            {{ dashboard.active_separators_count }} Ativos
-                        </span>
-                    </h2>
-                </div>
-
-                <!-- LIVE GRID -->
-                {% if dashboard.live_separation|length == 0 %}
-                <div
-                    class="flex flex-col items-center justify-center h-64 bg-slate-800/50 rounded-2xl border border-slate-700/50 border-dashed">
-                    <div
-                        class="w-16 h-16 rounded-full bg-slate-700/50 flex items-center justify-center text-slate-500 mb-4">
-                        <i data-lucide="coffee" class="w-8 h-8"></i>
-                    </div>
-                    <h3 class="text-lg font-bold text-slate-400">Operação em Pausa</h3>
-                    <p class="text-slate-500 text-sm">Nenhuma rota ativa no momento.</p>
-                </div>
-                {% else %}
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {% for op in dashboard.live_separation %}
-                    <div
-                        class="bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col gap-3 hover:border-blue-500/50 transition-colors relative group">
-
-                        <!-- Employee Header -->
-                        <div class="flex items-center gap-4 border-b border-slate-700/50 pb-3">
-                            <div class="relative">
-                                <div
-                                    class="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse border-2 border-slate-800 z-10">
-                                </div>
-                                <div
-                                    class="w-12 h-12 rounded-full bg-slate-700 overflow-hidden shrink-0 border-2 border-slate-600 group-hover:border-blue-500 transition-colors">
-                                    {% if op.photo_url %}
-                                    <img src="{{ op.photo_url }}" class="w-full h-full object-cover">
-                                    {% else %}
-                                    <div
-                                        class="w-full h-full flex items-center justify-center text-slate-400 font-bold text-lg">
-                                        {{ op.employee_name[0] }}
-                                    </div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="min-w-0 flex-1">
-                                <h4 class="font-bold text-white truncate">{{ op.employee_name }}</h4>
-                                <span
-                                    class="text-[10px] font-bold uppercase text-slate-500 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700">
-                                    {{ op.routes|length }} Tarefas
-                                </span>
-                            </div>
-                        </div>
-
-                        <!-- Routes List -->
-                        <div class="space-y-2 mt-1 max-h-48 overflow-y-auto custom-scrollbar pr-1">
-                            {% for route in op.routes %}
-                            <div
-                                class="bg-slate-900/50 rounded-lg p-2.5 flex justify-between items-center text-xs border border-slate-700/30 hover:bg-slate-900 transition-colors">
-                                <div class="flex-1 min-w-0 mr-2">
-                                    <p class="text-blue-400 font-bold uppercase truncate mb-0.5"
-                                        title="{{ route.client }}">{{ route.client }}</p>
-                                    <div class="flex items-center gap-2 text-slate-500">
-                                        <div class="flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded">
-                                            <i data-lucide="clock" class="w-3 h-3"></i>
-                                            <span class="font-mono">{{ route.start_time }}</span>
-                                        </div>
-                                        <span class="text-[10px] opacity-70">({{ route.duration_mins }} min)</span>
-                                    </div>
-                                </div>
-                                <div class="text-right shrink-0">
-                                    {% if route.tonnage > 0 %}
-                                    <span class="block font-mono font-bold text-emerald-400 text-sm">{{
-                                        "{:,.0f}".format(route.tonnage).replace(",", ".") }}</span>
-                                    <span class="text-[9px] text-slate-600 uppercase">Kg</span>
-                                    {% else %}
-                                    <span class="text-slate-600 font-mono text-[10px]">--</span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endif %}
+        <!-- 3. SEPARACAO EM TEMPO REAL -->
+        <div class="mt-8 space-y-4">
+            <div class="flex items-center gap-2">
+                <span class="relative flex h-3 w-3">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </span>
+                <h2 class="text-lg font-bold text-white">Separacao em Tempo Real</h2>
             </div>
 
-            <!-- RIGHT: TEAM STATUS + HR (1 Col Wide) -->
-            <div class="lg:col-span-1 space-y-4">
-                
-                <!-- EQUIPE DO TURNO ATUAL -->
-                <div class="bg-slate-800/80 backdrop-blur rounded-2xl border border-slate-700 overflow-hidden">
-                    <div class="p-4 border-b border-slate-700 flex items-center justify-between bg-cyan-500/5">
-                        <div class="flex items-center gap-2">
-                            <h3 class="font-bold text-cyan-200 text-sm uppercase">Equipe do Turno</h3>
-                            <span id="team-shift-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400">--</span>
+            {% if dashboard.live_separation|length == 0 %}
+            <div class="flex flex-col items-center justify-center h-64 bg-slate-800/50 rounded-2xl border border-slate-700/50 border-dashed">
+                <div class="w-16 h-16 rounded-full bg-slate-700/50 flex items-center justify-center text-slate-500 mb-4">
+                    <i data-lucide="coffee" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-400">Operacao em Pausa</h3>
+                <p class="text-slate-500 text-sm">Nenhuma rota ativa no momento.</p>
+            </div>
+            {% else %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for op in dashboard.live_separation %}
+                <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col gap-3 hover:border-blue-500/50 transition-colors relative group">
+                    <div class="flex items-center gap-4 border-b border-slate-700/50 pb-3">
+                        <div class="relative">
+                            <div class="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse border-2 border-slate-800 z-10"></div>
+                            <div class="w-12 h-12 rounded-full bg-slate-700 overflow-hidden shrink-0 border-2 border-slate-600 group-hover:border-blue-500 transition-colors">
+                                {% if op.photo_url %}
+                                <img src="{{ op.photo_url }}" class="w-full h-full object-cover">
+                                {% else %}
+                                <div class="w-full h-full flex items-center justify-center text-slate-400 font-bold text-lg">
+                                    {{ op.employee_name[0] }}
+                                </div>
+                                {% endif %}
+                            </div>
                         </div>
-                        <div class="flex items-center gap-1">
-                            <span class="relative flex h-2 w-2">
-                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                                <span class="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                        <div class="min-w-0 flex-1">
+                            <h4 class="font-bold text-white truncate">{{ op.employee_name }}</h4>
+                            <span class="text-[10px] font-bold uppercase text-slate-500 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700">
+                                {{ op.routes|length }} Tarefas
                             </span>
                         </div>
                     </div>
-                    <div class="p-3 max-h-72 overflow-y-auto custom-scrollbar">
-                        {% if dashboard.team_status and dashboard.team_status|length > 0 %}
-                        <div class="space-y-2">
-                            {% for member in dashboard.team_status %}
-                            <div class="flex items-center gap-2 p-2 rounded-lg {{ 'bg-emerald-500/10 border border-emerald-500/20' if member.status == 'em_rota' else ('bg-amber-500/10 border border-amber-500/20' if member.status == 'aguardando' else 'bg-slate-700/50 border border-slate-600/30') }}">
-                                <div class="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold shrink-0 {{ 'ring-2 ring-emerald-500' if member.status == 'em_rota' else '' }}">
-                                    {% if member.photo %}
-                                    <img src="{{ member.photo }}" class="w-full h-full rounded-full object-cover">
-                                    {% else %}
-                                    {{ member.name[0] }}
-                                    {% endif %}
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-xs font-medium text-white truncate">{{ member.name }}</p>
-                                </div>
-                                <div class="shrink-0">
-                                    {% if member.status == 'em_rota' %}
-                                    <span class="flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                                        Em Rota
-                                    </span>
-                                    {% elif member.status == 'aguardando' %}
-                                    <span class="flex items-center gap-1 text-[10px] text-amber-400 font-medium">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                        Aguardando
-                                    </span>
-                                    {% else %}
-                                    <span class="text-[10px] text-slate-500">{{ member.status_label }}</span>
-                                    {% endif %}
+                    <div class="space-y-2 mt-1 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                        {% for route in op.routes %}
+                        <div class="bg-slate-900/50 rounded-lg p-2.5 flex justify-between items-center text-xs border border-slate-700/30 hover:bg-slate-900 transition-colors">
+                            <div class="flex-1 min-w-0 mr-2">
+                                <p class="text-blue-400 font-bold uppercase truncate mb-0.5" title="{{ route.client }}">{{ route.client }}</p>
+                                <div class="flex items-center gap-2 text-slate-500">
+                                    <div class="flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded">
+                                        <i data-lucide="clock" class="w-3 h-3"></i>
+                                        <span class="font-mono">{{ route.start_time }}</span>
+                                    </div>
+                                    <span class="text-[10px] opacity-70">({{ route.duration_mins }} min)</span>
                                 </div>
                             </div>
-                            {% endfor %}
-                        </div>
-                        {% else %}
-                        <div class="text-center py-6">
-                            <svg class="w-10 h-10 mx-auto text-slate-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            </svg>
-                            <p class="text-xs text-slate-500">Sem dados do turno atual</p>
-                        </div>
-                        {% endif %}
-                        
-                        <!-- Summary Footer -->
-                        {% if dashboard.team_status %}
-                        <div class="mt-3 pt-3 border-t border-slate-700/50 grid grid-cols-3 gap-2 text-center">
-                            <div>
-                                <p class="text-lg font-bold text-emerald-400">{{ dashboard.team_stats.em_rota if dashboard.team_stats else 0 }}</p>
-                                <p class="text-[9px] text-slate-500 uppercase">Em Rota</p>
-                            </div>
-                            <div>
-                                <p class="text-lg font-bold text-amber-400">{{ dashboard.team_stats.aguardando if dashboard.team_stats else 0 }}</p>
-                                <p class="text-[9px] text-slate-500 uppercase">Aguard.</p>
-                            </div>
-                            <div>
-                                <p class="text-lg font-bold text-slate-500">{{ dashboard.team_stats.ausente if dashboard.team_stats else 0 }}</p>
-                                <p class="text-[9px] text-slate-500 uppercase">Ausente</p>
-                            </div>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <!-- Birthdays Card -->
-                <div class="bg-slate-800/80 backdrop-blur rounded-2xl border border-slate-700 overflow-hidden">
-                    <div class="p-4 border-b border-slate-700 flex items-center justify-between bg-pink-500/5">
-                        <h3 class="font-bold text-pink-200 text-sm uppercase">Aniversariantes</h3>
-                        <i data-lucide="cake" class="w-4 h-4 text-pink-400"></i>
-                    </div>
-                    <div class="p-4 space-y-3 max-h-60 overflow-y-auto custom-scrollbar">
-                        {% if dashboard.hr.birthdays|length == 0 %}
-                        <p class="text-xs text-slate-500 text-center py-2">Nenhum neste mês.</p>
-                        {% else %}
-                        {% for b in dashboard.hr.birthdays %}
-                        <div class="flex items-center gap-3">
-                            <div
-                                class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold shrink-0">
-                                {% if b.photo %}
-                                <img src="{{ b.photo }}" class="w-full h-full rounded-full object-cover">
+                            <div class="text-right shrink-0">
+                                {% if route.tonnage > 0 %}
+                                <span class="block font-mono font-bold text-emerald-400 text-sm">{{ "{:,.0f}".format(route.tonnage).replace(',', '.') }}</span>
+                                <span class="text-[9px] text-slate-600 uppercase">Kg</span>
                                 {% else %}
-                                {{ b.name[0] }}
+                                <span class="text-slate-600 font-mono text-[10px]">--</span>
                                 {% endif %}
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm font-medium text-white truncate">{{ b.name }}</p>
-                                <p class="text-[10px] text-pink-400 font-bold">Dia {{ b.day }}</p>
                             </div>
                         </div>
                         {% endfor %}
-                        {% endif %}
                     </div>
                 </div>
-
-                <!-- Vacation Card -->
-                <div class="bg-slate-800/80 backdrop-blur rounded-2xl border border-slate-700 overflow-hidden">
-                    <div class="p-4 border-b border-slate-700 flex items-center justify-between bg-orange-500/5">
-                        <h3 class="font-bold text-orange-200 text-sm uppercase">Em Férias</h3>
-                        <i data-lucide="palmtree" class="w-4 h-4 text-orange-400"></i>
-                    </div>
-                    <div class="p-4 space-y-3 max-h-60 overflow-y-auto custom-scrollbar">
-                        {% if dashboard.hr.vacation|length == 0 %}
-                        <p class="text-xs text-slate-500 text-center py-2">Todos a bordo.</p>
-                        {% else %}
-                        {% for v in dashboard.hr.vacation %}
-                        <div class="flex items-center gap-3">
-                            <div
-                                class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold shrink-0 opacity-50">
-                                {% if v.photo %}
-                                <img src="{{ v.photo }}" class="w-full h-full rounded-full object-cover">
-                                {% else %}
-                                {{ v.name[0] }}
-                                {% endif %}
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm font-medium text-slate-400 truncate">{{ v.name }}</p>
-                                <p class="text-[10px] text-orange-400">Ausente</p>
-                            </div>
-                        </div>
-                        {% endfor %}
-                        {% endif %}
-                    </div>
-                </div>
-
-                <!-- Vencimentos de Experiência Card -->
-                <div class="bg-slate-800/80 backdrop-blur rounded-2xl border border-slate-700 overflow-hidden">
-                    <div class="p-4 border-b border-slate-700 flex items-center justify-between bg-amber-500/5">
-                        <h3 class="font-bold text-amber-200 text-sm uppercase">Venc. Experiência</h3>
-                        <i data-lucide="clock-alert" class="w-4 h-4 text-amber-400"></i>
-                    </div>
-                    <div class="p-4 space-y-3 max-h-60 overflow-y-auto custom-scrollbar">
-                        {% if dashboard.hr.experience_expiring|length == 0 %}
-                        <p class="text-xs text-slate-500 text-center py-2">Sem vencimentos próximos.</p>
-                        {% else %}
-                        {% for exp in dashboard.hr.experience_expiring %}
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold shrink-0 {% if exp.days <= 3 %}ring-2 ring-red-500{% elif exp.days <= 7 %}ring-2 ring-amber-500{% endif %}">
-                                {% if exp.photo %}
-                                <img src="{{ exp.photo }}" class="w-full h-full rounded-full object-cover">
-                                {% else %}
-                                {{ exp.name[0] }}
-                                {% endif %}
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm font-medium text-slate-300 truncate" title="{{ exp.full_name }}">{{ exp.display_name }}</p>
-                                <p class="text-[10px] text-slate-500">{{ exp.role }}</p>
-                            </div>
-                            <div class="text-right flex-shrink-0">
-                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {% if exp.days <= 3 %}bg-red-500/20 text-red-400{% elif exp.days <= 7 %}bg-amber-500/20 text-amber-400{% else %}bg-blue-500/20 text-blue-400{% endif %}">
-                                    {{ exp.type }} dias
-                                </span>
-                                <p class="text-[10px] {% if exp.days <= 3 %}text-red-400{% elif exp.days <= 7 %}text-amber-400{% else %}text-slate-500{% endif %} mt-0.5">
-                                    {% if exp.days == 0 %}HOJE{% elif exp.days == 1 %}Amanhã{% else %}{{ exp.days }}d ({{ exp.date }}){% endif %}
-                                </p>
-                            </div>
-                        </div>
-                        {% endfor %}
-                        {% endif %}
-                    </div>
-                </div>
-
+                {% endfor %}
             </div>
+            {% endif %}
         </div>
 
-    </div>
-</div>
 
 <style>
     /* Custom Scrollbar for small areas */

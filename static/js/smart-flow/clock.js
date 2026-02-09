@@ -128,7 +128,7 @@ window.SmartFlowClock = {
                 if (current !== shift.id) {
                     console.log(`🕒 Auto-selecting shift based on time: ${current} -> ${shift.id}`);
                     if (window.changeShift) {
-                        window.changeShift(shift.id);
+                        window.changeShift(shift.id, { alignNightDate: shift.id === 'Noite' });
                     }
                 }
             }
