@@ -22055,9 +22055,24 @@ async def api_list_admin_routes(
     
     employees_with_route = {route.employee_id for route in active_routes}
     
+    # Filtrar colaboradores que tiveram rota nos últimos 4 dias
+    four_days_ago = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=4)).strftime("%Y-%m-%d")
+    
+    recent_route_employees = session.exec(
+        select(models.Route.employee_id)
+        .where(
+            models.Route.date >= four_days_ago,
+            models.Route.date <= today
+        )
+        .distinct()
+    ).all()
+    
+    recent_employee_ids = set(recent_route_employees)
+    
     employees_without_route = []
     for emp in all_active_employees:
-        if emp.id not in employees_with_route:
+        # Mostrar apenas se: não tem rota hoje E teve rota nos últimos 4 dias
+        if emp.id not in employees_with_route and emp.id in recent_employee_ids:
             employees_without_route.append({
                 "id": emp.id,
                 "name": emp.name,

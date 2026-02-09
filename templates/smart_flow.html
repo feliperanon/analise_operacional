@@ -164,11 +164,11 @@
     <div id="kpi-strip"
         class="shrink-0 px-4 py-3 border-b border-slate-800 bg-slate-900/95 backdrop-blur z-10">
         <div class="max-w-6xl mx-auto">
-        <div class="grid grid-cols-2 gap-3 py-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
+        <div class="flex flex-wrap justify-center gap-3 py-2 md:grid md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
 
             <!-- 1. Headcount -->
             <div onclick="KPIDetails.show('present')"
-                class="col-span-2 sm:col-span-2 bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-blue-500/80 cursor-pointer flex flex-col justify-between min-h-[110px]">
+                class="basis-1/2 md:col-span-2 md:basis-auto bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-blue-500/80 cursor-pointer flex flex-col justify-between min-h-[110px]">
                 <div class="flex items-start justify-between">
                     <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Headcount</p>
                     <span class="text-[9px] text-slate-500">Meta</span>
@@ -184,15 +184,18 @@
 
             <!-- 2. Vagas (Demitidos) -->
             <div onclick="KPIDetails.show('gap')"
-                class="bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-red-500/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
+                class="basis-1/2 md:basis-auto bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-red-500/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
                 <p class="text-[10px] font-bold text-red-400 uppercase tracking-wide">Vagas</p>
                 <p class="text-2xl font-bold text-white mt-2" id="total-gap">0</p>
                 <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Demitidos</p>
             </div>
 
+            <!-- spacer to force next row on mobile -->
+            <div class="w-full h-0 md:hidden"></div>
+
             <!-- 2.5 Folgas -->
             <div onclick="KPIDetails.show('dayoff')"
-                class="bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-blue-400/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
+                class="basis-1/3 md:basis-auto bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-blue-400/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
                 <p class="text-[10px] font-bold text-blue-400 uppercase tracking-wide">Folgas</p>
                 <p class="text-2xl font-bold text-white mt-2" id="total-dayoff">0</p>
                 <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Colab.</p>
@@ -200,7 +203,7 @@
 
             <!-- 3. FÃ©rias -->
             <div onclick="KPIDetails.show('vacation')"
-                class="bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-orange-500/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
+                class="basis-1/3 md:basis-auto bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-orange-500/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
                 <p class="text-[10px] font-bold text-orange-400 uppercase tracking-wide">FÃ©rias</p>
                 <p class="text-2xl font-bold text-white mt-2" id="total-vacation">0</p>
                 <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Colab.</p>
@@ -208,15 +211,18 @@
 
             <!-- 4. Afastados -->
             <div onclick="KPIDetails.show('away')"
-                class="bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-indigo-500/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
+                class="basis-1/3 md:basis-auto bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-indigo-500/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
                 <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-wide">Afastados</p>
                 <p class="text-2xl font-bold text-white mt-2" id="total-away">0</p>
                 <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Colab.</p>
             </div>
 
+            <!-- spacer to force next row on mobile -->
+            <div class="w-full h-0 md:hidden"></div>
+
             <!-- 5. Atestados -->
             <div onclick="KPIDetails.show('sick')"
-                class="bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-amber-500/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
+                class="basis-1/3 md:basis-auto bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-amber-500/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
                 <p class="text-[10px] font-bold text-amber-400 uppercase tracking-wide">Atestados</p>
                 <p class="text-2xl font-bold text-white mt-2" id="total-sick">0</p>
                 <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Colab.</p>
@@ -224,7 +230,7 @@
 
             <!-- 6. Faltas -->
             <div onclick="KPIDetails.show('missing')"
-                class="bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-rose-500/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
+                class="basis-1/3 md:basis-auto bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-rose-500/70 cursor-pointer flex flex-col justify-between min-h-[110px]">
                 <p class="text-[10px] font-bold text-rose-400 uppercase tracking-wide">Faltas</p>
                 <p class="text-2xl font-bold text-white mt-2" id="total-missing">0</p>
                 <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Colab.</p>
@@ -232,7 +238,7 @@
 
             <!-- 7. ProduÃ§Ã£o Total -->
             <div onclick="editTonnage()"
-                class="col-span-2 sm:col-span-2 bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-purple-500/80 cursor-pointer flex flex-col justify-between min-h-[110px]">
+                class="basis-1/3 md:col-span-2 md:basis-auto bg-slate-800/90 border border-slate-700 rounded-2xl p-3 shadow-inner transition hover:border-purple-500/80 cursor-pointer flex flex-col justify-between min-h-[110px]">
                 <p class="text-[10px] font-bold text-purple-400 uppercase tracking-wide">ProduÃ§Ã£o</p>
                 <p class="text-2xl font-bold text-white mt-2" id="total-tonnage">0 kg</p>
                 <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">
