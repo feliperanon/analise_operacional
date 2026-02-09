@@ -60,88 +60,109 @@
             </template>
 
             <div class="space-y-4">
-                <template x-for="route in activeRoutes" :key="route.id">
+                <template x-for="(routes, employeeId) in groupedRoutes" :key="employeeId">
                     <div
                         class="bg-slate-800/90 backdrop-blur-sm rounded-2xl border border-slate-700 shadow-xl overflow-hidden">
                         <!-- Header com Colaborador -->
                         <div class="bg-gradient-to-r from-blue-600/20 to-indigo-600/20 border-b border-slate-700 p-4">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center space-x-3">
-                                    <div class="bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold">
-                                        <span x-text="route.employee_registration"></span>
-                                    </div>
-                                    <h3 class="text-white font-bold text-lg" x-text="route.employee_name"></h3>
+                            <div class="flex items-center space-x-3">
+                                <div class="bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold">
+                                    <span x-text="routes[0].employee_registration"></span>
                                 </div>
-                                <div class="flex space-x-2">
-                                    <button @click="openEditModal(route)"
-                                        class="bg-blue-500/80 hover:bg-blue-500 text-white p-2.5 rounded-lg transition-all active:scale-95"
-                                        title="Editar">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                        </svg>
-                                    </button>
-                                    <button @click="openDeleteModal(route)"
-                                        class="bg-red-500/80 hover:bg-red-500 text-white p-2.5 rounded-lg transition-all active:scale-95"
-                                        title="Excluir">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
-                                    </button>
-                                </div>
+                                <h3 class="text-white font-bold text-lg" x-text="routes[0].employee_name"></h3>
+                                <span class="ml-auto bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold"
+                                    x-text="routes.length + ' rota' + (routes.length > 1 ? 's' : '')"></span>
                             </div>
                         </div>
 
-                        <!-- Informações da Rota -->
-                        <div class="p-4 grid grid-cols-1 gap-3">
-                            <!-- Cliente -->
-                            <div class="flex items-center space-x-3 bg-slate-700/50 rounded-lg p-3">
-                                <div class="bg-purple-500/20 p-2 rounded-lg">
-                                    <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor"
-                                        viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                    </svg>
-                                </div>
-                                <div class="flex-1">
-                                    <p class="text-xs text-slate-400 uppercase font-semibold">Cliente</p>
-                                    <p class="text-white font-medium" x-text="route.client_name"></p>
-                                </div>
-                            </div>
+                        <!-- Lista de Rotas do Colaborador -->
+                        <div class="p-4 space-y-3">
+                            <template x-for="route in routes" :key="route.id">
+                                <div class="bg-slate-700/30 rounded-xl border border-slate-600/50 overflow-hidden">
+                                    <!-- Informações da Rota -->
+                                    <div class="p-3 space-y-3">
+                                        <!-- Cliente -->
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center space-x-3 flex-1">
+                                                <div class="bg-purple-500/20 p-2 rounded-lg">
+                                                    <svg class="w-4 h-4 text-purple-400" fill="none"
+                                                        stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                                    </svg>
+                                                </div>
+                                                <div class="flex-1">
+                                                    <p class="text-xs text-slate-400 uppercase font-semibold">Cliente
+                                                    </p>
+                                                    <p class="text-white font-medium" x-text="route.client_name"></p>
+                                                </div>
+                                            </div>
+                                            <div class="flex space-x-2">
+                                                <button @click="openEditModal(route)"
+                                                    class="bg-blue-500/80 hover:bg-blue-500 text-white p-2 rounded-lg transition-all active:scale-95"
+                                                    title="Editar">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                    </svg>
+                                                </button>
+                                                <button @click="openDeleteModal(route)"
+                                                    class="bg-red-500/80 hover:bg-red-500 text-white p-2 rounded-lg transition-all active:scale-95"
+                                                    title="Excluir">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </div>
 
-                            <!-- Horário e Tonelagem -->
-                            <div class="grid grid-cols-2 gap-3">
-                                <!-- Horário -->
-                                <div class="flex items-center space-x-3 bg-slate-700/50 rounded-lg p-3">
-                                    <div class="bg-yellow-500/20 p-2 rounded-lg">
-                                        <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor"
-                                            viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                    </div>
-                                    <div class="flex-1">
-                                        <p class="text-xs text-slate-400 uppercase font-semibold">Início</p>
-                                        <p class="text-white font-mono font-bold" x-text="route.start_time"></p>
-                                    </div>
-                                </div>
+                                        <!-- Horário e Tonelagem -->
+                                        <div class="grid grid-cols-2 gap-3">
+                                            <!-- Horário -->
+                                            <div class="flex items-center space-x-2 bg-slate-700/50 rounded-lg p-2">
+                                                <div class="bg-yellow-500/20 p-1.5 rounded">
+                                                    <svg class="w-4 h-4 text-yellow-400" fill="none"
+                                                        stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                </div>
+                                                <div class="flex-1">
+                                                    <p class="text-[10px] text-slate-400 uppercase font-semibold">Início
+                                                    </p>
+                                                    <p class="text-white font-mono font-bold text-sm"
+                                                        x-text="route.start_time"></p>
+                                                </div>
+                                            </div>
 
-                                <!-- Tonelagem -->
-                                <div class="flex items-center space-x-3 bg-slate-700/50 rounded-lg p-3">
-                                    <div class="bg-green-500/20 p-2 rounded-lg">
-                                        <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor"
-                                            viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
-                                        </svg>
-                                    </div>
-                                    <div class="flex-1">
-                                        <p class="text-xs text-slate-400 uppercase font-semibold">Peso</p>
-                                        <p class="text-white font-bold" x-text="formatTonnage(route.tonnage)"></p>
+                                            <!-- Tonelagem -->
+                                            <div class="flex items-center space-x-2 bg-slate-700/50 rounded-lg p-2">
+                                                <div class="bg-green-500/20 p-1.5 rounded">
+                                                    <svg class="w-4 h-4 text-green-400" fill="none"
+                                                        stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+                                                    </svg>
+                                                </div>
+                                                <div class="flex-1">
+                                                    <p class="text-[10px] text-slate-400 uppercase font-semibold">Peso
+                                                    </p>
+                                                    <p class="text-white font-bold text-sm"
+                                                        x-text="formatTonnage(route.tonnage)"></p>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            </template>
                         </div>
                     </div>
                 </template>
@@ -316,6 +337,18 @@
                 employee_name: '',
                 client_name: '',
                 reason: ''
+            },
+
+            get groupedRoutes() {
+                // Group routes by employee_id
+                const grouped = {};
+                this.activeRoutes.forEach(route => {
+                    if (!grouped[route.employee_id]) {
+                        grouped[route.employee_id] = [];
+                    }
+                    grouped[route.employee_id].push(route);
+                });
+                return grouped;
             },
 
             init() {
