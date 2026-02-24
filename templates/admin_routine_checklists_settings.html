@@ -1,0 +1,425 @@
+﻿{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8">
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-white mb-2">ConfiguraÃ§Ãµes de Checklist</h1>
+            <p class="text-sm text-slate-400">Gerenciamento de frota, alertas e monitoramento diÃ¡rio.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <a href="/admin/routine/checklists"
+                class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+                Lista
+            </a>
+            <a href="/admin/routine/checklists/dashboard"
+                class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                Dashboard
+            </a>
+            <a href="/admin/equipment/tickets"
+                class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                </svg>
+                Chamados
+            </a>
+        </div>
+    </div>
+
+    {% if message %}
+    <div
+        class="mb-8 p-4 rounded-xl border text-sm flex items-center gap-3 backdrop-blur-md shadow-lg animate-fade-in
+        {{ 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200' if level != 'error' else 'bg-red-500/10 border-red-500/30 text-red-200' }}">
+        {% if level != 'error' %}
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
+            stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        {% else %}
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
+            stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        {% endif %}
+        {{ message }}
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+        <!-- ManutenÃ§Ã£o Emails -->
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 h-full flex flex-col">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-400" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        Alertas de ManutenÃ§Ã£o
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">DestinatÃ¡rios recebem e-mails automÃ¡ticos quando um bloqueio
+                        ocorre.</p>
+                </div>
+            </div>
+
+            <form action="/admin/routine/checklists/settings/emails" method="POST" class="flex gap-2 mb-6">
+                <input type="email" name="email" required placeholder="manutencao@empresa.com"
+                    class="flex-1 rounded-lg bg-slate-900 border border-slate-700 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none transition-colors">
+                <button type="submit"
+                    class="rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold px-4 py-2.5 text-sm transition-colors flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Adicionar
+                </button>
+            </form>
+
+            <div class="flex-1 overflow-y-auto pr-1 space-y-3 custom-scrollbar" style="max-height: 300px;">
+                {% if not recipients %}
+                <div class="text-sm text-slate-500 text-center py-8 border border-dashed border-slate-700 rounded-xl">
+                    Nenhum e-mail cadastrado.</div>
+                {% else %}
+                {% for recipient in recipients %}
+                <div
+                    class="flex items-center justify-between bg-slate-900/40 border border-slate-700/50 rounded-xl p-3 hover:bg-slate-900/60 transition-colors group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">
+                            <span class="text-xs font-bold">{{ recipient.email[0]|upper }}</span>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-white">{{ recipient.email }}</p>
+                            <p
+                                class="text-[10px] {{ 'text-emerald-400' if recipient.is_active else 'text-slate-500' }}">
+                                {{ 'â— Ativo' if recipient.is_active else 'â—‹ Inativo' }}
+                            </p>
+                        </div>
+                    </div>
+                    {% if recipient.is_active %}
+                    <div class="flex items-center gap-1">
+                        <form action="/admin/routine/checklists/settings/emails/{{ recipient.id }}/test" method="POST">
+                            <button type="submit"
+                                class="text-xs px-3 py-1.5 rounded-lg border border-blue-500/30 text-blue-300 hover:bg-blue-500/10 hover:border-blue-500/50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100">
+                                Testar
+                            </button>
+                        </form>
+                        <form action="/admin/routine/checklists/settings/emails/{{ recipient.id }}/delete"
+                            method="POST">
+                            <button type="submit"
+                                class="text-xs px-3 py-1.5 rounded-lg border border-red-500/30 text-red-300 hover:bg-red-500/10 hover:border-red-500/50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100">
+                                Remover
+                            </button>
+                        </form>
+                    </div>
+                    {% else %}
+                    <form action="/admin/routine/checklists/settings/emails" method="POST">
+                        <input type="hidden" name="email" value="{{ recipient.email }}">
+                        <button type="submit"
+                            class="text-xs px-3 py-1.5 rounded-lg border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 hover:border-emerald-500/50 transition-colors">
+                            Reativar
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Equipamentos -->
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 h-full flex flex-col">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                        </svg>
+                        Frota de Equipamentos
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">Gerencie os status e adicione novos equipamentos Ã  lista.</p>
+                </div>
+            </div>
+
+                        <form action="/admin/routine/checklists/settings/equipment" method="POST" class="flex gap-2 mb-6">
+                <select name="equipment_type"
+                    class="rounded-lg bg-slate-900 border border-slate-700 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none transition-colors">
+                    <option value="caminhao">Caminhao</option>
+                    <option value="moto">Moto</option>
+                    <option value="veicular">Veicular</option>
+                </select>
+                <input type="text" name="code" required placeholder="CÃ³digo (ex: TP-01)"
+                    class="flex-1 rounded-lg bg-slate-900 border border-slate-700 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none transition-colors">
+                <button type="submit"
+                    class="rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold px-4 py-2.5 text-sm transition-colors flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Adicionar
+                </button>
+            </form>
+
+            <div class="flex-1 overflow-y-auto pr-1 space-y-3 custom-scrollbar" style="max-height: 300px;">
+                {% if not equipment_list %}
+                <div class="text-sm text-slate-500 text-center py-8 border border-dashed border-slate-700 rounded-xl">
+                    Nenhum equipamento cadastrado.</div>
+                {% else %}
+                {% for equipment in equipment_list %}
+                <div
+                    class="flex items-center justify-between bg-slate-900/40 border border-slate-700/50 rounded-xl p-3 hover:bg-slate-900/60 transition-colors group">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm {{ 'bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30' if equipment.status == 'available' else 'bg-red-500/10 text-red-400 ring-1 ring-red-500/30' }}">
+                            {% if equipment.status == 'available' %}
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 13l4 4L19 7" />
+                            </svg>
+                            {% else %}
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                            {% endif %}
+                        </div>
+                        <div>
+                                                        <p class="text-sm font-semibold text-white">{{ equipment.code }}</p>
+                            <p class="text-[10px] text-blue-300 uppercase font-semibold tracking-wide">
+                                {{ (equipment.equipment_type or 'caminhao')|replace('_', ' ') }}
+                            </p>
+                            <p
+                                class="text-[10px] uppercase font-bold tracking-wide {{ 'text-emerald-400' if equipment.status == 'available' else 'text-red-400' }}">
+                                {{ 'DisponÃ­vel' if equipment.status == 'available' else 'Bloqueado' }}
+                            </p>
+                            {% if equipment.status == 'blocked' %}
+                            <p class="text-[10px] text-slate-400 line-clamp-1 mt-0.5">
+                                {{ equipment.blocked_reason or 'Sem motivo especificado' }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if equipment.status == 'available' %}
+                    <form action="/admin/routine/checklists/settings/equipment/{{ equipment.id }}/delete" method="POST">
+                        <button type="submit"
+                            class="text-xs px-3 py-1.5 rounded-lg border border-red-500/30 text-red-300 hover:bg-red-500/10 hover:border-red-500/50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100">
+                            Excluir
+                        </button>
+                    </form>
+                    {% else %}
+                    <div
+                        class="flex flex-col items-end gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                        <form action="/admin/routine/checklists/settings/equipment/{{ equipment.id }}/release"
+                            method="POST" class="flex gap-2">
+                            <input type="text" name="comment"
+                                class="w-32 rounded bg-slate-900 border border-slate-700 px-2 py-1 text-[10px] text-white focus:border-emerald-500 focus:outline-none"
+                                placeholder="Motivo liberaÃ§Ã£o...">
+                            <button type="submit"
+                                class="text-[10px] px-2 py-1 rounded border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 transition-colors whitespace-nowrap">
+                                Liberar
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Delays (Least Checklists) -->
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 mb-8">
+        <h2 class="text-lg font-bold text-white flex items-center gap-2 mb-6">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-500" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Menor AdesÃ£o / Atrasos (Ãšltimos 30 dias)
+        </h2>
+
+        {% if top_delays %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {% for row in top_delays %}
+            <div class="flex items-center gap-3 bg-slate-900/40 border border-slate-700/50 rounded-xl p-3">
+                <div
+                    class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center font-bold text-slate-400 border border-slate-700">
+                    {{ row.count }}
+                </div>
+                <div>
+                    <p class="text-sm font-bold text-white line-clamp-1">{{ row.name }}</p>
+                    <p class="text-[10px] text-slate-500">{{ row.shift }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <p class="text-xs text-slate-500 mt-4">* Colaboradores com menor quantidade de checklists realizados no perÃ­odo.</p>
+        {% else %}
+        <div class="text-center py-8 text-slate-500">Sem dados suficientes.</div>
+        {% endif %}
+    </div>
+
+    <!-- Danger Zone: Limpeza de Checklists -->
+    <div class="bg-red-950/40 border border-red-800/60 rounded-2xl p-6 mb-8">
+        <div class="flex items-start justify-between gap-4 mb-4">
+            <div>
+                <h2 class="text-lg font-bold text-red-200 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8v4m0 4h.01M5.07 19.07A10 10 0 1118.93 5.07 10 10 0 015.07 19.07z" />
+                    </svg>
+                    Zona de Risco â€“ Checklists
+                </h2>
+                <p class="text-xs text-red-200/80 mt-1 max-w-xl">
+                    Esta aÃ§Ã£o remove <span class="font-bold">TODOS os checklists operacionais</span>, limpa o histÃ³rico
+                    em todas as pÃ¡ginas (admin e mobile) e remove automaticamente o XP jÃ¡ creditado aos colaboradores.
+                    Use apenas em ambiente de teste/homologaÃ§Ã£o ou reset completo.
+                </p>
+            </div>
+        </div>
+
+        <form action="/admin/tools/cleanup/checklists" method="POST"
+            onsubmit="return confirm('Tem certeza absoluta que deseja APAGAR TODOS os checklists e remover o XP relacionado? Esta aÃ§Ã£o nÃ£o pode ser desfeita.');"
+            class="mt-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+            <div class="flex-1">
+                <label class="block text-[11px] font-semibold text-red-200 uppercase tracking-wide mb-1">
+                    ConfirmaÃ§Ã£o obrigatÃ³ria
+                </label>
+                <input type="text" name="confirm_phrase" required
+                    placeholder="Digite APAGAR TODOS os CHECKLISTS"
+                    class="w-full rounded-lg bg-slate-950/60 border border-red-500/40 px-3 py-2 text-sm text-red-100 placeholder:text-red-300/60 focus:border-red-400 focus:outline-none">
+            </div>
+            <button type="submit"
+                class="w-full sm:w-auto rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold px-4 py-2.5 text-sm transition-colors shadow-lg shadow-red-900/40 border border-red-500/70">
+                Apagar TODOS os Checklists
+            </button>
+        </form>
+    </div>
+
+    <!-- Daily Pending Table -->
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden p-6">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+            <div>
+                <h2 class="text-lg font-bold text-white mb-1">Acompanhamento DiÃ¡rio</h2>
+                <p class="text-sm text-slate-400">Status dos checklists para operadores autorizados.</p>
+            </div>
+
+            <form class="flex flex-wrap items-center gap-2 bg-slate-900/50 p-1.5 rounded-lg border border-slate-700/50">
+                <input type="date" name="date" value="{{ filters.date }}"
+                    class="rounded-md bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-white focus:border-blue-500 focus:outline-none">
+                <select name="shift"
+                    class="rounded-md bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-white focus:border-blue-500 focus:outline-none">
+                    {% for shift in ['Todos', 'ManhÃ£', 'Tarde', 'Noite'] %}
+                    <option value="{{ shift }}" {{ 'selected' if filters.shift==shift else '' }}>{{ shift }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit"
+                    class="rounded-md bg-slate-700 hover:bg-slate-600 text-white font-semibold px-4 py-1.5 text-xs transition-colors">
+                    Atualizar
+                </button>
+            </form>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div class="bg-slate-900/40 border border-slate-700/50 rounded-xl p-4 flex items-center justify-between">
+                <div class="text-xs font-semibold text-slate-400">Total Autorizados</div>
+                <div class="text-xl font-bold text-white">{{ stats.authorized_total|default(0) }}</div>
+            </div>
+            <div class="bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-4 flex items-center justify-between">
+                <div class="text-xs font-semibold text-emerald-400">ConcluÃ­dos</div>
+                <div class="text-xl font-bold text-emerald-300">{{ stats.done_count|default(0) }}</div>
+            </div>
+            <div class="bg-red-500/5 border border-red-500/10 rounded-xl p-4 flex items-center justify-between">
+                <div class="text-xs font-semibold text-red-400">Pendentes</div>
+                <div class="text-xl font-bold text-red-300">{{ stats.pending_count|default(0) }}</div>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto rounded-xl border border-slate-700/50">
+            <table class="w-full text-left text-sm">
+                <thead class="text-xs uppercase text-slate-500 bg-slate-900/50 border-b border-slate-700/50">
+                    <tr>
+                        <th class="py-3 px-4 font-semibold">Colaborador</th>
+                        <th class="py-3 px-4 font-semibold">MatrÃ­cula</th>
+                        <th class="py-3 px-4 font-semibold">Turno</th>
+                        <th class="py-3 px-4 font-semibold">Escala</th>
+                        <th class="py-3 px-4 font-semibold text-right">Status do Dia</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700/50">
+                    {% if not authorized_rows %}
+                    <tr>
+                        <td colspan="5" class="py-12 text-center text-slate-500">
+                            Nenhuma pendÃªncia encontrada para os filtros selecionados.
+                        </td>
+                    </tr>
+                    {% else %}
+                    {% for row in authorized_rows %}
+                    <tr class="hover:bg-slate-700/20 transition-colors">
+                        <td class="py-3 px-4">
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
+                                    {{ row.employee.name[0] }}
+                                </div>
+                                <span class="text-white font-medium">{{ row.employee.name }}</span>
+                            </div>
+                        </td>
+                        <td class="py-3 px-4 text-slate-400 font-mono text-xs">{{ row.employee.registration_id }}</td>
+                        <td class="py-3 px-4 text-slate-300">
+                            <span class="px-2 py-0.5 rounded bg-slate-800 text-xs">{{ row.employee.work_shift }}</span>
+                        </td>
+                        <td class="py-3 px-4 text-slate-400 text-xs">{{ row.employee.work_schedule or '-' }}</td>
+                        <td class="py-3 px-4 text-right">
+                            <div class="flex items-center justify-end gap-2">
+                                <span
+                                    class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide {{ 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' if row.done else 'bg-red-500/10 text-red-400 border border-red-500/20' }}">
+                                    {{ 'Realizado' if row.done else 'Pendente' }}
+                                </span>
+                                {% if row.done %}
+                                <a href="/admin/routine/checklists/{{ row.checklist_id }}"
+                                    class="text-xs text-blue-400 hover:text-blue-300 p-1 rounded hover:bg-blue-400/10">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                </a>
+                                {% else %}
+                                <div class="w-6"></div>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
