@@ -623,24 +623,25 @@ def allowed_prefixes_for(keys: List[str]) -> List[str]:
 
 # --- Checklist Operacional (Transpaleteira) ---
 CHECKLIST_ITEMS = [
-    {"key": "hydraulic_functions", "label": "Funções hidráulicas", "critical": True},
-    {"key": "seat", "label": "Assento", "critical": False},
-    {"key": "battery_lock", "label": "Trava da bateria", "critical": False},
-    {"key": "leaks", "label": "Vazamentos", "critical": True},
-    {"key": "speed", "label": "Velocidade", "critical": False},
-    {"key": "battery_water_level", "label": "Nível da água da bateria", "critical": False},
-    {"key": "chassis_forks", "label": "Chassi / garfos (trincas, batidas)", "critical": False},
-    {"key": "steering", "label": "Direção (folgas / ruídos)", "critical": True},
-    {"key": "pedal_brake", "label": "Freio de pedal", "critical": True},
-    {"key": "parking_brake", "label": "Freio de estacionamento", "critical": True},
-    {"key": "panel", "label": "Painel", "critical": False},
-    {"key": "horn", "label": "Buzina", "critical": False},
-    {"key": "chains_hoses", "label": "Correntes / mangueiras", "critical": False},
-    {"key": "wheels", "label": "Rodas (carga e tração)", "critical": False},
-    {"key": "paint", "label": "Pintura", "critical": False},
-    {"key": "cleanliness", "label": "Limpeza / poeira", "critical": False},
-    {"key": "steering_force_balance", "label": "Força da direção igual para ambos os lados", "critical": True},
-    {"key": "battery_charge_level", "label": "Nível de carga da bateria", "critical": False}
+    {"key": "limpeza", "label": "Limpeza", "critical": False},
+    {"key": "avarias_portas", "label": "Avarias Portas", "critical": False},
+    {"key": "vidro_frontal_retrovisor", "label": "Vidro Frontal / Retrovisor", "critical": True},
+    {"key": "banco_forro", "label": "Banco e Forro", "critical": False},
+    {"key": "cinto_seguranca", "label": "Cinto de Seguranca", "critical": True},
+    {"key": "extintor_incendio", "label": "Extintor de Incendio", "critical": True},
+    {"key": "triangulo", "label": "Triangulo", "critical": True},
+    {"key": "limpador_parabrisa", "label": "Limpador Parabrisa", "critical": True},
+    {"key": "chave_basculhar", "label": "Chave Basculhar", "critical": False},
+    {"key": "placa_legivel", "label": "Placa Legivel", "critical": True},
+    {"key": "macaco", "label": "Macaco", "critical": False},
+    {"key": "chave_roda", "label": "Chave de Roda", "critical": False},
+    {"key": "estepe", "label": "Estepe", "critical": True},
+    {"key": "parte_eletrica", "label": "Parte Eletrica", "critical": True},
+    {"key": "parte_mecanica", "label": "Parte Mecanica", "critical": True},
+    {"key": "freios", "label": "Freios", "critical": True},
+    {"key": "nivel_oleo_agua", "label": "Nivel Oleo e Agua", "critical": True},
+    {"key": "avarias_para_choques", "label": "Avarias Para Choques", "critical": False},
+    {"key": "avarias_bau", "label": "Avarias Bau", "critical": False}
 ]
 CHECKLIST_ITEM_KEYS = [item["key"] for item in CHECKLIST_ITEMS]
 CHECKLIST_CRITICAL_KEYS = {item["key"] for item in CHECKLIST_ITEMS if item["critical"]}

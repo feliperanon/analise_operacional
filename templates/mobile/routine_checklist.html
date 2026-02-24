@@ -34,7 +34,7 @@
                     </span>
                 </div>
                 <h1 class="text-3xl font-black text-white leading-tight">
-                    Transpaleteira
+                    Caminhao
                 </h1>
                 <p class="text-slate-400 text-sm mt-1">Garanta sua segurança e ganhe XP</p>
             </div>
@@ -74,7 +74,7 @@
             </div>
             <select x-model="equipmentCode"
                 class="w-full bg-transparent border-none text-white font-bold text-lg focus:ring-0 p-3 appearance-none">
-                <option value="" disabled selected class="text-slate-500">Selecione o equipamento</option>
+                <option value="" disabled selected class="text-slate-500">Selecione o caminhao</option>
                 {% if equipment_list %}
                 {% for eq in equipment_list %}
                 <option value="{{ eq.code }}" class="bg-slate-800 text-white">{{ eq.code }}</option>
@@ -92,7 +92,7 @@
                 <a href="/mobile/equipment/tickets/new"
                     class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 text-[11px] text-blue-200 hover:bg-blue-500/20 hover:border-blue-500/50 hover:text-white font-semibold transition-all active:scale-95">
                     <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i>
-                    <span>Abrir chamado de equipamento</span>
+                    <span>Abrir chamado do caminhao</span>
                 </a>
             </div>
             <button @click="markAllGood()"
