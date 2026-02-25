@@ -195,6 +195,15 @@ def normalize_shift_date(date_str: Optional[str], shift: str, reference: Optiona
     return date_str
 
 
+def normalize_shift(value: Optional[str]) -> str:
+    """Normalize shift labels (ex.: Manha/Manhã -> manha)."""
+    if not value:
+        return ""
+    normalized = unicodedata.normalize("NFD", str(value))
+    cleaned = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+    return cleaned.lower().strip()
+
+
 # API Models
 from pydantic import BaseModel
 from typing import Optional, List
@@ -8933,33 +8942,34 @@ async def vehicles_import(
         content = await file.read()
         df = pd.read_excel(io=content, engine="openpyxl" if file.filename.lower().endswith(".xlsx") else "xlrd")
         df.columns = [str(c).strip() for c in df.columns]
+
+        def norm(s: str) -> str:
+            """Normaliza para comparação: remove acentos, lowercase, sem espaços extras."""
+            s = (s or "").strip().lower()
+            return unicodedata.normalize("NFD", s).encode("ascii", "ignore").decode("ascii")
+
         col_map = {}
-        aliases = {
-            "placa": ["placa", "Placa"],
-            "veiculo": ["veículo", "veiculo", "Veículo", "Veiculo", "tipo"],
-            "marca": ["marca", "Marca"],
-            "modelo": ["modelo", "Modelo"],
-            "renavam": ["renavam", "Renavam"],
-            "ano": ["ano", "Ano"],
-            "crv": ["nº do crv", "Nº do CRV", "crv", "CRV", "numero crv"],
-            "chassi": ["chassi", "CHASSI", "Chassi"],
+        keywords = {
+            "placa": ["placa"],
+            "veiculo": ["veiculo", "veículo"],
+            "marca": ["marca"],
+            "modelo": ["modelo"],
+            "renavam": ["renavam"],
+            "ano": ["ano"],
+            "crv": ["crv", "nº do crv", "numero crv"],
+            "chassi": ["chassi"],
         }
-        for std, variants in aliases.items():
-            for v in variants:
-                for c in df.columns:
-                    if str(c).strip().lower() == v.lower():
+        for std, kws in keywords.items():
+            for c in df.columns:
+                cn = norm(str(c))
+                for kw in kws:
+                    kn = norm(kw)
+                    if cn == kn or kn in cn:
                         col_map[std] = c
                         break
-        if "placa" not in col_map:
-            for c in df.columns:
-                if "placa" in str(c).lower():
-                    col_map["placa"] = c
+                if std in col_map:
                     break
-        if "veiculo" not in col_map:
-            for c in df.columns:
-                if "veículo" in str(c).lower() or "veiculo" in str(c).lower():
-                    col_map["veiculo"] = c
-                    break
+
         if "placa" not in col_map or "veiculo" not in col_map or "marca" not in col_map or "modelo" not in col_map:
             return RedirectResponse(url="/vehicles?error=missing_columns", status_code=status.HTTP_303_SEE_OTHER)
         def to_type(v):
