@@ -53,29 +53,75 @@
         </div>
         {% endif %}
 
+        <!-- Dashboard por tipo -->
+        {% if stats and stats.total > 0 %}
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="truck" class="w-6 h-6 text-amber-400"></i>
+                </div>
+                <div class="min-w-0">
+                    <p class="text-slate-400 text-sm">Caminhões</p>
+                    <p class="text-white font-bold text-lg">{{ stats.caminhao_count }} <span class="text-slate-500 font-normal">({{ stats.caminhao_pct }}%)</span></p>
+                </div>
+                <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div class="h-full bg-amber-500 rounded-full" style="width: {{ stats.caminhao_pct }}%"></div>
+                </div>
+            </div>
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="motorbike" class="w-6 h-6 text-emerald-400"></i>
+                </div>
+                <div class="min-w-0">
+                    <p class="text-slate-400 text-sm">Motos</p>
+                    <p class="text-white font-bold text-lg">{{ stats.moto_count }} <span class="text-slate-500 font-normal">({{ stats.moto_pct }}%)</span></p>
+                </div>
+                <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div class="h-full bg-emerald-500 rounded-full" style="width: {{ stats.moto_pct }}%"></div>
+                </div>
+            </div>
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="car" class="w-6 h-6 text-blue-400"></i>
+                </div>
+                <div class="min-w-0">
+                    <p class="text-slate-400 text-sm">Carros</p>
+                    <p class="text-white font-bold text-lg">{{ stats.carro_count }} <span class="text-slate-500 font-normal">({{ stats.carro_pct }}%)</span></p>
+                </div>
+                <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div class="h-full bg-blue-500 rounded-full" style="width: {{ stats.carro_pct }}%"></div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Importar Excel -->
-        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg mb-8">
-            <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <i data-lucide="file-spreadsheet" class="w-5 h-5 text-emerald-400"></i>
-                Importar do Excel
-            </h2>
-            <p class="text-slate-400 text-sm mb-4">Faça upload de um arquivo Excel (.xlsx ou .xls) com as colunas: <strong>Placa</strong>, <strong>Veículo</strong> (Caminhão/Moto/Carro), <strong>Marca</strong>, <strong>Modelo</strong>. Opcionais: Renavam, Ano, Nº do CRV, CHASSI.</p>
-            <form action="/vehicles/import" method="post" enctype="multipart/form-data" class="flex flex-wrap items-center gap-4">
-                <label class="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 cursor-pointer transition-colors">
-                    <i data-lucide="upload" class="w-5 h-5"></i>
-                    <span>Escolher arquivo</span>
-                    <input type="file" name="file" accept=".xlsx,.xls" required class="hidden" id="excel-file-input">
-                </label>
-                <span id="file-name" class="text-slate-500 text-sm"></span>
-                <button type="submit" class="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors flex items-center gap-2">
-                    <i data-lucide="import" class="w-5 h-5"></i>
-                    Importar
-                </button>
-            </form>
-            <a href="/vehicles/template" class="inline-flex items-center gap-2 mt-4 text-blue-400 hover:text-blue-300 text-sm" download="planilha_veiculos_modelo.xlsx">
-                <i data-lucide="download" class="w-4 h-4"></i>
-                Baixar planilha modelo
-            </a>
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg mb-8 overflow-hidden">
+            <div class="p-6 border-b border-slate-700/50">
+                <h2 class="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                    <i data-lucide="file-spreadsheet" class="w-5 h-5 text-emerald-400"></i>
+                    Importar do Excel
+                </h2>
+                <p class="text-slate-400 text-sm">Arquivo .xlsx ou .xls. Colunas obrigatórias: <strong>Placa</strong>, <strong>Veículo</strong>, <strong>Marca</strong>, <strong>Modelo</strong>. Opcionais: Renavam, Ano, Nº CRV, CHASSI.</p>
+            </div>
+            <div class="p-6 bg-slate-800/50">
+                <form action="/vehicles/import" method="post" enctype="multipart/form-data" class="flex flex-wrap items-center gap-3">
+                    <label class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 cursor-pointer transition-colors border border-slate-600">
+                        <i data-lucide="upload" class="w-5 h-5 text-slate-400"></i>
+                        <span>Escolher arquivo</span>
+                        <input type="file" name="file" accept=".xlsx,.xls" required class="hidden" id="excel-file-input">
+                    </label>
+                    <span id="file-name" class="text-slate-500 text-sm min-w-[180px]"></span>
+                    <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors">
+                        <i data-lucide="import" class="w-5 h-5"></i>
+                        Importar
+                    </button>
+                </form>
+                <a href="/vehicles/template" class="inline-flex items-center gap-2 mt-4 text-blue-400 hover:text-blue-300 text-sm font-medium" download="planilha_veiculos_modelo.xlsx">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                    Baixar planilha modelo
+                </a>
+            </div>
         </div>
 
         <!-- Vehicles List -->

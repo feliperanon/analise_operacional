@@ -8934,7 +8934,25 @@ async def delete_client(request: Request, client_id: int, session: Session = Dep
 async def vehicles_page(request: Request, session: Session = Depends(get_session)):
     user = require_login(request)
     vehicles = session.exec(select(models.Vehicle).order_by(models.Vehicle.placa)).all()
-    return templates.TemplateResponse("vehicles.html", {"request": request, "user": user, "vehicles": vehicles})
+    total = len(vehicles)
+    by_type = {"caminhao": 0, "moto": 0, "carro": 0}
+    for v in vehicles:
+        t = (v.vehicle_type or "").lower()
+        if t in by_type:
+            by_type[t] += 1
+    stats = {
+        "total": total,
+        "caminhao_count": by_type["caminhao"],
+        "moto_count": by_type["moto"],
+        "carro_count": by_type["carro"],
+        "caminhao_pct": round(100 * by_type["caminhao"] / total, 1) if total else 0,
+        "moto_pct": round(100 * by_type["moto"] / total, 1) if total else 0,
+        "carro_pct": round(100 * by_type["carro"] / total, 1) if total else 0,
+    }
+    return templates.TemplateResponse(
+        "vehicles.html",
+        {"request": request, "user": user, "vehicles": vehicles, "stats": stats}
+    )
 
 
 @app.get("/vehicles/new", response_class=HTMLResponse)
@@ -9148,9 +9166,10 @@ async def vehicle_history_page(request: Request, vehicle_id: int, session: Sessi
     vehicle = session.get(models.Vehicle, vehicle_id)
     if not vehicle:
         return RedirectResponse(url="/vehicles")
+    placa_norm = (vehicle.placa or "").strip().upper()
     checklists = session.exec(
         select(models.TranspalletChecklist)
-        .where(models.TranspalletChecklist.equipment_code == vehicle.placa)
+        .where(func.upper(models.TranspalletChecklist.equipment_code) == placa_norm)
         .order_by(desc(models.TranspalletChecklist.date), desc(models.TranspalletChecklist.submitted_at))
     ).all()
     emp_ids = {c.employee_id for c in checklists}
@@ -9160,14 +9179,15 @@ async def vehicle_history_page(request: Request, vehicle_id: int, session: Sessi
         emp_map = {e.id: e.name for e in emps}
     rows = []
     for c in checklists:
+        odom = getattr(c, "odometer_km", None)
         rows.append({
             "id": c.id,
             "date": c.date,
             "date_fmt": datetime.strptime(c.date, "%Y-%m-%d").strftime("%d/%m/%Y") if c.date else "-",
             "shift": c.shift,
             "employee_name": emp_map.get(c.employee_id, "Desconhecido"),
-            "odometer_km": c.odometer_km,
-            "odometer_fmt": f"{c.odometer_km:,.0f}".replace(",", ".") if c.odometer_km is not None else "-",
+            "odometer_km": odom,
+            "odometer_fmt": f"{odom:,.0f}".replace(",", ".") if odom is not None else "-",
             "status": c.status,
             "critical": c.critical_flag,
             "nonconforming": bool(c.nonconforming_keys),
