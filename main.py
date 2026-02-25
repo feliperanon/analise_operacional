@@ -8132,6 +8132,7 @@ async def admin_checklist_resend_email(
 async def api_create_checklist(
     request: Request,
     equipment_code: str = Form(...),
+    odometer_km: Optional[str] = Form(None),
     items: str = Form(...),
     observations: str = Form(""),
     date: Optional[str] = Form(None),
@@ -8166,6 +8167,25 @@ async def api_create_checklist(
         if not truck:
             return JSONResponse({"error": "Caminhão não cadastrado."}, status_code=400)
 
+    # Validação KM (obrigatório para caminhão) — trava ante-burro
+    try:
+        km_val = float((odometer_km or "").strip().replace(",", ".")) if odometer_km else None
+    except (ValueError, TypeError):
+        km_val = None
+    if km_val is None or km_val < 0:
+        return JSONResponse({"error": "Informe o KM do hodômetro."}, status_code=400)
+    last_check = session.exec(
+        select(models.TranspalletChecklist)
+        .where(models.TranspalletChecklist.equipment_code == equipment_code)
+        .order_by(desc(models.TranspalletChecklist.date), desc(models.TranspalletChecklist.submitted_at))
+    ).first()
+    if last_check and last_check.odometer_km is not None:
+        last_km = float(last_check.odometer_km)
+        if km_val <= last_km:
+            return JSONResponse({"error": f"KM deve ser maior que o anterior ({last_km:,.0f})."}  # noqa: E501
+        if km_val > last_km + 1000:
+            return JSONResponse({"error": f"Máximo 1000 km/dia. KM anterior: {last_km:,.0f}. Máx hoje: {last_km + 1000:,.0f}."})  # noqa: E501
+
     payload_items = parse_items_payload(items)
     if not payload_items or len(payload_items) != len(CHECKLIST_ITEM_KEYS):
         return JSONResponse({"error": "Checklist incompleto."}, status_code=400)
@@ -8191,6 +8211,7 @@ async def api_create_checklist(
     checklist = models.TranspalletChecklist(
         employee_id=employee_id,
         equipment_code=equipment_code,
+        odometer_km=km_val,
         date=date_val,
         shift=shift_val,
         status="submitted",
@@ -9111,6 +9132,44 @@ async def vehicle_detail_page(request: Request, vehicle_id: int, session: Sessio
     if not vehicle:
         return RedirectResponse(url="/vehicles")
     return templates.TemplateResponse("vehicle_detail.html", {"request": request, "user": user, "vehicle": vehicle})
+
+
+@app.get("/vehicles/{vehicle_id}/history", response_class=HTMLResponse)
+async def vehicle_history_page(request: Request, vehicle_id: int, session: Session = Depends(get_session)):
+    """Histórico do caminhão: checklists e futuramente manutenção, motoristas."""
+    user = require_login(request)
+    vehicle = session.get(models.Vehicle, vehicle_id)
+    if not vehicle:
+        return RedirectResponse(url="/vehicles")
+    checklists = session.exec(
+        select(models.TranspalletChecklist)
+        .where(models.TranspalletChecklist.equipment_code == vehicle.placa)
+        .order_by(desc(models.TranspalletChecklist.date), desc(models.TranspalletChecklist.submitted_at))
+    ).all()
+    emp_ids = {c.employee_id for c in checklists}
+    emp_map = {}
+    if emp_ids:
+        emps = session.exec(select(models.Employee).where(col(models.Employee.id).in_(list(emp_ids)))).all()
+        emp_map = {e.id: e.name for e in emps}
+    rows = []
+    for c in checklists:
+        rows.append({
+            "id": c.id,
+            "date": c.date,
+            "date_fmt": datetime.strptime(c.date, "%Y-%m-%d").strftime("%d/%m/%Y") if c.date else "-",
+            "shift": c.shift,
+            "employee_name": emp_map.get(c.employee_id, "Desconhecido"),
+            "odometer_km": c.odometer_km,
+            "odometer_fmt": f"{c.odometer_km:,.0f}".replace(",", ".") if c.odometer_km is not None else "-",
+            "status": c.status,
+            "critical": c.critical_flag,
+            "nonconforming": bool(c.nonconforming_keys),
+            "submitted_at": c.submitted_at.strftime("%d/%m %H:%M") if c.submitted_at else "-",
+        })
+    return templates.TemplateResponse(
+        "vehicle_history.html",
+        {"request": request, "user": user, "vehicle": vehicle, "checklists": rows}
+    )
 
 
 @app.post("/vehicles/{vehicle_id}/update", response_class=RedirectResponse)
