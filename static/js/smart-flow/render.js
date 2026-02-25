@@ -36,6 +36,10 @@ const Render = {
 
             this.sheetElement.setAttribute('aria-hidden', 'true');
 
+            this.sheetElement.setAttribute('inert', '');
+
+            this.sheetElement.classList.add('translate-y-full', 'pointer-events-none');
+
         }
 
 
@@ -44,7 +48,11 @@ const Render = {
 
             this.backdropElement.setAttribute('aria-hidden', 'true');
 
+            this.backdropElement.classList.add('opacity-0', 'pointer-events-none');
+
         }
+
+        this.lastFocusedElement = null;
 
 
 
@@ -866,6 +874,8 @@ const Render = {
 
         content.innerHTML = this.buildSheetContent(employee);
 
+        this.lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
 
 
         // Mostrar
@@ -1421,11 +1431,15 @@ const Render = {
 
 
 
-        sheet.classList.remove('translate-y-full');
+        sheet.classList.remove('translate-y-full', 'pointer-events-none');
+
+        sheet.removeAttribute('inert');
 
         sheet.setAttribute('aria-hidden', 'false');
 
-        sheet.focus({ preventScroll: true });
+        const firstFocusable = sheet.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+
+        (firstFocusable || sheet).focus({ preventScroll: true });
 
     },
 
@@ -1441,7 +1455,15 @@ const Render = {
 
         if (sheet) {
 
-            sheet.classList.add('translate-y-full');
+            if (sheet.contains(document.activeElement) && document.activeElement instanceof HTMLElement) {
+
+                document.activeElement.blur();
+
+            }
+
+            sheet.classList.add('translate-y-full', 'pointer-events-none');
+
+            sheet.setAttribute('inert', '');
 
             sheet.setAttribute('aria-hidden', 'true');
 
@@ -1454,6 +1476,24 @@ const Render = {
             backdrop.classList.add('opacity-0', 'pointer-events-none');
 
             backdrop.setAttribute('aria-hidden', 'true');
+
+        }
+
+        if (this.lastFocusedElement && this.lastFocusedElement.isConnected) {
+
+            const focusTarget = this.lastFocusedElement;
+
+            this.lastFocusedElement = null;
+
+            setTimeout(() => {
+
+                if (focusTarget.isConnected) {
+
+                    focusTarget.focus({ preventScroll: true });
+
+                }
+
+            }, 0);
 
         }
 

@@ -55,8 +55,8 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <p class="text-xs text-slate-400">Colaborador</p>
-                        <p class="text-sm font-semibold text-white">{{ employee.name }}</p>
-                        <p class="text-xs text-slate-500">{{ employee.registration_id }}</p>
+                        <p class="text-sm font-semibold text-white">{{ employee_name or (employee.name if employee else 'Desconhecido') }}</p>
+                        <p class="text-xs text-slate-500">{{ employee_registration_id or (employee.registration_id if employee else '-') }}</p>
                     </div>
                     <div>
                         <p class="text-xs text-slate-400">Equipamento</p>
@@ -83,9 +83,10 @@
 
             <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5">
                 <h2 class="text-base font-semibold text-white mb-3">Itens do checklist</h2>
+                {% set checklist_values = checklist.items if checklist.items is mapping else {} %}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {% for item in items %}
-                    {% set ok = checklist.items.get(item.key, False) %}
+                    {% set ok = checklist_values.get(item.key, False) %}
                     <div
                         class="flex items-center justify-between rounded-xl border {{ 'border-emerald-500/40' if ok else 'border-red-500/40' }} bg-slate-900 px-3 py-2">
                         <span class="text-sm text-slate-200">{{ item.label }}</span>

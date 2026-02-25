@@ -5952,6 +5952,22 @@ def ensure_column(engine, table_name, column_name, column_type_sql):
         except Exception as e:
             logger.error(f"Error adding column {column_name}: {e}")
 
+def ensure_checklist_odometer_schema():
+    """Adiciona coluna odometer_km à tabela transpalletchecklist se não existir."""
+    try:
+        inspector = inspect(engine)
+        tbl = "transpalletchecklist"
+        if tbl not in inspector.get_table_names():
+            return
+        cols = {c["name"] for c in inspector.get_columns(tbl)}
+        if "odometer_km" not in cols:
+            with engine.connect() as conn:
+                conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN odometer_km REAL"))
+                conn.commit()
+    except Exception as e:
+        logger.error(f"ensure_checklist_odometer_schema: {e}")
+
+
 def ensure_vehicle_schema():
     """Adiciona colunas in_workshop, sale_value, sold_at à tabela vehicle se não existirem."""
     try:
@@ -5979,6 +5995,7 @@ def on_startup():
     ensure_default_admin()
     ensure_pallet_count_schema()
     ensure_vehicle_schema()
+    ensure_checklist_odometer_schema()
     # Migration for new column
     ensure_column(engine, "employee", "mobile_access_admin_start", "BOOLEAN DEFAULT FALSE")
 
@@ -6772,14 +6789,26 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
             "weekday_pt": pt_weekday
         })
     
-    # 5. Lista de caminhões (só veículos tipo caminhão) para o select
+    # 5. Lista de caminhões (só veículos tipo caminhão) para o select + último KM
     trucks = session.exec(
         select(models.Vehicle)
         .where(models.Vehicle.vehicle_type == "caminhao")
         .where(models.Vehicle.is_active == True)
         .order_by(models.Vehicle.placa)
     ).all()
-    equipment_list = [{"code": v.placa, "label": f"{v.placa} — {v.marca} {v.modelo}"} for v in trucks]
+    equipment_list = []
+    for v in trucks:
+        last_check = session.exec(
+            select(models.TranspalletChecklist)
+            .where(models.TranspalletChecklist.equipment_code == v.placa)
+            .order_by(desc(models.TranspalletChecklist.date), desc(models.TranspalletChecklist.submitted_at))
+        ).first()
+        last_km = last_check.odometer_km if last_check and last_check.odometer_km is not None else None
+        equipment_list.append({
+            "code": v.placa,
+            "label": f"{v.placa} — {v.marca} {v.modelo}",
+            "last_km": last_km
+        })
 
     return templates.TemplateResponse(
         "mobile/routine_checklist.html",
