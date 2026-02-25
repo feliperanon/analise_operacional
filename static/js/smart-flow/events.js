@@ -76,9 +76,19 @@ const Events = {
             App.loadData();
         };
 
-        window.changeShift = (newShift) => {
+        window.changeShift = async (newShift, options = {}) => {
+            // Limpar state imediatamente para evitar valores misturados durante o carregamento
+            Store.state.allocations = {};
+            Store.state.routines = {};
+            Store.state.kpis = { present: 0, target: 0, percent: 0 };
+
             Store.setShift(newShift);
-            App.loadData();
+
+            if (options.alignNightDate && newShift === 'Noite') {
+                const effectiveDate = ShiftDateUtils.getEffectiveShiftDate(newShift);
+                Store.setDate(effectiveDate);
+            }
+
             // Update layout active state on shift change
             document.querySelectorAll('[data-shift]').forEach(el => {
                 if (el.dataset.shift === newShift) {
@@ -87,6 +97,9 @@ const Events = {
                     el.classList.remove('active');
                 }
             });
+
+            // Carregar novos dados (aguardar para evitar race condition)
+            await App.loadData();
         };
 
         window.saveAll = async () => {
@@ -132,8 +145,8 @@ const Events = {
                 tonnage: Store.state.tonnage
             }).then(() => {
                 alert('✅ Turno encerrado e salvo!');
-                // Redirecionar para daily operations
-                window.location.href = `/daily_operations?date=${Store.state.currentDate}`;
+                // Redirecionar para performance de operações
+                window.location.href = `/operations/performance?date=${Store.state.currentDate}`;
             }).catch(err => {
                 console.error('Error closing shift:', err);
                 alert('❌ Erro ao encerrar turno. Verifique o console.');
@@ -155,6 +168,160 @@ const Events = {
         window.editTonnage = () => {
             alert('A produção é calculada automaticamente a partir da Separação (Rotas).');
         };
+    },
+
+    setActivity(empId, activity) {
+        console.log(`Setting activity for ${empId}: ${activity}`);
+
+        // Validação de Ausência (Incluindo Status Permanente)
+        const emp = Store.state.employees.find(e => e.id == empId);
+        const currentRoutine = Store.state.routines[empId] || (emp ? emp.status : null);
+
+        if (currentRoutine && ['absent', 'sick', 'vacation', 'away', 'falta', 'atestado', 'ferias', 'afastado', 'dayoff', 'folga'].includes(currentRoutine.toLowerCase())) {
+            const routineMap = {
+                'absent': 'Falta', 'falta': 'Falta',
+                'sick': 'Atestado', 'atestado': 'Atestado',
+                'vacation': 'Férias', 'ferias': 'Férias',
+                'away': 'Afastado', 'afastado': 'Afastado',
+                'dayoff': 'Folga', 'folga': 'Folga'
+            };
+            const statusName = routineMap[currentRoutine.toLowerCase()] || currentRoutine;
+
+            if (!confirm(`O colaborador está marcado com ${statusName}. Deseja remover a ausência e iniciar esta atividade?`)) {
+                return;
+            }
+            // Se confirmou, a rotina será atualizada para 'present' automaticamente pelo Store.updateActivity
+        }
+
+        const obsInput = document.getElementById('activity-observation');
+        const observation = obsInput ? obsInput.value.trim() : null;
+
+        Store.updateActivity(empId, activity, observation);
+        Render.closeBottomSheet();
+    },
+
+    setRoutine(empId, routine) {
+        console.log(`Setting routine for ${empId}: ${routine}`);
+        const obsInput = document.getElementById('activity-observation');
+        const observation = obsInput ? obsInput.value.trim() : null;
+
+        // Limpar atividade atual
+        if (Store.state.activities[empId]) {
+            Store.updateActivity(empId, null, observation);
+        }
+
+        Store.updateRoutine(empId, routine);
+        Render.closeBottomSheet();
+    },
+
+    async setExtendedRoutine(empId, routine) {
+        // TRAVA DE SEGURANÇA: Evitar múltiplos cliques
+        const submitBtn = document.querySelector('[onclick*="setExtendedRoutine"], .routine-submit-btn');
+        if (submitBtn) {
+            if (submitBtn.disabled) {
+                console.log('🔒 Requisição já em andamento, ignorando clique duplicado');
+                return;
+            }
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = '0.6';
+            submitBtn.style.cursor = 'not-allowed';
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Processando...';
+            
+            // Restaurar botão após 5 segundos (fallback)
+            setTimeout(() => {
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = '1';
+                submitBtn.style.cursor = 'pointer';
+                submitBtn.textContent = originalText;
+            }, 5000);
+        }
+        
+        const startDate = document.getElementById('routine-start-date').value;
+        // Para 'away', days pode estar oculto/vazio. Assumir 1 ou backend deve lidar.
+        const daysInput = document.getElementById('routine-days');
+        const days = daysInput ? parseInt(daysInput.value) : 1;
+
+        console.log(`Extended Routine: ${empId}, ${routine}, Start: ${startDate}, Days: ${days}`);
+
+        // Validação básica
+        if (!startDate) {
+            alert('Por favor, selecione uma data de início.');
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = '1'; submitBtn.style.cursor = 'pointer'; }
+            return;
+        }
+
+        if (days < 1 || days > 365) {
+            alert('A quantidade de dias deve estar entre 1 e 365.');
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = '1'; submitBtn.style.cursor = 'pointer'; }
+            return;
+        }
+
+        // Chamar API para criar rotina estendida
+        try {
+            let result = await API.setEmployeeRoutineExtended(empId, routine, startDate, days);
+            
+            // Se houver conflito e puder atualizar, atualizar automaticamente
+            // O backend já detecta se é a mesma rotina e atualiza automaticamente
+            if (!result.success && result.canUpdate) {
+                // Atualizar automaticamente sem pedir confirmação
+                // O backend já verifica se é a mesma rotina e permite atualização automática
+                result = await API.setEmployeeRoutineExtended(empId, routine, startDate, days, true);
+                
+                // Se ainda falhar após tentar atualizar, pode ser rotina protegida
+                // Nesse caso, mostrar erro mas não pedir confirmação novamente
+                if (!result.success) {
+                    alert(result.error || 'Não foi possível atualizar a rotina. Verifique se não está tentando sobrescrever uma rotina protegida (atestado/afastamento).');
+                    return;
+                }
+            }
+            
+            if (result.success) {
+                // Atualizar Store localmente para refletir mudanças
+                Store.updateRoutine(empId, routine);
+                
+                // Mostrar mensagem de sucesso
+                const routineLabels = {
+                    'present': 'Presente',
+                    'vacation': 'Férias',
+                    'sick': 'Atestado',
+                    'away': 'Afastado',
+                    'absent': 'Falta',
+                    'dayoff': 'Folga'
+                };
+                const label = routineLabels[routine] || routine;
+                
+                alert(`✅ ${result.message || `Rotina de ${label} processada com sucesso`}`);
+                
+                // Fechar bottom sheet
+                Render.closeBottomSheet();
+                
+                // Recarregar página se estiver na página de detalhes do colaborador
+                if (window.location.pathname.includes('/employees/')) {
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 500);
+                }
+            } else {
+                // Mostrar erro
+                if (result.error) {
+                    alert(`❌ Erro: ${result.error}`);
+                } else {
+                    alert('❌ Erro ao processar rotina.');
+                }
+            }
+        } catch (error) {
+            console.error('Error setting extended routine:', error);
+            alert(`❌ Erro: ${error.message || 'Erro ao criar rotina estendida'}`);
+        } finally {
+            // Restaurar botão
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = '1';
+                submitBtn.style.cursor = 'pointer';
+                submitBtn.textContent = 'Confirmar';
+            }
+        }
     },
 
     setupInputs() {

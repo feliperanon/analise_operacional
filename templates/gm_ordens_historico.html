@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8">
+    <!-- Header -->
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-white mb-2">Histórico de Execuções</h1>
+            <p class="text-sm text-slate-400">Acompanhe todas as execuções de ordens de serviço.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+            <a href="/gm/ordens-servico" class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                Ordens
+            </a>
+            <a href="/gm/ordens-servico/kpis" class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                KPIs
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="bg-slate-800/50 border border-slate-700 rounded-xl p-4 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Data Início</label>
+                <input type="date" id="filter-start" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Data Fim</label>
+                <input type="date" id="filter-end" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Status</label>
+                <select id="filter-status" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                    <option value="">Todos</option>
+                    <option value="pending">Pendente</option>
+                    <option value="in_progress">Em Andamento</option>
+                    <option value="completed">Concluída</option>
+                    <option value="postponed">Adiada</option>
+                    <option value="not_done">Não Realizada</option>
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button onclick="applyFilters()" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors">
+                    Filtrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de execuções -->
+    <div class="bg-slate-800/50 border border-slate-700 rounded-2xl overflow-hidden">
+        <div class="p-4 border-b border-slate-700">
+            <h2 class="text-sm font-bold text-white uppercase tracking-wider">Execuções (últimos 30 dias)</h2>
+        </div>
+        
+        {% if executions %}
+        <!-- Desktop Table -->
+        <div class="hidden md:block overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-slate-900/50">
+                    <tr>
+                        <th class="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Data</th>
+                        <th class="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Tarefa</th>
+                        <th class="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Líder</th>
+                        <th class="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Status</th>
+                        <th class="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Horários</th>
+                        <th class="text-left text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-3">Obs</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700">
+                    {% for item in executions %}
+                    <tr class="hover:bg-slate-700/20">
+                        <td class="px-4 py-3 text-sm text-white whitespace-nowrap">
+                            {{ item.execution.scheduled_date[8:10] }}/{{ item.execution.scheduled_date[5:7] }}
+                        </td>
+                        <td class="px-4 py-3">
+                            <p class="text-sm font-medium text-white">{{ item.task.title if item.task else '—' }}</p>
+                            {% if item.task %}
+                            <p class="text-xs text-slate-500">{{ item.task.category|title }}</p>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-slate-300">{{ item.leader.username if item.leader else '—' }}</td>
+                        <td class="px-4 py-3">
+                            {% if item.execution.status == 'completed' %}
+                            <span class="inline-flex items-center gap-1 text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-full">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                Concluída
+                            </span>
+                            {% elif item.execution.status == 'in_progress' %}
+                            <span class="inline-flex items-center gap-1 text-xs bg-amber-500/20 text-amber-400 px-2 py-1 rounded-full">
+                                <svg class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                Em Andamento
+                            </span>
+                            {% elif item.execution.status == 'pending' %}
+                            <span class="inline-flex items-center gap-1 text-xs bg-slate-500/20 text-slate-400 px-2 py-1 rounded-full">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                Pendente
+                            </span>
+                            {% elif item.execution.status == 'postponed' %}
+                            <span class="inline-flex items-center gap-1 text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                Adiada
+                            </span>
+                            {% elif item.execution.status == 'not_done' %}
+                            <span class="inline-flex items-center gap-1 text-xs bg-rose-500/20 text-rose-400 px-2 py-1 rounded-full">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                Não Realizada
+                            </span>
+                            {% else %}
+                            <span class="text-xs text-slate-500">{{ item.execution.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-xs text-slate-400">
+                            {% if item.execution.started_at %}
+                            <p>Início: {{ item.execution.started_at.strftime('%H:%M') }}</p>
+                            {% endif %}
+                            {% if item.execution.completed_at %}
+                            <p>Fim: {{ item.execution.completed_at.strftime('%H:%M') }}</p>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-xs text-slate-400 max-w-[200px] truncate">
+                            {% if item.execution.note %}{{ item.execution.note }}
+                            {% elif item.execution.postpone_reason %}{{ item.execution.postpone_reason }}
+                            {% elif item.execution.not_done_reason %}{{ item.execution.not_done_reason }}
+                            {% else %}—{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Mobile Cards -->
+        <div class="md:hidden divide-y divide-slate-700">
+            {% for item in executions %}
+            <div class="p-4">
+                <div class="flex items-start justify-between gap-2 mb-2">
+                    <div>
+                        <p class="font-medium text-white">{{ item.task.title if item.task else '—' }}</p>
+                        <p class="text-xs text-slate-500">{{ item.leader.username if item.leader else '—' }} · {{ item.execution.scheduled_date[8:10] }}/{{ item.execution.scheduled_date[5:7] }}</p>
+                    </div>
+                    {% if item.execution.status == 'completed' %}
+                    <span class="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-full">Concluída</span>
+                    {% elif item.execution.status == 'in_progress' %}
+                    <span class="text-xs bg-amber-500/20 text-amber-400 px-2 py-1 rounded-full">Em Andamento</span>
+                    {% elif item.execution.status == 'pending' %}
+                    <span class="text-xs bg-slate-500/20 text-slate-400 px-2 py-1 rounded-full">Pendente</span>
+                    {% elif item.execution.status == 'postponed' %}
+                    <span class="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full">Adiada</span>
+                    {% elif item.execution.status == 'not_done' %}
+                    <span class="text-xs bg-rose-500/20 text-rose-400 px-2 py-1 rounded-full">Não Realizada</span>
+                    {% endif %}
+                </div>
+                {% if item.execution.note or item.execution.postpone_reason or item.execution.not_done_reason %}
+                <p class="text-xs text-slate-400 mt-2">
+                    {{ item.execution.note or item.execution.postpone_reason or item.execution.not_done_reason }}
+                </p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="p-8 text-center text-slate-400">
+            <svg class="w-12 h-12 mx-auto mb-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            <p>Nenhuma execução encontrada no período.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function applyFilters() {
+    var startDate = document.getElementById('filter-start').value;
+    var endDate = document.getElementById('filter-end').value;
+    var status = document.getElementById('filter-status').value;
+    
+    var params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (status) params.append('status', status);
+    
+    window.location.href = '/gm/ordens-servico/historico?' + params.toString();
+}
+</script>
+{% endblock %}

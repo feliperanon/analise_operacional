@@ -4,15 +4,75 @@
  * Single Source of Truth.
  */
 
+const ShiftDateUtils = (() => {
+    const toLocalISO = (ref = new Date()) => {
+        const local = new Date(ref.getTime() - ref.getTimezoneOffset() * 60000);
+        return local.toISOString().split('T')[0];
+    };
+
+    const getNightShiftStartDate = (ref = new Date()) => {
+        const local = new Date(ref);
+        const hour = local.getHours();
+        if (hour >= 18) {
+            return toLocalISO(local);
+        }
+        if (hour < 6) {
+            local.setDate(local.getDate() - 1);
+            return toLocalISO(local);
+        }
+        return toLocalISO(local);
+    };
+
+    const getEffectiveShiftDate = (shift, ref = new Date()) => {
+        if ((shift || '').trim().toLowerCase() === 'noite') {
+            return getNightShiftStartDate(ref);
+        }
+        return toLocalISO(ref);
+    };
+
+    const normalizeDateForShift = (dateStr, shift, ref = new Date()) => {
+        if (!dateStr || (shift || '').trim().toLowerCase() !== 'noite') {
+            return dateStr;
+        }
+
+        const [year, month, day] = dateStr.split('-').map(num => Number(num));
+        if (!year || !month || !day) {
+            return dateStr;
+        }
+
+        const provided = new Date(year, month - 1, day);
+        const today = new Date(ref);
+        if (
+            provided.getFullYear() === today.getFullYear() &&
+            provided.getMonth() === today.getMonth() &&
+            provided.getDate() === today.getDate() &&
+            today.getHours() >= 0 &&
+            today.getHours() < 6
+        ) {
+            return getNightShiftStartDate(ref);
+        }
+
+        return dateStr;
+    };
+
+    return {
+        getEffectiveShiftDate,
+        getNightShiftStartDate,
+        normalizeDateForShift
+    };
+})();
+
 const Store = {
     // --- Estado ---
     state: {
-        currentDate: new Date().toISOString().split('T')[0],
+        currentDate: ShiftDateUtils.getEffectiveShiftDate('Manhã'),
         currentShift: 'Manhã',
         employees: [],      // Lista completa de colaboradores
         sectors: [],        // Setores hierárquicos com sub-setores
         allocations: {},    // Alocações: { empId: subsectorId }
         routines: {},       // Rotinas: { empId: 'present'|'absent'|'sick'|'vacation'|'away' }
+        activities: {},     // Atividades reais: { empId: { activity: 'Separation', started_at: '...' } }
+        logs: [],           // Histórico de transições de atividades
         kpis: {},           // Indicadores calculados
         filters: {          // Filtros da sidebar
             search: '',
@@ -51,6 +111,8 @@ const Store = {
         this.state.sectors = data.sectors || [];
         this.state.allocations = data.allocations || {};
         this.state.routines = data.routines || {};
+        this.state.activities = data.activities || {}; // Recuperar atividades atuais
+        this.state.logs = data.logs || []; // Recuperar histórico
         this.state.tonnage = data.tonnage || 0;
         if (data.targets) this.state.targets = data.targets; // Update targets if provided
         this.state.isDirty = false;
@@ -74,6 +136,23 @@ const Store = {
 
     // Alocar colaborador em sub-setor
     allocateEmployee(employeeId, subsectorId) {
+        // Validação: Não permitir alocar se estiver faltando ou de atestado/férias
+        const emp = this.state.employees.find(e => e.id == employeeId);
+        const currentRoutine = this.state.routines[employeeId] || (emp ? emp.status : null);
+
+        if (currentRoutine && ['absent', 'sick', 'vacation', 'away', 'falta', 'atestado', 'ferias', 'afastado', 'dayoff', 'folga'].includes(currentRoutine.toLowerCase())) {
+            const routineMap = {
+                'absent': 'Falta', 'falta': 'Falta',
+                'sick': 'Atestado', 'atestado': 'Atestado',
+                'vacation': 'Férias', 'ferias': 'Férias',
+                'away': 'Afastado', 'afastado': 'Afastado',
+                'dayoff': 'Folga', 'folga': 'Folga'
+            };
+            const statusName = routineMap[currentRoutine.toLowerCase()] || currentRoutine;
+            alert(`Colaborador com status de ${statusName}. Remova a ausência primeiro se deseja alocá-lo.`);
+            return;
+        }
+
         this.state.allocations[employeeId] = subsectorId;
         this.state.isDirty = true;
         this.notify();
@@ -99,6 +178,49 @@ const Store = {
         this.state.isDirty = true;
         this.notify();
         this.autoSave(); // Reabilitado - erro 500 resolvido
+    },
+
+    // Atualizar Atividade (Smart Activity)
+    updateActivity(empId, activityName, observation = null) {
+        // 1. Snapshot do estado anterior
+        const currentActivity = this.state.activities[empId];
+        const now = new Date().toISOString();
+        const nowBR = new Date().toLocaleString('pt-BR');
+
+        // Se já estava numa atividade, encerrar e logar
+        if (currentActivity) {
+            this.state.logs.push({
+                employee_id: empId,
+                activity: currentActivity.activity,
+                started_at: currentActivity.started_at,
+                ended_at: now,
+                duration_minutes: this.diffMinutes(currentActivity.started_at, now),
+                observation: currentActivity.observation || null // Persistir observação da atividade anterior
+            });
+        }
+
+        // 2. Definir nova atividade
+        this.state.activities[empId] = {
+            activity: activityName,
+            started_at: now,
+            status: 'active',
+            observation: observation // Salvar nova observação
+        };
+
+        // 3. Atualizar Rotina Global para 'present' (corrige bug de dupla contagem se estava como falta)
+        // Se o colaborador inicia atividade, ele está presente.
+        this.updateRoutine(empId, 'present');
+
+        this.state.isDirty = true;
+        this.notify();
+        this.autoSave();
+    },
+
+    // Helper de tempo
+    diffMinutes(start, end) {
+        const s = new Date(start);
+        const e = new Date(end);
+        return Math.round((e - s) / 60000);
     },
 
     // Atualizar Tonelagem
@@ -127,48 +249,58 @@ const Store = {
         let vacation = 0;
         let away = 0;
         let missing = 0;
+        let dayoff = 0;
 
-        // Contar status baseado em rotinas (prioridade) ou status do employee
+        // IDs de colaboradores alocados
+        const allocatedEmpIds = Object.keys(allocations);
+
+        // Primeiro: Contar ausências de TODOS os colaboradores do turno (não apenas alocados)
+        // Isso garante que folgas, faltas, atestados sejam contados mesmo sem alocação
         shiftEmps.forEach(emp => {
-            // Priorizar rotina do dia, depois status do employee
-            const routine = this.state.routines[emp.id];
-            const status = routine || emp.status || 'active';
-            const normalizedStatus = status.toLowerCase();
+            const empStatus = (emp.status || 'active').toLowerCase();
+            // Pular demitidos
+            if (empStatus === 'fired' || empStatus === 'demitido') return;
 
-            // Apenas contar como presente se routine for 'present' ou não houver rotina e status for 'active'/'ativo'
-            if (normalizedStatus === 'present' ||
-                (!routine && (normalizedStatus === 'active' || normalizedStatus === 'ativo'))) {
-                present++;
-            } else if (normalizedStatus === 'sick' || normalizedStatus === 'atestado') {
-                sick++;
-            } else if (normalizedStatus === 'vacation' || normalizedStatus === 'férias' || normalizedStatus === 'ferias') {
-                vacation++;
-            } else if (normalizedStatus === 'away' || normalizedStatus === 'afastado') {
-                away++;
-            } else if (normalizedStatus === 'absent' || normalizedStatus === 'falta') {
+            const routine = this.state.routines[emp.id];
+            const normalizedRoutine = routine ? routine.toLowerCase() : null;
+
+            // Contar ausências (folga, falta, atestado, férias, afastado)
+            if (normalizedRoutine === 'dayoff' || normalizedRoutine === 'folga') {
+                dayoff++;
+            } else if (normalizedRoutine === 'absent' || normalizedRoutine === 'falta') {
                 missing++;
-            } else if (normalizedStatus === 'dayoff' || normalizedStatus === 'folga') {
-                // Folga não conta como presente
-                // Não incrementa nenhum contador específico
-            } else if (normalizedStatus === 'fired' || normalizedStatus === 'demitido') {
-                // Demitido - não conta como presente (usado para cálculo de vagas)
-                // Não incrementa nenhum contador específico
-            } else {
-                // Default: se não for nenhuma rotina especial e não houver rotina definida, conta como presente
-                if (!routine) {
-                    console.warn('Unknown status for employee:', emp.name, '- status:', status);
-                    present++;
-                }
+            } else if (normalizedRoutine === 'sick' || normalizedRoutine === 'atestado') {
+                sick++;
+            } else if (normalizedRoutine === 'vacation' || normalizedRoutine === 'férias' || normalizedRoutine === 'ferias' ||
+                       empStatus === 'vacation' || empStatus === 'férias' || empStatus === 'ferias') {
+                vacation++;
+            } else if (normalizedRoutine === 'away' || normalizedRoutine === 'afastado' ||
+                       empStatus === 'away' || empStatus === 'afastado') {
+                away++;
             }
         });
 
-        // Contar alocados (presentes operacionais)
-        const operationalPresent = Object.keys(allocations).filter(empId => {
+        // Segundo: Contar presentes apenas dos ALOCADOS (quem está trabalhando)
+        allocatedEmpIds.forEach(empId => {
             const emp = employees.find(e => e.id == empId);
-            if (!emp) return false;
-            const empShift = emp.work_shift ?? emp.shift ?? null;
-            return empShift && empShift.toLowerCase() === currentShift.toLowerCase();
-        }).length;
+            if (!emp) return;
+
+            const empStatus = (emp.status || 'active').toLowerCase();
+            if (empStatus === 'fired' || empStatus === 'demitido') return;
+
+            const routine = this.state.routines[empId];
+            const normalizedRoutine = routine ? routine.toLowerCase() : null;
+
+            // Se não tem rotina de ausência, é presente (está alocado e trabalhando)
+            const isAbsent = normalizedRoutine && 
+                ['dayoff', 'folga', 'absent', 'falta', 'sick', 'atestado', 'vacation', 'férias', 'ferias', 'away', 'afastado'].includes(normalizedRoutine);
+            
+            if (!isAbsent) {
+                present++;
+            }
+        });
+
+        // Total de alocados (para referência)
 
         // Calcular target total (total de colaboradores ATIVOS/AFASTADOS do turno, excluindo demitidos)
         // Antes era shiftEmps.length (incluía demitidos)
@@ -193,7 +325,7 @@ const Store = {
         console.log('Total in Shift (incl. fired):', shiftEmps.length);
         console.log('Fired Count:', firedCount);
         console.log('Active Workforce (Target):', totalTarget);
-        console.log('Present:', operationalPresent);
+        console.log('Present:', present);
         console.groupEnd();
 
         // Calcular vagas REAIS (colaboradores demitidos do turno)
@@ -235,9 +367,22 @@ const Store = {
     saveTimeout: null,
     isSaving: false,
     autoSave() {
+        // Não salvar automaticamente se não estiver na página do Smart Flow
+        // Isso evita erros quando o Store é usado em outras páginas (ex: /employees/:id)
+        if (!window.location.pathname.includes('/smart-flow')) {
+            console.log('ℹ️ AutoSave ignorado - não está no Smart Flow');
+            return;
+        }
+
         // Evitar múltiplos salvamentos simultâneos
         if (this.isSaving) {
             console.log('⏳ Salvamento já em andamento, aguardando...');
+            return;
+        }
+
+        // Não salvar se não houver alocações (contexto inválido)
+        if (Object.keys(this.state.allocations).length === 0) {
+            console.log('ℹ️ AutoSave ignorado - sem alocações para salvar');
             return;
         }
 
@@ -252,7 +397,15 @@ const Store = {
                 shift: this.state.currentShift,
                 allocations: this.state.allocations,
                 routines: this.state.routines,
-                tonnage: this.state.tonnage
+                tonnage: this.state.tonnage,
+                // Mapear logs e activities para serem salvos
+                logs: this.state.logs,
+                // Nota: O backend pode não esperar 'activities' soltos no root do payload se for um modelo estrito.
+                // Vou injetar 'activities' dentro de 'attendance_log' ou similar se necessário.
+                // Por hora, vou assumir que 'attendance_log' pode guardar o snapshot atual.
+                attendance_log: {
+                    activities: this.state.activities
+                }
             };
 
             console.log('💾 Salvando alocações:', {
@@ -283,3 +436,4 @@ const Store = {
 };
 
 window.Store = Store; // Expor globalmente
+window.ShiftDateUtils = ShiftDateUtils;

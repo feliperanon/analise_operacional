@@ -1,217 +1,304 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="p-6 space-y-6">
+<div class="p-4 md:p-6 space-y-5">
 
     <!-- Alerts -->
     {% if error %}
-    <div class="bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex items-center gap-3 text-red-200"
-        role="alert">
-        <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    <div class="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center gap-3 text-red-200" role="alert">
+        <svg class="w-5 h-5 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>
-        <span>{{ error }}</span>
-        <button onclick="this.parentElement.remove()" class="ml-auto text-red-400 hover:text-white"><svg class="w-4 h-4"
-                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <span class="flex-1">{{ error }}</span>
+        <button onclick="this.parentElement.remove()" class="text-red-400 hover:text-white p-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg></button>
+            </svg>
+        </button>
     </div>
     {% endif %}
     {% if success %}
-    <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 flex items-center gap-3 text-emerald-200"
-        role="alert">
-        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-center gap-3 text-emerald-200" role="alert">
+        <svg class="w-5 h-5 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
         </svg>
-        <span>{{ success }}</span>
-        <button onclick="this.parentElement.remove()" class="ml-auto text-emerald-400 hover:text-white"><svg
-                class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <span class="flex-1">{{ success }}</span>
+        <button onclick="this.parentElement.remove()" class="text-emerald-400 hover:text-white p-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg></button>
+            </svg>
+        </button>
     </div>
     {% endif %}
 
-    <!-- Dashboard Cards -->
-    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-        <!-- Total Card -->
-        <div
-            class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm relative overflow-hidden group hover:border-blue-500/50 transition-all">
-            <div class="z-10 relative">
-                <h3 class="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Total</h3>
-                <div class="flex items-baseline gap-1.5">
-                    <span class="text-2xl font-bold text-white">{{ stats.total_active }}</span>
-                    <span class="text-slate-600 text-xs font-medium">/ {{ stats.total_target }}</span>
-                </div>
-                <div class="mt-2 flex items-center justify-between">
-                    <span class="text-emerald-400 text-xs font-medium bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                        {{ "+" if stats.vacancies > 0 else "" }}{{ stats.vacancies }}
-                    </span>
-                    <button onclick="openTargetModal()"
-                        class="text-xs text-blue-400 hover:text-white hover:underline transition-colors flex items-center gap-1">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
-                            </path>
+    <!-- Header Principal -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-white">Colaboradores</h1>
+                <p class="text-sm text-slate-400">Gestão do quadro de funcionários</p>
+            </div>
+        </div>
+        
+        <!-- Ações -->
+        <div class="flex flex-wrap gap-2">
+            <div x-data="{ open: false }" class="relative">
+                <button @click="open = !open" class="h-10 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-medium transition border border-slate-700 flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                    </svg>
+                    Importar
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+                <div x-show="open" @click.away="open = false" x-transition class="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+                    <button onclick="document.getElementById('importModal').classList.remove('hidden')" class="w-full px-4 py-3 text-left text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition flex items-center gap-3">
+                        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
-                        Metas
+                        Planilha Excel
+                    </button>
+                    <button onclick="document.getElementById('bulk-occurrences-modal').classList.remove('hidden')" class="w-full px-4 py-3 text-left text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition flex items-center gap-3">
+                        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                        </svg>
+                        Ocorrências
+                    </button>
+                    <button onclick="document.getElementById('bulk-vacation-modal').classList.remove('hidden')" class="w-full px-4 py-3 text-left text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition flex items-center gap-3">
+                        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        Férias
                     </button>
                 </div>
             </div>
-        </div>
-
-        <!-- Shift Cards -->
-        {% for shift in stats.shifts %}
-        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm cursor-pointer hover:border-blue-500 hover:shadow-md transition-all group"
-            onclick="setFilter('{{ shift.name }}')">
-            <h3 class="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">{{ shift.name }}</h3>
-            <div class="flex items-baseline gap-1.5">
-                <span class="text-2xl font-bold text-white">{{ shift.count }}</span>
-                <span class="text-slate-600 text-xs font-medium">/ {{ shift.target }}</span>
-            </div>
-
-            <!-- Vacancy/Excess Status -->
-            <div class="mt-2 flex flex-col gap-1">
-                {% if shift.vacancies > 0 %}
-                <span class="text-emerald-400 text-xs font-medium flex items-center gap-1.5">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                    +{{ shift.vacancies }}
-                </span>
-                {% elif shift.vacancies < 0 %} <span class="text-red-400 text-xs font-medium flex items-center gap-1.5">
-                    <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
-                    {{ shift.vacancies }}
-                    </span>
-                    {% else %}
-                    <span class="text-slate-500 text-xs flex items-center gap-1.5">
-                        <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
-                        OK
-                    </span>
-                    {% endif %}
-
-                    <!-- Detailed Observations -->
-                    {% if shift.vacation > 0 or shift.away > 0 %}
-                    <div
-                        class="text-[10px] text-slate-500 font-medium flex gap-2 border-t border-slate-700/50 pt-1 mt-1">
-                        {% if shift.vacation > 0 %}
-                        <span class="text-blue-400/80">{{ shift.vacation }} Férias</span>
-                        {% endif %}
-                        {% if shift.away > 0 %}
-                        <span class="text-orange-400/80">{{ shift.away }} Afast.</span>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-            </div>
-        </div>
-        {% endfor %}
-
-        <!-- Status Cards -->
-        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm cursor-pointer hover:border-blue-500 hover:shadow-md transition-all group"
-            onclick="setFilter('vacation')">
-            <h3 class="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Férias</h3>
-            <div class="text-2xl font-bold text-blue-400">{{ stats.statuses.vacation }}</div>
-            <div class="mt-2 h-4 w-full bg-slate-700/50 rounded-full overflow-hidden">
-                <div class="h-full bg-blue-500/20 w-3/4"></div>
-            </div>
-        </div>
-
-        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm cursor-pointer hover:border-orange-500 hover:shadow-md transition-all group"
-            onclick="setFilter('away')">
-            <h3 class="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Afastados</h3>
-            <div class="text-2xl font-bold text-orange-400">{{ stats.statuses.away }}</div>
-            <div class="mt-2 h-4 w-full bg-slate-700/50 rounded-full overflow-hidden">
-                <div class="h-full bg-orange-500/20 w-1/2"></div>
-            </div>
-        </div>
-
-        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm cursor-pointer hover:border-red-500 hover:shadow-md transition-all group"
-            onclick="setFilter('fired')">
-            <h3 class="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Demitidos</h3>
-            <div class="text-2xl font-bold text-red-400">{{ stats.statuses.fired }}</div>
-            <div class="mt-2 h-4 w-full bg-slate-700/50 rounded-full overflow-hidden">
-                <div class="h-full bg-red-500/20 w-1/4"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Actions Bar -->
-    <div class="flex justify-between items-center">
-        <h2 class="text-xl font-semibold text-white">Banco de Dados: Colaboradores</h2>
-        <div class="flex gap-3">
-            <!-- Removed 'Definir Metas' button as it belongs to Smart Flow -->
-            <button onclick="document.getElementById('importModal').classList.remove('hidden')"
-                class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors border border-slate-600 flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
-                </svg>
-                Importar Excel
-            </button>
-
-            <button onclick="document.getElementById('bulk-occurrences-modal').classList.remove('hidden')"
-                class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors border border-slate-600 flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01">
-                    </path>
-                </svg>
-                Importar Ocorrências
-            </button>
-
-            <!--
-            <a href="/import-medical-certificates"
-                class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors border border-slate-600 flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                    </path>
-                </svg>
-                Importar Atestados
-            </a>
-            -->
-            <button onclick="document.getElementById('bulk-vacation-modal').classList.remove('hidden')"
-                class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors border border-slate-600 flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-                Importar Férias
-            </button>
-            <button onclick="document.getElementById('addModal').classList.remove('hidden')"
-                class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+            <button onclick="document.getElementById('addModal').classList.remove('hidden')" class="h-10 px-5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-sm font-semibold transition shadow-lg shadow-blue-500/25 flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                 </svg>
-                Novo
+                Novo Colaborador
             </button>
         </div>
     </div>
 
-    <!-- Search & Filters -->
-    <div
-        class="flex flex-col md:flex-row gap-4 justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700">
-        <div class="relative w-full md:w-96">
-            <input type="text" id="searchInput" placeholder="Pesquisar por nome ou matrícula..."
-                class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:border-blue-500"
-                onkeyup="filterTable()">
-            <svg class="w-5 h-5 text-slate-500 absolute left-3 top-2.5" fill="none" stroke="currentColor"
-                viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-            </svg>
+    <!-- KPIs em Grid Compacto - Todos na mesma linha -->
+    <div class="grid grid-cols-4 md:grid-cols-7 gap-2">
+        
+        <!-- Quadro Efetivo -->
+        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 cursor-pointer hover:border-blue-500/50 transition-all" onclick="openTargetModal()">
+            <div class="flex items-center justify-between">
+                <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Quadro</span>
+                <svg class="w-3 h-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                </svg>
+            </div>
+            <div class="flex items-baseline gap-1 mt-1">
+                <span class="text-2xl font-bold text-white">{{ stats.total_active }}</span>
+                <span class="text-slate-600 text-xs">/{{ stats.total_target }}</span>
+            </div>
+            <div class="flex items-center gap-2 mt-1">
+                {% if stats.vacancies > 0 %}
+                <span class="text-emerald-400 text-[10px] font-semibold flex items-center gap-1">
+                    <span class="w-1 h-1 rounded-full bg-emerald-400 animate-pulse"></span>
+                    +{{ stats.vacancies }}
+                </span>
+                {% elif stats.vacancies < 0 %}
+                <span class="text-red-400 text-[10px] font-semibold">-{{ stats.vacancies|abs }}</span>
+                {% else %}
+                <span class="text-slate-500 text-[10px]">OK</span>
+                {% endif %}
+            </div>
         </div>
-        <div class="flex gap-2">
-            <button onclick="setFilter('all')"
-                class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white hover:bg-slate-600 transition-colors active"
-                data-filter="all">Todos</button>
-            <button onclick="setFilter('Manhã')"
-                class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-900 text-slate-400 hover:text-white transition-colors"
-                data-filter="Manhã">Manhã</button>
-            <button onclick="setFilter('Tarde')"
-                class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-900 text-slate-400 hover:text-white transition-colors"
-                data-filter="Tarde">Tarde</button>
-            <button onclick="setFilter('Noite')"
-                class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-900 text-slate-400 hover:text-white transition-colors"
-                data-filter="Noite">Noite</button>
+        
+        <!-- Turno Manha -->
+        {% set manha = stats.shifts[0] if stats.shifts|length > 0 else {} %}
+        <div class="bg-gradient-to-br from-blue-900/30 to-slate-800 p-3 rounded-xl border border-blue-500/30 cursor-pointer hover:border-blue-400/50 transition-all group" onclick="setFilter('Manha')">
+            <div class="flex items-center justify-between">
+                <span class="text-[10px] text-blue-400 font-bold uppercase tracking-wider">Manha</span>
+                <svg class="w-4 h-4 text-blue-400/50 group-hover:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+            </div>
+            <div class="flex items-baseline gap-1 mt-1">
+                <span class="text-2xl font-bold text-white">{{ manha.headcount if manha else 0 }}</span>
+                <span class="text-blue-400/50 text-xs">/{{ manha.target if manha else 0 }}</span>
+            </div>
+            <div class="flex items-center gap-2 mt-1">
+                {% if manha and manha.vacancies > 0 %}
+                <span class="text-emerald-400 text-[10px] font-semibold">+{{ manha.vacancies }}</span>
+                {% elif manha and manha.vacancies < 0 %}
+                <span class="text-red-400 text-[10px] font-semibold">-{{ manha.vacancies|abs }}</span>
+                {% endif %}
+                {% if manha and manha.vacation > 0 %}
+                <span class="text-blue-300 text-[10px] font-medium bg-blue-500/20 px-1 rounded">{{ manha.vacation }}F</span>
+                {% endif %}
+                {% if manha and manha.away > 0 %}
+                <span class="text-orange-400 text-[10px] font-medium bg-orange-500/10 px-1 rounded">{{ manha.away }}A</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Turno Tarde -->
+        {% set tarde = stats.shifts[1] if stats.shifts|length > 1 else {} %}
+        <div class="bg-gradient-to-br from-orange-900/30 to-slate-800 p-3 rounded-xl border border-orange-500/30 cursor-pointer hover:border-orange-400/50 transition-all group" onclick="setFilter('Tarde')">
+            <div class="flex items-center justify-between">
+                <span class="text-[10px] text-orange-400 font-bold uppercase tracking-wider">Tarde</span>
+                <svg class="w-4 h-4 text-orange-400/50 group-hover:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+            </div>
+            <div class="flex items-baseline gap-1 mt-1">
+                <span class="text-2xl font-bold text-white">{{ tarde.headcount if tarde else 0 }}</span>
+                <span class="text-orange-400/50 text-xs">/{{ tarde.target if tarde else 0 }}</span>
+            </div>
+            <div class="flex items-center gap-2 mt-1">
+                {% if tarde and tarde.vacancies > 0 %}
+                <span class="text-emerald-400 text-[10px] font-semibold">+{{ tarde.vacancies }}</span>
+                {% elif tarde and tarde.vacancies < 0 %}
+                <span class="text-red-400 text-[10px] font-semibold">-{{ tarde.vacancies|abs }}</span>
+                {% endif %}
+                {% if tarde and tarde.vacation > 0 %}
+                <span class="text-blue-400 text-[10px] font-medium bg-blue-500/10 px-1 rounded">{{ tarde.vacation }}F</span>
+                {% endif %}
+                {% if tarde and tarde.away > 0 %}
+                <span class="text-orange-300 text-[10px] font-medium bg-orange-500/20 px-1 rounded">{{ tarde.away }}A</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Turno Noite -->
+        {% set noite = stats.shifts[2] if stats.shifts|length > 2 else {} %}
+        <div class="bg-gradient-to-br from-purple-900/30 to-slate-800 p-3 rounded-xl border border-purple-500/30 cursor-pointer hover:border-purple-400/50 transition-all group" onclick="setFilter('Noite')">
+            <div class="flex items-center justify-between">
+                <span class="text-[10px] text-purple-400 font-bold uppercase tracking-wider">Noite</span>
+                <svg class="w-4 h-4 text-purple-400/50 group-hover:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                </svg>
+            </div>
+            <div class="flex items-baseline gap-1 mt-1">
+                <span class="text-2xl font-bold text-white">{{ noite.headcount if noite else 0 }}</span>
+                <span class="text-purple-400/50 text-xs">/{{ noite.target if noite else 0 }}</span>
+            </div>
+            <div class="flex items-center gap-2 mt-1">
+                {% if noite and noite.vacancies > 0 %}
+                <span class="text-emerald-400 text-[10px] font-semibold">+{{ noite.vacancies }}</span>
+                {% elif noite and noite.vacancies < 0 %}
+                <span class="text-red-400 text-[10px] font-semibold">-{{ noite.vacancies|abs }}</span>
+                {% endif %}
+                {% if noite and noite.vacation > 0 %}
+                <span class="text-blue-400 text-[10px] font-medium bg-blue-500/10 px-1 rounded">{{ noite.vacation }}F</span>
+                {% endif %}
+                {% if noite and noite.away > 0 %}
+                <span class="text-orange-400 text-[10px] font-medium bg-orange-500/10 px-1 rounded">{{ noite.away }}A</span>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Férias -->
+        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 cursor-pointer hover:border-blue-500/50 transition-all" onclick="setFilter('vacation')">
+            <span class="text-[10px] text-blue-400 font-bold uppercase tracking-wider">Férias</span>
+            <p class="text-2xl font-bold text-blue-400 mt-1">{{ stats.statuses.vacation }}</p>
+        </div>
+        
+        <!-- Afastados -->
+        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 cursor-pointer hover:border-orange-500/50 transition-all relative" onclick="setFilter('away')">
+            <span class="text-[10px] text-orange-400 font-bold uppercase tracking-wider">Afastados</span>
+            <p class="text-2xl font-bold text-orange-400 mt-1">{{ stats.statuses.away }}</p>
+            {% if stats.statuses.away > 0 %}
+            <div class="absolute top-2 right-2 w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+            {% endif %}
+        </div>
+        
+        <!-- Demitidos -->
+        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 cursor-pointer hover:border-red-500/50 transition-all" onclick="setFilter('fired')">
+            <span class="text-[10px] text-red-400 font-bold uppercase tracking-wider">Demitidos</span>
+            <p class="text-2xl font-bold text-red-400 mt-1">{{ stats.statuses.fired }}</p>
+        </div>
+    </div>
+    
+    {% if stats.total_away and stats.total_away > 0 %}
+    <div class="bg-orange-500/5 border border-orange-500/20 rounded-xl px-4 py-2 flex items-center gap-2">
+        <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span class="text-xs text-orange-400">{{ stats.total_away }} colaborador{{ 'es' if stats.total_away != 1 else '' }} afastado{{ 's' if stats.total_away != 1 else '' }} gerando {{ stats.total_away }} vaga{{ 's' if stats.total_away != 1 else '' }} temporária{{ 's' if stats.total_away != 1 else '' }}</span>
+    </div>
+    {% endif %}
+
+    <!-- Barra de Pesquisa e Filtros -->
+    <div class="bg-slate-800 rounded-2xl border border-slate-700 p-3">
+        <div class="flex flex-col md:flex-row gap-3 items-center">
+            <!-- Pesquisa -->
+            <div class="relative flex-1 w-full">
+                <svg class="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+                <input type="text" id="searchInput" placeholder="Buscar por nome ou matrícula..." onkeyup="filterTable()"
+                    class="w-full h-10 bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition">
+            </div>
+            
+            <!-- Filtros de Turno com Cores -->
+            <div class="flex gap-1 bg-slate-900 p-1 rounded-xl">
+                <button onclick="setFilter('all')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-slate-600 text-white" data-filter="all">Todos</button>
+                <button onclick="setFilter('Manha')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-blue-400 hover:text-white hover:bg-blue-600/50 border border-transparent hover:border-blue-500/50" data-filter="Manha">
+                    <span class="flex items-center gap-1">
+                        <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
+                        Manha
+                    </span>
+                </button>
+                <button onclick="setFilter('Tarde')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-orange-400 hover:text-white hover:bg-orange-600/50 border border-transparent hover:border-orange-500/50" data-filter="Tarde">
+                    <span class="flex items-center gap-1">
+                        <span class="w-2 h-2 bg-orange-500 rounded-full"></span>
+                        Tarde
+                    </span>
+                </button>
+                <button onclick="setFilter('Noite')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-purple-400 hover:text-white hover:bg-purple-600/50 border border-transparent hover:border-purple-500/50" data-filter="Noite">
+                    <span class="flex items-center gap-1">
+                        <span class="w-2 h-2 bg-purple-500 rounded-full"></span>
+                        Noite
+                    </span>
+                </button>
+            </div>
+            
+            <!-- Toggle de Visualizacao -->
+            <div class="flex gap-1 bg-slate-900 p-1 rounded-xl">
+                <button onclick="setViewMode('list')" id="view-list-btn" class="view-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all bg-slate-700 text-white" title="Lista">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                </button>
+                <button onclick="setViewMode('grouped')" id="view-grouped-btn" class="view-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-white hover:bg-slate-700" title="Agrupado por Turno">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                </button>
+            </div>
+            
+            <!-- Filtros de Status -->
+            <div class="flex gap-1.5">
+                <button onclick="setFilter('vacation')" class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20" data-filter="vacation" title="Férias">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                </button>
+                <button onclick="setFilter('away')" class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20" data-filter="away" title="Afastados">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                </button>
+                <button onclick="setFilter('fired')" class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20" data-filter="fired" title="Demitidos">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                </button>
+            </div>
+            
+            <!-- Separador -->
+            <div class="hidden md:block w-px h-6 bg-slate-700"></div>
+            
+            <!-- Link Substituições -->
+            <a href="/admin/substitutions" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20" title="Histórico de Substituições">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                </svg>
+                <span class="hidden lg:inline">Substituições</span>
+            </a>
         </div>
     </div>
 
@@ -311,19 +398,16 @@
 
                             {% if emp.status != 'active' %}
                             <!-- Reativar / Retornar -->
-                            <form action="/employees/{{ emp.id }}/status" method="POST" class="inline"
-                                onsubmit="return confirm('Confirmar o retorno de {{ emp.name }}?');">
-                                <input type="hidden" name="status_action" value="active">
-                                <button type="submit"
-                                    class="p-1.5 hover:bg-emerald-500/20 rounded text-emerald-400 transition-colors"
-                                    title="Reativar / Retornar">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-                                        </path>
-                                    </svg>
-                                </button>
-                            </form>
+                            <button type="button"
+                                onclick="openReturnModal('{{ emp.id }}', '{{ emp.name }}', '{{ emp.status }}')"
+                                class="p-1.5 hover:bg-emerald-500/20 rounded text-emerald-400 transition-colors"
+                                title="Reativar / Retornar">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                    </path>
+                                </svg>
+                            </button>
                             {% endif %}
 
 
@@ -411,71 +495,59 @@
     </div>
 </div>
 
-<!-- Fire Modal -->
-<div id="fireModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-    <div class="bg-slate-800 rounded-2xl w-full max-w-sm border border-slate-700 shadow-2xl p-6">
-        <div class="flex justify-between items-center mb-6">
-            <div>
-                <h3 class="text-lg font-bold text-white">Confirmar Demissão</h3>
-                <p class="text-sm text-slate-400" id="fire-employee-name"></p>
-            </div>
-            <button onclick="document.getElementById('fireModal').classList.add('hidden')"
-                class="text-slate-400 hover:text-white">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
-                    </path>
-                </svg>
-            </button>
-        </div>
-
-        <form id="fire-form" method="POST" action="">
-            <input type="hidden" name="status_action" value="fired">
-            <p class="text-white mb-4 text-sm">Tem certeza que deseja marcar este colaborador como demitido? <br>Essa
-                ação irá gerar uma vaga.</p>
-
-            <div class="flex justify-end gap-3">
-                <button type="button" onclick="document.getElementById('fireModal').classList.add('hidden')"
-                    class="px-4 py-2 text-slate-300 hover:text-white text-sm">Cancelar</button>
-                <button type="submit"
-                    class="px-6 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-medium">Confirmar
-                    Demissão</button>
-            </div>
-        </form>
-    </div>
-</div>
-
 <!-- Target Edit Modal -->
-<div id="targetModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-    <div class="bg-slate-800 rounded-2xl w-full max-w-sm border border-slate-700 shadow-2xl p-6">
-        <div class="flex justify-between items-center mb-6">
-            <h3 class="text-lg font-bold text-white">Metas de Headcount</h3>
+<div id="targetModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+    <div class="bg-slate-800 rounded-2xl w-full max-w-xs sm:max-w-sm border border-slate-700 shadow-2xl p-4 sm:p-5 my-auto max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-base sm:text-lg font-bold text-white">Metas de Headcount</h3>
             <button onclick="document.getElementById('targetModal').classList.add('hidden')"
-                class="text-slate-400 hover:text-white">
+                class="text-slate-400 hover:text-white p-1">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
                     </path>
                 </svg>
             </button>
         </div>
-        <div class="space-y-4">
-            <div>
-                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Manhã</label>
-                <input type="number" id="target-manha" value="{{ stats.targets_map.get('Manhã', 0) }}"
-                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500">
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tarde</label>
-                <input type="number" id="target-tarde" value="{{ stats.targets_map.get('Tarde', 0) }}"
-                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500">
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Noite</label>
-                <input type="number" id="target-noite" value="{{ stats.targets_map.get('Noite', 0) }}"
-                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500">
+        <div class="space-y-3">
+            <!-- Global Limit -->
+            <div class="bg-slate-900/50 p-2.5 rounded-lg border border-blue-500/20">
+                <label class="block text-[10px] sm:text-xs font-bold text-blue-400 uppercase mb-1">Quantidade Total (Limite)</label>
+                <input type="number" id="target-total" value="{{ stats.total_target }}"
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500 font-bold text-base"
+                    oninput="validateTargets()">
+                <p class="text-[9px] sm:text-[10px] text-slate-500 mt-1">Soma dos turnos não pode exceder este valor.</p>
             </div>
 
-            <button onclick="saveTargets()"
-                class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg shadow-lg shadow-blue-500/20 transition-all mt-4">
+            <!-- Turnos em grid para economizar espaço -->
+            <div class="grid grid-cols-3 gap-2">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Manhã</label>
+                    <input type="number" id="target-manha" value="{{ stats.targets_map.get('Manhã', 0) }}"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-2 text-white text-sm outline-none focus:border-blue-500 text-center"
+                        oninput="validateTargets()">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tarde</label>
+                    <input type="number" id="target-tarde" value="{{ stats.targets_map.get('Tarde', 0) }}"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-2 text-white text-sm outline-none focus:border-blue-500 text-center"
+                        oninput="validateTargets()">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Noite</label>
+                    <input type="number" id="target-noite" value="{{ stats.targets_map.get('Noite', 0) }}"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-2 text-white text-sm outline-none focus:border-blue-500 text-center"
+                        oninput="validateTargets()">
+                </div>
+            </div>
+
+            <!-- Balance Display -->
+            <div id="target-balance-display"
+                class="text-[10px] sm:text-xs font-bold text-center p-2 bg-slate-700/20 rounded border border-slate-600">
+                Calculando saldo...
+            </div>
+
+            <button onclick="saveTargets()" id="btn-save-targets"
+                class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                 Salvar Metas
             </button>
         </div>
@@ -485,9 +557,103 @@
 <script>
     function openTargetModal() {
         document.getElementById('targetModal').classList.remove('hidden');
+        validateTargets(); // Check initial state
+    }
+
+    function validateTargets() {
+        const totalInput = document.getElementById('target-total');
+        const manhaInput = document.getElementById('target-manha');
+        const tardeInput = document.getElementById('target-tarde');
+        const noiteInput = document.getElementById('target-noite');
+
+        const total = parseInt(totalInput.value) || 0;
+        const m = parseInt(manhaInput.value) || 0;
+        const t = parseInt(tardeInput.value) || 0;
+        const n = parseInt(noiteInput.value) || 0;
+
+        const currentSum = m + t + n;
+        const remaining = total - currentSum;
+
+        const btn = document.getElementById('btn-save-targets');
+        const msg = document.getElementById('target-validation-msg');
+
+        // Atualizar textos de ajuda
+        updateHelper(manhaInput, total - (t + n));
+        updateHelper(tardeInput, total - (m + n));
+        updateHelper(noiteInput, total - (m + t));
+
+        // Atualizar saldo global
+        const balanceEl = document.getElementById('target-balance-display');
+        if (balanceEl) {
+            if (remaining > 0) {
+                balanceEl.innerHTML = `<span class="text-emerald-400">Restam <b>${remaining}</b> vagas para distribuir</span>`;
+                balanceEl.className = "text-xs font-bold text-center mt-2 p-2 bg-emerald-500/10 rounded border border-emerald-500/20";
+            } else if (remaining === 0) {
+                balanceEl.innerHTML = `<span class="text-blue-400">Total atingido exatamente!</span>`;
+                balanceEl.className = "text-xs font-bold text-center mt-2 p-2 bg-blue-500/10 rounded border border-blue-500/20";
+            } else {
+                balanceEl.innerHTML = `<span class="text-red-400">Excesso de <b>${Math.abs(remaining)}</b> vagas!</span>`;
+                balanceEl.className = "text-xs font-bold text-center mt-2 p-2 bg-red-500/10 rounded border border-red-500/20";
+            }
+        }
+
+        if (remaining < 0) {
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            // msg.classList.remove('hidden'); // Usando balanceEl agora
+            // msg.innerText = `Soma (${currentSum}) excede o Total (${total})!`;
+        } else {
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            // msg.classList.add('hidden');
+        }
+    }
+
+    function updateHelper(input, maxVal) {
+        // Encontrar ou criar helper text
+        let container = input.parentElement;
+        let helper = container.querySelector('.target-helper');
+        if (!helper) {
+            helper = document.createElement('div');
+            helper.className = 'target-helper text-[10px] text-slate-500 text-right mt-1 h-4 flex justify-between items-center';
+            container.appendChild(helper);
+        }
+
+        const currentVal = parseInt(input.value) || 0;
+        // Se o valor atual for menor que o máximo possível (considerando os outros fixos), mostrar quanto falta
+        // MaxVal aqui é (Total - Outros). Se Input > MaxVal, então estourou.
+        // Se Input < MaxVal, pode aumentar.
+
+        // Botão de auto-complete
+        // Se (Total - Outros) > Current, sugerir preencher
+        const diff = maxVal - currentVal;
+
+        if (diff > 0) {
+            helper.innerHTML = `
+                <span>Disponível: ${maxVal}</span>
+                <button onclick="fillRemainder('${input.id}', ${maxVal})" class="text-blue-400 hover:text-white font-bold hover:underline">Completar (+${diff})</button>
+            `;
+        } else if (diff < 0) {
+            helper.innerHTML = `<span class="text-red-400 font-bold">Reduzir em ${Math.abs(diff)}</span>`;
+        } else {
+            helper.innerHTML = `<span class="text-emerald-500 font-bold">No limite ✓</span>`;
+        }
+    }
+
+    function fillRemainder(inputId, val) {
+        const input = document.getElementById(inputId);
+        input.value = val;
+        validateTargets(); // Re-validar
     }
 
     function saveTargets() {
+        // Enviar apenas os turnos para o backend (o total é derivado/validacao frontend ou backend?)
+        // Se o usuário quer salvar o "Total" como limite global enforced, precisamos persistir isso ou apenas usar validacao visual?
+        // O backend atualmente soma as targets.
+        // Se quisermos persistir o "Total Global", precisaríamos de um novo modelo ou apenas confiar na soma.
+        // O request do usuário diz "Incluir campo... e limite a quantidade".
+        // Vou enviar as targets individuais. O Total serve como trava de entrada.
+
         const payload = {
             targets: {
                 "Manhã": parseInt(document.getElementById('target-manha').value) || 0,
@@ -619,112 +785,149 @@
     </div>
 </div>
 <!-- Edit Modal -->
-<div id="editModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-    <div class="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 shadow-2xl p-6">
-        <div class="flex justify-between items-center mb-6">
-            <h3 class="text-xl font-bold text-white">Editar Colaborador</h3>
+<div id="editModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div class="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 shadow-2xl flex flex-col max-h-[90vh]">
+        <!-- Header Fixo -->
+        <div class="flex justify-between items-center p-4 border-b border-slate-700 shrink-0">
+            <h3 class="text-lg font-bold text-white">Editar Colaborador</h3>
             <button onclick="document.getElementById('editModal').classList.add('hidden')"
-                class="text-slate-400 hover:text-white">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
-                    </path>
+                class="text-slate-400 hover:text-white p-1">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
             </button>
         </div>
-        <form id="editForm" method="POST" class="space-y-4">
-            <!-- Action will be set dynamically -->
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Nome Completo</label>
-                    <input type="text" name="name" id="editName" required
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+        
+        <!-- Conteúdo com Scroll -->
+        <div class="overflow-y-auto flex-1 p-4">
+            <form id="editForm" method="POST" class="space-y-3">
+                <!-- Action will be set dynamically -->
+                
+                <!-- Nome e Matrícula -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Nome</label>
+                        <input type="text" name="name" id="editName" required
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Matrícula</label>
+                        <input type="text" name="registration_id" id="editReg" required
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Matrícula</label>
-                    <input type="text" name="registration_id" id="editReg" required
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+                
+                <!-- Cargo e Turno -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Cargo</label>
+                        <input type="text" name="role" id="editRole" required
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Turno</label>
+                        <select name="work_shift" id="editShift"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                            <option value="Manhã">Manhã</option>
+                            <option value="Tarde">Tarde</option>
+                            <option value="Noite">Noite</option>
+                        </select>
+                    </div>
+                    <input type="hidden" name="cost_center" id="editCost" value="Geral">
                 </div>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Cargo</label>
-                    <input type="text" name="role" id="editRole" required
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+                
+                <!-- Datas e Horário -->
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Admissão</label>
+                        <input type="date" name="admission_date" id="editAdmission"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Aniversário</label>
+                        <input type="date" name="birthday" id="editBirthday"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Horário</label>
+                        <input type="text" name="work_schedule" id="editWorkSchedule" placeholder="07:00 - 15:20"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Turno</label>
-                    <select name="work_shift" id="editShift"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
-                        <option value="Manhã">Manhã</option>
-                        <option value="Tarde">Tarde</option>
-                        <option value="Noite">Noite</option>
-                    </select>
-                </div>
-                <input type="hidden" name="cost_center" id="editCost" value="Geral">
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Data Admissão</label>
-                    <input type="date" name="admission_date" id="editAdmission"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Aniversário</label>
-                    <input type="date" name="birthday" id="editBirthday"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
-                </div>
-            </div>
 
-            <!-- Dias de Trabalho -->
-            <div>
-                <label class="block text-sm font-medium text-slate-400 mb-2">Dias de Trabalho</label>
-                <div class="grid grid-cols-2 gap-2">
-                    <label class="flex items-center gap-2 cursor-pointer hover:bg-slate-700/30 p-2 rounded transition">
-                        <input type="checkbox" name="work_days" value="Monday"
-                            class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800">
-                        <span class="text-sm text-slate-300">Segunda</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer hover:bg-slate-700/30 p-2 rounded transition">
-                        <input type="checkbox" name="work_days" value="Tuesday"
-                            class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800">
-                        <span class="text-sm text-slate-300">Terça</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer hover:bg-slate-700/30 p-2 rounded transition">
-                        <input type="checkbox" name="work_days" value="Wednesday"
-                            class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800">
-                        <span class="text-sm text-slate-300">Quarta</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer hover:bg-slate-700/30 p-2 rounded transition">
-                        <input type="checkbox" name="work_days" value="Thursday"
-                            class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800">
-                        <span class="text-sm text-slate-300">Quinta</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer hover:bg-slate-700/30 p-2 rounded transition">
-                        <input type="checkbox" name="work_days" value="Friday"
-                            class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800">
-                        <span class="text-sm text-slate-300">Sexta</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer hover:bg-slate-700/30 p-2 rounded transition">
-                        <input type="checkbox" name="work_days" value="Saturday"
-                            class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800">
-                        <span class="text-sm text-slate-300">Sábado</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer hover:bg-slate-700/30 p-2 rounded transition">
-                        <input type="checkbox" name="work_days" value="Sunday"
-                            class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800">
-                        <span class="text-sm text-slate-300">Domingo</span>
-                    </label>
+                <!-- Dias de Trabalho - Compacto em linha -->
+                <div class="bg-slate-900/50 rounded-lg p-3">
+                    <label class="block text-xs font-medium text-slate-400 mb-2">Dias de Trabalho</label>
+                    <div class="flex flex-wrap gap-1">
+                        <label class="flex items-center gap-1.5 cursor-pointer hover:bg-slate-700/50 px-2 py-1 rounded text-xs">
+                            <input type="checkbox" name="work_days" value="Monday" class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800 w-3.5 h-3.5">
+                            <span class="text-slate-300">Seg</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer hover:bg-slate-700/50 px-2 py-1 rounded text-xs">
+                            <input type="checkbox" name="work_days" value="Tuesday" class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800 w-3.5 h-3.5">
+                            <span class="text-slate-300">Ter</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer hover:bg-slate-700/50 px-2 py-1 rounded text-xs">
+                            <input type="checkbox" name="work_days" value="Wednesday" class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800 w-3.5 h-3.5">
+                            <span class="text-slate-300">Qua</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer hover:bg-slate-700/50 px-2 py-1 rounded text-xs">
+                            <input type="checkbox" name="work_days" value="Thursday" class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800 w-3.5 h-3.5">
+                            <span class="text-slate-300">Qui</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer hover:bg-slate-700/50 px-2 py-1 rounded text-xs">
+                            <input type="checkbox" name="work_days" value="Friday" class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800 w-3.5 h-3.5">
+                            <span class="text-slate-300">Sex</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer hover:bg-slate-700/50 px-2 py-1 rounded text-xs">
+                            <input type="checkbox" name="work_days" value="Saturday" class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800 w-3.5 h-3.5">
+                            <span class="text-slate-300">Sáb</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer hover:bg-slate-700/50 px-2 py-1 rounded text-xs">
+                            <input type="checkbox" name="work_days" value="Sunday" class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800 w-3.5 h-3.5">
+                            <span class="text-slate-300">Dom</span>
+                        </label>
+                    </div>
                 </div>
-            </div>
 
-            <div class="pt-4 flex justify-end gap-3">
-                <button type="button" onclick="document.getElementById('editModal').classList.add('hidden')"
-                    class="px-4 py-2 text-slate-300 hover:text-white">Cancelar</button>
-                <button type="submit"
-                    class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">Salvar
-                    Alterações</button>
-            </div>
-        </form>
+                <!-- Férias Programadas - Compacto -->
+                <div id="editVacationSection" class="bg-gradient-to-r from-orange-900/10 to-amber-900/10 border border-orange-500/20 rounded-lg p-3">
+                    <div class="flex items-center gap-2 mb-2">
+                        <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                        <label class="text-xs font-medium text-orange-400">Férias Programadas</label>
+                    </div>
+                    
+                    <!-- Alerta de Férias Atual -->
+                    <div id="editVacationAlert" class="hidden mb-2 bg-orange-500/10 border border-orange-500/30 rounded px-2 py-1.5">
+                        <span class="text-orange-300 text-xs font-medium" id="editVacationAlertText"></span>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[10px] font-medium text-slate-500 mb-0.5">Início</label>
+                            <input type="date" name="vacation_start" id="editVacationStart"
+                                class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white focus:outline-none focus:border-orange-500 text-xs">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-medium text-slate-500 mb-0.5">Fim</label>
+                            <input type="date" name="vacation_end" id="editVacationEnd"
+                                class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white focus:outline-none focus:border-orange-500 text-xs">
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-slate-500 mt-1">Deixe em branco para remover.</p>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Footer Fixo -->
+        <div class="p-4 border-t border-slate-700 flex justify-end gap-2 shrink-0">
+            <button type="button" onclick="document.getElementById('editModal').classList.add('hidden')"
+                class="px-3 py-1.5 text-sm text-slate-300 hover:text-white">Cancelar</button>
+            <button type="submit" form="editForm"
+                class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">Salvar</button>
+        </div>
     </div>
 </div>
 
@@ -928,6 +1131,43 @@
     </div>
 </div>
 
+<!-- Return/Reactivate Modal -->
+<div id="returnModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="bg-slate-800 rounded-2xl w-full max-w-md border border-slate-700 shadow-2xl p-6">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+            </div>
+            <div>
+                <h3 class="text-lg font-bold text-white">Retorno do Colaborador</h3>
+                <p class="text-sm text-slate-400" id="return-employee-name"></p>
+                <p class="text-xs text-slate-500" id="return-employee-status"></p>
+            </div>
+        </div>
+
+        <form id="returnForm" method="POST">
+            <input type="hidden" name="status_action" value="active">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-slate-400 mb-2">Data do Retorno</label>
+                <input type="date" name="return_date" id="return-date" required
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500">
+                <p class="text-xs text-slate-500 mt-1">O sistema atualizará as rotinas a partir desta data</p>
+            </div>
+
+            <div class="flex justify-end gap-3">
+                <button type="button" onclick="closeReturnModal()"
+                    class="px-4 py-2 text-slate-300 hover:text-white">Cancelar</button>
+                <button type="submit" class="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium">
+                    Confirmar Retorno
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
     // --- Edit Modal Logic ---
     function openEditModal(emp) {
@@ -937,28 +1177,83 @@
         document.getElementById('editRole').value = emp.role;
         document.getElementById('editCost').value = emp.cost_center;
         document.getElementById('editShift').value = emp.work_shift;
+        
+        // Horário de trabalho
+        document.getElementById('editWorkSchedule').value = emp.work_schedule || '';
 
         if (emp.admission_date) {
             document.getElementById('editAdmission').value = emp.admission_date.split('T')[0];
+        } else {
+            document.getElementById('editAdmission').value = '';
         }
         if (emp.birthday) {
             document.getElementById('editBirthday').value = emp.birthday.split('T')[0];
+        } else {
+            document.getElementById('editBirthday').value = '';
         }
 
         // Populate work_days checkboxes
-        document.querySelectorAll('input[name="work_days"]').forEach(cb => cb.checked = false);
+        document.querySelectorAll('#editForm input[name="work_days"]').forEach(cb => cb.checked = false);
         if (emp.work_days) {
             try {
                 const workDays = typeof emp.work_days === 'string' ? JSON.parse(emp.work_days) : emp.work_days;
                 if (Array.isArray(workDays)) {
                     workDays.forEach(day => {
-                        const checkbox = document.querySelector(`input[name="work_days"][value="${day}"]`);
+                        const checkbox = document.querySelector(`#editForm input[name="work_days"][value="${day}"]`);
                         if (checkbox) checkbox.checked = true;
                     });
                 }
             } catch (e) {
                 console.error('Error parsing work_days:', e);
             }
+        }
+
+        // Populate vacation fields
+        const vacationStartInput = document.getElementById('editVacationStart');
+        const vacationEndInput = document.getElementById('editVacationEnd');
+        const vacationAlert = document.getElementById('editVacationAlert');
+        const vacationAlertText = document.getElementById('editVacationAlertText');
+        
+        // Reset vacation fields
+        vacationStartInput.value = '';
+        vacationEndInput.value = '';
+        vacationAlert.classList.add('hidden');
+        
+        if (emp.vacation_start && emp.vacation_end) {
+            // Parse dates
+            const vStart = emp.vacation_start.split('T')[0];
+            const vEnd = emp.vacation_end.split('T')[0];
+            
+            // Check if vacation already ended (past vacation)
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const endDate = new Date(vEnd);
+            endDate.setHours(23, 59, 59, 999);
+            
+            // Only show if vacation hasn't ended yet
+            if (endDate >= today) {
+                vacationStartInput.value = vStart;
+                vacationEndInput.value = vEnd;
+                
+                // Show alert with formatted dates
+                const startParts = vStart.split('-');
+                const endParts = vEnd.split('-');
+                const formattedStart = `${startParts[2]}/${startParts[1]}/${startParts[0]}`;
+                const formattedEnd = `${endParts[2]}/${endParts[1]}/${endParts[0]}`;
+                
+                // Calculate days
+                const startDate = new Date(vStart);
+                const diffTime = Math.abs(endDate - startDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                
+                // Check if currently on vacation or scheduled
+                const currentlyOnVacation = startDate <= today && endDate >= today;
+                const prefix = currentlyOnVacation ? '🏖️ Em Férias:' : '🏖️ Programado:';
+                
+                vacationAlertText.innerHTML = `${prefix} ${formattedStart} até ${formattedEnd} <span class="text-xs text-orange-400/70">(${diffDays} dias)</span>`;
+                vacationAlert.classList.remove('hidden');
+            }
+            // If vacation already passed, fields stay empty (will be cleared on next save)
         }
 
         document.getElementById('editModal').classList.remove('hidden');
@@ -977,20 +1272,64 @@
         document.getElementById('fireModal').classList.add('hidden');
     }
 
+    // --- Return Modal Logic ---
+    function openReturnModal(empId, empName, empStatus) {
+        document.getElementById('returnForm').action = '/employees/' + empId + '/return';
+        document.getElementById('return-employee-name').innerText = empName;
+        
+        // Map status to Portuguese
+        const statusMap = {
+            'vacation': 'Férias',
+            'away': 'Afastado',
+            'fired': 'Demitido',
+            'day_off': 'Folga'
+        };
+        const statusLabel = statusMap[empStatus] || empStatus;
+        document.getElementById('return-employee-status').innerText = 'Status atual: ' + statusLabel;
+        
+        // Set default date to today
+        document.getElementById('return-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('returnModal').classList.remove('hidden');
+    }
+
+    function closeReturnModal() {
+        document.getElementById('returnModal').classList.add('hidden');
+    }
+
     // --- Filter Logic ---
     let currentFilter = 'all';
 
     function setFilter(filter) {
         currentFilter = filter;
+        
+        // Reset todos os botões de filtro de turno
         document.querySelectorAll('.filter-btn').forEach(btn => {
-            if (btn.dataset.filter === filter) {
-                btn.classList.add('bg-slate-700', 'text-white', 'active');
-                btn.classList.remove('bg-slate-900', 'text-slate-400');
-            } else {
-                btn.classList.remove('bg-slate-700', 'text-white', 'active');
-                btn.classList.add('bg-slate-900', 'text-slate-400');
+            const btnFilter = btn.dataset.filter;
+            
+            // Botões de turno (Todos, Manhã, Tarde, Noite)
+            if (['all', 'Manhã', 'Tarde', 'Noite'].includes(btnFilter)) {
+                if (btnFilter === filter) {
+                    btn.classList.add('bg-blue-600', 'text-white');
+                    btn.classList.remove('text-slate-400', 'hover:text-white', 'hover:bg-slate-800');
+                } else {
+                    btn.classList.remove('bg-blue-600', 'text-white');
+                    btn.classList.add('text-slate-400', 'hover:text-white', 'hover:bg-slate-800');
+                }
+            }
+            
+            // Botões de status (vacation, away, fired) - destacar quando ativo
+            if (['vacation', 'away', 'fired'].includes(btnFilter)) {
+                if (btnFilter === filter) {
+                    btn.classList.add('ring-2', 'ring-offset-2', 'ring-offset-slate-900');
+                    if (btnFilter === 'vacation') btn.classList.add('ring-blue-500');
+                    if (btnFilter === 'away') btn.classList.add('ring-orange-500');
+                    if (btnFilter === 'fired') btn.classList.add('ring-red-500');
+                } else {
+                    btn.classList.remove('ring-2', 'ring-offset-2', 'ring-offset-slate-900', 'ring-blue-500', 'ring-orange-500', 'ring-red-500');
+                }
             }
         });
+        
         filterTable();
     }
 
@@ -1012,8 +1351,11 @@
 
             if (currentFilter === 'all') {
                 matchesFilter = true;
-            } else if (['Manhã', 'Tarde', 'Noite'].includes(currentFilter)) {
-                matchesFilter = (shift === currentFilter);
+            } else if (['Manha', 'Manhã', 'Tarde', 'Noite'].includes(currentFilter)) {
+                // Normalize filter and shift for comparison
+                const normalizedFilter = currentFilter === 'Manha' ? 'Manhã' : currentFilter;
+                const normalizedShift = shift === 'Manha' ? 'Manhã' : shift;
+                matchesFilter = (normalizedShift === normalizedFilter || shift === currentFilter);
             } else {
                 matchesFilter = status === currentFilter;
             }
@@ -1053,6 +1395,196 @@
         });
 
         rows.forEach(row => tbody.appendChild(row));
+    }
+
+    // --- VIEW MODE Logic (List vs Grouped) ---
+    let currentViewMode = 'list';
+    
+    function setViewMode(mode) {
+        currentViewMode = mode;
+        
+        // Update buttons
+        const listBtn = document.getElementById('view-list-btn');
+        const groupedBtn = document.getElementById('view-grouped-btn');
+        
+        if (mode === 'list') {
+            listBtn.className = 'view-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all bg-slate-700 text-white';
+            groupedBtn.className = 'view-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-white hover:bg-slate-700';
+            showListView();
+        } else {
+            listBtn.className = 'view-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-white hover:bg-slate-700';
+            groupedBtn.className = 'view-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all bg-slate-700 text-white';
+            showGroupedView();
+        }
+    }
+    
+    function showListView() {
+        // Show regular table
+        const tableContainer = document.getElementById('employeesTable').closest('.bg-slate-800');
+        const groupedContainer = document.getElementById('grouped-view');
+        
+        if (tableContainer) tableContainer.classList.remove('hidden');
+        if (groupedContainer) groupedContainer.classList.add('hidden');
+    }
+    
+    function showGroupedView() {
+        // Hide regular table, show grouped view
+        const tableContainer = document.getElementById('employeesTable').closest('.bg-slate-800');
+        let groupedContainer = document.getElementById('grouped-view');
+        
+        if (tableContainer) tableContainer.classList.add('hidden');
+        
+        // Create grouped view if not exists
+        if (!groupedContainer) {
+            groupedContainer = createGroupedView();
+            tableContainer.parentNode.insertBefore(groupedContainer, tableContainer.nextSibling);
+        }
+        
+        groupedContainer.classList.remove('hidden');
+        populateGroupedView();
+    }
+    
+    function createGroupedView() {
+        const div = document.createElement('div');
+        div.id = 'grouped-view';
+        div.className = 'space-y-6';
+        div.innerHTML = `
+            <!-- Manha Group -->
+            <div class="bg-gradient-to-br from-blue-900/20 to-slate-800/60 rounded-2xl border border-blue-500/30 overflow-hidden">
+                <div class="p-4 border-b border-blue-500/20 flex items-center justify-between bg-blue-500/5">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-blue-300">TURNO MANHA</h3>
+                            <p class="text-xs text-slate-500">06:00 - 14:00</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="text-center">
+                            <p id="manha-count" class="text-2xl font-bold text-white">0</p>
+                            <p class="text-[10px] text-slate-500 uppercase">Colaboradores</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="manha-employees" class="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 max-h-80 overflow-y-auto custom-scrollbar"></div>
+            </div>
+            
+            <!-- Tarde Group -->
+            <div class="bg-gradient-to-br from-orange-900/20 to-slate-800/60 rounded-2xl border border-orange-500/30 overflow-hidden">
+                <div class="p-4 border-b border-orange-500/20 flex items-center justify-between bg-orange-500/5">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center">
+                            <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-orange-300">TURNO TARDE</h3>
+                            <p class="text-xs text-slate-500">14:00 - 22:00</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="text-center">
+                            <p id="tarde-count" class="text-2xl font-bold text-white">0</p>
+                            <p class="text-[10px] text-slate-500 uppercase">Colaboradores</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="tarde-employees" class="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 max-h-80 overflow-y-auto custom-scrollbar"></div>
+            </div>
+            
+            <!-- Noite Group -->
+            <div class="bg-gradient-to-br from-purple-900/20 to-slate-800/60 rounded-2xl border border-purple-500/30 overflow-hidden">
+                <div class="p-4 border-b border-purple-500/20 flex items-center justify-between bg-purple-500/5">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                            <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-purple-300">TURNO NOITE</h3>
+                            <p class="text-xs text-slate-500">22:00 - 06:00</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="text-center">
+                            <p id="noite-count" class="text-2xl font-bold text-white">0</p>
+                            <p class="text-[10px] text-slate-500 uppercase">Colaboradores</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="noite-employees" class="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 max-h-80 overflow-y-auto custom-scrollbar"></div>
+            </div>
+        `;
+        return div;
+    }
+    
+    function populateGroupedView() {
+        const rows = document.querySelectorAll('.employee-row');
+        const groups = {
+            'Manha': [],
+            'Tarde': [],
+            'Noite': []
+        };
+        
+        rows.forEach(row => {
+            if (row.classList.contains('hidden')) return;
+            
+            let shift = row.dataset.shift || '';
+            const name = row.querySelector('td:first-child span.font-semibold')?.textContent || 'N/A';
+            const status = row.dataset.status || 'active';
+            const photoEl = row.querySelector('img');
+            const photo = photoEl ? photoEl.src : null;
+            const initial = name.charAt(0);
+            const id = row.dataset.id;
+            
+            // Normalize shift name
+            if (shift === 'Manhã') shift = 'Manha';
+            
+            if (groups[shift]) {
+                groups[shift].push({ name, status, photo, initial, id });
+            }
+        });
+        
+        // Populate each group
+        ['Manha', 'Tarde', 'Noite'].forEach(shift => {
+            const container = document.getElementById(shift.toLowerCase() + '-employees');
+            const countEl = document.getElementById(shift.toLowerCase() + '-count');
+            
+            if (countEl) countEl.textContent = groups[shift].length;
+            
+            if (container) {
+                container.innerHTML = groups[shift].map(emp => {
+                    const statusClass = emp.status === 'vacation' ? 'ring-2 ring-blue-500' : 
+                                       emp.status === 'away' ? 'ring-2 ring-orange-500 opacity-50' :
+                                       emp.status === 'fired' ? 'ring-2 ring-red-500 opacity-30' : '';
+                    const statusBadge = emp.status === 'vacation' ? '<span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center text-[8px]">F</span>' :
+                                       emp.status === 'away' ? '<span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-orange-500 rounded-full flex items-center justify-center text-[8px]">A</span>' : '';
+                    
+                    return `
+                        <div class="flex flex-col items-center p-2 bg-slate-900/50 rounded-lg hover:bg-slate-900 transition-all cursor-pointer group" onclick="openEditModal(${emp.id})">
+                            <div class="relative">
+                                ${emp.photo ? 
+                                    `<img src="${emp.photo}" class="w-10 h-10 rounded-full object-cover ${statusClass}">` :
+                                    `<div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold ${statusClass}">${emp.initial}</div>`
+                                }
+                                ${statusBadge}
+                            </div>
+                            <p class="text-[11px] text-slate-300 mt-1 truncate w-full text-center group-hover:text-white">${emp.name.split(' ')[0]}</p>
+                        </div>
+                    `;
+                }).join('');
+                
+                if (groups[shift].length === 0) {
+                    container.innerHTML = '<p class="text-xs text-slate-500 col-span-full text-center py-4">Nenhum colaborador neste turno</p>';
+                }
+            }
+        });
     }
 
     // --- VACATION MODAL Logic ---

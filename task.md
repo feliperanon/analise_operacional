@@ -19,3 +19,12 @@
 - [ ] Create `LoadingSession` and `EmployeePerformanceReview` models <!-- id: 4 -->
 - [ ] Create `/loading/performance` UI (Dashboard + Input Form) <!-- id: 5 -->
 - [ ] Implement Backend Logic for Sessions and Reviews <!-- id: 6 -->
+
+# Task: Mobile Access Control & Rankings
+
+- [x] Rankings: Unified list, filters (Period, Shift), Metrics, Details Modal
+- [x] Backend: Add valid `mobile_access` field to Employee model
+- [x] Frontend: Add toggle in Employee Details
+- [x] Security: Enforce access control in `/mobile` routes (Login & Dashboard)
+- [ ] Rankings: Refine Frontend (Responsiveness, Modal interactions)
+- [ ] Tests: Add Unit/Integration tests for Rankings logic

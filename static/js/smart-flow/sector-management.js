@@ -143,6 +143,22 @@ const SectorManagement = {
         document.body.insertAdjacentHTML('beforeend', modalHTML);
     },
 
+    toggleSubsector(subsectorId) {
+        const container = document.getElementById(`subsector-employees-${subsectorId}`);
+        const chevron = document.getElementById(`subsector-chevron-${subsectorId}`);
+
+        if (container) {
+            container.classList.toggle('hidden');
+            if (chevron) {
+                if (container.classList.contains('hidden')) {
+                    chevron.style.transform = 'rotate(-90deg)';
+                } else {
+                    chevron.style.transform = 'rotate(0deg)';
+                }
+            }
+        }
+    },
+
     renderSubsectors(sector, state) {
         if (!sector.subsectors || sector.subsectors.length === 0) {
             return `
@@ -158,16 +174,25 @@ const SectorManagement = {
             const percentage = subsector.max_employees > 0 ? Math.round((allocatedEmployees.length / subsector.max_employees) * 100) : 0;
 
             return `
-                <div class="bg-slate-900 rounded-xl border border-slate-700 p-4" data-subsector-id="${subsector.id}">
-                    <!-- Subsector Header -->
-                    <div class="flex items-center justify-between mb-3">
-                        <div class="flex-1">
-                            <h4 class="text-sm font-bold text-white">${subsector.name}</h4>
-                            <p class="text-xs text-slate-500">
-                                ${allocatedEmployees.length} / ${subsector.max_employees} colaboradores
-                            </p>
+                <div class="bg-slate-900 rounded-xl border border-slate-700 overflow-hidden" data-subsector-id="${subsector.id}">
+                    <!--Subsector Header-->
+                    <div class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-800 transition select-none"
+                         onclick="SectorManagement.toggleSubsector(${subsector.id})">
+                        <div class="flex items-center gap-3">
+                             <!-- Chevron Icon -->
+                            <svg id="subsector-chevron-${subsector.id}" class="w-4 h-4 text-slate-400 transition-transform duration-300 transform rotate-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                            </svg>
+                            
+                            <div class="flex-1">
+                                <h4 class="text-sm font-bold text-white">${subsector.name}</h4>
+                                <p class="text-xs text-slate-500">
+                                    ${allocatedEmployees.length} / ${subsector.max_employees} colaboradores
+                                </p>
+                            </div>
                         </div>
-                        <div class="flex gap-1">
+
+                        <div class="flex gap-1" onclick="event.stopPropagation()">
                             <button onclick="SectorManagement.editSubsectorInline(${subsector.id}, ${sector.id}, '${subsector.name}', ${subsector.max_employees})"
                                 class="text-slate-500 hover:text-white p-1.5 rounded hover:bg-slate-700 transition" title="Editar">
                                 <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -186,110 +211,107 @@ const SectorManagement = {
                     </div>
 
                     <!-- Progress Bar -->
-                    <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden mb-3">
+                    <div class="w-full bg-slate-800 h-1">
                         <div class="bg-${percentage >= 80 ? 'emerald' : percentage >= 50 ? 'amber' : 'red'}-500 h-full transition-all" style="width: ${percentage}%"></div>
                     </div>
 
-                    <!-- Allocated Employees -->
-                    <div class="space-y-1.5">
-                        ${allocatedEmployees.length === 0 ?
-                    '<p class="text-xs text-slate-600 text-center py-2">Nenhum colaborador alocado</p>' :
+                    <!-- Allocated Employees (Collapsible) -->
+                <div id="subsector-employees-${subsector.id}" class="space-y-1.5 p-4 pt-4 border-t border-slate-700/50">
+                    ${allocatedEmployees.length === 0 ?
+                    '<p class="text-xs text-slate-600 text-center py-2 border-2 border-dashed border-slate-800 rounded">Arraste aqui</p>' :
                     allocatedEmployees.map(emp => {
-                        const routine = state.routines[emp.id] || 'present';
+                        const routine = state.routines[emp.id] || emp.status || 'present';
                         return this.renderAllocatedEmployee(emp, routine, subsector.id);
                     }).join('')
                 }
-                    </div>
                 </div>
-            `;
+                </div>
+    `;
         }).join('');
     },
 
     renderAllocatedEmployee(emp, routine, subsectorId) {
-        const statusColors = {
-            present: 'emerald',
-            absent: 'red',
-            sick: 'amber',
-            vacation: 'orange',
-            away: 'indigo',
-            dayoff: 'blue'
-        };
+        // Recuperar dados de atividade do Store
+        const activityData = Store.state.activities ? Store.state.activities[emp.id] : null;
+        const currentActivity = activityData ? activityData.activity : null;
 
-        const statusLabels = {
-            present: '✓',
-            absent: '✗',
-            sick: '🏥',
-            vacation: '🏖️',
-            away: '🚫',
-            dayoff: '📅'
-        };
+        // Definição de Cores
+        let statusColor = 'slate';
+        let statusText = 'Disponível';
 
-        const color = statusColors[routine] || 'slate';
+        if (currentActivity) {
+            const act = currentActivity.toLowerCase();
+            if (['separacao', 'conferencia', 'carregamento', 'limpeza'].includes(act)) {
+                statusColor = 'emerald';
+            } else if (['aguardando', 'pausa', 'banheiro'].includes(act)) {
+                statusColor = 'amber';
+            } else if (['intercorrencia', 'apoio'].includes(act)) {
+                statusColor = 'rose';
+            } else {
+                statusColor = 'blue';
+            }
+            statusText = currentActivity.charAt(0).toUpperCase() + currentActivity.slice(1);
+        } else if (routine && routine !== 'present') {
+            const routineMap = {
+                'absent': { color: 'red', text: 'Falta' },
+                'sick': { color: 'amber', text: 'Atestado' },
+                'vacation': { color: 'orange', text: 'Férias' },
+                'away': { color: 'indigo', text: 'Afastado' },
+                'dayoff': { color: 'blue', text: 'Folga' }
+            };
+            const r = routineMap[routine];
+            if (r) {
+                statusColor = r.color;
+                statusText = r.text;
+            }
+        } else {
+            statusColor = 'emerald';
+        }
+
+        // Tentar buscar o objeto employee completo se necessário, mas 'emp' já deve ter dados básicos
+        // Precisamos passar o objeto completo para o Render.openBottomSheet
+        // Como estamos num template string e o objeto pode ser complexo, melhor buscar pelo ID no click
 
         return `
-            <div class="bg-slate-800 rounded-lg p-2 border border-slate-700 flex items-center justify-between gap-2 group">
+            <div class="bg-slate-800 rounded-xl p-3 border-l-4 border-${statusColor}-500 shadow-sm hover:shadow-md transition-all cursor-pointer relative group active:scale-95 duration-100 touch-manipulation select-none flex items-center justify-between gap-3"
+                onclick="Render.openBottomSheet(Store.state.employees.find(e => e.id == ${emp.id}))">
+                
+                <!-- Avatar / Initials -->
+                <div class="h-10 w-10 rounded-full bg-slate-700 flex items-center justify-center shrink-0 border border-slate-600">
+                    ${emp.photo_url ?
+                `<img src="${emp.photo_url}" class="h-full w-full rounded-full object-cover">` :
+                `<span class="text-xs font-bold text-slate-400">${emp.name.substring(0, 2).toUpperCase()}</span>`
+            }
+                </div>
+
+                <!--Info -->
                 <div class="flex-1 min-w-0">
-                    <p class="text-xs font-medium text-white truncate">${emp.name}</p>
-                    <p class="text-[10px] text-slate-500 truncate">${emp.role || 'Colaborador'}</p>
+                    <p class="text-sm font-bold text-white truncate leading-tight">${emp.name}</p>
+                    <p class="text-[11px] text-${statusColor}-400 font-medium truncate mt-0.5 flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-${statusColor}-500 animate-pulse"></span>
+                        ${statusText}
+                    </p>
                 </div>
-                <div class="flex items-center gap-1.5">
-                    <span class="text-xs px-2 py-0.5 rounded bg-${color}-600/20 text-${color}-400 border border-${color}-600/30">
-                        ${statusLabels[routine]}
-                    </span>
-                    
-                    <!-- Dropdown Rotinas -->
-                    <div class="relative">
-                        <button onclick="SectorManagement.toggleRoutineMenu(${emp.id})" 
-                            class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-white p-1 rounded hover:bg-slate-700 transition" title="Alterar rotina">
-                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <circle cx="12" cy="12" r="1"></circle>
-                                <circle cx="12" cy="5" r="1"></circle>
-                                <circle cx="12" cy="19" r="1"></circle>
-                            </svg>
-                        </button>
-                        <div id="routine-menu-${emp.id}" class="hidden absolute right-0 mt-1 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50">
-                            <div class="py-1">
-                                <button onclick="SectorManagement.setRoutine(${emp.id}, 'present')" class="w-full text-left px-3 py-2 text-xs text-white hover:bg-slate-700 flex items-center gap-2">
-                                    <span class="text-emerald-400">✓</span> Presente
-                                </button>
-                                <button onclick="SectorManagement.setRoutine(${emp.id}, 'vacation')" class="w-full text-left px-3 py-2 text-xs text-white hover:bg-slate-700 flex items-center gap-2">
-                                    <span>🏖️</span> Férias
-                                </button>
-                                <button onclick="SectorManagement.setRoutine(${emp.id}, 'sick')" class="w-full text-left px-3 py-2 text-xs text-white hover:bg-slate-700 flex items-center gap-2">
-                                    <span>🏥</span> Atestado
-                                </button>
-                                <button onclick="SectorManagement.setRoutine(${emp.id}, 'away')" class="w-full text-left px-3 py-2 text-xs text-white hover:bg-slate-700 flex items-center gap-2">
-                                    <span>🚫</span> Afastado
-                                </button>
-                                <button onclick="SectorManagement.setRoutine(${emp.id}, 'absent')" class="w-full text-left px-3 py-2 text-xs text-white hover:bg-slate-700 flex items-center gap-2">
-                                    <span class="text-red-400">✗</span> Falta
-                                </button>
-                                <button onclick="SectorManagement.setRoutine(${emp.id}, 'dayoff')" class="w-full text-left px-3 py-2 text-xs text-white hover:bg-slate-700 flex items-center gap-2">
-                                    <span>📅</span> Folga
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <button onclick="SectorManagement.removeEmployee(${emp.id})" 
-                        class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 p-1 transition" title="Remover">
-                        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                </div>
+
+                <!-- Botão Remover (Discreto) -->
+    <button onclick="event.stopPropagation(); SectorManagement.removeEmployee(${emp.id})"
+        class="text-slate-600 hover:text-red-400 p-2 rounded-full hover:bg-slate-700/50 transition">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+    </button>
             </div>
-        `;
+    `;
     },
 
     renderAvailableEmployees(employees) {
         if (!employees || employees.length === 0) {
             return `
-                <div class="text-center text-slate-500 py-8 bg-slate-900/50 rounded-xl border border-slate-700">
-                    <p class="text-sm">Nenhum colaborador disponível</p>
-                    <p class="text-xs mt-1">Todos os colaboradores do turno já estão alocados.</p>
-                </div>
-            `;
+            <div class="text-center text-slate-500 py-8 bg-slate-900/50 rounded-xl border border-slate-700">
+                <p class="text-sm">Nenhum colaborador disponível</p>
+                <p class="text-xs mt-1">Todos os colaboradores do turno já estão alocados.</p>
+            </div>
+    `;
         }
 
         // Cores por turno
@@ -355,29 +377,29 @@ const SectorManagement = {
             const opacity = isUnavailable ? 'opacity-50' : '';
 
             return `
-                <div class="bg-slate-900 rounded-lg p-3 border border-slate-700 hover:border-${shiftColor}-500 transition cursor-pointer group ${opacity}"
-                    onclick="SectorManagement.showSubsectorSelector(${emp.id})">
-                    <div class="flex items-center justify-between">
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center gap-2 mb-1">
-                                <p class="text-sm font-medium text-white truncate">${emp.name}</p>
-                                <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-${shiftColor}-600/30 text-${shiftColor}-300 border border-${shiftColor}-600/50 font-bold">
-                                    ${shift}
-                                </span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <p class="text-xs text-slate-400 truncate">${emp.role || 'Colaborador'}</p>
-                                <span class="text-xs px-2 py-0.5 rounded bg-${color}-600/20 text-${color}-400 border border-${color}-600/30">
-                                    ${label}
-                                </span>
-                            </div>
-                        </div>
-                        <svg class="w-5 h-5 text-slate-600 group-hover:text-${shiftColor}-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                        </svg>
-                    </div>
-                </div>
-            `;
+            <div class="bg-slate-900 rounded-lg p-3 border border-slate-700 hover:border-${shiftColor}-500 transition cursor-pointer group ${opacity}"
+                onclick="SectorManagement.showSubsectorSelector(${emp.id})">
+    <div class="flex items-center justify-between">
+        <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+                <p class="text-sm font-medium text-white truncate">${emp.name}</p>
+                <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-${shiftColor}-600/30 text-${shiftColor}-300 border border-${shiftColor}-600/50 font-bold">
+                    ${shift}
+                </span>
+            </div>
+            <div class="flex items-center gap-2">
+                <p class="text-xs text-slate-400 truncate">${emp.role || 'Colaborador'}</p>
+                <span class="text-xs px-2 py-0.5 rounded bg-${color}-600/20 text-${color}-400 border border-${color}-600/30">
+                    ${label}
+                </span>
+            </div>
+        </div>
+        <svg class="w-5 h-5 text-slate-600 group-hover:text-${shiftColor}-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+        </svg>
+    </div>
+                </div >
+    `;
         }).filter(html => html !== '').join(''); // Remover strings vazias (demitidos)
     },
 
@@ -396,15 +418,25 @@ const SectorManagement = {
     getAvailableEmployees(state) {
         const { employees, allocations, currentShift } = state;
 
+        // Helper de normalização (Manhã -> manha)
+        const normalize = (s) => s ? s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
+        const currentShiftNorm = normalize(currentShift);
+
         return employees.filter(emp => {
             // Deve ser do turno correto
             const empShift = emp.work_shift ?? emp.shift ?? null;
-            if (!empShift || empShift.toLowerCase() !== currentShift.toLowerCase()) {
+            const empShiftNorm = normalize(empShift);
+
+            if (!empShift || empShiftNorm !== currentShiftNorm) {
                 return false;
             }
 
             // Não deve estar alocado
-            return !allocations[emp.id];
+            if (allocations[emp.id]) {
+                return false;
+            }
+
+            return true;
         });
     },
 
@@ -433,7 +465,7 @@ const SectorManagement = {
         }
 
         const subsectorOptions = sector.subsectors.map(sub =>
-            `<option value="${sub.id}">${sub.name} (${Render.getSubsectorEmployees(sub.id, Store.state).length}/${sub.max_employees})</option>`
+            `<option value="${sub.id}">${sub.name} (${Render.getSubsectorEmployees(sub.id, Store.state).length} / ${sub.max_employees})</option>`
         ).join('');
 
         const html = `
@@ -493,13 +525,13 @@ const SectorManagement = {
     toggleRoutineMenu(empId) {
         // Fechar todos os menus abertos
         document.querySelectorAll('[id^="routine-menu-"]').forEach(menu => {
-            if (menu.id !== `routine-menu-${empId}`) {
+            if (menu.id !== `routine - menu - ${empId} `) {
                 menu.classList.add('hidden');
             }
         });
 
         // Toggle do menu atual
-        const menu = document.getElementById(`routine-menu-${empId}`);
+        const menu = document.getElementById(`routine - menu - ${empId} `);
         if (menu) {
             menu.classList.toggle('hidden');
         }
@@ -507,7 +539,7 @@ const SectorManagement = {
 
     setRoutine(empId, routine) {
         // Fechar menu
-        const menu = document.getElementById(`routine-menu-${empId}`);
+        const menu = document.getElementById(`routine - menu - ${empId} `);
         if (menu) menu.classList.add('hidden');
 
         // Se for férias, abrir modal
@@ -523,7 +555,7 @@ const SectorManagement = {
         API.setEmployeeRoutine(empId, routine)
             .then(result => {
                 if (result.success) {
-                    console.log(`✅ Rotina salva no backend: ${routine}`);
+                    console.log(`✅ Rotina salva no backend: ${routine} `);
                 } else {
                     console.error('❌ Erro ao salvar rotina no backend:', result.error);
                 }
@@ -544,7 +576,7 @@ const SectorManagement = {
         if (!employee) return;
 
         const html = `
-            <div id="vacation-modal" class="fixed inset-0 z-[70] flex items-center justify-center">
+    < div id = "vacation-modal" class="fixed inset-0 z-[70] flex items-center justify-center" >
                 <div class="absolute inset-0 bg-black/50" onclick="document.getElementById('vacation-modal').remove()"></div>
                 <div class="relative bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-md">
                     <h3 class="text-lg font-bold text-white mb-4">🏖️ Definir Férias</h3>
@@ -570,8 +602,8 @@ const SectorManagement = {
                             class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-sm font-bold">Confirmar</button>
                     </div>
                 </div>
-            </div>
-        `;
+            </div >
+    `;
 
         document.body.insertAdjacentHTML('beforeend', html);
     },
@@ -597,7 +629,7 @@ const SectorManagement = {
         API.setEmployeeVacation(empId, startDate, endDate)
             .then(result => {
                 if (result.success) {
-                    console.log(`✅ Férias salvas no backend: ${startDate} até ${endDate}`);
+                    console.log(`✅ Férias salvas no backend: ${startDate} até ${endDate} `);
                 } else {
                     console.error('❌ Erro ao salvar férias no backend:', result.error);
                     alert('Erro ao salvar férias. Tente novamente.');

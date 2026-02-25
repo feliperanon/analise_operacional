@@ -1,0 +1,176 @@
+{% extends "mobile/layout.html" %}
+
+{% block title %}Meus Chamados{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-900 text-slate-100 p-5 pb-24">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center gap-4 mb-2">
+            <a href="/mobile/routine/checklist"
+                class="p-2 rounded-full bg-slate-800/80 border border-slate-700 text-slate-400 hover:text-white transition-colors active:scale-95">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </a>
+            <div class="flex-1">
+                <h1 class="text-2xl font-bold text-white">Meus Chamados</h1>
+                <p class="text-sm text-slate-400">Histórico e gestão de chamados</p>
+            </div>
+            <a href="/mobile/equipment/tickets/new"
+                class="bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
+                <i data-lucide="plus" class="w-5 h-5"></i>
+            </a>
+        </div>
+    </div>
+
+    <!-- Estatísticas -->
+    {% if stats %}
+    <div class="grid grid-cols-2 gap-3 mb-6">
+        <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4">
+            <div class="flex items-center gap-2 mb-1">
+                <div class="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                    <i data-lucide="alert-circle" class="w-4 h-4 text-amber-400"></i>
+                </div>
+                <span class="text-xs text-slate-400 font-semibold">Abertos</span>
+            </div>
+            <p class="text-2xl font-bold text-white">{{ stats.open }}</p>
+        </div>
+        <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4">
+            <div class="flex items-center gap-2 mb-1">
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                    <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+                </div>
+                <span class="text-xs text-slate-400 font-semibold">Fechados</span>
+            </div>
+            <p class="text-2xl font-bold text-white">{{ stats.closed }}</p>
+        </div>
+        <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4">
+            <div class="flex items-center gap-2 mb-1">
+                <div class="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center">
+                    <i data-lucide="alert-triangle" class="w-4 h-4 text-red-400"></i>
+                </div>
+                <span class="text-xs text-slate-400 font-semibold">Alta Severidade</span>
+            </div>
+            <p class="text-2xl font-bold text-white">{{ stats.high_severity }}</p>
+        </div>
+        <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4">
+            <div class="flex items-center gap-2 mb-1">
+                <div class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                    <i data-lucide="clock" class="w-4 h-4 text-blue-400"></i>
+                </div>
+                <span class="text-xs text-slate-400 font-semibold">Últimos 7 dias</span>
+            </div>
+            <p class="text-2xl font-bold text-white">{{ stats.recent }}</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Chamados Abertos -->
+    {% if open_tickets %}
+    <div class="mb-6">
+        <div class="flex items-center gap-2 mb-3">
+            <i data-lucide="alert-circle" class="w-5 h-5 text-amber-400"></i>
+            <h2 class="text-sm font-bold text-white uppercase tracking-wider">Chamados Abertos</h2>
+            <span class="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{{ open_tickets|length }}</span>
+        </div>
+        <div class="space-y-3">
+            {% for t in open_tickets %}
+            <a href="/mobile/equipment/tickets/{{ t.id }}"
+                class="block bg-slate-800 border border-amber-500/20 rounded-2xl p-4 hover:bg-slate-750 active:scale-[0.98] transition-all">
+                <div class="flex items-start justify-between gap-3 mb-2">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-white font-bold text-lg">{{ t.equipment_code }}</span>
+                            <span class="text-xs text-blue-400 font-bold">#{{ t.id }}</span>
+                            {% if t.severity == 'high' %}
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-500/20 text-red-200">
+                                ALTA
+                            </span>
+                            {% endif %}
+                        </div>
+                        <p class="text-slate-300 text-sm line-clamp-2">{{ t.description }}</p>
+                    </div>
+                    <span class="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase bg-amber-500/20 text-amber-200 flex-shrink-0">
+                        ABERTO
+                    </span>
+                </div>
+                <div class="flex items-center justify-between pt-3 border-t border-slate-700/50 mt-2">
+                    <div class="flex items-center gap-3 text-xs text-slate-500">
+                        <div class="flex items-center gap-1">
+                            <i data-lucide="calendar" class="w-3 h-3"></i>
+                            <span>{{ t.created_at.strftime("%d/%m/%Y") }}</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <i data-lucide="clock" class="w-3 h-3"></i>
+                            <span>{{ t.created_at.strftime("%H:%M") }}</span>
+                        </div>
+                        {% if t.images %}
+                        <div class="flex items-center gap-1 text-blue-400">
+                            <i data-lucide="image" class="w-3 h-3"></i>
+                            <span>{{ t.images|length }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Chamados Fechados -->
+    {% if closed_tickets %}
+    <div>
+        <div class="flex items-center gap-2 mb-3">
+            <i data-lucide="check-circle" class="w-5 h-5 text-emerald-400"></i>
+            <h2 class="text-sm font-bold text-white uppercase tracking-wider">Histórico</h2>
+            <span class="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{{ closed_tickets|length }}</span>
+        </div>
+        <div class="space-y-3">
+            {% for t in closed_tickets[:20] %}
+            <a href="/mobile/equipment/tickets/{{ t.id }}"
+                class="block bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 hover:bg-slate-800 active:scale-[0.98] transition-all opacity-75">
+                <div class="flex items-start justify-between gap-3 mb-2">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-white font-bold text-base">{{ t.equipment_code }}</span>
+                            <span class="text-xs text-blue-400 font-bold">#{{ t.id }}</span>
+                        </div>
+                        <p class="text-slate-400 text-sm line-clamp-2">{{ t.description }}</p>
+                    </div>
+                    <span class="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-200 flex-shrink-0">
+                        FECHADO
+                    </span>
+                </div>
+                <div class="flex items-center justify-between pt-3 border-t border-slate-700/50 mt-2">
+                    <div class="flex items-center gap-3 text-xs text-slate-500">
+                        <div class="flex items-center gap-1">
+                            <i data-lucide="calendar" class="w-3 h-3"></i>
+                            <span>{{ t.created_at.strftime("%d/%m/%Y") }}</span>
+                        </div>
+                        {% if t.closed_at %}
+                        <div class="flex items-center gap-1 text-emerald-400">
+                            <i data-lucide="check" class="w-3 h-3"></i>
+                            <span>Encerrado em {{ t.closed_at.strftime("%d/%m") }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not tickets and not open_tickets and not closed_tickets %}
+    <div class="flex flex-col items-center justify-center py-16 text-slate-500">
+        <i data-lucide="inbox" class="w-16 h-16 mb-4 opacity-50 text-slate-600"></i>
+        <p class="text-base font-medium">Nenhum chamado registrado</p>
+        <p class="text-sm text-slate-600 mt-1">Comece registrando um novo chamado</p>
+        <a href="/mobile/equipment/tickets/new"
+            class="mt-4 bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl font-bold transition-colors">
+            Abrir Primeiro Chamado
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

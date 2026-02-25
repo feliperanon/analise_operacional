@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8" x-data="{ editModal: false, editData: {} }">
+    <div class="max-w-7xl mx-auto space-y-6">
+        
+        <!-- Header -->
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold text-white mb-2 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                        </svg>
+                    </div>
+                    Histórico de Substituições
+                </h1>
+                <p class="text-sm text-slate-400">Rastreabilidade completa de substituições de colaboradores</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a href="/admin/substitutions/export?period={{ current_period }}&reason={{ current_reason }}&start_date={{ current_start_date or '' }}&end_date={{ current_end_date or '' }}" 
+                   class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition flex items-center gap-2 text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Exportar Excel
+                </a>
+                <a href="/employees" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg border border-slate-700 transition flex items-center gap-2 text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    Voltar
+                </a>
+            </div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+                <p class="text-xs font-bold text-slate-400 uppercase mb-1">Total Substituições</p>
+                <p class="text-3xl font-bold text-white">{{ total }}</p>
+                <p class="text-xs text-slate-500 mt-1">registradas no sistema</p>
+            </div>
+            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+                <p class="text-xs font-bold text-red-400 uppercase mb-1">Por Demissão</p>
+                <p class="text-3xl font-bold text-red-400">{{ by_fired }}</p>
+                <p class="text-xs text-slate-500 mt-1">{{ ((by_fired / total * 100) if total > 0 else 0)|round(1) }}% do total</p>
+            </div>
+            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+                <p class="text-xs font-bold text-amber-400 uppercase mb-1">Por Afastamento</p>
+                <p class="text-3xl font-bold text-amber-400">{{ by_away }}</p>
+                <p class="text-xs text-slate-500 mt-1">{{ ((by_away / total * 100) if total > 0 else 0)|round(1) }}% do total</p>
+            </div>
+        </div>
+
+        <!-- Filtros Avançados -->
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+            <form method="GET" class="grid grid-cols-2 md:grid-cols-6 gap-4 items-end">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Período Rápido</label>
+                    <select name="period" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-purple-500 focus:outline-none">
+                        <option value="all" {% if current_period == 'all' %}selected{% endif %}>Todo período</option>
+                        <option value="month" {% if current_period == 'month' %}selected{% endif %}>Este mês</option>
+                        <option value="quarter" {% if current_period == 'quarter' %}selected{% endif %}>Este trimestre</option>
+                        <option value="year" {% if current_period == 'year' %}selected{% endif %}>Este ano</option>
+                        <option value="custom" {% if current_period == 'custom' %}selected{% endif %}>Personalizado</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Data Início</label>
+                    <input type="date" name="start_date" value="{{ current_start_date or '' }}" 
+                           class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-purple-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Data Fim</label>
+                    <input type="date" name="end_date" value="{{ current_end_date or '' }}"
+                           class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-purple-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Motivo</label>
+                    <select name="reason" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-purple-500 focus:outline-none">
+                        <option value="all" {% if current_reason == 'all' %}selected{% endif %}>Todos</option>
+                        <option value="fired" {% if current_reason == 'fired' %}selected{% endif %}>Demissão</option>
+                        <option value="away" {% if current_reason == 'away' %}selected{% endif %}>Afastamento</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Turno</label>
+                    <select name="shift" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-purple-500 focus:outline-none">
+                        <option value="all" {% if current_shift == 'all' %}selected{% endif %}>Todos</option>
+                        <option value="Manhã" {% if current_shift == 'Manhã' %}selected{% endif %}>Manhã</option>
+                        <option value="Tarde" {% if current_shift == 'Tarde' %}selected{% endif %}>Tarde</option>
+                        <option value="Noite" {% if current_shift == 'Noite' %}selected{% endif %}>Noite</option>
+                    </select>
+                </div>
+                <div>
+                    <button type="submit" class="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition text-sm font-medium flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        Filtrar
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Tabela de Substituições -->
+        <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+            <div class="p-4 border-b border-slate-700 flex items-center justify-between">
+                <h2 class="text-lg font-bold text-white">Lista de Substituições</h2>
+                <span class="text-xs text-slate-400">{{ substitutions|length }} registro(s)</span>
+            </div>
+            
+            {% if substitutions %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-slate-900/50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase">Data</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase">Colaborador Anterior</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold text-slate-400 uppercase">→</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase">Novo Colaborador</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold text-slate-400 uppercase">Motivo</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase">Turno</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase">Setor</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold text-slate-400 uppercase">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-700">
+                        {% for sub in substitutions %}
+                        <tr class="hover:bg-slate-700/30 transition">
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                <div class="text-white font-medium">{{ sub.substitution_date.strftime('%d/%m/%Y') }}</div>
+                                <div class="text-xs text-slate-500">{{ sub.substitution_date.strftime('%H:%M') }}</div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center">
+                                        <span class="text-xs font-bold text-red-400">{{ sub.original_employee_name[:2].upper() }}</span>
+                                    </div>
+                                    <div>
+                                        <div class="text-white font-medium">{{ sub.original_employee_name }}</div>
+                                        <div class="text-xs text-slate-500">Mat: {{ sub.original_registration_id }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <svg class="w-5 h-5 text-purple-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                                </svg>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
+                                        <span class="text-xs font-bold text-green-400">{{ sub.new_employee_name[:2].upper() }}</span>
+                                    </div>
+                                    <div>
+                                        <div class="text-white font-medium">{{ sub.new_employee_name }}</div>
+                                        <div class="text-xs text-slate-500">Mat: {{ sub.new_registration_id }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                {% if sub.reason == 'fired' %}
+                                <span class="px-2 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30">
+                                    Demissão
+                                </span>
+                                {% else %}
+                                <span class="px-2 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                                    Afastamento
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-slate-300">{{ sub.shift or '-' }}</td>
+                            <td class="px-4 py-3 text-slate-300">{{ sub.sector or '-' }}</td>
+                            <td class="px-4 py-3 text-center">
+                                <button @click="editModal = true; editData = {
+                                    id: {{ sub.id }},
+                                    original_name: '{{ sub.original_employee_name }}',
+                                    new_name: '{{ sub.new_employee_name }}',
+                                    reason: '{{ sub.reason }}',
+                                    shift: '{{ sub.shift or '' }}',
+                                    sector: '{{ sub.sector or '' }}',
+                                    date: '{{ sub.substitution_date.strftime('%Y-%m-%d') }}',
+                                    observations: '{{ sub.observations or '' }}'
+                                }" class="p-1.5 hover:bg-slate-700 rounded text-blue-400 transition" title="Editar">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                                    </svg>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-12 text-center">
+                <div class="w-16 h-16 rounded-full bg-slate-700 flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                    </svg>
+                </div>
+                <p class="text-slate-400 mb-2">Nenhuma substituição encontrada</p>
+                <p class="text-xs text-slate-500">Tente ajustar os filtros ou aguarde novas substituições serem registradas</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Gráfico Mensal (se houver dados) -->
+        {% if monthly_stats and monthly_stats|length > 1 %}
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+            <h2 class="text-lg font-bold text-white mb-4">Evolução Mensal</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for month, stats in monthly_stats.items() %}
+                <div class="bg-slate-900/50 rounded-lg p-3 flex items-center justify-between">
+                    <div>
+                        <p class="text-white font-medium">{{ month }}</p>
+                        <p class="text-xs text-slate-500">{{ stats.total }} substituição(ões)</p>
+                    </div>
+                    <div class="flex gap-2">
+                        {% if stats.fired %}
+                        <span class="px-2 py-1 rounded text-xs bg-red-500/20 text-red-400">{{ stats.fired }} dem.</span>
+                        {% endif %}
+                        {% if stats.away %}
+                        <span class="px-2 py-1 rounded text-xs bg-amber-500/20 text-amber-400">{{ stats.away }} afast.</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <!-- Modal de Edição -->
+    <div x-show="editModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div @click.away="editModal = false" class="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 shadow-2xl p-6 mx-4">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                    </svg>
+                    Editar Substituição
+                </h3>
+                <button @click="editModal = false" class="text-slate-400 hover:text-white">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <form method="POST" action="/admin/substitutions/edit">
+                <input type="hidden" name="id" :value="editData.id">
+                
+                <div class="space-y-4">
+                    <!-- Info (readonly) -->
+                    <div class="bg-slate-900/50 rounded-lg p-3 text-sm">
+                        <p class="text-slate-400 mb-1">Substituição:</p>
+                        <p class="text-white"><span x-text="editData.original_name" class="text-red-400"></span> → <span x-text="editData.new_name" class="text-green-400"></span></p>
+                    </div>
+                    
+                    <!-- Data -->
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Data da Substituição</label>
+                        <input type="date" name="substitution_date" :value="editData.date" required
+                               class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-purple-500 focus:outline-none">
+                    </div>
+                    
+                    <!-- Motivo -->
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Motivo</label>
+                        <select name="reason" x-model="editData.reason" required
+                                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-purple-500 focus:outline-none">
+                            <option value="fired">Demissão</option>
+                            <option value="away">Afastamento</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Turno -->
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Turno</label>
+                        <select name="shift" x-model="editData.shift"
+                                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-purple-500 focus:outline-none">
+                            <option value="">Não informado</option>
+                            <option value="Manhã">Manhã</option>
+                            <option value="Tarde">Tarde</option>
+                            <option value="Noite">Noite</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Setor -->
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Setor / Centro de Custo</label>
+                        <input type="text" name="sector" :value="editData.sector"
+                               class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-purple-500 focus:outline-none"
+                               placeholder="Ex: Expedição, Câmara Fria...">
+                    </div>
+                    
+                    <!-- Observações -->
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Observações</label>
+                        <textarea name="observations" rows="2" x-text="editData.observations"
+                                  class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-purple-500 focus:outline-none resize-none"
+                                  placeholder="Observações adicionais..."></textarea>
+                    </div>
+                </div>
+                
+                <div class="flex gap-3 mt-6">
+                    <button type="button" @click="editModal = false" class="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition text-sm font-medium">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition text-sm font-medium">
+                        Salvar Alterações
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    [x-cloak] { display: none !important; }
+</style>
+{% endblock %}

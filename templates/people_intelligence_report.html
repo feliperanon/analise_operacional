@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Relatório - Gestão de Pessoas | {{ current_shift }}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/styles.css">
     <style>
         @media print {
             @page {
@@ -95,10 +95,86 @@
             background-color: #d1fae5;
             color: #065f46;
         }
+        
+        .bg-blue-100 {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .bg-purple-100 {
+            background-color: #f3e8ff;
+            color: #7c3aed;
+        }
+        
+        .filter-checkbox {
+            accent-color: #3b82f6;
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+        }
     </style>
 </head>
 
 <body class="bg-white p-4 max-w-4xl mx-auto">
+
+    <!-- Filter Controls (No Print) -->
+    <div class="no-print bg-slate-100 p-4 rounded-lg mb-4 border border-slate-300">
+        <form id="filterForm" method="GET" action="/people-intelligence/report">
+            <div class="flex flex-wrap items-center gap-6">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 uppercase block mb-1">Turno</label>
+                    <select name="shift" class="border border-slate-300 rounded px-3 py-1.5 text-sm bg-white">
+                        <option value="Todos" {% if current_shift == 'Todos' %}selected{% endif %}>Todos</option>
+                        <option value="Manhã" {% if current_shift == 'Manhã' %}selected{% endif %}>Manhã</option>
+                        <option value="Tarde" {% if current_shift == 'Tarde' %}selected{% endif %}>Tarde</option>
+                        <option value="Noite" {% if current_shift == 'Noite' %}selected{% endif %}>Noite</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="text-xs font-bold text-slate-600 uppercase block mb-1">Período</label>
+                    <div class="flex items-center gap-2">
+                        <input type="date" name="start_date" value="{{ start_date }}" 
+                            class="border border-slate-300 rounded px-2 py-1.5 text-sm">
+                        <span class="text-slate-400">até</span>
+                        <input type="date" name="end_date" value="{{ end_date }}"
+                            class="border border-slate-300 rounded px-2 py-1.5 text-sm">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="text-xs font-bold text-slate-600 uppercase block mb-1">Status</label>
+                    <div class="flex items-center gap-4">
+                        <label class="flex items-center gap-1 cursor-pointer">
+                            <input type="checkbox" name="status_active" value="active" class="filter-checkbox"
+                                {% if 'active' in status_filter or status_filter|length == 0 %}checked{% endif %}>
+                            <span class="text-sm text-slate-700">Ativos</span>
+                        </label>
+                        <label class="flex items-center gap-1 cursor-pointer">
+                            <input type="checkbox" name="status_vacation" value="vacation" class="filter-checkbox"
+                                {% if 'vacation' in status_filter %}checked{% endif %}>
+                            <span class="text-sm text-orange-600">Férias</span>
+                        </label>
+                        <label class="flex items-center gap-1 cursor-pointer">
+                            <input type="checkbox" name="status_away" value="away" class="filter-checkbox"
+                                {% if 'away' in status_filter %}checked{% endif %}>
+                            <span class="text-sm text-purple-600">Afastados</span>
+                        </label>
+                        <label class="flex items-center gap-1 cursor-pointer">
+                            <input type="checkbox" name="status_fired" value="fired" class="filter-checkbox"
+                                {% if 'fired' in status_filter %}checked{% endif %}>
+                            <span class="text-sm text-red-600">Demitidos</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <button type="submit" 
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-bold shadow">
+                    Aplicar Filtros
+                </button>
+            </div>
+        </form>
+    </div>
 
     <!-- Header -->
     <div class="flex justify-between items-start mb-3 border-b pb-4">
@@ -111,6 +187,7 @@
             <p class="text-xs text-slate-400">Período: {{ start_date.split('-')[2] }}/{{ start_date.split('-')[1]
                 }}/{{ start_date.split('-')[0] }} a {{ end_date.split('-')[2] }}/{{ end_date.split('-')[1] }}/{{
                 end_date.split('-')[0] }}</p>
+            <p class="text-xs text-blue-600 font-medium mt-1">Filtro: {{ selected_status_display }}</p>
         </div>
     </div>
 
@@ -309,12 +386,41 @@
     </div>
 
     <script>
-        // Auto-trigger print dialog after page loads
-        window.addEventListener('load', function () {
-            setTimeout(function () {
-                window.print();
-            }, 500);
+        // Handle form submission - combine checkboxes into single status parameter
+        document.getElementById('filterForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const form = e.target;
+            const formData = new FormData(form);
+            
+            // Get base params
+            const shift = formData.get('shift') || 'Todos';
+            const startDate = formData.get('start_date');
+            const endDate = formData.get('end_date');
+            
+            // Collect checked status values
+            const statusValues = [];
+            if (form.querySelector('[name="status_active"]').checked) statusValues.push('active');
+            if (form.querySelector('[name="status_vacation"]').checked) statusValues.push('vacation');
+            if (form.querySelector('[name="status_away"]').checked) statusValues.push('away');
+            if (form.querySelector('[name="status_fired"]').checked) statusValues.push('fired');
+            
+            // Build URL
+            let url = `/people-intelligence/report?shift=${encodeURIComponent(shift)}`;
+            if (startDate) url += `&start_date=${startDate}`;
+            if (endDate) url += `&end_date=${endDate}`;
+            if (statusValues.length > 0) url += `&status=${statusValues.join(',')}`;
+            
+            window.location.href = url;
         });
+        
+        // Only auto-print if no filter panel is being interacted with
+        // Disable auto-print to allow user to set filters first
+        // window.addEventListener('load', function () {
+        //     setTimeout(function () {
+        //         window.print();
+        //     }, 500);
+        // });
     </script>
 </body>
 

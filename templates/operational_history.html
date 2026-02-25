@@ -1,707 +1,679 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div x-data="historyController()" x-init="init()" class="space-y-6">
+<div x-data="historyController()" x-init="init()" class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8">
     <!-- Header -->
-    <div class="bg-slate-900/40 border border-slate-800 rounded-2xl p-4 md:p-5">
-        <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
-            <div class="min-w-0">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                        <i data-lucide="archive" class="w-5 h-5 text-blue-300"></i>
-                    </div>
-                    <div class="min-w-0">
-                        <h1 class="text-xl md:text-2xl font-bold text-white truncate">Histórico Operacional</h1>
-                        <p class="text-slate-400 text-sm">Gerencie todas as rotinas de separação.</p>
-                    </div>
+    <div class="mb-6">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-bold text-white">Histórico Operacional</h1>
+                    <p class="text-sm text-slate-400">Gerencie rotinas de separação</p>
                 </div>
             </div>
 
-            <!-- Toolbar -->
-            <div class="w-full xl:w-auto">
-                <div class="grid grid-cols-1 md:grid-cols-2 xl:flex xl:flex-wrap gap-2 items-stretch">
-                    <!-- Search -->
-                    <div class="relative md:col-span-2 xl:col-span-1">
-                        <input type="text" x-model="filters.search" @input.debounce.500ms="fetchData()" aria-label="Buscar por nome, cliente ou outros campos"
-                            placeholder="Buscar (Nome, Cliente...)"
-                            class="bg-slate-900 text-sm text-white rounded-xl pl-10 pr-4 py-2.5 border border-slate-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none w-full xl:w-[320px]">
-                        <i data-lucide="search" class="absolute left-3 top-3 text-slate-400 w-4 h-4"></i>
-                    </div>
-
-                    <!-- Date Range -->
-                    <div class="flex items-center gap-2">
-                        <input type="date" x-model="filters.startDate" @change="fetchData()" aria-label="Data inicial"
-                            class="bg-slate-900 text-sm text-white rounded-xl px-3 py-2.5 border border-slate-800 focus:border-blue-500 outline-none w-full">
-                        <span class="text-slate-600">-</span>
-                        <input type="date" x-model="filters.endDate" @change="fetchData()" aria-label="Data final"
-                            class="bg-slate-900 text-sm text-white rounded-xl px-3 py-2.5 border border-slate-800 focus:border-blue-500 outline-none w-full">
-                    </div>
-
-                    <!-- Status Filter -->
-                    <select x-model="filters.status" @change="fetchData()" aria-label="Filtrar por status"
-                        class="bg-slate-900 text-sm text-white rounded-xl px-3 py-2.5 border border-slate-800 focus:border-blue-500 outline-none">
-                        <option value="">Todos Status</option>
-                        <option value="completed">Concluído</option>
-                        <option value="pending">Em Andamento</option>
-                    </select>
-
-                    <!-- Presets -->
-                    <div class="flex flex-wrap gap-2">
-                        <button @click="applyPreset('today')" type="button"
-                            class="bg-white/5 hover:bg-white/10 text-white text-xs px-3 py-2.5 rounded-xl border border-slate-800 transition-colors">Hoje</button>
-                        <button @click="applyPreset('last7')" type="button"
-                            class="bg-white/5 hover:bg-white/10 text-white text-xs px-3 py-2.5 rounded-xl border border-slate-800 transition-colors">Últimos 7 dias</button>
-                        <button @click="applyPreset('month')" type="button"
-                            class="bg-white/5 hover:bg-white/10 text-white text-xs px-3 py-2.5 rounded-xl border border-slate-800 transition-colors">Mês</button>
-                        <button @click="clearFilters()" type="button"
-                            class="bg-slate-900 hover:bg-white/5 text-slate-200 text-xs px-3 py-2.5 rounded-xl border border-slate-800 transition-colors">Limpar</button>
-
-                        <button @click="fetchData()" type="button" aria-label="Atualizar"
-                            class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2.5 rounded-xl transition-colors inline-flex items-center gap-2">
-                            <i data-lucide="refresh-cw" class="w-4 h-4" :class="{'animate-spin': loading}"></i>
-                            <span class="text-xs font-semibold">Atualizar</span>
-                        </button>
-                    </div>
-                </div>
+            <!-- Quick Actions -->
+            <div class="flex flex-wrap items-center gap-2">
+                <button @click="applyPreset('today')" type="button"
+                    class="px-3 py-2 text-xs font-medium rounded-lg border border-slate-700 bg-slate-800/50 hover:bg-slate-700 text-slate-300 hover:text-white transition-all">
+                    Hoje
+                </button>
+                <button @click="applyPreset('last7')" type="button"
+                    class="px-3 py-2 text-xs font-medium rounded-lg border border-slate-700 bg-slate-800/50 hover:bg-slate-700 text-slate-300 hover:text-white transition-all">
+                    7 dias
+                </button>
+                <button @click="applyPreset('month')" type="button"
+                    class="px-3 py-2 text-xs font-medium rounded-lg border border-slate-700 bg-slate-800/50 hover:bg-slate-700 text-slate-300 hover:text-white transition-all">
+                    Mês
+                </button>
+                <button @click="fetchData()" type="button"
+                    class="px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-all flex items-center gap-2">
+                    <svg class="w-4 h-4" :class="{'animate-spin': loading}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    Atualizar
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Inline Alerts -->
-    <div x-show="ui.error" x-transition.opacity class="bg-red-900/30 border border-red-800 rounded-lg p-3 text-sm text-red-200">
-        <div class="flex items-start gap-2">
-            <i data-lucide="alert-triangle" class="w-4 h-4 mt-0.5 text-red-300"></i>
-            <div>
-                <div class="font-bold">Erro</div>
-                <div x-text="ui.error"></div>
+    <!-- Filtros Compactos -->
+    <div class="bg-slate-800/30 border border-slate-700/50 rounded-xl p-4 mb-6">
+        <div class="flex flex-col md:flex-row gap-3">
+            <!-- Search -->
+            <div class="relative flex-1">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                <input type="text" x-model="filters.search" @input.debounce.500ms="fetchData()"
+                    placeholder="Buscar colaborador, cliente..."
+                    class="w-full bg-slate-900/50 border border-slate-600 rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 outline-none transition-all">
             </div>
+
+            <!-- Dates -->
+            <div class="flex items-center gap-2">
+                <input type="date" x-model="filters.startDate" @change="fetchData()"
+                    class="bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-white focus:border-blue-500 outline-none w-full md:w-auto">
+                <span class="text-slate-600 hidden md:inline">→</span>
+                <input type="date" x-model="filters.endDate" @change="fetchData()"
+                    class="bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-white focus:border-blue-500 outline-none w-full md:w-auto">
+            </div>
+
+            <!-- Status -->
+            <select x-model="filters.status" @change="fetchData()"
+                class="bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-white focus:border-blue-500 outline-none">
+                <option value="">Todos Status</option>
+                <option value="completed">Concluído</option>
+                <option value="pending">Pendente</option>
+            </select>
+
+            <button @click="clearFilters()" type="button"
+                class="px-3 py-2.5 text-xs text-slate-400 hover:text-white transition-colors">
+                Limpar
+            </button>
         </div>
     </div>
 
-    <div x-show="ui.notice" x-transition.opacity class="bg-green-900/20 border border-green-800 rounded-lg p-3 text-sm text-green-200">
-        <div class="flex items-start gap-2">
-            <i data-lucide="check-circle" class="w-4 h-4 mt-0.5 text-green-300"></i>
-            <div x-text="ui.notice"></div>
-        </div>
+    <!-- Alerts -->
+    <div x-show="ui.error" x-transition class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-6 flex items-start gap-3">
+        <svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <div class="text-sm text-red-200" x-text="ui.error"></div>
+    </div>
+
+    <div x-show="ui.notice" x-transition class="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 mb-6 flex items-start gap-3">
+        <svg class="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+        <div class="text-sm text-emerald-200" x-text="ui.notice"></div>
     </div>
 
     <!-- KPIs -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div class="bg-gray-800 rounded-xl border border-gray-700 p-4">
-            <div class="text-xs text-gray-400 uppercase tracking-wider">Rotas</div>
-            <div class="text-2xl font-bold text-white" x-text="kpis.totalRoutes"></div>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div class="bg-gradient-to-br from-slate-800/80 to-slate-800/40 border border-slate-700/50 rounded-xl p-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-slate-700/50 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-2xl font-bold text-white" x-text="kpis.totalRoutes"></p>
+                    <p class="text-xs text-slate-500">Rotas</p>
+                </div>
+            </div>
         </div>
-        <div class="bg-gray-800 rounded-xl border border-gray-700 p-4">
-            <div class="text-xs text-gray-400 uppercase tracking-wider">Tonelagem</div>
-            <div class="text-2xl font-bold text-white"><span x-text="formatNumber(kpis.totalKg)"></span> <span class="text-sm text-gray-400">kg</span></div>
+
+        <div class="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20 rounded-xl p-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-2xl font-bold text-blue-400"><span x-text="formatNumber(kpis.totalKg)"></span><span class="text-sm ml-1 text-blue-400/70">kg</span></p>
+                    <p class="text-xs text-blue-400/60">Tonelagem</p>
+                </div>
+            </div>
         </div>
-        <div class="bg-gray-800 rounded-xl border border-gray-700 p-4">
-            <div class="text-xs text-gray-400 uppercase tracking-wider">XP estimado</div>
-            <div class="text-2xl font-bold text-yellow-400"><span x-text="formatNumber(kpis.totalXp)"></span> <span class="text-sm text-yellow-200/70">XP</span></div>
+
+        <div class="bg-gradient-to-br from-amber-500/10 to-amber-500/5 border border-amber-500/20 rounded-xl p-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-2xl font-bold text-amber-400"><span x-text="formatNumber(kpis.totalXp)"></span><span class="text-sm ml-1 text-amber-400/70">XP</span></p>
+                    <p class="text-xs text-amber-400/60">XP estimado</p>
+                </div>
+            </div>
         </div>
-        <div class="bg-gray-800 rounded-xl border border-gray-700 p-4">
-            <div class="text-xs text-gray-400 uppercase tracking-wider">Concluídas</div>
-            <div class="text-2xl font-bold text-green-400"><span x-text="kpis.completedPct"></span><span class="text-sm text-green-200/70">%</span></div>
+
+        <div class="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 rounded-xl p-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-2xl font-bold text-emerald-400"><span x-text="kpis.completedPct"></span><span class="text-sm ml-1 text-emerald-400/70">%</span></p>
+                    <p class="text-xs text-emerald-400/60">Concluídas</p>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Data Table -->
-    <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg">
-        <div class="max-h-[70vh] overflow-auto">
-            <table class="w-full text-left border-collapse">
-                <thead class="sticky top-0 z-20">
-                    <tr class="bg-gray-900 text-gray-400 text-xs uppercase tracking-wider border-b border-gray-700">
-                        <th class="p-3 font-medium whitespace-nowrap sticky left-0 z-30 bg-gray-900">Data</th>
-                        <th class="p-3 font-medium whitespace-nowrap sticky left-[92px] z-30 bg-gray-900">Colaborador</th>
-                        <th class="p-3 font-medium whitespace-nowrap hidden xl:table-cell">Cliente</th>
-                        <th class="p-3 font-medium whitespace-nowrap hidden lg:table-cell">Início</th>
-                        <th class="p-3 font-medium whitespace-nowrap hidden lg:table-cell">Fim</th>
-                        <th class="p-3 font-medium whitespace-nowrap hidden lg:table-cell">Duração</th>
-                        <th class="p-3 font-medium text-right whitespace-nowrap">XP</th>
-                        <th class="p-3 font-medium text-right whitespace-nowrap">Kg</th>
-                        <th class="p-3 font-medium text-right whitespace-nowrap hidden md:table-cell">Kg/h</th>
-                        <th class="p-3 font-medium text-center whitespace-nowrap hidden sm:table-cell">Status</th>
-                        <th class="p-3 font-medium text-right whitespace-nowrap sticky right-0 z-30 bg-gray-900">Ações</th>
+    <!-- Eventos (Colapsável) -->
+    {% if events is defined and events %}
+    <div x-data="{ eventsOpen: false }" class="bg-slate-800/30 border border-slate-700/50 rounded-xl mb-6 overflow-hidden">
+        <button @click="eventsOpen = !eventsOpen" class="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-700/20 transition-colors">
+            <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                </svg>
+                <span class="text-sm font-medium text-white">Eventos Recentes</span>
+                <span class="text-xs text-slate-500 bg-slate-700/50 px-2 py-0.5 rounded-full">{{ events|length }}</span>
+            </div>
+            <svg class="w-4 h-4 text-slate-400 transition-transform" :class="{ 'rotate-180': eventsOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </button>
+        <div x-show="eventsOpen" x-collapse class="border-t border-slate-700/50">
+            <div class="p-4 space-y-2 max-h-60 overflow-y-auto">
+                {% for event in events %}
+                <div class="flex items-start justify-between gap-3 bg-slate-900/40 rounded-lg p-3">
+                    <div class="min-w-0">
+                        <p class="text-xs text-slate-500 font-mono">{{ event.timestamp.strftime("%d/%m/%Y %H:%M") if event.timestamp else '-' }}</p>
+                        <p class="text-sm text-slate-300 mt-0.5">{{ event.text }}</p>
+                        {% if event.employee_name %}
+                        <p class="text-[10px] text-slate-400 mt-1">Colaborador: {{ event.employee_name }}</p>
+                        {% endif %}
+                        {% if event.reference_type == "checklist" and event.reference_id %}
+                            {% if event.reference_exists and can_view_checklist_links %}
+                            <a href="/admin/routine/checklists/{{ event.reference_id }}" class="text-xs text-blue-400 hover:text-blue-300 mt-1 inline-block">Ver checklist →</a>
+                            {% elif not event.reference_exists %}
+                            <span class="text-xs text-slate-500 mt-1 inline-block">Checklist removido</span>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                    <span class="text-[10px] font-bold text-rose-300 bg-rose-500/20 px-2 py-1 rounded flex-shrink-0">Checklist</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Desktop Table -->
+    <div class="hidden lg:block bg-slate-800/30 border border-slate-700/50 rounded-xl overflow-hidden">
+        <div class="overflow-x-auto max-h-[65vh]">
+            <table class="w-full text-left">
+                <thead class="sticky top-0 z-10 bg-slate-800">
+                    <tr class="text-xs text-slate-400 uppercase tracking-wider border-b border-slate-700/50">
+                        <th class="p-3 font-medium">Data</th>
+                        <th class="p-3 font-medium">Colaborador</th>
+                        <th class="p-3 font-medium">Cliente</th>
+                        <th class="p-3 font-medium text-center">Horário</th>
+                        <th class="p-3 font-medium text-right">Kg</th>
+                        <th class="p-3 font-medium text-right">Kg/h</th>
+                        <th class="p-3 font-medium text-right">XP</th>
+                        <th class="p-3 font-medium text-center">Status</th>
+                        <th class="p-3 font-medium text-center">Ações</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-700/50">
+                <tbody class="divide-y divide-slate-700/30">
                     <template x-for="item in items" :key="item.id">
-                        <tr class="hover:bg-gray-700/30 transition-colors group">
-                            <td class="p-3 text-xs text-gray-300 font-mono whitespace-nowrap sticky left-0 z-10 bg-gray-800" x-text="formatDate(item.date)"></td>
-                            <td class="p-3 sticky left-[92px] z-10 bg-gray-800">
-                                <div class="flex items-center gap-2 min-w-[220px]">
-                                    <div class="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center text-[11px] font-bold text-gray-300">
+                        <tr class="hover:bg-slate-700/20 transition-colors">
+                            <td class="p-3">
+                                <span class="text-sm text-slate-300 font-mono" x-text="formatDate(item.date)"></span>
+                            </td>
+                            <td class="p-3">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center text-xs font-bold text-white">
                                         <span x-text="getInitials(item.employee_name)"></span>
                                     </div>
                                     <div class="min-w-0">
-                                        <a :href="'/employees/' + item.employee_id"
-                                            class="text-xs font-semibold text-white hover:text-blue-400 hover:underline transition-colors block truncate max-w-[240px]"
-                                            :title="item.employee_name"
-                                            x-text="item.employee_name"></a>
-                                        <div class="text-[11px] text-gray-500">ID: <span x-text="item.employee_id"></span></div>
+                                        <a :href="'/employees/' + item.employee_id" class="text-sm font-medium text-white hover:text-blue-400 transition-colors block truncate max-w-[200px]" x-text="item.employee_name"></a>
                                     </div>
                                 </div>
                             </td>
-                            <td class="p-3 min-w-[180px] hidden xl:table-cell">
-                                <a :href="'/clients/' + item.client_id"
-                                    class="text-xs text-green-400 font-semibold hover:text-green-300 hover:underline transition-colors block truncate max-w-[260px]"
-                                    :title="item.client_name"
-                                    x-text="item.client_name"></a>
+                            <td class="p-3">
+                                <span class="text-sm text-emerald-400 truncate block max-w-[180px]" x-text="item.client_name"></span>
                             </td>
-                            <td class="p-3 text-xs text-gray-300 font-mono whitespace-nowrap hidden lg:table-cell" x-text="item.start_time || '-' "></td>
-                            <td class="p-3 text-xs text-gray-300 font-mono whitespace-nowrap hidden lg:table-cell" x-text="item.end_time || '-' "></td>
-                            <td class="p-3 text-xs text-blue-300 font-mono font-bold whitespace-nowrap hidden lg:table-cell" x-text="getDuration(item)"></td>
-                            <td class="p-3 text-right whitespace-nowrap">
-                                <span class="font-bold text-yellow-400 text-xs" x-text="'+ ' + getEstXp(item) + ' XP'"></span>
+                            <td class="p-3 text-center">
+                                <div class="text-xs text-slate-400 font-mono">
+                                    <span x-text="item.start_time || '-'"></span>
+                                    <span class="text-slate-600 mx-1">→</span>
+                                    <span x-text="item.end_time || '-'"></span>
+                                </div>
+                                <div class="text-xs text-blue-400 font-medium mt-0.5" x-text="getDuration(item)"></div>
                             </td>
-                            <td class="p-3 text-right whitespace-nowrap">
-                                <span class="font-bold text-white text-xs" x-text="formatNumber(item.tonnage || 0)"></span>
-                                <span class="text-[11px] text-gray-400">kg</span>
+                            <td class="p-3 text-right">
+                                <span class="text-sm font-bold text-white" x-text="formatNumber(item.tonnage || 0)"></span>
                             </td>
-                            <td class="p-3 text-right whitespace-nowrap hidden md:table-cell">
-                                <span class="font-bold text-white text-xs" x-text="formatNumber(getKgPerHour(item))"></span>
-                                <span class="text-[11px] text-gray-400">kg/h</span>
+                            <td class="p-3 text-right">
+                                <span class="text-sm font-medium text-slate-300" x-text="formatNumber(getKgPerHour(item))"></span>
                             </td>
-                            <td class="p-3 text-center whitespace-nowrap hidden sm:table-cell">
-                                <span class="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide" :class="{
-                                          'bg-green-900 text-green-300': item.status === 'completed',
-                                          'bg-yellow-900 text-yellow-300': item.status === 'pending'
-                                      }" x-text="item.status === 'completed' ? 'Concluído' : 'Em Andamento'"
-                                    title="Rota não finalizada. Edite para concluir e gerar XP.">
+                            <td class="p-3 text-right">
+                                <span class="text-sm font-bold text-amber-400" x-text="'+' + getEstXp(item)"></span>
+                            </td>
+                            <td class="p-3 text-center">
+                                <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase"
+                                    :class="{
+                                        'bg-emerald-500/20 text-emerald-400': item.status === 'completed',
+                                        'bg-amber-500/20 text-amber-400': item.status === 'pending'
+                                    }" x-text="item.status === 'completed' ? 'OK' : 'Pend'">
                                 </span>
                             </td>
-                            <td class="p-3 text-right whitespace-nowrap sticky right-0 z-10 bg-gray-800">
-                                <div class="flex justify-end gap-1">
-                                    <button @click="openEdit(item)"
-                                        class="text-blue-400 hover:bg-blue-900/30 p-2 rounded transition-colors"
-                                        title="Editar" aria-label="Editar rota">
-                                        <i data-lucide="pencil" class="w-4 h-4"></i>
+                            <td class="p-3 text-center">
+                                <div class="flex items-center justify-center gap-1">
+                                    <button @click="openEdit(item)" class="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all" title="Editar">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                     </button>
-                                    <button @click="openDelete(item)"
-                                        class="text-red-400 hover:bg-red-900/30 p-2 rounded transition-colors"
-                                        title="Excluir" aria-label="Excluir rota">
-                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                    <button @click="openDelete(item)" class="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all" title="Excluir">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                     </button>
                                 </div>
                             </td>
                         </tr>
                     </template>
 
-                    <!-- Empty State -->
                     <tr x-show="items.length === 0 && !loading">
-                        <td colspan="11" class="p-12 text-center">
-                            <i data-lucide="package-open"
-                                class="text-gray-600 w-12 h-12 mb-3 mx-auto block opacity-50"></i>
-                            <span class="text-gray-500">Nenhuma rotina encontrada.</span>
+                        <td colspan="9" class="p-12 text-center">
+                            <svg class="w-12 h-12 text-slate-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                            </svg>
+                            <p class="text-slate-500">Nenhuma rota encontrada</p>
+                            <p class="text-sm text-slate-600 mt-1">Ajuste os filtros para ver mais resultados</p>
                         </td>
                     </tr>
-
-                    <!-- Skeleton Loading -->
-                    <template x-if="loading">
-                        <tr>
-                            <td colspan="11" class="p-0">
-                                <div class="p-4 border-t border-gray-700 bg-gray-800/50">
-                                    <div class="space-y-2">
-                                        <div class="h-3 bg-gray-700/60 rounded w-11/12 animate-pulse"></div>
-                                        <div class="h-3 bg-gray-700/60 rounded w-9/12 animate-pulse"></div>
-                                        <div class="h-3 bg-gray-700/60 rounded w-10/12 animate-pulse"></div>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                    </template>
                 </tbody>
             </table>
         </div>
 
-        <!-- Loading State (fallback) -->
-        <div x-show="loading" class="p-4 text-center text-gray-400 text-sm border-t border-gray-700 bg-gray-800/50 flex justify-center items-center gap-2">
-            <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Carregando dados...
+        <!-- Loading -->
+        <div x-show="loading" class="p-6 text-center border-t border-slate-700/50">
+            <svg class="w-6 h-6 text-blue-400 animate-spin mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            <p class="text-sm text-slate-400">Carregando...</p>
+        </div>
+    </div>
+
+    <!-- Mobile Cards -->
+    <div class="lg:hidden space-y-3">
+        <template x-for="item in items" :key="item.id">
+            <div class="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4">
+                <div class="flex items-start justify-between gap-3 mb-3">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                            <span x-text="getInitials(item.employee_name)"></span>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-white truncate" x-text="item.employee_name"></p>
+                            <p class="text-xs text-emerald-400 truncate" x-text="item.client_name"></p>
+                        </div>
+                    </div>
+                    <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase flex-shrink-0"
+                        :class="{
+                            'bg-emerald-500/20 text-emerald-400': item.status === 'completed',
+                            'bg-amber-500/20 text-amber-400': item.status === 'pending'
+                        }" x-text="item.status === 'completed' ? 'Concluído' : 'Pendente'">
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3 text-center mb-3">
+                    <div class="bg-slate-900/50 rounded-lg p-2">
+                        <p class="text-lg font-bold text-white" x-text="formatNumber(item.tonnage || 0)"></p>
+                        <p class="text-[10px] text-slate-500 uppercase">Kg</p>
+                    </div>
+                    <div class="bg-slate-900/50 rounded-lg p-2">
+                        <p class="text-lg font-bold text-blue-400" x-text="formatNumber(getKgPerHour(item))"></p>
+                        <p class="text-[10px] text-slate-500 uppercase">Kg/h</p>
+                    </div>
+                    <div class="bg-slate-900/50 rounded-lg p-2">
+                        <p class="text-lg font-bold text-amber-400" x-text="'+' + getEstXp(item)"></p>
+                        <p class="text-[10px] text-slate-500 uppercase">XP</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between pt-3 border-t border-slate-700/50">
+                    <div class="text-xs text-slate-500">
+                        <span x-text="formatDate(item.date)"></span>
+                        <span class="mx-1">•</span>
+                        <span x-text="item.start_time || '-'"></span>
+                        <span class="mx-0.5">→</span>
+                        <span x-text="item.end_time || '-'"></span>
+                        <span class="text-blue-400 ml-1" x-text="'(' + getDuration(item) + ')'"></span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button @click="openEdit(item)" class="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        </button>
+                        <button @click="openDelete(item)" class="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- Empty Mobile -->
+        <div x-show="items.length === 0 && !loading" class="bg-slate-800/30 border border-slate-700/50 rounded-xl p-12 text-center">
+            <svg class="w-12 h-12 text-slate-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+            </svg>
+            <p class="text-slate-500">Nenhuma rota encontrada</p>
+        </div>
+
+        <!-- Loading Mobile -->
+        <div x-show="loading" class="bg-slate-800/30 border border-slate-700/50 rounded-xl p-8 text-center">
+            <svg class="w-8 h-8 text-blue-400 animate-spin mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            <p class="text-sm text-slate-400">Carregando...</p>
         </div>
     </div>
 
     <!-- Edit Modal -->
-    <div x-show="editModal.open" x-transition.opacity
-        class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl w-full max-w-md p-6"
+    <div x-show="editModal.open" x-transition.opacity x-cloak
+        class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
             @click.outside="closeEdit()">
 
-            <h3 class="text-xl font-bold text-white mb-2 flex items-center gap-2">
-                <i data-lucide="pencil" class="text-blue-500 w-5 h-5"></i> Editar Rota
-            </h3>
-            <p class="text-xs text-gray-500 mb-6">Validações: tonelagem &gt; 0 e fim &ge; início.</p>
-
-            <div x-show="editModal.error" x-transition.opacity class="bg-red-900/30 border border-red-800 rounded-lg p-3 text-sm text-red-200 mb-4">
-                <div class="flex items-start gap-2">
-                    <i data-lucide="alert-triangle" class="w-4 h-4 mt-0.5 text-red-300"></i>
-                    <div x-text="editModal.error"></div>
-                </div>
+            <div class="px-5 py-4 border-b border-slate-700 flex items-center justify-between">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    Editar Rota
+                </h3>
+                <button @click="closeEdit()" class="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
             </div>
 
-            <div class="space-y-4">
+            <div class="p-5 space-y-4">
+                <div x-show="editModal.error" class="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-sm text-red-200">
+                    <span x-text="editModal.error"></span>
+                </div>
+
                 <div>
-                    <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Colaborador</label>
+                    <label class="block text-xs font-medium text-slate-400 mb-1.5">Colaborador</label>
                     <input type="text" :value="editModal.data.employee_name" disabled
-                        class="w-full bg-gray-900 text-gray-500 rounded border border-gray-700 px-3 py-2 cursor-not-allowed">
+                        class="w-full bg-slate-900/50 text-slate-500 rounded-lg border border-slate-700 px-3 py-2.5 text-sm cursor-not-allowed">
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Início</label>
+                        <label class="block text-xs font-medium text-slate-400 mb-1.5">Início</label>
                         <input type="time" x-model="editModal.data.start_time"
-                            class="w-full bg-gray-900 text-white rounded border border-gray-700 px-3 py-2 focus:border-blue-500 outline-none">
+                            class="w-full bg-slate-900/50 text-white rounded-lg border border-slate-600 px-3 py-2.5 text-sm focus:border-blue-500 outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Fim</label>
+                        <label class="block text-xs font-medium text-slate-400 mb-1.5">Fim</label>
                         <input type="time" x-model="editModal.data.end_time"
-                            class="w-full bg-gray-900 text-white rounded border border-gray-700 px-3 py-2 focus:border-blue-500 outline-none">
+                            class="w-full bg-slate-900/50 text-white rounded-lg border border-slate-600 px-3 py-2.5 text-sm focus:border-blue-500 outline-none">
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Tonelagem (Kg)</label>
+                    <label class="block text-xs font-medium text-slate-400 mb-1.5">Tonelagem (Kg)</label>
                     <input type="number" x-model="editModal.data.tonnage" step="0.1" min="0"
-                        class="w-full bg-gray-900 text-white rounded border border-gray-700 px-3 py-2 focus:border-blue-500 outline-none text-xl font-mono">
+                        class="w-full bg-slate-900/50 text-white rounded-lg border border-slate-600 px-3 py-2.5 text-lg font-mono focus:border-blue-500 outline-none">
                 </div>
 
                 <div>
-                    <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Status</label>
+                    <label class="block text-xs font-medium text-slate-400 mb-1.5">Status</label>
                     <select x-model="editModal.data.status"
-                        class="w-full bg-gray-900 text-white rounded border border-gray-700 px-3 py-2 focus:border-blue-500 outline-none">
-                        <option value="pending">Em Andamento</option>
+                        class="w-full bg-slate-900/50 text-white rounded-lg border border-slate-600 px-3 py-2.5 text-sm focus:border-blue-500 outline-none">
+                        <option value="pending">Pendente</option>
                         <option value="completed">Concluído</option>
                     </select>
                 </div>
             </div>
 
-            <div class="flex justify-end gap-3 mt-8">
+            <div class="px-5 py-4 border-t border-slate-700 flex justify-end gap-2">
                 <button @click="closeEdit()" type="button"
-                    class="px-4 py-2 rounded text-gray-400 hover:bg-gray-700 hover:text-white transition-colors">Cancelar</button>
+                    class="px-4 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                    Cancelar
+                </button>
                 <button @click="saveEdit()" type="button" :disabled="editModal.saving"
-                    class="px-6 py-2 rounded bg-blue-600 hover:bg-blue-500 disabled:bg-blue-900/40 disabled:text-gray-300 disabled:cursor-not-allowed text-white font-bold transition-colors flex items-center gap-2">
-                    <span x-show="!editModal.saving">Salvar Alterações</span>
-                    <span x-show="editModal.saving" class="flex items-center gap-2"><i data-lucide="loader-2"
-                            class="w-4 h-4 animate-spin"></i> Salvando...</span>
+                    class="px-5 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors">
+                    <span x-show="!editModal.saving">Salvar</span>
+                    <span x-show="editModal.saving">Salvando...</span>
                 </button>
             </div>
         </div>
     </div>
 
     <!-- Delete Modal -->
-    <div x-show="deleteModal.open" x-transition.opacity
-        class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl w-full max-w-md p-6"
+    <div x-show="deleteModal.open" x-transition.opacity x-cloak
+        class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
             @click.outside="closeDelete()">
 
-            <h3 class="text-xl font-bold text-white mb-2 flex items-center gap-2">
-                <i data-lucide="trash-2" class="text-red-500 w-5 h-5"></i> Confirmar exclusão
-            </h3>
-            <p class="text-sm text-gray-300 mb-4">Você está prestes a excluir uma rota. Esta ação não pode ser desfeita.</p>
-
-            <div class="bg-gray-900/40 border border-gray-700 rounded-lg p-3 text-sm text-gray-200">
-                <div><span class="text-gray-400">Colaborador:</span> <span class="font-semibold" x-text="deleteModal.data.employee_name"></span></div>
-                <div><span class="text-gray-400">Cliente:</span> <span class="font-semibold" x-text="deleteModal.data.client_name"></span></div>
-                <div><span class="text-gray-400">Data:</span> <span class="font-mono" x-text="formatDate(deleteModal.data.date)"></span></div>
-                <div><span class="text-gray-400">Tonelagem:</span> <span class="font-mono" x-text="formatNumber(deleteModal.data.tonnage || 0) + ' kg'"></span></div>
+            <div class="px-5 py-4 border-b border-slate-700 flex items-center justify-between">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <svg class="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    Confirmar Exclusão
+                </h3>
+                <button @click="closeDelete()" class="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
             </div>
 
-            <div x-show="deleteModal.error" x-transition.opacity class="bg-red-900/30 border border-red-800 rounded-lg p-3 text-sm text-red-200 mt-4">
-                <div class="flex items-start gap-2">
-                    <i data-lucide="alert-triangle" class="w-4 h-4 mt-0.5 text-red-300"></i>
-                    <div x-text="deleteModal.error"></div>
+            <div class="p-5">
+                <p class="text-sm text-slate-300 mb-4">Esta ação não pode ser desfeita.</p>
+
+                <div class="bg-slate-900/50 border border-slate-700 rounded-lg p-3 space-y-1 text-sm">
+                    <div><span class="text-slate-500">Colaborador:</span> <span class="text-white font-medium" x-text="deleteModal.data.employee_name"></span></div>
+                    <div><span class="text-slate-500">Cliente:</span> <span class="text-white" x-text="deleteModal.data.client_name"></span></div>
+                    <div><span class="text-slate-500">Data:</span> <span class="text-white font-mono" x-text="formatDate(deleteModal.data.date)"></span></div>
+                    <div><span class="text-slate-500">Tonelagem:</span> <span class="text-white font-mono" x-text="formatNumber(deleteModal.data.tonnage || 0) + ' kg'"></span></div>
+                </div>
+
+                <div x-show="deleteModal.error" class="mt-4 bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-sm text-red-200">
+                    <span x-text="deleteModal.error"></span>
                 </div>
             </div>
 
-            <div class="flex justify-end gap-3 mt-8">
+            <div class="px-5 py-4 border-t border-slate-700 flex justify-end gap-2">
                 <button @click="closeDelete()" type="button"
-                    class="px-4 py-2 rounded text-gray-400 hover:bg-gray-700 hover:text-white transition-colors">Cancelar</button>
+                    class="px-4 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                    Cancelar
+                </button>
                 <button @click="confirmDelete()" type="button" :disabled="deleteModal.deleting"
-                    class="px-6 py-2 rounded bg-red-600 hover:bg-red-500 disabled:bg-red-900/40 disabled:text-gray-300 disabled:cursor-not-allowed text-white font-bold transition-colors flex items-center gap-2">
+                    class="px-5 py-2 text-sm font-medium rounded-lg bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white transition-colors">
                     <span x-show="!deleteModal.deleting">Excluir</span>
-                    <span x-show="deleteModal.deleting" class="flex items-center gap-2"><i data-lucide="loader-2"
-                            class="w-4 h-4 animate-spin"></i> Excluindo...</span>
+                    <span x-show="deleteModal.deleting">Excluindo...</span>
                 </button>
             </div>
         </div>
     </div>
-
 </div>
 
+<style>[x-cloak] { display: none !important; }</style>
+
 <script>
-    function historyController() {
-        return {
-            items: [],
-            loading: false,
-            abortController: null,
+function historyController() {
+    return {
+        items: [],
+        loading: false,
+        abortController: null,
+        filters: { search: '', startDate: '', endDate: '', status: '' },
+        ui: { error: '', notice: '' },
+        kpis: { totalRoutes: 0, totalKg: 0, totalXp: 0, completedPct: 0 },
+        editModal: { open: false, data: {}, saving: false, error: '' },
+        deleteModal: { open: false, data: {}, deleting: false, error: '' },
 
-            filters: {
-                search: '',
-                startDate: '',
-                endDate: '',
-                status: ''
-            },
+        init() {
+            const now = new Date();
+            const today = now.toISOString().split('T')[0];
+            this.filters.startDate = today;
+            this.filters.endDate = today;
+            this.fetchData();
+        },
 
-            ui: {
-                error: '',
-                notice: ''
-            },
+        setError(message) { this.ui.error = message || ''; this.ui.notice = ''; },
+        setNotice(message) { this.ui.notice = message || ''; this.ui.error = ''; },
+        clearMessages() { this.ui.error = ''; this.ui.notice = ''; },
 
-            kpis: {
-                totalRoutes: 0,
-                totalKg: 0,
-                totalXp: 0,
-                completedPct: 0
-            },
+        clearFilters() {
+            this.filters = { search: '', startDate: '', endDate: '', status: '' };
+            this.fetchData();
+        },
 
-            editModal: {
-                open: false,
-                data: {}, // Clone of item
-                saving: false,
-                error: ''
-            },
-
-            deleteModal: {
-                open: false,
-                data: {},
-                deleting: false,
-                error: ''
-            },
-
-            init() {
-                // Padrão: carregar apenas o dia atual (os demais dias ficam disponíveis via pesquisa/filtro)
-                const now = new Date();
-                const yyyy = now.getFullYear();
-                const mm = String(now.getMonth() + 1).padStart(2, '0');
-                const dd = String(now.getDate()).padStart(2, '0');
-                const today = `${yyyy}-${mm}-${dd}`;
+        applyPreset(preset) {
+            const now = new Date();
+            const today = now.toISOString().split('T')[0];
+            if (preset === 'today') {
                 this.filters.startDate = today;
                 this.filters.endDate = today;
-
-                this.fetchData();
-            },
-
-            setError(message) {
-                this.ui.error = message || '';
-                this.ui.notice = '';
-                this.$nextTick(() => lucide.createIcons());
-            },
-
-            setNotice(message) {
-                this.ui.notice = message || '';
-                this.ui.error = '';
-                this.$nextTick(() => lucide.createIcons());
-            },
-
-            clearMessages() {
-                this.ui.error = '';
-                this.ui.notice = '';
-            },
-
-            clearFilters() {
-                this.filters.search = '';
-                this.filters.startDate = '';
-                this.filters.endDate = '';
-                this.filters.status = '';
-                this.fetchData();
-            },
-
-            applyPreset(preset) {
-                const now = new Date();
-                const yyyy = now.getFullYear();
-                const mm = String(now.getMonth() + 1).padStart(2, '0');
-                const dd = String(now.getDate()).padStart(2, '0');
-                const today = `${yyyy}-${mm}-${dd}`;
-
-                if (preset === 'today') {
-                    this.filters.startDate = today;
-                    this.filters.endDate = today;
-                } else if (preset === 'last7') {
-                    const start = new Date(now);
-                    start.setDate(start.getDate() - 6);
-                    this.filters.startDate = start.toISOString().split('T')[0];
-                    this.filters.endDate = today;
-                } else if (preset === 'month') {
-                    const start = new Date(yyyy, now.getMonth(), 1);
-                    const end = new Date(yyyy, now.getMonth() + 1, 0);
-                    this.filters.startDate = start.toISOString().split('T')[0];
-                    this.filters.endDate = end.toISOString().split('T')[0];
-                }
-
-                this.fetchData();
-            },
-
-            async fetchData() {
-                this.loading = true;
-                this.clearMessages();
-
-                // Cancel previous request if still running
-                if (this.abortController) {
-                    this.abortController.abort();
-                }
-                this.abortController = new AbortController();
-
-                try {
-                    const params = new URLSearchParams();
-                    if (this.filters.search) params.append('search', this.filters.search);
-                    if (this.filters.startDate) params.append('start_date', this.filters.startDate);
-                    if (this.filters.endDate) params.append('end_date', this.filters.endDate);
-                    if (this.filters.status) params.append('status', this.filters.status);
-                    params.append('_t', new Date().getTime()); // Cache Buster
-
-                    const res = await fetch(`/api/operational/routes?${params.toString()}`, {
-                        signal: this.abortController.signal
-                    });
-
-                    if (!res.ok) {
-                        const errText = await res.text();
-                        throw new Error(errText || `HTTP ${res.status}`);
-                    }
-
-                    const data = await res.json();
-                    this.items = data.routes || [];
-                    this.computeKpis();
-
-                    this.$nextTick(() => lucide.createIcons()); // Refresh Icons
-                } catch (error) {
-                    if (error && error.name === 'AbortError') {
-                        return;
-                    }
-                    console.error("Fetch error:", error);
-                    this.setError("Erro ao carregar dados. Verifique sua conexão e tente novamente.");
-                } finally {
-                    this.loading = false;
-                }
-            },
-
-            computeKpis() {
-                const totalRoutes = this.items.length;
-                let totalKg = 0;
-                let totalXp = 0;
-                let completed = 0;
-
-                for (const it of this.items) {
-                    const kg = Number(it.tonnage || 0);
-                    totalKg += kg;
-                    totalXp += Number(this.getEstXp(it) || 0);
-                    if (it.status === 'completed') completed += 1;
-                }
-
-                this.kpis.totalRoutes = totalRoutes;
-                this.kpis.totalKg = Math.round(totalKg);
-                this.kpis.totalXp = Math.round(totalXp);
-                this.kpis.completedPct = totalRoutes > 0 ? Math.round((completed / totalRoutes) * 100) : 0;
-            },
-
-            formatNumber(n) {
-                try {
-                    return new Intl.NumberFormat('pt-BR').format(Number(n || 0));
-                } catch {
-                    return String(n || 0);
-                }
-            },
-
-            getInitials(name) {
-                return (name || '?').split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('');
-            },
-
-            formatDate(dateStr) {
-                if (!dateStr) return '-';
-                const [y, m, d] = dateStr.split('-');
-                return `${d}/${m}/${y}`;
-            },
-
-            parseTimeToMinutes(t) {
-                if (!t || typeof t !== 'string') return null;
-                const parts = t.split(':');
-                if (parts.length < 2) return null;
-                const hh = Number(parts[0]);
-                const mm = Number(parts[1]);
-                if (Number.isNaN(hh) || Number.isNaN(mm)) return null;
-                return (hh * 60) + mm;
-            },
-
-            formatMinutesToHhmm(mins) {
-                const m = Math.max(0, Math.round(mins));
-                const hh = Math.floor(m / 60);
-                const mm = m % 60;
-                return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
-            },
-
-            getDuration(item) {
-                // Use API-provided duration if present
-                if (item && item.duration) return item.duration;
-
-                const start = this.parseTimeToMinutes(item?.start_time);
-                const end = this.parseTimeToMinutes(item?.end_time);
-                if (start == null || end == null) return '-';
-
-                const diff = end - start;
-                if (diff <= 0) return '-';
-
-                return this.formatMinutesToHhmm(diff);
-            },
-
-            getEstXp(item) {
-                // Use API-provided estimate if present
-                if (item && (item.est_xp !== undefined && item.est_xp !== null) && item.est_xp !== '') {
-                    const v = Number(item.est_xp);
-                    return Number.isFinite(v) ? Math.round(v) : 0;
-                }
-
-                // Fallback: base XP = (kg/1500) * 100
-                const kg = Number(item?.tonnage || 0);
-                if (!Number.isFinite(kg) || kg <= 0) return 0;
-                const uo = kg / 1500.0;
-                return Math.round(uo * 100);
-            },
-
-            getKgPerHour(item) {
-                const kg = Number(item?.tonnage || 0);
-                if (!Number.isFinite(kg) || kg <= 0) return 0;
-
-                const start = this.parseTimeToMinutes(item?.start_time);
-                const end = this.parseTimeToMinutes(item?.end_time);
-                if (start == null || end == null) return 0;
-
-                const diffMinutes = end - start;
-                if (diffMinutes <= 0) return 0;
-
-                const hours = diffMinutes / 60.0;
-                const v = kg / hours;
-                return Number.isFinite(v) ? Math.round(v) : 0;
-            },
-
-            // --- Edit Logic ---
-            openEdit(item) {
-                this.editModal.data = JSON.parse(JSON.stringify(item));
-                this.editModal.error = '';
-                this.editModal.open = true;
-                this.$nextTick(() => lucide.createIcons());
-            },
-
-            closeEdit() {
-                this.editModal.open = false;
-                this.editModal.saving = false;
-                this.editModal.error = '';
-            },
-
-            validateEdit() {
-                const tonnage = Number(this.editModal.data.tonnage);
-                if (!Number.isFinite(tonnage) || tonnage <= 0) {
-                    return 'Informe uma tonelagem válida (maior que 0).';
-                }
-
-                const start = this.parseTimeToMinutes(this.editModal.data.start_time);
-                const end = this.parseTimeToMinutes(this.editModal.data.end_time);
-
-                // If one is filled, require both
-                if ((start != null && end == null) || (start == null && end != null)) {
-                    return 'Preencha horário de início e fim, ou deixe ambos em branco.';
-                }
-
-                if (start != null && end != null && end < start) {
-                    return 'O horário de fim não pode ser menor que o horário de início.';
-                }
-
-                return '';
-            },
-
-            async saveEdit() {
-                this.editModal.error = '';
-                const validation = this.validateEdit();
-                if (validation) {
-                    this.editModal.error = validation;
-                    this.$nextTick(() => lucide.createIcons());
-                    return;
-                }
-
-                this.editModal.saving = true;
-                try {
-                    const status = this.editModal.data.status;
-                    const payload = {
-                        tonnage: parseFloat(this.editModal.data.tonnage),
-                        start_time: this.editModal.data.start_time || null,
-                        end_time: this.editModal.data.end_time || null,
-                        status
-                    };
-
-                    // Fail-safe: se marcou como concluído, garantir end_time preenchido
-                    if (status === 'completed' && (!payload.end_time || String(payload.end_time).trim() === '')) {
-                        const now = new Date();
-                        const hh = String(now.getHours()).padStart(2, '0');
-                        const mm = String(now.getMinutes()).padStart(2, '0');
-                        payload.end_time = `${hh}:${mm}`;
-                    }
-
-                    const res = await fetch(`/api/operational/routes/${this.editModal.data.id}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (res.ok) {
-                        this.closeEdit();
-                        await this.fetchData(); // Refresh
-                        this.setNotice("Rota atualizada com sucesso!");
-                    } else {
-                        let msg = 'Erro ao salvar.';
-                        try {
-                            const err = await res.json();
-                            msg = (err && (err.error || err.message)) ? (err.error || err.message) : msg;
-                        } catch {
-                            // ignore
-                        }
-                        this.editModal.error = msg;
-                        this.$nextTick(() => lucide.createIcons());
-                    }
-                } catch (e) {
-                    this.editModal.error = "Erro de conexão.";
-                    this.$nextTick(() => lucide.createIcons());
-                } finally {
-                    this.editModal.saving = false;
-                }
-            },
-
-            // --- Delete Logic ---
-            openDelete(item) {
-                this.deleteModal.data = JSON.parse(JSON.stringify(item));
-                this.deleteModal.error = '';
-                this.deleteModal.deleting = false;
-                this.deleteModal.open = true;
-                this.$nextTick(() => lucide.createIcons());
-            },
-
-            closeDelete() {
-                this.deleteModal.open = false;
-                this.deleteModal.deleting = false;
-                this.deleteModal.error = '';
-            },
-
-            async confirmDelete() {
-                this.deleteModal.error = '';
-                this.deleteModal.deleting = true;
-
-                try {
-                    const res = await fetch(`/api/operational/routes/${this.deleteModal.data.id}`, {
-                        method: 'DELETE'
-                    });
-
-                    if (res.ok) {
-                        this.closeDelete();
-                        await this.fetchData();
-                        this.setNotice('Rota excluída com sucesso.');
-                    } else {
-                        this.deleteModal.error = 'Erro ao excluir.';
-                        this.$nextTick(() => lucide.createIcons());
-                    }
-                } catch (e) {
-                    this.deleteModal.error = 'Erro de conexão.';
-                    this.$nextTick(() => lucide.createIcons());
-                } finally {
-                    this.deleteModal.deleting = false;
-                }
+            } else if (preset === 'last7') {
+                const start = new Date(now);
+                start.setDate(start.getDate() - 6);
+                this.filters.startDate = start.toISOString().split('T')[0];
+                this.filters.endDate = today;
+            } else if (preset === 'month') {
+                const start = new Date(now.getFullYear(), now.getMonth(), 1);
+                const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                this.filters.startDate = start.toISOString().split('T')[0];
+                this.filters.endDate = end.toISOString().split('T')[0];
             }
+            this.fetchData();
+        },
+
+        async fetchData() {
+            this.loading = true;
+            this.clearMessages();
+            if (this.abortController) this.abortController.abort();
+            this.abortController = new AbortController();
+
+            try {
+                const params = new URLSearchParams();
+                if (this.filters.search) params.append('search', this.filters.search);
+                if (this.filters.startDate) params.append('start_date', this.filters.startDate);
+                if (this.filters.endDate) params.append('end_date', this.filters.endDate);
+                if (this.filters.status) params.append('status', this.filters.status);
+                params.append('_t', Date.now());
+
+                const res = await fetch(`/api/operational/routes?${params}`, { signal: this.abortController.signal });
+                if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
+
+                const data = await res.json();
+                this.items = data.routes || [];
+                this.computeKpis();
+            } catch (e) {
+                if (e.name === 'AbortError') return;
+                this.setError("Erro ao carregar dados.");
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        computeKpis() {
+            let totalKg = 0, totalXp = 0, completed = 0;
+            for (const it of this.items) {
+                totalKg += Number(it.tonnage || 0);
+                totalXp += Number(this.getEstXp(it) || 0);
+                if (it.status === 'completed') completed++;
+            }
+            this.kpis.totalRoutes = this.items.length;
+            this.kpis.totalKg = Math.round(totalKg);
+            this.kpis.totalXp = Math.round(totalXp);
+            this.kpis.completedPct = this.items.length > 0 ? Math.round((completed / this.items.length) * 100) : 0;
+        },
+
+        formatNumber(n) { return new Intl.NumberFormat('pt-BR').format(Number(n || 0)); },
+        getInitials(name) { return (name || '?').split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join(''); },
+        formatDate(dateStr) { if (!dateStr) return '-'; const [y, m, d] = dateStr.split('-'); return `${d}/${m}/${y}`; },
+
+        parseTimeToMinutes(t) {
+            if (!t || typeof t !== 'string') return null;
+            const parts = t.split(':');
+            if (parts.length < 2) return null;
+            return (Number(parts[0]) * 60) + Number(parts[1]);
+        },
+
+        getDuration(item) {
+            if (item?.duration) return item.duration;
+            const start = this.parseTimeToMinutes(item?.start_time);
+            const end = this.parseTimeToMinutes(item?.end_time);
+            if (start == null || end == null) return '-';
+            const diff = end - start;
+            if (diff <= 0) return '-';
+            const hh = Math.floor(diff / 60);
+            const mm = diff % 60;
+            return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+        },
+
+        getEstXp(item) {
+            if (item?.est_xp !== undefined && item.est_xp !== null) return Math.round(Number(item.est_xp) || 0);
+            const kg = Number(item?.tonnage || 0);
+            return kg > 0 ? Math.round((kg / 1500) * 100) : 0;
+        },
+
+        getKgPerHour(item) {
+            const kg = Number(item?.tonnage || 0);
+            if (kg <= 0) return 0;
+            const start = this.parseTimeToMinutes(item?.start_time);
+            const end = this.parseTimeToMinutes(item?.end_time);
+            if (start == null || end == null) return 0;
+            const diffMinutes = end - start;
+            return diffMinutes > 0 ? Math.round(kg / (diffMinutes / 60)) : 0;
+        },
+
+        openEdit(item) {
+            this.editModal.data = JSON.parse(JSON.stringify(item));
+            this.editModal.error = '';
+            this.editModal.open = true;
+        },
+        closeEdit() { this.editModal.open = false; this.editModal.saving = false; this.editModal.error = ''; },
+
+        validateEdit() {
+            const tonnage = Number(this.editModal.data.tonnage);
+            if (!Number.isFinite(tonnage) || tonnage <= 0) return 'Informe tonelagem válida.';
+            const start = this.parseTimeToMinutes(this.editModal.data.start_time);
+            const end = this.parseTimeToMinutes(this.editModal.data.end_time);
+            if ((start != null && end == null) || (start == null && end != null)) return 'Preencha ambos os horários.';
+            if (start != null && end != null && end < start) return 'Fim deve ser maior que início.';
+            return '';
+        },
+
+        async saveEdit() {
+            this.editModal.error = '';
+            const validation = this.validateEdit();
+            if (validation) { this.editModal.error = validation; return; }
+
+            this.editModal.saving = true;
+            try {
+                const payload = {
+                    tonnage: parseFloat(this.editModal.data.tonnage),
+                    start_time: this.editModal.data.start_time || null,
+                    end_time: this.editModal.data.end_time || null,
+                    status: this.editModal.data.status
+                };
+                if (payload.status === 'completed' && !payload.end_time) {
+                    const now = new Date();
+                    payload.end_time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                }
+                const res = await fetch(`/api/operational/routes/${this.editModal.data.id}`, {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                });
+                if (res.ok) { this.closeEdit(); await this.fetchData(); this.setNotice("Rota atualizada!"); }
+                else { const err = await res.json().catch(() => ({})); this.editModal.error = err.error || 'Erro ao salvar.'; }
+            } catch { this.editModal.error = "Erro de conexão."; }
+            finally { this.editModal.saving = false; }
+        },
+
+        openDelete(item) {
+            this.deleteModal.data = JSON.parse(JSON.stringify(item));
+            this.deleteModal.error = '';
+            this.deleteModal.deleting = false;
+            this.deleteModal.open = true;
+        },
+        closeDelete() { this.deleteModal.open = false; this.deleteModal.deleting = false; this.deleteModal.error = ''; },
+
+        async confirmDelete() {
+            this.deleteModal.error = '';
+            this.deleteModal.deleting = true;
+            try {
+                const res = await fetch(`/api/operational/routes/${this.deleteModal.data.id}`, { method: 'DELETE' });
+                if (res.ok) { this.closeDelete(); await this.fetchData(); this.setNotice('Rota excluída.'); }
+                else { this.deleteModal.error = 'Erro ao excluir.'; }
+            } catch { this.deleteModal.error = 'Erro de conexão.'; }
+            finally { this.deleteModal.deleting = false; }
         }
     }
+}
 </script>
 {% endblock %}

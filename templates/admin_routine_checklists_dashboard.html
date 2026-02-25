@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8">
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-white mb-2">Dashboard de Checklists</h1>
+            <p class="text-sm text-slate-400">Visão geral da frota e conformidade operacional.</p>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+            <!-- Period Toggle -->
+            <div class="flex bg-slate-800 p-1 rounded-lg border border-slate-700">
+                <a href="/admin/routine/checklists/dashboard?days=7"
+                    class="px-3 py-1.5 text-xs font-medium rounded-md transition-all {{ 'bg-blue-600 text-white shadow-sm' if period_days == 7 else 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                    7 dias
+                </a>
+                <a href="/admin/routine/checklists/dashboard?days=30"
+                    class="px-3 py-1.5 text-xs font-medium rounded-md transition-all {{ 'bg-blue-600 text-white shadow-sm' if period_days == 30 else 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                    30 dias
+                </a>
+            </div>
+
+            <div class="w-px h-8 bg-slate-700 mx-2 hidden md:block"></div>
+
+            <a href="/admin/equipment/tickets"
+                class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                </svg>
+                Chamados
+            </a>
+
+            <a href="/admin/routine/checklists/settings"
+                class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Configurações
+            </a>
+            <a href="/admin/routine/checklists"
+                class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+                Lista
+            </a>
+        </div>
+    </div>
+
+    <!-- KPI Cards (Checklists) -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <a href="{{ card_urls.total if card_urls else '/admin/routine/checklists' }}"
+            class="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-2xl p-5 relative overflow-hidden group hover:border-blue-500/50 transition-colors block">
+            <div
+                class="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/10 rounded-full blur-xl group-hover:bg-blue-500/20 transition-all">
+            </div>
+            <div class="relative z-10">
+                <div class="text-xs text-slate-400 uppercase tracking-wider font-bold mb-1">Total Realizado</div>
+                <div class="text-3xl font-bold text-white">{{ total_count|default(0) }}</div>
+                <div class="text-[10px] text-slate-500 mt-1">Últimos {{ period_days|default(7) }} dias</div>
+            </div>
+        </a>
+
+        <a href="{{ card_urls.nonconforming if card_urls else '/admin/routine/checklists' }}"
+            class="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-2xl p-5 relative overflow-hidden group hover:border-amber-500/50 transition-colors block">
+            <div
+                class="absolute -right-4 -top-4 w-24 h-24 bg-amber-500/10 rounded-full blur-xl group-hover:bg-amber-500/20 transition-all">
+            </div>
+            <div class="relative z-10">
+                <div class="text-xs text-slate-400 uppercase tracking-wider font-bold mb-1">Não Conforme</div>
+                <div class="text-3xl font-bold text-amber-300">{{ nonconforming_count|default(0) }}</div>
+                <div class="text-[10px] text-slate-500 mt-1">Checklists com apontamentos</div>
+            </div>
+        </a>
+
+        <a href="{{ card_urls.critical if card_urls else '/admin/routine/checklists' }}"
+            class="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-2xl p-5 relative overflow-hidden group hover:border-red-500/50 transition-colors block">
+            <div
+                class="absolute -right-4 -top-4 w-24 h-24 bg-red-500/10 rounded-full blur-xl group-hover:bg-red-500/20 transition-all">
+            </div>
+            <div class="relative z-10">
+                <div class="text-xs text-slate-400 uppercase tracking-wider font-bold mb-1">Itens Críticos</div>
+                <div class="text-3xl font-bold text-red-300">{{ critical_count|default(0) }}</div>
+                <div class="text-[10px] text-slate-500 mt-1">Falhas graves detectadas</div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Maintenance Stats -->
+    <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2 mt-8">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24"
+            stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+        Manutenção e Chamados
+    </h2>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <a href="{{ card_urls.tickets_total if card_urls else '/admin/equipment/tickets' }}"
+            class="bg-slate-800 border border-slate-700 p-5 rounded-2xl relative overflow-hidden block hover:border-slate-600 transition-colors">
+            <div class="text-xs text-slate-400 uppercase tracking-wider font-bold mb-1">Total Chamados</div>
+            <div class="text-3xl font-bold text-white">{{ ticket_stats.total|default(0) }}</div>
+        </a>
+        <a href="{{ card_urls.tickets_open if card_urls else '/admin/equipment/tickets?status=open' }}"
+            class="bg-slate-800 border border-slate-700 p-5 rounded-2xl relative overflow-hidden block hover:border-amber-500/50 transition-colors">
+            <div class="text-xs text-slate-400 uppercase tracking-wider font-bold mb-1">Abertos</div>
+            <div class="text-3xl font-bold text-amber-400">{{ ticket_stats.open|default(0) }}</div>
+        </a>
+        <a href="{{ card_urls.tickets_high if card_urls else '/admin/equipment/tickets?severity=high' }}"
+            class="bg-slate-800 border border-slate-700 p-5 rounded-2xl relative overflow-hidden block hover:border-red-500/50 transition-colors">
+            <div class="text-xs text-slate-400 uppercase tracking-wider font-bold mb-1">Alta Severidade</div>
+            <div class="text-3xl font-bold text-red-400">{{ ticket_stats.high|default(0) }}</div>
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Shift Distribution -->
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 h-full">
+            <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-6 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-400" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Distribuição por Turno
+            </h2>
+
+            {% if shift_stats %}
+            <div class="flex flex-col gap-4">
+                {% for row in shift_stats %}
+                <div class="relative">
+                    <div class="flex items-center justify-between text-sm mb-1.5 z-10 relative">
+                        <span class="text-slate-200 font-medium">{{ row.shift }}</span>
+                        <span class="text-slate-400 font-mono text-xs">{{ row.count }} <span class="text-slate-500">({{
+                                row.percent }}%)</span></span>
+                    </div>
+                    <div class="w-full h-2 bg-slate-700/50 rounded-full overflow-hidden">
+                        <div class="h-full bg-blue-500/80 rounded-full" style="width: {{ row.percent }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="flex flex-col items-center justify-center h-48 text-slate-500">
+                <p class="text-sm">Sem dados no período.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Top Failure Items -->
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 lg:col-span-2 h-full">
+            <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-6 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-400" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Top Itens Não Conforme
+            </h2>
+
+            {% if top_items %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for item in top_items %}
+                <a href="/admin/routine/checklists?item_key={{ item.key }}&period_days={{ period_days }}"
+                    class="flex items-center justify-between border border-slate-700/50 rounded-xl p-3 bg-slate-900/40 hover:bg-slate-900/60 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-8 h-8 rounded-lg flex items-center justify-center {{ 'bg-red-500/20 text-red-400' if item.critical else 'bg-amber-500/20 text-amber-400' }}">
+                            <span class="font-bold text-xs">{{ loop.index }}</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-sm text-slate-200 font-medium line-clamp-1">{{ item.label }}</span>
+                            {% if item.critical %}
+                            <span class="text-[10px] uppercase font-bold text-red-400 tracking-wider">Crítico</span>
+                            {% else %}
+                            <span class="text-[10px] text-slate-500">Monitoramento</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="text-sm font-mono font-bold text-slate-300 bg-slate-800 px-2 py-1 rounded">{{ item.count
+                        }}</div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="flex flex-col items-center justify-center h-48 text-slate-500">
+                <p class="text-sm">Sem não conformidades registradas.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Equipment Reincidence Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Checklist Failures -->
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+            <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-6 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-purple-400" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
+                Checklists: Maior Reincidência
+            </h2>
+
+            {% if top_equipment %}
+            <div class="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                {% for row in top_equipment %}
+                <a href="/admin/equipment/tickets?equipment={{ row.equipment_code }}&days={{ period_days }}"
+                    class="flex flex-col items-center justify-between border border-slate-700/50 rounded-xl p-3 bg-slate-900/40 hover:bg-slate-900/60 transition-colors text-center">
+                    <div class="text-xs font-bold text-white mb-1">{{ row.equipment_code }}</div>
+                    <div
+                        class="text-[10px] text-purple-300 font-medium bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
+                        {{ row.count }} falhas
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="flex flex-col items-center justify-center h-32 text-slate-500">
+                <p class="text-sm">Sem dados.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Ticket Openings -->
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+            <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-6 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-400" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Tickets: Mais Chamados
+            </h2>
+
+            {% if ticket_top_eq %}
+            <div class="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                {% for row in ticket_top_eq %}
+                <a href="/admin/equipment/tickets?equipment={{ row.code }}"
+                    class="flex flex-col items-center justify-between border border-slate-700/50 rounded-xl p-3 bg-slate-900/40 hover:bg-slate-900/60 transition-colors text-center">
+                    <div class="text-xs font-bold text-white mb-1">{{ row.code }}</div>
+                    <div
+                        class="text-[10px] text-red-300 font-medium bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
+                        {{ row.count }} abertos
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="flex flex-col items-center justify-center h-32 text-slate-500">
+                <p class="text-sm">Sem dados.</p>
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+
+    <!-- Open Calls Section -->
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 mt-6">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-bold text-white uppercase tracking-wider">Chamados Abertos</h2>
+            <a href="/admin/equipment/tickets?status=open" class="text-xs text-blue-300 hover:text-blue-200">Ver todos</a>
+        </div>
+        {% if open_calls %}
+        <div class="space-y-3">
+            {% for call in open_calls %}
+            <div class="flex items-center justify-between border border-red-500/40 rounded-lg p-3 bg-red-900/20">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="text-sm font-semibold text-white">{{ call.equipment_code }}</span>
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-red-500/30 text-red-200">{{ call.severity|default('Aberto') }}</span>
+                    </div>
+                    <p class="text-xs text-slate-300">{{ call.employee_name }} • {{ call.date_br }}</p>
+                    {% if call.description %}
+                    <p class="text-xs text-slate-400 mt-1 line-clamp-1">{{ call.description }}</p>
+                    {% endif %}
+                </div>
+                <a href="/admin/equipment/tickets/{{ call.ticket_id }}" 
+                    class="text-xs px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors">
+                    Ver
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-sm text-slate-500">Nenhum chamado aberto no momento.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

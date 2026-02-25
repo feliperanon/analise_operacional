@@ -13,7 +13,7 @@
     <!-- Content Wrapper -->
     <div class="relative z-10 max-w-7xl mx-auto space-y-8">
 
-        <!-- HEADER: Title & Shift Filter -->
+        <!-- HEADER: Title & Clock -->
         <div class="flex flex-col md:flex-row items-center justify-between gap-4">
             <div>
                 <h1
@@ -25,15 +25,161 @@
                 </p>
             </div>
 
-            <!-- Turno Filter -->
+            <!-- Clock & Current Shift Indicator -->
+            <div class="flex items-center gap-3">
+                <div id="dashboard-clock" class="bg-slate-800/80 backdrop-blur border border-slate-700 px-4 py-2 rounded-xl flex items-center gap-3">
+                    <div class="text-center">
+                        <div id="dash-time" class="text-2xl font-bold text-white font-mono">--:--</div>
+                        <div id="dash-date" class="text-[10px] text-slate-500 uppercase tracking-wider">Carregando...</div>
+                    </div>
+                    <div class="w-px h-10 bg-slate-700"></div>
+                    <div id="dash-shift-indicator" class="text-center">
+                        <div id="dash-shift-name" class="text-sm font-bold text-blue-400">Turno</div>
+                        <div id="dash-shift-progress" class="w-16 h-1 bg-slate-700 rounded-full mt-1 overflow-hidden">
+                            <div id="dash-shift-bar" class="h-full bg-blue-500 rounded-full transition-all" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SHIFT SUMMARY CARDS -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Turno Manha -->
+            <a href="?shift=Manha" class="group">
+                <div class="bg-gradient-to-br from-blue-900/40 to-slate-800/60 backdrop-blur border border-blue-500/30 rounded-2xl p-4 relative overflow-hidden transition-all hover:border-blue-400/50 hover:shadow-lg hover:shadow-blue-500/10 {{ 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900' if current_shift == 'Manha' else '' }}">
+                    <!-- Active indicator -->
+                    <div id="shift-active-manha" class="hidden absolute top-3 right-3">
+                        <span class="relative flex h-3 w-3">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+                        </span>
+                    </div>
+                    
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-blue-300">MANHA</h3>
+                            <p class="text-[10px] text-slate-500 uppercase tracking-wider">05:00 - 13:20</p>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div class="bg-slate-900/50 rounded-lg p-2">
+                            <p class="text-xl font-bold text-white">{{ dashboard.shifts_summary.manha.headcount if dashboard.shifts_summary else '--' }}</p>
+                            <p class="text-[9px] text-slate-500 uppercase">Presentes</p>
+                        </div>
+                        <div class="bg-slate-900/50 rounded-lg p-2">
+                            <p class="text-xl font-bold text-emerald-400">{{ dashboard.shifts_summary.manha.target if dashboard.shifts_summary else '--' }}</p>
+                            <p class="text-[9px] text-slate-500 uppercase">Meta</p>
+                        </div>
+                        <div class="bg-slate-900/50 rounded-lg p-2">
+                            {% set manha_away = dashboard.shifts_summary.manha.away if dashboard.shifts_summary else 0 %}
+                            <p class="text-xl font-bold {{ 'text-orange-400' if manha_away > 0 else 'text-slate-600' }}">{{ manha_away }}</p>
+                            <p class="text-[9px] text-slate-500 uppercase">Ausentes</p>
+                        </div>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Turno Tarde -->
+            <a href="?shift=Tarde" class="group">
+                <div class="bg-gradient-to-br from-orange-900/40 to-slate-800/60 backdrop-blur border border-orange-500/30 rounded-2xl p-4 relative overflow-hidden transition-all hover:border-orange-400/50 hover:shadow-lg hover:shadow-orange-500/10 {{ 'ring-2 ring-orange-500 ring-offset-2 ring-offset-slate-900' if current_shift == 'Tarde' else '' }}">
+                    <!-- Active indicator -->
+                    <div id="shift-active-tarde" class="hidden absolute top-3 right-3">
+                        <span class="relative flex h-3 w-3">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
+                        </span>
+                    </div>
+                    
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center">
+                            <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-orange-300">TARDE</h3>
+                            <p class="text-[10px] text-slate-500 uppercase tracking-wider">12:00 - 20:20</p>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div class="bg-slate-900/50 rounded-lg p-2">
+                            <p class="text-xl font-bold text-white">{{ dashboard.shifts_summary.tarde.headcount if dashboard.shifts_summary else '--' }}</p>
+                            <p class="text-[9px] text-slate-500 uppercase">Presentes</p>
+                        </div>
+                        <div class="bg-slate-900/50 rounded-lg p-2">
+                            <p class="text-xl font-bold text-emerald-400">{{ dashboard.shifts_summary.tarde.target if dashboard.shifts_summary else '--' }}</p>
+                            <p class="text-[9px] text-slate-500 uppercase">Meta</p>
+                        </div>
+                        <div class="bg-slate-900/50 rounded-lg p-2">
+                            {% set tarde_away = dashboard.shifts_summary.tarde.away if dashboard.shifts_summary else 0 %}
+                            <p class="text-xl font-bold {{ 'text-orange-400' if tarde_away > 0 else 'text-slate-600' }}">{{ tarde_away }}</p>
+                            <p class="text-[9px] text-slate-500 uppercase">Ausentes</p>
+                        </div>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Turno Noite -->
+            <a href="?shift=Noite" class="group">
+                <div class="bg-gradient-to-br from-purple-900/40 to-slate-800/60 backdrop-blur border border-purple-500/30 rounded-2xl p-4 relative overflow-hidden transition-all hover:border-purple-400/50 hover:shadow-lg hover:shadow-purple-500/10 {{ 'ring-2 ring-purple-500 ring-offset-2 ring-offset-slate-900' if current_shift == 'Noite' else '' }}">
+                    <!-- Active indicator -->
+                    <div id="shift-active-noite" class="hidden absolute top-3 right-3">
+                        <span class="relative flex h-3 w-3">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-purple-500"></span>
+                        </span>
+                    </div>
+                    
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                            <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-purple-300">NOITE</h3>
+                            <p class="text-[10px] text-slate-500 uppercase tracking-wider">18:00 - 06:00</p>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div class="bg-slate-900/50 rounded-lg p-2">
+                            <p class="text-xl font-bold text-white">{{ dashboard.shifts_summary.noite.headcount if dashboard.shifts_summary else '--' }}</p>
+                            <p class="text-[9px] text-slate-500 uppercase">Presentes</p>
+                        </div>
+                        <div class="bg-slate-900/50 rounded-lg p-2">
+                            <p class="text-xl font-bold text-emerald-400">{{ dashboard.shifts_summary.noite.target if dashboard.shifts_summary else '--' }}</p>
+                            <p class="text-[9px] text-slate-500 uppercase">Meta</p>
+                        </div>
+                        <div class="bg-slate-900/50 rounded-lg p-2">
+                            {% set noite_away = dashboard.shifts_summary.noite.away if dashboard.shifts_summary else 0 %}
+                            <p class="text-xl font-bold {{ 'text-orange-400' if noite_away > 0 else 'text-slate-600' }}">{{ noite_away }}</p>
+                            <p class="text-[9px] text-slate-500 uppercase">Ausentes</p>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Turno Filter (Compact) -->
+        <div class="flex items-center justify-between">
             <div class="flex bg-slate-800/80 backdrop-blur border border-slate-700 p-1 rounded-xl">
-                {% for s in ['Todos', 'Manhã', 'Tarde', 'Noite'] %}
+                {% for s in ['Todos', 'Manha', 'Tarde', 'Noite'] %}
                 <a href="?shift={{ s }}"
                     class="px-4 py-2 rounded-lg text-sm font-bold transition-all {{ 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' if current_shift == s else 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                     {{ s }}
                 </a>
                 {% endfor %}
             </div>
+            <p class="text-xs text-slate-500">Filtrar visualizacao por turno</p>
         </div>
 
         <!-- 1. TOP KPI ROW -->
@@ -104,172 +250,253 @@
             </div>
         </div>
 
-        <!-- 2. MAIN CONTENT SPLIT -->
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <!-- 2. DASHBOARD CARDS -->
+        <div class="grid grid-cols-1 gap-6">
 
-            <!-- LEFT: LIVE SEPARATION (3 Cols Wide) -->
-            <div class="lg:col-span-3 space-y-4">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-xl font-bold flex items-center gap-2">
-                        <span class="relative flex h-3 w-3">
-                            <span
-                                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                            <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                        </span>
-                        Separação em Tempo Real
-                        <span
-                            class="px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-xs text-slate-300 font-mono">
-                            {{ dashboard.active_separators_count }} Ativos
-                        </span>
-                    </h2>
-                </div>
-
-                <!-- LIVE GRID -->
-                {% if dashboard.live_separation|length == 0 %}
-                <div
-                    class="flex flex-col items-center justify-center h-64 bg-slate-800/50 rounded-2xl border border-slate-700/50 border-dashed">
-                    <div
-                        class="w-16 h-16 rounded-full bg-slate-700/50 flex items-center justify-center text-slate-500 mb-4">
-                        <i data-lucide="coffee" class="w-8 h-8"></i>
-                    </div>
-                    <h3 class="text-lg font-bold text-slate-400">Operação em Pausa</h3>
-                    <p class="text-slate-500 text-sm">Nenhuma rota ativa no momento.</p>
-                </div>
-                {% else %}
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {% for op in dashboard.live_separation %}
-                    <div
-                        class="bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col gap-3 hover:border-blue-500/50 transition-colors relative group">
-
-                        <!-- Employee Header -->
-                        <div class="flex items-center gap-4 border-b border-slate-700/50 pb-3">
-                            <div class="relative">
-                                <div
-                                    class="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse border-2 border-slate-800 z-10">
-                                </div>
-                                <div
-                                    class="w-12 h-12 rounded-full bg-slate-700 overflow-hidden shrink-0 border-2 border-slate-600 group-hover:border-blue-500 transition-colors">
-                                    {% if op.photo_url %}
-                                    <img src="{{ op.photo_url }}" class="w-full h-full object-cover">
-                                    {% else %}
-                                    <div
-                                        class="w-full h-full flex items-center justify-center text-slate-400 font-bold text-lg">
-                                        {{ op.employee_name[0] }}
-                                    </div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="min-w-0 flex-1">
-                                <h4 class="font-bold text-white truncate">{{ op.employee_name }}</h4>
-                                <span
-                                    class="text-[10px] font-bold uppercase text-slate-500 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700">
-                                    {{ op.routes|length }} Tarefas
-                                </span>
-                            </div>
+            <!-- RADAR RH -->
+            <div>
+                <div class="bg-slate-800/80 backdrop-blur rounded-2xl border border-slate-700 overflow-hidden">
+                    <div class="p-4 border-b border-slate-700 flex items-center justify-between gap-4">
+                        <div>
+                            <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Radar RH</p>
+                            <p class="text-sm font-semibold text-white">Visao completa do turno {{ dashboard.current_shift_name }}</p>
                         </div>
-
-                        <!-- Routes List -->
-                        <div class="space-y-2 mt-1 max-h-48 overflow-y-auto custom-scrollbar pr-1">
-                            {% for route in op.routes %}
-                            <div
-                                class="bg-slate-900/50 rounded-lg p-2.5 flex justify-between items-center text-xs border border-slate-700/30 hover:bg-slate-900 transition-colors">
-                                <div class="flex-1 min-w-0 mr-2">
-                                    <p class="text-blue-400 font-bold uppercase truncate mb-0.5"
-                                        title="{{ route.client }}">{{ route.client }}</p>
-                                    <div class="flex items-center gap-2 text-slate-500">
-                                        <div class="flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded">
-                                            <i data-lucide="clock" class="w-3 h-3"></i>
-                                            <span class="font-mono">{{ route.start_time }}</span>
+                        <div class="text-right">
+                            <p class="text-[10px] text-slate-500 uppercase tracking-wider">Turno base</p>
+                            <p class="text-sm font-bold text-white">{{ dashboard.current_shift_name }}</p>
+                        </div>
+                    </div>
+                    <div class="p-4 space-y-4">
+                        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                            <section class="bg-slate-900/60 backdrop-blur border border-slate-700/30 rounded-2xl p-4 space-y-3">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div>
+                                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Faltas confirmadas</p>
+                                        <p class="text-sm font-semibold text-white">{{ dashboard.alerts.ausentes|length }} colaboradores</p>
+                                    </div>
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase text-red-300 bg-red-500/10">Radar</span>
+                                </div>
+                                <div class="space-y-2 max-h-44 overflow-y-auto custom-scrollbar">
+                                    {% if dashboard.alerts.ausentes %}
+                                    {% for absence in dashboard.alerts.ausentes[:6] %}
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-semibold text-white truncate">{{ absence.full_name }}</p>
+                                            <p class="text-[10px] text-slate-400">{{ absence.shift }}</p>
                                         </div>
-                                        <span class="text-[10px] opacity-70">({{ route.duration_mins }} min)</span>
+                                        <span class="text-[10px] font-bold text-red-400">Falta</span>
                                     </div>
-                                </div>
-                                <div class="text-right shrink-0">
-                                    {% if route.tonnage > 0 %}
-                                    <span class="block font-mono font-bold text-emerald-400 text-sm">{{
-                                        "{:,.0f}".format(route.tonnage).replace(",", ".") }}</span>
-                                    <span class="text-[9px] text-slate-600 uppercase">Kg</span>
+                                    {% endfor %}
                                     {% else %}
-                                    <span class="text-slate-600 font-mono text-[10px]">--</span>
+                                    <p class="text-[10px] text-slate-500">Nenhuma falta confirmada.</p>
                                     {% endif %}
                                 </div>
-                            </div>
-                            {% endfor %}
+                            </section>
+
+                            <section class="bg-slate-900/60 backdrop-blur border border-slate-700/30 rounded-2xl p-4 space-y-3">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div>
+                                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Atestados</p>
+                                        <p class="text-sm font-semibold text-white">{{ dashboard.alerts.atestados|length }} registros</p>
+                                    </div>
+                                    <i data-lucide="activity" class="w-4 h-4 text-amber-300"></i>
+                                </div>
+                                <div class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                                    {% if dashboard.alerts.atestados %}
+                                    {% for atestado in dashboard.alerts.atestados[:5] %}
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-semibold text-white truncate">{{ atestado.full_name }}</p>
+                                            <p class="text-[10px] text-slate-400">{{ atestado.shift }} - Início {{ atestado.start_date }}</p>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-amber-300">Atestado · {{ atestado.days_until }}d</span>
+                                    </div>
+                                    {% endfor %}
+                                    {% else %}
+                                    <p class="text-[10px] text-slate-500">Nenhum atestado previsto nos próximos 30 dias.</p>
+                                    {% endif %}
+                                </div>
+                            </section>
+
+                            <section class="bg-slate-900/60 backdrop-blur border border-slate-700/30 rounded-2xl p-4 space-y-3">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div>
+                                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Fim de experiencia</p>
+                                        <p class="text-sm font-semibold text-white">{{ dashboard.hr.experience_expiring|length }} proximos</p>
+                                    </div>
+                                    <i data-lucide="clock-alert" class="w-4 h-4 text-purple-300"></i>
+                                </div>
+                                <div class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                                    {% if dashboard.hr.experience_expiring %}
+                                    {% for exp in dashboard.hr.experience_expiring[:4] %}
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-semibold text-white truncate">{{ exp.full_name }}</p>
+                                            <p class="text-[10px] text-slate-400">{{ exp.role }}</p>
+                                        </div>
+                                        <div class="flex flex-col items-end">
+                                            <p class="text-[10px] text-slate-400">{{ exp.type }} dias - {{ exp.date }}</p>
+                                            <span class="text-[10px] font-bold {% if exp.days <= 3 %}text-red-500{% else %}text-emerald-300{% endif %}">{{ exp.days }}d</span>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                    {% else %}
+                                    <p class="text-[10px] text-slate-500">Nenhum vencimento proximo.</p>
+                                    {% endif %}
+                                </div>
+                            </section>
+
+                            <section class="bg-slate-900/60 backdrop-blur border border-slate-700/30 rounded-2xl p-4 space-y-3">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div>
+                                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Aniversariantes</p>
+                                        <p class="text-sm font-semibold text-white">{{ dashboard.hr.birthdays|length }} este mes</p>
+                                    </div>
+                                    <i data-lucide="cake" class="w-4 h-4 text-pink-300"></i>
+                                </div>
+                                <div class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                                    {% if dashboard.hr.birthdays %}
+                                    {% for b in dashboard.hr.birthdays[:5] %}
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-semibold text-white truncate">{{ b.name }}</p>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-pink-300">Dia {{ b.day }}</span>
+                                    </div>
+                                    {% endfor %}
+                                    {% else %}
+                                    <p class="text-[10px] text-slate-500">Sem aniversariantes previstos.</p>
+                                    {% endif %}
+                                </div>
+                            </section>
+
+                            <section class="bg-slate-900/60 backdrop-blur border border-slate-700/30 rounded-2xl p-4 space-y-3">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div>
+                                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Ferias ativas</p>
+                                        <p class="text-sm font-semibold text-white">{{ dashboard.hr.vacation|length }} em descanso</p>
+                                    </div>
+                                    <i data-lucide="sun" class="w-4 h-4 text-emerald-300"></i>
+                                </div>
+                                <div class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                                    {% if dashboard.hr.vacation %}
+                                    {% for v in dashboard.hr.vacation[:4] %}
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-semibold text-white truncate">{{ v.name }}</p>
+                                            <p class="text-[10px] text-slate-400">{{ v.shift }}</p>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-emerald-300">Ferias</span>
+                                    </div>
+                                    {% endfor %}
+                                    {% else %}
+                                    <p class="text-[10px] text-slate-500">Ninguem em ferias neste momento.</p>
+                                    {% endif %}
+                                </div>
+                            </section>
+
+                            <section class="bg-slate-900/60 backdrop-blur border border-slate-700/30 rounded-2xl p-4 space-y-3">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div>
+                                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Férias próximas (30 dias)</p>
+                                        <p class="text-sm font-semibold text-white">{{ dashboard.alerts.vacations_upcoming|length }} programadas</p>
+                                    </div>
+                                    <i data-lucide="calendar-clock" class="w-4 h-4 text-cyan-300"></i>
+                                </div>
+                                <div class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                                    {% if dashboard.alerts.vacations_upcoming %}
+                                    {% for v in dashboard.alerts.vacations_upcoming[:4] %}
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-semibold text-white truncate">{{ v.full_name }}</p>
+                                            <p class="text-[10px] text-slate-400">{{ v.shift }} - Inicio {{ v.start_date }}</p>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-cyan-300">{{ v.days_until }}d</span>
+                                    </div>
+                                    {% endfor %}
+                                    {% else %}
+                                    <p class="text-[10px] text-slate-500">Nenhuma programacao futura cadastrada.</p>
+                                    {% endif %}
+                                </div>
+                            </section>
                         </div>
-
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endif %}
-            </div>
-
-            <!-- RIGHT: COMPACT HR (1 Col Wide) -->
-            <div class="lg:col-span-1 space-y-6">
-                <!-- Birthdays Card -->
-                <div class="bg-slate-800/80 backdrop-blur rounded-2xl border border-slate-700 overflow-hidden">
-                    <div class="p-4 border-b border-slate-700 flex items-center justify-between bg-pink-500/5">
-                        <h3 class="font-bold text-pink-200 text-sm uppercase">Aniversariantes</h3>
-                        <i data-lucide="cake" class="w-4 h-4 text-pink-400"></i>
-                    </div>
-                    <div class="p-4 space-y-3 max-h-60 overflow-y-auto custom-scrollbar">
-                        {% if dashboard.hr.birthdays|length == 0 %}
-                        <p class="text-xs text-slate-500 text-center py-2">Nenhum neste mês.</p>
-                        {% else %}
-                        {% for b in dashboard.hr.birthdays %}
-                        <div class="flex items-center gap-3">
-                            <div
-                                class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold shrink-0">
-                                {% if b.photo %}
-                                <img src="{{ b.photo }}" class="w-full h-full rounded-full object-cover">
-                                {% else %}
-                                {{ b.name[0] }}
-                                {% endif %}
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm font-medium text-white truncate">{{ b.name }}</p>
-                                <p class="text-[10px] text-pink-400 font-bold">Dia {{ b.day }}</p>
-                            </div>
-                        </div>
-                        {% endfor %}
-                        {% endif %}
                     </div>
                 </div>
-
-                <!-- Vacation Card -->
-                <div class="bg-slate-800/80 backdrop-blur rounded-2xl border border-slate-700 overflow-hidden">
-                    <div class="p-4 border-b border-slate-700 flex items-center justify-between bg-orange-500/5">
-                        <h3 class="font-bold text-orange-200 text-sm uppercase">Em Férias</h3>
-                        <i data-lucide="palmtree" class="w-4 h-4 text-orange-400"></i>
-                    </div>
-                    <div class="p-4 space-y-3 max-h-60 overflow-y-auto custom-scrollbar">
-                        {% if dashboard.hr.vacation|length == 0 %}
-                        <p class="text-xs text-slate-500 text-center py-2">Todos a bordo.</p>
-                        {% else %}
-                        {% for v in dashboard.hr.vacation %}
-                        <div class="flex items-center gap-3">
-                            <div
-                                class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold shrink-0 opacity-50">
-                                {% if v.photo %}
-                                <img src="{{ v.photo }}" class="w-full h-full rounded-full object-cover">
-                                {% else %}
-                                {{ v.name[0] }}
-                                {% endif %}
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm font-medium text-slate-400 truncate">{{ v.name }}</p>
-                                <p class="text-[10px] text-orange-400">Ausente</p>
-                            </div>
-                        </div>
-                        {% endfor %}
-                        {% endif %}
-                    </div>
-                </div>
-
             </div>
         </div>
 
-    </div>
-</div>
+        <!-- 3. SEPARACAO EM TEMPO REAL -->
+        <div class="mt-8 space-y-4">
+            <div class="flex items-center gap-2">
+                <span class="relative flex h-3 w-3">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </span>
+                <h2 class="text-lg font-bold text-white">Separacao em Tempo Real</h2>
+            </div>
+
+            {% if dashboard.live_separation|length == 0 %}
+            <div class="flex flex-col items-center justify-center h-64 bg-slate-800/50 rounded-2xl border border-slate-700/50 border-dashed">
+                <div class="w-16 h-16 rounded-full bg-slate-700/50 flex items-center justify-center text-slate-500 mb-4">
+                    <i data-lucide="coffee" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-400">Operacao em Pausa</h3>
+                <p class="text-slate-500 text-sm">Nenhuma rota ativa no momento.</p>
+            </div>
+            {% else %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for op in dashboard.live_separation %}
+                <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col gap-3 hover:border-blue-500/50 transition-colors relative group">
+                    <div class="flex items-center gap-4 border-b border-slate-700/50 pb-3">
+                        <div class="relative">
+                            <div class="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse border-2 border-slate-800 z-10"></div>
+                            <div class="w-12 h-12 rounded-full bg-slate-700 overflow-hidden shrink-0 border-2 border-slate-600 group-hover:border-blue-500 transition-colors">
+                                {% if op.photo_url %}
+                                <img src="{{ op.photo_url }}" class="w-full h-full object-cover">
+                                {% else %}
+                                <div class="w-full h-full flex items-center justify-center text-slate-400 font-bold text-lg">
+                                    {{ op.employee_name[0] }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <h4 class="font-bold text-white truncate">{{ op.employee_name }}</h4>
+                            <span class="text-[10px] font-bold uppercase text-slate-500 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700">
+                                {{ op.routes|length }} Tarefas
+                            </span>
+                        </div>
+                    </div>
+                    <div class="space-y-2 mt-1 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                        {% for route in op.routes %}
+                        <div class="bg-slate-900/50 rounded-lg p-2.5 flex justify-between items-center text-xs border border-slate-700/30 hover:bg-slate-900 transition-colors">
+                            <div class="flex-1 min-w-0 mr-2">
+                                <p class="text-blue-400 font-bold uppercase truncate mb-0.5" title="{{ route.client }}">{{ route.client }}</p>
+                                <div class="flex items-center gap-2 text-slate-500">
+                                    <div class="flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded">
+                                        <i data-lucide="clock" class="w-3 h-3"></i>
+                                        <span class="font-mono">{{ route.start_time }}</span>
+                                    </div>
+                                    <span class="text-[10px] opacity-70">({{ route.duration_mins }} min)</span>
+                                </div>
+                            </div>
+                            <div class="text-right shrink-0">
+                                {% if route.tonnage > 0 %}
+                                <span class="block font-mono font-bold text-emerald-400 text-sm">{{ "{:,.0f}".format(route.tonnage).replace(',', '.') }}</span>
+                                <span class="text-[9px] text-slate-600 uppercase">Kg</span>
+                                {% else %}
+                                <span class="text-slate-600 font-mono text-[10px]">--</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
 
 <style>
     /* Custom Scrollbar for small areas */
@@ -292,6 +519,121 @@
 </style>
 
 <script>
+    // Dashboard Clock & Shift Logic
+    // Horarios: Manha 05:00-13:20, Tarde 12:00-20:20, Noite 18:00-06:00
+    function isWithinShift(hour, minute, startH, startM, endH, endM) {
+        var current = hour * 60 + minute;
+        var start = startH * 60 + startM;
+        var end = endH * 60 + endM;
+        if (start < end) {
+            return current >= start && current < end;
+        }
+        return current >= start || current < end;
+    }
+
+    function getCurrentShift(hour, minute) {
+        if (isWithinShift(hour, minute, 18, 0, 6, 0)) {
+            return { name: 'Noite', color: 'purple', startH: 18, startM: 0, endH: 6, endM: 0 };
+        }
+        if (isWithinShift(hour, minute, 5, 0, 13, 20)) {
+            return { name: 'Manha', color: 'blue', startH: 5, startM: 0, endH: 13, endM: 20 };
+        }
+        return { name: 'Tarde', color: 'orange', startH: 12, startM: 0, endH: 20, endM: 20 };
+    }
+
+    function getShiftProgress(hour, minute) {
+        var shift = getCurrentShift(hour, minute);
+        var currentMinutes = hour * 60 + minute;
+        var startMinutes = shift.startH * 60 + shift.startM;
+        var endMinutes = shift.endH * 60 + shift.endM;
+        
+        // Turno noite cruza meia-noite (18:00 - 06:00 = 12 horas)
+        if (shift.name === 'Noite') {
+            if (hour >= 18) {
+                currentMinutes = (hour - 18) * 60 + minute;
+            } else {
+                currentMinutes = (hour + 6) * 60 + minute; // horas apos meia-noite + 6
+            }
+            startMinutes = 0;
+            endMinutes = 12 * 60; // 12 horas de turno
+        }
+        
+        var total = endMinutes - startMinutes;
+        var elapsed = currentMinutes - startMinutes;
+        if (elapsed < 0) elapsed = 0;
+        
+        return Math.min(100, Math.max(0, (elapsed / total) * 100));
+    }
+
+    function updateDashboardClock() {
+        var now = new Date();
+        var hours = now.getHours();
+        var minutes = now.getMinutes();
+        
+        var timeStr = String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0');
+        
+        var timeEl = document.getElementById('dash-time');
+        if (timeEl) timeEl.textContent = timeStr;
+        
+        var days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
+        var dateStr = days[now.getDay()] + ', ' + now.getDate() + '/' + String(now.getMonth() + 1).padStart(2, '0');
+        
+        var dateEl = document.getElementById('dash-date');
+        if (dateEl) dateEl.textContent = dateStr;
+        
+        var shift = getCurrentShift(hours, minutes);
+        var shiftNameEl = document.getElementById('dash-shift-name');
+        var shiftBarEl = document.getElementById('dash-shift-bar');
+        
+        if (shiftNameEl) {
+            shiftNameEl.textContent = 'Turno ' + shift.name;
+            var colorClasses = {
+                blue: 'text-blue-400',
+                orange: 'text-orange-400',
+                purple: 'text-purple-400'
+            };
+            shiftNameEl.className = 'text-sm font-bold ' + colorClasses[shift.color];
+        }
+        
+        var progress = getShiftProgress(hours, minutes);
+        if (shiftBarEl) {
+            var barColors = {
+                blue: 'bg-blue-500',
+                orange: 'bg-orange-500',
+                purple: 'bg-purple-500'
+            };
+            shiftBarEl.className = 'h-full ' + barColors[shift.color] + ' rounded-full transition-all';
+            shiftBarEl.style.width = progress + '%';
+        }
+        
+        // Show active indicator on current shift card
+        document.getElementById('shift-active-manha').classList.add('hidden');
+        document.getElementById('shift-active-tarde').classList.add('hidden');
+        document.getElementById('shift-active-noite').classList.add('hidden');
+        
+        var activeId = 'shift-active-' + shift.name.toLowerCase();
+        var activeEl = document.getElementById(activeId);
+        if (activeEl) activeEl.classList.remove('hidden');
+        
+        // Update team shift badge
+        var teamBadge = document.getElementById('team-shift-badge');
+        if (teamBadge) {
+            teamBadge.textContent = shift.name;
+            var badgeColors = {
+                blue: 'bg-blue-500/20 text-blue-400',
+                orange: 'bg-orange-500/20 text-orange-400',
+                purple: 'bg-purple-500/20 text-purple-400'
+            };
+            teamBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold ' + badgeColors[shift.color];
+        }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        updateDashboardClock();
+        setInterval(updateDashboardClock, 1000);
+    });
+
     // Auto-refresh every 30 seconds for live Pulse
     setTimeout(() => {
         window.location.reload();

@@ -17,5 +17,10 @@ venv/
 
 # Sistema
 .DS_Store
+<<<<<<< HEAD
 
 logs.txt
+=======
+logs.txt
+debug_alloc.log
+>>>>>>> main

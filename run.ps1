@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Script auxiliar para rodar o servidor usando o ambiente virtual configurado
 
 # Verifica se o arquivo uvicorn existe no venv
@@ -8,3 +9,8 @@ if (Test-Path "venv\Scripts\python.exe") {
 else {
     Write-Error "Ambiente virtual não encontrado ou incompleto. execute 'python -m venv venv' e instale as dependências."
 }
+=======
+'1  2  
+1
+' 
+>>>>>>> main

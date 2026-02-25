@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% set emp = employee_map.get(u.employee_id) if u.employee_id else None %}
+<div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8">
+    <div class="max-w-2xl mx-auto">
+        <a href="/admin/users" class="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white mb-6">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            Voltar
+        </a>
+
+        <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-700">
+                <h1 class="text-lg font-bold text-white">{{ u.username }}</h1>
+                <p class="text-sm text-slate-400">{{ emp.name if emp else 'Sem colaborador' }}{% if emp %} ({{ emp.registration_id }}){% endif %}</p>
+            </div>
+
+            <div class="p-6 space-y-6">
+                <!-- Colaborador -->
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-2">Colaborador</label>
+                    <form action="/admin/users/{{ u.id }}/employee" method="POST" class="flex gap-2">
+                        <select name="employee_id" class="flex-1 rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
+                            <option value="">Selecione...</option>
+                            {% for e in employees %}
+                            <option value="{{ e.id }}" {{ "selected" if u.employee_id == e.id else "" }}>{{ e.name }} ({{ e.registration_id }})</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">Salvar</button>
+                    </form>
+                </div>
+
+                <!-- Perfil -->
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-2">Perfil</label>
+                    <form action="/admin/users/{{ u.id }}/role" method="POST" class="flex gap-2">
+                        <select name="role" class="flex-1 rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
+                            <option value="leader" {{ "selected" if u.role == "leader" else "" }}>Líder</option>
+                            <option value="admin" {{ "selected" if u.role == "admin" else "" }}>Admin</option>
+                        </select>
+                        <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">Salvar</button>
+                    </form>
+                </div>
+
+                {% if u.role != "admin" %}
+                <!-- Páginas -->
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-2">Páginas permitidas</label>
+                    <form action="/admin/users/{{ u.id }}/pages" method="POST" class="space-y-2">
+                        {% for page in page_options %}
+                        <label class="flex items-center gap-2 text-sm text-slate-200 cursor-pointer">
+                            <input type="checkbox" name="pages" value="{{ page.key }}" class="rounded border-slate-600 bg-slate-900 text-blue-500" {{ "checked" if page.key in allowed else "" }}>
+                            {{ page.label }}
+                        </label>
+                        {% endfor %}
+                        <button type="submit" class="mt-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">Salvar</button>
+                    </form>
+                </div>
+                {% endif %}
+
+                <!-- Senha -->
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-2">Nova senha</label>
+                    <form action="/admin/users/{{ u.id }}/password" method="POST" class="flex gap-2">
+                        <input type="password" name="password" required placeholder="••••••••"
+                            class="flex-1 rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
+                        <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">Trocar senha</button>
+                    </form>
+                </div>
+
+                <!-- Status -->
+                <div class="pt-4 border-t border-slate-700">
+                    <form action="/admin/users/{{ u.id }}/status" method="POST">
+                        <input type="hidden" name="active" value="{{ 'false' if u.is_active else 'true' }}">
+                        <button type="submit" class="px-4 py-2 rounded-lg {{ 'bg-red-500/20 text-red-200 hover:bg-red-500/30' if u.is_active else 'bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30' }} text-sm font-medium">
+                            {{ "Desativar usuário" if u.is_active else "Ativar usuário" }}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

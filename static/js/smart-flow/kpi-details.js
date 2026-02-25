@@ -5,13 +5,19 @@
 
 const KPIDetails = {
     show(type) {
-        const { employees, currentShift, currentDate, routines } = Store.state;
+        const { employees, currentShift, currentDate, routines, allocations } = Store.state;
 
-        // Filtrar colaboradores do turno atual
+        // IMPORTANTE: Usar apenas colaboradores ALOCADOS (consistência com KPI strip)
+        // Antes: contava todos do turno. Agora: apenas alocados.
+        const allocatedEmpIds = Object.keys(allocations);
+
         const shiftEmps = employees.filter(e => {
-            const empShift = e.work_shift ?? e.shift ?? null;
-            if (!empShift) return false;
-            return empShift.toLowerCase() === currentShift.toLowerCase();
+            // Verificar se está alocado
+            if (!allocatedEmpIds.includes(String(e.id))) return false;
+
+            // Excluir demitidos
+            const status = (e.status || 'active').toLowerCase();
+            return status !== 'fired' && status !== 'demitido';
         });
 
         // Se for 'present', mostrar TODAS as rotinas agrupadas

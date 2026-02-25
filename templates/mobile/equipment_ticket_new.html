@@ -1,0 +1,131 @@
+{% extends "mobile/layout.html" %}
+
+{% block title %}Novo Chamado{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-900 text-slate-100 p-5 pb-24">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center gap-4 mb-2">
+            <a href="/mobile/routine/checklist"
+                class="p-2 rounded-full bg-slate-800/80 border border-slate-700 text-slate-400 hover:text-white transition-colors active:scale-95">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </a>
+            <div class="flex-1">
+                <h1 class="text-2xl font-bold text-white">Abrir Chamado</h1>
+                <p class="text-sm text-slate-400">Registrar falha no equipamento</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Chamados Abertos (Últimos 3 dias) -->
+    {% if open_tickets %}
+    <div class="mb-6 bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4">
+        <div class="flex items-center gap-2 mb-3">
+            <i data-lucide="alert-circle" class="w-5 h-5 text-amber-400"></i>
+            <h2 class="text-sm font-bold text-white">Chamados Abertos (Últimos 3 dias)</h2>
+        </div>
+        <div class="space-y-2 max-h-48 overflow-y-auto">
+            {% for ticket in open_tickets %}
+            <a href="/mobile/equipment/tickets/{{ ticket.id }}" 
+                class="block bg-slate-900/50 border border-slate-700/30 rounded-xl p-3 hover:bg-slate-900 transition-colors">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-xs font-bold text-blue-400">#{{ ticket.id }}</span>
+                            <span class="text-xs font-semibold text-white">{{ ticket.equipment_code }}</span>
+                        </div>
+                        <p class="text-xs text-slate-300 mb-1">{{ ticket.employee_name }}</p>
+                        <p class="text-[10px] text-slate-500">{{ ticket.created_at }}</p>
+                    </div>
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-slate-500 flex-shrink-0 mt-1"></i>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <form id="ticketForm" class="space-y-5">
+        <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-2">Equipamento *</label>
+            <select name="equipment_code" required
+                class="w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3.5 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none appearance-none">
+                <option value="" disabled selected>Selecione o equipamento</option>
+                {% if equipment_list %}
+                {% for eq in equipment_list %}
+                <option value="{{ eq.code }}">{{ eq.code }} - {{ 'Disponível' if eq.status == 'available' else 'Bloqueado' }}</option>
+                {% endfor %}
+                {% else %}
+                <option value="" disabled>Nenhum equipamento cadastrado</option>
+                {% endif %}
+            </select>
+        </div>
+        
+        <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-2">Descrição do Problema *</label>
+            <textarea name="description" rows="4" required
+                class="w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3.5 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none resize-none"
+                placeholder="Ex: Rodas travando, alavanca com folga, vazamento de óleo..."></textarea>
+        </div>
+        
+        <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-2">Fotos (opcional)</label>
+            <input type="file" name="files" multiple accept="image/*" capture="environment"
+                class="w-full text-xs text-slate-300 file:mr-3 file:rounded-xl file:border-0 file:bg-slate-700 file:px-4 file:py-2.5 file:text-xs file:font-semibold file:text-white hover:file:bg-slate-600 transition-colors">
+            <p class="text-[10px] text-slate-500 mt-2">Máximo 15MB por imagem. Formatos: JPG, PNG, WEBP</p>
+        </div>
+
+        <button type="submit" id="submitBtn"
+            class="w-full rounded-2xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold py-4 text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Abrir Chamado
+        </button>
+        <p id="statusMessage" class="text-center text-xs text-slate-400 min-h-[1rem] mt-2"></p>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const form = document.getElementById('ticketForm');
+    const statusMessage = document.getElementById('statusMessage');
+    const submitBtn = document.getElementById('submitBtn');
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (submitBtn.disabled) return;
+
+        submitBtn.disabled = true;
+        statusMessage.textContent = 'Enviando chamado...';
+        statusMessage.className = 'text-center text-xs text-slate-400 min-h-[1rem]';
+
+        const formData = new FormData(form);
+        try {
+            const res = await fetch('/api/equipment/tickets', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await res.json();
+
+            // Status 409 não deve mais bloquear, mas pode mostrar aviso se necessário
+            // A validação foi removida, então isso não deve mais acontecer
+
+            if (!res.ok || !result.success) {
+                throw new Error(result.error || 'Erro ao abrir chamado.');
+            }
+            statusMessage.textContent = 'Chamado registrado com sucesso!';
+            statusMessage.className = 'text-center text-xs text-emerald-400 min-h-[1rem]';
+            setTimeout(() => {
+                window.location.href = '/mobile/dashboard?success=chamado+criado';
+            }, 1000);
+        } catch (err) {
+            statusMessage.textContent = err.message || 'Falha ao enviar.';
+            statusMessage.className = 'text-center text-xs text-red-400 min-h-[1rem]';
+            submitBtn.disabled = false;
+        }
+    });
+</script>
+{% endblock %}

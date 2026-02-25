@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório de Avaliação Operacional - {{ period_label }}</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 15mm;
+            }
+            body {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .page-break {
+                page-break-before: always;
+            }
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        .gauge-svg {
+            width: 80px;
+            height: 80px;
+        }
+    </style>
+</head>
+<body class="bg-white text-slate-800 p-8">
+    <!-- Botão Imprimir -->
+    <div class="no-print fixed top-4 right-4 flex gap-2">
+        <button onclick="window.print()" class="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+            </svg>
+            Imprimir / Salvar PDF
+        </button>
+        <button onclick="window.close()" class="px-6 py-3 bg-slate-200 text-slate-700 rounded-lg font-semibold hover:bg-slate-300">
+            Fechar
+        </button>
+    </div>
+
+    <!-- Cabeçalho -->
+    <header class="border-b-2 border-slate-200 pb-6 mb-8">
+        <div class="flex items-start justify-between">
+            <div>
+                <p class="text-xs uppercase tracking-widest text-slate-500 mb-1">Relatório Operacional</p>
+                <h1 class="text-3xl font-bold text-slate-900">Avaliação de Performance</h1>
+                <p class="text-sm text-slate-600 mt-1">{{ period_label }} · {{ period_range_label }}</p>
+            </div>
+            <div class="text-right">
+                <p class="text-xs text-slate-500">Gerado em</p>
+                <p class="text-sm font-semibold text-slate-700">{{ generated_at }}</p>
+                {% if filters.shift != 'Todos' %}
+                <p class="mt-1 text-xs bg-slate-100 px-2 py-1 rounded inline-block">Turno: {{ filters.shift }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <!-- KPIs Resumidos -->
+    <section class="mb-8">
+        <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <span class="w-1 h-5 bg-blue-500 rounded-full"></span>
+            Indicadores-Chave
+        </h2>
+        <div class="grid grid-cols-3 md:grid-cols-6 gap-4">
+            <div class="bg-slate-50 rounded-lg p-4 text-center">
+                <p class="text-2xl font-bold text-slate-900">{{ team_stats.total_tonnage|fmt_br_int }}</p>
+                <p class="text-xs text-slate-500 mt-1">Volume (kg)</p>
+            </div>
+            <div class="bg-emerald-50 rounded-lg p-4 text-center">
+                <p class="text-2xl font-bold text-emerald-700">{{ team_stats.avg_kgh|fmt_br_int }}</p>
+                <p class="text-xs text-slate-500 mt-1">Média Kg/h</p>
+            </div>
+            <div class="bg-blue-50 rounded-lg p-4 text-center">
+                <p class="text-2xl font-bold text-blue-700">{{ team_stats.avg_trip_minutes|fmt_br }}</p>
+                <p class="text-xs text-slate-500 mt-1">Min/Viagem</p>
+            </div>
+            <div class="bg-slate-50 rounded-lg p-4 text-center">
+                <p class="text-2xl font-bold text-slate-900">{{ team_stats.active_employees|fmt_br_int }}</p>
+                <p class="text-xs text-slate-500 mt-1">Colaboradores</p>
+            </div>
+            <div class="bg-emerald-50 rounded-lg p-4 text-center">
+                <p class="text-2xl font-bold text-emerald-700">{{ (team_stats.avg_presence_adjusted * 100)|fmt_br_int }}%</p>
+                <p class="text-xs text-slate-500 mt-1">Presença</p>
+            </div>
+            <div class="bg-amber-50 rounded-lg p-4 text-center">
+                <p class="text-2xl font-bold text-amber-700">{{ (team_stats.discipline_rate * 100)|fmt_br_int }}%</p>
+                <p class="text-xs text-slate-500 mt-1">Disciplina</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Distribuição por Badge -->
+    <section class="mb-8">
+        <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <span class="w-1 h-5 bg-purple-500 rounded-full"></span>
+            Distribuição da Equipe
+        </h2>
+        <div class="grid grid-cols-4 gap-4">
+            <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-center">
+                <p class="text-3xl font-bold text-emerald-700">{{ badge_counts.referencia }}</p>
+                <p class="text-xs font-semibold text-emerald-600 mt-1">Referência</p>
+            </div>
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                <p class="text-3xl font-bold text-blue-700">{{ badge_counts.evolucao }}</p>
+                <p class="text-xs font-semibold text-blue-600 mt-1">Em Evolução</p>
+            </div>
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
+                <p class="text-3xl font-bold text-amber-700">{{ badge_counts.potencial }}</p>
+                <p class="text-xs font-semibold text-amber-600 mt-1">Potencial</p>
+            </div>
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                <p class="text-3xl font-bold text-red-700">{{ badge_counts.atencao }}</p>
+                <p class="text-xs font-semibold text-red-600 mt-1">Atenção</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Top Performers -->
+    <section class="mb-8">
+        <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <span class="w-1 h-5 bg-emerald-500 rounded-full"></span>
+            Top 10 Performers
+        </h2>
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-slate-100">
+                    <th class="text-left px-3 py-2 font-semibold text-slate-600">#</th>
+                    <th class="text-left px-3 py-2 font-semibold text-slate-600">Colaborador</th>
+                    <th class="text-right px-3 py-2 font-semibold text-slate-600">Score</th>
+                    <th class="text-right px-3 py-2 font-semibold text-slate-600">Kg/h</th>
+                    <th class="text-right px-3 py-2 font-semibold text-slate-600">Volume</th>
+                    <th class="text-center px-3 py-2 font-semibold text-slate-600">Badge</th>
+                    <th class="text-left px-3 py-2 font-semibold text-slate-600">Tendência</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows[:10] %}
+                <tr class="border-b border-slate-100 {{ 'bg-emerald-50' if loop.index <= 3 else '' }}">
+                    <td class="px-3 py-2 font-bold text-slate-500">{{ loop.index }}</td>
+                    <td class="px-3 py-2 font-semibold text-slate-800">{{ row.name }}</td>
+                    <td class="px-3 py-2 text-right font-bold text-emerald-600">{{ row.score|fmt_br_2 }}</td>
+                    <td class="px-3 py-2 text-right text-slate-700">{{ row.avg_kgh|fmt_br_int }}</td>
+                    <td class="px-3 py-2 text-right text-slate-700">{{ row.total_tonnage|fmt_br_int }} kg</td>
+                    <td class="px-3 py-2 text-center">
+                        <span class="px-2 py-0.5 rounded text-xs font-semibold
+                            {% if row.badge == 'Referência' %}bg-emerald-100 text-emerald-700
+                            {% elif row.badge == 'Em evolução' %}bg-blue-100 text-blue-700
+                            {% elif row.badge == 'Atenção' %}bg-red-100 text-red-700
+                            {% else %}bg-amber-100 text-amber-700{% endif %}">
+                            {{ row.badge }}
+                        </span>
+                    </td>
+                    <td class="px-3 py-2 text-slate-600">{{ row.trend_label }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <!-- Destaques -->
+    <section class="mb-8">
+        <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <span class="w-1 h-5 bg-amber-500 rounded-full"></span>
+            Destaques do Período
+        </h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {% if insights.best %}
+            <div class="bg-slate-50 rounded-lg p-4">
+                <p class="text-xs text-slate-500 uppercase tracking-wider">Melhor do Período</p>
+                <p class="font-bold text-slate-800 mt-1">{{ insights.best.name }}</p>
+                <p class="text-xs text-slate-600">{{ insights.best.detail }}</p>
+            </div>
+            {% endif %}
+            {% if insights.improved %}
+            <div class="bg-slate-50 rounded-lg p-4">
+                <p class="text-xs text-slate-500 uppercase tracking-wider">Maior Evolução</p>
+                <p class="font-bold text-slate-800 mt-1">{{ insights.improved.name }}</p>
+                <p class="text-xs text-slate-600">{{ insights.improved.detail }}</p>
+            </div>
+            {% endif %}
+            {% if insights.presence %}
+            <div class="bg-slate-50 rounded-lg p-4">
+                <p class="text-xs text-slate-500 uppercase tracking-wider">Melhor Presença</p>
+                <p class="font-bold text-slate-800 mt-1">{{ insights.presence.name }}</p>
+                <p class="text-xs text-slate-600">{{ insights.presence.detail }}</p>
+            </div>
+            {% endif %}
+            {% if insights.consistent %}
+            <div class="bg-slate-50 rounded-lg p-4">
+                <p class="text-xs text-slate-500 uppercase tracking-wider">Mais Consistente</p>
+                <p class="font-bold text-slate-800 mt-1">{{ insights.consistent.name }}</p>
+                <p class="text-xs text-slate-600">{{ insights.consistent.detail }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- Pontos de Atenção -->
+    {% if attention_list %}
+    <section class="mb-8">
+        <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <span class="w-1 h-5 bg-red-500 rounded-full"></span>
+            Pontos de Atenção
+        </h2>
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr>
+                        <th class="text-left px-2 py-1 font-semibold text-red-700">Colaborador</th>
+                        <th class="text-right px-2 py-1 font-semibold text-red-700">Score</th>
+                        <th class="text-right px-2 py-1 font-semibold text-red-700">Faltas</th>
+                        <th class="text-left px-2 py-1 font-semibold text-red-700">Motivo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in attention_list %}
+                    <tr class="border-t border-red-200">
+                        <td class="px-2 py-2 text-red-800 font-semibold">{{ item.name }}</td>
+                        <td class="px-2 py-2 text-right text-red-700">{{ item.score|fmt_br_2 }}</td>
+                        <td class="px-2 py-2 text-right text-red-700">{{ item.unjustified_absences }}</td>
+                        <td class="px-2 py-2 text-red-600 text-xs">{{ item.badge_reason }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Relatório IA (se disponível) -->
+    {% if ai_report %}
+    <section class="page-break mb-8">
+        <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <span class="w-1 h-5 bg-purple-500 rounded-full"></span>
+            Análise Inteligente
+        </h2>
+        <div class="bg-slate-50 border border-slate-200 rounded-lg p-6">
+            <p class="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{{ ai_report }}</p>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Tabela Completa -->
+    <section class="page-break">
+        <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <span class="w-1 h-5 bg-slate-500 rounded-full"></span>
+            Ranking Completo ({{ rows|length }} colaboradores)
+        </h2>
+        <table class="w-full text-xs">
+            <thead>
+                <tr class="bg-slate-100">
+                    <th class="text-left px-2 py-1 font-semibold text-slate-600">#</th>
+                    <th class="text-left px-2 py-1 font-semibold text-slate-600">Nome</th>
+                    <th class="text-right px-2 py-1 font-semibold text-slate-600">Score</th>
+                    <th class="text-right px-2 py-1 font-semibold text-slate-600">Kg/h</th>
+                    <th class="text-right px-2 py-1 font-semibold text-slate-600">Volume</th>
+                    <th class="text-right px-2 py-1 font-semibold text-slate-600">Viagens</th>
+                    <th class="text-right px-2 py-1 font-semibold text-slate-600">Presença</th>
+                    <th class="text-right px-2 py-1 font-semibold text-slate-600">Faltas</th>
+                    <th class="text-center px-2 py-1 font-semibold text-slate-600">Badge</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr class="border-b border-slate-100 {{ 'bg-red-50' if row.badge == 'Atenção' else '' }}">
+                    <td class="px-2 py-1 text-slate-500">{{ loop.index }}</td>
+                    <td class="px-2 py-1 text-slate-800 font-medium">{{ row.name }}</td>
+                    <td class="px-2 py-1 text-right font-semibold text-emerald-600">{{ row.score|fmt_br_2 }}</td>
+                    <td class="px-2 py-1 text-right text-slate-700">{{ row.avg_kgh|fmt_br_int }}</td>
+                    <td class="px-2 py-1 text-right text-slate-700">{{ row.total_tonnage|fmt_br_int }}</td>
+                    <td class="px-2 py-1 text-right text-slate-700">{{ row.count }}</td>
+                    <td class="px-2 py-1 text-right text-slate-700">{{ row.regularity_adjusted|fmt_br_pct }}</td>
+                    <td class="px-2 py-1 text-right text-red-600 font-semibold">{{ row.unjustified_absences }}</td>
+                    <td class="px-2 py-1 text-center">
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold
+                            {% if row.badge == 'Referência' %}bg-emerald-100 text-emerald-700
+                            {% elif row.badge == 'Em evolução' %}bg-blue-100 text-blue-700
+                            {% elif row.badge == 'Atenção' %}bg-red-100 text-red-700
+                            {% else %}bg-amber-100 text-amber-700{% endif %}">
+                            {{ row.badge }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <!-- Rodapé -->
+    <footer class="mt-12 pt-6 border-t border-slate-200 text-center text-xs text-slate-500">
+        <p>Relatório gerado automaticamente pelo Sistema de Análise Operacional</p>
+        <p class="mt-1">{{ generated_at }} · Período: {{ period_range_label }}</p>
+    </footer>
+
+    <script>
+        // Auto-print quando a página carregar (opcional)
+        // window.onload = function() { window.print(); };
+    </script>
+</body>
+</html>

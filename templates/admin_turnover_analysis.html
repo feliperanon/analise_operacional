@@ -1,0 +1,670 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8" x-data="{ 
+    showAIModal: false, 
+    showDatesModal: false,
+    aiLoading: false, 
+    aiReport: '',
+    savingDates: false,
+    datesSaved: false,
+    generateReport() {
+        this.aiLoading = true;
+        this.aiReport = '';
+        fetch('/admin/turnover-analysis/ai-report', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                period: '{{ current_period }}',
+                start_date: '{{ current_start_date or '' }}',
+                end_date: '{{ current_end_date or '' }}'
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            this.aiLoading = false;
+            if (data.report) {
+                this.aiReport = data.report;
+            } else {
+                this.aiReport = 'Erro ao gerar relatório: ' + (data.error || 'Erro desconhecido');
+            }
+        })
+        .catch(e => {
+            this.aiLoading = false;
+            this.aiReport = 'Erro de conexão: ' + e.message;
+        });
+    },
+    saveDates() {
+        this.savingDates = true;
+        const form = document.getElementById('datesForm');
+        const formData = new FormData(form);
+        
+        fetch('/admin/turnover-analysis/update-dates', {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            this.savingDates = false;
+            if (data.success) {
+                this.datesSaved = true;
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                alert('Erro ao salvar: ' + (data.error || 'Erro desconhecido'));
+            }
+        })
+        .catch(e => {
+            this.savingDates = false;
+            alert('Erro de conexão: ' + e.message);
+        });
+    },
+    fixingDates: false,
+    fixDatesAuto() {
+        if (!confirm('Isso vai preencher automaticamente as datas de saída usando a data do evento de demissão/afastamento. Continuar?')) {
+            return;
+        }
+        this.fixingDates = true;
+        
+        fetch('/admin/turnover-analysis/fix-dates', {
+            method: 'POST'
+        })
+        .then(r => r.json())
+        .then(data => {
+            this.fixingDates = false;
+            if (data.success) {
+                this.datesSaved = true;
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                alert('Erro ao corrigir: ' + (data.error || 'Erro desconhecido'));
+            }
+        })
+        .catch(e => {
+            this.fixingDates = false;
+            alert('Erro de conexão: ' + e.message);
+        });
+    }
+}">
+    <div class="max-w-7xl mx-auto space-y-6">
+        
+        <!-- Header -->
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold text-white mb-2 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                    </div>
+                    Análise de Turnover e Rotatividade
+                </h1>
+                <p class="text-sm text-slate-400">Parecer completo sobre movimentação de colaboradores</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <!-- Alerta de datas pendentes -->
+                {% set pending_exits = recent_exits|selectattr('exit_date_pending')|list %}
+                {% set pending_count = pending_exits|length %}
+                {% if pending_count > 0 %}
+                <button @click="showDatesModal = true" class="w-full md:w-auto px-3 py-2 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 rounded-lg flex items-center gap-2 text-orange-400 text-xs transition cursor-pointer">
+                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                    <span>{{ pending_count }} colaborador(es) sem data de saída. <strong class="underline">Clique para preencher</strong></span>
+                </button>
+                {% endif %}
+                {% if gemini_available %}
+                <button @click="showAIModal = true; generateReport()" 
+                        class="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg transition flex items-center gap-2 text-sm font-medium shadow-lg">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                    </svg>
+                    Gerar Parecer com IA
+                </button>
+                {% endif %}
+                <a href="/admin/turnover-analysis/export?period={{ current_period }}&start_date={{ current_start_date or '' }}&end_date={{ current_end_date or '' }}" 
+                   class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition flex items-center gap-2 text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Exportar Excel
+                </a>
+                <a href="/admin/substitutions" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition flex items-center gap-2 text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                    </svg>
+                    Ver Substituições
+                </a>
+                <a href="/employees" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg border border-slate-700 transition flex items-center gap-2 text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    Voltar
+                </a>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+            <form method="GET" class="grid grid-cols-2 md:grid-cols-5 gap-4 items-end">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Período Rápido</label>
+                    <select name="period" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-rose-500 focus:outline-none">
+                        <option value="all" {% if current_period == 'all' %}selected{% endif %}>Todo período</option>
+                        <option value="month" {% if current_period == 'month' %}selected{% endif %}>Este mês</option>
+                        <option value="quarter" {% if current_period == 'quarter' %}selected{% endif %}>Este trimestre</option>
+                        <option value="semester" {% if current_period == 'semester' %}selected{% endif %}>Este semestre</option>
+                        <option value="year" {% if current_period == 'year' %}selected{% endif %}>Este ano</option>
+                        <option value="custom" {% if current_period == 'custom' %}selected{% endif %}>Personalizado</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Data Início</label>
+                    <input type="date" name="start_date" value="{{ current_start_date or '' }}" 
+                           class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-rose-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Data Fim</label>
+                    <input type="date" name="end_date" value="{{ current_end_date or '' }}"
+                           class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-rose-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Turno</label>
+                    <select name="shift" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-rose-500 focus:outline-none">
+                        <option value="all" {% if current_shift == 'all' %}selected{% endif %}>Todos</option>
+                        <option value="Manhã" {% if current_shift == 'Manhã' %}selected{% endif %}>Manhã</option>
+                        <option value="Tarde" {% if current_shift == 'Tarde' %}selected{% endif %}>Tarde</option>
+                        <option value="Noite" {% if current_shift == 'Noite' %}selected{% endif %}>Noite</option>
+                    </select>
+                </div>
+                <div>
+                    <button type="submit" class="w-full px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition text-sm font-medium flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        Analisar
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- KPIs Principais -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Taxa de Turnover -->
+            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-xs font-bold text-slate-400 uppercase">Taxa de Turnover</p>
+                    <div class="w-8 h-8 rounded-lg bg-rose-500/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/>
+                        </svg>
+                    </div>
+                </div>
+                <p class="text-3xl font-bold text-white">{{ "%.1f"|format(metrics.turnover_rate) }}%</p>
+                <p class="text-xs text-slate-500 mt-1">{{ metrics.total_exits }} saídas / {{ metrics.avg_headcount }} média quadro</p>
+            </div>
+            
+            <!-- Tempo Médio Substituição -->
+            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-xs font-bold text-slate-400 uppercase">Tempo Médio Substituição</p>
+                    <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                </div>
+                <p class="text-3xl font-bold text-white">{{ "%.0f"|format(metrics.avg_replacement_days) }} <span class="text-lg font-normal text-slate-400">dias</span></p>
+                <p class="text-xs text-slate-500 mt-1">para contratar substituto</p>
+            </div>
+            
+            <!-- Tempo Médio de Permanência -->
+            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-xs font-bold text-slate-400 uppercase">Permanência Média</p>
+                    <div class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                        </svg>
+                    </div>
+                </div>
+                <p class="text-3xl font-bold text-white">{{ "%.1f"|format(metrics.avg_tenure_months) }} <span class="text-lg font-normal text-slate-400">meses</span></p>
+                <p class="text-xs text-slate-500 mt-1">antes do desligamento</p>
+            </div>
+            
+            <!-- Total Demissões vs Afastamentos -->
+            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-xs font-bold text-slate-400 uppercase">Saídas no Período</p>
+                    <div class="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                        </svg>
+                    </div>
+                </div>
+                <p class="text-3xl font-bold text-white">{{ metrics.total_exits }}</p>
+                <div class="flex gap-2 mt-1">
+                    <span class="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400">{{ metrics.fired_count }} demissões</span>
+                    <span class="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-400">{{ metrics.away_count }} afastamentos</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráficos e Análises -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- Análise por Turno -->
+            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                    </svg>
+                    Turnover por Turno
+                </h3>
+                <div class="space-y-3">
+                    {% for shift_name, data in by_shift.items() %}
+                    <div class="bg-slate-900/50 rounded-lg p-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-medium text-white">{{ shift_name }}</span>
+                            <span class="text-lg font-bold {% if data.rate > 15 %}text-red-400{% elif data.rate > 10 %}text-amber-400{% else %}text-green-400{% endif %}">
+                                {{ "%.1f"|format(data.rate) }}%
+                            </span>
+                        </div>
+                        <div class="w-full bg-slate-700 rounded-full h-2 mb-1">
+                            <div class="h-2 rounded-full {% if data.rate > 15 %}bg-red-500{% elif data.rate > 10 %}bg-amber-500{% else %}bg-green-500{% endif %}"
+                                 style="width: {{ [data.rate * 3, 100]|min }}%"></div>
+                        </div>
+                        <div class="flex justify-between text-xs text-slate-500">
+                            <span>{{ data.exits }} saídas</span>
+                            <span>{{ data.total }} colaboradores</span>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-slate-500 text-center py-4">Sem dados disponíveis</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Análise por Função/Cargo -->
+            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>
+                    Turnover por Função
+                </h3>
+                <div class="space-y-2 max-h-64 overflow-y-auto pr-2">
+                    {% for role, data in by_role.items()|sort(attribute='1.rate', reverse=true) %}
+                    <div class="flex items-center justify-between bg-slate-900/50 rounded-lg p-2">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm text-white truncate">{{ role }}</p>
+                            <p class="text-xs text-slate-500">{{ data.exits }}/{{ data.total }} colaboradores</p>
+                        </div>
+                        <span class="ml-2 px-2 py-1 rounded-lg text-sm font-bold {% if data.rate > 20 %}bg-red-500/20 text-red-400{% elif data.rate > 10 %}bg-amber-500/20 text-amber-400{% else %}bg-green-500/20 text-green-400{% endif %}">
+                            {{ "%.0f"|format(data.rate) }}%
+                        </span>
+                    </div>
+                    {% else %}
+                    <p class="text-slate-500 text-center py-4">Sem dados disponíveis</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Análise por Faixa Etária -->
+            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    Turnover por Faixa Etária
+                </h3>
+                <div class="space-y-3">
+                    {% for age_range, data in by_age.items() %}
+                    <div class="bg-slate-900/50 rounded-lg p-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-medium text-white">{{ age_range }}</span>
+                            <span class="text-lg font-bold {% if data.rate > 15 %}text-red-400{% elif data.rate > 10 %}text-amber-400{% else %}text-green-400{% endif %}">
+                                {{ "%.1f"|format(data.rate) }}%
+                            </span>
+                        </div>
+                        <div class="w-full bg-slate-700 rounded-full h-2 mb-1">
+                            <div class="h-2 rounded-full {% if data.rate > 15 %}bg-red-500{% elif data.rate > 10 %}bg-amber-500{% else %}bg-green-500{% endif %}"
+                                 style="width: {{ [data.rate * 3, 100]|min }}%"></div>
+                        </div>
+                        <div class="flex justify-between text-xs text-slate-500">
+                            <span>{{ data.exits }} saídas</span>
+                            <span>{{ data.total }} colaboradores</span>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-slate-500 text-center py-4">Sem dados de idade disponíveis</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Análise por Centro de Custo/Setor -->
+            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                    </svg>
+                    Turnover por Setor
+                </h3>
+                <div class="space-y-2 max-h-64 overflow-y-auto pr-2">
+                    {% for sector, data in by_sector.items()|sort(attribute='1.rate', reverse=true) %}
+                    <div class="flex items-center justify-between bg-slate-900/50 rounded-lg p-2">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm text-white truncate">{{ sector or 'Não Informado' }}</p>
+                            <p class="text-xs text-slate-500">{{ data.exits }}/{{ data.total }} colaboradores</p>
+                        </div>
+                        <span class="ml-2 px-2 py-1 rounded-lg text-sm font-bold {% if data.rate > 20 %}bg-red-500/20 text-red-400{% elif data.rate > 10 %}bg-amber-500/20 text-amber-400{% else %}bg-green-500/20 text-green-400{% endif %}">
+                            {{ "%.0f"|format(data.rate) }}%
+                        </span>
+                    </div>
+                    {% else %}
+                    <p class="text-slate-500 text-center py-4">Sem dados disponíveis</p>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Análise por Tempo de Casa -->
+            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Turnover por Tempo de Casa
+                </h3>
+                <div class="space-y-2">
+                    {% set tenure_order = ['0-6 meses', '6-12 meses', '1-2 anos', '2-5 anos', '5-10 anos', '10+ anos', 'Não informado'] %}
+                    {% for tenure in tenure_order %}
+                    {% if tenure in by_tenure %}
+                    {% set data = by_tenure[tenure] %}
+                    <div class="flex items-center justify-between bg-slate-900/50 rounded-lg p-2">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm text-white">{{ tenure }}</p>
+                            <p class="text-xs text-slate-500">{{ data.exits }}/{{ data.total }} colaboradores</p>
+                        </div>
+                        <span class="ml-2 px-2 py-1 rounded-lg text-sm font-bold {% if data.rate > 20 %}bg-red-500/20 text-red-400{% elif data.rate > 10 %}bg-amber-500/20 text-amber-400{% else %}bg-green-500/20 text-green-400{% endif %}">
+                            {{ "%.0f"|format(data.rate) }}%
+                        </span>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                    {% if not by_tenure %}
+                    <p class="text-slate-500 text-center py-4">Sem dados disponíveis</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Evolução Mensal -->
+        {% if monthly_trend %}
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+            <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+                </svg>
+                Evolução Mensal de Turnover
+            </h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                {% for month, data in monthly_trend.items() %}
+                <div class="bg-slate-900/50 rounded-lg p-3 text-center">
+                    <p class="text-xs text-slate-400 mb-1">{{ month }}</p>
+                    <p class="text-xl font-bold {% if data.rate > 15 %}text-red-400{% elif data.rate > 10 %}text-amber-400{% else %}text-green-400{% endif %}">
+                        {{ "%.1f"|format(data.rate) }}%
+                    </p>
+                    <div class="flex justify-center gap-1 mt-1">
+                        <span class="text-xs text-red-400">{{ data.fired }}</span>
+                        <span class="text-xs text-slate-500">/</span>
+                        <span class="text-xs text-amber-400">{{ data.away }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Top 10 Saídas Recentes -->
+        <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+            <div class="p-4 border-b border-slate-700 flex items-center justify-between">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <svg class="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Últimas Saídas
+                </h3>
+                <span class="text-xs text-slate-400">{{ recent_exits|length }} registro(s)</span>
+            </div>
+            {% if recent_exits %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-slate-900/50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase">Colaborador</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase">Função</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold text-slate-400 uppercase">Turno</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold text-slate-400 uppercase">Idade</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold text-slate-400 uppercase">Permanência</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold text-slate-400 uppercase">Motivo</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase">Data Saída</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-700">
+                        {% for emp in recent_exits %}
+                        <tr class="hover:bg-slate-700/30 transition">
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center">
+                                        <span class="text-xs font-bold text-red-400">{{ emp.name[:2].upper() }}</span>
+                                    </div>
+                                    <div>
+                                        <div class="text-white font-medium">{{ emp.name }}</div>
+                                        <div class="text-xs text-slate-500">{{ emp.registration_id }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 text-slate-300">{{ emp.role }}</td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="px-2 py-1 rounded text-xs bg-slate-700 text-slate-300">{{ emp.work_shift }}</span>
+                            </td>
+                            <td class="px-4 py-3 text-center text-slate-300">{{ emp.age or '-' }}</td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="text-white font-medium">{{ emp.tenure_months }}</span>
+                                <span class="text-xs text-slate-500">meses</span>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                {% if emp.status == 'fired' %}
+                                <span class="px-2 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-400">Demissão</span>
+                                {% else %}
+                                <span class="px-2 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400">Afastamento</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3">
+                                {% if emp.exit_date_pending %}
+                                <span class="px-2 py-1 rounded text-xs bg-orange-500/20 text-orange-400 border border-orange-500/30">Pendente</span>
+                                {% else %}
+                                <span class="text-slate-300">{{ emp.exit_date }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-12 text-center">
+                <p class="text-slate-400">Nenhuma saída registrada no período</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Insights e Alertas -->
+        {% if insights %}
+        <div class="bg-gradient-to-r from-rose-900/30 to-pink-900/30 rounded-xl border border-rose-700/50 p-4">
+            <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Insights e Alertas
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {% for insight in insights %}
+                <div class="bg-slate-800/50 rounded-lg p-3 border-l-4 {% if insight.type == 'danger' %}border-red-500{% elif insight.type == 'warning' %}border-amber-500{% else %}border-blue-500{% endif %}">
+                    <p class="text-sm text-white">{{ insight.message }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <!-- Modal de Edição de Datas de Saída -->
+    <div x-show="showDatesModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
+        <div @click.away="showDatesModal = false" class="bg-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] border border-slate-700 shadow-2xl overflow-hidden flex flex-col my-auto">
+            <div class="flex justify-between items-center p-4 border-b border-slate-700">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    Preencher Datas de Saída
+                </h3>
+                <button @click="showDatesModal = false" class="text-slate-400 hover:text-white p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                    <p class="text-sm text-slate-400">Preencha as datas de demissão/afastamento dos colaboradores abaixo:</p>
+                    <button type="button" @click="fixDatesAuto()" :disabled="fixingDates"
+                            class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-xs font-medium flex items-center gap-1.5 whitespace-nowrap">
+                        <template x-if="fixingDates">
+                            <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </template>
+                        <template x-if="!fixingDates">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                            </svg>
+                        </template>
+                        <span x-text="fixingDates ? 'Corrigindo...' : 'Corrigir Automaticamente'">Corrigir Automaticamente</span>
+                    </button>
+                </div>
+                
+                <form id="datesForm" class="space-y-3">
+                    {% for emp in recent_exits %}
+                    {% if emp.exit_date_pending %}
+                    <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+                            <div class="flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0">
+                                    <span class="text-xs font-bold text-orange-400">{{ emp.name[:2].upper() }}</span>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-sm text-white font-medium truncate">{{ emp.name }}</p>
+                                    <p class="text-[10px] text-slate-500">{{ emp.registration_id }} • {{ emp.role }}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs px-2 py-1 rounded {% if emp.status == 'fired' %}bg-red-500/20 text-red-400{% else %}bg-amber-500/20 text-amber-400{% endif %}">
+                                    {% if emp.status == 'fired' %}Demissão{% else %}Afastamento{% endif %}
+                                </span>
+                                <input type="date" name="date_{{ emp.registration_id }}" 
+                                       class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-sm text-white focus:border-orange-500 focus:outline-none w-36"
+                                       placeholder="Data de saída">
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </form>
+                
+                <!-- Mensagem de sucesso -->
+                <div x-show="datesSaved" x-transition class="mt-4 p-3 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 text-sm flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Datas salvas com sucesso! Recarregando...
+                </div>
+            </div>
+            
+            <div class="p-4 border-t border-slate-700 flex gap-3">
+                <button type="button" @click="showDatesModal = false" class="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition text-sm font-medium">
+                    Cancelar
+                </button>
+                <button type="button" @click="saveDates()" :disabled="savingDates" 
+                        class="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition text-sm font-medium flex items-center justify-center gap-2">
+                    <template x-if="savingDates">
+                        <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </template>
+                    <span x-text="savingDates ? 'Salvando...' : 'Salvar Datas'">Salvar Datas</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Relatório IA -->
+    <div x-show="showAIModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div @click.away="showAIModal = false" class="bg-slate-800 rounded-2xl w-full max-w-3xl max-h-[85vh] border border-slate-700 shadow-2xl overflow-hidden flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b border-slate-700">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                    </svg>
+                    Parecer Executivo - Análise de Turnover
+                </h3>
+                <button @click="showAIModal = false" class="text-slate-400 hover:text-white">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-4">
+                <template x-if="aiLoading">
+                    <div class="flex flex-col items-center justify-center py-12">
+                        <div class="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                        <p class="text-slate-400">Gerando parecer com inteligência artificial...</p>
+                        <p class="text-xs text-slate-500 mt-2">Isso pode levar alguns segundos</p>
+                    </div>
+                </template>
+                
+                <template x-if="!aiLoading && aiReport">
+                    <div class="prose prose-invert prose-sm max-w-none">
+                        <div x-html="aiReport.replace(/\n/g, '<br>')"></div>
+                    </div>
+                </template>
+            </div>
+            
+            <div class="p-4 border-t border-slate-700 flex gap-3">
+                <button @click="showAIModal = false" class="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition text-sm font-medium">
+                    Fechar
+                </button>
+                <button @click="navigator.clipboard.writeText(aiReport); alert('Copiado!')" 
+                        x-show="aiReport && !aiLoading"
+                        class="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition text-sm font-medium flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                    Copiar Parecer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    [x-cloak] { display: none !important; }
+</style>
+{% endblock %}

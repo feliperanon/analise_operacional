@@ -1,11 +1,64 @@
 {% extends "mobile/layout.html" %}
 
 {% block content %}
-<div x-data="dashboardController()" class="flex flex-col min-h-screen pb-20">
+<!-- Offline Banner -->
+<div id="offline-banner" class="offline-banner">
+    <i data-lucide="wifi-off" class="w-4 h-4 inline-block mr-1"></i>
+    Você está offline. Algumas funções podem não funcionar.
+</div>
+
+<!-- Pull to Refresh Indicator -->
+<div id="pull-indicator" class="pull-indicator bg-slate-800 px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
+    <i data-lucide="refresh-cw" class="w-4 h-4 text-blue-400 animate-spin"></i>
+    <span class="text-xs text-slate-300">Atualizando...</span>
+</div>
+
+<!-- XP Popup Animation -->
+<div id="xp-popup"
+    class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[100] pointer-events-none hidden">
+    <div
+        class="bg-gradient-to-r from-yellow-400 to-orange-500 text-slate-900 font-black text-4xl px-8 py-4 rounded-2xl shadow-2xl xp-pop">
+        +<span id="xp-amount">0</span> XP!
+    </div>
+</div>
+
+<div x-data="dashboardController()" class="flex flex-col min-h-screen pb-safe" x-ref="mainContainer" x-cloak>
+    {% if module_notice %}
+    <div class="mx-6 mt-4 bg-red-500/10 border border-red-500/30 text-red-200 text-sm rounded-2xl px-4 py-3">
+        <div class="flex items-center gap-2">
+            <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+            <span>{{ module_notice }}</span>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Skeleton Loading (shown briefly on initial load) -->
+    <template x-if="!initialized">
+        <div class="animate-pulse">
+            <!-- Header Skeleton -->
+            <div class="px-6 pt-12 pb-8 bg-slate-800 rounded-b-[40px]">
+                <div class="flex items-center gap-4 mb-6">
+                    <div class="w-16 h-16 rounded-2xl skeleton"></div>
+                    <div class="flex-1">
+                        <div class="h-5 w-32 skeleton rounded mb-2"></div>
+                        <div class="h-4 w-24 skeleton rounded"></div>
+                    </div>
+                </div>
+                <div class="h-3 w-full skeleton rounded-full"></div>
+            </div>
+            <!-- Actions Skeleton -->
+            <div class="grid grid-cols-2 gap-4 px-6 mt-8">
+                <div class="h-28 skeleton rounded-3xl"></div>
+                <div class="h-28 skeleton rounded-3xl"></div>
+                <div class="h-28 skeleton rounded-3xl"></div>
+                <div class="h-28 skeleton rounded-3xl"></div>
+            </div>
+        </div>
+    </template>
 
     <!-- 1. Header & Gamification Card -->
-    <header
-        class="relative px-6 pt-12 pb-8 bg-gradient-to-b from-slate-900 to-slate-800 rounded-b-[40px] shadow-2xl z-10 border-b border-white/5">
+    <header x-show="initialized"
+        class="relative px-6 pt-safe pb-8 bg-gradient-to-b from-slate-900 to-slate-800 rounded-b-[40px] shadow-2xl z-10 border-b border-white/5">
         <div class="flex items-center justify-between mb-6">
             <div class="flex items-center space-x-4">
                 <div class="relative">
@@ -24,7 +77,24 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-bold text-white tracking-tight leading-tight">{{ employee.name }}</h1>
-                    <p class="text-sm text-slate-400 font-medium">{{ gamification.level.name }}</p>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <p class="text-sm text-slate-400 font-medium">{{ gamification.level.name }}</p>
+
+                        <!-- Achievement Counter -->
+                        <div
+                            class="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                            <i data-lucide="trophy" class="w-3 h-3 text-yellow-500"></i>
+                            <span class="text-[10px] font-bold text-yellow-500">{{ gamification.achievements_unlocked
+                                }}/{{ gamification.achievements_total }}</span>
+                        </div>
+
+                        {% if streak_days and streak_days >= 3 %}
+                        <span class="streak-badge">
+                            <i data-lucide="flame" class="w-3 h-3"></i>
+                            {{ streak_days }} dias
+                        </span>
+                        {% endif %}
+                    </div>
                     {% if gamification.time_in_company < gamification.level.min_months %} <span
                         class="text-[10px] text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded ml-1">Nível Travado
                         (Tempo)</span>
@@ -73,11 +143,17 @@
     </header>
 
     <!-- 2. Active Route Card -->
-    <div class="px-6 -mt-6 z-20" x-show="hasActiveRoutes" x-cloak>
-        <template x-for="route in activeRoutes" :key="route.id">
+    <div class="px-6 -mt-6 z-20" x-show="initialized && hasActiveRoutes" x-cloak>
+        <template x-for="(route, routeIndex) in activeRoutes" :key="'active-' + routeIndex">
             <div
-                class="bg-slate-800/90 backdrop-blur-xl rounded-3xl p-5 border border-indigo-500/30 shadow-[0_10px_40px_-10px_rgba(79,70,229,0.3)] animate-slide-up bg-[url('/static/grid.svg')] bg-repeat opacity-95 mb-4">
-                <div class="flex justify-between items-start mb-4">
+                class="bg-slate-800/90 backdrop-blur-xl rounded-3xl p-5 border border-indigo-500/30 shadow-[0_10px_40px_-10px_rgba(79,70,229,0.3)] animate-slide-up bg-[url('/static/grid.svg')] bg-repeat opacity-95 mb-4 relative overflow-hidden group">
+
+                <!-- Background Pattern -->
+                <div
+                    class="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-[50px] rounded-full pointer-events-none">
+                </div>
+
+                <div class="flex justify-between items-start mb-4 relative z-10">
                     <div class="flex items-center space-x-3">
                         <div class="p-2.5 bg-indigo-500/20 rounded-xl animate-pulse">
                             <i data-lucide="truck" class="w-6 h-6 text-indigo-400"></i>
@@ -90,14 +166,34 @@
                             <p class="text-indigo-300 text-sm font-medium" x-text="route.client_name"></p>
                         </div>
                     </div>
+
+                    <!-- Edit/Delete Actions -->
+                    <div class="flex gap-2">
+                        <button @click="openEditModal(route)"
+                            class="p-2 rounded-full bg-slate-700/50 text-slate-300 hover:bg-indigo-500 hover:text-white transition-colors">
+                            <i data-lucide="pencil" class="w-4 h-4"></i>
+                        </button>
+                        <button @click="openDeleteModal(route)"
+                            class="p-2 rounded-full bg-slate-700/50 text-slate-300 hover:bg-red-500 hover:text-white transition-colors">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
                 </div>
 
-                <div class="flex flex-wrap items-end justify-between gap-4">
-                    <div>
-                        <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Tempo Decorrido
-                        </p>
-                        <p class="text-3xl font-mono font-bold text-white tracking-widest tabular-nums"
-                            x-text="formatTimer(route.start_time)"></p>
+                <div class="flex flex-wrap items-end justify-between gap-4 relative z-10">
+                    <div class="flex gap-6">
+                        <div>
+                            <p class="text-[10px] text-slate-400 uppercase tracking-wider font-bold mb-1">Tempo</p>
+                            <p class="text-2xl font-mono font-bold text-white tracking-widest tabular-nums"
+                                x-text="formatTimer(route.start_time)"></p>
+                        </div>
+                        <div x-show="route.tonnage > 0">
+                            <p class="text-[10px] text-slate-400 uppercase tracking-wider font-bold mb-1">Peso</p>
+                            <p class="text-2xl font-bold text-green-400 tracking-wide tabular-nums">
+                                <span x-text="route.tonnage"></span><span
+                                    class="text-sm ml-0.5 text-slate-500">kg</span>
+                            </p>
+                        </div>
                     </div>
 
                     <button @click="openStopModal(route)"
@@ -115,22 +211,83 @@
         </template>
     </div>
 
-    <!-- 3. Primary Actions Grid -->
-    <div class="grid grid-cols-2 gap-4 px-6 mt-8">
-        <!-- Start Button -->
-        <button @click="openStartModal()"
-            class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-green-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
-            <div
-                class="absolute inset-0 bg-green-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            </div>
-            <div class="flex flex-col items-center justify-center space-y-3 relative z-10">
+    <!-- 3. Modules -->
+    {% if modules and modules|length > 0 %}
+    <div class="px-6 mt-8" x-show="initialized">
+        <h2 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
+            <i data-lucide="grid-2x2" class="w-5 h-5 text-indigo-400"></i>
+            Módulos
+        </h2>
+        <div class="space-y-3">
+            {% for module in modules %}
+            {% if module.action == "start_separation" %}
+            <button @click="openStartModal()"
+                class="w-full group relative overflow-hidden p-4 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-indigo-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg text-left flex items-center gap-4">
                 <div
-                    class="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center group-hover:bg-green-500 group-hover:text-white text-green-500 transition-colors">
-                    <i data-lucide="play" class="w-6 h-6 fill-current"></i>
+                    class="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-300 group-hover:bg-indigo-500 group-hover:text-white transition-colors shrink-0 z-10">
+                    <i data-lucide="{{ module.icon }}" class="w-7 h-7"></i>
                 </div>
-                <span class="font-semibold text-slate-200">Iniciar Separação</span>
-            </div>
-        </button>
+                <div class="relative z-10 flex-1">
+                    <p class="font-bold text-lg text-slate-100 group-hover:text-white transition-colors">{{ module.label
+                        }}</p>
+                    <p class="text-sm text-slate-400 group-hover:text-slate-300">{{ module.description }}</p>
+                </div>
+                <i data-lucide="chevron-right"
+                    class="w-5 h-5 text-slate-500 group-hover:text-white transition-colors relative z-10"></i>
+            </button>
+            {% elif module.action == "open_admin_start_modal" %}
+            <button @click="open_admin_start_modal()"
+                class="w-full group relative overflow-hidden p-4 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-indigo-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg text-left flex items-center gap-4">
+                <div
+                    class="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-300 group-hover:bg-indigo-500 group-hover:text-white transition-colors shrink-0 z-10">
+                    <i data-lucide="{{ module.icon }}" class="w-7 h-7"></i>
+                </div>
+                <div class="relative z-10 flex-1">
+                    <p class="font-bold text-lg text-slate-100 group-hover:text-white transition-colors">{{ module.label
+                        }}</p>
+                    <p class="text-sm text-slate-400 group-hover:text-slate-300">{{ module.description }}</p>
+                </div>
+                <i data-lucide="chevron-right"
+                    class="w-5 h-5 text-slate-500 group-hover:text-white transition-colors relative z-10"></i>
+            </button>
+            {% elif module.action == "manage_routes" %}
+            <a href="/mobile/admin/routes"
+                class="w-full group relative overflow-hidden p-4 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-purple-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg text-left flex items-center gap-4">
+                <div
+                    class="w-14 h-14 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-300 group-hover:bg-purple-500 group-hover:text-white transition-colors shrink-0 z-10">
+                    <i data-lucide="{{ module.icon }}" class="w-7 h-7"></i>
+                </div>
+                <div class="relative z-10 flex-1">
+                    <p class="font-bold text-lg text-slate-100 group-hover:text-white transition-colors">{{ module.label
+                        }}</p>
+                    <p class="text-sm text-slate-400 group-hover:text-slate-300">{{ module.description }}</p>
+                </div>
+                <i data-lucide="chevron-right"
+                    class="w-5 h-5 text-slate-500 group-hover:text-white transition-colors relative z-10"></i>
+            </a>
+            {% else %}
+            <a href="{{ module.href }}"
+                class="w-full group relative overflow-hidden p-4 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-indigo-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg text-left flex items-center gap-4">
+                <div
+                    class="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-300 group-hover:bg-indigo-500 group-hover:text-white transition-colors shrink-0 z-10">
+                    <i data-lucide="{{ module.icon }}" class="w-7 h-7"></i>
+                </div>
+                <div class="relative z-10 flex-1">
+                    <p class="font-bold text-lg text-slate-100 group-hover:text-white transition-colors">{{ module.label
+                        }}</p>
+                    <p class="text-sm text-slate-400 group-hover:text-slate-300">{{ module.description }}</p>
+                </div>
+                <i data-lucide="chevron-right"
+                    class="w-5 h-5 text-slate-500 group-hover:text-white transition-colors relative z-10"></i>
+            </a>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 4. Primary Actions Grid -->
+    <div class="grid grid-cols-2 gap-4 px-6 mt-8" x-show="initialized">
 
         <a href="/mobile/achievements"
             class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-yellow-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg flex flex-col items-center justify-center">
@@ -148,9 +305,6 @@
 
         <button @click="scrollToHistory()"
             class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-purple-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
-            <div
-                class="absolute inset-0 bg-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            </div>
             <div class="flex flex-col items-center justify-center space-y-3 relative z-10">
                 <div
                     class="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center group-hover:bg-purple-500 group-hover:text-white text-purple-500 transition-colors">
@@ -160,33 +314,112 @@
             </div>
         </button>
 
-        <button @click="openEndDayModal()"
-            class="col-span-1 group relative overflow-hidden p-5 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-red-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
-            <div
-                class="absolute inset-0 bg-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            </div>
-            <div class="flex flex-col items-center justify-center space-y-3 relative z-10">
-                <div
-                    class="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center group-hover:bg-red-500 group-hover:text-white text-red-500 transition-colors">
-                    <i data-lucide="power" class="w-6 h-6"></i>
-                </div>
-                <span class="font-semibold text-slate-200">Encerrar Dia</span>
-            </div>
-        </button>
     </div>
 
-    <!-- 4. Performance Chart -->
-    <div class="px-6 mt-8" x-show="labels.length > 0">
+    <!-- 4a. Time Bonuses (Bônus por Horário) -->
+    {% if time_bonuses %}
+    <div class="px-6 mt-8">
+        <h2 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
+            <i data-lucide="clock" class="w-5 h-5 text-green-400"></i>
+            Bônus por Horário
+        </h2>
+        <div class="grid grid-cols-1 gap-3">
+            {% for bonus in time_bonuses %}
+            <div
+                class="bg-gradient-to-r from-green-900/30 to-slate-800 rounded-2xl p-4 border border-green-500/20 flex items-center justify-between group relative overflow-hidden">
+                <!-- Glow Effect -->
+                <div class="absolute top-0 right-0 w-16 h-16 bg-green-500/10 blur-[30px] rounded-full"></div>
+
+                <div class="flex items-center gap-4 relative z-10">
+                    <div class="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
+                        <i data-lucide="timer" class="w-6 h-6 text-green-400"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-white font-bold text-sm">{{ bonus.name or 'Bônus por Horário' }}</h3>
+                        <p class="text-slate-400 text-xs">
+                            Finalize até às <span class="text-green-400 font-bold">{{ bonus.stop_time }}</span>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex flex-col items-end relative z-10">
+                    <span class="text-[10px] text-slate-500 font-bold uppercase">Bônus</span>
+                    <span class="text-green-400 font-black text-lg">+{{ bonus.bonus_percent }}%</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 4b. Special Events -->
+    {% if upcoming_events %}
+    <div class="px-6 mt-8">
+        <h2 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
+            <i data-lucide="sparkles" class="w-5 h-5 text-indigo-400"></i>
+            Próximos Eventos
+        </h2>
+        <div class="flex overflow-x-auto gap-4 pb-4 no-scrollbar -mx-2 px-2">
+            {% for event in upcoming_events %}
+            <div
+                class="flex-shrink-0 w-72 bg-gradient-to-br from-indigo-900/40 to-slate-800 rounded-3xl p-5 border border-indigo-500/20 relative overflow-hidden group">
+                <!-- Highlight Glow -->
+                <div class="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 blur-[40px] rounded-full"></div>
+
+                <div class="flex items-center gap-4 mb-4">
+                    <div
+                        class="w-14 h-14 rounded-2xl bg-indigo-600/20 flex items-center justify-center text-3xl shadow-inner border border-indigo-500/10">
+                        {% if event.image_url %}
+                        <img src="{{ event.image_url }}" class="w-full h-full object-cover rounded-2xl">
+                        {% else %}
+                        {{ event.emoji or '🎉' }}
+                        {% endif %}
+                    </div>
+                    <div>
+                        <h3 class="text-white font-bold text-sm leading-tight">{{ event.name }}</h3>
+                        <p class="text-indigo-300 text-[10px] font-bold uppercase tracking-widest mt-1">
+                            {{ event.date.split('-')[2] }}/{{ event.date.split('-')[1] }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between mt-auto">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] text-slate-500 font-bold uppercase">Bônus</span>
+                        <span class="text-green-400 font-black text-sm">+{{ event.bonus_xp }} XP</span>
+                    </div>
+                    {% if event.multiplier and event.multiplier > 1 %}
+                    <div class="flex flex-col text-right">
+                        <span class="text-[10px] text-slate-500 font-bold uppercase">Multiplicador</span>
+                        <span class="text-yellow-400 font-black text-sm">{{ event.multiplier }}x</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 5. Performance Chart -->
+    <div class="px-6 mt-8">
         <h2 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
             <i data-lucide="bar-chart-2" class="w-5 h-5 text-blue-400"></i>
             Sua Performance Diária
         </h2>
-        <div class="bg-slate-800/50 border border-white/5 p-4 rounded-3xl shadow-lg h-64 w-full">
+        <div class="bg-slate-800/50 border border-white/5 p-4 rounded-3xl shadow-lg h-64 w-full"
+            x-show="labels.length > 0">
             <canvas id="performanceChart"></canvas>
+        </div>
+        <div class="bg-slate-800/50 border border-white/5 p-6 rounded-3xl text-center" x-show="labels.length === 0"
+            x-cloak>
+            <i data-lucide="bar-chart-2" class="w-12 h-12 text-slate-600 mx-auto mb-3"></i>
+            <p class="text-slate-500 text-sm">Nenhum dado de performance ainda.</p>
+            <p class="text-slate-600 text-xs mt-1">Complete separações para ver seu gráfico.</p>
         </div>
     </div>
 
-    <!-- 5. XP History (New) -->
+    <!-- 6. XP History -->
     <div class="px-6 mt-8">
         <h2 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
             <i data-lucide="scroll" class="w-5 h-5 text-yellow-400"></i>
@@ -197,18 +430,47 @@
             <div
                 class="p-4 border-b border-white/5 flex items-center justify-between hover:bg-white/5 transition-colors last:border-0">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-slate-700/50 flex items-center justify-center text-slate-300">
-                        {% if item.type == 'daily_auto' %}
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center
+                        {% if item.category == 'producao' %}bg-blue-500/20 text-blue-400
+                        {% elif item.category == 'penalty' %}bg-red-500/20 text-red-400
+                        {% elif item.category == 'manual' %}bg-yellow-500/20 text-yellow-400
+                        {% else %}bg-slate-700/50 text-slate-300{% endif %}">
+                        {% if item.icon == 'truck' %}
                         <i data-lucide="truck" class="w-5 h-5"></i>
-                        {% elif 'penalty' in item.type or item.amount < 0 %} <i data-lucide="alert-circle"
-                            class="w-5 h-5 text-red-400"></i>
-                            {% else %}
-                            <i data-lucide="star" class="w-5 h-5 text-yellow-400"></i>
-                            {% endif %}
+                        {% elif item.icon == 'alert-circle' %}
+                        <i data-lucide="alert-circle" class="w-5 h-5"></i>
+                        {% elif item.icon == 'edit' %}
+                        <i data-lucide="edit" class="w-5 h-5"></i>
+                        {% else %}
+                        <i data-lucide="star" class="w-5 h-5 text-yellow-400"></i>
+                        {% endif %}
                     </div>
-                    <div>
-                        <p class="text-sm font-bold text-white">{{ item.reason }}</p>
-                        <p class="text-xs text-slate-400" x-show="'{{ item.details }}' !== ''">{{ item.details }}</p>
+                    <div class="flex-1 min-w-0 pr-2">
+                        {% if '[' in item.reason %}
+                        {# Fallback Parser in Template for when Backend raw reason leaks #}
+                        {% set parts = item.reason.split('[') %}
+                        <p class="text-sm font-bold text-white mb-1">{{ parts[0] }}</p>
+                        <div class="flex flex-wrap gap-1.5">
+                            {% for badge in parts[1].replace(']', '').split('|') %}
+                            <span
+                                class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-700/80 text-indigo-200 border border-white/5 shadow-sm whitespace-nowrap">
+                                {{ badge.strip().replace('XP', '') }}<span class="text-yellow-400 ml-0.5">XP</span>
+                            </span>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-sm font-bold text-white mb-1">{{ item.reason }}</p>
+                        {% if item.details %}
+                        <div class="flex flex-wrap gap-1.5">
+                            {% for line in item.details.split('\n') %}
+                            <span
+                                class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-700/80 text-indigo-200 border border-white/5 shadow-sm whitespace-nowrap">
+                                {{ line.strip().replace('XP', '') }}<span class="text-yellow-400 ml-0.5">XP</span>
+                            </span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% endif %}
                     </div>
                 </div>
                 <div class="text-right">
@@ -222,8 +484,9 @@
             {% endfor %}
 
             <div class="bg-slate-900/50 p-3 text-center">
-                <button class="text-xs text-indigo-400 font-bold hover:text-indigo-300 uppercase tracking-wider">Ver
-                    Histórico Completo</button>
+                <a href="/mobile/achievements"
+                    class="text-xs text-indigo-400 font-bold hover:text-indigo-300 uppercase tracking-wider">Ver
+                    Histórico Completo</a>
             </div>
         </div>
     </div>
@@ -243,9 +506,10 @@
                 </div>
             </template>
 
-            <template x-for="route in completedRoutes" :key="route.id">
-                <div
-                    class="bg-slate-800/50 border border-slate-700/50 p-4 rounded-2xl flex justify-between items-center group hover:bg-slate-800 transition-colors">
+            <template x-for="(route, routeIndex) in completedRoutes" :key="'completed-' + routeIndex">
+                <div class="bg-slate-800/50 border border-slate-700/50 p-4 rounded-2xl flex justify-between items-center group hover:bg-slate-800 transition-colors relative overflow-hidden"
+                    @touchstart="route._touchStartX = $event.touches[0].clientX"
+                    @touchend="if(route._touchStartX - $event.changedTouches[0].clientX > 60) route._expanded = true; else if($event.changedTouches[0].clientX - route._touchStartX > 60) route._expanded = false">
                     <div class="flex items-center gap-3">
                         <div
                             class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-slate-400 font-bold text-xs group-hover:bg-green-500/20 group-hover:text-green-500 transition-colors">
@@ -253,7 +517,15 @@
                         </div>
                         <div>
                             <p class="text-white font-semibold text-sm" x-text="route.client_name"></p>
-                            <p class="text-slate-400 text-xs" x-text="route.duration"></p>
+                            <!-- Horário sempre visível -->
+                            <p class="text-slate-400 text-xs">
+                                <span class="text-slate-500">⏱️</span>
+                                <span x-text="route.start_time"></span>
+                                <span class="text-slate-500">→</span>
+                                <span x-text="route.end_time"></span>
+                                <span class="text-slate-600 mx-1">•</span>
+                                <span x-text="route.duration"></span>
+                            </p>
                         </div>
                     </div>
                     <div class="text-right">
@@ -261,6 +533,8 @@
                         <p class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 inline-block mt-1 border border-slate-600"
                             x-text="route.performance"></p>
                     </div>
+                    <!-- Swipe hint -->
+                    <span class="swipe-hint">← deslize</span>
                 </div>
             </template>
         </div>
@@ -339,10 +613,10 @@
                         </template>
                     </div>
 
-                    <button @click="startBatch()"
+                    <button @click="startBatch()" :class="{'btn-loading': isLoading}"
                         class="w-full py-4 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold text-lg shadow-lg shadow-green-500/20 active:scale-[0.98] transition-all flex justify-center items-center gap-2">
-                        <span>Iniciar Separação</span>
-                        <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                        <span x-text="isLoading ? 'Iniciando...' : 'Iniciar Separação'"></span>
+                        <i data-lucide="arrow-right" class="w-5 h-5" x-show="!isLoading"></i>
                     </button>
                 </div>
             </div>
@@ -355,9 +629,10 @@
                 <p class="text-slate-400 text-sm mb-6 text-center" x-text="tempClient?.name"></p>
 
                 <div class="w-full max-w-[200px] relative mb-8">
-                    <input type="number" x-model="tempWeight" x-ref="weightInput"
+                    <input type="tel" inputmode="numeric" x-model="tempWeight" x-ref="weightInput"
+                        @input="let v = $event.target.value.replace(/\D/g,''); if(!v) v='0'; tempWeight = (parseInt(v)/100).toLocaleString('pt-BR', {minimumFractionDigits: 2});"
                         class="w-full bg-transparent border-b-2 border-green-500 text-center text-4xl font-bold text-white py-2 focus:outline-none placeholder-slate-700"
-                        placeholder="0">
+                        placeholder="0,00">
                     <span class="absolute right-0 bottom-4 text-slate-500 font-medium">Kg</span>
                 </div>
 
@@ -392,9 +667,213 @@
                     class="flex-1 py-3 rounded-xl bg-slate-800 text-slate-300 font-medium hover:bg-slate-700">
                     Cancelar
                 </button>
-                <button @click="confirmStop()"
+                <button @click="confirmStop()" :class="{'btn-loading': isLoading}"
                     class="flex-1 py-3 rounded-xl bg-green-500 text-white font-bold hover:bg-green-600 shadow-lg shadow-green-500/20">
-                    Confirmar
+                    <span x-text="isLoading ? 'Finalizando...' : 'Confirmar'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Route Modal -->
+    <div x-show="showEditModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+        x-transition.opacity x-cloak>
+        <div class="bg-slate-900 w-full max-w-md rounded-[32px] border border-indigo-500/20 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            @click.away="showEditModal = false">
+
+            <div class="bg-indigo-500/10 p-6 text-center border-b border-indigo-500/10 shrink-0">
+                <div
+                    class="w-16 h-16 bg-indigo-500/20 rounded-2xl flex items-center justify-center mx-auto mb-3 text-indigo-400">
+                    <i data-lucide="pencil" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-xl font-bold text-white">Editar Separação</h3>
+                <p class="text-slate-400 text-sm" x-text="selectedRoute?.client_name"></p>
+            </div>
+
+            <div class="p-6 space-y-6 overflow-y-auto custom-scrollbar">
+                <!-- Change Client Search -->
+                <div>
+                    <label class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2 block">Alterar Cliente
+                        (Opcional)</label>
+                    <div class="relative">
+                        <i data-lucide="search" class="absolute left-4 top-3.5 w-5 h-5 text-slate-500"></i>
+                        <input type="text" x-model="editSearch" placeholder="Buscar novo cliente..."
+                            class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-12 pr-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
+                    </div>
+                    <!-- Results -->
+                    <div class="mt-2 max-h-40 overflow-y-auto custom-scrollbar space-y-1"
+                        x-show="editSearch.length > 0">
+                        <template x-for="client in filteredEditClients" :key="client.id">
+                            <button @click="selectEditClient(client)"
+                                class="w-full text-left p-3 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-between group"
+                                :class="{'bg-indigo-500/20 border border-indigo-500/50': editForm.client_id === client.id}">
+                                <span class="text-slate-200 text-sm font-medium" x-text="client.name"></span>
+                                <i data-lucide="check" class="w-4 h-4 text-indigo-400"
+                                    x-show="editForm.client_id === client.id"></i>
+                            </button>
+                        </template>
+                    </div>
+                    <div x-show="editForm.client_name"
+                        class="mt-2 text-sm text-green-400 flex items-center gap-2 bg-green-400/10 p-2 rounded-lg">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i>
+                        <span x-text="'Novo cliente: ' + editForm.client_name"></span>
+                    </div>
+                </div>
+
+                <!-- Change Weight -->
+                <div>
+                    <label class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2 block">Peso Total
+                        (Kg)</label>
+                    <div class="relative">
+                        <input type="tel" inputmode="numeric" x-model="editForm.weightInput"
+                            @input="let v = $event.target.value.replace(/\D/g,''); if(!v) v='0'; editForm.weightInput = (parseInt(v)/100).toLocaleString('pt-BR', {minimumFractionDigits: 2});"
+                            class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-lg font-mono focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
+                        <span class="absolute right-4 top-3.5 text-slate-500 font-medium">kg</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6 border-t border-white/5 bg-slate-800/50 flex gap-3">
+                <button @click="showEditModal = false"
+                    class="flex-1 py-3 bg-slate-700 text-slate-300 rounded-xl font-medium">Cancelar</button>
+                <button @click="confirmEdit()" :class="{'btn-loading': isLoading}"
+                    class="flex-1 py-3 bg-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20">
+                    <span x-text="isLoading ? 'Salvando...' : 'Salvar'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Route Modal -->
+    <div x-show="showDeleteModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
+        x-transition.opacity x-cloak>
+        <div class="bg-slate-900 w-full max-w-sm rounded-[32px] border border-red-500/30 shadow-2xl relative overflow-hidden text-center p-6"
+            @click.away="showDeleteModal = false">
+
+            <div class="absolute -top-10 -left-10 w-32 h-32 bg-red-600/20 blur-[50px] rounded-full pointer-events-none">
+            </div>
+
+            <i data-lucide="trash-2" class="w-12 h-12 text-red-500 mx-auto mb-4"></i>
+
+            <h3 class="text-xl font-bold text-white mb-2">Excluir Separação?</h3>
+            <p class="text-slate-400 text-sm mb-6">Esta ação não pode ser desfeita. Digite sua matrícula para confirmar.
+            </p>
+
+            <div class="mb-6">
+                <input type="tel" x-model="deleteConfirmation" placeholder="Sua Matrícula"
+                    class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-center text-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none">
+            </div>
+
+            <div class="space-y-3">
+                <button @click="confirmDelete()" :class="{'btn-loading': isLoading}" :disabled="!deleteConfirmation"
+                    class="w-full py-3 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-xl font-bold shadow-lg shadow-red-500/25 transition-all">
+                    <span x-text="isLoading ? 'Excluindo...' : 'Confirmar Exclusão'"></span>
+                </button>
+                <button @click="showDeleteModal = false"
+                    class="w-full py-3 bg-slate-800 text-slate-400 rounded-xl font-medium">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Start Modal -->
+    <div x-show="showAdminStartModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
+        x-transition.opacity x-cloak>
+        <div class="bg-slate-900 w-full max-w-sm rounded-[32px] border border-indigo-500/30 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]"
+            @click.away="showAdminStartModal = false">
+
+            <div class="bg-indigo-500/10 p-6 text-center border-b border-indigo-500/10 shrink-0">
+                <div
+                    class="w-16 h-16 bg-indigo-500/20 rounded-2xl flex items-center justify-center mx-auto mb-3 text-indigo-400">
+                    <i data-lucide="users" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-xl font-bold text-white">Abertura Manual (Líder)</h3>
+                <p class="text-slate-400 text-sm">Iniciar rota para outro colaborador</p>
+            </div>
+
+            <div class="p-6 space-y-6 overflow-y-auto custom-scrollbar">
+                <!-- Employee Search -->
+                <div>
+                    <label
+                        class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2 block">Colaborador</label>
+                    <div class="relative">
+                        <i data-lucide="user" class="absolute left-4 top-3.5 w-5 h-5 text-slate-500"></i>
+                        <input type="text" x-model="adminStartForm.employeeSearch"
+                            placeholder="Buscar por Nome ou Matrícula..."
+                            class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-12 pr-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
+                    </div>
+                    <!-- Results -->
+                    <div class="mt-2 max-h-40 overflow-y-auto custom-scrollbar space-y-1"
+                        x-show="adminStartForm.employeeSearch.length > 0">
+                        <template x-for="emp in filteredAdminStartEmployees" :key="emp.id">
+                            <button @click="selectAdminStartEmployee(emp)"
+                                class="w-full text-left p-3 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-between group"
+                                :class="{'bg-indigo-500/20 border border-indigo-500/50': adminStartForm.registrationId === emp.registration_id}">
+                                <div>
+                                    <p class="text-slate-200 text-sm font-medium" x-text="emp.name"></p>
+                                    <p class="text-xs text-slate-500" x-text="emp.registration_id"></p>
+                                </div>
+                                <i data-lucide="check" class="w-4 h-4 text-indigo-400"
+                                    x-show="adminStartForm.registrationId === emp.registration_id"></i>
+                            </button>
+                        </template>
+                    </div>
+                    <div x-show="adminStartForm.employee_name"
+                        class="mt-2 text-sm text-green-400 flex items-center gap-2 bg-green-400/10 p-2 rounded-lg">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i>
+                        <span x-text="adminStartForm.employee_name + ' (' + adminStartForm.registrationId + ')'"></span>
+                    </div>
+                </div>
+
+                <!-- Client Search -->
+                <div>
+                    <label class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2 block">Cliente</label>
+                    <div class="relative">
+                        <i data-lucide="search" class="absolute left-4 top-3.5 w-5 h-5 text-slate-500"></i>
+                        <input type="text" x-model="adminStartForm.clientSearch" placeholder="Buscar cliente..."
+                            class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-12 pr-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
+                    </div>
+                    <!-- Results -->
+                    <div class="mt-2 max-h-40 overflow-y-auto custom-scrollbar space-y-1"
+                        x-show="adminStartForm.clientSearch.length > 0">
+                        <template x-for="client in filteredAdminStartClients" :key="client.id">
+                            <button @click="selectAdminStartClient(client)"
+                                class="w-full text-left p-3 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-between group"
+                                :class="{'bg-indigo-500/20 border border-indigo-500/50': adminStartForm.client_id === client.id}">
+                                <span class="text-slate-200 text-sm font-medium" x-text="client.name"></span>
+                                <i data-lucide="check" class="w-4 h-4 text-indigo-400"
+                                    x-show="adminStartForm.client_id === client.id"></i>
+                            </button>
+                        </template>
+                    </div>
+                    <div x-show="adminStartForm.client_name"
+                        class="mt-2 text-sm text-green-400 flex items-center gap-2 bg-green-400/10 p-2 rounded-lg">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i>
+                        <span x-text="adminStartForm.client_name"></span>
+                    </div>
+                </div>
+
+                <!-- Weight -->
+                <div>
+                    <label class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2 block">Peso
+                        (Kg)</label>
+                    <div class="relative">
+                        <input type="tel" inputmode="numeric" x-model="adminStartForm.weightInput"
+                            @input="let v = $event.target.value.replace(/\D/g,''); if(!v) v='0'; adminStartForm.weightInput = (parseInt(v)/100).toLocaleString('pt-BR', {minimumFractionDigits: 2});"
+                            class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-lg font-mono focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
+                        <span class="absolute right-4 top-3.5 text-slate-500 font-medium">kg</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6 border-t border-white/5 bg-slate-800/50 flex gap-3">
+                <button @click="showAdminStartModal = false"
+                    class="flex-1 py-3 bg-slate-700 text-slate-300 rounded-xl font-medium">Cancelar</button>
+                <button @click="confirmAdminStart()" :class="{'btn-loading': isLoading}"
+                    class="flex-1 py-3 bg-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20">
+                    <span x-text="isLoading ? 'Iniciando...' : 'Iniciar'"></span>
                 </button>
             </div>
         </div>
@@ -546,6 +1025,7 @@
 <script id="server-data" type="application/json">
         {
             "clients": {{ clients_json | safe }},
+            "employees": {{ employees_json | safe }},
         "activeRoutes": {{ active_routes | safe}},
         "completedRoutes": {{ completed_routes | safe}},
         "dailyXp": {{ daily_xp_gain }},
@@ -564,20 +1044,22 @@
     } catch (e) {
         console.error("Critical: Failed to parse initial data", e);
         window.INITIAL_DATA = {
-            clients: [], activeRoutes: [], completedRoutes: [], dailyXp: 0,
+            clients: [], employees: [], activeRoutes: [], completedRoutes: [], dailyXp: 0,
             labels: [], dataKg: [], dataKgh: [], bgColors: []
         };
     }
 </script>
 <script>
     function dashboardController() {
-        console.log("Dashboard Controller V3 Loaded");
+        console.log("Dashboard Controller V4 Loaded");
         return {
+            initialized: false,
             showStartModal: false,
             showStopModal: false,
             showEndDayModal: false,
             showEvaluation: false,
             showHelpModal: false,
+            isLoading: false,
 
             searchClient: '',
             queue: [], // Array of {id, name, weight}
@@ -588,41 +1070,134 @@
             tempWeight: '',
 
             // Data from Global Initial Data
-            clients: window.INITIAL_DATA.clients || [],
-            activeRoutes: window.INITIAL_DATA.activeRoutes || [],
-            completedRoutes: window.INITIAL_DATA.completedRoutes || [],
+            clients: Array.isArray(window.INITIAL_DATA.clients) ? window.INITIAL_DATA.clients : [],
+            activeRoutes: Array.isArray(window.INITIAL_DATA.activeRoutes) ? window.INITIAL_DATA.activeRoutes : [],
+            completedRoutes: Array.isArray(window.INITIAL_DATA.completedRoutes) ? window.INITIAL_DATA.completedRoutes : [],
             dailyXp: window.INITIAL_DATA.dailyXp || 0,
+            employees: Array.isArray(window.INITIAL_DATA.employees) ? window.INITIAL_DATA.employees : [],
 
             // Charts Data
-            labels: window.INITIAL_DATA.labels || [],
-            dataKg: window.INITIAL_DATA.dataKg || [],
-            dataKgh: window.INITIAL_DATA.dataKgh || [],
-            bgColors: window.INITIAL_DATA.bgColors || [],
+            labels: Array.isArray(window.INITIAL_DATA.labels) ? window.INITIAL_DATA.labels : [],
+            dataKg: Array.isArray(window.INITIAL_DATA.dataKg) ? window.INITIAL_DATA.dataKg : [],
+            dataKgh: Array.isArray(window.INITIAL_DATA.dataKgh) ? window.INITIAL_DATA.dataKgh : [],
+            bgColors: Array.isArray(window.INITIAL_DATA.bgColors) ? window.INITIAL_DATA.bgColors : [],
 
             selectedRoute: null,
 
             get filteredClients() {
                 if (this.searchClient === '') return []; // Only show on search
+                if (!this.clients || !Array.isArray(this.clients)) return [];
                 return this.clients.filter(client =>
                     client.name.toLowerCase().includes(this.searchClient.toLowerCase())
                 ).slice(0, 10); // Limit results
             },
 
             get hasActiveRoutes() {
-                return this.activeRoutes.length > 0;
+                return this.activeRoutes && this.activeRoutes.length > 0;
             },
 
             init() {
                 console.log("Dashboard Loaded");
-                lucide.createIcons();
-                if (this.labels.length > 0) {
-                    this.initChart();
-                }
+
+                // Mark as initialized after a brief delay to show skeleton
+                setTimeout(() => {
+                    this.initialized = true;
+                    this.$nextTick(() => {
+                        lucide.createIcons();
+                        if (this.labels && this.labels.length > 0) {
+                            this.initChart();
+                        }
+                    });
+                }, 100);
 
                 // Timer tick
                 setInterval(() => {
                     this.tick = Date.now();
                 }, 1000);
+
+                // Setup offline detection
+                this.setupOfflineDetection();
+
+                // Setup pull to refresh
+                this.setupPullToRefresh();
+            },
+
+            // Haptic feedback helper
+            haptic(type = 'light') {
+                if ('vibrate' in navigator) {
+                    const patterns = {
+                        light: [10],
+                        medium: [20],
+                        heavy: [30, 10, 30],
+                        success: [10, 50, 30],
+                        error: [50, 30, 50]
+                    };
+                    navigator.vibrate(patterns[type] || patterns.light);
+                }
+            },
+
+            // Offline detection
+            setupOfflineDetection() {
+                const banner = document.getElementById('offline-banner');
+                const updateStatus = () => {
+                    if (!navigator.onLine) {
+                        banner.classList.add('show');
+                    } else {
+                        banner.classList.remove('show');
+                    }
+                };
+                window.addEventListener('online', updateStatus);
+                window.addEventListener('offline', updateStatus);
+                updateStatus();
+            },
+
+            // Pull to refresh
+            setupPullToRefresh() {
+                let startY = 0;
+                let pulling = false;
+                const indicator = document.getElementById('pull-indicator');
+                const container = this.$refs.mainContainer;
+
+                if (!container) return;
+
+                container.addEventListener('touchstart', (e) => {
+                    if (window.scrollY === 0) {
+                        startY = e.touches[0].pageY;
+                        pulling = true;
+                    }
+                }, { passive: true });
+
+                container.addEventListener('touchmove', (e) => {
+                    if (!pulling) return;
+                    const y = e.touches[0].pageY;
+                    const diff = y - startY;
+                    if (diff > 80 && window.scrollY === 0) {
+                        indicator.classList.add('visible');
+                    }
+                }, { passive: true });
+
+                container.addEventListener('touchend', () => {
+                    if (indicator.classList.contains('visible')) {
+                        this.haptic('medium');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 300);
+                    }
+                    pulling = false;
+                    indicator.classList.remove('visible');
+                });
+            },
+
+            // Show XP popup animation
+            showXpPopup(amount) {
+                const popup = document.getElementById('xp-popup');
+                const amountEl = document.getElementById('xp-amount');
+                amountEl.textContent = amount;
+                popup.classList.remove('hidden');
+                this.haptic('success');
+                setTimeout(() => {
+                    popup.classList.add('hidden');
+                }, 2000);
             },
 
             tick: Date.now(),
@@ -691,8 +1266,16 @@
 
             confirmAddToQueue() {
                 if (!this.tempClient) return;
-                let weight = parseFloat(this.tempWeight);
-                if (isNaN(weight)) weight = 0;
+                // Parse PT-BR from mask (1.234,56 -> 1234.56)
+                let clean = this.tempWeight.replace(/\./g, '').replace(',', '.');
+                let weight = parseFloat(clean);
+
+                if (isNaN(weight) || weight <= 0) {
+                    this.haptic('error');
+                    alert("O peso deve ser maior que zero.");
+                    return;
+                }
+
                 if (!this.queue.find(i => i.id === this.tempClient.id)) {
                     this.queue.push({ id: this.tempClient.id, name: this.tempClient.name, weight: weight });
                 }
@@ -706,8 +1289,10 @@
             },
 
             startBatch() {
-                // REWRITE OF START BATCH
-                if (this.queue.length === 0) return;
+                if (this.queue.length === 0 || this.isLoading) return;
+
+                this.haptic('medium');
+                this.isLoading = true;
 
                 let allocations = [];
                 for (let i = 0; i < this.queue.length; i++) {
@@ -725,12 +1310,19 @@
                     .then(r => r.json())
                     .then(data => {
                         if (data.success) {
+                            this.haptic('success');
                             window.location.reload();
                         } else {
+                            this.haptic('error');
+                            this.isLoading = false;
                             alert("Erro: " + (data.error || "Falha ao iniciar"));
                         }
                     })
-                    .catch(err => alert("Erro de conexão"));
+                    .catch(err => {
+                        this.haptic('error');
+                        this.isLoading = false;
+                        alert("Erro de conexão");
+                    });
             },
 
             openStopModal(route) {
@@ -739,7 +1331,10 @@
             },
 
             confirmStop() {
-                if (!this.selectedRoute) return;
+                if (!this.selectedRoute || this.isLoading) return;
+
+                this.haptic('medium');
+                this.isLoading = true;
 
                 fetch(`/mobile/route/${this.selectedRoute.id}/finish`, {
                     method: 'POST'
@@ -747,10 +1342,24 @@
                     .then(r => r.json())
                     .then(data => {
                         if (data.success) {
-                            window.location.reload();
+                            this.haptic('success');
+                            // Show XP popup if XP was earned
+                            if (data.xp_earned) {
+                                this.showXpPopup(data.xp_earned);
+                                setTimeout(() => window.location.reload(), 2000);
+                            } else {
+                                window.location.reload();
+                            }
                         } else {
+                            this.haptic('error');
+                            this.isLoading = false;
                             alert("Erro: " + data.error);
                         }
+                    })
+                    .catch(err => {
+                        this.haptic('error');
+                        this.isLoading = false;
+                        alert("Erro de conexão");
                     });
             },
 
@@ -766,6 +1375,200 @@
                 fetch('/mobile/routine/stop', { method: 'POST' })
                     .then(() => {
                         window.location.href = '/mobile/login';
+                    });
+            },
+
+            // --- Edit & Delete Logic ---
+            showEditModal: false,
+            showDeleteModal: false,
+            editSearch: '',
+            editForm: { client_id: null, client_name: '', weightInput: '' },
+            deleteConfirmation: '',
+
+            get filteredEditClients() {
+                if (this.editSearch === '') return [];
+                if (!this.clients || !Array.isArray(this.clients)) return [];
+                return this.clients.filter(client =>
+                    client.name.toLowerCase().includes(this.editSearch.toLowerCase())
+                ).slice(0, 5);
+            },
+
+            openEditModal(route) {
+                this.selectedRoute = route;
+                this.editSearch = '';
+                this.editForm = {
+                    client_id: null, // Keep null unless changed
+                    client_name: '',
+                    weightInput: route.tonnage ? route.tonnage.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '0,00'
+                };
+                this.showEditModal = true;
+            },
+
+            selectEditClient(client) {
+                this.editForm.client_id = client.id;
+                this.editForm.client_name = client.name;
+                this.editSearch = ''; // Clear search
+            },
+
+            confirmEdit() {
+                if (!this.selectedRoute || this.isLoading) return;
+
+                let weight = 0;
+                if (this.editForm.weightInput) {
+                    let clean = this.editForm.weightInput.replace(/\./g, '').replace(',', '.');
+                    weight = parseFloat(clean);
+                }
+
+                if (weight <= 0) {
+                    alert("Peso inválido."); return;
+                }
+
+                this.isLoading = true;
+                this.haptic('medium');
+
+                fetch(`/mobile/route/${this.selectedRoute.id}/update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        client_id: this.editForm.client_id,
+                        tonnage: weight
+                    })
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.haptic('success');
+                            window.location.reload();
+                        } else {
+                            this.isLoading = false;
+                            this.haptic('error');
+                            alert("Erro: " + (data.error || "Falha ao atualizar"));
+                        }
+                    })
+                    .catch(e => {
+                        this.isLoading = false;
+                        alert("Erro de conexão");
+                    });
+            },
+
+            openDeleteModal(route) {
+                this.selectedRoute = route;
+                this.deleteConfirmation = '';
+                this.showDeleteModal = true;
+            },
+
+            confirmDelete() {
+                if (!this.selectedRoute || this.isLoading) return;
+                if (!this.deleteConfirmation) {
+                    alert("Digite sua matrícula."); return;
+                }
+
+                this.isLoading = true;
+                this.haptic('medium');
+
+                fetch(`/mobile/route/${this.selectedRoute.id}/delete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        registration_id: this.deleteConfirmation
+                    })
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.haptic('success');
+                            window.location.reload();
+                        } else {
+                            this.isLoading = false;
+                            this.haptic('error');
+                            alert("Erro: " + (data.error || "Falha ao excluir"));
+                        }
+                    })
+                    .catch(e => {
+                        this.isLoading = false;
+                        alert("Erro de conexão");
+                    });
+            },
+
+            // --- Admin Start Logic ---
+            showAdminStartModal: false,
+            adminStartForm: { employeeSearch: '', registrationId: '', employee_name: '', clientSearch: '', client_id: null, client_name: '', weightInput: '' },
+
+            open_admin_start_modal() {
+                this.showAdminStartModal = true;
+                this.adminStartForm = { employeeSearch: '', registrationId: '', employee_name: '', clientSearch: '', client_id: null, client_name: '', weightInput: '' };
+            },
+
+            get filteredAdminStartEmployees() {
+                const searchRaw = this.adminStartForm?.employeeSearch || '';
+                const normalizedSearch = searchRaw.trim().toLowerCase();
+                if (!normalizedSearch) return [];
+                const availableEmployees = Array.isArray(this.employees) ? this.employees : [];
+                return availableEmployees.filter(emp => {
+                    const name = ((emp && emp.name) || "").toLowerCase();
+                    const registration = (((emp && emp.registration_id) || "") + "").toLowerCase();
+                    return name.includes(normalizedSearch) || registration.includes(normalizedSearch);
+                }).slice(0, 5);
+            },
+
+            selectAdminStartEmployee(emp) {
+                this.adminStartForm.registrationId = emp.registration_id;
+                this.adminStartForm.employee_name = emp.name;
+                this.adminStartForm.employeeSearch = '';
+            },
+
+            get filteredAdminStartClients() {
+                if (this.adminStartForm.clientSearch === '') return [];
+                if (!this.clients || !Array.isArray(this.clients)) return [];
+                return this.clients.filter(client =>
+                    client.name.toLowerCase().includes(this.adminStartForm.clientSearch.toLowerCase())
+                ).slice(0, 5);
+            },
+
+            selectAdminStartClient(client) {
+                this.adminStartForm.client_id = client.id;
+                this.adminStartForm.client_name = client.name;
+                this.adminStartForm.clientSearch = '';
+            },
+
+            confirmAdminStart() {
+                if (this.isLoading) return;
+                if (!this.adminStartForm.registrationId) { alert("Informe a matrícula."); return; }
+                if (!this.adminStartForm.client_id) { alert("Selecione um cliente."); return; }
+
+                let weight = 0;
+                if (this.adminStartForm.weightInput) {
+                    let clean = this.adminStartForm.weightInput.replace(/\./g, '').replace(',', '.');
+                    weight = parseFloat(clean);
+                }
+
+                this.isLoading = true;
+                this.haptic('medium');
+
+                fetch('/mobile/admin/start-route', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        registration_id: this.adminStartForm.registrationId,
+                        client_id: this.adminStartForm.client_id,
+                        tonnage: weight
+                    })
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        this.isLoading = false;
+                        if (data.success) {
+                            this.haptic('success');
+                            this.showAdminStartModal = false;
+                            alert("Rota iniciada com sucesso!");
+                        } else {
+                            this.haptic('error');
+                            alert("Erro: " + (data.error || "Falha ao iniciar"));
+                        }
+                    })
+                    .catch(e => {
+                        this.isLoading = false;
+                        alert("Erro de conexão");
                     });
             },
 
