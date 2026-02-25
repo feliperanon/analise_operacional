@@ -6810,10 +6810,13 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
             "last_km": last_km
         })
 
+    equipment_last_km = {eq["code"]: eq["last_km"] for eq in equipment_list if eq.get("last_km") is not None}
+
     return templates.TemplateResponse(
         "mobile/routine_checklist.html",
         {
             "equipment_list": equipment_list,
+            "equipment_last_km": equipment_last_km,
             "request": request,
             "employee": employee,
             "items": CHECKLIST_ITEMS,
