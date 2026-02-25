@@ -308,7 +308,8 @@
 
             get canSubmit() {
                 if (!this.equipmentCode) return false;
-                if (this.odometerKm == null || this.odometerKm === '' || this.odometerKm < 0) return false;
+                const km = Number(this.odometerKm);
+                if (isNaN(km) || km < 0) return false;
                 const answeredCount = Object.keys(this.items).length;
                 if (answeredCount < this.totalItems) return false;
 
@@ -332,7 +333,7 @@
 
                 const formData = new FormData();
                 formData.append('equipment_code', this.equipmentCode);
-                formData.append('odometer_km', String(this.odometerKm));
+                formData.append('odometer_km', String(Number(this.odometerKm) || 0));
                 formData.append('date', '{{ today }}');
                 formData.append('shift', '{{ employee.work_shift }}');
                 formData.append('items', JSON.stringify(this.items));

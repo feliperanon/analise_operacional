@@ -124,7 +124,16 @@
                 </div>
                 {% endif %}
 
-                <div class="flex justify-end gap-3 pt-4 border-t border-slate-700">
+                <div class="flex justify-between pt-4 border-t border-slate-700">
+                    {% if vehicle %}
+                    <a href="/vehicles/{{ vehicle.id }}/history" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-700 hover:bg-blue-600 text-slate-300 hover:text-white transition text-sm font-medium">
+                        <i data-lucide="history" class="w-4 h-4"></i>
+                        Histórico do caminhão
+                    </a>
+                    {% else %}
+                    <span></span>
+                    {% endif %}
+                    <div class="flex gap-3">
                     <a href="/vehicles" class="px-4 py-2 text-slate-400 hover:text-white transition rounded-lg">Cancelar</a>
                     {% if vehicle %}
                     <button type="submit"
@@ -139,6 +148,7 @@
                         Cadastrar veículo
                     </button>
                     {% endif %}
+                    </div>
                 </div>
             </form>
         </div>
