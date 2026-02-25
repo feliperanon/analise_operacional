@@ -8868,64 +8868,6 @@ async def add_vehicle(
     return RedirectResponse(url="/vehicles?message=vehicle_created", status_code=status.HTTP_303_SEE_OTHER)
 
 
-@app.get("/vehicles/{vehicle_id}", response_class=HTMLResponse)
-async def vehicle_detail_page(request: Request, vehicle_id: int, session: Session = Depends(get_session)):
-    user = require_login(request)
-    vehicle = session.get(models.Vehicle, vehicle_id)
-    if not vehicle:
-        return RedirectResponse(url="/vehicles")
-    return templates.TemplateResponse("vehicle_detail.html", {"request": request, "user": user, "vehicle": vehicle})
-
-
-@app.post("/vehicles/{vehicle_id}/update", response_class=RedirectResponse)
-async def update_vehicle(
-    request: Request,
-    vehicle_id: int,
-    placa: str = Form(...),
-    vehicle_type: str = Form(...),
-    marca: str = Form(...),
-    modelo: str = Form(...),
-    renavam: Optional[str] = Form(default=None),
-    ano: Optional[str] = Form(default=None),
-    crv_number: Optional[str] = Form(default=None),
-    chassi: Optional[str] = Form(default=None),
-    session: Session = Depends(get_session)
-):
-    require_login(request)
-    vehicle = session.get(models.Vehicle, vehicle_id)
-    if not vehicle:
-        return RedirectResponse(url="/vehicles")
-    placa = placa.strip().upper()
-    if vehicle_type not in ("caminhao", "moto", "carro"):
-        return RedirectResponse(url=f"/vehicles/{vehicle_id}?error=invalid_type", status_code=status.HTTP_303_SEE_OTHER)
-    other = session.exec(select(models.Vehicle).where(models.Vehicle.placa == placa, models.Vehicle.id != vehicle_id)).first()
-    if other:
-        return RedirectResponse(url=f"/vehicles/{vehicle_id}?error=placa_exists", status_code=status.HTTP_303_SEE_OTHER)
-    def _opt(s): return (s or "").strip() or None
-    vehicle.placa = placa
-    vehicle.vehicle_type = vehicle_type
-    vehicle.marca = marca
-    vehicle.modelo = modelo
-    vehicle.renavam = _opt(renavam)
-    vehicle.ano = _opt(ano)
-    vehicle.crv_number = _opt(crv_number)
-    vehicle.chassi = _opt(chassi)
-    vehicle.updated_at = datetime.now()
-    session.add(vehicle)
-    session.commit()
-    return RedirectResponse(url=f"/vehicles/{vehicle_id}?message=vehicle_updated", status_code=status.HTTP_303_SEE_OTHER)
-
-
-@app.post("/vehicles/{vehicle_id}/delete", response_class=RedirectResponse)
-async def delete_vehicle(request: Request, vehicle_id: int, session: Session = Depends(get_session)):
-    require_login(request)
-    vehicle = session.get(models.Vehicle, vehicle_id)
-    if vehicle:
-        session.delete(vehicle)
-        session.commit()
-    return RedirectResponse(url="/vehicles", status_code=status.HTTP_303_SEE_OTHER)
-
-
 @app.get("/vehicles/template")
 async def vehicles_template(request: Request):
     """Retorna planilha Excel modelo para importação de veículos."""
@@ -8968,6 +8910,16 @@ async def vehicles_template(request: Request):
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=planilha_veiculos_modelo.xlsx"},
     )
+
+
+@app.get("/vehicles/import")
+async def vehicles_import_get(request: Request):
+    """Redireciona para /vehicles se acessar /vehicles/import via GET (ex: barra de endereço)."""
+    require_login(request)
+    return RedirectResponse(url="/vehicles", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.post("/vehicles/import", response_class=RedirectResponse)
 async def vehicles_import(
     request: Request,
     file: UploadFile = File(...),
@@ -8981,7 +8933,6 @@ async def vehicles_import(
         content = await file.read()
         df = pd.read_excel(io=content, engine="openpyxl" if file.filename.lower().endswith(".xlsx") else "xlrd")
         df.columns = [str(c).strip() for c in df.columns]
-        # Mapeamento flexível de colunas (case-insensitive)
         col_map = {}
         aliases = {
             "placa": ["placa", "Placa"],
@@ -8999,7 +8950,6 @@ async def vehicles_import(
                     if str(c).strip().lower() == v.lower():
                         col_map[std] = c
                         break
-        # Fallback: buscar por substring
         if "placa" not in col_map:
             for c in df.columns:
                 if "placa" in str(c).lower():
@@ -9056,6 +9006,64 @@ async def vehicles_import(
     except Exception as e:
         logger.exception(f"Vehicle import error: {e}")
         return RedirectResponse(url="/vehicles?error=import_failed", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.get("/vehicles/{vehicle_id}", response_class=HTMLResponse)
+async def vehicle_detail_page(request: Request, vehicle_id: int, session: Session = Depends(get_session)):
+    user = require_login(request)
+    vehicle = session.get(models.Vehicle, vehicle_id)
+    if not vehicle:
+        return RedirectResponse(url="/vehicles")
+    return templates.TemplateResponse("vehicle_detail.html", {"request": request, "user": user, "vehicle": vehicle})
+
+
+@app.post("/vehicles/{vehicle_id}/update", response_class=RedirectResponse)
+async def update_vehicle(
+    request: Request,
+    vehicle_id: int,
+    placa: str = Form(...),
+    vehicle_type: str = Form(...),
+    marca: str = Form(...),
+    modelo: str = Form(...),
+    renavam: Optional[str] = Form(default=None),
+    ano: Optional[str] = Form(default=None),
+    crv_number: Optional[str] = Form(default=None),
+    chassi: Optional[str] = Form(default=None),
+    session: Session = Depends(get_session)
+):
+    require_login(request)
+    vehicle = session.get(models.Vehicle, vehicle_id)
+    if not vehicle:
+        return RedirectResponse(url="/vehicles")
+    placa = placa.strip().upper()
+    if vehicle_type not in ("caminhao", "moto", "carro"):
+        return RedirectResponse(url=f"/vehicles/{vehicle_id}?error=invalid_type", status_code=status.HTTP_303_SEE_OTHER)
+    other = session.exec(select(models.Vehicle).where(models.Vehicle.placa == placa, models.Vehicle.id != vehicle_id)).first()
+    if other:
+        return RedirectResponse(url=f"/vehicles/{vehicle_id}?error=placa_exists", status_code=status.HTTP_303_SEE_OTHER)
+    def _opt(s): return (s or "").strip() or None
+    vehicle.placa = placa
+    vehicle.vehicle_type = vehicle_type
+    vehicle.marca = marca
+    vehicle.modelo = modelo
+    vehicle.renavam = _opt(renavam)
+    vehicle.ano = _opt(ano)
+    vehicle.crv_number = _opt(crv_number)
+    vehicle.chassi = _opt(chassi)
+    vehicle.updated_at = datetime.now()
+    session.add(vehicle)
+    session.commit()
+    return RedirectResponse(url=f"/vehicles/{vehicle_id}?message=vehicle_updated", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.post("/vehicles/{vehicle_id}/delete", response_class=RedirectResponse)
+async def delete_vehicle(request: Request, vehicle_id: int, session: Session = Depends(get_session)):
+    require_login(request)
+    vehicle = session.get(models.Vehicle, vehicle_id)
+    if vehicle:
+        session.delete(vehicle)
+        session.commit()
+    return RedirectResponse(url="/vehicles", status_code=status.HTTP_303_SEE_OTHER)
 
 
 # --- Route Management ---
