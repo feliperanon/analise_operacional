@@ -20705,21 +20705,23 @@ async def admin_checklists_test_email(
         return admin_checklists_settings_redirect("E-mail não encontrado.", "error")
         
     try:
-        # Simulate or Send real
-        # If send_maintenance_email exists and takes args? 
-        # Actually simplest is just to say "Test sent" but better to try invoke logic.
-        # But we need a ticket to send ticket email. 
-        # We can use send_simple_email if it exists?
-        # Let's assume we just log it for now as "Test" or simple logic.
-        # User asked for 'Teste rapido'.
-        
-        # We will try to send a Generic Test Email
-        # Assuming we have a configured sender
-        pass 
-        # NOTE: Real implementation depends on `send_email` utility availability.
-        # For this task, we will just mark as success to show UI flow, 
-        # or call `send_maintenance_email` with dummy data if needed.
-        
+        report = {
+            "subject": "ALERTA DE MANUTENÇÃO - TESTE",
+            "body": "Teste de envio de alerta de manutenção.",
+            "equipment_code": "EMP-TESTE-01",
+            "operator_name": str(user) if user else "Sistema",
+            "operator_id": "00000",
+            "shift": "Manhã",
+            "submitted_at": datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y às %H:%M"),
+            "observations": "Este é um e-mail de teste enviado pela tela de configurações.",
+            "nonconforming_items": [
+                {"label": "Freio de estacionamento", "critical": True},
+                {"label": "Sinalização sonora", "critical": False},
+            ],
+        }
+        sent, error = send_maintenance_email(report, [recipient.email])
+        if not sent:
+            return admin_checklists_settings_redirect(f"Erro ao testar: {error}", "error")
     except Exception as e:
         return admin_checklists_settings_redirect(f"Erro ao testar: {e}", "error")
 

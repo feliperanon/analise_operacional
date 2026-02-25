@@ -1,0 +1,230 @@
+﻿employee_id;matricula;nome;login;senha_temporaria;role;status_usuario;status_colaborador
+102;630618;ABEL UDE DOS SANTOS;abel.ude.dos.santos@empresa.local;v4ewRPkCPK;leader;ativo;active
+103;30032;ADEILTON VAZ DOS SANTOS;adeilton.vaz.dos.santos@empresa.local;Sfc8kOixVh;leader;ativo;active
+104;2618791;ADENILSON MARTINS JORDÃO;adenilson.martins.jordao@empresa.local;DKwc7qa3VI;leader;ativo;active
+105;633426;ADILSON LUIZ FERREIRA DE SOUZA;adilson.luiz.ferreira.de.souza@empresa.local;BUrr4tdxVp;leader;ativo;active
+106;20158;ADRIANO FERNANDO DE OLIVEIRA;adriano.fernando.de.oliveira@empresa.local;GboyImNL1q;leader;ativo;active
+107;61584;ALESSANDER DE ARAUJO SILVA;alessander.de.araujo.silva@empresa.local;vxWDP5VY9U;leader;ativo;active
+1;63-2886;ALESSANDRO BRANDAO RIBEIRO;alessandro.brandao.ribeiro@empresa.local;EaaduNFZFl;leader;ativo;active
+212;632886;ALESSANDRO BRANDAO RIBEIRO;alessandro.brandao.ribeiro.632886@empresa.local;Tmp2122886!;leader;ativo;active
+2;63-2756;ALEX OLIVEIRA FARIA;alex.oliveira.faria@empresa.local;tgThdHgiGX;leader;ativo;active
+108;631053;ALEXANDRE CÂNDIDO DOS SANTOS;alexandre.candido.dos.santos@empresa.local;cIA7cc0jQF;leader;ativo;active
+109;13847;ALISSON RIBEIRO ANDRADE E SILVA;alisson.ribeiro.andrade.e.silva@empresa.local;zGV2FnqMIG;leader;ativo;active
+3;631510;ANDERSON CARDOSO MIRANDA;anderson.cardoso.miranda@empresa.local;YJHPr2x9uG;leader;ativo;active
+4;63-3728;ANDERSON PIMENTA DOS ANJOS;anderson.pimenta.dos.anjos@empresa.local;QEY0bCxuEU;leader;ativo;active
+5;15826;ANDERSON VERONEZ;anderson.veronez@empresa.local;UPtOPPop2d;leader;ativo;active
+7;2-163;ANDRE LUIZ GARCIA SOARES;andre.luiz.garcia.soares@empresa.local;aruLJ4cznQ;leader;ativo;active
+111;631956;ANDRE ROCHA CHAGAS DE SOUZA;andre.rocha.chagas.de.souza@empresa.local;NHXOyRrbu3;leader;ativo;active
+6;631060;ANDRÉ LUCAS DE JESUS VIEGAS;andre.lucas.de.jesus.viegas@empresa.local;qbUcRMDvlh;leader;ativo;active
+110;630786;ANDRÉ LUIZ DA SILVA;andre.luiz.da.silva@empresa.local;Con2svjnN1;leader;ativo;active
+8;17319;ANTÔNIO JUNIO LELES;antonio.junio.leles@empresa.local;SiKMQ5xKnt;leader;ativo;active
+9;63-2887;ARTHUR HENRIQUE LIMA DIAS;arthur.henrique.lima.dias@empresa.local;r5cG73lxS7;leader;ativo;active
+112;632887;ARTHUR HENRIQUE LIMA DIAS;arthur.henrique.lima.dias.632887@empresa.local;Tmp1122887!;leader;ativo;active
+213;632887E;ARTHUR HENRIQUE LIMA DIAS;arthur.henrique.lima.dias.632887E@empresa.local;Tmp213887E!;leader;ativo;active
+113;63 4203;ARTHUR SAMUEL DA SILVA OLIVEIRA;arthur.samuel.da.silva.oliveira@empresa.local;sH4QncNbPF;leader;ativo;active
+114;633574;ARTUR BARBARA DE CASTRO VIEIRA;artur.barbara.de.castro.vieira@empresa.local;0wKq8i5rGQ;leader;ativo;active
+115;140047;BERNARDO HENRIQUE DE OLIVEIRA;bernardo.henrique.de.oliveira@empresa.local;MWwsSPNYB4;leader;ativo;active
+116;633430;BRENDA KELLY FERNANDES DE LIMA;brenda.kelly.fernandes.de.lima@empresa.local;IGx5ryliwT;leader;ativo;active
+10;63-3205;CAIO DE CASTRO ANDRADE;caio.de.castro.andrade@empresa.local;B7mKQwbTlH;leader;ativo;active
+117;633317;CARLOS ALVES MIRANDA;carlos.alves.miranda@empresa.local;zUN2GJe3Bv;leader;ativo;active
+11;63-3993;CARLOS HAENDER BISPO;carlos.haender.bispo@empresa.local;vR1IxwH1kV;leader;ativo;active
+12;632669;CARLOS MURILO WANDER LOPES;carlos.murilo.wander.lopes@empresa.local;6MDxbwYoKL;leader;ativo;active
+118;631457;CASSIANO ALVES GODINHO;cassiano.alves.godinho@empresa.local;WLTnmHC3pU;leader;ativo;active
+119;633049;CELSO EDUARDO DE SOUSA;celso.eduardo.de.sousa@empresa.local;eBtsZLda0S;leader;ativo;active
+13;06-1578;CESAR AUGUSTO GODINHO DAGUILAR;cesar.augusto.godinho.daguilar@empresa.local;QXFTB8hf04;leader;ativo;active
+14;630029;CLAUDINEI DOMINGOS SILVA;claudinei.domingos.silva@empresa.local;g0v4LEEHPo;leader;ativo;active
+15;63-2734;CLAUDIO SERGIO CAMPOS;claudio.sergio.campos@empresa.local;NTNEmEbMEw;leader;ativo;active
+16;63-1183;CLEIDSON VICENTE;cleidson.vicente@empresa.local;r9mwObHhaE;leader;ativo;active
+17;63-4286;CLEITON YGOR DA SILVA RODRIGUES SOUZA;cleiton.ygor.da.silva.rodrigues.souza@empresa.local;bngkWsWxmQ;leader;ativo;active
+214;634286;CLEITON YGOR DA SILVA RODRIGUES SOUZA;cleiton.ygor.da.silva.rodrigues.souza.634286@empresa.local;Tmp2144286!;leader;ativo;active
+120;20197;CRISTIANE MENEZES DE SOUZA;cristiane.menezes.de.souza@empresa.local;71uEFtrVkq;leader;ativo;active
+18;14-0046;CRISTIANO NEUBANER DA SILVA;cristiano.neubaner.da.silva@empresa.local;IS40MKxGEZ;leader;ativo;active
+19;631163;DANIEL ANTONIO DOS SANTOS;daniel.antonio.dos.santos@empresa.local;EccfDD9CZj;leader;ativo;active
+20;632541;DANIEL FILIPE DE PAULA NETO;daniel.filipe.de.paula.neto@empresa.local;h47tEXMSgz;leader;ativo;active
+122;634604;DANIEL VICTOR RODRIGUES DO NASCIMENTO;daniel.victor.rodrigues.do.nascimento@empresa.local;myxlFRxRk8;leader;ativo;active
+21;02-0161;DANILO HENRIQUE LOPES PEREIRA;danilo.henrique.lopes.pereira@empresa.local;C3BPl3qYLu;leader;ativo;active
+22;20194;DAVID PEREIRA DOS SANTOS;david.pereira.dos.santos@empresa.local;TkGB7yGMeU;leader;ativo;active
+121;634027;DAVIDSON CESAR MENDES;davidson.cesar.mendes@empresa.local;sRfeyWiq7y;leader;ativo;active
+123;632740;DEIVERSON ALBERTO DOS SANTOS VERONEZE JUNIOR;deiverson.alberto.dos.santos.veroneze.junior@empresa.local;leYZag0i07;leader;ativo;active
+124;633667;DEMETRIO CABRAL DRUMOND;demetrio.cabral.drumond@empresa.local;5D1kzKiJAR;leader;ativo;active
+125;20200;DENIS HENRIQUE DOS SANTOS COSTA;denis.henrique.dos.santos.costa@empresa.local;CPjDFeSNwy;leader;ativo;active
+126;633511;DIEGO ALVES DA SILVA;diego.alves.da.silva@empresa.local;SNVXB1MtYv;leader;ativo;active
+24;63-3295;DILHERMANDO AUGUSTO DE AZEVEDO DINIZ;dilhermando.augusto.de.azevedo.diniz@empresa.local;S2XScjDWe0;leader;ativo;active
+25;20071;DIONATHAM PEREIRA MONTEIRO;dionatham.pereira.monteiro@empresa.local;OomwfMizrk;leader;ativo;active
+127;631038;DOMINIQUE RODRIGUES ANDRADE SILVA;dominique.rodrigues.andrade.silva@empresa.local;xYuBgruHgX;leader;ativo;active
+128;19436;DOUGLAS MARCOS GOMES MIRANTE;douglas.marcos.gomes.mirante@empresa.local;sMnCoa4jCS;leader;ativo;active
+23;19596;DÉBORA CRISTINA MONTEIRO;debora.cristina.monteiro@empresa.local;uXW7fNqKiR;leader;ativo;active
+215;19596E;DÉBORA CRISTINA MONTEIRO;debora.cristina.monteiro.19596E@empresa.local;Tmp215596E!;leader;ativo;active
+129;3633-09-22 00:00:00;ED CARLOS DE JESUS EVARISTO;ed.carlos.de.jesus.evaristo@empresa.local;rVp7ef7NGi;leader;ativo;active
+26;632256;EDSON NOGUEIRA DOS SANTOS;edson.nogueira.dos.santos@empresa.local;MtZoBybdJX;leader;ativo;active
+130;40150;ELIEZER GOULART DA SILVA;eliezer.goulart.da.silva@empresa.local;VdNxPiBPRh;leader;ativo;active
+27;63-3929;EMERSON ALVES DOS SANTOS;emerson.alves.dos.santos@empresa.local;UUlRm41eNK;leader;ativo;active
+216;633929;EMERSON ALVES DOS SANTOS;emerson.alves.dos.santos.633929@empresa.local;Tmp2163929!;leader;ativo;active
+28;63-3142;ERICK HENRIQUE PINHEIRO ENIS DE MELLO;erick.henrique.pinheiro.enis.de.mello@empresa.local;UsPg5TEfO2;leader;ativo;active
+29;6-1609;EVANDRO DE SILVA DE OLIVEIRA;evandro.de.silva.de.oliveira@empresa.local;XD0IEvOTfZ;leader;ativo;active
+30;30001;EVERI MARTINS DOS SANTOS;everi.martins.dos.santos@empresa.local;NcgrLn9vsJ;leader;ativo;active
+131;634028;EVERTON BATISTA SOUZA;everton.batista.souza@empresa.local;KmzmSia6zY;leader;ativo;active
+132;634319;FABIO JUNIO DE PAULA GONZAGA;fabio.junio.de.paula.gonzaga@empresa.local;T7RALSJ52k;leader;ativo;active
+31;02-0002;FELIPE EMMANUEL FERREIRA DOS SANTOS;felipe.emmanuel.ferreira.dos.santos@empresa.local;Z8ZS8HD8nY;leader;ativo;active
+32;19161;FELIPE PEREIRA GOMES;felipe.pereira.gomes@empresa.local;knocgC0NrD;leader;ativo;active
+33;63-3141;FERNANDO JUNIOR DE OLIVEIRA;fernando.junior.de.oliveira@empresa.local;oQz44w4MCc;leader;ativo;active
+34;03-0041;FERNANDO MARIO DOS SANTOS;fernando.mario.dos.santos@empresa.local;jeY7QuHDUn;leader;ativo;active
+217;30041;FERNANDO MARIO DOS SANTOS;fernando.mario.dos.santos.30041@empresa.local;Tmp2170041!;leader;ativo;active
+35;631980;FILIPE JESUS DE OLIVEIRA;filipe.jesus.de.oliveira@empresa.local;chFFFFruOG;leader;ativo;active
+133;634517;FLAVIO FRANKLIN SENA SOUTELO NICOLAU;flavio.franklin.sena.soutelo.nicolau@empresa.local;wI1B9C7Avv;leader;ativo;active
+36;631821;FLÁVIA ANGÊLICA DA CUNHA;flavia.angelica.da.cunha@empresa.local;pPZiIAYL7a;leader;ativo;active
+134;633167;FRANKLIN SILVA CHABEREK;franklin.silva.chaberek@empresa.local;wHF2zMFJFf;leader;ativo;active
+135;19666;GABRIEL FAGUNDES DA SILVA;gabriel.fagundes.da.silva@empresa.local;TPFm6VbSCt;leader;ativo;active
+136;631099;GABRIEL FERREIRA DOS SANTOS;gabriel.ferreira.dos.santos@empresa.local;WC5Y1JDWi6;leader;ativo;active
+37;14416;GABRIEL LOPES FERREIRA;gabriel.lopes.ferreira@empresa.local;z2sGjK6kKW;leader;ativo;active
+137;634587;GABRIEL RODRIGUES FERREIRA;gabriel.rodrigues.ferreira@empresa.local;kNfZz9SFGE;leader;ativo;active
+138;63 4204;GABRIELA GOMES DE MORAIS;gabriela.gomes.de.morais@empresa.local;hBj4fSbhBB;leader;ativo;active
+139;19241;GABRIELA NEIVA JUSTINO;gabriela.neiva.justino@empresa.local;BjANLbJbTT;leader;ativo;active
+140;631035;GEOVANA TAIS DE OLIVEIRA SOUZA;geovana.tais.de.oliveira.souza@empresa.local;Ikxu0bnVLI;leader;ativo;active
+38;19597;GERALDO MÁRCIO DE OLIVEIRA;geraldo.marcio.de.oliveira@empresa.local;HhmYYGEOiL;leader;ativo;active
+141;140044;GERSON BRAIN MARTINS DE OLIVEIRA;gerson.brain.martins.de.oliveira@empresa.local;UltfsjPzxK;leader;ativo;active
+39;630547;GILMAR FREIRE MIRANDA;gilmar.freire.miranda@empresa.local;nLkuIFqwf4;leader;ativo;active
+40;02-0198;GILMAR MARQUES DOS SANTOS;gilmar.marques.dos.santos@empresa.local;6GkISkAY7n;leader;ativo;active
+218;20198;GILMAR MARQUES DOS SANTOS;gilmar.marques.dos.santos.20198@empresa.local;Tmp2180198!;leader;ativo;active
+41;13428;GIVANILDO FERNANDES DA CRUZ;givanildo.fernandes.da.cruz@empresa.local;cQtfg1g0jw;leader;ativo;active
+142;61649;GUILHERME DA SILVA BARBOSA;guilherme.da.silva.barbosa@empresa.local;BspkkQvC1A;leader;ativo;active
+143;61658;GUILHERME FERREIRA LEAO;guilherme.ferreira.leao@empresa.local;0llcJKh3dB;leader;ativo;active
+42;63-3518;GUILHERME NASCIMENTO DE ABREU;guilherme.nascimento.de.abreu@empresa.local;2YqR3sprIr;leader;ativo;active
+144;140021;GUILHERME RODRIGUES DE JESUS;guilherme.rodrigues.de.jesus@empresa.local;7PzmXGbgZL;leader;ativo;active
+145;40046;GUSTAVO ANTÔNIO PEREIRA DE LIMA;gustavo.antonio.pereira.de.lima@empresa.local;mnMUHa3ALM;leader;ativo;active
+146;140040;GUSTAVO RAMALHO ANASTACIO;gustavo.ramalho.anastacio@empresa.local;Q4wo3nAq1D;leader;ativo;active
+43;63-4299;HAMILTON BARBOSA HARMONICO JUNIOR;hamilton.barbosa.harmonico.junior@empresa.local;OjK4tcA3X7;leader;ativo;active
+219;634299;HAMILTON BARBOSA HARMONICO JUNIOR;hamilton.barbosa.harmonico.junior.634299@empresa.local;Tmp2194299!;leader;ativo;active
+44;63-2971;HEBER TIAGO BRANDÃO;heber.tiago.brandao@empresa.local;Iw0fCbPuwx;leader;ativo;active
+220;632971;HEBER TIAGO BRANDÃO;heber.tiago.brandao.632971@empresa.local;Tmp2202971!;leader;ativo;active
+147;13346;HELBERT MANIR DE ABREU;helbert.manir.de.abreu@empresa.local;seVSwdADys;leader;ativo;active
+148;631738;HESLEY HENRIQUE DE ABREU;hesley.henrique.de.abreu@empresa.local;gtOID00mAg;leader;ativo;active
+149;633535;HUGO ALBERTO DA CRUZ MENEZES;hugo.alberto.da.cruz.menezes@empresa.local;GUy4kBB1oi;leader;ativo;active
+150;15591;HUGO LUIZ POLICARPO;hugo.luiz.policarpo@empresa.local;WaJhWdaArg;leader;ativo;active
+45;632085;HUMBERTO EVANGELISTA FRANCISCO;humberto.evangelista.francisco@empresa.local;bwjEG5HbYM;leader;ativo;active
+151;633844;HUMBERTO LUIZ MACHADO FILHO;humberto.luiz.machado.filho@empresa.local;tqMUmkTERf;leader;ativo;active
+46;634194;IALIS AUGUSTO DE PAIVA;ialis.augusto.de.paiva@empresa.local;3MsGRk255L;leader;ativo;active
+152;633839;IGOR COSTA SANTOS FERNANDES;igor.costa.santos.fernandes@empresa.local;8odrgikqg3;leader;ativo;active
+153;20203;IGOR NUNES CUNHA;igor.nunes.cunha@empresa.local;K5EaAImrPC;leader;ativo;active
+154;633804;ISABELLA CRISTINA SILVA MOURA;isabella.cristina.silva.moura@empresa.local;4M9wfkrDbZ;leader;ativo;active
+47;630877;ITAMAR FERREIRA DA SILVA;itamar.ferreira.da.silva@empresa.local;pYjgLr5pjQ;leader;ativo;active
+155;2009-09-30 00:00:00;IVANILDO COSTA DA SILVA;ivanildo.costa.da.silva@empresa.local;YmAIpLeDu0;leader;ativo;active
+156;19351;IVANIRA APARECIDA SYLVESTRE;ivanira.aparecida.sylvestre@empresa.local;2vYPCxTXGh;leader;ativo;active
+157;20185;IZABELA CRISTINA DE SOUZA CASSIO;izabela.cristina.de.souza.cassio@empresa.local;R0hLtCVYyZ;leader;ativo;active
+48;63-4440;JEFFERSON VINICIUS MAIA ARAUJO;jefferson.vinicius.maia.araujo@empresa.local;UKb1cCcQNM;leader;ativo;active
+221;634440;JEFFERSON VINICIUS MAIA ARAUJO;jefferson.vinicius.maia.araujo.634440@empresa.local;Tmp2214440!;leader;ativo;active
+158;631235;JOAO PAULO SILVA DE ABREU;joao.paulo.silva.de.abreu@empresa.local;ORrVXDydww;leader;ativo;active
+50;16948;JOILSON DE ALMEIDA;joilson.de.almeida@empresa.local;0sWQDf8HrE;leader;ativo;active
+51;63-3108;JONATHAN ARAUJO PRATES DE OLIVEIRA;jonathan.araujo.prates.de.oliveira@empresa.local;10Kdo0q6sU;leader;ativo;active
+222;633108;JONATHAN ARAUJO PRATES DE OLIVEIRA;jonathan.araujo.prates.de.oliveira.633108@empresa.local;Tmp2223108!;leader;ativo;active
+52;63-4467;JONATHAN NASCIMENTO SILVA;jonathan.nascimento.silva@empresa.local;oMHXaFEzqw;leader;ativo;active
+160;61648;JONNATHAN ALEXANDRE VIEIRA ALMEIDA;jonnathan.alexandre.vieira.almeida@empresa.local;RBtpLWAHGK;leader;ativo;active
+54;631176;JOSE LUIS VALADARES SOARES;jose.luis.valadares.soares@empresa.local;likqHKg38b;leader;ativo;active
+56;2-0157;JOSIMAR DA SILVA RODRIGUES;josimar.da.silva.rodrigues@empresa.local;M22uT7Ivb5;leader;ativo;active
+57;632346;JOSUE COSTA SANTOS OLIVEIRA;josue.costa.santos.oliveira@empresa.local;IsM1OJ1j1Q;leader;ativo;active
+53;20111;JOSÉ ANJO DOS REIS;jose.anjo.dos.reis@empresa.local;GWilBhb8fO;leader;ativo;active
+55;60421;JOSÉ MARIA CÉSAR DOS SANTOS;jose.maria.cesar.dos.santos@empresa.local;FUjfy1XkGM;leader;ativo;active
+159;40059;JOÃO PEDRO RAMIRO DE OLIVEIRA;joao.pedro.ramiro.de.oliveira@empresa.local;ymLz9J4RH2;leader;ativo;active
+49;19086;JOÃO VITOR  ALVES ROLA;joao.vitor.alves.rola@empresa.local;qoIsNMu1Pk;leader;ativo;active
+161;632705;JUAN HENRIQUE DA SILVA REIS;juan.henrique.da.silva.reis@empresa.local;BaJNItQdTE;leader;ativo;active
+162;13354;JULIANO RAFAEL DAS CHAGAS CRUZ;juliano.rafael.das.chagas.cruz@empresa.local;HndSC9TpwC;leader;ativo;active
+163;632937;JULIO LUIZ RODRIGUES DA SILVA;julio.luiz.rodrigues.da.silva@empresa.local;TvTvJXrBPc;leader;ativo;active
+58;631165;KAIÃ EDUARDO GUIMARÃES DE MATTOS;kaia.eduardo.guimaraes.de.mattos@empresa.local;GUvs2mCU8J;leader;ativo;active
+59;19771;KEVEN LUCAS DE ANDRADE BARBOSA;keven.lucas.de.andrade.barbosa@empresa.local;lqRXIHdriq;leader;ativo;active
+164;13328;KÊNIA MAYRA FABRINI LIMA;kenia.mayra.fabrini.lima@empresa.local;VfdTx2Bm5i;leader;ativo;active
+165;631421;LEANDRO AUGUSTO FERNANDES MOREIRA;leandro.augusto.fernandes.moreira@empresa.local;WrNvWkg7wl;leader;ativo;active
+60;632086;LEIDSON AUGUSTO FONSECA;leidson.augusto.fonseca@empresa.local;1xb57W3ctU;leader;ativo;active
+61;13372;LEONE HELENO MATOS RAMOS;leone.heleno.matos.ramos@empresa.local;ADsGUZjMAG;leader;ativo;active
+223;13372E;LEONE HELENO MATOS RAMOS;leone.heleno.matos.ramos.13372E@empresa.local;Tmp223372E!;leader;ativo;active
+166;20154;LEONEL ASSUNÇÃO OLIVEIRA;leonel.assuncao.oliveira@empresa.local;SKRDSVryVy;leader;ativo;active
+167;15433;LESANDRO SILVA SENA;lesandro.silva.sena@empresa.local;5xtVvAglPI;leader;ativo;active
+62;630398;LINDOMAR MILTON DIAS DE SOUZA;lindomar.milton.dias.de.souza@empresa.local;Y2tvOAsGEa;leader;ativo;active
+63;63-3729;LOURENÇO TALES PACHECO;lourenco.tales.pacheco@empresa.local;yx0fLhz4yh;leader;ativo;active
+168;633412;LUANA VITORIA DE MOURA NERY;luana.vitoria.de.moura.nery@empresa.local;HygNo9iWEC;leader;ativo;active
+169;140045;LUCAS RODRIGUES;lucas.rodrigues@empresa.local;EnbaDqP3vh;leader;ativo;active
+170;15569;LUIZ HENRIQUE FERNANDES VAZ;luiz.henrique.fernandes.vaz@empresa.local;T7D3OddI9h;leader;ativo;active
+171;633989;LUIZ HENRIQUE VALAZUELA CORREA;luiz.henrique.valazuela.correa@empresa.local;dofLaMDfXH;leader;ativo;active
+172;140017;MARCELO GONÇALVES DOS REIS;marcelo.goncalves.dos.reis@empresa.local;KmJRKC7QpZ;leader;ativo;active
+173;13661;MARCELO PEREIRA VIANA;marcelo.pereira.viana@empresa.local;4kSU1lOc0S;leader;ativo;active
+174;631426;MARCELO RODRIGUES DE OLIVEIRA;marcelo.rodrigues.de.oliveira@empresa.local;qZtMdiKATd;leader;ativo;active
+64;63-3297;MARCIO EDUARDO MARTINS COSTA;marcio.eduardo.martins.costa@empresa.local;icvLPXhN18;leader;ativo;active
+224;633297;MARCIO EDUARDO MARTINS COSTA;marcio.eduardo.martins.costa.633297@empresa.local;Tmp2243297!;leader;ativo;active
+65;631370;MARCIO WELINGTON JERONIMO DE JESUS;marcio.welington.jeronimo.de.jesus@empresa.local;jgjI3onaRo;leader;ativo;active
+66;630995;MARCO AURÉLIO RODRIGUES DE ALMEIDA;marco.aurelio.rodrigues.de.almeida@empresa.local;HFVzWS56Rz;leader;ativo;active
+175;40128;MARCO TULIO OLIVEIRA DE JESUS;marco.tulio.oliveira.de.jesus@empresa.local;v5HOC1dVlP;leader;ativo;active
+67;63-3296;MARCOS ANTONIO DOS REIS ALMEIDA;marcos.antonio.dos.reis.almeida@empresa.local;0r3IVxO3Ke;leader;ativo;active
+225;633296;MARCOS ANTONIO DOS REIS ALMEIDA;marcos.antonio.dos.reis.almeida.633296@empresa.local;Tmp2253296!;leader;ativo;active
+68;63-3150;MARCOS HENRIQUE COSTA;marcos.henrique.costa@empresa.local;8VIuxhvwcG;leader;ativo;active
+226;633150;MARCOS HENRIQUE COSTA;marcos.henrique.costa.633150@empresa.local;Tmp2263150!;leader;ativo;active
+69;630320;MARCOS VINICIUS COSTA DIAS;marcos.vinicius.costa.dias@empresa.local;CmW29TpM9J;leader;ativo;active
+176;61380;MARCUS VINICIUS MACHADO DE ASSIS;marcus.vinicius.machado.de.assis@empresa.local;392pfLEHzO;leader;ativo;active
+177;633457;MARIA LUISA SILVA BARROS INACIO;maria.luisa.silva.barros.inacio@empresa.local;TzwYtH7M7e;leader;ativo;active
+178;61653;MARIO LEANDRO RODRIGUES PEREIRA;mario.leandro.rodrigues.pereira@empresa.local;OCXYdWNiig;leader;ativo;active
+179;633835;MARISON BATISTA DA SILVA JUNIOR;marison.batista.da.silva.junior@empresa.local;EpPvhi8QnH;leader;ativo;active
+180;61525;MATEUS BARNABÉ BATISTA;mateus.barnabe.batista@empresa.local;bzqI6RZfry;leader;ativo;active
+181;632621;MATEUS DE JESUS ALVES;mateus.de.jesus.alves@empresa.local;TkD5LFXjWo;leader;ativo;active
+182;634468;MATHEUS BIBIANO TEIXIERA;matheus.bibiano.teixiera@empresa.local;GMVNmPfvWH;leader;ativo;active
+183;20196;MAYK JUNIO SANTOS;mayk.junio.santos@empresa.local;RocSZLb2dP;leader;ativo;active
+70;634182;MICHAEL PIERRE FREDERICK SOUZA;michael.pierre.frederick.souza@empresa.local;2C2iQ9505Y;leader;ativo;active
+71;63-4321;MICHEL WILLIAM LIMA DE SOUZA;michel.william.lima.de.souza@empresa.local;aMTYetbhKo;leader;ativo;active
+72;632382;MILTON  LAGE DA SILVA;milton.lage.da.silva@empresa.local;LTkL6xBQvL;leader;ativo;active
+184;20193;NATALICIA RODRIGUES DE OLIVEIRA DOS SANTOS;natalicia.rodrigues.de.oliveira.dos.santos@empresa.local;AkudYwfjiw;leader;ativo;active
+185;13642;NATALINO FRANCISCO DOS SANTOS FILHO;natalino.francisco.dos.santos.filho@empresa.local;ZPbpvWryLC;leader;ativo;active
+186;30040;NATHALIA LUANA OLIVEIRA FONSECA;nathalia.luana.oliveira.fonseca@empresa.local;cGvlTaPZLE;leader;ativo;active
+73;63-0717;NERO STIGERT RODRIGUES ALVES;nero.stigert.rodrigues.alves@empresa.local;uRP2rbDbLK;leader;ativo;active
+74;14222;NILSON SOARES DA SILVA;nilson.soares.da.silva@empresa.local;DIVOBBVq5a;leader;ativo;active
+187;3632-07-20 00:00:00;PABLO AUGUSTO SOUZA FERREIRA;pablo.augusto.souza.ferreira@empresa.local;gwXigWswUf;leader;ativo;active
+188;61629;PABLO AUGUSTO VENANCIO JOAO;pablo.augusto.venancio.joao@empresa.local;jKLbGuitz2;leader;ativo;active
+75;13370;PAULO CÉSAR GOMES CHAVES;paulo.cesar.gomes.chaves@empresa.local;iW1VhWvOe6;leader;ativo;active
+76;15873;PAULO EMÍLIO SPITALI;paulo.emilio.spitali@empresa.local;BcSjOYCJJo;leader;ativo;active
+189;20114;PEDRO HENRIQUE SILVA;pedro.henrique.silva@empresa.local;4xXavIUvHR;leader;ativo;active
+190;61614;POLIANA DA SILVA SANTOS;poliana.da.silva.santos@empresa.local;f9ueC5hr27;leader;ativo;active
+191;20202;RAFAEL ALEIXO BAIAO;rafael.aleixo.baiao@empresa.local;6gb6RRclNK;leader;ativo;active
+77;63-3298;RAFAEL JUNIOR GONÇALVES COSTA;rafael.junior.goncalves.costa@empresa.local;ycT2o7l68J;leader;ativo;active
+227;633298;RAFAEL JUNIOR GONÇALVES COSTA;rafael.junior.goncalves.costa.633298@empresa.local;Tmp2273298!;leader;ativo;active
+78;63-3181;REGINALDO RODRIGUES DOS SANTOS;reginaldo.rodrigues.dos.santos@empresa.local;56LYuEA1Qo;leader;ativo;active
+79;2-0153;REINALDO BELISARIO DOS REIS;reinaldo.belisario.dos.reis@empresa.local;jGT5FpJusK;leader;ativo;active
+192;631459;RENAN MEDEIROS SANTOS;renan.medeiros.santos@empresa.local;wtuPFVEdWJ;leader;ativo;active
+80;631981;RENATO DE FREITAS ABREU;renato.de.freitas.abreu@empresa.local;0jtYudu7tM;leader;ativo;active
+81;630654;ROBERT LEMES MARQUES;robert.lemes.marques@empresa.local;hxndNRTXnz;leader;ativo;active
+193;634338;RODOLFO CALIXTO BARBOSA DA SILVA;rodolfo.calixto.barbosa.da.silva@empresa.local;YYiL79lM4x;leader;ativo;active
+194;1300006;RODRIGO MOREIRA DOS SANTOS;rodrigo.moreira.dos.santos@empresa.local;thpyBmNl0X;leader;ativo;active
+82;01-6893;ROGERIO LOPES DE ANDRADE JUNIOR;rogerio.lopes.de.andrade.junior@empresa.local;eHF35CQbBH;leader;ativo;active
+83;631739;RONALDO DA COSTA MORAIS;ronaldo.da.costa.morais@empresa.local;mGZ0hkTTU3;leader;ativo;active
+84;15870;RONILSON BATISTA DE ARAÚJO;ronilson.batista.de.araujo@empresa.local;COdqTvuyH8;leader;ativo;active
+85;690002;RONNEI PEDROSA DA COSTA;ronnei.pedrosa.da.costa@empresa.local;1f0aqYbs7p;leader;ativo;active
+195;4 0066;SAMUEL CRISOSTOMO MIRANDA;samuel.crisostomo.miranda@empresa.local;zDZYnfEhbk;leader;ativo;active
+86;631062;SANDRO GEORGE VEIGA;sandro.george.veiga@empresa.local;JcfddKFBGJ;leader;ativo;active
+196;633805;SARA LUIZA PEREIRA ANTUNES;sara.luiza.pereira.antunes@empresa.local;a5ZN4ErDPb;leader;ativo;active
+197;633414;SILVIO OLIVEIRA DE SOUZA;silvio.oliveira.de.souza@empresa.local;vzxsyQjvPA;leader;ativo;active
+87;631090;SÉRGIO ALVES COSTA;sergio.alves.costa@empresa.local;O9NWKHbSq7;leader;ativo;active
+198;634447;THARLEY FERNANDES DE OLIVA;tharley.fernandes.de.oliva@empresa.local;7BipsjZsuD;leader;ativo;active
+199;3633-12-17 00:00:00;THIAGO FERNANDES PENAFORTE;thiago.fernandes.penaforte@empresa.local;Vqh20tFqV2;leader;ativo;active
+200;631638;TIAGO MARCIO FELICIO;tiago.marcio.felicio@empresa.local;mfrj7dd0DI;leader;ativo;active
+89;2-0159;TIAGO OLIVEIRA VIEIRA;tiago.oliveira.vieira@empresa.local;Tq7FaZcvem;leader;ativo;active
+228;20159;TIAGO OLIVEIRA VIEIRA;tiago.oliveira.vieira.20159@empresa.local;Tmp2280159!;leader;ativo;active
+88;630477;TIAGO OLÍMPIO DE OLIVEIRA;tiago.olimpio.de.oliveira@empresa.local;cVJJuRGY2C;leader;ativo;active
+90;63-2867;VALDEMIR FRANCISCO DE AGUIAR;valdemir.francisco.de.aguiar@empresa.local;tVjGHSLTKH;leader;ativo;active
+91;14588;VALTER SENA EVANGELISTA;valter.sena.evangelista@empresa.local;5S7Czvpwb5;leader;ativo;active
+92;170001;VICENTE AGNALDO DA SILVA;vicente.agnaldo.da.silva@empresa.local;pWyD7T7lA7;leader;ativo;active
+201;633592;VICTOR HENRIQUE QUADROS DE CASTRO;victor.henrique.quadros.de.castro@empresa.local;v521WJDW2f;leader;ativo;active
+202;61671;VICTOR HUGO DE ALMEIDA VIEIRA;victor.hugo.de.almeida.vieira@empresa.local;7UIJQjTjnb;leader;ativo;active
+203;633111;VITOR HUGO DE OLIVEIRA ARAUJO;vitor.hugo.de.oliveira.araujo@empresa.local;OTGTW9UNwJ;leader;ativo;active
+204;632216;VITOR RAMOS BALBINO;vitor.ramos.balbino@empresa.local;ivedqEaSkZ;leader;ativo;active
+205;634549;VITORIA KATLIN GENUINO DE FARIA;vitoria.katlin.genuino.de.faria@empresa.local;zzhXCerbFm;leader;ativo;active
+206;14418;WALESSON SANTANA DE SOUZA;walesson.santana.de.souza@empresa.local;v1LK5j39s2;leader;ativo;active
+93;632757;WALISSON DA SILVA SANTOS;walisson.da.silva.santos@empresa.local;NiUA1cm5HE;leader;ativo;active
+94;631081;WALLEY JESUS DE OLIVEIRA;walley.jesus.de.oliveira@empresa.local;hhOi238qEr;leader;ativo;active
+95;63-3062;WANDERSON DE OLIVEIRA MOTA;wanderson.de.oliveira.mota@empresa.local;HziMLhfaZ7;leader;ativo;active
+96;632341;WARLEI PIMENTA DE JESUS CARVALHO;warlei.pimenta.de.jesus.carvalho@empresa.local;ag8ngYrIj1;leader;ativo;active
+97;63-3075;WARLEN APARECIDO DOS SANTOS;warlen.aparecido.dos.santos@empresa.local;aWITRVrH5c;leader;ativo;active
+229;633075;WARLEN APARECIDO DOS SANTOS;warlen.aparecido.dos.santos.633075@empresa.local;Tmp2293075!;leader;ativo;active
+207;631281;WARLEN HENRIQUE DIAS DA SILVA;warlen.henrique.dias.da.silva@empresa.local;1pNQCaygh6;leader;ativo;active
+208;50046;WARLEY ROBERT DA SILVA;warley.robert.da.silva@empresa.local;3TlSmEO32R;leader;ativo;active
+209;61726;WASHINGTON BRENDO MACEDO DE SOUZA;washington.brendo.macedo.de.souza@empresa.local;YzERLyA3fM;leader;ativo;active
+98;631239;WEIDER DAVI;weider.davi@empresa.local;DKARI0sIRf;leader;ativo;active
+210;19595;WELLINGTON RODRIGUES DE OLIVEIRA;wellington.rodrigues.de.oliveira@empresa.local;0XAT3f8C7h;leader;ativo;active
+99;20147;WENDERSON MARTINS DE SOUZA;wenderson.martins.de.souza@empresa.local;l4EHKeSdCC;leader;ativo;active
+211;50042;WILLIAN GOMES DE LIMA;willian.gomes.de.lima@empresa.local;UFHHSSZewt;leader;ativo;active
+100;61510;YAGO VINICIOS MORAIS SOUZA;yago.vinicios.morais.souza@empresa.local;up7oCmMrGL;leader;ativo;active
+101;18647;YAN ROBSON CONRADO DA SILVA;yan.robson.conrado.da.silva@empresa.local;ViKBUg7HTB;leader;ativo;active
