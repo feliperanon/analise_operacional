@@ -8535,56 +8535,64 @@ async def api_list_checklists(
     employee_id: Optional[int] = None,
     session: Session = Depends(get_session)
 ):
-    user = require_login(request)
-    current_user = get_current_user(request)
+    try:
+        user = require_login(request)
+        current_user = get_current_user(request)
 
-    if isinstance(current_user, dict) and current_user.get("type") == "employee":
-        employee = session.get(models.Employee, current_user.get("id"))
-        if not employee:
-            return JSONResponse({"error": "Colaborador não encontrado."}, status_code=404)
-        require_mobile_module(employee, "checklist")
+        if isinstance(current_user, dict) and current_user.get("type") == "employee":
+            employee = session.get(models.Employee, current_user.get("id"))
+            if not employee:
+                return JSONResponse({"error": "Colaborador não encontrado."}, status_code=404)
+            require_mobile_module(employee, "checklist")
 
-    query = (
-        select(models.TranspalletChecklist, models.Employee)
-        .join(models.Employee, models.Employee.id == models.TranspalletChecklist.employee_id)
-        .order_by(models.TranspalletChecklist.submitted_at.desc())
-    )
-    if date:
-        query = query.where(models.TranspalletChecklist.date == date)
-    if status:
-        query = query.where(models.TranspalletChecklist.status == status)
-    if equipment:
-        query = query.where(models.TranspalletChecklist.equipment_code.ilike(f"%{equipment}%"))
+        query = (
+            select(models.TranspalletChecklist, models.Employee)
+            .join(models.Employee, models.Employee.id == models.TranspalletChecklist.employee_id)
+            .order_by(models.TranspalletChecklist.submitted_at.desc())
+        )
+        if date:
+            query = query.where(models.TranspalletChecklist.date == date)
+        if status:
+            query = query.where(models.TranspalletChecklist.status == status)
+        if equipment:
+            query = query.where(models.TranspalletChecklist.equipment_code.ilike(f"%{equipment}%"))
 
-    if isinstance(current_user, dict) and current_user.get("type") == "employee":
-        query = query.where(models.TranspalletChecklist.employee_id == current_user.get("id"))
-    elif employee_id:
-        query = query.where(models.TranspalletChecklist.employee_id == employee_id)
+        if isinstance(current_user, dict) and current_user.get("type") == "employee":
+            query = query.where(models.TranspalletChecklist.employee_id == current_user.get("id"))
+        elif employee_id:
+            query = query.where(models.TranspalletChecklist.employee_id == employee_id)
 
-    rows = session.exec(query).all()
-    result = []
-    for checklist, employee in rows:
-        submitted_at_val = checklist.submitted_at
-        if submitted_at_val is None:
-            submitted_at_iso = None
-        elif hasattr(submitted_at_val, "isoformat"):
-            submitted_at_iso = submitted_at_val.isoformat()
-        else:
-            submitted_at_iso = str(submitted_at_val)
-        result.append({
-            "id": checklist.id,
-            "employee_id": employee.id,
-            "employee_name": employee.name,
-            "registration_id": employee.registration_id,
-            "equipment_code": checklist.equipment_code,
-            "date": checklist.date,
-            "shift": checklist.shift,
-            "status": checklist.status,
-            "critical": checklist.critical_flag,
-            "nonconforming_count": len(checklist.nonconforming_keys or []),
-            "submitted_at": submitted_at_iso
-        })
-    return {"success": True, "items": result}
+        rows = session.exec(query).all()
+        result = []
+        for checklist, emp in rows:
+            submitted_at_val = getattr(checklist, "submitted_at", None)
+            if submitted_at_val is None:
+                submitted_at_iso = None
+            elif hasattr(submitted_at_val, "isoformat"):
+                submitted_at_iso = submitted_at_val.isoformat()
+            else:
+                submitted_at_iso = str(submitted_at_val)
+            nkeys = checklist.nonconforming_keys
+            nonconforming_count = len(nkeys) if isinstance(nkeys, (list, tuple)) else 0
+            result.append({
+                "id": checklist.id,
+                "employee_id": emp.id,
+                "employee_name": emp.name,
+                "registration_id": emp.registration_id,
+                "equipment_code": checklist.equipment_code,
+                "date": checklist.date,
+                "shift": checklist.shift,
+                "status": checklist.status,
+                "critical": getattr(checklist, "critical_flag", False),
+                "nonconforming_count": nonconforming_count,
+                "submitted_at": submitted_at_iso
+            })
+        return {"success": True, "items": result}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("api_list_checklists error: %s", e)
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 @app.get("/api/routine/checklists/{checklist_id}")
 async def api_get_checklist(
