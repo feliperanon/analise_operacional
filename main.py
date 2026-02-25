@@ -2040,14 +2040,41 @@ def get_dashboard_data(session: Session, shift_filter: str):
     today_naive = today.replace(tzinfo=None)
     upcoming_deadline = today_naive + timedelta(days=30)
     
+    def normalize_shift_token(value: Optional[str]) -> str:
+        if not value:
+            return ""
+        normalized = unicodedata.normalize("NFD", str(value))
+        cleaned = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+        return cleaned.lower().strip()
+
+    def canonical_shift_name(value: Optional[str]) -> str:
+        norm = normalize_shift_token(value)
+        if norm in ("todos", "all", ""):
+            return "Todos"
+        if norm.startswith("manha"):
+            return "Manhã"
+        if norm.startswith("tar"):
+            return "Tarde"
+        if norm.startswith("noi"):
+            return "Noite"
+        return str(value).strip() if value else "Todos"
+
+    selected_shift = canonical_shift_name(shift_filter)
+    selected_shift_norm = normalize_shift_token(selected_shift)
+    is_all_shift = selected_shift == "Todos"
+
     # --- 1. Operations Pulse (KPIs) ---
     
     # Query today's routes
     query = select(models.Route).where(models.Route.date == today_str)
-    if shift_filter != "Todos":
-        query = query.where(models.Route.shift == shift_filter)
-    
-    todays_routes = session.exec(query).all()
+    todays_routes_all = session.exec(query).all()
+    if is_all_shift:
+        todays_routes = todays_routes_all
+    else:
+        todays_routes = [
+            r for r in todays_routes_all
+            if normalize_shift_token(getattr(r, "shift", None)) == selected_shift_norm
+        ]
     
     total_tonnage = sum(r.tonnage for r in todays_routes if r.tonnage)
     total_routes_count = len(todays_routes)
@@ -2144,16 +2171,25 @@ def get_dashboard_data(session: Session, shift_filter: str):
         models.EmployeeRoutine.date == today_str,
         models.EmployeeRoutine.routine == 'present'
     )
-    if shift_filter != "Todos":
-        base_hc_query = base_hc_query.where(models.EmployeeRoutine.shift == shift_filter)
-    
-    present_count = len(session.exec(base_hc_query).all())
+    present_rows = session.exec(base_hc_query).all()
+    if is_all_shift:
+        present_count = len(present_rows)
+    else:
+        present_count = len([
+            r for r in present_rows
+            if normalize_shift_token(getattr(r, "shift", None)) == selected_shift_norm
+        ])
     
     # Get Target (Meta)
     target_val = 45 # Default
-    if shift_filter != "Todos":
-        t = session.exec(select(models.HeadcountTarget).where(models.HeadcountTarget.shift_name == shift_filter)).first()
-        if t: target_val = t.target_value
+    if not is_all_shift:
+        targets = session.exec(select(models.HeadcountTarget)).all()
+        matched = next(
+            (t for t in targets if normalize_shift_token(getattr(t, "shift_name", None)) == selected_shift_norm),
+            None
+        )
+        if matched:
+            target_val = matched.target_value
     else:
         # Sum all targets
         targets = session.exec(select(models.HeadcountTarget)).all()
@@ -2185,8 +2221,30 @@ async def index(request: Request, shift: str = "Todos", session: Session = Depen
     if isinstance(user, dict) and user.get("type") == "employee":
         return RedirectResponse(url="/mobile/dashboard", status_code=status.HTTP_303_SEE_OTHER)
 
+    def normalize_shift_token(value: Optional[str]) -> str:
+        if not value:
+            return ""
+        normalized = unicodedata.normalize("NFD", str(value))
+        cleaned = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+        return cleaned.lower().strip()
+
+    def canonical_shift_name(value: Optional[str]) -> str:
+        norm = normalize_shift_token(value)
+        if norm in ("todos", "all", ""):
+            return "Todos"
+        if norm.startswith("manha"):
+            return "Manhã"
+        if norm.startswith("tar"):
+            return "Tarde"
+        if norm.startswith("noi"):
+            return "Noite"
+        return str(value).strip() if value else "Todos"
+
+    selected_shift = canonical_shift_name(shift)
+    selected_shift_ui = "Manha" if selected_shift == "Manhã" else selected_shift
+
     # 1. Fetch Dashboard Data (KPIs + Live Separation)
-    data = get_dashboard_data(session, shift)
+    data = get_dashboard_data(session, selected_shift)
     current_shift_name = data.get("current_shift_name", "Manhã")
     
     # 2. Add HR Data (Compact) for Carousel
@@ -2551,7 +2609,7 @@ async def index(request: Request, shift: str = "Todos", session: Session = Depen
         "request": request,
         "user": user,
         "dashboard": data,
-        "current_shift": shift
+        "current_shift": selected_shift_ui
     })
 
 @app.get("/mobile", response_class=RedirectResponse)
@@ -8764,6 +8822,241 @@ async def delete_client(request: Request, client_id: int, session: Session = Dep
         session.delete(client)
         session.commit()
     return RedirectResponse(url="/clients", status_code=status.HTTP_303_SEE_OTHER)
+
+
+# --- Vehicle (Frota) Routes ---
+@app.get("/vehicles", response_class=HTMLResponse)
+async def vehicles_page(request: Request, session: Session = Depends(get_session)):
+    user = require_login(request)
+    vehicles = session.exec(select(models.Vehicle).order_by(models.Vehicle.placa)).all()
+    return templates.TemplateResponse("vehicles.html", {"request": request, "user": user, "vehicles": vehicles})
+
+
+@app.get("/vehicles/new", response_class=HTMLResponse)
+async def vehicle_new_page(request: Request, session: Session = Depends(get_session)):
+    user = require_login(request)
+    return templates.TemplateResponse("vehicle_detail.html", {"request": request, "user": user, "vehicle": None})
+
+
+@app.post("/vehicles/add", response_class=RedirectResponse)
+async def add_vehicle(
+    request: Request,
+    placa: str = Form(...),
+    vehicle_type: str = Form(...),
+    marca: str = Form(...),
+    modelo: str = Form(...),
+    renavam: Optional[str] = Form(default=None),
+    ano: Optional[str] = Form(default=None),
+    crv_number: Optional[str] = Form(default=None),
+    chassi: Optional[str] = Form(default=None),
+    session: Session = Depends(get_session)
+):
+    require_login(request)
+    placa = placa.strip().upper()
+    if vehicle_type not in ("caminhao", "moto", "carro"):
+        return RedirectResponse(url="/vehicles/new?error=invalid_type", status_code=status.HTTP_303_SEE_OTHER)
+    existing = session.exec(select(models.Vehicle).where(models.Vehicle.placa == placa)).first()
+    if existing:
+        return RedirectResponse(url="/vehicles/new?error=placa_exists", status_code=status.HTTP_303_SEE_OTHER)
+    def _opt(s): return (s or "").strip() or None
+    new_vehicle = models.Vehicle(
+        placa=placa, vehicle_type=vehicle_type, marca=marca, modelo=modelo,
+        renavam=_opt(renavam), ano=_opt(ano), crv_number=_opt(crv_number), chassi=_opt(chassi)
+    )
+    session.add(new_vehicle)
+    session.commit()
+    return RedirectResponse(url="/vehicles?message=vehicle_created", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.get("/vehicles/{vehicle_id}", response_class=HTMLResponse)
+async def vehicle_detail_page(request: Request, vehicle_id: int, session: Session = Depends(get_session)):
+    user = require_login(request)
+    vehicle = session.get(models.Vehicle, vehicle_id)
+    if not vehicle:
+        return RedirectResponse(url="/vehicles")
+    return templates.TemplateResponse("vehicle_detail.html", {"request": request, "user": user, "vehicle": vehicle})
+
+
+@app.post("/vehicles/{vehicle_id}/update", response_class=RedirectResponse)
+async def update_vehicle(
+    request: Request,
+    vehicle_id: int,
+    placa: str = Form(...),
+    vehicle_type: str = Form(...),
+    marca: str = Form(...),
+    modelo: str = Form(...),
+    renavam: Optional[str] = Form(default=None),
+    ano: Optional[str] = Form(default=None),
+    crv_number: Optional[str] = Form(default=None),
+    chassi: Optional[str] = Form(default=None),
+    session: Session = Depends(get_session)
+):
+    require_login(request)
+    vehicle = session.get(models.Vehicle, vehicle_id)
+    if not vehicle:
+        return RedirectResponse(url="/vehicles")
+    placa = placa.strip().upper()
+    if vehicle_type not in ("caminhao", "moto", "carro"):
+        return RedirectResponse(url=f"/vehicles/{vehicle_id}?error=invalid_type", status_code=status.HTTP_303_SEE_OTHER)
+    other = session.exec(select(models.Vehicle).where(models.Vehicle.placa == placa, models.Vehicle.id != vehicle_id)).first()
+    if other:
+        return RedirectResponse(url=f"/vehicles/{vehicle_id}?error=placa_exists", status_code=status.HTTP_303_SEE_OTHER)
+    def _opt(s): return (s or "").strip() or None
+    vehicle.placa = placa
+    vehicle.vehicle_type = vehicle_type
+    vehicle.marca = marca
+    vehicle.modelo = modelo
+    vehicle.renavam = _opt(renavam)
+    vehicle.ano = _opt(ano)
+    vehicle.crv_number = _opt(crv_number)
+    vehicle.chassi = _opt(chassi)
+    vehicle.updated_at = datetime.now()
+    session.add(vehicle)
+    session.commit()
+    return RedirectResponse(url=f"/vehicles/{vehicle_id}?message=vehicle_updated", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.post("/vehicles/{vehicle_id}/delete", response_class=RedirectResponse)
+async def delete_vehicle(request: Request, vehicle_id: int, session: Session = Depends(get_session)):
+    require_login(request)
+    vehicle = session.get(models.Vehicle, vehicle_id)
+    if vehicle:
+        session.delete(vehicle)
+        session.commit()
+    return RedirectResponse(url="/vehicles", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.get("/vehicles/template")
+async def vehicles_template(request: Request):
+    """Retorna planilha Excel modelo para importação de veículos."""
+    import io
+    import pandas as pd
+    require_login(request)
+    df = pd.DataFrame([{
+        "Placa": "ABC1234",
+        "Veículo": "Caminhão",
+        "Marca": "FORD",
+        "Modelo": "CARGO 815/E",
+        "Renavam": "306637642",
+        "Ano": "2010/2011",
+        "Nº do CRV": "8323093847",
+        "CHASSI": "9BFVCE1NOBBB61839",
+    }, {
+        "Placa": "XYZ9876",
+        "Veículo": "Moto",
+        "Marca": "HONDA",
+        "Modelo": "CG 160 CARGO",
+        "Renavam": "1203972285",
+        "Ano": "2021/2022",
+        "Nº do CRV": "14946217335",
+        "CHASSI": "9BFZH55L5L8413592",
+    }, {
+        "Placa": "DEF4567",
+        "Veículo": "Carro",
+        "Marca": "TOYOTA",
+        "Modelo": "ETIOS HB X VSC MT",
+        "Renavam": "",
+        "Ano": "2019/2019",
+        "Nº do CRV": "",
+        "CHASSI": "",
+    }])
+    buf = io.BytesIO()
+    df.to_excel(buf, index=False, engine="openpyxl")
+    buf.seek(0)
+    return Response(
+        content=buf.read(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=planilha_veiculos_modelo.xlsx"},
+    )
+async def vehicles_import(
+    request: Request,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session)
+):
+    require_login(request)
+    if not file.filename or (not file.filename.lower().endswith((".xlsx", ".xls"))):
+        return RedirectResponse(url="/vehicles?error=invalid_file", status_code=status.HTTP_303_SEE_OTHER)
+    try:
+        import pandas as pd
+        content = await file.read()
+        df = pd.read_excel(io=content, engine="openpyxl" if file.filename.lower().endswith(".xlsx") else "xlrd")
+        df.columns = [str(c).strip() for c in df.columns]
+        # Mapeamento flexível de colunas (case-insensitive)
+        col_map = {}
+        aliases = {
+            "placa": ["placa", "Placa"],
+            "veiculo": ["veículo", "veiculo", "Veículo", "Veiculo", "tipo"],
+            "marca": ["marca", "Marca"],
+            "modelo": ["modelo", "Modelo"],
+            "renavam": ["renavam", "Renavam"],
+            "ano": ["ano", "Ano"],
+            "crv": ["nº do crv", "Nº do CRV", "crv", "CRV", "numero crv"],
+            "chassi": ["chassi", "CHASSI", "Chassi"],
+        }
+        for std, variants in aliases.items():
+            for v in variants:
+                for c in df.columns:
+                    if str(c).strip().lower() == v.lower():
+                        col_map[std] = c
+                        break
+        # Fallback: buscar por substring
+        if "placa" not in col_map:
+            for c in df.columns:
+                if "placa" in str(c).lower():
+                    col_map["placa"] = c
+                    break
+        if "veiculo" not in col_map:
+            for c in df.columns:
+                if "veículo" in str(c).lower() or "veiculo" in str(c).lower():
+                    col_map["veiculo"] = c
+                    break
+        if "placa" not in col_map or "veiculo" not in col_map or "marca" not in col_map or "modelo" not in col_map:
+            return RedirectResponse(url="/vehicles?error=missing_columns", status_code=status.HTTP_303_SEE_OTHER)
+        def to_type(v):
+            if pd.isna(v): return "carro"
+            s = str(v).strip().lower()
+            if "caminh" in s or "caminhao" in s: return "caminhao"
+            if "moto" in s: return "moto"
+            return "carro"
+        def _opt(v):
+            if pd.isna(v): return None
+            s = str(v).strip()
+            return s if s else None
+        existing_placas = {p[0] for p in session.exec(select(models.Vehicle.placa)).all()}
+        imported = 0
+        skipped = 0
+        for _, row in df.iterrows():
+            placa_raw = row.get(col_map["placa"])
+            if pd.isna(placa_raw): continue
+            placa = str(placa_raw).strip().upper().replace(" ", "")
+            if not placa or len(placa) < 5: continue
+            if placa in existing_placas:
+                skipped += 1
+                continue
+            marca = str(row.get(col_map.get("marca"), "")).strip() or "N/A"
+            modelo = str(row.get(col_map.get("modelo"), "")).strip() or "N/A"
+            v = models.Vehicle(
+                placa=placa,
+                vehicle_type=to_type(row.get(col_map.get("veiculo"))),
+                marca=marca,
+                modelo=modelo,
+                renavam=_opt(row.get(col_map.get("renavam"))) if "renavam" in col_map else None,
+                ano=_opt(row.get(col_map.get("ano"))) if "ano" in col_map else None,
+                crv_number=_opt(row.get(col_map.get("crv"))) if "crv" in col_map else None,
+                chassi=_opt(row.get(col_map.get("chassi"))) if "chassi" in col_map else None,
+            )
+            session.add(v)
+            existing_placas.add(placa)
+            imported += 1
+        session.commit()
+        return RedirectResponse(
+            url=f"/vehicles?message=import_success&imported={imported}&skipped={skipped}",
+            status_code=status.HTTP_303_SEE_OTHER
+        )
+    except Exception as e:
+        logger.exception(f"Vehicle import error: {e}")
+        return RedirectResponse(url="/vehicles?error=import_failed", status_code=status.HTTP_303_SEE_OTHER)
+
 
 # --- Route Management ---
 # --- Separação de Mercadorias Management ---
