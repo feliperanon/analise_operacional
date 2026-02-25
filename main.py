@@ -18214,66 +18214,98 @@ async def import_employees(
     require_login(request)
     import pandas as pd
     import io
+    import unicodedata
+
+    def normalize_text(value: str) -> str:
+        value = unicodedata.normalize("NFKD", str(value or ""))
+        value = "".join(ch for ch in value if not unicodedata.combining(ch))
+        return value.strip().lower()
+
+    def pick_column(columns, *candidates):
+        normalized = {normalize_text(col): col for col in columns}
+        for candidate in candidates:
+            key = normalize_text(candidate)
+            if key in normalized:
+                return normalized[key]
+        return None
+
     content = await file.read()
     try:
-        # Check if first row is title or header
-        # Try reading a few lines to inspect
-        df_temp = pd.read_excel(io.BytesIO(content), header=None, nrows=5)
-        
+        excel = pd.ExcelFile(io.BytesIO(content))
+        sheet_names = excel.sheet_names or [0]
+
+        # Prioridade para a aba Souza Pinto quando existir.
+        target_sheet = None
+        for s in sheet_names:
+            if normalize_text(s) == "souza pinto":
+                target_sheet = s
+                break
+        if target_sheet is None:
+            target_sheet = sheet_names[0]
+
+        # Detecta cabeçalho nos primeiros registros.
+        df_temp = pd.read_excel(io.BytesIO(content), sheet_name=target_sheet, header=None, nrows=10)
         header_row = 0
-        # Look for "Matrícula" or "Colaborador" in the first few rows
+        expected_headers = {"matricula", "colaborador", "nome funcionario", "nome cargo", "turno", "cargo"}
         for idx, row in df_temp.iterrows():
-            row_vals = [str(x).strip() for x in row.values if pd.notna(x)]
-            if any(h in row_vals for h in ["Matrícula", "Matricula", "Colaborador", "Turno"]):
+            row_values = {normalize_text(v) for v in row.values if pd.notna(v)}
+            if row_values & expected_headers:
                 header_row = idx
                 break
-                
-        # Reload with correct header
-        df = pd.read_excel(io.BytesIO(content), header=header_row)
-        
-        # Clean column names (strip whitespace and title case for better matching)
-        # We will create a map of normalized_col -> original_col to rename correctly below
-        # Actually simplest is just to add more keys to the map.
+
+        df = pd.read_excel(io.BytesIO(content), sheet_name=target_sheet, header=header_row)
         df.columns = df.columns.astype(str).str.strip()
-        
-        # Map Portuguese headers (Robust mapping)
-        column_map = {
-            "Matrícula": "registration_id", "Matricula": "registration_id", "MATRICULA": "registration_id", "MATRÍCULA": "registration_id",
-            "Colaborador": "name", "Nome": "name", "COLABORADOR": "name", "NOME": "name",
-            "Data Admissão": "admission_date", "Admissão": "admission_date", "DATA ADMISSÃO": "admission_date", "ADMISSÃO": "admission_date",
-            "Data Nascimento": "birthday", "Nascimento": "birthday", "DATA NASCIMENTO": "birthday", "NASCIMENTO": "birthday",
-            "Centro de Custo": "cost_center", "CENTRO DE CUSTO": "cost_center",
-            "Cargo": "role", "Função": "role", "CARGO": "role", "FUNÇÃO": "role", "FUNCAO": "role",
-            "Turno": "work_shift", "TURNO": "work_shift"
-        }
-        df = df.rename(columns=column_map)
+
+        col_registration = pick_column(df.columns, "Matrícula", "Matricula")
+        col_name = pick_column(df.columns, "Colaborador", "Nome Funcionário", "Nome Funcionario", "Nome")
+        col_role = pick_column(df.columns, "Cargo", "Nome Cargo", "Função", "Funcao")
+        col_cost_center = pick_column(df.columns, "Centro de Custo")
+        col_shift = pick_column(df.columns, "Turno")
+        col_admission = pick_column(df.columns, "Data Admissão", "Admissão", "Admissao", "Adminissão", "Adminissao")
+        col_birthday = pick_column(df.columns, "Data Nascimento", "Nascimento", "Data de Nascimento")
+
+        if not col_registration:
+            raise ValueError("Coluna de matrícula não encontrada no arquivo.")
+
         count = 0 
+        seen_registration = set()
         for _, row in df.iterrows():
             # Validation
-            reg_id = str(row.get("registration_id", ""))
+            reg_id = str(row.get(col_registration, "")).strip()
             if not reg_id or reg_id.lower() == "nan" or reg_id.strip() == "":
                 continue
-                
+            if reg_id in seen_registration:
+                continue
+            seen_registration.add(reg_id)
+
             # Check exist
             existing = session.exec(select(models.Employee).where(models.Employee.registration_id == reg_id)).first()
             if not existing:
                 # Parse Dates
                 admission = None
-                if "admission_date" in row and pd.notna(row["admission_date"]):
+                if col_admission and pd.notna(row.get(col_admission)):
                     try:
-                        admission = pd.to_datetime(row["admission_date"]).to_pydatetime()
+                        admission = pd.to_datetime(row[col_admission], errors="coerce", dayfirst=True)
+                        if pd.isna(admission):
+                            admission = None
+                        else:
+                            admission = admission.to_pydatetime()
                     except:
                         pass
                         
                 bday = None
-                if "birthday" in row and pd.notna(row["birthday"]):
+                if col_birthday and pd.notna(row.get(col_birthday)):
                     try:
-                        bday = pd.to_datetime(row["birthday"]).to_pydatetime()
+                        bday = pd.to_datetime(row[col_birthday], errors="coerce", dayfirst=True)
+                        if pd.isna(bday):
+                            bday = None
+                        else:
+                            bday = bday.to_pydatetime()
                     except:
                         pass
                         
                 # Shift
-                shift_raw = str(row.get("work_shift", "Manhã"))
+                shift_raw = str(row.get(col_shift, "Manhã")) if col_shift else "Manhã"
                 if pd.isna(shift_raw) or shift_raw.strip() == "" or shift_raw.lower() == "nan":
                     shift_raw = "Manhã"
                     
@@ -18300,11 +18332,11 @@ async def import_employees(
                     default_schedule = "18:00 - 06:00"
 
                 emp = models.Employee(
-                    name=str(row.get("name", "Sem Nome")).strip(),
+                    name=str(row.get(col_name, "Sem Nome")).strip() if col_name else "Sem Nome",
                     registration_id=reg_id.strip(),
-                    role=str(row.get("role", "Operador")).strip(),
+                    role=str(row.get(col_role, "Operador")).strip() if col_role else "Operador",
                     work_shift=str(shift_val).strip(),
-                    cost_center=str(row.get("cost_center", "Geral")).strip(),
+                    cost_center=str(row.get(col_cost_center, target_sheet)).strip() if col_cost_center else str(target_sheet),
                     admission_date=admission,
                     birthday=bday,
                     work_schedule=default_schedule,
@@ -21602,7 +21634,6 @@ async def api_delete_admin_route(
     except Exception as e:
         logger.exception("Error deleting route")
         return JSONResponse({"error": f"Erro interno: {str(e)}"}, status_code=500)
-
 
 
 
