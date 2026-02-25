@@ -1,4 +1,4 @@
-# Force Reload for TZDATA and Models - v2
+﻿# Force Reload for TZDATA and Models - v2
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, UploadFile, File, BackgroundTasks
 from fastapi.templating import Jinja2Templates
@@ -7229,7 +7229,7 @@ async def admin_checklists_remove_email(
     session: Session = Depends(get_session),
     user=Depends(require_leader)
 ):
-    recipient = session.get(models.ChecklistEmailRecipient, recipient_id)
+    recipient = session.get(models.AbsenceAlertRecipient, recipient_id)
     if not recipient:
         return admin_checklists_settings_redirect("E-mail nÃ£o encontrado.", "error")
     if recipient.is_active:
@@ -20679,7 +20679,7 @@ async def admin_checklists_test_email(
     user=Depends(require_leader)
 ):
     actor_label = user.get("email") if isinstance(user, dict) else str(user or "Sistema")
-    recipient = session.get(models.ChecklistEmailRecipient, recipient_id)
+    recipient = session.get(models.AbsenceAlertRecipient, recipient_id)
     if not recipient:
         return admin_checklists_settings_redirect("E-mail nÃ£o encontrado.", "error")
         
@@ -21210,7 +21210,7 @@ async def admin_absence_maintenance_add_email(
 ):
     email_norm = normalize_email(email)
     if not email_norm or "@" not in email_norm:
-        return maintenance_emails_settings_redirect("E-mail inválido.", "error")
+        return maintenance_emails_settings_redirect("E-mail invÃ¡lido.", "error")
 
     existing = session.exec(
         select(models.AbsenceAlertRecipient)
@@ -21222,7 +21222,7 @@ async def admin_absence_maintenance_add_email(
         if existing.is_active:
             session.add(existing)
             session.commit()
-            return maintenance_emails_settings_redirect("E-mail já cadastrado.", "error")
+            return maintenance_emails_settings_redirect("E-mail jÃ¡ cadastrado.", "error")
         existing.is_active = True
         session.add(existing)
         session.commit()
@@ -21283,9 +21283,11 @@ async def admin_absence_maintenance_test_email(
     user=Depends(require_leader),
 ):
     actor_label = user.get("email") if isinstance(user, dict) else str(user or "Sistema")
-    recipient = session.get(models.ChecklistEmailRecipient, recipient_id)
+    recipient = session.get(models.AbsenceAlertRecipient, recipient_id)
     if not recipient:
-        return maintenance_emails_settings_redirect("E-mail nÃ£o encontrado.", "error")
+        return maintenance_emails_settings_redirect("E-mail não encontrado.", "error")
+    if recipient.alert_type != "maintenance":
+        return maintenance_emails_settings_redirect("Tipo de destinatário inválido.", "error")
 
     try:
         report = {
@@ -21602,6 +21604,8 @@ async def api_delete_admin_route(
     except Exception as e:
         logger.exception("Error deleting route")
         return JSONResponse({"error": f"Erro interno: {str(e)}"}, status_code=500)
+
+
 
 
 
