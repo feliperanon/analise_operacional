@@ -651,6 +651,10 @@ CHECKLIST_ITEMS = [
 ]
 CHECKLIST_ITEM_KEYS = [item["key"] for item in CHECKLIST_ITEMS]
 CHECKLIST_CRITICAL_KEYS = {item["key"] for item in CHECKLIST_ITEMS if item["critical"]}
+
+def checklist_item_label_map() -> dict:
+    return {item["key"]: item["label"] for item in CHECKLIST_ITEMS}
+
 CHECKLIST_XP = int(os.getenv("CHECKLIST_XP", "10"))
 CHECKLIST_IMAGE_DIR = os.path.join(str(BASE_DIR), "static", "uploads", "checklists")
 CHECKLIST_MAX_IMAGE_SIZE = 15 * 1024 * 1024
@@ -21640,4 +21644,3 @@ async def api_delete_admin_route(
     except Exception as e:
         logger.exception("Error deleting route")
         return JSONResponse({"error": f"Erro interno: {str(e)}"}, status_code=500)
-
