@@ -6723,13 +6723,13 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
     analysis_end = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=1)).date()
     analysis_start = analysis_end - timedelta(days=13) # 14 dias total
     
-    # Buscar Checklists feitos no período
+    # Buscar Checklists feitos no período (scalars() para evitar Row não hashable em set())
     done_dates = set(session.exec(
         select(models.TranspalletChecklist.date)
         .where(models.TranspalletChecklist.employee_id == employee_id)
         .where(models.TranspalletChecklist.date >= analysis_start.strftime("%Y-%m-%d"))
         .where(models.TranspalletChecklist.date <= analysis_end.strftime("%Y-%m-%d"))
-    ).all())
+    ).scalars().all())
     
     # Buscar Ausências (EmployeeRoutine != present)
     absences = session.exec(
