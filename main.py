@@ -358,6 +358,11 @@ def sync_sectors_on_startup():
 async def lifespan(app: FastAPI):
     create_db_and_tables()
     try:
+        ensure_vehicle_schema()
+        ensure_checklist_odometer_schema()
+    except Exception as e:
+        logger.error(f"Erro ao migrar vehicle/checklist: {e}")
+    try:
         ensure_user_auth_schema()
         ensure_employee_access_schema()
         ensure_employee_replaced_by_schema()
