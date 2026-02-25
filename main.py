@@ -389,7 +389,13 @@ app.add_middleware(
 async def add_no_cache_header(request: Request, call_next):
     response = await call_next(request)
     # Apply to API and Smart Flow HTML pages to prevent "stale" state
-    if request.url.path.startswith("/api/") or request.url.path.startswith("/smart-flow") or request.url.path.startswith("/lider") or request.url.path.startswith("/routine/report"):
+    if (
+        request.url.path.startswith("/api/")
+        or request.url.path.startswith("/smart-flow")
+        or request.url.path.startswith("/lider")
+        or request.url.path.startswith("/routine/report")
+        or request.url.path.startswith("/mobile")
+    ):
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
@@ -21634,5 +21640,4 @@ async def api_delete_admin_route(
     except Exception as e:
         logger.exception("Error deleting route")
         return JSONResponse({"error": f"Erro interno: {str(e)}"}, status_code=500)
-
 
