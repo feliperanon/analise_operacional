@@ -6723,14 +6723,18 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
     analysis_end = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=1)).date()
     analysis_start = analysis_end - timedelta(days=13) # 14 dias total
     
-    # Buscar Checklists feitos no período (extrair valores pois Row não é hashable para set())
-    rows = session.exec(
+    # Buscar Checklists feitos no período (extrair valores: Row/tuple usa r[0], escalar usa r)
+    rows_raw = session.exec(
         select(models.TranspalletChecklist.date)
         .where(models.TranspalletChecklist.employee_id == employee_id)
         .where(models.TranspalletChecklist.date >= analysis_start.strftime("%Y-%m-%d"))
         .where(models.TranspalletChecklist.date <= analysis_end.strftime("%Y-%m-%d"))
     ).all()
-    done_dates = {r[0] for r in rows}
+    done_dates = set()
+    for r in rows_raw:
+        val = r[0] if hasattr(r, "__getitem__") and not isinstance(r, str) else r
+        if val is not None:
+            done_dates.add(str(val))
     
     # Buscar Ausências (EmployeeRoutine != present)
     absences = session.exec(
@@ -6796,25 +6800,30 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
         })
     
     # 5. Lista de caminhões (só veículos tipo caminhão) para o select + último KM
-    trucks = session.exec(
-        select(models.Vehicle)
-        .where(models.Vehicle.vehicle_type == "caminhao")
-        .where(models.Vehicle.is_active == True)
-        .order_by(models.Vehicle.placa)
-    ).all()
     equipment_list = []
-    for v in trucks:
-        last_check = session.exec(
-            select(models.TranspalletChecklist)
-            .where(models.TranspalletChecklist.equipment_code == v.placa)
-            .order_by(desc(models.TranspalletChecklist.date), desc(models.TranspalletChecklist.submitted_at))
-        ).first()
-        last_km = last_check.odometer_km if last_check and last_check.odometer_km is not None else None
-        equipment_list.append({
-            "code": v.placa,
-            "label": f"{v.placa} — {v.marca} {v.modelo}",
-            "last_km": last_km
-        })
+    try:
+        trucks = session.exec(
+            select(models.Vehicle)
+            .where(models.Vehicle.vehicle_type == "caminhao")
+            .where(models.Vehicle.is_active == True)
+            .order_by(models.Vehicle.placa)
+        ).all()
+        for v in trucks:
+            last_check = session.exec(
+                select(models.TranspalletChecklist)
+                .where(models.TranspalletChecklist.equipment_code == v.placa)
+                .order_by(desc(models.TranspalletChecklist.date), desc(models.TranspalletChecklist.submitted_at))
+            ).first()
+            last_km = last_check.odometer_km if last_check and last_check.odometer_km is not None else None
+            marca = getattr(v, "marca", "") or ""
+            modelo = getattr(v, "modelo", "") or ""
+            equipment_list.append({
+                "code": v.placa,
+                "label": f"{v.placa} — {marca} {modelo}".strip() or v.placa,
+                "last_km": last_km
+            })
+    except Exception as eq_err:
+        logger.warning(f"mobile_checklist: erro ao carregar veículos: {eq_err}")
 
     equipment_last_km = {eq["code"]: eq["last_km"] for eq in equipment_list if eq.get("last_km") is not None}
 
