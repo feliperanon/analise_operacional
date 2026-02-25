@@ -4776,9 +4776,9 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
             },
             {
                 "key": "checklist",
-                "label": "Checklist Operacional",
-                "description": "Checklist diário da transpaleteira.",
-                "icon": "check-square",
+                "label": "Checklist de Caminhão",
+                "description": "Checklist diário do caminhão.",
+                "icon": "truck",
                 "href": "/mobile/routine/checklist",
                 "enabled": bool(employee.mobile_access_checklist),
                 "action": None
@@ -6750,8 +6750,14 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
             "weekday_pt": pt_weekday
         })
     
-    # 5. Equipment List for standardized input
-    equipment_list = session.exec(select(models.TranspalletEquipment).order_by(models.TranspalletEquipment.code)).all()
+    # 5. Lista de caminhões (só veículos tipo caminhão) para o select
+    trucks = session.exec(
+        select(models.Vehicle)
+        .where(models.Vehicle.vehicle_type == "caminhao")
+        .where(models.Vehicle.is_active == True)
+        .order_by(models.Vehicle.placa)
+    ).all()
+    equipment_list = [{"code": v.placa, "label": f"{v.placa} — {v.marca} {v.modelo}"} for v in trucks]
 
     return templates.TemplateResponse(
         "mobile/routine_checklist.html",
@@ -8092,11 +8098,19 @@ async def api_create_checklist(
     equipment_code = (equipment_code or "").strip().upper()
     if not equipment_code:
         return JSONResponse({"error": "Equipamento obrigatório."}, status_code=400)
+    # Aceita TranspalletEquipment OU Vehicle (caminhão por placa)
     equipment = session.exec(
         select(models.TranspalletEquipment).where(models.TranspalletEquipment.code == equipment_code)
     ).first()
     if not equipment:
-        return JSONResponse({"error": "Equipamento não cadastrado."}, status_code=400)
+        truck = session.exec(
+            select(models.Vehicle)
+            .where(models.Vehicle.placa == equipment_code)
+            .where(models.Vehicle.vehicle_type == "caminhao")
+            .where(models.Vehicle.is_active == True)
+        ).first()
+        if not truck:
+            return JSONResponse({"error": "Caminhão não cadastrado."}, status_code=400)
 
     payload_items = parse_items_payload(items)
     if not payload_items or len(payload_items) != len(CHECKLIST_ITEM_KEYS):
@@ -8138,9 +8152,9 @@ async def api_create_checklist(
     session.refresh(checklist)
 
     if critical_flag:
-        equipment = resolve_equipment(session, equipment_code)
         blocked_items = ", ".join([checklist_item_label_map().get(k, k) for k in nonconforming_keys])
-        block_equipment(session, equipment, f"Itens críticos: {blocked_items}", checklist.id)
+        if equipment:
+            block_equipment(session, equipment, f"Itens críticos: {blocked_items}", checklist.id)
         session.add(models.Event(
             timestamp=now_br,
             text=f"Checklist crítico {equipment_code}: {blocked_items}",
@@ -8940,35 +8954,53 @@ async def vehicles_import(
     try:
         import pandas as pd
         content = await file.read()
-        df = pd.read_excel(io=content, engine="openpyxl" if file.filename.lower().endswith(".xlsx") else "xlrd")
-        df.columns = [str(c).strip() for c in df.columns]
+        engine = "openpyxl" if file.filename.lower().endswith(".xlsx") else "xlrd"
 
         def norm(s: str) -> str:
-            """Normaliza para comparação: remove acentos, lowercase, sem espaços extras."""
             s = (s or "").strip().lower()
             return unicodedata.normalize("NFD", s).encode("ascii", "ignore").decode("ascii")
 
-        col_map = {}
-        keywords = {
-            "placa": ["placa"],
-            "veiculo": ["veiculo", "veículo"],
-            "marca": ["marca"],
-            "modelo": ["modelo"],
-            "renavam": ["renavam"],
-            "ano": ["ano"],
-            "crv": ["crv", "nº do crv", "numero crv"],
-            "chassi": ["chassi"],
-        }
-        for std, kws in keywords.items():
-            for c in df.columns:
-                cn = norm(str(c))
-                for kw in kws:
-                    kn = norm(kw)
-                    if cn == kn or kn in cn:
-                        col_map[std] = c
+        def find_col_map(columns) -> dict:
+            col_map = {}
+            keywords = {
+                "placa": ["placa"],
+                "veiculo": ["veiculo", "veículo"],
+                "marca": ["marca"],
+                "modelo": ["modelo"],
+                "renavam": ["renavam"],
+                "ano": ["ano"],
+                "crv": ["crv", "nº do crv", "numero crv"],
+                "chassi": ["chassi"],
+            }
+            for std, kws in keywords.items():
+                for c in columns:
+                    cn = norm(str(c))
+                    for kw in kws:
+                        kn = norm(kw)
+                        if cn == kn or kn in cn:
+                            col_map[std] = c
+                            break
+                    if std in col_map:
                         break
-                if std in col_map:
-                    break
+            return col_map
+
+        df = pd.read_excel(io=content, engine=engine, header=0)
+        df.columns = [str(c).strip() for c in df.columns]
+        col_map = find_col_map(df.columns)
+
+        # Fallback: se header na linha 0 não tem as colunas, tenta linha 1
+        if ("placa" not in col_map or "veiculo" not in col_map or "marca" not in col_map or "modelo" not in col_map):
+            df2 = pd.read_excel(io=content, engine=engine, header=1)
+            df2.columns = [str(c).strip() for c in df2.columns]
+            col_map2 = find_col_map(df2.columns)
+            if all(k in col_map2 for k in ["placa", "veiculo", "marca", "modelo"]):
+                df, col_map = df2, col_map2
+
+        # Fallback: mapeamento posicional (ordem padrão: Placa, Veículo, Marca, Modelo, ...)
+        if ("placa" not in col_map or "veiculo" not in col_map or "marca" not in col_map or "modelo" not in col_map):
+            if len(df.columns) >= 4:
+                ordem = ["placa", "veiculo", "marca", "modelo", "renavam", "ano", "crv", "chassi"]
+                col_map = {ordem[i]: df.columns[i] for i in range(min(len(ordem), len(df.columns)))}
 
         if "placa" not in col_map or "veiculo" not in col_map or "marca" not in col_map or "modelo" not in col_map:
             return RedirectResponse(url="/vehicles?error=missing_columns", status_code=status.HTTP_303_SEE_OTHER)
