@@ -316,7 +316,7 @@
                     <th class="p-4">Ações</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-700 hidden" id="tableBody">
+            <tbody class="divide-y divide-slate-700" id="tableBody">
                 {% for emp in employees %}
                 {% set row_shift = emp.work_shift %}
 
@@ -1368,9 +1368,8 @@
             }
         });
 
-        if (searchVal.length > 0 || currentFilter !== 'all' || document.querySelector('.filter-btn[data-filter="all"]').classList.contains('active')) {
-            tbody.classList.remove('hidden');
-        }
+        // Keep body visible; only row-level visibility changes with filters.
+        tbody.classList.remove('hidden');
     }
 
     function sortTable(criteria) {
