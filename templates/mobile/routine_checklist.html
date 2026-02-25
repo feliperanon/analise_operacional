@@ -48,7 +48,8 @@
                         +50<br>XP
                     </span>
                 </div>
-                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{{ employee.work_shift }}</span>
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{{ employee.work_shift
+                    }}</span>
             </div>
         </div>
 
@@ -78,7 +79,8 @@
                 <option value="" disabled selected class="text-slate-500">Selecione o caminhao</option>
                 {% if equipment_list %}
                 {% for eq in equipment_list %}
-                <option value="{{ eq.code }}" class="bg-slate-800 text-white" data-last-km="{{ eq.last_km or '' }}">{{ eq.label|default(eq.code) }}</option>
+                <option value="{{ eq.code }}" class="bg-slate-800 text-white" data-last-km="{{ eq.last_km or '' }}">{{
+                    eq.label|default(eq.code) }}</option>
                 {% endfor %}
                 {% else %}
                 <option value="" disabled class="bg-slate-800">Sem cadastro</option>
@@ -87,13 +89,30 @@
         </div>
 
         <!-- KM do hodômetro (obrigatório ao selecionar caminhão) -->
-        <div x-show="equipmentCode" x-transition class="bg-slate-800 border border-slate-700/50 rounded-3xl p-4 shadow-xl">
+        <div x-show="equipmentCode" x-transition
+            class="bg-slate-800 border border-slate-700/50 rounded-3xl p-4 shadow-xl">
             <label class="block text-sm font-medium text-slate-400 mb-2">KM do hodômetro *</label>
             <input type="number" x-model.number="odometerKm" min="0" step="1" placeholder="Ex: 150000"
                 class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white font-mono text-lg focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-500">
             <p x-show="equipmentCode && equipmentLastKm[equipmentCode]" class="mt-2 text-xs text-slate-500">
-                KM anterior: <span x-text="equipmentLastKm[equipmentCode] || '-'"></span> — Máx hoje: <span x-text="(equipmentLastKm[equipmentCode] || 0) + 1000"></span>
+                KM anterior: <span x-text="equipmentLastKm[equipmentCode] || '-'"></span> — Máx hoje: <span
+                    x-text="(equipmentLastKm[equipmentCode] || 0) + 1000"></span>
             </p>
+        </div>
+
+        <!-- Campo KM Hodômetro (apenas para caminhões) -->
+        <div x-show="isTruck" x-transition
+            class="bg-slate-800 border border-amber-500/30 rounded-3xl p-4 flex items-center gap-3">
+            <div class="pl-2">
+                <i data-lucide="gauge" class="w-6 h-6 text-amber-400"></i>
+            </div>
+            <div class="flex-1">
+                <label class="block text-xs font-bold text-amber-400 uppercase tracking-wider mb-1">KM do
+                    Hodômetro</label>
+                <input type="number" x-model="odometerKm" min="0" step="1" inputmode="numeric"
+                    class="w-full bg-transparent border-none text-white font-bold text-lg focus:ring-0 p-0 appearance-none placeholder:text-slate-500"
+                    placeholder="Ex: 125000">
+            </div>
         </div>
 
         <!-- Action Bar -->
@@ -268,7 +287,7 @@
         return {
             items: {}, // key: boolean (true=OK, false=Bad)
             equipmentCode: '',
-            odometerKm: null,
+            odometerKm: '',
             equipmentLastKm: initialData.equipmentLastKm || {},
             observations: '',
             fileCount: 0,
@@ -277,6 +296,11 @@
             statusType: '',
             totalItems: initialData.totalItems || 0,
             itemKeys: initialData.keys || [],
+
+            get isTruck() {
+                // Heurística: se o código tem traço (placa) ou não começa com padrão de paleteira
+                return this.equipmentCode && /^[A-Z]{3}[0-9][0-9A-Z][0-9]{2}$/.test(this.equipmentCode.toUpperCase());
+            },
 
             init() {
                 // Initialize default state (all checked as OK based on user preference to be fast?)
@@ -333,11 +357,13 @@
 
                 const formData = new FormData();
                 formData.append('equipment_code', this.equipmentCode);
-                formData.append('odometer_km', String(Number(this.odometerKm) || 0));
                 formData.append('date', '{{ today }}');
                 formData.append('shift', '{{ employee.work_shift }}');
                 formData.append('items', JSON.stringify(this.items));
                 formData.append('observations', this.observations);
+                if (this.odometerKm) {
+                    formData.append('odometer_km', this.odometerKm);
+                }
 
                 const fileInput = document.getElementById('files');
                 if (fileInput && fileInput.files) {

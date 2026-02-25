@@ -8162,6 +8162,7 @@ async def api_create_checklist(
     equipment = session.exec(
         select(models.TranspalletEquipment).where(models.TranspalletEquipment.code == equipment_code)
     ).first()
+    is_truck = False
     if not equipment:
         truck = session.exec(
             select(models.Vehicle)
@@ -8170,15 +8171,16 @@ async def api_create_checklist(
             .where(models.Vehicle.is_active == True)
         ).first()
         if not truck:
-            return JSONResponse({"error": "Caminhão não cadastrado."}, status_code=400)
+            return JSONResponse({"error": "Equipamento não cadastrado."}, status_code=400)
+        is_truck = True
 
-    # Validação KM (obrigatório para caminhão) — trava ante-burro
+    # Validação KM (obrigatório apenas para caminhão)
     try:
         km_val = float((odometer_km or "").strip().replace(",", ".")) if odometer_km else None
     except (ValueError, TypeError):
         km_val = None
-    if km_val is None or km_val < 0:
-        return JSONResponse({"error": "Informe o KM do hodômetro."}, status_code=400)
+    if is_truck and (km_val is None or km_val < 0):
+        return JSONResponse({"error": "Informe o KM do hodômetro para caminhão."}, status_code=400)
     last_check = session.exec(
         select(models.TranspalletChecklist)
         .where(models.TranspalletChecklist.equipment_code == equipment_code)
