@@ -874,7 +874,7 @@ def send_maintenance_email(report: dict, recipients: Optional[List[str]] = None)
             return ''
         candidate = text_value
         for _ in range(2):
-            if not any(token in candidate for token in ('?', '?', '?')):
+            if not any(token in candidate for token in ("Ã", "Â", "â")):
                 break
             try:
                 candidate = candidate.encode('latin1').decode('utf-8')
@@ -898,13 +898,13 @@ def send_maintenance_email(report: dict, recipients: Optional[List[str]] = None)
         return _safe_text(value, 'Sistema')
 
     msg = EmailMessage()
-    msg['Subject'] = _safe_text(report.get('subject'), '?? NOTIFICA??O DE MANUTEN??O')
+    msg['Subject'] = _safe_text(report.get('subject'), 'NOTIFICACAO DE MANUTENCAO')
     msg['From'] = MAINTENANCE_EMAIL_FROM_FIXED
     msg['To'] = ', '.join(recipient_list)
 
     submitted_at = _safe_text(
         report.get('submitted_at'),
-        datetime.now(ZoneInfo('America/Sao_Paulo')).strftime('%d/%m/%Y ?s %H:%M'),
+        datetime.now(ZoneInfo('America/Sao_Paulo')).strftime('%d/%m/%Y as %H:%M'),
     )
     equipment_code = _safe_text(report.get('equipment_code'))
     operator_name = _safe_text(report.get('operator_name') or report.get('employee_name'))
@@ -914,7 +914,7 @@ def send_maintenance_email(report: dict, recipients: Optional[List[str]] = None)
     registered_by = _format_actor_label(report.get('registered_by') or report.get('operator_name'))
     action_text = _safe_text(
         report.get('action'),
-        'Solicitamos avalia??o da equipe respons?vel e tratativa conforme procedimento interno.',
+        'Solicitamos avaliacao da equipe responsavel e tratativa conforme procedimento interno.',
     )
 
     nonconforming_items = report.get('nonconforming_items') or []
@@ -923,39 +923,39 @@ def send_maintenance_email(report: dict, recipients: Optional[List[str]] = None)
     if nonconforming_items:
         for item in nonconforming_items:
             label = _safe_text(item.get('label') or item.get('key'))
-            critical = ' (CR?TICO)' if item.get('critical') else ''
+            critical = ' (CRITICO)' if item.get('critical') else ''
             items_html += f'<li>{label}{critical}</li>'
             items_text.append(f'- {label}{critical}')
     else:
-        items_html = '<li>Sem itens n?o conformes informados</li>'
-        items_text = ['- Sem itens n?o conformes informados']
+        items_html = '<li>Sem itens nao conformes informados</li>'
+        items_text = ['- Sem itens nao conformes informados']
 
-    now_str = datetime.now(ZoneInfo('America/Sao_Paulo')).strftime('%d/%m/%Y ?s %H:%M')
+    now_str = datetime.now(ZoneInfo('America/Sao_Paulo')).strftime('%d/%m/%Y as %H:%M')
 
     body_text = f"""
-?? NOTIFICA??O DE MANUTEN??O
-Solicita??o de manuten??o registrada no sistema
+NOTIFICACAO DE MANUTENCAO
+Solicitacao de manutencao registrada no sistema
 
 Prezados,
 
-Informamos que foi registrado um bloqueio/manuten??o com os dados abaixo:
+Informamos que foi registrado um bloqueio/manutencao com os dados abaixo:
 
 - Equipamento: {equipment_code}
 - Operador: {operator_name}
-- Matr?cula: {operator_id}
+- Matricula: {operator_id}
 - Turno: {shift}
 - Data/Hora: {submitted_at}
 - Registrado por: {registered_by}
 
-Itens n?o conformes:
+Itens nao conformes:
 {chr(10).join(items_text)}
 
-Observa??es: {observations}
+Observacoes: {observations}
 
 {action_text}
 
 ---
-Este ? um e-mail autom?tico gerado pelo sistema de An?lise Operacional.
+Este e um e-mail automatico gerado pelo sistema de Analise Operacional.
 Data/Hora do registro: {now_str}
     """
 
@@ -964,29 +964,29 @@ Data/Hora do registro: {now_str}
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background: #0f766e; color: white; padding: 15px 20px; border-radius: 8px 8px 0 0;">
-                <h2 style="margin: 0; font-size: 18px;">?? NOTIFICA??O DE MANUTEN??O</h2>
-                <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Solicita??o de manuten??o registrada no sistema</p>
+                <h2 style="margin: 0; font-size: 18px;">NOTIFICACAO DE MANUTENCAO</h2>
+                <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Solicitacao de manutencao registrada no sistema</p>
             </div>
             <div style="background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none;">
                 <p>Prezados,</p>
-                <p>Informamos que foi registrado um bloqueio/manuten??o com os dados abaixo:</p>
+                <p>Informamos que foi registrado um bloqueio/manutencao com os dados abaixo:</p>
                 <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin: 20px 0;">
                     <table style="width: 100%; border-collapse: collapse;">
                         <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Equipamento:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{equipment_code}</td></tr>
                         <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Operador:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{operator_name}</td></tr>
-                        <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Matr?cula:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{operator_id}</td></tr>
+                        <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Matricula:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{operator_id}</td></tr>
                         <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Turno:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{shift}</td></tr>
                         <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Data/Hora:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{submitted_at}</td></tr>
                         <tr><td style="padding: 8px 0;"><strong>Registrado por:</strong></td><td style="padding: 8px 0;">{registered_by}</td></tr>
                     </table>
                 </div>
-                <p><strong>Itens n?o conformes:</strong></p>
+                <p><strong>Itens nao conformes:</strong></p>
                 <ul>{items_html}</ul>
-                <p><strong>Observa??es:</strong> {observations}</p>
+                <p><strong>Observacoes:</strong> {observations}</p>
                 <p><strong>{action_text}</strong></p>
                 <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
                 <p style="font-size: 12px; color: #6b7280;">
-                    Este ? um e-mail autom?tico gerado pelo sistema de An?lise Operacional.<br>
+                    Este e um e-mail automatico gerado pelo sistema de Analise Operacional.<br>
                     Data/Hora do registro: {now_str}
                 </p>
             </div>
@@ -1033,7 +1033,7 @@ Data/Hora do registro: {now_str}
                 server.send_message(msg)
         return True, None
     except Exception as exc:
-        logger.exception('Erro ao enviar e-mail de manuten??o')
+        logger.exception('Erro ao enviar e-mail de manutencao')
         return False, str(exc)
 
 async def save_checklist_images(files: List[UploadFile]) -> List[str]:
@@ -21634,7 +21634,6 @@ async def api_delete_admin_route(
     except Exception as e:
         logger.exception("Error deleting route")
         return JSONResponse({"error": f"Erro interno: {str(e)}"}, status_code=500)
-
 
 
 
