@@ -6,7 +6,8 @@
 <!-- Injecting Jinja data into Alpine scope via function arguments to avoid parser errors -->
 <div x-data="checklistController({
         totalItems: {{ items|length }},
-        keys: [{% for item in items %}'{{ item.key }}',{% endfor %}]
+        keys: [{% for item in items %}'{{ item.key }}',{% endfor %}],
+        equipmentLastKm: {{ equipment_last_km|tojson }}
      })" class="min-h-screen pb-24">
 
     <!-- Hero Header with XP Badge -->
@@ -77,12 +78,22 @@
                 <option value="" disabled selected class="text-slate-500">Selecione o caminhao</option>
                 {% if equipment_list %}
                 {% for eq in equipment_list %}
-                <option value="{{ eq.code }}" class="bg-slate-800 text-white">{{ eq.code }}</option>
+                <option value="{{ eq.code }}" class="bg-slate-800 text-white" data-last-km="{{ eq.last_km or '' }}">{{ eq.label|default(eq.code) }}</option>
                 {% endfor %}
                 {% else %}
                 <option value="" disabled class="bg-slate-800">Sem cadastro</option>
                 {% endif %}
             </select>
+        </div>
+
+        <!-- KM do hodômetro (obrigatório ao selecionar caminhão) -->
+        <div x-show="equipmentCode" x-transition class="bg-slate-800 border border-slate-700/50 rounded-3xl p-4 shadow-xl">
+            <label class="block text-sm font-medium text-slate-400 mb-2">KM do hodômetro *</label>
+            <input type="number" x-model.number="odometerKm" min="0" step="1" placeholder="Ex: 150000"
+                class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white font-mono text-lg focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-500">
+            <p x-show="equipmentCode && equipmentLastKm[equipmentCode]" class="mt-2 text-xs text-slate-500">
+                KM anterior: <span x-text="equipmentLastKm[equipmentCode] || '-'"></span> — Máx hoje: <span x-text="(equipmentLastKm[equipmentCode] || 0) + 1000"></span>
+            </p>
         </div>
 
         <!-- Action Bar -->
@@ -257,6 +268,8 @@
         return {
             items: {}, // key: boolean (true=OK, false=Bad)
             equipmentCode: '',
+            odometerKm: null,
+            equipmentLastKm: initialData.equipmentLastKm || {},
             observations: '',
             fileCount: 0,
             isSubmitting: false,
@@ -295,11 +308,11 @@
 
             get canSubmit() {
                 if (!this.equipmentCode) return false;
+                if (this.odometerKm == null || this.odometerKm === '' || this.odometerKm < 0) return false;
                 const answeredCount = Object.keys(this.items).length;
                 if (answeredCount < this.totalItems) return false;
 
                 if (this.hasIssues) {
-                    // If issues, needs obs and file
                     if (!this.observations || this.observations.length < 5) return false;
                     if (this.fileCount === 0) return false;
                 }
@@ -319,6 +332,7 @@
 
                 const formData = new FormData();
                 formData.append('equipment_code', this.equipmentCode);
+                formData.append('odometer_km', String(this.odometerKm));
                 formData.append('date', '{{ today }}');
                 formData.append('shift', '{{ employee.work_shift }}');
                 formData.append('items', JSON.stringify(this.items));

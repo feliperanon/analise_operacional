@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-8">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-white mb-2">Frota de Veículos</h1>
+                <p class="text-slate-400">Cadastre caminhões, motos e carros. Base para checklist do motorista, histórico de manutenção e alocação.</p>
+            </div>
+            <a href="/vehicles/new"
+                class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-lg font-semibold transition-colors flex items-center gap-2">
+                <i data-lucide="plus" class="w-5 h-5"></i>
+                Novo Veículo
+            </a>
+        </div>
+
+        {% if request.query_params.get("message") == "vehicle_created" %}
+        <div class="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center gap-2">
+            <i data-lucide="check-circle" class="w-5 h-5 flex-shrink-0"></i>
+            <span>Veículo cadastrado com sucesso.</span>
+        </div>
+        {% endif %}
+        {% if request.query_params.get("message") == "import_success" %}
+        <div class="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center gap-2">
+            <i data-lucide="check-circle" class="w-5 h-5 flex-shrink-0"></i>
+            <span>Importação concluída: {{ request.query_params.get('imported', 0) }} veículo(s) cadastrado(s){% if request.query_params.get('skipped', 0)|int > 0 %}, {{ request.query_params.get('skipped') }} ignorado(s) (placa já existe){% endif %}.</span>
+        </div>
+        {% endif %}
+        {% if request.query_params.get("error") == "placa_exists" %}
+        <div class="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center gap-2">
+            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
+            <span>Já existe um veículo com esta placa.</span>
+        </div>
+        {% endif %}
+        {% if request.query_params.get("error") == "invalid_file" %}
+        <div class="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center gap-2">
+            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
+            <span>Arquivo inválido. Envie um arquivo Excel (.xlsx ou .xls).</span>
+        </div>
+        {% endif %}
+        {% if request.query_params.get("error") == "missing_columns" %}
+        <div class="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center gap-2">
+            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
+            <span>O Excel precisa ter as colunas: <strong>Placa</strong>, <strong>Veículo</strong>, <strong>Marca</strong>, <strong>Modelo</strong>.</span>
+        </div>
+        {% endif %}
+        {% if request.query_params.get("error") == "import_failed" %}
+        <div class="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center gap-2">
+            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
+            <span>Erro ao processar o arquivo. Verifique o formato do Excel.</span>
+        </div>
+        {% endif %}
+
+        <!-- Importar Excel -->
+        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg mb-8">
+            <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <i data-lucide="file-spreadsheet" class="w-5 h-5 text-emerald-400"></i>
+                Importar do Excel
+            </h2>
+            <p class="text-slate-400 text-sm mb-4">Faça upload de um arquivo Excel (.xlsx ou .xls) com as colunas: <strong>Placa</strong>, <strong>Veículo</strong> (Caminhão/Moto/Carro), <strong>Marca</strong>, <strong>Modelo</strong>. Opcionais: Renavam, Ano, Nº do CRV, CHASSI.</p>
+            <form action="/vehicles/import" method="post" enctype="multipart/form-data" class="flex flex-wrap items-center gap-4">
+                <label class="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 cursor-pointer transition-colors">
+                    <i data-lucide="upload" class="w-5 h-5"></i>
+                    <span>Escolher arquivo</span>
+                    <input type="file" name="file" accept=".xlsx,.xls" required class="hidden" id="excel-file-input">
+                </label>
+                <span id="file-name" class="text-slate-500 text-sm"></span>
+                <button type="submit" class="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors flex items-center gap-2">
+                    <i data-lucide="import" class="w-5 h-5"></i>
+                    Importar
+                </button>
+            </form>
+            <a href="/vehicles/template" class="inline-flex items-center gap-2 mt-4 text-blue-400 hover:text-blue-300 text-sm" download="planilha_veiculos_modelo.xlsx">
+                <i data-lucide="download" class="w-4 h-4"></i>
+                Baixar planilha modelo
+            </a>
+        </div>
+
+        <!-- Vehicles List -->
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-700 bg-slate-800/50 flex items-center justify-between">
+                <h3 class="text-slate-300 font-medium">Veículos Cadastrados</h3>
+            </div>
+
+            {% if vehicles %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-900/50 text-slate-400 text-xs uppercase font-bold">
+                            <th class="px-6 py-4">Tipo</th>
+                            <th class="px-6 py-4">Placa</th>
+                            <th class="px-6 py-4">Marca / Modelo</th>
+                            <th class="px-6 py-4">Ano</th>
+                            <th class="px-6 py-4">Status</th>
+                            <th class="px-6 py-4 text-right">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-700 text-sm">
+                        {% for v in vehicles %}
+                        <tr class="hover:bg-slate-700/30 transition-colors">
+                            <td class="px-6 py-4">
+                                {% if v.vehicle_type == "caminhao" %}
+                                <span class="inline-flex items-center gap-2 px-2 py-1 rounded-lg bg-amber-500/10 text-amber-400">
+                                    <i data-lucide="truck" class="w-5 h-5"></i>
+                                    <span>Caminhão</span>
+                                </span>
+                                {% elif v.vehicle_type == "moto" %}
+                                <span class="inline-flex items-center gap-2 px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-400">
+                                    <i data-lucide="motorbike" class="w-5 h-5"></i>
+                                    <span>Moto</span>
+                                </span>
+                                {% else %}
+                                <span class="inline-flex items-center gap-2 px-2 py-1 rounded-lg bg-blue-500/10 text-blue-400">
+                                    <i data-lucide="car" class="w-5 h-5"></i>
+                                    <span>Carro</span>
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 font-mono font-bold text-white">{{ v.placa }}</td>
+                            <td class="px-6 py-4 text-slate-300">{{ v.marca }} — {{ v.modelo }}</td>
+                            <td class="px-6 py-4 text-slate-400">{{ v.ano or '-' }}</td>
+                            <td class="px-6 py-4">
+                                {% if v.sold_at %}
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-600/50 text-slate-400 text-xs">Vendido</span>
+                                {% elif v.in_workshop %}
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-400 text-xs">Oficina</span>
+                                {% else %}
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs">Ativo</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <div class="flex items-center justify-end gap-1 flex-wrap">
+                                    <a href="/vehicles/{{ v.id }}" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-700 hover:bg-blue-600 text-slate-300 hover:text-white transition-colors text-xs font-medium" title="Editar">
+                                        <i data-lucide="pencil" class="w-4 h-4"></i>
+                                    </a>
+                                    <form action="/vehicles/{{ v.id }}/workshop" method="post" class="inline">
+                                        <button type="submit" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg transition-colors text-xs font-medium {% if v.in_workshop %}bg-amber-500/20 text-amber-400 hover:bg-amber-500/30{% else %}bg-slate-700 hover:bg-amber-500/20 text-slate-300 hover:text-amber-400{% endif %}" title="{% if v.in_workshop %}Sair da oficina{% else %}Na oficina{% endif %}">
+                                            <i data-lucide="wrench" class="w-4 h-4"></i>
+                                        </button>
+                                    </form>
+                                    <form action="/vehicles/{{ v.id }}/delete" method="post" class="inline" onsubmit="return confirm('Excluir este veículo?');">
+                                        <button type="submit" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-700 hover:bg-rose-600 text-slate-300 hover:text-white transition-colors text-xs font-medium" title="Excluir">
+                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-12 text-center text-slate-500">
+                <i data-lucide="truck" class="w-12 h-12 mx-auto mb-4 opacity-50"></i>
+                <p class="mb-2">Nenhum veículo cadastrado ainda.</p>
+                <a href="/vehicles/new" class="text-blue-400 hover:underline font-medium">Cadastrar primeiro veículo</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+<script>
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+    document.getElementById('excel-file-input')?.addEventListener('change', function(e) {
+        var name = e.target.files?.[0]?.name || '';
+        document.getElementById('file-name').textContent = name ? 'Arquivo: ' + name : '';
+    });
+</script>
+{% endblock %}

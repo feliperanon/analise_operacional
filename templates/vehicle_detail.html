@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-8">
+    <div class="max-w-2xl mx-auto">
+        <!-- Header -->
+        <div class="flex items-center gap-4 mb-8">
+            <a href="/vehicles"
+                class="p-2 bg-slate-800 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </a>
+            <div>
+                <h1 class="text-3xl font-bold text-white mb-1">
+                    {% if vehicle %}{{ vehicle.placa }} — Editar{% else %}Novo Veículo{% endif %}
+                </h1>
+                <p class="text-slate-400 text-sm">Cadastro de veículo (base para checklist, manutenção e histórico de motoristas)</p>
+                {% if vehicle %}
+                <div class="flex flex-wrap gap-2 mt-2">
+                    {% if vehicle.sold_at %}
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-600/50 text-slate-400 text-xs">Vendido{% if vehicle.sale_value %} — R$ {{ ('%.2f' % vehicle.sale_value).replace('.', ',') }}{% endif %}</span>
+                    {% elif vehicle.in_workshop %}
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-400 text-xs">Na oficina</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if request.query_params.get("error") == "placa_exists" %}
+        <div class="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center gap-2">
+            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
+            <span>Já existe um veículo com esta placa.</span>
+        </div>
+        {% endif %}
+        {% if request.query_params.get("error") == "invalid_type" %}
+        <div class="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center gap-2">
+            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
+            <span>Tipo de veículo inválido.</span>
+        </div>
+        {% endif %}
+        {% if request.query_params.get("message") == "vehicle_updated" %}
+        <div class="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center gap-2">
+            <i data-lucide="check-circle" class="w-5 h-5 flex-shrink-0"></i>
+            <span>Veículo atualizado com sucesso.</span>
+        </div>
+        {% endif %}
+
+        <!-- Form -->
+        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg">
+            <form action="{% if vehicle %}/vehicles/{{ vehicle.id }}/update{% else %}/vehicles/add{% endif %}" method="post" class="space-y-5">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Placa *</label>
+                        <input type="text" name="placa" value="{{ vehicle.placa if vehicle else '' }}" required placeholder="ABC1234"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono uppercase focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-500"
+                            maxlength="7">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Tipo de Veículo *</label>
+                        <select name="vehicle_type" required
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="caminhao" {% if vehicle and vehicle.vehicle_type == "caminhao" %}selected{% endif %}>Caminhão</option>
+                            <option value="moto" {% if vehicle and vehicle.vehicle_type == "moto" %}selected{% endif %}>Moto</option>
+                            <option value="carro" {% if vehicle and vehicle.vehicle_type == "carro" %}selected{% endif %}>Carro</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Marca *</label>
+                        <input type="text" name="marca" value="{{ vehicle.marca if vehicle else '' }}" required placeholder="Ex: FORD, HONDA, TOYOTA"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Modelo *</label>
+                        <input type="text" name="modelo" value="{{ vehicle.modelo if vehicle else '' }}" required placeholder="Ex: CARGO 815, CG 160 CARGO"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Ano</label>
+                        <input type="text" name="ano" value="{{ vehicle.ano if vehicle else '' }}" placeholder="Ex: 2019/2019, 2021/2022"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Renavam</label>
+                        <input type="text" name="renavam" value="{{ vehicle.renavam if vehicle else '' }}" placeholder="Número Renavam"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Nº do CRV</label>
+                    <input type="text" name="crv_number" value="{{ vehicle.crv_number if vehicle else '' }}" placeholder="Certificado de Registro de Veículo"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Chassi</label>
+                    <input type="text" name="chassi" value="{{ vehicle.chassi if vehicle else '' }}" placeholder="Número do chassi"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-500">
+                </div>
+
+                {% if vehicle %}
+                <!-- Status: Oficina -->
+                <div class="flex items-center gap-3 pt-4 border-t border-slate-700">
+                    <input type="checkbox" name="in_workshop" value="1" id="in_workshop"
+                        {% if vehicle.in_workshop %}checked{% endif %}
+                        class="w-4 h-4 rounded border-slate-600 bg-slate-900 text-amber-500 focus:ring-amber-500">
+                    <label for="in_workshop" class="text-sm text-slate-300">Na oficina</label>
+                </div>
+
+                <!-- Venda -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Valor da venda (R$)</label>
+                        <input type="text" name="sale_value" value="{{ ('%.2f' % vehicle.sale_value).replace('.', ',') if vehicle.sale_value else '' }}" placeholder="0,00"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Data da venda</label>
+                        <input type="date" name="sold_at" value="{{ vehicle.sold_at.strftime('%Y-%m-%d') if vehicle.sold_at else '' }}"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-700">
+                    <a href="/vehicles" class="px-4 py-2 text-slate-400 hover:text-white transition rounded-lg">Cancelar</a>
+                    {% if vehicle %}
+                    <button type="submit"
+                        class="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition-colors flex items-center gap-2">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        Salvar alterações
+                    </button>
+                    {% else %}
+                    <button type="submit"
+                        class="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition-colors flex items-center gap-2">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        Cadastrar veículo
+                    </button>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
+        {% if vehicle %}
+        <!-- Delete -->
+        <div class="mt-6 flex justify-end">
+            <form action="/vehicles/{{ vehicle.id }}/delete" method="post" onsubmit="return confirm('Excluir este veículo? Esta ação é irreversível.');">
+                <button type="submit" class="px-4 py-2 rounded-lg border border-rose-800 text-rose-400 hover:bg-rose-900/30 transition-colors flex items-center gap-2 text-sm">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    Excluir veículo
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+</div>
+<script>
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+</script>
+{% endblock %}

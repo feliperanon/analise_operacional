@@ -132,6 +132,27 @@ class Client(SQLModel, table=True):
     name: str = Field(index=True, unique=True)
     created_at: datetime = Field(default_factory=datetime.now)
 
+
+# --- Frota / Veículos ---
+class Vehicle(SQLModel, table=True):
+    """Cadastro de veículos (caminhões, motos, carros) para checklist, manutenção e histórico de motoristas."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    placa: str = Field(index=True, unique=True)
+    vehicle_type: str = Field(index=True)  # caminhao, moto, carro
+    marca: str = Field(index=True)
+    modelo: str
+    renavam: Optional[str] = None
+    ano: Optional[str] = None  # Ex: "2019/2019", "2021/2022"
+    crv_number: Optional[str] = None  # Nº do CRV (Certificado de Registro de Veículo)
+    chassi: Optional[str] = None
+    is_active: bool = Field(default=True, index=True)
+    in_workshop: bool = Field(default=False, index=True)  # Está na oficina
+    sale_value: Optional[float] = None  # Valor da venda (quando vendido)
+    sold_at: Optional[datetime] = None  # Data da venda
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+
 class Route(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     date: str = Field(index=True) # YYYY-MM-DD
@@ -215,6 +236,7 @@ class TranspalletChecklist(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     employee_id: int = Field(foreign_key="employee.id", index=True)
     equipment_code: str = Field(index=True)
+    odometer_km: Optional[float] = Field(default=None, index=True)  # KM do hodômetro (obrigatório para caminhão)
     date: str = Field(index=True)  # YYYY-MM-DD
     shift: str = Field(index=True)
     status: str = Field(default="submitted", index=True)  # submitted, reviewed, approved, rejected
