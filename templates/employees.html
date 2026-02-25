@@ -1266,5 +1266,10 @@
             select.innerHTML = '<option value="">Erro ao carregar</option>';
         }
     }
+
+    // Ensure employee rows are visible on first page load.
+    document.addEventListener('DOMContentLoaded', () => {
+        filterTable();
+    });
 </script>
 {% endblock %}
