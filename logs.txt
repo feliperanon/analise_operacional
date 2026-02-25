@@ -33799,3 +33799,203 @@ jinja2.exceptions.TemplateNotFound: 'mobile/base.html' not found in search path:
 2026-02-09 03:33:03,427 | INFO     | main | Google Gemini client initialized successfully
 2026-02-09 04:11:33,853 | INFO     | main | Google Gemini client initialized successfully
 2026-02-10 20:35:48,321 | INFO     | main | Google Gemini client initialized successfully
+2026-02-25 09:40:43,241 | INFO     | main | Enviando e-mail de manutencao | host=smtp.gmail.com port=587 tls=True ssl=False from=feliperanon@feliperanon.com.br recipients=['feliperanon@live.com'] subject=ALERTA DE MANUTENÇÃO - TESTE
+2026-02-25 09:40:45,824 | ERROR    | main | Falha ao enviar e-mail de manutencao.
+Traceback (most recent call last):
+  File "C:\Projetos\NL\main.py", line 1003, in send_maintenance_email
+    smtp.login(SMTP_USER, SMTP_PASS)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 764, in login
+    raise last_exception
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 753, in login
+    (code, resp) = self.auth(
+                   ~~~~~~~~~^
+        authmethod, getattr(self, method_name),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        initial_response_ok=initial_response_ok)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 671, in auth
+    raise SMTPAuthenticationError(code, resp)
+smtplib.SMTPAuthenticationError: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials a92af1059eb24-1276af9f74bsm11513183c88.15 - gsmtp')
+2026-02-25 09:46:40,330 | INFO     | main | Enviando e-mail de manutencao | host=smtp.gmail.com port=587 tls=True ssl=False from=feliperanon@feliperanon.com.br recipients=['feliperanon@live.com'] subject=ALERTA DE MANUTENÇÃO - TESTE
+2026-02-25 09:46:42,457 | ERROR    | main | Falha ao enviar e-mail de manutencao.
+Traceback (most recent call last):
+  File "C:\Projetos\NL\main.py", line 1003, in send_maintenance_email
+    smtp.login(SMTP_USER, SMTP_PASS)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 764, in login
+    raise last_exception
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 753, in login
+    (code, resp) = self.auth(
+                   ~~~~~~~~~^
+        authmethod, getattr(self, method_name),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        initial_response_ok=initial_response_ok)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 671, in auth
+    raise SMTPAuthenticationError(code, resp)
+smtplib.SMTPAuthenticationError: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials 5a478bee46e88-2bd7dc169e2sm9727080eec.29 - gsmtp')
+2026-02-25 09:49:10,876 | INFO     | main | Enviando e-mail de manutencao | host=smtp.gmail.com port=587 tls=True ssl=False from=feliperanon@feliperanon.com.br recipients=['feliperanon@live.com'] subject=ALERTA DE MANUTENÇÃO - TESTE
+2026-02-25 09:49:12,900 | ERROR    | main | Falha ao enviar e-mail de manutencao.
+Traceback (most recent call last):
+  File "C:\Projetos\NL\main.py", line 1003, in send_maintenance_email
+    smtp.login(SMTP_USER, SMTP_PASS)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 764, in login
+    raise last_exception
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 753, in login
+    (code, resp) = self.auth(
+                   ~~~~~~~~~^
+        authmethod, getattr(self, method_name),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        initial_response_ok=initial_response_ok)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 671, in auth
+    raise SMTPAuthenticationError(code, resp)
+smtplib.SMTPAuthenticationError: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials a92af1059eb24-1276af8c936sm14080123c88.14 - gsmtp')
+2026-02-25 09:52:05,359 | INFO     | main | Enviando e-mail de manutencao | host=smtp.gmail.com port=587 tls=True ssl=False from=feliperanon@feliperanon.com.br recipients=['feliperanon@live.com'] subject=ALERTA DE MANUTENÇÃO - TESTE
+2026-02-25 09:52:07,698 | ERROR    | main | Falha ao enviar e-mail de manutencao.
+Traceback (most recent call last):
+  File "C:\Projetos\NL\main.py", line 1003, in send_maintenance_email
+    smtp.login(SMTP_USER, SMTP_PASS)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 764, in login
+    raise last_exception
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 753, in login
+    (code, resp) = self.auth(
+                   ~~~~~~~~~^
+        authmethod, getattr(self, method_name),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        initial_response_ok=initial_response_ok)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 671, in auth
+    raise SMTPAuthenticationError(code, resp)
+smtplib.SMTPAuthenticationError: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials 5a478bee46e88-2bdc2ab135csm1336013eec.27 - gsmtp')
+2026-02-25 09:59:50,827 | INFO     | main | Enviando e-mail de manutencao | host=smtp.gmail.com port=587 tls=True ssl=False from=feliperanon@feliperanon.com.br recipients=['feliperanon@live.com'] subject=ALERTA DE MANUTENÇÃO - TESTE
+2026-02-25 09:59:53,021 | ERROR    | main | Falha ao enviar e-mail de manutencao.
+Traceback (most recent call last):
+  File "C:\Projetos\NL\main.py", line 1003, in send_maintenance_email
+    smtp.login(SMTP_USER, SMTP_PASS)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 764, in login
+    raise last_exception
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 753, in login
+    (code, resp) = self.auth(
+                   ~~~~~~~~~^
+        authmethod, getattr(self, method_name),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        initial_response_ok=initial_response_ok)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 671, in auth
+    raise SMTPAuthenticationError(code, resp)
+smtplib.SMTPAuthenticationError: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials 5a478bee46e88-2bdc9b0a908sm434306eec.31 - gsmtp')
+2026-02-25 10:01:37,278 | INFO     | main | Enviando e-mail de manutencao | host=smtp.gmail.com port=587 tls=True ssl=False from=feliperanon@feliperanon.com.br recipients=['feliperanon@live.com'] subject=ALERTA DE MANUTENÇÃO - TESTE
+2026-02-25 10:01:39,542 | ERROR    | main | Falha ao enviar e-mail de manutencao.
+Traceback (most recent call last):
+  File "C:\Projetos\NL\main.py", line 1003, in send_maintenance_email
+    smtp.login(SMTP_USER, SMTP_PASS)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 764, in login
+    raise last_exception
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 753, in login
+    (code, resp) = self.auth(
+                   ~~~~~~~~~^
+        authmethod, getattr(self, method_name),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        initial_response_ok=initial_response_ok)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 671, in auth
+    raise SMTPAuthenticationError(code, resp)
+smtplib.SMTPAuthenticationError: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials a92af1059eb24-1276af8ac3fsm13669140c88.13 - gsmtp')
+2026-02-25 10:07:59,548 | INFO     | main | Enviando e-mail de manutencao | host=smtp.gmail.com port=587 tls=True ssl=False from=feliperanon@feliperanon.com.br recipients=['feliperanon@live.com'] subject=ALERTA DE MANUTENÇÃO - TESTE
+2026-02-25 10:08:02,675 | ERROR    | main | Falha ao enviar e-mail de manutencao.
+Traceback (most recent call last):
+  File "C:\Projetos\NL\main.py", line 1003, in send_maintenance_email
+    smtp.login(SMTP_USER, SMTP_PASS)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 764, in login
+    raise last_exception
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 753, in login
+    (code, resp) = self.auth(
+                   ~~~~~~~~~^
+        authmethod, getattr(self, method_name),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        initial_response_ok=initial_response_ok)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 671, in auth
+    raise SMTPAuthenticationError(code, resp)
+smtplib.SMTPAuthenticationError: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials ada2fe7eead31-5feb6245d40sm14307275137.4 - gsmtp')
+2026-02-25 10:09:04,029 | INFO     | main | Enviando e-mail de manutencao | host=smtp.gmail.com port=587 tls=True ssl=False from=feliperanon@feliperanon.com.br recipients=['feliperanon@live.com'] subject=ALERTA DE MANUTENÇÃO - TESTE
+2026-02-25 10:09:06,674 | ERROR    | main | Falha ao enviar e-mail de manutencao.
+Traceback (most recent call last):
+  File "C:\Projetos\NL\main.py", line 1003, in send_maintenance_email
+    smtp.login(SMTP_USER, SMTP_PASS)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 764, in login
+    raise last_exception
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 753, in login
+    (code, resp) = self.auth(
+                   ~~~~~~~~~^
+        authmethod, getattr(self, method_name),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        initial_response_ok=initial_response_ok)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 671, in auth
+    raise SMTPAuthenticationError(code, resp)
+smtplib.SMTPAuthenticationError: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials 71dfb90a1353d-56a7eb67241sm3105022e0c.9 - gsmtp')
+2026-02-25 10:16:46,916 | INFO     | main | Enviando e-mail de manutencao | host=smtp.gmail.com port=587 tls=True ssl=False from=feliperanon@feliperanon.com.br recipients=['feliperanon@live.com'] subject=ALERTA DE MANUTENÇÃO - TESTE
+2026-02-25 10:16:49,330 | ERROR    | main | Falha ao enviar e-mail de manutencao.
+Traceback (most recent call last):
+  File "C:\Projetos\NL\main.py", line 1003, in send_maintenance_email
+    smtp.login(SMTP_USER, SMTP_PASS)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 764, in login
+    raise last_exception
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 753, in login
+    (code, resp) = self.auth(
+                   ~~~~~~~~~^
+        authmethod, getattr(self, method_name),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        initial_response_ok=initial_response_ok)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 671, in auth
+    raise SMTPAuthenticationError(code, resp)
+smtplib.SMTPAuthenticationError: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials ada2fe7eead31-5feb6245d40sm14338474137.4 - gsmtp')
+2026-02-25 10:17:28,541 | ERROR    | main | Erro ao enviar e-mail de alerta (absent): (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials 71dfb90a1353d-56a87de0186sm1108248e0c.1 - gsmtp')
+2026-02-25 10:29:14,245 | ERROR    | main | Erro ao enviar e-mail de alerta (absent): (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials 71dfb90a1353d-568e5e75889sm16600574e0c.14 - gsmtp')
+2026-02-25 10:36:46,966 | INFO     | main | Enviando e-mail de manutencao | host=smtp.gmail.com port=587 tls=True ssl=False from=feliperanon@feliperanon.com.br recipients=['feliperanon@live.com'] subject=ALERTA DE MANUTENÇÃO - TESTE
+2026-02-25 10:36:49,324 | ERROR    | main | Falha ao enviar e-mail de manutencao.
+Traceback (most recent call last):
+  File "C:\Projetos\NL\main.py", line 1003, in send_maintenance_email
+    smtp.login(SMTP_USER, SMTP_PASS)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 764, in login
+    raise last_exception
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 753, in login
+    (code, resp) = self.auth(
+                   ~~~~~~~~~^
+        authmethod, getattr(self, method_name),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        initial_response_ok=initial_response_ok)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 671, in auth
+    raise SMTPAuthenticationError(code, resp)
+smtplib.SMTPAuthenticationError: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials 5a478bee46e88-2bd7dc167d3sm10063228eec.24 - gsmtp')
+2026-02-25 10:48:47,692 | INFO     | main | Enviando e-mail de manutencao | host=smtp.gmail.com port=587 tls=True ssl=False from=feliperanon@feliperanon.com.br recipients=['feliperanon@live.com'] subject=ALERTA DE MANUTENÇÃO - TESTE
+2026-02-25 10:48:50,395 | ERROR    | main | Falha ao enviar e-mail de manutencao.
+Traceback (most recent call last):
+  File "C:\Projetos\NL\main.py", line 1003, in send_maintenance_email
+    smtp.login(SMTP_USER, SMTP_PASS)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 764, in login
+    raise last_exception
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 753, in login
+    (code, resp) = self.auth(
+                   ~~~~~~~~~^
+        authmethod, getattr(self, method_name),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        initial_response_ok=initial_response_ok)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\felip\AppData\Local\Programs\Python\Python313\Lib\smtplib.py", line 671, in auth
+    raise SMTPAuthenticationError(code, resp)
+smtplib.SMTPAuthenticationError: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials 71dfb90a1353d-568e5921209sm16314126e0c.16 - gsmtp')

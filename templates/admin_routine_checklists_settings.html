@@ -4,8 +4,8 @@
 <div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8">
     <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
         <div>
-            <h1 class="text-2xl md:text-3xl font-bold text-white mb-2">ConfiguraÃ§Ãµes de Checklist</h1>
-            <p class="text-sm text-slate-400">Gerenciamento de frota, alertas e monitoramento diÃ¡rio.</p>
+            <h1 class="text-2xl md:text-3xl font-bold text-white mb-2">Configurações de Checklist</h1>
+            <p class="text-sm text-slate-400">Gerenciamento de frota, alertas e monitoramento diário.</p>
         </div>
         <div class="flex flex-wrap gap-2">
             <a href="/admin/routine/checklists"
@@ -72,12 +72,12 @@
                         </svg>
                         Frota de Equipamentos
                     </h2>
-                    <p class="text-xs text-slate-400 mt-1">Gerencie os status e adicione novos equipamentos Ã  lista.</p>
+                    <p class="text-xs text-slate-400 mt-1">Gerencie os status e adicione novos equipamentos à lista.</p>
                 </div>
             </div>
 
             <form action="/admin/routine/checklists/settings/equipment" method="POST" class="flex gap-2 mb-6">
-                <input type="text" name="code" required placeholder="CÃ³digo (ex: TP-01)"
+                <input type="text" name="code" required placeholder="Código (ex: TP-01)"
                     class="flex-1 rounded-lg bg-slate-900 border border-slate-700 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none transition-colors">
                 <button type="submit"
                     class="rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold px-4 py-2.5 text-sm transition-colors flex items-center gap-2">
@@ -118,7 +118,7 @@
                             <p class="text-sm font-semibold text-white">{{ equipment.code }}</p>
                             <p
                                 class="text-[10px] uppercase font-bold tracking-wide {{ 'text-emerald-400' if equipment.status == 'available' else 'text-red-400' }}">
-                                {{ 'DisponÃ­vel' if equipment.status == 'available' else 'Bloqueado' }}
+                                {{ 'Disponível' if equipment.status == 'available' else 'Bloqueado' }}
                             </p>
                             {% if equipment.status == 'blocked' %}
                             <p class="text-[10px] text-slate-400 line-clamp-1 mt-0.5">
@@ -142,7 +142,7 @@
                             method="POST" class="flex gap-2">
                             <input type="text" name="comment"
                                 class="w-32 rounded bg-slate-900 border border-slate-700 px-2 py-1 text-[10px] text-white focus:border-emerald-500 focus:outline-none"
-                                placeholder="Motivo liberaÃ§Ã£o...">
+                                placeholder="Motivo liberação...">
                             <button type="submit"
                                 class="text-[10px] px-2 py-1 rounded border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 transition-colors whitespace-nowrap">
                                 Liberar
@@ -167,22 +167,22 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M12 8v4m0 4h.01M5.07 19.07A10 10 0 1118.93 5.07 10 10 0 015.07 19.07z" />
                     </svg>
-                    Zona de Risco â€“ Checklists
+                    Zona de Risco – Checklists
                 </h2>
                 <p class="text-xs text-red-200/80 mt-1 max-w-xl">
-                    Esta aÃ§Ã£o remove <span class="font-bold">TODOS os checklists operacionais</span>, limpa o histÃ³rico
-                    em todas as pÃ¡ginas (admin e mobile) e remove automaticamente o XP jÃ¡ creditado aos colaboradores.
-                    Use apenas em ambiente de teste/homologaÃ§Ã£o ou reset completo.
+                    Esta ação remove <span class="font-bold">TODOS os checklists operacionais</span>, limpa o histórico
+                    em todas as páginas (admin e mobile) e remove automaticamente o XP já creditado aos colaboradores.
+                    Use apenas em ambiente de teste/homologação ou reset completo.
                 </p>
             </div>
         </div>
 
         <form action="/admin/tools/cleanup/checklists" method="POST"
-            onsubmit="return confirm('Tem certeza absoluta que deseja APAGAR TODOS os checklists e remover o XP relacionado? Esta aÃ§Ã£o nÃ£o pode ser desfeita.');"
+            onsubmit="return confirm('Tem certeza absoluta que deseja APAGAR TODOS os checklists e remover o XP relacionado? Esta ação não pode ser desfeita.');"
             class="mt-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
             <div class="flex-1">
                 <label class="block text-[11px] font-semibold text-red-200 uppercase tracking-wide mb-1">
-                    ConfirmaÃ§Ã£o obrigatÃ³ria
+                    Confirmação obrigatória
                 </label>
                 <input type="text" name="confirm_phrase" required
                     placeholder="Digite APAGAR TODOS os CHECKLISTS"

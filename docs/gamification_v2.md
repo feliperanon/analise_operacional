@@ -57,7 +57,7 @@ Tipos de conquistas:
 O colaborador visualiza:
 - últimas 3 conquistas no cabeçalho
 - lista completa em modal
-- conquistas “em progresso” mostrando exatamente o que falta
+- conquistas "em progresso" mostrando exatamente o que falta
 - conquistas bloqueadas por tempo de casa
 
 ## 👑 Papel do gestor (controle total)
