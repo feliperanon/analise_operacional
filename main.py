@@ -20746,6 +20746,7 @@ async def admin_checklists_test_email(
     session: Session = Depends(get_session),
     user=Depends(require_leader)
 ):
+    actor_label = user.get("email") if isinstance(user, dict) else str(user or "Sistema")
     recipient = session.get(models.ChecklistEmailRecipient, recipient_id)
     if not recipient:
         return admin_checklists_settings_redirect("E-mail não encontrado.", "error")
@@ -20755,7 +20756,8 @@ async def admin_checklists_test_email(
             "subject": "ALERTA DE MANUTENÇÃO - TESTE",
             "body": "Teste de envio de alerta de manutenção.",
             "equipment_code": "EMP-TESTE-01",
-            "operator_name": str(user) if user else "Sistema",
+            "operator_name": actor_label,
+            "registered_by": actor_label,
             "operator_id": "00000",
             "shift": "Manhã",
             "submitted_at": datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y às %H:%M"),
@@ -21213,7 +21215,7 @@ async def admin_absence_alerts_test_email(
     
     mock_employee = MockEmployee()
     today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
-    registered_by = str(user) if user else "Sistema"
+    registered_by = user.get("email") if isinstance(user, dict) else str(user or "Sistema")
     
     # Determinar tipo de alerta para o teste
     alert_type = recipient.alert_type or "absent"
@@ -21293,6 +21295,7 @@ async def admin_absence_maintenance_test_email(
     session: Session = Depends(get_session),
     user=Depends(require_leader),
 ):
+    actor_label = user.get("email") if isinstance(user, dict) else str(user or "Sistema")
     recipient = session.get(models.ChecklistEmailRecipient, recipient_id)
     if not recipient:
         return maintenance_emails_settings_redirect("E-mail não encontrado.", "error")
@@ -21302,7 +21305,8 @@ async def admin_absence_maintenance_test_email(
             "subject": "ALERTA DE MANUTENÇÃO - TESTE",
             "body": "Teste de envio de alerta de manutenção.",
             "equipment_code": "EMP-TESTE-01",
-            "operator_name": str(user) if user else "Sistema",
+            "operator_name": actor_label,
+            "registered_by": actor_label,
             "operator_id": "00000",
             "shift": "Manhã",
             "submitted_at": datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y às %H:%M"),
