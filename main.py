@@ -7513,6 +7513,8 @@ async def admin_checklist_detail(
             "request": request,
             "checklist": checklist,
             "employee": employee,
+            "employee_name": employee.name if employee else "Desconhecido",
+            "employee_registration_id": employee.registration_id if employee else "-",
             "equipment": equipment,
             "label_map": label_map,
             "items": CHECKLIST_ITEMS
@@ -8389,6 +8391,13 @@ async def api_list_checklists(
     rows = session.exec(query).all()
     result = []
     for checklist, employee in rows:
+        submitted_at_val = checklist.submitted_at
+        if submitted_at_val is None:
+            submitted_at_iso = None
+        elif hasattr(submitted_at_val, "isoformat"):
+            submitted_at_iso = submitted_at_val.isoformat()
+        else:
+            submitted_at_iso = str(submitted_at_val)
         result.append({
             "id": checklist.id,
             "employee_id": employee.id,
@@ -8400,7 +8409,7 @@ async def api_list_checklists(
             "status": checklist.status,
             "critical": checklist.critical_flag,
             "nonconforming_count": len(checklist.nonconforming_keys or []),
-            "submitted_at": checklist.submitted_at.isoformat()
+            "submitted_at": submitted_at_iso
         })
     return {"success": True, "items": result}
 
@@ -8425,11 +8434,32 @@ async def api_get_checklist(
 
     employee = session.get(models.Employee, checklist.employee_id)
     image_urls = [f"/static/uploads/checklists/{img}" for img in (checklist.images or [])]
+    submitted_at_val = checklist.submitted_at
+    if submitted_at_val is None:
+        submitted_at_iso = None
+    elif hasattr(submitted_at_val, "isoformat"):
+        submitted_at_iso = submitted_at_val.isoformat()
+    else:
+        submitted_at_iso = str(submitted_at_val)
+
+    reviewed_at_val = checklist.reviewed_at
+    if reviewed_at_val is None:
+        reviewed_at_iso = None
+    elif hasattr(reviewed_at_val, "isoformat"):
+        reviewed_at_iso = reviewed_at_val.isoformat()
+    else:
+        reviewed_at_iso = str(reviewed_at_val)
+
+    employee_payload = {
+        "id": employee.id if employee else checklist.employee_id,
+        "name": employee.name if employee else "Desconhecido",
+        "registration_id": employee.registration_id if employee else "-"
+    }
     return {
         "success": True,
         "item": {
             "id": checklist.id,
-            "employee": {"id": employee.id, "name": employee.name, "registration_id": employee.registration_id},
+            "employee": employee_payload,
             "equipment_code": checklist.equipment_code,
             "date": checklist.date,
             "shift": checklist.shift,
@@ -8439,8 +8469,8 @@ async def api_get_checklist(
             "observations": checklist.observations,
             "images": image_urls,
             "critical": checklist.critical_flag,
-            "submitted_at": checklist.submitted_at.isoformat(),
-            "reviewed_at": checklist.reviewed_at.isoformat() if checklist.reviewed_at else None,
+            "submitted_at": submitted_at_iso,
+            "reviewed_at": reviewed_at_iso,
             "reviewed_by": checklist.reviewed_by,
             "review_comment": checklist.review_comment
         }
@@ -20529,17 +20559,20 @@ async def admin_routine_checklist_detail(
             )
             
         emp = session.get(models.Employee, chk.employee_id)
-        
-        # JSON items
-        items_data = chk.items if chk.items else {}
-        
+        equipment = session.exec(
+            select(models.TranspalletEquipment).where(models.TranspalletEquipment.code == chk.equipment_code)
+        ).first()
+        label_map = checklist_item_label_map()
+
         return templates.TemplateResponse("admin_routine_checklist_detail.html", {
             "request": request,
             "checklist": chk,
+            "employee": emp,
             "employee_name": emp.name if emp else "Desconhecido",
-            "items": items_data,
-            "images": chk.images or [],
-            "debug": False
+            "employee_registration_id": emp.registration_id if emp else "-",
+            "equipment": equipment,
+            "label_map": label_map,
+            "items": CHECKLIST_ITEMS
         })
     except Exception as e:
         logger.exception(f"Error loading checklist {checklist_id}")
