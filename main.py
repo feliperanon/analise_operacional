@@ -5952,11 +5952,33 @@ def ensure_column(engine, table_name, column_name, column_type_sql):
         except Exception as e:
             logger.error(f"Error adding column {column_name}: {e}")
 
+def ensure_vehicle_schema():
+    """Adiciona colunas in_workshop, sale_value, sold_at à tabela vehicle se não existirem."""
+    try:
+        inspector = inspect(engine)
+        if "vehicle" not in inspector.get_table_names():
+            return
+        cols = {c["name"] for c in inspector.get_columns("vehicle")}
+        with engine.connect() as conn:
+            if "in_workshop" not in cols:
+                conn.execute(text("ALTER TABLE vehicle ADD COLUMN in_workshop INTEGER DEFAULT 0"))
+                conn.commit()
+            if "sale_value" not in cols:
+                conn.execute(text("ALTER TABLE vehicle ADD COLUMN sale_value REAL"))
+                conn.commit()
+            if "sold_at" not in cols:
+                conn.execute(text("ALTER TABLE vehicle ADD COLUMN sold_at TIMESTAMP"))
+                conn.commit()
+    except Exception as e:
+        logger.error(f"ensure_vehicle_schema: {e}")
+
+
 @app.on_event("startup")
 def on_startup():
     create_db_and_tables()
     ensure_default_admin()
     ensure_pallet_count_schema()
+    ensure_vehicle_schema()
     # Migration for new column
     ensure_column(engine, "employee", "mobile_access_admin_start", "BOOLEAN DEFAULT FALSE")
 
@@ -9071,6 +9093,9 @@ async def update_vehicle(
     ano: Optional[str] = Form(default=None),
     crv_number: Optional[str] = Form(default=None),
     chassi: Optional[str] = Form(default=None),
+    in_workshop: Optional[str] = Form(default=None),
+    sale_value: Optional[str] = Form(default=None),
+    sold_at: Optional[str] = Form(default=None),
     session: Session = Depends(get_session)
 ):
     require_login(request)
@@ -9092,10 +9117,38 @@ async def update_vehicle(
     vehicle.ano = _opt(ano)
     vehicle.crv_number = _opt(crv_number)
     vehicle.chassi = _opt(chassi)
+    vehicle.in_workshop = in_workshop == "on" or in_workshop == "1"
+    try:
+        val = (sale_value or "").strip().replace(".", "").replace(",", ".")
+        vehicle.sale_value = float(val) if val else None
+    except (ValueError, TypeError):
+        vehicle.sale_value = None
+    if sold_at and _opt(sold_at):
+        try:
+            vehicle.sold_at = datetime.strptime(_opt(sold_at), "%Y-%m-%d")
+        except (ValueError, TypeError):
+            vehicle.sold_at = None
+    elif vehicle.sale_value:
+        vehicle.sold_at = vehicle.sold_at or datetime.now()
+    else:
+        vehicle.sold_at = None
     vehicle.updated_at = datetime.now()
     session.add(vehicle)
     session.commit()
     return RedirectResponse(url=f"/vehicles/{vehicle_id}?message=vehicle_updated", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.post("/vehicles/{vehicle_id}/workshop", response_class=RedirectResponse)
+async def vehicle_toggle_workshop(request: Request, vehicle_id: int, session: Session = Depends(get_session)):
+    """Alterna status 'na oficina' do veículo."""
+    require_login(request)
+    vehicle = session.get(models.Vehicle, vehicle_id)
+    if vehicle:
+        vehicle.in_workshop = not vehicle.in_workshop
+        vehicle.updated_at = datetime.now()
+        session.add(vehicle)
+        session.commit()
+    return RedirectResponse(url=request.headers.get("referer", "/vehicles"), status_code=status.HTTP_303_SEE_OTHER)
 
 
 @app.post("/vehicles/{vehicle_id}/delete", response_class=RedirectResponse)
