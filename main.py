@@ -859,54 +859,100 @@ def send_maintenance_email(report: dict, recipients: Optional[List[str]] = None)
         smtp_use_ssl = smtp_port == 465
 
     msg = EmailMessage()
-    msg["Subject"] = report["subject"]
+    msg["Subject"] = report.get("subject") or "🔧 NOTIFICAÇÃO DE MANUTENÇÃO"
     msg["From"] = MAINTENANCE_EMAIL_FROM_FIXED
     msg["To"] = ", ".join(recipient_list)
-    body_text = report.get("body") or "Registro de manutencao gerado pelo sistema."
+
+    def _format_actor_label(value) -> str:
+        if isinstance(value, dict):
+            return (
+                value.get("email")
+                or value.get("username")
+                or value.get("name")
+                or value.get("id")
+                or "Sistema"
+            )
+        raw = str(value or "").strip()
+        return raw or "Sistema"
+
+    submitted_at = report.get("submitted_at", datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y às %H:%M"))
     equipment_code = report.get("equipment_code", "-")
     operator_name = report.get("operator_name") or report.get("employee_name") or "-"
     operator_id = report.get("operator_id", "-")
-    submitted_at = report.get("submitted_at", datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y %H:%M"))
     shift = report.get("shift", "-")
     observations = report.get("observations", "-")
+    registered_by = _format_actor_label(report.get("registered_by") or report.get("operator_name"))
+    action_text = report.get("action") or "Solicitamos avaliação da equipe responsável e tratativa conforme procedimento interno."
 
     nonconforming_items = report.get("nonconforming_items") or []
     items_html = ""
+    items_text = []
     if nonconforming_items:
         for item in nonconforming_items:
             label = item.get("label") or item.get("key") or "-"
-            critical = " (CRITICO)" if item.get("critical") else ""
+            critical = " (CRÍTICO)" if item.get("critical") else ""
             items_html += f"<li>{label}{critical}</li>"
+            items_text.append(f"- {label}{critical}")
     else:
-        items_html = "<li>Sem itens nao conformes informados</li>"
+        items_html = "<li>Sem itens não conformes informados</li>"
+        items_text = ["- Sem itens não conformes informados"]
+
+    body_text = f"""
+🔧 NOTIFICAÇÃO DE MANUTENÇÃO
+Solicitação de manutenção registrada no sistema
+
+Prezados,
+
+Informamos que foi registrado um bloqueio/manutenção com os dados abaixo:
+
+- Equipamento: {equipment_code}
+- Operador: {operator_name}
+- Matrícula: {operator_id}
+- Turno: {shift}
+- Data/Hora: {submitted_at}
+- Registrado por: {registered_by}
+
+Itens não conformes:
+{chr(10).join(items_text)}
+
+Observações: {observations}
+
+{action_text}
+
+---
+Este é um e-mail automático gerado pelo sistema de Análise Operacional.
+Data/Hora do registro: {datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y às %H:%M")}
+    """
 
     body_html = f"""
     <html>
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: #2563eb; color: white; padding: 15px 20px; border-radius: 8px 8px 0 0;">
-                <h2 style="margin: 0; font-size: 18px;">ALERTA DE MANUTENCAO</h2>
-                <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Checklist/Chamado com acao de manutencao</p>
+            <div style="background: #0f766e; color: white; padding: 15px 20px; border-radius: 8px 8px 0 0;">
+                <h2 style="margin: 0; font-size: 18px;">🔧 NOTIFICAÇÃO DE MANUTENÇÃO</h2>
+                <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Solicitação de manutenção registrada no sistema</p>
             </div>
             <div style="background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none;">
                 <p>Prezados,</p>
-                <p>Segue solicitacao de manutencao registrada no sistema:</p>
+                <p>Informamos que foi registrado um bloqueio/manutenção com os dados abaixo:</p>
                 <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin: 20px 0;">
                     <table style="width: 100%; border-collapse: collapse;">
                         <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Equipamento:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{equipment_code}</td></tr>
                         <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Operador:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{operator_name}</td></tr>
-                        <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Matricula:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{operator_id}</td></tr>
+                        <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Matrícula:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{operator_id}</td></tr>
                         <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Turno:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{shift}</td></tr>
-                        <tr><td style="padding: 8px 0;"><strong>Data/Hora:</strong></td><td style="padding: 8px 0;">{submitted_at}</td></tr>
+                        <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Data/Hora:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{submitted_at}</td></tr>
+                        <tr><td style="padding: 8px 0;"><strong>Registrado por:</strong></td><td style="padding: 8px 0;">{registered_by}</td></tr>
                     </table>
                 </div>
-                <p><strong>Itens com atencao:</strong></p>
+                <p><strong>Itens não conformes:</strong></p>
                 <ul>{items_html}</ul>
-                <p><strong>Observacoes:</strong> {observations}</p>
+                <p><strong>Observações:</strong> {observations}</p>
+                <p><strong>{action_text}</strong></p>
                 <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
                 <p style="font-size: 12px; color: #6b7280;">
-                    Este e um e-mail automatico do sistema.<br>
-                    Data/Hora: {datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y %H:%M")}
+                    Este é um e-mail automático gerado pelo sistema de Análise Operacional.<br>
+                    Data/Hora do registro: {datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y às %H:%M")}
                 </p>
             </div>
         </div>
