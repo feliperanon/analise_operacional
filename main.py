@@ -652,7 +652,11 @@ TICKET_IMAGE_DIR = os.path.join(str(BASE_DIR), "static", "uploads", "tickets")
 TICKET_MAX_IMAGE_SIZE = 5 * 1024 * 1024
 MAINTENANCE_EMAIL_TO = os.getenv("MAINTENANCE_EMAIL_TO", "").strip()
 MAINTENANCE_EMAIL_FROM = os.getenv("MAINTENANCE_EMAIL_FROM", "").strip()
-MAINTENANCE_EMAIL_FROM_FIXED = "felipe.pires@nlfrutas.com.br"
+DEFAULT_SENDER_EMAIL = "feliperanon@live.com"
+MAINTENANCE_EMAIL_FROM_FIXED = (
+    MAINTENANCE_EMAIL_FROM
+    or DEFAULT_SENDER_EMAIL
+)
 SMTP_HOST = os.getenv("SMTP_HOST", "").strip()
 SMTP_PORT_RAW = os.getenv("SMTP_PORT", "587").strip()
 SMTP_USER = os.getenv("SMTP_USER", "").strip()
@@ -660,6 +664,7 @@ SMTP_PASS = os.getenv("SMTP_PASS", "")
 SMTP_TLS_RAW = os.getenv("SMTP_TLS", "true").strip()
 SMTP_USE_SSL_RAW = os.getenv("SMTP_USE_SSL", "").strip()
 APP_BASE_URL = os.getenv("APP_BASE_URL", "").strip().rstrip("/")
+ALERT_SETTINGS_PATH = "/admin/alerts/settings"
 
 def parse_bool_env(value: str, default: bool = False) -> bool:
     if value is None:
@@ -677,6 +682,21 @@ def parse_email_list(value: str) -> List[str]:
         return []
     parts = [p.strip() for p in value.replace(";", ",").split(",")]
     return [normalize_email(p) for p in parts if normalize_email(p)]
+
+def get_maintenance_recipient_emails(session: Session) -> List[str]:
+    """Destinatarios de manutencao: cadastro de checklist + cadastro setorial geral."""
+    emails = set(parse_email_list(MAINTENANCE_EMAIL_TO))
+
+    checklist_recipients = session.exec(
+        select(models.ChecklistEmailRecipient)
+        .where(models.ChecklistEmailRecipient.is_active == True)
+    ).all()
+    for rec in checklist_recipients:
+        email = normalize_email(getattr(rec, "email", ""))
+        if email:
+            emails.add(email)
+
+    return sorted(emails)
 
 def smtp_config_error(recipient_list: List[str]) -> Optional[str]:
     missing = []
@@ -705,6 +725,11 @@ def smtp_config_error(recipient_list: List[str]) -> Optional[str]:
     pass_val = (SMTP_PASS or "").strip()
     if not pass_val or len(pass_val) == 0:
         missing.append("SMTP_PASS")
+    from_val = (MAINTENANCE_EMAIL_FROM_FIXED or "").strip()
+    if not from_val:
+        missing.append("MAINTENANCE_EMAIL_FROM")
+    if "brevo" in host_val.lower() and from_val.lower().endswith("@smtp-brevo.com"):
+        missing.append("MAINTENANCE_EMAIL_FROM (use remetente validado no Brevo)")
     if missing:
         return "Configuração de e-mail incompleta. Variáveis faltando/invalidas: " + ", ".join(missing)
     return None
@@ -837,7 +862,60 @@ def send_maintenance_email(report: dict, recipients: Optional[List[str]] = None)
     msg["Subject"] = report["subject"]
     msg["From"] = MAINTENANCE_EMAIL_FROM_FIXED
     msg["To"] = ", ".join(recipient_list)
-    msg.set_content(report["body"])
+    body_text = report.get("body") or "Registro de manutencao gerado pelo sistema."
+    equipment_code = report.get("equipment_code", "-")
+    operator_name = report.get("operator_name") or report.get("employee_name") or "-"
+    operator_id = report.get("operator_id", "-")
+    submitted_at = report.get("submitted_at", datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y %H:%M"))
+    shift = report.get("shift", "-")
+    observations = report.get("observations", "-")
+
+    nonconforming_items = report.get("nonconforming_items") or []
+    items_html = ""
+    if nonconforming_items:
+        for item in nonconforming_items:
+            label = item.get("label") or item.get("key") or "-"
+            critical = " (CRITICO)" if item.get("critical") else ""
+            items_html += f"<li>{label}{critical}</li>"
+    else:
+        items_html = "<li>Sem itens nao conformes informados</li>"
+
+    body_html = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: #2563eb; color: white; padding: 15px 20px; border-radius: 8px 8px 0 0;">
+                <h2 style="margin: 0; font-size: 18px;">ALERTA DE MANUTENCAO</h2>
+                <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Checklist/Chamado com acao de manutencao</p>
+            </div>
+            <div style="background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none;">
+                <p>Prezados,</p>
+                <p>Segue solicitacao de manutencao registrada no sistema:</p>
+                <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin: 20px 0;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Equipamento:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{equipment_code}</td></tr>
+                        <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Operador:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{operator_name}</td></tr>
+                        <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Matricula:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{operator_id}</td></tr>
+                        <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Turno:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{shift}</td></tr>
+                        <tr><td style="padding: 8px 0;"><strong>Data/Hora:</strong></td><td style="padding: 8px 0;">{submitted_at}</td></tr>
+                    </table>
+                </div>
+                <p><strong>Itens com atencao:</strong></p>
+                <ul>{items_html}</ul>
+                <p><strong>Observacoes:</strong> {observations}</p>
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+                <p style="font-size: 12px; color: #6b7280;">
+                    Este e um e-mail automatico do sistema.<br>
+                    Data/Hora: {datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y %H:%M")}
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    msg.set_content(body_text)
+    msg.add_alternative(body_html, subtype="html")
 
     if report.get("pdf_bytes"):
         msg.add_attachment(
@@ -4571,15 +4649,6 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
                 "action": None
             },
             {
-                "key": "pallet_count",
-                "label": "Contagem de Paleteiras",
-                "description": "Registre e rastreie paleteiras.",
-                "icon": "clipboard-list",
-                "href": "/mobile/pallet-count",
-                "enabled": True,  # Habilitado para todos com acesso mobile
-                "action": None
-            },
-            {
                 "key": "admin_start",
                 "label": "Abertura Manual (Líder)",
                 "description": "Iniciar separação para outro colaborador.",
@@ -6744,11 +6813,7 @@ async def mobile_ticket_create(
     
     # Enviar e-mail
     try:
-        recipients = session.exec(
-            select(models.ChecklistEmailRecipient)
-            .where(models.ChecklistEmailRecipient.is_active == True)
-        ).all()
-        recipient_emails = [r.email for r in recipients]
+        recipient_emails = get_maintenance_recipient_emails(session)
         
         if recipient_emails:
             ticket_link = f"{APP_BASE_URL}/admin/equipment/tickets/{ticket.id}" if APP_BASE_URL else f"/admin/equipment/tickets/{ticket.id}"
@@ -7877,11 +7942,7 @@ async def admin_checklist_resend_email(
     ).first()
     
     # Buscar destinatários
-    recipients = session.exec(
-        select(models.ChecklistEmailRecipient)
-        .where(models.ChecklistEmailRecipient.is_active == True)
-    ).all()
-    recipient_emails = [r.email for r in recipients]
+    recipient_emails = get_maintenance_recipient_emails(session)
     
     if not recipient_emails:
         checklist.maintenance_email_error = "Nenhum destinatário configurado"
@@ -8090,11 +8151,7 @@ async def api_create_checklist(
 
         maintenance_error = None
         try:
-            recipients = session.exec(
-                select(models.ChecklistEmailRecipient)
-                .where(models.ChecklistEmailRecipient.is_active == True)
-            ).all()
-            recipient_emails = [r.email for r in recipients]
+            recipient_emails = get_maintenance_recipient_emails(session)
             sent, error = send_maintenance_email(report, recipient_emails)
             if sent:
                 checklist.maintenance_email_sent_at = now_br
@@ -8292,11 +8349,7 @@ async def admin_email_test(request: Request, session: Session = Depends(get_sess
         "body": "Teste de envio SMTP do sistema de checklists.",
         "pdf_bytes": None
     }
-    recipients = session.exec(
-        select(models.ChecklistEmailRecipient)
-        .where(models.ChecklistEmailRecipient.is_active == True)
-    ).all()
-    recipient_emails = [r.email for r in recipients]
+    recipient_emails = get_maintenance_recipient_emails(session)
     sent, error = send_maintenance_email(report, recipient_emails)
     return templates.TemplateResponse(
         "admin_email_test.html",
@@ -20676,7 +20729,7 @@ def absence_alerts_settings_redirect(message: str, level: str = "success"):
     """Redirect helper for absence alerts settings page"""
     from urllib.parse import quote
     return RedirectResponse(
-        url=f"/admin/absence-alerts/settings?message={quote(message)}&level={level}",
+        url=f"{ALERT_SETTINGS_PATH}?message={quote(message)}&level={level}",
         status_code=status.HTTP_303_SEE_OTHER
     )
 
@@ -20958,6 +21011,7 @@ def send_absence_alert_email_background(
         traceback.print_exc()
 
 
+@app.get("/admin/alerts/settings", response_class=HTMLResponse)
 @app.get("/admin/absence-alerts/settings", response_class=HTMLResponse)
 async def admin_absence_alerts_settings(
     request: Request,
@@ -21003,6 +21057,7 @@ async def admin_absence_alerts_settings(
         }
     )
 
+@app.post("/admin/alerts/settings/emails", response_class=RedirectResponse)
 @app.post("/admin/absence-alerts/settings/emails", response_class=RedirectResponse)
 async def admin_absence_alerts_add_email(
     request: Request,
@@ -21061,6 +21116,7 @@ async def admin_absence_alerts_add_email(
     
     return absence_alerts_settings_redirect(f"E-mail cadastrado para {type_label}.", "success")
 
+@app.post("/admin/alerts/settings/emails/{recipient_id}/delete", response_class=RedirectResponse)
 @app.post("/admin/absence-alerts/settings/emails/{recipient_id}/delete", response_class=RedirectResponse)
 async def admin_absence_alerts_remove_email(
     request: Request,
@@ -21079,6 +21135,7 @@ async def admin_absence_alerts_remove_email(
     
     return absence_alerts_settings_redirect("E-mail removido com sucesso.", "success")
 
+@app.post("/admin/alerts/settings/emails/{recipient_id}/test", response_class=RedirectResponse)
 @app.post("/admin/absence-alerts/settings/emails/{recipient_id}/test", response_class=RedirectResponse)
 async def admin_absence_alerts_test_email(
     request: Request,
@@ -21130,827 +21187,6 @@ async def admin_absence_alerts_test_email(
 # =============================================================================
 # PALLET TRUCK COUNTING SYSTEM
 # =============================================================================
-
-def pallet_count_settings_redirect(message: str, level: str = "success"):
-    """Redirect helper for pallet count settings page"""
-    from urllib.parse import quote
-    return RedirectResponse(
-        url=f"/admin/pallet-count/settings?message={quote(message)}&level={level}",
-        status_code=status.HTTP_303_SEE_OTHER
-    )
-
-def send_pallet_missing_email(
-    missing_pallets: List[dict],
-    date: str,
-    shift: str,
-    counted_by: str,
-    recipients: List[str]
-) -> tuple:
-    """
-    Envia e-mail de alerta de paleteiras não encontradas.
-    Retorna (success: bool, error: str ou None)
-    """
-    smtp_port = parse_int_env(SMTP_PORT_RAW, 587)
-    smtp_tls = parse_bool_env(SMTP_TLS_RAW, True)
-    recipient_list = [normalize_email(r) for r in recipients if normalize_email(r)]
-    
-    if not recipient_list:
-        return False, "Nenhum destinatário configurado"
-    
-    config_error = smtp_config_error(recipient_list)
-    if config_error:
-        logger.error(config_error)
-        return False, config_error
-    
-    if SMTP_USE_SSL_RAW.strip():
-        smtp_use_ssl = parse_bool_env(SMTP_USE_SSL_RAW, False)
-    else:
-        smtp_use_ssl = smtp_port == 465
-    
-    # Format date
-    try:
-        date_obj = datetime.strptime(date, "%Y-%m-%d")
-        date_formatted = date_obj.strftime("%d/%m/%Y")
-    except:
-        date_formatted = date
-    
-    # Build pallet list HTML
-    pallet_rows = ""
-    for p in missing_pallets:
-        pallet_rows += f"""
-        <tr>
-            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: bold; color: #dc2626;">{p.get('number', 'N/A')}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">{p.get('sector', 'N/A')}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">{p.get('last_seen', 'N/A')}</td>
-        </tr>
-        """
-    
-    subject = f"🚨 ALERTA: {len(missing_pallets)} Paleteira(s) Não Encontrada(s) — {date_formatted}"
-    
-    html_body = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-    </head>
-    <body style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 20px;">
-        <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <div style="background: linear-gradient(135deg, #dc2626, #991b1b); padding: 24px; text-align: center;">
-                <h1 style="color: white; margin: 0; font-size: 24px;">🚨 Alerta de Paleteiras</h1>
-                <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0;">Contagem com divergências detectadas</p>
-            </div>
-            
-            <div style="padding: 24px;">
-                <p style="color: #374151; line-height: 1.6;">
-                    A contagem de paleteiras realizada em <strong>{date_formatted}</strong> (Turno: <strong>{shift}</strong>) 
-                    identificou as seguintes paleteiras como <strong style="color: #dc2626;">NÃO ENCONTRADAS</strong>:
-                </p>
-                
-                <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-                    <thead>
-                        <tr style="background: #f1f5f9;">
-                            <th style="padding: 12px 8px; text-align: left; font-weight: bold; color: #1e293b;">Número</th>
-                            <th style="padding: 12px 8px; text-align: left; font-weight: bold; color: #1e293b;">Setor</th>
-                            <th style="padding: 12px 8px; text-align: left; font-weight: bold; color: #1e293b;">Última Vez Vista</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {pallet_rows}
-                    </tbody>
-                </table>
-                
-                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin: 20px 0; border-radius: 4px;">
-                    <p style="color: #92400e; margin: 0; font-size: 14px;">
-                        <strong>Ação recomendada:</strong> Verifique se estas paleteiras foram enviadas para manutenção, 
-                        transferidas para outro setor ou se há possibilidade de extravio.
-                    </p>
-                </div>
-                
-                <div style="background: #f1f5f9; padding: 12px; border-radius: 8px; margin-top: 20px;">
-                    <p style="color: #64748b; margin: 0; font-size: 12px;">
-                        <strong>Contagem realizada por:</strong> {counted_by}<br>
-                        <strong>Data/Turno:</strong> {date_formatted} — {shift}
-                    </p>
-                </div>
-            </div>
-            
-            <div style="background: #f8fafc; padding: 16px; text-align: center; border-top: 1px solid #e2e8f0;">
-                <p style="color: #94a3b8; font-size: 11px; margin: 0;">
-                    E-mail automático do Sistema de Análise Operacional
-                </p>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
-    
-    try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = SMTP_USER
-        msg["To"] = ", ".join(recipient_list)
-        msg.attach(MIMEText(html_body, "html", "utf-8"))
-        
-        if smtp_use_ssl:
-            with smtplib.SMTP_SSL(SMTP_HOST, smtp_port) as server:
-                server.login(SMTP_USER, SMTP_PASS)
-                server.sendmail(SMTP_USER, recipient_list, msg.as_string())
-        else:
-            with smtplib.SMTP(SMTP_HOST, smtp_port) as server:
-                if smtp_tls:
-                    server.starttls()
-                server.login(SMTP_USER, SMTP_PASS)
-                server.sendmail(SMTP_USER, recipient_list, msg.as_string())
-        
-        return True, None
-    except Exception as e:
-        logger.error(f"Erro ao enviar e-mail de paleteiras: {e}")
-        return False, str(e)
-
-# --- Mobile: Pallet Counting Page ---
-
-@app.get("/mobile/pallet-count", response_class=HTMLResponse)
-async def mobile_pallet_count(
-    request: Request,
-    current_user: dict = Depends(get_current_user),
-    session: Session = Depends(get_session)
-):
-    """Página mobile de contagem de paleteiras"""
-    if not isinstance(current_user, dict):
-        return RedirectResponse(url="/mobile/login", status_code=303)
-    
-    user_id = current_user.get("id")
-    if not user_id:
-        return RedirectResponse(url="/mobile/login", status_code=303)
-    
-    employee = session.get(models.Employee, user_id)
-    if not employee or not employee.mobile_access:
-        return RedirectResponse(url="/mobile/login?error=access_revoked", status_code=303)
-    
-    today = datetime.now(ZoneInfo("America/Sao_Paulo"))
-    today_str = today.strftime("%Y-%m-%d")
-    yesterday = today - timedelta(days=1)
-    yesterday_str = yesterday.strftime("%Y-%m-%d")
-    
-    # Determine current shift based on time
-    hour = today.hour
-    if 5 <= hour < 14:
-        current_shift = "Manhã"
-    elif 14 <= hour < 22:
-        current_shift = "Tarde"
-    else:
-        current_shift = "Noite"
-    
-    # Get active sectors
-    sectors = session.exec(
-        select(models.PalletSector)
-        .where(models.PalletSector.is_active == True)
-        .order_by(models.PalletSector.order)
-    ).all()
-    
-    # Get yesterday's counted pallets (to show as "expected" today)
-    yesterday_counts = session.exec(
-        select(models.PalletCount)
-        .where(models.PalletCount.date == yesterday_str)
-        .where(models.PalletCount.status.in_(["found", "new"]))  # Paleteiras encontradas ontem
-    ).all()
-    
-    # Get unique pallet numbers from yesterday
-    yesterday_pallets = {}
-    for pc in yesterday_counts:
-        if pc.pallet_number not in yesterday_pallets:
-            sector = session.get(models.PalletSector, pc.sector_id) if pc.sector_id else None
-            yesterday_pallets[pc.pallet_number] = {
-                "number": pc.pallet_number,
-                "sector_id": pc.sector_id,
-                "sector_name": sector.name if sector else "Sem setor"
-            }
-    
-    # Get today's counts for current shift
-    today_counts = session.exec(
-        select(models.PalletCount)
-        .where(
-            models.PalletCount.date == today_str,
-            models.PalletCount.shift == current_shift
-        )
-    ).all()
-    
-    today_counted_numbers = {pc.pallet_number for pc in today_counts}
-    
-    # Build list of expected pallets with status
-    expected_pallets = []
-    for num, data in yesterday_pallets.items():
-        expected_pallets.append({
-            "number": num,
-            "sector_id": data["sector_id"],
-            "sector_name": data["sector_name"],
-            "counted": num in today_counted_numbers,
-            "status": next((tc.status for tc in today_counts if tc.pallet_number == num), None)
-        })
-    
-    # Sort: uncounted first, then by number
-    expected_pallets.sort(key=lambda x: (x["counted"], x["number"]))
-    
-    # Get today's NEW pallets (not in yesterday's list)
-    new_pallets = [
-        {
-            "number": pc.pallet_number,
-            "sector_id": pc.sector_id,
-            "sector_name": session.get(models.PalletSector, pc.sector_id).name if pc.sector_id else "Sem setor",
-            "status": pc.status
-        }
-        for pc in today_counts 
-        if pc.pallet_number not in yesterday_pallets and pc.status == "new"
-    ]
-    
-    # Open maintenance tickets
-    open_tickets = session.exec(
-        select(models.PalletMaintenanceTicket)
-        .where(models.PalletMaintenanceTicket.status.in_(["open", "in_progress"]))
-        .order_by(models.PalletMaintenanceTicket.created_at.desc())
-    ).all()
-    
-    # Stats
-    stats = {
-        "expected": len(yesterday_pallets),
-        "counted": len([p for p in expected_pallets if p["counted"]]),
-        "missing": len([p for p in expected_pallets if not p["counted"]]),
-        "new": len(new_pallets),
-        "maintenance": len([t for t in open_tickets])
-    }
-    
-    return templates.TemplateResponse(
-        "mobile/pallet_count.html",
-        {
-            "request": request,
-            "employee": employee,
-            "sectors": sectors,
-            "expected_pallets": expected_pallets,
-            "new_pallets": new_pallets,
-            "open_tickets": open_tickets,
-            "stats": stats,
-            "today_str": today_str,
-            "yesterday_str": yesterday_str,
-            "current_shift": current_shift
-        }
-    )
-
-@app.post("/api/mobile/pallet-count", response_class=JSONResponse)
-async def api_register_pallet_count(
-    request: Request,
-    current_user: dict = Depends(get_current_user),
-    session: Session = Depends(get_session)
-):
-    """Registra uma contagem de paleteira"""
-    if not isinstance(current_user, dict):
-        return JSONResponse({"success": False, "error": "Não autorizado"}, status_code=401)
-    
-    user_id = current_user.get("id")
-    employee = session.get(models.Employee, user_id)
-    if not employee:
-        return JSONResponse({"success": False, "error": "Funcionário não encontrado"}, status_code=404)
-    
-    data = await request.json()
-    pallet_number = data.get("pallet_number", "").strip().upper()
-    sector_id = data.get("sector_id")
-    status_val = data.get("status", "found")  # found, missing, maintenance, new
-    observations = data.get("observations", "")
-    shift = data.get("shift")
-    
-    if not pallet_number:
-        return JSONResponse({"success": False, "error": "Número da paleteira é obrigatório"}, status_code=400)
-    
-    today = datetime.now(ZoneInfo("America/Sao_Paulo"))
-    today_str = today.strftime("%Y-%m-%d")
-    
-    if not shift:
-        hour = today.hour
-        if 5 <= hour < 14:
-            shift = "Manhã"
-        elif 14 <= hour < 22:
-            shift = "Tarde"
-        else:
-            shift = "Noite"
-    
-    # Check if already counted today (same shift)
-    existing = session.exec(
-        select(models.PalletCount)
-        .where(
-            models.PalletCount.date == today_str,
-            models.PalletCount.shift == shift,
-            models.PalletCount.pallet_number == pallet_number
-        )
-    ).first()
-    
-    if existing:
-        # Update existing record
-        existing.status = status_val
-        existing.sector_id = sector_id
-        existing.observations = observations
-        existing.updated_at = datetime.now()
-        session.add(existing)
-        session.commit()
-        return JSONResponse({
-            "success": True, 
-            "message": f"Paleteira {pallet_number} atualizada",
-            "id": existing.id,
-            "is_update": True
-        })
-    
-    # Check if this is a new pallet (not in yesterday's count)
-    yesterday = today - timedelta(days=1)
-    yesterday_str = yesterday.strftime("%Y-%m-%d")
-    
-    was_yesterday = session.exec(
-        select(models.PalletCount)
-        .where(
-            models.PalletCount.date == yesterday_str,
-            models.PalletCount.pallet_number == pallet_number,
-            models.PalletCount.status.in_(["found", "new"])
-        )
-    ).first()
-    
-    if not was_yesterday and status_val == "found":
-        status_val = "new"  # Mark as new pallet
-    
-    # Create new count record
-    new_count = models.PalletCount(
-        date=today_str,
-        shift=shift,
-        pallet_number=pallet_number,
-        sector_id=sector_id,
-        employee_id=employee.id,
-        status=status_val,
-        observations=observations
-    )
-    session.add(new_count)
-    session.commit()
-    
-    return JSONResponse({
-        "success": True,
-        "message": f"Paleteira {pallet_number} registrada como {'NOVA' if status_val == 'new' else status_val.upper()}",
-        "id": new_count.id,
-        "status": status_val,
-        "is_new": status_val == "new"
-    })
-
-@app.post("/api/mobile/pallet-count/finalize", response_class=JSONResponse)
-async def api_finalize_pallet_count(
-    request: Request,
-    current_user: dict = Depends(get_current_user),
-    session: Session = Depends(get_session)
-):
-    """Finaliza a contagem do turno e envia alertas de paleteiras não encontradas"""
-    if not isinstance(current_user, dict):
-        return JSONResponse({"success": False, "error": "Não autorizado"}, status_code=401)
-    
-    user_id = current_user.get("id")
-    employee = session.get(models.Employee, user_id)
-    if not employee:
-        return JSONResponse({"success": False, "error": "Funcionário não encontrado"}, status_code=404)
-    
-    data = await request.json()
-    shift = data.get("shift")
-    
-    today = datetime.now(ZoneInfo("America/Sao_Paulo"))
-    today_str = today.strftime("%Y-%m-%d")
-    yesterday = today - timedelta(days=1)
-    yesterday_str = yesterday.strftime("%Y-%m-%d")
-    
-    if not shift:
-        hour = today.hour
-        if 5 <= hour < 14:
-            shift = "Manhã"
-        elif 14 <= hour < 22:
-            shift = "Tarde"
-        else:
-            shift = "Noite"
-    
-    # Get yesterday's pallets
-    yesterday_counts = session.exec(
-        select(models.PalletCount)
-        .where(
-            models.PalletCount.date == yesterday_str,
-            models.PalletCount.status.in_(["found", "new"])
-        )
-    ).all()
-    yesterday_numbers = {pc.pallet_number for pc in yesterday_counts}
-    
-    # Get today's counts
-    today_counts = session.exec(
-        select(models.PalletCount)
-        .where(
-            models.PalletCount.date == today_str,
-            models.PalletCount.shift == shift
-        )
-    ).all()
-    today_numbers = {pc.pallet_number for pc in today_counts}
-    
-    # Find missing pallets (were yesterday but not today)
-    missing_numbers = yesterday_numbers - today_numbers
-    
-    # Mark missing pallets
-    missing_pallets = []
-    for num in missing_numbers:
-        # Get info from yesterday
-        yesterday_record = next((pc for pc in yesterday_counts if pc.pallet_number == num), None)
-        sector = session.get(models.PalletSector, yesterday_record.sector_id) if yesterday_record and yesterday_record.sector_id else None
-        
-        # Create missing record for today
-        missing_count = models.PalletCount(
-            date=today_str,
-            shift=shift,
-            pallet_number=num,
-            sector_id=yesterday_record.sector_id if yesterday_record else None,
-            employee_id=employee.id,
-            status="missing"
-        )
-        session.add(missing_count)
-        
-        missing_pallets.append({
-            "number": num,
-            "sector": sector.name if sector else "Desconhecido",
-            "last_seen": yesterday_str
-        })
-    
-    session.commit()
-    
-    # Send email if there are missing pallets
-    email_sent = False
-    email_error = None
-    
-    if missing_pallets:
-        # Get recipients
-        recipients = session.exec(
-            select(models.PalletCountEmailRecipient)
-            .where(
-                models.PalletCountEmailRecipient.is_active == True,
-                models.PalletCountEmailRecipient.alert_type.in_(["all", "missing"])
-            )
-        ).all()
-        
-        recipient_emails = [r.email for r in recipients]
-        
-        if recipient_emails:
-            success, error = send_pallet_missing_email(
-                missing_pallets=missing_pallets,
-                date=today_str,
-                shift=shift,
-                counted_by=employee.name,
-                recipients=recipient_emails
-            )
-            email_sent = success
-            email_error = error
-    
-    return JSONResponse({
-        "success": True,
-        "message": f"Contagem finalizada. {len(missing_pallets)} paleteira(s) não encontrada(s).",
-        "missing_count": len(missing_pallets),
-        "missing_pallets": missing_pallets,
-        "email_sent": email_sent,
-        "email_error": email_error
-    })
-
-@app.post("/api/mobile/pallet-maintenance", response_class=JSONResponse)
-async def api_create_pallet_maintenance_ticket(
-    request: Request,
-    current_user: dict = Depends(get_current_user),
-    session: Session = Depends(get_session)
-):
-    """Cria um chamado de manutenção para paleteira"""
-    if not isinstance(current_user, dict):
-        return JSONResponse({"success": False, "error": "Não autorizado"}, status_code=401)
-    
-    user_id = current_user.get("id")
-    employee = session.get(models.Employee, user_id)
-    if not employee:
-        return JSONResponse({"success": False, "error": "Funcionário não encontrado"}, status_code=404)
-    
-    data = await request.json()
-    pallet_number = data.get("pallet_number", "").strip().upper()
-    sector_id = data.get("sector_id")
-    issue_type = data.get("issue_type", "other")
-    description = data.get("description", "")
-    priority = data.get("priority", "medium")
-    
-    if not pallet_number:
-        return JSONResponse({"success": False, "error": "Número da paleteira é obrigatório"}, status_code=400)
-    
-    if not description:
-        return JSONResponse({"success": False, "error": "Descrição do problema é obrigatória"}, status_code=400)
-    
-    # Create ticket
-    ticket = models.PalletMaintenanceTicket(
-        pallet_number=pallet_number,
-        sector_id=sector_id,
-        employee_id=employee.id,
-        issue_type=issue_type,
-        description=description,
-        priority=priority,
-        status="open"
-    )
-    session.add(ticket)
-    
-    # Also register as maintenance in today's count
-    today = datetime.now(ZoneInfo("America/Sao_Paulo"))
-    today_str = today.strftime("%Y-%m-%d")
-    hour = today.hour
-    if 5 <= hour < 14:
-        shift = "Manhã"
-    elif 14 <= hour < 22:
-        shift = "Tarde"
-    else:
-        shift = "Noite"
-    
-    # Check if already counted today
-    existing = session.exec(
-        select(models.PalletCount)
-        .where(
-            models.PalletCount.date == today_str,
-            models.PalletCount.shift == shift,
-            models.PalletCount.pallet_number == pallet_number
-        )
-    ).first()
-    
-    if existing:
-        existing.status = "maintenance"
-        existing.observations = f"Manutenção: {description}"
-        session.add(existing)
-    else:
-        maintenance_count = models.PalletCount(
-            date=today_str,
-            shift=shift,
-            pallet_number=pallet_number,
-            sector_id=sector_id,
-            employee_id=employee.id,
-            status="maintenance",
-            observations=f"Manutenção: {description}"
-        )
-        session.add(maintenance_count)
-    
-    session.commit()
-    
-    return JSONResponse({
-        "success": True,
-        "message": f"Chamado aberto para paleteira {pallet_number}",
-        "ticket_id": ticket.id
-    })
-
-# --- Admin: Pallet Count Settings ---
-
-@app.get("/admin/pallet-count/settings", response_class=HTMLResponse)
-async def admin_pallet_count_settings(
-    request: Request,
-    session: Session = Depends(get_session),
-    user=Depends(require_leader)
-):
-    """Página de configuração do sistema de contagem de paleteiras"""
-    message = request.query_params.get("message")
-    level = request.query_params.get("level", "success")
-    tab = request.query_params.get("tab", "sectors")
-    
-    # Get sectors
-    sectors = session.exec(
-        select(models.PalletSector).order_by(models.PalletSector.order)
-    ).all()
-    
-    # Get email recipients
-    recipients = session.exec(
-        select(models.PalletCountEmailRecipient).order_by(models.PalletCountEmailRecipient.email)
-    ).all()
-    
-    # Get recent counts (last 7 days)
-    seven_days_ago = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=7)).strftime("%Y-%m-%d")
-    recent_counts = session.exec(
-        select(models.PalletCount)
-        .where(models.PalletCount.date >= seven_days_ago)
-        .order_by(models.PalletCount.date.desc(), models.PalletCount.created_at.desc())
-        .limit(100)
-    ).all()
-    
-    # Get open tickets
-    open_tickets = session.exec(
-        select(models.PalletMaintenanceTicket)
-        .where(models.PalletMaintenanceTicket.status.in_(["open", "in_progress"]))
-        .order_by(models.PalletMaintenanceTicket.created_at.desc())
-    ).all()
-    
-    # Get employees for display
-    employee_ids = set([c.employee_id for c in recent_counts] + [t.employee_id for t in open_tickets])
-    employees_map = {}
-    if employee_ids:
-        employees = session.exec(
-            select(models.Employee).where(models.Employee.id.in_(employee_ids))
-        ).all()
-        employees_map = {e.id: e for e in employees}
-    
-    # Sectors map for display
-    sectors_map = {s.id: s for s in sectors}
-    
-    # SMTP info
-    smtp_configured = bool(SMTP_HOST and SMTP_USER and SMTP_PASS)
-    
-    return templates.TemplateResponse(
-        "admin_pallet_count_settings.html",
-        {
-            "request": request,
-            "user": user,
-            "sectors": sectors,
-            "sectors_map": sectors_map,
-            "recipients": recipients,
-            "recent_counts": recent_counts,
-            "open_tickets": open_tickets,
-            "employees_map": employees_map,
-            "message": message,
-            "level": level,
-            "tab": tab,
-            "smtp_host": SMTP_HOST,
-            "smtp_port": SMTP_PORT_RAW,
-            "smtp_user": SMTP_USER,
-            "smtp_configured": smtp_configured
-        }
-    )
-
-@app.post("/admin/pallet-count/sectors", response_class=RedirectResponse)
-async def admin_pallet_count_add_sector(
-    request: Request,
-    name: str = Form(...),
-    description: str = Form(""),
-    order: int = Form(0),
-    session: Session = Depends(get_session),
-    user=Depends(require_leader)
-):
-    """Adiciona um novo setor"""
-    name = name.strip()
-    if not name:
-        return pallet_count_settings_redirect("Nome do setor é obrigatório.", "error")
-    
-    # Check if exists
-    existing = session.exec(
-        select(models.PalletSector).where(models.PalletSector.name == name)
-    ).first()
-    
-    if existing:
-        if not existing.is_active:
-            existing.is_active = True
-            existing.description = description.strip() if description else existing.description
-            existing.order = order
-            session.add(existing)
-            session.commit()
-            return pallet_count_settings_redirect(f"Setor '{name}' reativado.", "success")
-        return pallet_count_settings_redirect(f"Setor '{name}' já existe.", "error")
-    
-    new_sector = models.PalletSector(
-        name=name,
-        description=description.strip() if description else None,
-        order=order,
-        is_active=True
-    )
-    session.add(new_sector)
-    session.commit()
-    
-    return pallet_count_settings_redirect(f"Setor '{name}' criado com sucesso.", "success")
-
-@app.post("/admin/pallet-count/sectors/{sector_id}/edit", response_class=RedirectResponse)
-async def admin_pallet_count_edit_sector(
-    request: Request,
-    sector_id: int,
-    name: str = Form(...),
-    description: str = Form(""),
-    order: int = Form(0),
-    session: Session = Depends(get_session),
-    user=Depends(require_leader)
-):
-    """Edita um setor existente"""
-    sector = session.get(models.PalletSector, sector_id)
-    if not sector:
-        return pallet_count_settings_redirect("Setor não encontrado.", "error")
-    
-    sector.name = name.strip()
-    sector.description = description.strip() if description else None
-    sector.order = order
-    session.add(sector)
-    session.commit()
-    
-    return pallet_count_settings_redirect(f"Setor '{name}' atualizado.", "success")
-
-@app.post("/admin/pallet-count/sectors/{sector_id}/delete", response_class=RedirectResponse)
-async def admin_pallet_count_delete_sector(
-    request: Request,
-    sector_id: int,
-    session: Session = Depends(get_session),
-    user=Depends(require_leader)
-):
-    """Desativa um setor"""
-    sector = session.get(models.PalletSector, sector_id)
-    if not sector:
-        return pallet_count_settings_redirect("Setor não encontrado.", "error")
-    
-    sector.is_active = False
-    session.add(sector)
-    session.commit()
-    
-    return pallet_count_settings_redirect(f"Setor '{sector.name}' desativado.", "success")
-
-@app.post("/admin/pallet-count/emails", response_class=RedirectResponse)
-async def admin_pallet_count_add_email(
-    request: Request,
-    email: str = Form(...),
-    name: str = Form(""),
-    alert_type: str = Form("all"),
-    session: Session = Depends(get_session),
-    user=Depends(require_leader)
-):
-    """Adiciona um e-mail de destinatário"""
-    email_normalized = normalize_email(email)
-    if not email_normalized:
-        return pallet_count_settings_redirect("E-mail inválido.", "error")
-    
-    existing = session.exec(
-        select(models.PalletCountEmailRecipient).where(models.PalletCountEmailRecipient.email == email_normalized)
-    ).first()
-    
-    if existing:
-        if existing.is_active:
-            return pallet_count_settings_redirect("E-mail já cadastrado.", "error")
-        else:
-            existing.is_active = True
-            existing.name = name.strip() if name else existing.name
-            existing.alert_type = alert_type
-            session.add(existing)
-            session.commit()
-            return pallet_count_settings_redirect("E-mail reativado com sucesso.", "success")
-    
-    new_recipient = models.PalletCountEmailRecipient(
-        email=email_normalized,
-        name=name.strip() if name else None,
-        alert_type=alert_type,
-        is_active=True
-    )
-    session.add(new_recipient)
-    session.commit()
-    
-    return pallet_count_settings_redirect("E-mail cadastrado com sucesso.", "success")
-
-@app.post("/admin/pallet-count/emails/{recipient_id}/delete", response_class=RedirectResponse)
-async def admin_pallet_count_remove_email(
-    request: Request,
-    recipient_id: int,
-    session: Session = Depends(get_session),
-    user=Depends(require_leader)
-):
-    """Remove um e-mail de destinatário"""
-    recipient = session.get(models.PalletCountEmailRecipient, recipient_id)
-    if not recipient:
-        return pallet_count_settings_redirect("E-mail não encontrado.", "error")
-    
-    recipient.is_active = False
-    session.add(recipient)
-    session.commit()
-    
-    return pallet_count_settings_redirect("E-mail removido com sucesso.", "success")
-
-@app.post("/admin/pallet-count/tickets/{ticket_id}/close", response_class=RedirectResponse)
-async def admin_pallet_count_close_ticket(
-    request: Request,
-    ticket_id: int,
-    returned_number: str = Form(""),
-    return_notes: str = Form(""),
-    session: Session = Depends(get_session),
-    user=Depends(require_leader)
-):
-    """Fecha um chamado de manutenção"""
-    ticket = session.get(models.PalletMaintenanceTicket, ticket_id)
-    if not ticket:
-        return pallet_count_settings_redirect("Chamado não encontrado.", "error")
-    
-    ticket.status = "returned" if returned_number else "closed"
-    ticket.returned_pallet_number = returned_number.strip().upper() if returned_number else None
-    ticket.return_date = datetime.now()
-    ticket.return_notes = return_notes.strip() if return_notes else None
-    ticket.closed_at = datetime.now()
-    ticket.closed_by = str(user) if user else "Sistema"
-    session.add(ticket)
-    session.commit()
-    
-    msg = f"Chamado fechado."
-    if returned_number:
-        msg = f"Paleteira retornou como {returned_number.strip().upper()}."
-    
-    return pallet_count_settings_redirect(msg, "success")
-
-# ============================================================================
-# SISTEMA ANTIGO DE CONTAGEM POR QUANTIDADE - REMOVIDO
-# (Substituído pelo sistema de contagem por número individual em /mobile/pallet-count)
-# ============================================================================
-# As rotas abaixo foram removidas pois o modelo foi alterado para usar pallet_number
-# ao invés de quantity:
-# - @app.post("/api/pallets/count-by-sector") - REMOVIDO
-# - @app.get("/mobile/pallets/count") - REMOVIDO
-# O novo sistema usa /mobile/pallet-count e /api/mobile/pallet-count
-# ============================================================================
-from pydantic import BaseModel
-from typing import Optional
 
 class RouteEditPayload(BaseModel):
     employee_id: int
@@ -22239,3 +21475,6 @@ async def api_delete_admin_route(
     except Exception as e:
         logger.exception("Error deleting route")
         return JSONResponse({"error": f"Erro interno: {str(e)}"}, status_code=500)
+
+
+
