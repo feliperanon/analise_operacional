@@ -1,0 +1,230 @@
+﻿employee_id;matricula;nome;cargo;centro_custo;turno;status_colaborador;email_sugerido;role_sugerida;senha_temporaria
+102;630618;ABEL UDE DOS SANTOS;AUXILIAR FINANCEIRO;Souza Pinto;Manh?;active;abel.ude.dos.santos@empresa.local;leader;v4ewRPkCPK
+103;30032;ADEILTON VAZ DOS SANTOS;VENDEDOR;Souza Pinto;Manh?;active;adeilton.vaz.dos.santos@empresa.local;leader;Sfc8kOixVh
+104;2618791;ADENILSON MARTINS JORDÃO;ENCARREGADO DE VENDAS DO AUTO SERVIÇO;Souza Pinto;Manh?;active;adenilson.martins.jordao@empresa.local;leader;DKwc7qa3VI
+105;633426;ADILSON LUIZ FERREIRA DE SOUZA;VENDEDOR;Souza Pinto;Manh?;active;adilson.luiz.ferreira.de.souza@empresa.local;leader;BUrr4tdxVp
+106;20158;ADRIANO FERNANDO DE OLIVEIRA;VENDEDOR;Souza Pinto;Manh?;active;adriano.fernando.de.oliveira@empresa.local;leader;GboyImNL1q
+107;61584;ALESSANDER DE ARAUJO SILVA;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;alessander.de.araujo.silva@empresa.local;leader;vxWDP5VY9U
+1;63-2886;ALESSANDRO BRANDAO RIBEIRO;AJUDANTE DE MOTORISTA;Geral;Manh?;active;alessandro.brandao.ribeiro@empresa.local;leader;EaaduNFZFl
+212;632886;ALESSANDRO BRANDAO RIBEIRO;AJUDANTE DE MOTORISTA;Souza Pinto;Manh?;active;alessandro.brandao.ribeiro@empresa.local;leader;ZbXoIm2yu0
+2;63-2756;ALEX OLIVEIRA FARIA;AJUDANTE DE MOTORISTA;Geral;Manh?;active;alex.oliveira.faria@empresa.local;leader;tgThdHgiGX
+108;631053;ALEXANDRE CÂNDIDO DOS SANTOS;VENDEDOR;Souza Pinto;Manh?;active;alexandre.candido.dos.santos@empresa.local;leader;cIA7cc0jQF
+109;13847;ALISSON RIBEIRO ANDRADE E SILVA;VENDEDOR;Souza Pinto;Manh?;active;alisson.ribeiro.andrade.e.silva@empresa.local;leader;zGV2FnqMIG
+3;631510;ANDERSON CARDOSO MIRANDA;MOTORISTA;Geral;Manh?;active;anderson.cardoso.miranda@empresa.local;leader;YJHPr2x9uG
+4;63-3728;ANDERSON PIMENTA DOS ANJOS;AJUDANTE DE PÁTIO;Geral;Manh?;active;anderson.pimenta.dos.anjos@empresa.local;leader;QEY0bCxuEU
+5;15826;ANDERSON VERONEZ;AJUDANTE DE PÁTIO;Geral;Manh?;active;anderson.veronez@empresa.local;leader;UPtOPPop2d
+7;2-163;ANDRE LUIZ GARCIA SOARES;AJUDANTE DE MOTORISTA;Geral;Manh?;active;andre.luiz.garcia.soares@empresa.local;leader;aruLJ4cznQ
+111;631956;ANDRE ROCHA CHAGAS DE SOUZA;VENDEDOR;Souza Pinto;Manh?;active;andre.rocha.chagas.de.souza@empresa.local;leader;NHXOyRrbu3
+6;631060;ANDRÉ LUCAS DE JESUS VIEGAS;AJUDANTE DE MOTORISTA;Geral;Manh?;active;andre.lucas.de.jesus.viegas@empresa.local;leader;qbUcRMDvlh
+110;630786;ANDRÉ LUIZ DA SILVA;VENDEDOR;Souza Pinto;Manh?;active;andre.luiz.da.silva@empresa.local;leader;Con2svjnN1
+8;17319;ANTÔNIO JUNIO LELES;AJUDANTE DE MOTORISTA;Geral;Manh?;active;antonio.junio.leles@empresa.local;leader;SiKMQ5xKnt
+9;63-2887;ARTHUR HENRIQUE LIMA DIAS;CONFERENTE;Geral;Manh?;active;arthur.henrique.lima.dias@empresa.local;leader;r5cG73lxS7
+112;632887;ARTHUR HENRIQUE LIMA DIAS;APRENDIZ DE LOGÍSTICA;Souza Pinto;Manh?;active;arthur.henrique.lima.dias@empresa.local;leader;WV1mbJPyfV
+213;632887E;ARTHUR HENRIQUE LIMA DIAS;CONFERENTE;Souza Pinto;Manh?;active;arthur.henrique.lima.dias@empresa.local;leader;8KoSROXvhE
+113;63 4203;ARTHUR SAMUEL DA SILVA OLIVEIRA;APRENDIZ DE LOGÍSTICA;Souza Pinto;Manh?;active;arthur.samuel.da.silva.oliveira@empresa.local;leader;sH4QncNbPF
+114;633574;ARTUR BARBARA DE CASTRO VIEIRA;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;artur.barbara.de.castro.vieira@empresa.local;leader;0wKq8i5rGQ
+115;140047;BERNARDO HENRIQUE DE OLIVEIRA;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;bernardo.henrique.de.oliveira@empresa.local;leader;MWwsSPNYB4
+116;633430;BRENDA KELLY FERNANDES DE LIMA;REPOSITORA DE MERCADORIAS;Souza Pinto;Manh?;active;brenda.kelly.fernandes.de.lima@empresa.local;leader;IGx5ryliwT
+10;63-3205;CAIO DE CASTRO ANDRADE;AUXILIAR DE LOGISTICA;Geral;Manh?;active;caio.de.castro.andrade@empresa.local;leader;B7mKQwbTlH
+117;633317;CARLOS ALVES MIRANDA;VENDEDOR;Souza Pinto;Manh?;active;carlos.alves.miranda@empresa.local;leader;zUN2GJe3Bv
+11;63-3993;CARLOS HAENDER BISPO;MOTORISTA;Geral;Manh?;active;carlos.haender.bispo@empresa.local;leader;vR1IxwH1kV
+12;632669;CARLOS MURILO WANDER LOPES;MOTORISTA;Geral;Manh?;active;carlos.murilo.wander.lopes@empresa.local;leader;6MDxbwYoKL
+118;631457;CASSIANO ALVES GODINHO;VENDEDOR;Souza Pinto;Manh?;active;cassiano.alves.godinho@empresa.local;leader;WLTnmHC3pU
+119;633049;CELSO EDUARDO DE SOUSA;VENDEDOR;Souza Pinto;Manh?;active;celso.eduardo.de.sousa@empresa.local;leader;eBtsZLda0S
+13;06-1578;CESAR AUGUSTO GODINHO DAGUILAR;MOTORISTA;Geral;Manh?;active;cesar.augusto.godinho.daguilar@empresa.local;leader;QXFTB8hf04
+14;630029;CLAUDINEI DOMINGOS SILVA;PORTEIRO;Geral;Manh?;active;claudinei.domingos.silva@empresa.local;leader;g0v4LEEHPo
+15;63-2734;CLAUDIO SERGIO CAMPOS;MOTORISTA;Geral;Manh?;active;claudio.sergio.campos@empresa.local;leader;NTNEmEbMEw
+16;63-1183;CLEIDSON VICENTE;MOTORISTA;Geral;Manh?;active;cleidson.vicente@empresa.local;leader;r9mwObHhaE
+17;63-4286;CLEITON YGOR DA SILVA RODRIGUES SOUZA;AJUDANTE DE PÁTIO;Geral;Manh?;active;cleiton.ygor.da.silva.rodrigues.souza@empresa.local;leader;bngkWsWxmQ
+214;634286;CLEITON YGOR DA SILVA RODRIGUES SOUZA;AJUDANTE DE PÁTIO;Souza Pinto;Manh?;active;cleiton.ygor.da.silva.rodrigues.souza@empresa.local;leader;Vl8pZ8wRoB
+120;20197;CRISTIANE MENEZES DE SOUZA;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;cristiane.menezes.de.souza@empresa.local;leader;71uEFtrVkq
+18;14-0046;CRISTIANO NEUBANER DA SILVA;OPERADOR LOGISTICO;Geral;Manh?;active;cristiano.neubaner.da.silva@empresa.local;leader;IS40MKxGEZ
+19;631163;DANIEL ANTONIO DOS SANTOS;AJUDANTE DE MOTORISTA;Geral;Manh?;active;daniel.antonio.dos.santos@empresa.local;leader;EccfDD9CZj
+20;632541;DANIEL FILIPE DE PAULA NETO;AJUDANTE DE MOTORISTA;Geral;Manh?;active;daniel.filipe.de.paula.neto@empresa.local;leader;h47tEXMSgz
+122;634604;DANIEL VICTOR RODRIGUES DO NASCIMENTO;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;daniel.victor.rodrigues.do.nascimento@empresa.local;leader;myxlFRxRk8
+21;02-0161;DANILO HENRIQUE LOPES PEREIRA;AJUDANTE DE MOTORISTA;Geral;Manh?;active;danilo.henrique.lopes.pereira@empresa.local;leader;C3BPl3qYLu
+22;20194;DAVID PEREIRA DOS SANTOS;AJUDANTE DE MOTORISTA;Geral;Manh?;active;david.pereira.dos.santos@empresa.local;leader;TkGB7yGMeU
+121;634027;DAVIDSON CESAR MENDES;VENDEDOR;Souza Pinto;Manh?;active;davidson.cesar.mendes@empresa.local;leader;sRfeyWiq7y
+123;632740;DEIVERSON ALBERTO DOS SANTOS VERONEZE JUNIOR;VENDEDOR;Souza Pinto;Manh?;active;deiverson.alberto.dos.santos.veroneze.junior@empresa.local;leader;leYZag0i07
+124;633667;DEMETRIO CABRAL DRUMOND;ANALISTA DE RESULTADOS;Souza Pinto;Manh?;active;demetrio.cabral.drumond@empresa.local;leader;5D1kzKiJAR
+125;20200;DENIS HENRIQUE DOS SANTOS COSTA;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;denis.henrique.dos.santos.costa@empresa.local;leader;CPjDFeSNwy
+126;633511;DIEGO ALVES DA SILVA;VENDEDOR;Souza Pinto;Manh?;active;diego.alves.da.silva@empresa.local;leader;SNVXB1MtYv
+24;63-3295;DILHERMANDO AUGUSTO DE AZEVEDO DINIZ;AJUDANTE DE MOTORISTA;Geral;Manh?;active;dilhermando.augusto.de.azevedo.diniz@empresa.local;leader;S2XScjDWe0
+25;20071;DIONATHAM PEREIRA MONTEIRO;AJUDANTE DE MOTORISTA;Geral;Manh?;active;dionatham.pereira.monteiro@empresa.local;leader;OomwfMizrk
+127;631038;DOMINIQUE RODRIGUES ANDRADE SILVA;AUXILIAR ADMINISTRATIVO;Souza Pinto;Manh?;active;dominique.rodrigues.andrade.silva@empresa.local;leader;xYuBgruHgX
+128;19436;DOUGLAS MARCOS GOMES MIRANTE;GERENTE DE VENDAS SÊNIOR;Souza Pinto;Manh?;active;douglas.marcos.gomes.mirante@empresa.local;leader;sMnCoa4jCS
+23;19596;DÉBORA CRISTINA MONTEIRO;ASSISTENTE ADMINISTRATIVO;Geral;Manh?;active;debora.cristina.monteiro@empresa.local;leader;uXW7fNqKiR
+215;19596E;DÉBORA CRISTINA MONTEIRO;ASSISTENTE ADMINISTRATIVO;Souza Pinto;Manh?;active;debora.cristina.monteiro@empresa.local;leader;h4Blk7egUt
+129;3633-09-22 00:00:00;ED CARLOS DE JESUS EVARISTO;VENDEDOR;Souza Pinto;Manh?;active;ed.carlos.de.jesus.evaristo@empresa.local;leader;rVp7ef7NGi
+26;632256;EDSON NOGUEIRA DOS SANTOS;AJUDANTE DE MOTORISTA;Geral;Manh?;active;edson.nogueira.dos.santos@empresa.local;leader;MtZoBybdJX
+130;40150;ELIEZER GOULART DA SILVA;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;eliezer.goulart.da.silva@empresa.local;leader;VdNxPiBPRh
+27;63-3929;EMERSON ALVES DOS SANTOS;MOTORISTA;Geral;Manh?;active;emerson.alves.dos.santos@empresa.local;leader;UUlRm41eNK
+216;633929;EMERSON ALVES DOS SANTOS;MOTORISTA;Souza Pinto;Manh?;active;emerson.alves.dos.santos@empresa.local;leader;D7KDhoe57K
+28;63-3142;ERICK HENRIQUE PINHEIRO ENIS DE MELLO;AJUDANTE DE MOTORISTA;Geral;Manh?;active;erick.henrique.pinheiro.enis.de.mello@empresa.local;leader;UsPg5TEfO2
+29;6-1609;EVANDRO DE SILVA DE OLIVEIRA;MOTORISTA;Geral;Manh?;active;evandro.de.silva.de.oliveira@empresa.local;leader;XD0IEvOTfZ
+30;30001;EVERI MARTINS DOS SANTOS;AJUDANTE DE MOTORISTA;Geral;Manh?;active;everi.martins.dos.santos@empresa.local;leader;NcgrLn9vsJ
+131;634028;EVERTON BATISTA SOUZA;VENDEDOR;Souza Pinto;Manh?;active;everton.batista.souza@empresa.local;leader;KmzmSia6zY
+132;634319;FABIO JUNIO DE PAULA GONZAGA;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;fabio.junio.de.paula.gonzaga@empresa.local;leader;T7RALSJ52k
+31;02-0002;FELIPE EMMANUEL FERREIRA DOS SANTOS;AJUDANTE DE MOTORISTA;Geral;Manh?;active;felipe.emmanuel.ferreira.dos.santos@empresa.local;leader;Z8ZS8HD8nY
+32;19161;FELIPE PEREIRA GOMES;AJUDANTE DE MOTORISTA;Geral;Manh?;active;felipe.pereira.gomes@empresa.local;leader;knocgC0NrD
+33;63-3141;FERNANDO JUNIOR DE OLIVEIRA;AJUDANTE DE MOTORISTA;Geral;Manh?;active;fernando.junior.de.oliveira@empresa.local;leader;oQz44w4MCc
+34;03-0041;FERNANDO MARIO DOS SANTOS;MOTORISTA;Geral;Manh?;active;fernando.mario.dos.santos@empresa.local;leader;jeY7QuHDUn
+217;30041;FERNANDO MARIO DOS SANTOS;MOTORISTA;Souza Pinto;Manh?;active;fernando.mario.dos.santos@empresa.local;leader;qDbqWn3CxF
+35;631980;FILIPE JESUS DE OLIVEIRA;AJUDANTE DE MOTORISTA;Geral;Manh?;active;filipe.jesus.de.oliveira@empresa.local;leader;chFFFFruOG
+133;634517;FLAVIO FRANKLIN SENA SOUTELO NICOLAU;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;flavio.franklin.sena.soutelo.nicolau@empresa.local;leader;wI1B9C7Avv
+36;631821;FLÁVIA ANGÊLICA DA CUNHA;AUXILIAR DE SERVIÇOS GERAIS;Geral;Manh?;active;flavia.angelica.da.cunha@empresa.local;leader;pPZiIAYL7a
+134;633167;FRANKLIN SILVA CHABEREK;VENDEDOR;Souza Pinto;Manh?;active;franklin.silva.chaberek@empresa.local;leader;wHF2zMFJFf
+135;19666;GABRIEL FAGUNDES DA SILVA;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;gabriel.fagundes.da.silva@empresa.local;leader;TPFm6VbSCt
+136;631099;GABRIEL FERREIRA DOS SANTOS;VENDEDOR;Souza Pinto;Manh?;active;gabriel.ferreira.dos.santos@empresa.local;leader;WC5Y1JDWi6
+37;14416;GABRIEL LOPES FERREIRA;OPERADOR DE EMPILHADEIRA;Geral;Manh?;active;gabriel.lopes.ferreira@empresa.local;leader;z2sGjK6kKW
+137;634587;GABRIEL RODRIGUES FERREIRA;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;gabriel.rodrigues.ferreira@empresa.local;leader;kNfZz9SFGE
+138;63 4204;GABRIELA GOMES DE MORAIS;VENDEDOR INTERNO;Souza Pinto;Manh?;active;gabriela.gomes.de.morais@empresa.local;leader;hBj4fSbhBB
+139;19241;GABRIELA NEIVA JUSTINO;SUPERVISORA ADMINISTRATIVO;Souza Pinto;Manh?;active;gabriela.neiva.justino@empresa.local;leader;BjANLbJbTT
+140;631035;GEOVANA TAIS DE OLIVEIRA SOUZA;JOVEM APRENDIZ;Souza Pinto;Manh?;active;geovana.tais.de.oliveira.souza@empresa.local;leader;Ikxu0bnVLI
+38;19597;GERALDO MÁRCIO DE OLIVEIRA;MOTORISTA;Geral;Manh?;active;geraldo.marcio.de.oliveira@empresa.local;leader;HhmYYGEOiL
+141;140044;GERSON BRAIN MARTINS DE OLIVEIRA;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;gerson.brain.martins.de.oliveira@empresa.local;leader;UltfsjPzxK
+39;630547;GILMAR FREIRE MIRANDA;AJUDANTE DE MOTORISTA;Geral;Manh?;active;gilmar.freire.miranda@empresa.local;leader;nLkuIFqwf4
+40;02-0198;GILMAR MARQUES DOS SANTOS;MOTORISTA;Geral;Manh?;active;gilmar.marques.dos.santos@empresa.local;leader;6GkISkAY7n
+218;20198;GILMAR MARQUES DOS SANTOS;MOTORISTA;Souza Pinto;Manh?;active;gilmar.marques.dos.santos@empresa.local;leader;5tUuQYJxro
+41;13428;GIVANILDO FERNANDES DA CRUZ;AJUDANTE DE MOTORISTA;Geral;Manh?;active;givanildo.fernandes.da.cruz@empresa.local;leader;cQtfg1g0jw
+142;61649;GUILHERME DA SILVA BARBOSA;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;guilherme.da.silva.barbosa@empresa.local;leader;BspkkQvC1A
+143;61658;GUILHERME FERREIRA LEAO;VENDEDOR;Souza Pinto;Manh?;active;guilherme.ferreira.leao@empresa.local;leader;0llcJKh3dB
+42;63-3518;GUILHERME NASCIMENTO DE ABREU;AJUDANTE DE PÁTIO;Geral;Manh?;active;guilherme.nascimento.de.abreu@empresa.local;leader;2YqR3sprIr
+144;140021;GUILHERME RODRIGUES DE JESUS;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;guilherme.rodrigues.de.jesus@empresa.local;leader;7PzmXGbgZL
+145;40046;GUSTAVO ANTÔNIO PEREIRA DE LIMA;SUPEVISOR DE CONTAS;Souza Pinto;Manh?;active;gustavo.antonio.pereira.de.lima@empresa.local;leader;mnMUHa3ALM
+146;140040;GUSTAVO RAMALHO ANASTACIO;VENDEDOR;Souza Pinto;Manh?;active;gustavo.ramalho.anastacio@empresa.local;leader;Q4wo3nAq1D
+43;63-4299;HAMILTON BARBOSA HARMONICO JUNIOR;MOTORISTA;Geral;Manh?;active;hamilton.barbosa.harmonico.junior@empresa.local;leader;OjK4tcA3X7
+219;634299;HAMILTON BARBOSA HARMONICO JUNIOR;MOTORISTA;Souza Pinto;Manh?;active;hamilton.barbosa.harmonico.junior@empresa.local;leader;5J6f9elMVK
+44;63-2971;HEBER TIAGO BRANDÃO;MOTORISTA;Geral;Manh?;active;heber.tiago.brandao@empresa.local;leader;Iw0fCbPuwx
+220;632971;HEBER TIAGO BRANDÃO;MOTORISTA;Souza Pinto;Manh?;active;heber.tiago.brandao@empresa.local;leader;66iakqeJi0
+147;13346;HELBERT MANIR DE ABREU;Coordenador de Vendas Especializado;Souza Pinto;Manh?;active;helbert.manir.de.abreu@empresa.local;leader;seVSwdADys
+148;631738;HESLEY HENRIQUE DE ABREU;VENDEDOR;Souza Pinto;Manh?;active;hesley.henrique.de.abreu@empresa.local;leader;gtOID00mAg
+149;633535;HUGO ALBERTO DA CRUZ MENEZES;VENDEDOR;Souza Pinto;Manh?;active;hugo.alberto.da.cruz.menezes@empresa.local;leader;GUy4kBB1oi
+150;15591;HUGO LUIZ POLICARPO;VENDEDOR;Souza Pinto;Manh?;active;hugo.luiz.policarpo@empresa.local;leader;WaJhWdaArg
+45;632085;HUMBERTO EVANGELISTA FRANCISCO;AJUDANTE DE MOTORISTA;Geral;Manh?;active;humberto.evangelista.francisco@empresa.local;leader;bwjEG5HbYM
+151;633844;HUMBERTO LUIZ MACHADO FILHO;SUPERVISOR DE VENDAS;Souza Pinto;Manh?;active;humberto.luiz.machado.filho@empresa.local;leader;tqMUmkTERf
+46;634194;IALIS AUGUSTO DE PAIVA;AJUDANTE DE MOTORISTA;Geral;Manh?;active;ialis.augusto.de.paiva@empresa.local;leader;3MsGRk255L
+152;633839;IGOR COSTA SANTOS FERNANDES;APRENDIZ DE LOGÍSTICA;Souza Pinto;Manh?;active;igor.costa.santos.fernandes@empresa.local;leader;8odrgikqg3
+153;20203;IGOR NUNES CUNHA;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;igor.nunes.cunha@empresa.local;leader;K5EaAImrPC
+154;633804;ISABELLA CRISTINA SILVA MOURA;VENDEDOR INTERNO;Souza Pinto;Manh?;active;isabella.cristina.silva.moura@empresa.local;leader;4M9wfkrDbZ
+47;630877;ITAMAR FERREIRA DA SILVA;MOTORISTA;Geral;Manh?;active;itamar.ferreira.da.silva@empresa.local;leader;pYjgLr5pjQ
+155;2009-09-30 00:00:00;IVANILDO COSTA DA SILVA;VENDEDOR;Souza Pinto;Manh?;active;ivanildo.costa.da.silva@empresa.local;leader;YmAIpLeDu0
+156;19351;IVANIRA APARECIDA SYLVESTRE;AUX.DE SERVIÇOS GERAIS;Souza Pinto;Manh?;active;ivanira.aparecida.sylvestre@empresa.local;leader;2vYPCxTXGh
+157;20185;IZABELA CRISTINA DE SOUZA CASSIO;VENDEDOR;Souza Pinto;Manh?;active;izabela.cristina.de.souza.cassio@empresa.local;leader;R0hLtCVYyZ
+48;63-4440;JEFFERSON VINICIUS MAIA ARAUJO;AJUDANTE DE MOTORISTA;Geral;Manh?;active;jefferson.vinicius.maia.araujo@empresa.local;leader;UKb1cCcQNM
+221;634440;JEFFERSON VINICIUS MAIA ARAUJO;AJUDANTE DE MOTORISTA;Souza Pinto;Manh?;active;jefferson.vinicius.maia.araujo@empresa.local;leader;RmexjnxmbT
+158;631235;JOAO PAULO SILVA DE ABREU;VENDEDOR;Souza Pinto;Manh?;active;joao.paulo.silva.de.abreu@empresa.local;leader;ORrVXDydww
+50;16948;JOILSON DE ALMEIDA;AJUDANTE DE PÁTIO;Geral;Manh?;active;joilson.de.almeida@empresa.local;leader;0sWQDf8HrE
+51;63-3108;JONATHAN ARAUJO PRATES DE OLIVEIRA;AJUDANTE DE MOTORISTA;Geral;Manh?;active;jonathan.araujo.prates.de.oliveira@empresa.local;leader;10Kdo0q6sU
+222;633108;JONATHAN ARAUJO PRATES DE OLIVEIRA;AJUDANTE DE MOTORISTA;Souza Pinto;Manh?;active;jonathan.araujo.prates.de.oliveira@empresa.local;leader;jgKaWMrxZ3
+52;63-4467;JONATHAN NASCIMENTO SILVA;MOTORISTA;Geral;Manh?;active;jonathan.nascimento.silva@empresa.local;leader;oMHXaFEzqw
+160;61648;JONNATHAN ALEXANDRE VIEIRA ALMEIDA;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;jonnathan.alexandre.vieira.almeida@empresa.local;leader;RBtpLWAHGK
+54;631176;JOSE LUIS VALADARES SOARES;MOTORISTA;Geral;Manh?;active;jose.luis.valadares.soares@empresa.local;leader;likqHKg38b
+56;2-0157;JOSIMAR DA SILVA RODRIGUES;AJUDANTE DE MOTORISTA;Geral;Manh?;active;josimar.da.silva.rodrigues@empresa.local;leader;M22uT7Ivb5
+57;632346;JOSUE COSTA SANTOS OLIVEIRA;AJUDANTE DE MOTORISTA;Geral;Manh?;active;josue.costa.santos.oliveira@empresa.local;leader;IsM1OJ1j1Q
+53;20111;JOSÉ ANJO DOS REIS;MOTORISTA;Geral;Manh?;active;jose.anjo.dos.reis@empresa.local;leader;GWilBhb8fO
+55;60421;JOSÉ MARIA CÉSAR DOS SANTOS;MOTORISTA;Geral;Manh?;active;jose.maria.cesar.dos.santos@empresa.local;leader;FUjfy1XkGM
+159;40059;JOÃO PEDRO RAMIRO DE OLIVEIRA;VENDEDOR;Souza Pinto;Manh?;active;joao.pedro.ramiro.de.oliveira@empresa.local;leader;ymLz9J4RH2
+49;19086;JOÃO VITOR  ALVES ROLA;AJUDANTE DE MOTORISTA;Geral;Manh?;active;joao.vitor.alves.rola@empresa.local;leader;qoIsNMu1Pk
+161;632705;JUAN HENRIQUE DA SILVA REIS;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;juan.henrique.da.silva.reis@empresa.local;leader;BaJNItQdTE
+162;13354;JULIANO RAFAEL DAS CHAGAS CRUZ;SUPERVISOR DE VENDAS;Souza Pinto;Manh?;active;juliano.rafael.das.chagas.cruz@empresa.local;leader;HndSC9TpwC
+163;632937;JULIO LUIZ RODRIGUES DA SILVA;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;julio.luiz.rodrigues.da.silva@empresa.local;leader;TvTvJXrBPc
+58;631165;KAIÃ EDUARDO GUIMARÃES DE MATTOS;AJUDANTE DE MOTORISTA;Geral;Manh?;active;kaia.eduardo.guimaraes.de.mattos@empresa.local;leader;GUvs2mCU8J
+59;19771;KEVEN LUCAS DE ANDRADE BARBOSA;ASSISTENTE FINANCEIRO;Geral;Manh?;active;keven.lucas.de.andrade.barbosa@empresa.local;leader;lqRXIHdriq
+164;13328;KÊNIA MAYRA FABRINI LIMA;ASSISTENTE ADMINISTRATIVO;Souza Pinto;Manh?;active;kenia.mayra.fabrini.lima@empresa.local;leader;VfdTx2Bm5i
+165;631421;LEANDRO AUGUSTO FERNANDES MOREIRA;SUPERVISOR DE VENDAS;Souza Pinto;Manh?;active;leandro.augusto.fernandes.moreira@empresa.local;leader;WrNvWkg7wl
+60;632086;LEIDSON AUGUSTO FONSECA;MOTORISTA;Geral;Manh?;active;leidson.augusto.fonseca@empresa.local;leader;1xb57W3ctU
+61;13372;LEONE HELENO MATOS RAMOS;COORDENADOR DE LOGISTICA;Geral;Manh?;active;leone.heleno.matos.ramos@empresa.local;leader;ADsGUZjMAG
+223;13372E;LEONE HELENO MATOS RAMOS;COORDENADOR DE LOGISTICA;Souza Pinto;Manh?;active;leone.heleno.matos.ramos@empresa.local;leader;HlzqllHBGb
+166;20154;LEONEL ASSUNÇÃO OLIVEIRA;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;leonel.assuncao.oliveira@empresa.local;leader;SKRDSVryVy
+167;15433;LESANDRO SILVA SENA;VENDEDOR;Souza Pinto;Manh?;active;lesandro.silva.sena@empresa.local;leader;5xtVvAglPI
+62;630398;LINDOMAR MILTON DIAS DE SOUZA;MOTORISTA;Geral;Manh?;active;lindomar.milton.dias.de.souza@empresa.local;leader;Y2tvOAsGEa
+63;63-3729;LOURENÇO TALES PACHECO;AJUDANTE DE MOTORISTA;Geral;Manh?;active;lourenco.tales.pacheco@empresa.local;leader;yx0fLhz4yh
+168;633412;LUANA VITORIA DE MOURA NERY;VENDEDOR INTERNO;Souza Pinto;Manh?;active;luana.vitoria.de.moura.nery@empresa.local;leader;HygNo9iWEC
+169;140045;LUCAS RODRIGUES;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;lucas.rodrigues@empresa.local;leader;EnbaDqP3vh
+170;15569;LUIZ HENRIQUE FERNANDES VAZ;VENDEDOR;Souza Pinto;Manh?;active;luiz.henrique.fernandes.vaz@empresa.local;leader;T7D3OddI9h
+171;633989;LUIZ HENRIQUE VALAZUELA CORREA;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;luiz.henrique.valazuela.correa@empresa.local;leader;dofLaMDfXH
+172;140017;MARCELO GONÇALVES DOS REIS;SUPERVISOR DE VENDAS;Souza Pinto;Manh?;active;marcelo.goncalves.dos.reis@empresa.local;leader;KmJRKC7QpZ
+173;13661;MARCELO PEREIRA VIANA;VENDEDOR;Souza Pinto;Manh?;active;marcelo.pereira.viana@empresa.local;leader;4kSU1lOc0S
+174;631426;MARCELO RODRIGUES DE OLIVEIRA;VENDEDOR;Souza Pinto;Manh?;active;marcelo.rodrigues.de.oliveira@empresa.local;leader;qZtMdiKATd
+64;63-3297;MARCIO EDUARDO MARTINS COSTA;AJUDANTE DE MOTORISTA;Geral;Manh?;active;marcio.eduardo.martins.costa@empresa.local;leader;icvLPXhN18
+224;633297;MARCIO EDUARDO MARTINS COSTA;AJUDANTE DE MOTORISTA;Souza Pinto;Manh?;active;marcio.eduardo.martins.costa@empresa.local;leader;PVAPA39vNb
+65;631370;MARCIO WELINGTON JERONIMO DE JESUS;MOTORISTA;Geral;Manh?;active;marcio.welington.jeronimo.de.jesus@empresa.local;leader;jgjI3onaRo
+66;630995;MARCO AURÉLIO RODRIGUES DE ALMEIDA;AJUDANTE DE PÁTIO;Geral;Manh?;active;marco.aurelio.rodrigues.de.almeida@empresa.local;leader;HFVzWS56Rz
+175;40128;MARCO TULIO OLIVEIRA DE JESUS;VENDEDOR;Souza Pinto;Manh?;active;marco.tulio.oliveira.de.jesus@empresa.local;leader;v5HOC1dVlP
+67;63-3296;MARCOS ANTONIO DOS REIS ALMEIDA;MOTORISTA;Geral;Manh?;active;marcos.antonio.dos.reis.almeida@empresa.local;leader;0r3IVxO3Ke
+225;633296;MARCOS ANTONIO DOS REIS ALMEIDA;MOTORISTA;Souza Pinto;Manh?;active;marcos.antonio.dos.reis.almeida@empresa.local;leader;gQJMiO9KL6
+68;63-3150;MARCOS HENRIQUE COSTA;AJUDANTE DE MOTORISTA;Geral;Manh?;active;marcos.henrique.costa@empresa.local;leader;8VIuxhvwcG
+226;633150;MARCOS HENRIQUE COSTA;AJUDANTE DE MOTORISTA;Souza Pinto;Manh?;active;marcos.henrique.costa@empresa.local;leader;lKBqOPH8vY
+69;630320;MARCOS VINICIUS COSTA DIAS;AJUDANTE DE MOTORISTA;Geral;Manh?;active;marcos.vinicius.costa.dias@empresa.local;leader;CmW29TpM9J
+176;61380;MARCUS VINICIUS MACHADO DE ASSIS;VENDEDOR;Souza Pinto;Manh?;active;marcus.vinicius.machado.de.assis@empresa.local;leader;392pfLEHzO
+177;633457;MARIA LUISA SILVA BARROS INACIO;VENDEDOR INTERNO;Souza Pinto;Manh?;active;maria.luisa.silva.barros.inacio@empresa.local;leader;TzwYtH7M7e
+178;61653;MARIO LEANDRO RODRIGUES PEREIRA;VENDEDOR;Souza Pinto;Manh?;active;mario.leandro.rodrigues.pereira@empresa.local;leader;OCXYdWNiig
+179;633835;MARISON BATISTA DA SILVA JUNIOR;VENDEDOR;Souza Pinto;Manh?;active;marison.batista.da.silva.junior@empresa.local;leader;EpPvhi8QnH
+180;61525;MATEUS BARNABÉ BATISTA;VENDEDOR;Souza Pinto;Manh?;active;mateus.barnabe.batista@empresa.local;leader;bzqI6RZfry
+181;632621;MATEUS DE JESUS ALVES;VENDEDOR;Souza Pinto;Manh?;active;mateus.de.jesus.alves@empresa.local;leader;TkD5LFXjWo
+182;634468;MATHEUS BIBIANO TEIXIERA;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;matheus.bibiano.teixiera@empresa.local;leader;GMVNmPfvWH
+183;20196;MAYK JUNIO SANTOS;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;mayk.junio.santos@empresa.local;leader;RocSZLb2dP
+70;634182;MICHAEL PIERRE FREDERICK SOUZA;MOTORISTA;Geral;Manh?;active;michael.pierre.frederick.souza@empresa.local;leader;2C2iQ9505Y
+71;63-4321;MICHEL WILLIAM LIMA DE SOUZA;MOTORISTA;Geral;Manh?;active;michel.william.lima.de.souza@empresa.local;leader;aMTYetbhKo
+72;632382;MILTON  LAGE DA SILVA;MOTORISTA;Geral;Manh?;active;milton.lage.da.silva@empresa.local;leader;LTkL6xBQvL
+184;20193;NATALICIA RODRIGUES DE OLIVEIRA DOS SANTOS;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;natalicia.rodrigues.de.oliveira.dos.santos@empresa.local;leader;AkudYwfjiw
+185;13642;NATALINO FRANCISCO DOS SANTOS FILHO;VENDEDOR;Souza Pinto;Manh?;active;natalino.francisco.dos.santos.filho@empresa.local;leader;ZPbpvWryLC
+186;30040;NATHALIA LUANA OLIVEIRA FONSECA;VENDEDOR;Souza Pinto;Manh?;active;nathalia.luana.oliveira.fonseca@empresa.local;leader;cGvlTaPZLE
+73;63-0717;NERO STIGERT RODRIGUES ALVES;MOTORISTA;Geral;Manh?;active;nero.stigert.rodrigues.alves@empresa.local;leader;uRP2rbDbLK
+74;14222;NILSON SOARES DA SILVA;AJUDANTE DE MOTORISTA;Geral;Manh?;active;nilson.soares.da.silva@empresa.local;leader;DIVOBBVq5a
+187;3632-07-20 00:00:00;PABLO AUGUSTO SOUZA FERREIRA;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;pablo.augusto.souza.ferreira@empresa.local;leader;gwXigWswUf
+188;61629;PABLO AUGUSTO VENANCIO JOAO;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;pablo.augusto.venancio.joao@empresa.local;leader;jKLbGuitz2
+75;13370;PAULO CÉSAR GOMES CHAVES;SUPERVISOR DE CARGA;Geral;Manh?;active;paulo.cesar.gomes.chaves@empresa.local;leader;iW1VhWvOe6
+76;15873;PAULO EMÍLIO SPITALI;GERENTE DE OPERAÇÕES E LOGÍSTICA;Geral;Manh?;active;paulo.emilio.spitali@empresa.local;leader;BcSjOYCJJo
+189;20114;PEDRO HENRIQUE SILVA;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;pedro.henrique.silva@empresa.local;leader;4xXavIUvHR
+190;61614;POLIANA DA SILVA SANTOS;VENDEDOR INTERNO;Souza Pinto;Manh?;active;poliana.da.silva.santos@empresa.local;leader;f9ueC5hr27
+191;20202;RAFAEL ALEIXO BAIAO;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;rafael.aleixo.baiao@empresa.local;leader;6gb6RRclNK
+77;63-3298;RAFAEL JUNIOR GONÇALVES COSTA;AJUDANTE DE MOTORISTA;Geral;Manh?;active;rafael.junior.goncalves.costa@empresa.local;leader;ycT2o7l68J
+227;633298;RAFAEL JUNIOR GONÇALVES COSTA;AJUDANTE DE MOTORISTA;Souza Pinto;Manh?;active;rafael.junior.goncalves.costa@empresa.local;leader;3RFtdrJFG3
+78;63-3181;REGINALDO RODRIGUES DOS SANTOS;MOTORISTA;Geral;Manh?;active;reginaldo.rodrigues.dos.santos@empresa.local;leader;56LYuEA1Qo
+79;2-0153;REINALDO BELISARIO DOS REIS;MOTORISTA;Geral;Manh?;active;reinaldo.belisario.dos.reis@empresa.local;leader;jGT5FpJusK
+192;631459;RENAN MEDEIROS SANTOS;VENDEDOR;Souza Pinto;Manh?;active;renan.medeiros.santos@empresa.local;leader;wtuPFVEdWJ
+80;631981;RENATO DE FREITAS ABREU;MOTORISTA;Geral;Manh?;active;renato.de.freitas.abreu@empresa.local;leader;0jtYudu7tM
+81;630654;ROBERT LEMES MARQUES;AJUDANTE DE PÁTIO;Geral;Manh?;active;robert.lemes.marques@empresa.local;leader;hxndNRTXnz
+193;634338;RODOLFO CALIXTO BARBOSA DA SILVA;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;rodolfo.calixto.barbosa.da.silva@empresa.local;leader;YYiL79lM4x
+194;1300006;RODRIGO MOREIRA DOS SANTOS;SUPERVISOR COMERCIAL;Souza Pinto;Manh?;active;rodrigo.moreira.dos.santos@empresa.local;leader;thpyBmNl0X
+82;01-6893;ROGERIO LOPES DE ANDRADE JUNIOR;AJUDANTE DE MOTORISTA;Geral;Manh?;active;rogerio.lopes.de.andrade.junior@empresa.local;leader;eHF35CQbBH
+83;631739;RONALDO DA COSTA MORAIS;MOTORISTA;Geral;Manh?;active;ronaldo.da.costa.morais@empresa.local;leader;mGZ0hkTTU3
+84;15870;RONILSON BATISTA DE ARAÚJO;AJUDANTE DE MOTORISTA;Geral;Manh?;active;ronilson.batista.de.araujo@empresa.local;leader;COdqTvuyH8
+85;690002;RONNEI PEDROSA DA COSTA;MOTORISTA;Geral;Manh?;active;ronnei.pedrosa.da.costa@empresa.local;leader;1f0aqYbs7p
+195;4 0066;SAMUEL CRISOSTOMO MIRANDA;VENDEDOR;Souza Pinto;Manh?;active;samuel.crisostomo.miranda@empresa.local;leader;zDZYnfEhbk
+86;631062;SANDRO GEORGE VEIGA;AJUDANTE DE MOTORISTA;Geral;Manh?;active;sandro.george.veiga@empresa.local;leader;JcfddKFBGJ
+196;633805;SARA LUIZA PEREIRA ANTUNES;VENDEDOR INTERNO;Souza Pinto;Manh?;active;sara.luiza.pereira.antunes@empresa.local;leader;a5ZN4ErDPb
+197;633414;SILVIO OLIVEIRA DE SOUZA;VENDEDOR;Souza Pinto;Manh?;active;silvio.oliveira.de.souza@empresa.local;leader;vzxsyQjvPA
+87;631090;SÉRGIO ALVES COSTA;AJUDANTE DE MOTORISTA;Geral;Manh?;active;sergio.alves.costa@empresa.local;leader;O9NWKHbSq7
+198;634447;THARLEY FERNANDES DE OLIVA;VENDEDOR;Souza Pinto;Manh?;active;tharley.fernandes.de.oliva@empresa.local;leader;7BipsjZsuD
+199;3633-12-17 00:00:00;THIAGO FERNANDES PENAFORTE;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;thiago.fernandes.penaforte@empresa.local;leader;Vqh20tFqV2
+200;631638;TIAGO MARCIO FELICIO;VENDEDOR;Souza Pinto;Manh?;active;tiago.marcio.felicio@empresa.local;leader;mfrj7dd0DI
+89;2-0159;TIAGO OLIVEIRA VIEIRA;MOTORISTA;Geral;Manh?;active;tiago.oliveira.vieira@empresa.local;leader;Tq7FaZcvem
+228;20159;TIAGO OLIVEIRA VIEIRA;MOTORISTA;Souza Pinto;Manh?;active;tiago.oliveira.vieira@empresa.local;leader;mKRykgxAIL
+88;630477;TIAGO OLÍMPIO DE OLIVEIRA;AJUDANTE DE MOTORISTA;Geral;Manh?;active;tiago.olimpio.de.oliveira@empresa.local;leader;cVJJuRGY2C
+90;63-2867;VALDEMIR FRANCISCO DE AGUIAR;MOTORISTA;Geral;Manh?;active;valdemir.francisco.de.aguiar@empresa.local;leader;tVjGHSLTKH
+91;14588;VALTER SENA EVANGELISTA;AJUDANTE DE MOTORISTA;Geral;Manh?;active;valter.sena.evangelista@empresa.local;leader;5S7Czvpwb5
+92;170001;VICENTE AGNALDO DA SILVA;ENCARREGADO DE OFICINA;Geral;Manh?;active;vicente.agnaldo.da.silva@empresa.local;leader;pWyD7T7lA7
+201;633592;VICTOR HENRIQUE QUADROS DE CASTRO;VENDEDOR;Souza Pinto;Manh?;active;victor.henrique.quadros.de.castro@empresa.local;leader;v521WJDW2f
+202;61671;VICTOR HUGO DE ALMEIDA VIEIRA;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;victor.hugo.de.almeida.vieira@empresa.local;leader;7UIJQjTjnb
+203;633111;VITOR HUGO DE OLIVEIRA ARAUJO;ANALISTA DE RESULTADOS;Souza Pinto;Manh?;active;vitor.hugo.de.oliveira.araujo@empresa.local;leader;OTGTW9UNwJ
+204;632216;VITOR RAMOS BALBINO;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;vitor.ramos.balbino@empresa.local;leader;ivedqEaSkZ
+205;634549;VITORIA KATLIN GENUINO DE FARIA;VENDEDOR INTERNO;Souza Pinto;Manh?;active;vitoria.katlin.genuino.de.faria@empresa.local;leader;zzhXCerbFm
+206;14418;WALESSON SANTANA DE SOUZA;SUPERVISOR DE CONTAS;Souza Pinto;Manh?;active;walesson.santana.de.souza@empresa.local;leader;v1LK5j39s2
+93;632757;WALISSON DA SILVA SANTOS;AJUDANTE DE MOTORISTA;Geral;Manh?;active;walisson.da.silva.santos@empresa.local;leader;NiUA1cm5HE
+94;631081;WALLEY JESUS DE OLIVEIRA;MOTORISTA;Geral;Manh?;active;walley.jesus.de.oliveira@empresa.local;leader;hhOi238qEr
+95;63-3062;WANDERSON DE OLIVEIRA MOTA;MOTORISTA;Geral;Manh?;active;wanderson.de.oliveira.mota@empresa.local;leader;HziMLhfaZ7
+96;632341;WARLEI PIMENTA DE JESUS CARVALHO;AJUDANTE DE MOTORISTA;Geral;Manh?;active;warlei.pimenta.de.jesus.carvalho@empresa.local;leader;ag8ngYrIj1
+97;63-3075;WARLEN APARECIDO DOS SANTOS;AJUDANTE DE PÁTIO;Geral;Manh?;active;warlen.aparecido.dos.santos@empresa.local;leader;aWITRVrH5c
+229;633075;WARLEN APARECIDO DOS SANTOS;AJUDANTE DE PÁTIO;Souza Pinto;Manh?;active;warlen.aparecido.dos.santos@empresa.local;leader;AmJA2mOiZq
+207;631281;WARLEN HENRIQUE DIAS DA SILVA;VENDEDOR;Souza Pinto;Manh?;active;warlen.henrique.dias.da.silva@empresa.local;leader;1pNQCaygh6
+208;50046;WARLEY ROBERT DA SILVA;VENDEDOR;Souza Pinto;Manh?;active;warley.robert.da.silva@empresa.local;leader;3TlSmEO32R
+209;61726;WASHINGTON BRENDO MACEDO DE SOUZA;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;washington.brendo.macedo.de.souza@empresa.local;leader;YzERLyA3fM
+98;631239;WEIDER DAVI;MOTORISTA;Geral;Manh?;active;weider.davi@empresa.local;leader;DKARI0sIRf
+210;19595;WELLINGTON RODRIGUES DE OLIVEIRA;VENDEDOR;Souza Pinto;Manh?;active;wellington.rodrigues.de.oliveira@empresa.local;leader;0XAT3f8C7h
+99;20147;WENDERSON MARTINS DE SOUZA;MOTORISTA;Geral;Manh?;active;wenderson.martins.de.souza@empresa.local;leader;l4EHKeSdCC
+211;50042;WILLIAN GOMES DE LIMA;REPOSITOR DE MERCADORIAS;Souza Pinto;Manh?;active;willian.gomes.de.lima@empresa.local;leader;UFHHSSZewt
+100;61510;YAGO VINICIOS MORAIS SOUZA;AJUDANTE DE MOTORISTA;Geral;Manh?;active;yago.vinicios.morais.souza@empresa.local;leader;up7oCmMrGL
+101;18647;YAN ROBSON CONRADO DA SILVA;ASSISTENTE DE LOGISTICA;Geral;Manh?;active;yan.robson.conrado.da.silva@empresa.local;leader;ViKBUg7HTB

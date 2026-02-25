@@ -1458,6 +1458,10 @@ def admin_checklists_settings_redirect(message: str, level: str = "success") -> 
     query = urlencode({"message": message, "level": level})
     return RedirectResponse(url=f"/admin/routine/checklists/settings?{query}", status_code=status.HTTP_303_SEE_OTHER)
 
+def maintenance_emails_settings_redirect(message: str, level: str = "success") -> RedirectResponse:
+    query = urlencode({"message": message, "level": level})
+    return RedirectResponse(url=f"/admin/absence-alerts/settings?{query}", status_code=status.HTTP_303_SEE_OTHER)
+
 # --- Auth Helper Functions ---
 def get_current_user(request: Request):
     auth_user_id = request.session.get("auth_user_id")
@@ -21034,6 +21038,9 @@ async def admin_absence_alerts_settings(
     sick_recipients = [r for r in recipients if getattr(r, 'alert_type', None) == 'sick']
     # Novo grupo de destinatários para saída antecipada
     early_exit_recipients = [r for r in recipients if getattr(r, 'alert_type', None) == 'early_exit']
+    maintenance_recipients = session.exec(
+        select(models.ChecklistEmailRecipient).order_by(models.ChecklistEmailRecipient.email)
+    ).all()
     
     # Info SMTP para exibição
     smtp_configured = bool(SMTP_HOST and SMTP_USER and SMTP_PASS)
@@ -21048,6 +21055,7 @@ async def admin_absence_alerts_settings(
             "dayoff_recipients": dayoff_recipients,
             "sick_recipients": sick_recipients,
             "early_exit_recipients": early_exit_recipients,
+            "maintenance_recipients": maintenance_recipients,
             "message": message,
             "level": level,
             "smtp_host": SMTP_HOST,
@@ -21183,6 +21191,86 @@ async def admin_absence_alerts_test_email(
         return absence_alerts_settings_redirect(f"E-mail de teste ({type_label}) enviado para {recipient.email}", "success")
     else:
         return absence_alerts_settings_redirect(f"Erro ao enviar: {error}", "error")
+
+@app.post("/admin/absence-alerts/settings/maintenance-emails", response_class=RedirectResponse)
+async def admin_absence_maintenance_add_email(
+    request: Request,
+    email: str = Form(...),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader),
+):
+    email_norm = normalize_email(email)
+    if not email_norm or "@" not in email_norm:
+        return maintenance_emails_settings_redirect("E-mail inválido.", "error")
+
+    existing = session.exec(
+        select(models.ChecklistEmailRecipient)
+        .where(models.ChecklistEmailRecipient.email == email_norm)
+    ).first()
+    if existing:
+        if not existing.is_active:
+            existing.is_active = True
+            session.add(existing)
+            session.commit()
+            return maintenance_emails_settings_redirect("E-mail reativado.", "success")
+        return maintenance_emails_settings_redirect("E-mail já cadastrado.", "error")
+
+    recipient = models.ChecklistEmailRecipient(email=email_norm, is_active=True)
+    session.add(recipient)
+    session.commit()
+    return maintenance_emails_settings_redirect("E-mail cadastrado com sucesso.", "success")
+
+@app.post("/admin/absence-alerts/settings/maintenance-emails/{recipient_id}/delete", response_class=RedirectResponse)
+async def admin_absence_maintenance_remove_email(
+    request: Request,
+    recipient_id: int,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader),
+):
+    recipient = session.get(models.ChecklistEmailRecipient, recipient_id)
+    if not recipient:
+        return maintenance_emails_settings_redirect("E-mail não encontrado.", "error")
+
+    if recipient.is_active:
+        recipient.is_active = False
+        session.add(recipient)
+        session.commit()
+
+    return maintenance_emails_settings_redirect("E-mail removido.", "success")
+
+@app.post("/admin/absence-alerts/settings/maintenance-emails/{recipient_id}/test", response_class=RedirectResponse)
+async def admin_absence_maintenance_test_email(
+    request: Request,
+    recipient_id: int,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader),
+):
+    recipient = session.get(models.ChecklistEmailRecipient, recipient_id)
+    if not recipient:
+        return maintenance_emails_settings_redirect("E-mail não encontrado.", "error")
+
+    try:
+        report = {
+            "subject": "ALERTA DE MANUTENÇÃO - TESTE",
+            "body": "Teste de envio de alerta de manutenção.",
+            "equipment_code": "EMP-TESTE-01",
+            "operator_name": str(user) if user else "Sistema",
+            "operator_id": "00000",
+            "shift": "Manhã",
+            "submitted_at": datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y às %H:%M"),
+            "observations": "Este é um e-mail de teste enviado pela tela de configurações.",
+            "nonconforming_items": [
+                {"label": "Freio de estacionamento", "critical": True},
+                {"label": "Sinalização sonora", "critical": False},
+            ],
+        }
+        sent, error = send_maintenance_email(report, [recipient.email])
+        if not sent:
+            return maintenance_emails_settings_redirect(f"Erro ao testar: {error}", "error")
+    except Exception as exc:
+        return maintenance_emails_settings_redirect(f"Erro ao testar: {exc}", "error")
+
+    return maintenance_emails_settings_redirect(f"E-mail de teste enviado para {recipient.email}", "success")
 
 # =============================================================================
 # PALLET TRUCK COUNTING SYSTEM
