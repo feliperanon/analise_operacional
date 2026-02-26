@@ -13,8 +13,8 @@
                 <form action="/clients/import" method="post" enctype="multipart/form-data" class="flex flex-wrap items-center gap-2">
                     <label class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 cursor-pointer transition-colors border border-slate-600 text-sm font-medium">
                         <i data-lucide="upload" class="w-4 h-4 text-slate-400"></i>
-                        <span>Excel</span>
-                        <input type="file" name="file" accept=".xlsx,.xls" required class="hidden" id="clients-excel-input">
+                        <span>CSV/Excel</span>
+                        <input type="file" name="file" accept=".xlsx,.xls,.csv" required class="hidden" id="clients-excel-input">
                     </label>
                     <span id="clients-file-name" class="text-slate-500 text-xs max-w-[140px] truncate"></span>
                     <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-colors">
@@ -32,13 +32,19 @@
         {% if request.query_params.get("message") == "import_success" %}
         <div class="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center gap-2">
             <i data-lucide="check-circle" class="w-5 h-5 flex-shrink-0"></i>
-            <span>Importação concluída: {{ request.query_params.get('imported', 0) }} cliente(s) cadastrado(s){% if request.query_params.get('skipped', 0)|int > 0 %}, {{ request.query_params.get('skipped') }} ignorado(s) (nome já existe){% endif %}.</span>
+            <span>Importação concluída: {{ request.query_params.get('created', 0) }} criado(s){% if request.query_params.get('rejected', 0)|int > 0 %}, {{ request.query_params.get('rejected') }} rejeitado(s){% endif %}.</span>
+        </div>
+        {% endif %}
+        {% if request.query_params.get("message") == "import_confirm" %}
+        <div class="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center gap-2">
+            <i data-lucide="check-circle" class="w-5 h-5 flex-shrink-0"></i>
+            <span>Importação confirmada: {{ request.query_params.get('created', 0) }} criado(s), {{ request.query_params.get('updated', 0) }} mesclado(s), {{ request.query_params.get('skipped', 0) }} ignorado(s){% if request.query_params.get('rejected', 0)|int > 0 %}, {{ request.query_params.get('rejected') }} rejeitado(s){% endif %}.</span>
         </div>
         {% endif %}
         {% if request.query_params.get("error") == "invalid_file" %}
         <div class="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center gap-2">
             <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
-            <span>Arquivo inválido. Envie um arquivo Excel (.xlsx ou .xls).</span>
+            <span>Arquivo inválido. Envie um arquivo Excel (.xlsx, .xls) ou CSV.</span>
         </div>
         {% endif %}
         {% if request.query_params.get("error") == "missing_columns" %}

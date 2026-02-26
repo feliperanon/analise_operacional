@@ -8887,6 +8887,10 @@ async def add_client(
     try:
         existing = session.exec(select(models.Client).where(models.Client.name == name.strip())).first()
         if not existing:
+            fone_val = _opt_form(fone)
+            fone_e164_val, _ = normalize_phone_br(fone_val)
+            endereco_val = _opt_form(endereco)
+            endereco_norm_val = normalize_address(endereco_val).upper().replace(" ", "") if endereco_val and len(endereco_val) >= 10 else None
             new_client = models.Client(
                 name=name.strip(),
                 nb=_opt_form(nb),
@@ -8898,8 +8902,10 @@ async def add_client(
                 razao_social=_opt_form(razao_social),
                 municipio=_opt_form(municipio),
                 bairro=_opt_form(bairro),
-                endereco=_opt_form(endereco),
-                fone=_opt_form(fone),
+                endereco=endereco_val,
+                endereco_normalizado=endereco_norm_val,
+                fone=fone_val,
+                fone_e164=fone_e164_val,
                 segmento=_opt_form(segmento),
                 status_cliente=_opt_form(status_cliente),
             )
@@ -9091,6 +9097,10 @@ async def update_client(
     require_login(request)
     client = session.get(models.Client, client_id)
     if client:
+        fone_val = _opt_form(fone)
+        fone_e164_val, _ = normalize_phone_br(fone_val)
+        endereco_val = _opt_form(endereco)
+        endereco_norm_val = normalize_address(endereco_val).upper().replace(" ", "") if endereco_val and len(endereco_val) >= 10 else None
         client.name = name.strip()
         client.nb = _opt_form(nb)
         client.setor = _opt_form(setor)
@@ -9101,8 +9111,10 @@ async def update_client(
         client.razao_social = _opt_form(razao_social)
         client.municipio = _opt_form(municipio)
         client.bairro = _opt_form(bairro)
-        client.endereco = _opt_form(endereco)
-        client.fone = _opt_form(fone)
+        client.endereco = endereco_val
+        client.endereco_normalizado = endereco_norm_val
+        client.fone = fone_val
+        client.fone_e164 = fone_e164_val
         client.segmento = _opt_form(segmento)
         client.status_cliente = _opt_form(status_cliente)
         session.add(client)
@@ -9182,7 +9194,10 @@ def _load_clients_dataframe(content: bytes, filename: str):
     import pandas as pd
     ext = (filename or "").lower()
     if ext.endswith(".csv"):
-        df = pd.read_csv(io.BytesIO(content), encoding="utf-8", sep=None, engine="python")
+        try:
+            df = pd.read_csv(io.BytesIO(content), encoding="utf-8-sig", sep=None, engine="python")
+        except UnicodeDecodeError:
+            df = pd.read_csv(io.BytesIO(content), encoding="latin-1", sep=None, engine="python")
     elif ext.endswith(".xlsx"):
         df = pd.read_excel(io.BytesIO(content), engine="openpyxl", header=0)
     elif ext.endswith(".xls"):
@@ -9285,15 +9300,13 @@ async def clients_import(
             conflict_client_id = None
             if fone_e164 and fone_e164 in existing_by_fone:
                 conflict_type = "fone"
-                conflict_client_id = next((c.id for c in session.exec(select(models.Client).where(models.Client.fone_e164 == fone_e164))), None)
+                conflict_client_id = existing_by_fone.get(fone_e164)
             elif endereco_norm and len(endereco_norm) >= 10 and endereco_norm in existing_by_endereco:
                 conflict_type = "endereco"
-                conflict_client_id = next((c.id for c in session.exec(select(models.Client).where(models.Client.endereco_normalizado == endereco_norm))), None)
-            elif razao_key and bairro_key:
-                key = (razao_key, bairro_key)
-                if key in existing_by_razao_bairro_key:
-                    conflict_type = "razao_bairro"
-                    conflict_client_id = existing_by_razao_bairro_key.get(key)
+                conflict_client_id = existing_by_endereco.get(endereco_norm)
+            elif razao_key and bairro_key and (razao_key, bairro_key) in existing_by_razao_bairro_key:
+                conflict_type = "razao_bairro"
+                conflict_client_id = existing_by_razao_bairro_key.get((razao_key, bairro_key))
 
             if name.lower() in existing_names and not conflict_type:
                 conflict_type = "nome"
@@ -9417,19 +9430,15 @@ async def clients_import_confirm(
     if not batch or batch.status != "pending":
         return RedirectResponse(url="/clients", status_code=status.HTTP_303_SEE_OTHER)
     form = await request.form()
+    form_actions = {k.replace("action_", ""): v for k, v in form.items() if k.startswith("action_")}
     log_created, log_updated, log_skipped, log_rejected = 0, 0, 0, 0
     existing_names = {n[0].strip().lower() for n in session.exec(select(models.Client.name)).all()}
-    for key, val in form.items():
-        if not key.startswith("action_"):
-            continue
-        row_id = int(key.replace("action_", ""))
-        row = session.get(models.ClientImportStaging, row_id)
-        if not row or row.batch_id != batch_id:
-            continue
-        action = val
+    rows = session.exec(
+        select(models.ClientImportStaging).where(models.ClientImportStaging.batch_id == batch_id).order_by(models.ClientImportStaging.row_index)
+    ).all()
+    for row in rows:
+        action = form_actions.get(str(row.id), row.action)
         if action == "skip":
-            row.action = "skip"
-            session.add(row)
             log_skipped += 1
             continue
         if action == "merge" and row.conflict_client_id:
