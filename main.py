@@ -8948,64 +8948,67 @@ async def add_client(
     except Exception as e:
         logger.exception(f"Error adding client: {e}")
     return RedirectResponse(url="/clients", status_code=status.HTTP_303_SEE_OTHER)
+def _is_ativo(c: models.Client) -> bool:
+    st_op = ((c.status_operacional or "") or "").upper()
+    st_cli = ((c.status_cliente or "") or "").upper()
+    if "FECHOU" in st_op or "FECHOU" in st_cli:
+        return False
+    if "INATIVO" in st_op or "INATIVO" in st_cli:
+        return False
+    if "INVALIDOS" in st_cli:
+        return False
+    return True
+
+def _is_fechou(c: models.Client) -> bool:
+    st_op = ((c.status_operacional or "") or "").upper()
+    st_cli = ((c.status_cliente or "") or "").upper()
+    return "FECHOU" in st_op or "FECHOU" in st_cli
+
+def _is_inativo(c: models.Client) -> bool:
+    st_op = ((c.status_operacional or "") or "").upper()
+    st_cli = ((c.status_cliente or "") or "").upper()
+    return "INATIVO" in st_op or "INATIVO" in st_cli
+
 @app.get("/clients", response_class=HTMLResponse)
 async def clients_page(request: Request, session: Session = Depends(get_session)):
     user = require_login(request)
-    status_filter = request.query_params.get("status", "ativos")  # ativos, todos, fechou, inativo, em_validacao
+    status_filter = request.query_params.get("status", "ativos")
     search = (request.query_params.get("q") or "").strip()
 
-    query = select(models.Client)
-    st_cli = func.coalesce(models.Client.status_cliente, "")
-    if status_filter == "ativos":
-        excl = or_(
-            models.Client.status_operacional == "FECHOU",
-            models.Client.status_operacional == "INATIVO",
-            st_cli.ilike("%fechou%"),
-            st_cli.ilike("%inativo%"),
-            st_cli.ilike("%invalidos%"),
-        )
-        query = query.where(not_(excl))
-    elif status_filter == "fechou":
-        query = query.where(or_(
-            models.Client.status_operacional == "FECHOU",
-            st_cli.ilike("%fechou%"),
-        ))
-    elif status_filter == "inativo":
-        query = query.where(or_(
-            models.Client.status_operacional == "INATIVO",
-            st_cli.ilike("%inativo%"),
-        ))
-    elif status_filter == "em_validacao":
-        query = query.where(models.Client.status_operacional == "EM_VALIDACAO")
-    # "todos" = no status filter
-
-    if search:
-        s = f"%{search}%"
-        query = query.where(or_(
-            models.Client.name.ilike(s),
-            models.Client.razao_social.ilike(s),
-            models.Client.nome_fantasia.ilike(s),
-            models.Client.nb.ilike(s),
-            models.Client.municipio.ilike(s),
-        ))
-
     try:
-        clients = list(session.exec(query).all())
+        all_clients = list(session.exec(select(models.Client)).all())
     except Exception as e:
         logger.exception(f"clients_page query error: {e}")
-        query = select(models.Client)
-        clients = list(session.exec(query).all())
-    try:
-        return templates.TemplateResponse("clients.html", {
-            "request": request,
-            "user": user,
-            "clients": clients,
-            "status_filter": status_filter,
-            "search": search,
-        })
-    except Exception as e:
-        logger.exception(f"clients_page template error: {e}")
-        raise
+        all_clients = []
+
+    if status_filter == "ativos":
+        clients = [c for c in all_clients if _is_ativo(c)]
+    elif status_filter == "fechou":
+        clients = [c for c in all_clients if _is_fechou(c)]
+    elif status_filter == "inativo":
+        clients = [c for c in all_clients if _is_inativo(c)]
+    elif status_filter == "em_validacao":
+        clients = [c for c in all_clients if (c.status_operacional or "").upper() == "EM_VALIDACAO"]
+    else:
+        clients = all_clients
+
+    if search:
+        q = search.lower()
+        clients = [c for c in clients if (
+            (c.name and q in (c.name or "").lower()) or
+            (c.razao_social and q in (c.razao_social or "").lower()) or
+            (c.nome_fantasia and q in (c.nome_fantasia or "").lower()) or
+            (c.nb and q in (c.nb or "").lower()) or
+            (c.municipio and q in (c.municipio or "").lower())
+        )]
+
+    return templates.TemplateResponse("clients.html", {
+        "request": request,
+        "user": user,
+        "clients": clients,
+        "status_filter": status_filter,
+        "search": search,
+    })
 @app.get("/clients/list", response_class=JSONResponse)
 async def list_clients(session: Session = Depends(get_session)):
     clients = session.exec(select(models.Client)).all()
