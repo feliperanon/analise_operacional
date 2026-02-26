@@ -8998,23 +8998,23 @@ async def clients_page(request: Request, session: Session = Depends(get_session)
             col(models.Client.municipio).like(s),
         ))
 
-    clients = list(session.exec(query).all())
-    # #region agent log
     try:
-        import json
-        tot = session.exec(select(models.Client)).all()
-        sample = [(c.id, c.name, getattr(c, "status_cliente", None), getattr(c, "status_operacional", None)) for c in (list(tot)[:5])]
-        open("debug-051f4c.log", "a", encoding="utf-8").write(json.dumps({"sessionId":"051f4c","message":"clients_page","data":{"status_filter":status_filter,"returned":len(clients),"total":len(tot),"sample":sample}})+"\n")
-    except Exception:
-        pass
-    # #endregion
-    return templates.TemplateResponse("clients.html", {
-        "request": request,
-        "user": user,
-        "clients": clients,
-        "status_filter": status_filter,
-        "search": search,
-    })
+        clients = list(session.exec(query).all())
+    except Exception as e:
+        logger.exception(f"clients_page query error: {e}")
+        query = select(models.Client)
+        clients = list(session.exec(query).all())
+    try:
+        return templates.TemplateResponse("clients.html", {
+            "request": request,
+            "user": user,
+            "clients": clients,
+            "status_filter": status_filter,
+            "search": search,
+        })
+    except Exception as e:
+        logger.exception(f"clients_page template error: {e}")
+        raise
 @app.get("/clients/list", response_class=JSONResponse)
 async def list_clients(session: Session = Depends(get_session)):
     clients = session.exec(select(models.Client)).all()
