@@ -79,14 +79,14 @@
                     {# Colaborador = login por matrícula (user_id). Líder = login por e-mail (auth_user_id). Minhas Tarefas só para colaborador. #}
                     {% set is_employee_session = request.session.get("user_id") %}
                     
-                    <!-- Dashboard -->
+                    <!-- Painel -->
                     <a href="/mobile/dashboard"
                         class="flex items-center gap-4 px-4 py-4 rounded-2xl bg-slate-800/50 border border-slate-700/50 hover:bg-slate-800 hover:border-slate-600 transition-all active:scale-95">
                         <div class="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
                             <i data-lucide="layout-dashboard" class="w-6 h-6"></i>
                         </div>
                         <div class="flex-1">
-                            <p class="font-bold text-white text-lg">Dashboard</p>
+                            <p class="font-bold text-white text-lg">Painel</p>
                             <p class="text-sm text-slate-400">Visão geral</p>
                         </div>
                     </a>
@@ -175,7 +175,7 @@
                     </a>
                     {% endif %}
 
-                    <!-- Logout -->
+                    <!-- Sair -->
                     <a href="/mobile/logout"
                         class="flex items-center gap-4 px-4 py-4 rounded-2xl bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all active:scale-95 mt-4">
                         <div class="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center text-red-400">

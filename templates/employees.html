@@ -120,7 +120,7 @@
         {% set manha = stats.shifts[0] if stats.shifts|length > 0 else {} %}
         <div class="bg-gradient-to-br from-blue-900/30 to-slate-800 p-3 rounded-xl border border-blue-500/30 cursor-pointer hover:border-blue-400/50 transition-all group" onclick="setFilter('Manha')">
             <div class="flex items-center justify-between">
-                <span class="text-[10px] text-blue-400 font-bold uppercase tracking-wider">Manha</span>
+                <span class="text-[10px] text-blue-400 font-bold uppercase tracking-wider">Manhã</span>
                 <svg class="w-4 h-4 text-blue-400/50 group-hover:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
                 </svg>
@@ -249,7 +249,7 @@
                 <button onclick="setFilter('Manha')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-blue-400 hover:text-white hover:bg-blue-600/50 border border-transparent hover:border-blue-500/50" data-filter="Manha">
                     <span class="flex items-center gap-1">
                         <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
-                        Manha
+                        Manhã
                     </span>
                 </button>
                 <button onclick="setFilter('Tarde')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-orange-400 hover:text-white hover:bg-orange-600/50 border border-transparent hover:border-orange-500/50" data-filter="Tarde">

@@ -70,45 +70,21 @@
         </div>
         {% endif %}
 
-        <!-- Distribuição por tipo -->
-        {% if stats and stats.total > 0 %}
-        {% set deg1 = stats.caminhao_pct / 100 * 360 %}
-        {% set deg2 = deg1 + (stats.moto_pct / 100 * 360) %}
-        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-8 mb-8">
-            <div class="flex flex-col items-center">
-                <div class="relative w-40 h-40 sm:w-48 sm:h-48 mb-6">
-                    <div class="w-full h-full rounded-full"
-                        style="background: conic-gradient(
-                            rgb(245 158 11) 0deg {{ deg1 }}deg,
-                            rgb(16 185 129) {{ deg1 }}deg {{ deg2 }}deg,
-                            rgb(59 130 246) {{ deg2 }}deg 360deg
-                        ); transform: rotate(-90deg);"></div>
-                    <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-slate-800 border-4 border-slate-700 flex flex-col items-center justify-center">
-                            <span class="text-xl sm:text-2xl font-bold text-white leading-none">{{ stats.total }}</span>
-                            <span class="text-[10px] sm:text-xs text-slate-500 uppercase tracking-wider mt-0.5">veículos</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="grid grid-cols-3 gap-4 sm:gap-6 w-full max-w-sm">
-                    <div class="text-center p-3 rounded-xl bg-slate-800/80 border border-slate-700/80">
-                        <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-500 mb-1.5"></span>
-                        <p class="text-slate-400 text-xs font-medium">Caminhões</p>
-                        <p class="text-white font-bold tabular-nums">{{ stats.caminhao_count }}</p>
-                        <p class="text-slate-500 text-[10px]">{{ stats.caminhao_pct }}%</p>
-                    </div>
-                    <div class="text-center p-3 rounded-xl bg-slate-800/80 border border-slate-700/80">
-                        <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 mb-1.5"></span>
-                        <p class="text-slate-400 text-xs font-medium">Motos</p>
-                        <p class="text-white font-bold tabular-nums">{{ stats.moto_count }}</p>
-                        <p class="text-slate-500 text-[10px]">{{ stats.moto_pct }}%</p>
-                    </div>
-                    <div class="text-center p-3 rounded-xl bg-slate-800/80 border border-slate-700/80">
-                        <span class="inline-block w-2.5 h-2.5 rounded-full bg-blue-500 mb-1.5"></span>
-                        <p class="text-slate-400 text-xs font-medium">Carros</p>
-                        <p class="text-white font-bold tabular-nums">{{ stats.carro_count }}</p>
-                        <p class="text-slate-500 text-[10px]">{{ stats.carro_pct }}%</p>
-                    </div>
+        <!-- Distribuição por tipo (minimalista, hover = tooltip) -->
+        {% if stats and stats.total > 0 and pie_slices %}
+        <div class="flex items-center gap-4 mb-6">
+            <div class="flex items-center gap-3 flex-shrink-0">
+                <svg class="w-14 h-14 cursor-default" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="Distribuição por tipo">
+                    {% for s in pie_slices %}
+                    <path d="{{ s.d }}" fill="{{ s.fill }}" class="hover:opacity-90 transition-opacity"><title>{{ s.title }}</title></path>
+                    {% endfor %}
+                    <circle cx="50" cy="50" r="22" fill="rgb(30 41 59)" stroke="rgb(51 65 85)" stroke-width="2"/>
+                    <text x="50" y="52" text-anchor="middle" fill="rgb(248 250 252)" font-size="14" font-weight="700">{{ stats.total }}</text>
+                </svg>
+                <div class="flex items-center gap-3 text-slate-400 text-xs">
+                    <span class="flex items-center gap-1" title="Caminhões: {{ stats.caminhao_count }} ({{ stats.caminhao_pct }}%)"><span class="w-2 h-2 rounded-full bg-amber-500"></span>Caminhões</span>
+                    <span class="flex items-center gap-1" title="Motos: {{ stats.moto_count }} ({{ stats.moto_pct }}%)"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>Motos</span>
+                    <span class="flex items-center gap-1" title="Carros: {{ stats.carro_count }} ({{ stats.carro_pct }}%)"><span class="w-2 h-2 rounded-full bg-blue-500"></span>Carros</span>
                 </div>
             </div>
         </div>

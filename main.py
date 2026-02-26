@@ -19,6 +19,7 @@ from zoneinfo import ZoneInfo
 import traceback
 import os
 from collections import Counter
+import math
 import statistics
 from email.message import EmailMessage
 from starlette.middleware.sessions import SessionMiddleware
@@ -1765,7 +1766,7 @@ def api_save_achievement(
             # Update
             ach = session.get(models.GameAchievement, data.id)
             if not ach:
-                return {"success": False, "error": "Achievement not found"}
+                return {"success": False, "error": "Conquista não encontrada"}
             
             ach.name = data.name
             ach.description = data.description
@@ -1803,7 +1804,7 @@ def api_delete_achievement(ach_id: int, session: Session = Depends(get_session),
     try:
         ach = session.get(models.GameAchievement, ach_id)
         if not ach:
-            return {"success": False, "error": "Not found"}
+            return {"success": False, "error": "Não encontrado"}
         
         session.delete(ach)
         session.commit()
@@ -4929,7 +4930,7 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
         import traceback
         error_msg = f"Error in mobile_dashboard: {str(e)}\n{traceback.format_exc()}"
         print(error_msg) # Log to console
-        return JSONResponse(status_code=500, content={"error": "Internal Server Error", "details": str(e), "trace": traceback.format_exc()})
+        return JSONResponse(status_code=500, content={"error": "Erro interno do servidor", "details": str(e), "trace": traceback.format_exc()})
 
 # --- Conquistas Route ---
 @app.get("/mobile/achievements", response_class=HTMLResponse)
@@ -5632,7 +5633,7 @@ async def api_game_audit_employee_history(
     # 1. Get Employee Info
     emp = session.get(models.Employee, employee_id)
     if not emp:
-        return {"error": "Employee not found"}
+        return {"error": "Colaborador não encontrado"}
 
     # 2. Get All Transactions (History)
     #    Order by newest first
@@ -5833,7 +5834,7 @@ async def api_save_achievements(payload: AchievementsPayload, session: Session =
 async def api_manage_tx(tx_id: int, action: str, session: Session = Depends(get_session)):
     """Approve/Reject Provisional Transaction"""
     tx = session.get(GameXPTransaction, tx_id)
-    if not tx: return {"error": "Transaction not found"}
+    if not tx: return {"error": "Transação não encontrada"}
     
     
     if action == "approve":
@@ -5949,7 +5950,7 @@ async def mobile_route_finish(
     try:
         user_id = request.session.get("user_id")
         if not user_id:
-             return JSONResponse({"error": "Unauthorized"}, status_code=401)
+             return JSONResponse({"error": "Não autorizado"}, status_code=401)
 
         employee = session.get(models.Employee, user_id)
         if not employee:
@@ -6076,7 +6077,7 @@ async def mobile_route_delete(
     try:
         user_id = request.session.get("user_id")
         if not user_id:
-            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+            return JSONResponse({"error": "Não autorizado"}, status_code=401)
 
         employee = session.get(models.Employee, user_id)
         if not employee:
@@ -6116,7 +6117,7 @@ async def mobile_route_update(
     try:
         user_id = request.session.get("user_id")
         if not user_id:
-            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+            return JSONResponse({"error": "Não autorizado"}, status_code=401)
 
         route = session.get(models.Route, route_id)
         if not route:
@@ -6291,7 +6292,7 @@ async def mobile_routine_start_with_allocation(
 ):
     user_id = request.session.get("user_id")
     if not user_id:
-        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        return JSONResponse({"error": "Não autorizado"}, status_code=401)
 
     employee = session.get(models.Employee, user_id)
     if not employee:
@@ -7050,7 +7051,7 @@ async def mobile_ticket_create(
 ):
     user = require_login(request)
     if not isinstance(user, dict) or user.get("type") != "employee":
-        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        return JSONResponse({"error": "Não autorizado"}, status_code=401)
     
     employee_id = user.get("id")
     employee = session.get(models.Employee, employee_id)
@@ -8220,7 +8221,7 @@ async def api_create_checklist(
 ):
     user = require_login(request)
     if not isinstance(user, dict) or user.get("type") != "employee":
-        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        return JSONResponse({"error": "Não autorizado"}, status_code=401)
 
     employee_id = user.get("id")
     employee = session.get(models.Employee, employee_id)
@@ -8437,7 +8438,7 @@ async def api_create_ticket(
 ):
     user = require_login(request)
     if not isinstance(user, dict) or user.get("type") != "employee":
-        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        return JSONResponse({"error": "Não autorizado"}, status_code=401)
 
     employee = session.get(models.Employee, user.get("id"))
     if not employee:
@@ -8687,7 +8688,7 @@ async def api_get_checklist(
             return JSONResponse({"error": "Colaborador não encontrado."}, status_code=404)
         require_mobile_module(employee, "checklist")
         if checklist.employee_id != current_user.get("id"):
-            return JSONResponse({"error": "Unauthorized"}, status_code=403)
+            return JSONResponse({"error": "Não autorizado"}, status_code=403)
 
     employee = session.get(models.Employee, checklist.employee_id)
     image_urls = [f"/static/uploads/checklists/{img}" for img in (checklist.images or [])]
@@ -8803,7 +8804,7 @@ async def api_release_equipment(
 async def mobile_ai_today(request: Request, session: Session = Depends(get_session)):
     user = require_login(request)
     if not isinstance(user, dict) or user.get("type") != "employee":
-         return JSONResponse({"error": "Unauthorized"}, status_code=401)
+         return JSONResponse({"error": "Não autorizado"}, status_code=401)
          
     user_id = user.get("id")
     today = datetime.now().date()
@@ -9034,18 +9035,38 @@ async def vehicles_page(request: Request, session: Session = Depends(get_session
         t = (v.vehicle_type or "").lower()
         if t in by_type:
             by_type[t] += 1
+    pct_c = round(100 * by_type["caminhao"] / total, 1) if total else 0
+    pct_m = round(100 * by_type["moto"] / total, 1) if total else 0
+    pct_r = round(100 * by_type["carro"] / total, 1) if total else 0
     stats = {
         "total": total,
         "caminhao_count": by_type["caminhao"],
         "moto_count": by_type["moto"],
         "carro_count": by_type["carro"],
-        "caminhao_pct": round(100 * by_type["caminhao"] / total, 1) if total else 0,
-        "moto_pct": round(100 * by_type["moto"] / total, 1) if total else 0,
-        "carro_pct": round(100 * by_type["carro"] / total, 1) if total else 0,
+        "caminhao_pct": pct_c,
+        "moto_pct": pct_m,
+        "carro_pct": pct_r,
     }
+    # Segmentos do gráfico pizza (SVG) para tooltip no hover: ângulo começa no topo (-90°)
+    def deg2xy(deg):
+        rad = math.radians(deg - 90)
+        return (50 + 40 * math.cos(rad), 50 + 40 * math.sin(rad))
+    a0, a1 = 0, 360 * (by_type["caminhao"] / total) if total else 0
+    a2 = a1 + 360 * (by_type["moto"] / total) if total else 0
+    pie_slices = []
+    for (start, end, fill, label, count, pct) in [
+        (a0, a1, "#f59e0b", "Caminhões", by_type["caminhao"], pct_c),
+        (a1, a2, "#10b981", "Motos", by_type["moto"], pct_m),
+        (a2, 360, "#3b82f6", "Carros", by_type["carro"], pct_r),
+    ]:
+        x1, y1 = deg2xy(start)
+        x2, y2 = deg2xy(end)
+        large = 1 if (end - start) > 180 else 0
+        d = f"M 50 50 L {x1:.2f} {y1:.2f} A 40 40 0 {large} 1 {x2:.2f} {y2:.2f} Z"
+        pie_slices.append({"d": d, "fill": fill, "title": f"{label}: {count} ({pct}%)"})
     return templates.TemplateResponse(
         "vehicles.html",
-        {"request": request, "user": user, "vehicles": vehicles, "stats": stats}
+        {"request": request, "user": user, "vehicles": vehicles, "stats": stats, "pie_slices": pie_slices}
     )
 
 

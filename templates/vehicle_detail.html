@@ -163,7 +163,7 @@
         </div>
 
         {% if vehicle %}
-        <!-- Delete -->
+        <!-- Excluir veículo -->
         <div class="mt-6 flex justify-end">
             <form action="/vehicles/{{ vehicle.id }}/delete" method="post" onsubmit="return confirm('Excluir este veículo? Esta ação é irreversível.');">
                 <button type="submit" class="px-4 py-2 rounded-lg border border-rose-800 text-rose-400 hover:bg-rose-900/30 transition-colors flex items-center gap-2 text-sm">
