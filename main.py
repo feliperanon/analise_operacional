@@ -8955,34 +8955,25 @@ async def clients_page(request: Request, session: Session = Depends(get_session)
     search = (request.query_params.get("q") or "").strip()
 
     query = select(models.Client)
+    st_cli = func.coalesce(models.Client.status_cliente, "")
     if status_filter == "ativos":
-        # Excluir FECHOU, INATIVO, CNPJ/CPF INVALIDOS (em status_cliente ou status_operacional)
-        st_cli = func.lower(func.coalesce(models.Client.status_cliente, ""))
-        nao_fechou = and_(
-            not_(st_cli.like("%fechou%")),
-            or_(
-                models.Client.status_operacional.is_(None),
-                models.Client.status_operacional != "FECHOU",
-            ),
+        excl = or_(
+            models.Client.status_operacional == "FECHOU",
+            models.Client.status_operacional == "INATIVO",
+            st_cli.ilike("%fechou%"),
+            st_cli.ilike("%inativo%"),
+            st_cli.ilike("%invalidos%"),
         )
-        nao_inativo = and_(
-            not_(st_cli.like("%inativo%")),
-            or_(
-                models.Client.status_operacional.is_(None),
-                models.Client.status_operacional != "INATIVO",
-            ),
-        )
-        nao_invalidos = not_(st_cli.like("%invalidos%"))
-        query = query.where(and_(nao_fechou, nao_inativo, nao_invalidos))
+        query = query.where(not_(excl))
     elif status_filter == "fechou":
         query = query.where(or_(
             models.Client.status_operacional == "FECHOU",
-            func.lower(func.coalesce(col(models.Client.status_cliente), "")).like("%fechou%"),
+            st_cli.ilike("%fechou%"),
         ))
     elif status_filter == "inativo":
         query = query.where(or_(
             models.Client.status_operacional == "INATIVO",
-            func.lower(func.coalesce(col(models.Client.status_cliente), "")).like("%inativo%"),
+            st_cli.ilike("%inativo%"),
         ))
     elif status_filter == "em_validacao":
         query = query.where(models.Client.status_operacional == "EM_VALIDACAO")
@@ -8992,10 +8983,10 @@ async def clients_page(request: Request, session: Session = Depends(get_session)
         s = f"%{search}%"
         query = query.where(or_(
             models.Client.name.ilike(s),
-            col(models.Client.razao_social).like(s),
-            col(models.Client.nome_fantasia).like(s),
-            col(models.Client.nb).like(s),
-            col(models.Client.municipio).like(s),
+            models.Client.razao_social.ilike(s),
+            models.Client.nome_fantasia.ilike(s),
+            models.Client.nb.ilike(s),
+            models.Client.municipio.ilike(s),
         ))
 
     try:
