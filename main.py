@@ -204,6 +204,20 @@ def normalize_shift(value: Optional[str]) -> str:
     return cleaned.lower().strip()
 
 
+def shift_display_label(normalized: str) -> str:
+    """Retorna rótulo em português para exibição (evita duplicatas e encoding)."""
+    if not normalized:
+        return "Outro"
+    n = normalized.strip().lower()
+    if n.startswith("manha"):
+        return "Manhã"
+    if n.startswith("tard"):
+        return "Tarde"
+    if n.startswith("noit"):
+        return "Noite"
+    return normalized.strip().title() if normalized else "Outro"
+
+
 # API Models
 from pydantic import BaseModel
 from typing import Optional, List
@@ -7141,11 +7155,15 @@ async def admin_checklists_dashboard(
         .where(models.TranspalletChecklist.submitted_at >= start_date)
         .group_by(models.TranspalletChecklist.shift)
     ).all()
-    shift_stats = []
+    # Agrupar por turno normalizado para evitar duplicatas (ex.: Manhã vs Manh? por encoding)
+    by_norm = {}
     for shift, count in shift_counts:
+        norm = normalize_shift(shift)
+        by_norm[norm] = by_norm.get(norm, 0) + count
+    shift_stats = []
+    for norm, count in sorted(by_norm.items(), key=lambda x: x[1], reverse=True):
         pct = round((count / total_count) * 100, 1) if total_count else 0
-        shift_stats.append({"shift": shift, "count": count, "percent": pct})
-    shift_stats = sorted(shift_stats, key=lambda x: x["count"], reverse=True)
+        shift_stats.append({"shift": shift_display_label(norm), "count": count, "percent": pct})
 
     item_counter = Counter()
     for checklist in checklists:
@@ -8042,7 +8060,7 @@ async def admin_checklist_approve(
     checklist = session.get(models.TranspalletChecklist, checklist_id)
     if not checklist:
         raise HTTPException(status_code=404, detail="Checklist não encontrado.")
-    reviewer = str(user)
+    reviewer = format_user_label(user)
     apply_checklist_review(session, checklist, reviewer, "approve", comment)
     session.commit()
     return RedirectResponse(url=f"/admin/routine/checklists/{checklist_id}", status_code=status.HTTP_303_SEE_OTHER)
@@ -8058,7 +8076,7 @@ async def admin_checklist_reject(
     checklist = session.get(models.TranspalletChecklist, checklist_id)
     if not checklist:
         raise HTTPException(status_code=404, detail="Checklist não encontrado.")
-    reviewer = str(user)
+    reviewer = format_user_label(user)
     apply_checklist_review(session, checklist, reviewer, "reject", comment)
     session.commit()
     return RedirectResponse(url=f"/admin/routine/checklists/{checklist_id}", status_code=status.HTTP_303_SEE_OTHER)
@@ -8074,7 +8092,7 @@ async def admin_checklist_review(
     checklist = session.get(models.TranspalletChecklist, checklist_id)
     if not checklist:
         raise HTTPException(status_code=404, detail="Checklist não encontrado.")
-    reviewer = str(user)
+    reviewer = format_user_label(user)
     apply_checklist_review(session, checklist, reviewer, "review", comment)
     session.commit()
     return RedirectResponse(url=f"/admin/routine/checklists/{checklist_id}", status_code=status.HTTP_303_SEE_OTHER)
@@ -8707,7 +8725,7 @@ async def api_review_checklist(
     checklist = session.get(models.TranspalletChecklist, checklist_id)
     if not checklist:
         return JSONResponse({"error": "Checklist não encontrado."}, status_code=404)
-    reviewer = str(user)
+    reviewer = format_user_label(user)
     apply_checklist_review(session, checklist, reviewer, "review", comment)
     session.commit()
     return {"success": True}
@@ -8723,7 +8741,7 @@ async def api_approve_checklist(
     checklist = session.get(models.TranspalletChecklist, checklist_id)
     if not checklist:
         return JSONResponse({"error": "Checklist não encontrado."}, status_code=404)
-    reviewer = str(user)
+    reviewer = format_user_label(user)
     apply_checklist_review(session, checklist, reviewer, "approve", comment)
     session.commit()
     return {"success": True}
@@ -8739,7 +8757,7 @@ async def api_reject_checklist(
     checklist = session.get(models.TranspalletChecklist, checklist_id)
     if not checklist:
         return JSONResponse({"error": "Checklist não encontrado."}, status_code=404)
-    reviewer = str(user)
+    reviewer = format_user_label(user)
     apply_checklist_review(session, checklist, reviewer, "reject", comment)
     session.commit()
     return {"success": True}
@@ -21134,6 +21152,22 @@ async def admin_routine_checklist_detail(
             select(models.TranspalletEquipment).where(models.TranspalletEquipment.code == chk.equipment_code)
         ).first()
         label_map = checklist_item_label_map()
+        # Padrão BR: data DD/MM/AAAA, status e equipamento em português, KM com ponto milhar
+        date_br = chk.date
+        if chk.date:
+            if hasattr(chk.date, "strftime"):
+                date_br = chk.date.strftime("%d/%m/%Y")
+            elif isinstance(chk.date, str) and len(chk.date) >= 10:
+                date_br = f"{chk.date[8:10]}/{chk.date[5:7]}/{chk.date[0:4]}"
+        status_labels = {"approved": "Aprovado", "submitted": "Enviado", "reviewed": "Revisado", "rejected": "Rejeitado"}
+        equipment_status_labels = {"available": "Disponível", "blocked": "Bloqueado"}
+        odometer_km_br = None
+        if chk.odometer_km is not None:
+            try:
+                n = int(float(chk.odometer_km))
+                odometer_km_br = f"{n:,}".replace(",", ".")
+            except (TypeError, ValueError):
+                odometer_km_br = str(chk.odometer_km)
 
         return templates.TemplateResponse("admin_routine_checklist_detail.html", {
             "request": request,
@@ -21143,7 +21177,11 @@ async def admin_routine_checklist_detail(
             "employee_registration_id": emp.registration_id if emp else "-",
             "equipment": equipment,
             "label_map": label_map,
-            "items": CHECKLIST_ITEMS
+            "items": CHECKLIST_ITEMS,
+            "date_br": date_br,
+            "status_label": status_labels.get(chk.status, chk.status),
+            "equipment_status_label": equipment_status_labels.get(equipment.status, equipment.status) if equipment else "Disponível",
+            "odometer_km_br": odometer_km_br,
         })
     except Exception as e:
         logger.exception(f"Error loading checklist {checklist_id}")

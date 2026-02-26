@@ -63,20 +63,26 @@
                         <p class="text-sm font-semibold text-white">{{ checklist.equipment_code }}</p>
                         <p
                             class="text-xs {{ 'text-red-300' if equipment and equipment.status == 'blocked' else 'text-emerald-300' }}">
-                            {{ equipment.status if equipment else 'available' }}
+                            {{ equipment_status_label }}
                         </p>
                     </div>
                     <div>
                         <p class="text-xs text-slate-400">Data / Turno</p>
-                        <p class="text-sm font-semibold text-white">{{ checklist.date }}</p>
+                        <p class="text-sm font-semibold text-white">{{ date_br }}</p>
                         <p class="text-xs text-slate-500">{{ checklist.shift }}</p>
                     </div>
                 </div>
+                {% if odometer_km_br %}
+                <div class="mt-3 pt-3 border-t border-slate-700">
+                    <p class="text-xs text-slate-400">KM hodômetro</p>
+                    <p class="text-sm font-semibold text-white font-mono">{{ odometer_km_br }}</p>
+                </div>
+                {% endif %}
                 <div class="mt-4">
                     <p class="text-xs text-slate-400">Status</p>
                     <span
                         class="inline-flex text-xs px-2 py-1 rounded-full {{ 'bg-emerald-500/20 text-emerald-200' if checklist.status == 'approved' else 'bg-amber-500/20 text-amber-200' if checklist.status in ['submitted','reviewed'] else 'bg-red-500/20 text-red-200' }}">
-                        {{ checklist.status }}
+                        {{ status_label }}
                     </span>
                 </div>
             </div>
