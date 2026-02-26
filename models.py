@@ -146,7 +146,35 @@ class Client(SQLModel, table=True):
     endereco_normalizado: Optional[str] = Field(default=None, index=True)  # Endereço higienizado para dedup
     segmento: Optional[str] = Field(default=None, index=True)
     status_cliente: Optional[str] = Field(default=None, index=True)  # STATUS (ativo, inativo, etc.)
+    # Cadastro Mestre Logístico
+    status_operacional: Optional[str] = Field(default="ATIVO", index=True)  # ATIVO, FECHOU, INATIVO, EM_VALIDACAO
+    logradouro: Optional[str] = None
+    numero: Optional[str] = None
+    complemento: Optional[str] = None
+    referencia: Optional[str] = None
+    observacoes_acesso: Optional[str] = None  # entrada lateral, doca, etc.
+    fone_alternativo: Optional[str] = None
+    observacoes_contato: Optional[str] = None
+    janela_dias_semana: Optional[str] = None  # JSON: ["seg","ter",...]
+    janela_horario_inicio: Optional[str] = None  # HH:MM
+    janela_horario_fim: Optional[str] = None  # HH:MM
+    prioridade_logistica: Optional[str] = Field(default=None, index=True)  # A, B, C
+    lgpd_nao_contatar: bool = Field(default=False)
+    lgpd_restricao_dados: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: Optional[datetime] = None
+
+
+class ClientAuditLog(SQLModel, table=True):
+    """Histórico de alterações do cadastro de cliente."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    client_id: int = Field(foreign_key="client.id", index=True)
+    changed_by: Optional[str] = None  # username
+    changed_at: datetime = Field(default_factory=datetime.now, index=True)
+    field_name: Optional[str] = None
+    old_value: Optional[str] = None
+    new_value: Optional[str] = None
+    action: str = Field(default="update", index=True)  # update, create, delete
 
 
 class ClientImportBatch(SQLModel, table=True):
@@ -223,6 +251,9 @@ class Route(SQLModel, table=True):
     start_time: str # HH:MM
     end_time: Optional[str] = None # HH:MM
     tonnage: float = 0.0
+    valor_financeiro: Optional[float] = None  # R$ mercadoria
+    devolucao_volume: Optional[float] = None  # volume devolvido (ton)
+    valor_devolucao: Optional[float] = None  # R$ valor da devolução
     status: str = "pending" # pending, completed
     created_at: datetime = Field(default_factory=datetime.now)
 

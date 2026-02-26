@@ -10,6 +10,11 @@
                 <p class="text-slate-400">Gerencie a lista de clientes para a operação. Cadastre manualmente ou importe via Excel.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
+                <button type="button" onclick="openNovoClienteModal()"
+                    class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    Novo Cliente
+                </button>
                 <form action="/clients/import" method="post" enctype="multipart/form-data" class="flex flex-wrap items-center gap-2">
                     <label class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 cursor-pointer transition-colors border border-slate-600 text-sm font-medium">
                         <i data-lucide="upload" class="w-4 h-4 text-slate-400"></i>
@@ -60,93 +65,22 @@
         </div>
         {% endif %}
 
-        <!-- Add Client Card -->
-        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg mb-8">
-            <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                </svg>
-                Novo Cliente
-            </h2>
-            <form action="/clients/add" method="post" class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div class="md:col-span-2 lg:col-span-2">
-                        <label class="block text-xs font-medium text-slate-400 mb-1">Nome * (Razão Social ou Nome Fantasia)</label>
-                        <input type="text" name="name" required placeholder="Ex: Supermercado X"
-                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none placeholder-slate-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">NB (código)</label>
-                        <input type="text" name="nb" placeholder="Código"
-                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">SETOR</label>
-                        <input type="text" name="setor" placeholder="Setor"
-                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">ME</label>
-                        <input type="text" name="me" placeholder="ME"
-                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">SA</label>
-                        <input type="text" name="sa" placeholder="SA"
-                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">VISITA</label>
-                        <input type="text" name="visita" placeholder="Frequência"
-                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">Nome Fantasia (FANTAS)</label>
-                        <input type="text" name="nome_fantasia" placeholder="Nome Fantasia"
-                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">Razão Social</label>
-                        <input type="text" name="razao_social" placeholder="Razão Social"
-                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">MUNICÍPIO</label>
-                        <input type="text" name="municipio" placeholder="Cidade"
-                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">BAIRRO</label>
-                        <input type="text" name="bairro" placeholder="Bairro"
-                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-xs font-medium text-slate-400 mb-1">ENDEREÇO</label>
-                        <input type="text" name="endereco" placeholder="Endereço completo"
-                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">FONE</label>
-                        <input type="text" name="fone" placeholder="Telefone"
-                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">SEGMENTO</label>
-                        <input type="text" name="segmento" placeholder="Segmento"
-                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">STATUS</label>
-                        <input type="text" name="status_cliente" placeholder="Ativo, Inativo..."
-                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
-                    </div>
-                </div>
-                <div class="flex justify-end">
-                    <button type="submit"
-                        class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg font-semibold transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2">
-                        <span>Adicionar Cliente</span>
-                    </button>
-                </div>
+        <!-- Filtros -->
+        <div class="flex flex-wrap items-center gap-4 mb-6">
+            <form action="/clients" method="get" class="flex flex-wrap items-center gap-3">
+                <select name="status" onchange="this.form.submit()"
+                    class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500">
+                    <option value="ativos" {% if status_filter == 'ativos' %}selected{% endif %}>Ativos</option>
+                    <option value="todos" {% if status_filter == 'todos' %}selected{% endif %}>Todos</option>
+                    <option value="fechou" {% if status_filter == 'fechou' %}selected{% endif %}>Fechados</option>
+                    <option value="inativo" {% if status_filter == 'inativo' %}selected{% endif %}>Inativos</option>
+                    <option value="em_validacao" {% if status_filter == 'em_validacao' %}selected{% endif %}>Em Validação</option>
+                </select>
+                <input type="text" name="q" value="{{ search or '' }}" placeholder="Buscar nome, razão, NB, município..."
+                    class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm w-64 focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
+                <button type="submit" class="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium transition-colors">
+                    Buscar
+                </button>
             </form>
         </div>
 
@@ -181,8 +115,18 @@
                             <td class="px-6 py-4 text-slate-300">{{ client.municipio or '-' }}</td>
                             <td class="px-6 py-4 text-slate-300">{{ client.segmento or '-' }}</td>
                             <td class="px-6 py-4">
-                                {% if client.status_cliente %}
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400">{{ client.status_cliente }}</span>
+                                {% if client.status_cliente or client.status_operacional %}
+                                {% set st = (client.status_cliente or client.status_operacional or '')|upper %}
+                                {% set label = client.status_cliente or client.status_operacional %}
+                                {% if 'FECHOU' in st %}
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400">{{ label }}</span>
+                                {% elif 'INATIVO' in st %}
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-500/20 text-slate-400">{{ label }}</span>
+                                {% elif 'EM_VALIDACAO' in st or 'VALIDA' in st %}
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400">{{ label }}</span>
+                                {% else %}
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400">{{ label }}</span>
+                                {% endif %}
                                 {% else %}
                                 <span class="text-slate-500">-</span>
                                 {% endif %}
@@ -206,14 +150,65 @@
                     </path>
                 </svg>
                 <p>Nenhum cliente cadastrado ainda.</p>
-                <p class="text-sm mt-2">Use o formulário acima ou importe um arquivo Excel.</p>
+                <p class="text-sm mt-2">Use o botão Novo Cliente ou importe um arquivo Excel.</p>
             </div>
             {% endif %}
         </div>
     </div>
 </div>
 
+<!-- Modal Novo Cliente (flutuante) -->
+<div id="novoClienteModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm overflow-y-auto py-8">
+    <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-3xl mx-4">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+                <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Novo Cliente
+            </h2>
+            <button type="button" onclick="closeNovoClienteModal()" class="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <form action="/clients/add" method="post" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-h-[60vh] overflow-y-auto pr-2">
+                <div class="md:col-span-2 lg:col-span-2">
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Nome *</label>
+                    <input type="text" name="name" required placeholder="Razão Social ou Nome Fantasia"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
+                </div>
+                <div><label class="block text-xs font-medium text-slate-400 mb-1">NB</label><input type="text" name="nb" placeholder="Código" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
+                <div><label class="block text-xs font-medium text-slate-400 mb-1">SETOR</label><input type="text" name="setor" placeholder="Setor" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
+                <div><label class="block text-xs font-medium text-slate-400 mb-1">ME</label><input type="text" name="me" placeholder="ME" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
+                <div><label class="block text-xs font-medium text-slate-400 mb-1">SA</label><input type="text" name="sa" placeholder="SA" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
+                <div><label class="block text-xs font-medium text-slate-400 mb-1">VISITA</label><input type="text" name="visita" placeholder="Frequência" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
+                <div><label class="block text-xs font-medium text-slate-400 mb-1">Nome Fantasia</label><input type="text" name="nome_fantasia" placeholder="FANTAS" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
+                <div><label class="block text-xs font-medium text-slate-400 mb-1">Razão Social</label><input type="text" name="razao_social" placeholder="Razão Social" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
+                <div><label class="block text-xs font-medium text-slate-400 mb-1">MUNICÍPIO</label><input type="text" name="municipio" placeholder="Cidade" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
+                <div><label class="block text-xs font-medium text-slate-400 mb-1">BAIRRO</label><input type="text" name="bairro" placeholder="Bairro" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
+                <div class="md:col-span-2"><label class="block text-xs font-medium text-slate-400 mb-1">ENDEREÇO</label><input type="text" name="endereco" placeholder="Endereço" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
+                <div><label class="block text-xs font-medium text-slate-400 mb-1">FONE</label><input type="text" name="fone" placeholder="Telefone" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
+                <div><label class="block text-xs font-medium text-slate-400 mb-1">SEGMENTO</label><input type="text" name="segmento" placeholder="Segmento" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
+                <div><label class="block text-xs font-medium text-slate-400 mb-1">STATUS</label><input type="text" name="status_cliente" placeholder="Ativo, Inativo..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
+            </div>
+            <div class="flex justify-end gap-2 pt-4 border-t border-slate-700">
+                <button type="button" onclick="closeNovoClienteModal()" class="px-4 py-2 text-slate-400 hover:text-white transition">Cancelar</button>
+                <button type="submit" class="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition-colors">Adicionar Cliente</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
+function openNovoClienteModal() {
+    document.getElementById('novoClienteModal').classList.remove('hidden');
+    document.getElementById('novoClienteModal').classList.add('flex');
+}
+function closeNovoClienteModal() {
+    document.getElementById('novoClienteModal').classList.add('hidden');
+    document.getElementById('novoClienteModal').classList.remove('flex');
+}
 document.getElementById('clients-excel-input')?.addEventListener('change', function() {
     const span = document.getElementById('clients-file-name');
     if (span) span.textContent = this.files?.length ? this.files[0].name : '';

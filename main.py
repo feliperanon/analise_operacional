@@ -24,7 +24,7 @@ import statistics
 from email.message import EmailMessage
 from starlette.middleware.sessions import SessionMiddleware
 from sqlmodel import Session, select, col, delete, text, or_, desc
-from sqlalchemy import func, inspect
+from sqlalchemy import func, inspect, not_, and_
 from typing import List
 from database import create_db_and_tables, get_session, engine
 import models
@@ -377,8 +377,9 @@ async def lifespan(app: FastAPI):
         ensure_vehicle_schema()
         ensure_checklist_odometer_schema()
         ensure_client_schema()
+        ensure_route_schema()
     except Exception as e:
-        logger.error(f"Erro ao migrar vehicle/checklist/client: {e}")
+        logger.error(f"Erro ao migrar vehicle/checklist/client/route: {e}")
     try:
         ensure_user_auth_schema()
         ensure_employee_access_schema()
@@ -6076,6 +6077,21 @@ def ensure_client_schema():
             "endereco_normalizado": "VARCHAR(255)",
             "segmento": "VARCHAR(128)",
             "status_cliente": "VARCHAR(64)",
+            "status_operacional": "VARCHAR(32)",
+            "logradouro": "VARCHAR(255)",
+            "numero": "VARCHAR(32)",
+            "complemento": "VARCHAR(128)",
+            "referencia": "VARCHAR(255)",
+            "observacoes_acesso": "TEXT",
+            "fone_alternativo": "VARCHAR(64)",
+            "observacoes_contato": "TEXT",
+            "janela_dias_semana": "TEXT",
+            "janela_horario_inicio": "VARCHAR(8)",
+            "janela_horario_fim": "VARCHAR(8)",
+            "prioridade_logistica": "VARCHAR(4)",
+            "lgpd_nao_contatar": "BOOLEAN DEFAULT 0",
+            "lgpd_restricao_dados": "BOOLEAN DEFAULT 0",
+            "updated_at": "TIMESTAMP",
         }
         with engine.connect() as conn:
             for col_name, col_type in missing.items():
@@ -6084,6 +6100,23 @@ def ensure_client_schema():
                     conn.commit()
     except Exception as e:
         logger.error(f"ensure_client_schema: {e}")
+
+
+def ensure_route_schema():
+    """Adiciona colunas valor_financeiro, devolucao_volume, valor_devolucao à tabela route."""
+    try:
+        inspector = inspect(engine)
+        if "route" not in inspector.get_table_names():
+            return
+        cols = {c["name"] for c in inspector.get_columns("route")}
+        missing = {"valor_financeiro": "REAL", "devolucao_volume": "REAL", "valor_devolucao": "REAL"}
+        with engine.connect() as conn:
+            for col_name, col_type in missing.items():
+                if col_name not in cols:
+                    conn.execute(text(f"ALTER TABLE route ADD COLUMN {col_name} {col_type}"))
+                    conn.commit()
+    except Exception as e:
+        logger.error(f"ensure_route_schema: {e}")
 
 
 @app.on_event("startup")
@@ -8908,6 +8941,7 @@ async def add_client(
                 fone_e164=fone_e164_val,
                 segmento=_opt_form(segmento),
                 status_cliente=_opt_form(status_cliente),
+                status_operacional="ATIVO",
             )
             session.add(new_client)
             session.commit()
@@ -8917,8 +8951,66 @@ async def add_client(
 @app.get("/clients", response_class=HTMLResponse)
 async def clients_page(request: Request, session: Session = Depends(get_session)):
     user = require_login(request)
-    clients = session.exec(select(models.Client)).all()
-    return templates.TemplateResponse("clients.html", {"request": request, "user": user, "clients": clients})
+    status_filter = request.query_params.get("status", "ativos")  # ativos, todos, fechou, inativo, em_validacao
+    search = (request.query_params.get("q") or "").strip()
+
+    query = select(models.Client)
+    if status_filter == "ativos":
+        # Excluir FECHOU, INATIVO, CNPJ/CPF INVALIDOS e outros não-ativos
+        st_cli = func.lower(func.coalesce(models.Client.status_cliente, ""))
+        st_op = func.coalesce(models.Client.status_operacional, "")
+        nao_fechou = and_(
+            not_(st_cli.like("%fechou%")),
+            st_op != "FECHOU",
+        )
+        nao_inativo = and_(
+            not_(st_cli.like("%inativo%")),
+            st_op != "INATIVO",
+        )
+        nao_invalidos = not_(st_cli.like("%invalidos%"))
+        # Incluir se: não é fechou E não é inativo E não contém invalidos
+        query = query.where(and_(nao_fechou, nao_inativo, nao_invalidos))
+    elif status_filter == "fechou":
+        query = query.where(or_(
+            models.Client.status_operacional == "FECHOU",
+            func.lower(func.coalesce(col(models.Client.status_cliente), "")).like("%fechou%"),
+        ))
+    elif status_filter == "inativo":
+        query = query.where(or_(
+            models.Client.status_operacional == "INATIVO",
+            func.lower(func.coalesce(col(models.Client.status_cliente), "")).like("%inativo%"),
+        ))
+    elif status_filter == "em_validacao":
+        query = query.where(models.Client.status_operacional == "EM_VALIDACAO")
+    # "todos" = no status filter
+
+    if search:
+        s = f"%{search}%"
+        query = query.where(or_(
+            models.Client.name.ilike(s),
+            col(models.Client.razao_social).like(s),
+            col(models.Client.nome_fantasia).like(s),
+            col(models.Client.nb).like(s),
+            col(models.Client.municipio).like(s),
+        ))
+
+    clients = list(session.exec(query).all())
+    # #region agent log
+    try:
+        import json
+        tot = session.exec(select(models.Client)).all()
+        sample = [(c.id, c.name, getattr(c, "status_cliente", None), getattr(c, "status_operacional", None)) for c in (list(tot)[:5])]
+        open("debug-051f4c.log", "a", encoding="utf-8").write(json.dumps({"sessionId":"051f4c","message":"clients_page","data":{"status_filter":status_filter,"returned":len(clients),"total":len(tot),"sample":sample}})+"\n")
+    except Exception:
+        pass
+    # #endregion
+    return templates.TemplateResponse("clients.html", {
+        "request": request,
+        "user": user,
+        "clients": clients,
+        "status_filter": status_filter,
+        "search": search,
+    })
 @app.get("/clients/list", response_class=JSONResponse)
 async def list_clients(session: Session = Depends(get_session)):
     clients = session.exec(select(models.Client)).all()
@@ -8942,13 +9034,18 @@ async def client_details(request: Request, client_id: int, session: Session = De
     total_duration_secs = 0.0
     count_duration = 0
     
-    # Period Stats
+    # Period Stats (tonnage)
     today = datetime.now().date()
     stats_today = 0.0
     stats_week = 0.0
     stats_month = 0.0
     stats_year = 0.0
-    
+    # Period Stats (valor financeiro R$)
+    valor_today, valor_week, valor_month, valor_year = 0.0, 0.0, 0.0, 0.0
+    # Period Stats (devolucao volume ton e valor R$)
+    dev_vol_today, dev_vol_week, dev_vol_month, dev_vol_year = 0.0, 0.0, 0.0, 0.0
+    valor_dev_today, valor_dev_week, valor_dev_month, valor_dev_year = 0.0, 0.0, 0.0, 0.0
+
     # Employee Stats
     emp_counter = {}
     
@@ -8980,7 +9077,27 @@ async def client_details(request: Request, client_id: int, session: Session = De
             
         if r_date.year == today.year:
             stats_year += t
-            
+
+        vf = getattr(r, "valor_financeiro", None) or 0.0
+        dv = getattr(r, "devolucao_volume", None) or 0.0
+        vdev = getattr(r, "valor_devolucao", None) or 0.0
+        if r_date == today:
+            valor_today += vf
+            dev_vol_today += dv
+            valor_dev_today += vdev
+        if r_date.isocalendar()[1] == today.isocalendar()[1] and r_date.year == today.year:
+            valor_week += vf
+            dev_vol_week += dv
+            valor_dev_week += vdev
+        if r_date.month == today.month and r_date.year == today.year:
+            valor_month += vf
+            dev_vol_month += dv
+            valor_dev_month += vdev
+        if r_date.year == today.year:
+            valor_year += vf
+            dev_vol_year += dv
+            valor_dev_year += vdev
+
         # Employee Count
         eid = r.employee_id
         if eid not in emp_counter: emp_counter[eid] = {'count': 0, 'tonnage': 0.0}
@@ -9050,10 +9167,21 @@ async def client_details(request: Request, client_id: int, session: Session = De
             
     def fmt(n): return f"{n:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     
+    try:
+        audit_logs = list(session.exec(
+            select(models.ClientAuditLog)
+            .where(models.ClientAuditLog.client_id == client_id)
+            .order_by(models.ClientAuditLog.changed_at.desc())
+            .limit(50)
+        ).all())
+    except Exception:
+        audit_logs = []
+
     return templates.TemplateResponse("client_details.html", {
         "request": request,
         "user": user,
         "client": client,
+        "audit_logs": audit_logs,
         "stats": {
             "total_tonnage_fmt": fmt(total_tonnage),
             "avg_duration_fmt": avg_duration_str,
@@ -9069,7 +9197,29 @@ async def client_details(request: Request, client_id: int, session: Session = De
             "today_fmt": fmt(stats_today),
             "week_fmt": fmt(stats_week),
             "month_fmt": fmt(stats_month),
-            "year_fmt": fmt(stats_year)
+            "year_fmt": fmt(stats_year),
+        },
+        "periods_valor": {
+            "today_fmt": f"R$ {fmt(valor_today)}",
+            "week_fmt": f"R$ {fmt(valor_week)}",
+            "month_fmt": f"R$ {fmt(valor_month)}",
+            "year_fmt": f"R$ {fmt(valor_year)}",
+        },
+        "periods_devolucao_vol": {
+            "today_fmt": fmt(dev_vol_today),
+            "week_fmt": fmt(dev_vol_week),
+            "month_fmt": fmt(dev_vol_month),
+            "year_fmt": fmt(dev_vol_year),
+        },
+        "periods_valor_devolucao": {
+            "today_fmt": f"R$ {fmt(valor_dev_today)}",
+            "week_fmt": f"R$ {fmt(valor_dev_week)}",
+            "month_fmt": f"R$ {fmt(valor_dev_month)}",
+            "year_fmt": f"R$ {fmt(valor_dev_year)}",
+        },
+        "chart_devolucao": {
+            "pct_volume": round(100 * dev_vol_year / stats_year, 1) if stats_year > 0 else 0,
+            "pct_valor": round(100 * valor_dev_year / valor_year, 1) if valor_year > 0 else 0,
         },
         "history": history
     })
@@ -9092,11 +9242,28 @@ async def update_client(
     fone: Optional[str] = Form(None),
     segmento: Optional[str] = Form(None),
     status_cliente: Optional[str] = Form(None),
+    status_operacional: Optional[str] = Form(None),
+    logradouro: Optional[str] = Form(None),
+    numero: Optional[str] = Form(None),
+    complemento: Optional[str] = Form(None),
+    referencia: Optional[str] = Form(None),
+    observacoes_acesso: Optional[str] = Form(None),
+    fone_alternativo: Optional[str] = Form(None),
+    observacoes_contato: Optional[str] = Form(None),
+    janela_dias_semana: Optional[str] = Form(None),
+    janela_horario_inicio: Optional[str] = Form(None),
+    janela_horario_fim: Optional[str] = Form(None),
+    prioridade_logistica: Optional[str] = Form(None),
+    lgpd_nao_contatar: Optional[str] = Form(None),
+    lgpd_restricao_dados: Optional[str] = Form(None),
     session: Session = Depends(get_session)
 ):
     require_login(request)
     client = session.get(models.Client, client_id)
     if client:
+        old_name, old_nb, old_setor, old_razao, old_status_op = (
+            client.name, client.nb, client.setor, client.razao_social, client.status_operacional
+        )
         fone_val = _opt_form(fone)
         fone_e164_val, _ = normalize_phone_br(fone_val)
         endereco_val = _opt_form(endereco)
@@ -9117,6 +9284,45 @@ async def update_client(
         client.fone_e164 = fone_e164_val
         client.segmento = _opt_form(segmento)
         client.status_cliente = _opt_form(status_cliente)
+        client.status_operacional = _opt_form(status_operacional) or "ATIVO"
+        client.logradouro = _opt_form(logradouro)
+        client.numero = _opt_form(numero)
+        client.complemento = _opt_form(complemento)
+        client.referencia = _opt_form(referencia)
+        client.observacoes_acesso = _opt_form(observacoes_acesso)
+        client.fone_alternativo = _opt_form(fone_alternativo)
+        client.observacoes_contato = _opt_form(observacoes_contato)
+        client.janela_dias_semana = _opt_form(janela_dias_semana)
+        client.janela_horario_inicio = _opt_form(janela_horario_inicio)
+        client.janela_horario_fim = _opt_form(janela_horario_fim)
+        client.prioridade_logistica = _opt_form(prioridade_logistica)
+        client.lgpd_nao_contatar = (lgpd_nao_contatar or "").strip().lower() in ("on", "1", "true", "sim", "sim")
+        client.lgpd_restricao_dados = (lgpd_restricao_dados or "").strip().lower() in ("on", "1", "true", "sim", "sim")
+        client.updated_at = datetime.now()
+        username = request.session.get("username", "sistema")
+        new_name = name.strip()
+        new_nb = _opt_form(nb)
+        new_setor = _opt_form(setor)
+        new_razao = _opt_form(razao_social)
+        new_status_op = _opt_form(status_operacional) or "ATIVO"
+        audit_fields = [
+            ("name", old_name, new_name),
+            ("nb", old_nb, new_nb),
+            ("setor", old_setor, new_setor),
+            ("razao_social", old_razao, new_razao),
+            ("status_operacional", old_status_op, new_status_op),
+        ]
+        for field_name, old_val, new_val in audit_fields:
+            if str(old_val or "") != str(new_val or ""):
+                log_entry = models.ClientAuditLog(
+                    client_id=client_id,
+                    changed_by=username,
+                    field_name=field_name,
+                    old_value=str(old_val)[:500] if old_val else None,
+                    new_value=str(new_val)[:500] if new_val else None,
+                    action="update",
+                )
+                session.add(log_entry)
         session.add(client)
         session.commit()
     return RedirectResponse(url=f"/clients/{client_id}", status_code=status.HTTP_303_SEE_OTHER)

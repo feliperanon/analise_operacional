@@ -64,7 +64,17 @@
                 {% if client.fone %}<div><span class="text-slate-500">Fone:</span> <span class="text-white">{{ client.fone }}</span></div>{% endif %}
                 {% if client.segmento %}<div><span class="text-slate-500">Segmento:</span> <span class="text-white">{{ client.segmento }}</span></div>{% endif %}
                 {% if client.status_cliente %}<div><span class="text-slate-500">Status:</span> <span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400">{{ client.status_cliente }}</span></div>{% endif %}
-                {% if not (client.nb or client.setor or client.municipio or client.bairro or client.endereco or client.fone or client.segmento or client.status_cliente) %}
+                {% if client.status_operacional %}<div><span class="text-slate-500">Status Operacional:</span> <span class="px-2 py-0.5 rounded text-xs font-bold {% if client.status_operacional == 'ATIVO' %}bg-emerald-500/20 text-emerald-400{% elif client.status_operacional == 'FECHOU' %}bg-rose-500/20 text-rose-400{% elif client.status_operacional == 'INATIVO' %}bg-slate-500/20 text-slate-400{% else %}bg-amber-500/20 text-amber-400{% endif %}">{{ client.status_operacional }}</span></div>{% endif %}
+                {% if client.numero %}<div><span class="text-slate-500">Nº:</span> <span class="text-white">{{ client.numero }}</span></div>{% endif %}
+                {% if client.complemento %}<div><span class="text-slate-500">Complemento:</span> <span class="text-white">{{ client.complemento }}</span></div>{% endif %}
+                {% if client.referencia %}<div class="md:col-span-2 lg:col-span-4"><span class="text-slate-500">Referência:</span> <span class="text-white">{{ client.referencia }}</span></div>{% endif %}
+                {% if client.observacoes_acesso %}<div class="md:col-span-2 lg:col-span-4"><span class="text-slate-500">Observações de acesso:</span> <span class="text-white">{{ client.observacoes_acesso }}</span></div>{% endif %}
+                {% if client.fone_alternativo %}<div><span class="text-slate-500">Fone alternativo:</span> <span class="text-white">{{ client.fone_alternativo }}</span></div>{% endif %}
+                {% if client.janela_horario_inicio or client.janela_horario_fim %}<div><span class="text-slate-500">Janela recebimento:</span> <span class="text-white">{{ client.janela_horario_inicio or '-' }} - {{ client.janela_horario_fim or '-' }}</span></div>{% endif %}
+                {% if client.prioridade_logistica %}<div><span class="text-slate-500">Prioridade logística:</span> <span class="px-2 py-0.5 rounded text-xs font-bold bg-blue-500/20 text-blue-400">{{ client.prioridade_logistica }}</span></div>{% endif %}
+                {% if client.lgpd_nao_contatar %}<div><span class="text-slate-500">LGPD:</span> <span class="text-amber-400 text-xs">Não contatar</span></div>{% endif %}
+                {% if client.lgpd_restricao_dados %}<div><span class="text-slate-500">LGPD:</span> <span class="text-amber-400 text-xs">Restrição de dados</span></div>{% endif %}
+                {% if not (client.nb or client.setor or client.municipio or client.bairro or client.endereco or client.fone or client.segmento or client.status_cliente or client.status_operacional or client.numero or client.complemento or client.fone_alternativo or client.prioridade_logistica) %}
                 <p class="text-slate-500 italic col-span-full">Nenhum dado adicional cadastrado. Clique em Editar para preencher.</p>
                 {% endif %}
             </div>
@@ -101,41 +111,148 @@
             </div>
         </div>
 
-        <!-- Period Analysis -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-            <!-- Tonnage Breakdown -->
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6 col-span-2">
-                <h3 class="text-white font-bold mb-6 flex items-center gap-2">
+        <!-- Period Analysis - Linha 1: Volume | Valor Financeiro lado a lado -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
+                <h3 class="text-white font-bold mb-4 flex items-center gap-2">
                     <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
-                        </path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                     </svg>
                     Volume por Período
                 </h3>
-
-                <div class="grid grid-cols-4 gap-4">
-                    <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 text-center">
-                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-1">Hoje</p>
-                        <p class="text-xl font-bold text-white">{{ periods.today_fmt }} t</p>
+                <div class="grid grid-cols-4 gap-3">
+                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
+                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Hoje</p>
+                        <p class="text-lg font-bold text-white">{{ periods.today_fmt }} t</p>
                     </div>
-                    <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 text-center">
-                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-1">Esta Semana</p>
-                        <p class="text-xl font-bold text-white">{{ periods.week_fmt }} t</p>
+                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
+                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Semana</p>
+                        <p class="text-lg font-bold text-white">{{ periods.week_fmt }} t</p>
                     </div>
-                    <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 text-center">
-                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-1">Este Mês</p>
-                        <p class="text-xl font-bold text-white">{{ periods.month_fmt }} t</p>
+                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
+                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Mês</p>
+                        <p class="text-lg font-bold text-white">{{ periods.month_fmt }} t</p>
                     </div>
-                    <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 text-center">
-                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-1">Este Ano</p>
-                        <p class="text-2xl font-bold text-indigo-400">{{ periods.year_fmt }} t</p>
+                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
+                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Ano</p>
+                        <p class="text-xl font-bold text-indigo-400">{{ periods.year_fmt }} t</p>
                     </div>
                 </div>
             </div>
-
-            <!-- Quick Stats -->
             <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
+                <h3 class="text-white font-bold mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Valor Financeiro (R$) por Período
+                </h3>
+                <div class="grid grid-cols-4 gap-3">
+                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
+                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Hoje</p>
+                        <p class="text-lg font-bold text-white">{{ periods_valor.today_fmt }}</p>
+                    </div>
+                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
+                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Semana</p>
+                        <p class="text-lg font-bold text-white">{{ periods_valor.week_fmt }}</p>
+                    </div>
+                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
+                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Mês</p>
+                        <p class="text-lg font-bold text-white">{{ periods_valor.month_fmt }}</p>
+                    </div>
+                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
+                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Ano</p>
+                        <p class="text-xl font-bold text-emerald-400">{{ periods_valor.year_fmt }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Linha 2: Devolução (Volume) | Valor Devolução (R$) lado a lado -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
+                <h3 class="text-white font-bold mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+                    </svg>
+                    Devolução (Volume t) por Período
+                </h3>
+                <div class="grid grid-cols-4 gap-3">
+                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
+                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Hoje</p>
+                        <p class="text-lg font-bold text-white">{{ periods_devolucao_vol.today_fmt }} t</p>
+                    </div>
+                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
+                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Semana</p>
+                        <p class="text-lg font-bold text-white">{{ periods_devolucao_vol.week_fmt }} t</p>
+                    </div>
+                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
+                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Mês</p>
+                        <p class="text-lg font-bold text-white">{{ periods_devolucao_vol.month_fmt }} t</p>
+                    </div>
+                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
+                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Ano</p>
+                        <p class="text-xl font-bold text-rose-400">{{ periods_devolucao_vol.year_fmt }} t</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
+                <h3 class="text-white font-bold mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Valor Devolução (R$) por Período
+                </h3>
+                <div class="grid grid-cols-4 gap-3">
+                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
+                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Hoje</p>
+                        <p class="text-lg font-bold text-white">{{ periods_valor_devolucao.today_fmt }}</p>
+                    </div>
+                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
+                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Semana</p>
+                        <p class="text-lg font-bold text-white">{{ periods_valor_devolucao.week_fmt }}</p>
+                    </div>
+                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
+                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Mês</p>
+                        <p class="text-lg font-bold text-white">{{ periods_valor_devolucao.month_fmt }}</p>
+                    </div>
+                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
+                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Ano</p>
+                        <p class="text-xl font-bold text-amber-400">{{ periods_valor_devolucao.year_fmt }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráfico % Devolução -->
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6 mb-8">
+            <h3 class="text-white font-bold mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+                % Devolução (Este Ano)
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <p class="text-slate-400 text-sm mb-2">Por volume (ton)</p>
+                    <div class="h-8 bg-slate-900 rounded-lg overflow-hidden flex">
+                        <div class="bg-rose-500/80 h-full transition-all" style="width: {{ chart_devolucao.pct_volume }}%"></div>
+                        <div class="bg-emerald-500/30 h-full flex-1"></div>
+                    </div>
+                    <p class="text-white font-bold mt-2">{{ chart_devolucao.pct_volume }}% devolvido / 100% total</p>
+                </div>
+                <div>
+                    <p class="text-slate-400 text-sm mb-2">Por valor (R$)</p>
+                    <div class="h-8 bg-slate-900 rounded-lg overflow-hidden flex">
+                        <div class="bg-amber-500/80 h-full transition-all" style="width: {{ chart_devolucao.pct_valor }}%"></div>
+                        <div class="bg-emerald-500/30 h-full flex-1"></div>
+                    </div>
+                    <p class="text-white font-bold mt-2">{{ chart_devolucao.pct_valor }}% devolvido / 100% total</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6 mb-8">
                 <h3 class="text-white font-bold mb-4">Raio-X</h3>
                 <ul class="space-y-4">
                     <li class="flex justify-between items-center text-sm border-b border-slate-700 pb-3">
@@ -151,8 +268,42 @@
                         <span class="text-white font-bold">{{ stats.avg_productivity_fmt }} kg/h</span>
                     </li>
                 </ul>
+        </div>
+
+        {% if audit_logs %}
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6 mb-8">
+            <h3 class="text-white font-bold mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Histórico de Alterações
+            </h3>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead>
+                        <tr class="text-slate-400 text-xs uppercase font-bold border-b border-slate-700">
+                            <th class="py-3">Data</th>
+                            <th class="py-3">Usuário</th>
+                            <th class="py-3">Campo</th>
+                            <th class="py-3">Antes</th>
+                            <th class="py-3">Depois</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-700">
+                        {% for log in audit_logs %}
+                        <tr>
+                            <td class="py-2 text-slate-400 font-mono">{{ log.changed_at.strftime('%d/%m/%Y %H:%M') if log.changed_at else '-' }}</td>
+                            <td class="py-2 text-white">{{ log.changed_by or '-' }}</td>
+                            <td class="py-2 text-slate-300">{{ log.field_name or '-' }}</td>
+                            <td class="py-2 text-slate-400 truncate max-w-[120px]">{{ log.old_value or '-' }}</td>
+                            <td class="py-2 text-slate-300 truncate max-w-[120px]">{{ log.new_value or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
+        {% endif %}
 
         <!-- History Table -->
         <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
@@ -292,6 +443,88 @@
                     <label class="block text-xs font-medium text-slate-400 mb-1">Status</label>
                     <input type="text" name="status_cliente" value="{{ client.status_cliente or '' }}"
                         class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Status Operacional</label>
+                    <select name="status_operacional" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="ATIVO" {% if (client.status_operacional or 'ATIVO') == 'ATIVO' %}selected{% endif %}>ATIVO</option>
+                        <option value="FECHOU" {% if client.status_operacional == 'FECHOU' %}selected{% endif %}>FECHOU</option>
+                        <option value="INATIVO" {% if client.status_operacional == 'INATIVO' %}selected{% endif %}>INATIVO</option>
+                        <option value="EM_VALIDACAO" {% if client.status_operacional == 'EM_VALIDACAO' %}selected{% endif %}>EM_VALIDACAO</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Logradouro</label>
+                    <input type="text" name="logradouro" value="{{ client.logradouro or '' }}"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Número</label>
+                    <input type="text" name="numero" value="{{ client.numero or '' }}"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Complemento</label>
+                    <input type="text" name="complemento" value="{{ client.complemento or '' }}"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Referência</label>
+                    <input type="text" name="referencia" value="{{ client.referencia or '' }}"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Observações de acesso</label>
+                    <input type="text" name="observacoes_acesso" value="{{ client.observacoes_acesso or '' }}"
+                        placeholder="entrada lateral, doca..."
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Fone alternativo</label>
+                    <input type="text" name="fone_alternativo" value="{{ client.fone_alternativo or '' }}"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Observações contato</label>
+                    <input type="text" name="observacoes_contato" value="{{ client.observacoes_contato or '' }}"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Janela início</label>
+                    <input type="text" name="janela_horario_inicio" value="{{ client.janela_horario_inicio or '' }}" placeholder="08:00"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Janela fim</label>
+                    <input type="text" name="janela_horario_fim" value="{{ client.janela_horario_fim or '' }}" placeholder="17:00"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Dias semana</label>
+                    <input type="text" name="janela_dias_semana" value="{{ client.janela_dias_semana or '' }}"
+                        placeholder='["seg","ter","qua"]'
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Prioridade logística</label>
+                    <select name="prioridade_logistica" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">—</option>
+                        <option value="A" {% if client.prioridade_logistica == 'A' %}selected{% endif %}>A</option>
+                        <option value="B" {% if client.prioridade_logistica == 'B' %}selected{% endif %}>B</option>
+                        <option value="C" {% if client.prioridade_logistica == 'C' %}selected{% endif %}>C</option>
+                    </select>
+                </div>
+                <div class="md:col-span-2 flex gap-6 items-center">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="lgpd_nao_contatar" {% if client.lgpd_nao_contatar %}checked{% endif %}
+                            class="rounded bg-slate-900 border-slate-600 text-amber-500 focus:ring-blue-500">
+                        <span class="text-sm text-slate-400">LGPD: Não contatar</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="lgpd_restricao_dados" {% if client.lgpd_restricao_dados %}checked{% endif %}
+                            class="rounded bg-slate-900 border-slate-600 text-amber-500 focus:ring-blue-500">
+                        <span class="text-sm text-slate-400">LGPD: Restrição de dados</span>
+                    </label>
                 </div>
             </div>
             <div class="flex justify-end gap-2 pt-4 border-t border-slate-700">
