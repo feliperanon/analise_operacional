@@ -38,18 +38,6 @@ from urllib.error import HTTPError, URLError
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent
-DEBUG_LOG_PATH = BASE_DIR / "debug-067ae4.log"
-
-def _debug_log(location: str, message: str, data: dict, hypothesis_id: str):
-    # #region agent log
-    try:
-        import time as _t
-        with open(DEBUG_LOG_PATH, "a", encoding="utf-8") as _f:
-            _f.write(json.dumps({"sessionId": "067ae4", "timestamp": int(_t.time() * 1000), "location": location, "message": message, "data": data, "hypothesisId": hypothesis_id}) + "\n")
-    except Exception:
-        pass
-    # #endregion
-
 load_dotenv(dotenv_path=BASE_DIR / ".env", override=True)
 # Performance: Use INFO level in production, DEBUG only when explicitly enabled
 LOG_LEVEL = logging.DEBUG if os.getenv("DEBUG", "false").lower() == "true" else logging.INFO
@@ -8427,7 +8415,9 @@ async def api_create_checklist(
         return {"success": True, "id": checklist.id}
     except Exception as e:
         # #region agent log
-        _debug_log("main.py:api_create_checklist", "exception", {"exc_type": type(e).__name__, "exc_msg": str(e)[:500], "tb": traceback.format_exc()[-3000:]}, "root")
+        tb_str = traceback.format_exc()
+        _debug_log("main.py:api_create_checklist", "exception", {"exc_type": type(e).__name__, "exc_msg": str(e)[:500], "tb": tb_str[-3000:]}, "root")
+        logger.exception("api_create_checklist 500: %s", e)
         # #endregion
         raise
 
