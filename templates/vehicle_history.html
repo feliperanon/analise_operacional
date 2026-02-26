@@ -62,10 +62,10 @@
                             <td class="px-6 py-4 text-white font-mono">{{ c.date_fmt }}</td>
                             <td class="px-6 py-4">
                                 <span class="px-2 py-0.5 rounded text-[10px] font-bold
-                                    {% if c.shift == 'Manhã' %}bg-blue-500/20 text-blue-300
-                                    {% elif c.shift == 'Tarde' %}bg-orange-500/20 text-orange-300
+                                    {% if c.shift_display == 'Manhã' %}bg-blue-500/20 text-blue-300
+                                    {% elif c.shift_display == 'Tarde' %}bg-orange-500/20 text-orange-300
                                     {% else %}bg-purple-500/20 text-purple-300{% endif %}">
-                                    {{ c.shift }}
+                                    {{ c.shift_display }}
                                 </span>
                             </td>
                             <td class="px-6 py-4 text-slate-300">{{ c.employee_name }}</td>

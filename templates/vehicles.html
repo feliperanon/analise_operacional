@@ -4,16 +4,33 @@
 <div class="p-8">
     <div class="max-w-6xl mx-auto">
         <!-- Header -->
-        <div class="flex items-center justify-between mb-8">
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
             <div>
                 <h1 class="text-3xl font-bold text-white mb-2">Frota de Veículos</h1>
                 <p class="text-slate-400">Cadastre caminhões, motos e carros. Base para checklist do motorista, histórico de manutenção e alocação.</p>
             </div>
-            <a href="/vehicles/new"
-                class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-lg font-semibold transition-colors flex items-center gap-2">
-                <i data-lucide="plus" class="w-5 h-5"></i>
-                Novo Veículo
-            </a>
+            <div class="flex flex-wrap items-center gap-2">
+                <form action="/vehicles/import" method="post" enctype="multipart/form-data" class="flex flex-wrap items-center gap-2">
+                    <label class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 cursor-pointer transition-colors border border-slate-600 text-sm font-medium">
+                        <i data-lucide="upload" class="w-4 h-4 text-slate-400"></i>
+                        <span>Excel</span>
+                        <input type="file" name="file" accept=".xlsx,.xls" required class="hidden" id="excel-file-input">
+                    </label>
+                    <span id="file-name" class="text-slate-500 text-xs max-w-[140px] truncate"></span>
+                    <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-colors">
+                        <i data-lucide="import" class="w-4 h-4"></i>
+                        Importar
+                    </button>
+                </form>
+                <a href="/vehicles/template" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-600 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium transition-colors" download="planilha_veiculos_modelo.xlsx">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                    Modelo
+                </a>
+                <a href="/vehicles/new" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    Novo Veículo
+                </a>
+            </div>
         </div>
 
         {% if request.query_params.get("message") == "vehicle_created" %}
@@ -53,76 +70,49 @@
         </div>
         {% endif %}
 
-        <!-- Dashboard por tipo -->
+        <!-- Distribuição por tipo -->
         {% if stats and stats.total > 0 %}
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 flex items-center gap-4">
-                <div class="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                    <i data-lucide="truck" class="w-6 h-6 text-amber-400"></i>
+        {% set deg1 = stats.caminhao_pct / 100 * 360 %}
+        {% set deg2 = deg1 + (stats.moto_pct / 100 * 360) %}
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-8 mb-8">
+            <div class="flex flex-col items-center">
+                <div class="relative w-40 h-40 sm:w-48 sm:h-48 mb-6">
+                    <div class="w-full h-full rounded-full"
+                        style="background: conic-gradient(
+                            rgb(245 158 11) 0deg {{ deg1 }}deg,
+                            rgb(16 185 129) {{ deg1 }}deg {{ deg2 }}deg,
+                            rgb(59 130 246) {{ deg2 }}deg 360deg
+                        ); transform: rotate(-90deg);"></div>
+                    <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-slate-800 border-4 border-slate-700 flex flex-col items-center justify-center">
+                            <span class="text-xl sm:text-2xl font-bold text-white leading-none">{{ stats.total }}</span>
+                            <span class="text-[10px] sm:text-xs text-slate-500 uppercase tracking-wider mt-0.5">veículos</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="min-w-0">
-                    <p class="text-slate-400 text-sm">Caminhões</p>
-                    <p class="text-white font-bold text-lg">{{ stats.caminhao_count }} <span class="text-slate-500 font-normal">({{ stats.caminhao_pct }}%)</span></p>
-                </div>
-                <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
-                    <div class="h-full bg-amber-500 rounded-full" style="width: {{ stats.caminhao_pct }}%"></div>
-                </div>
-            </div>
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 flex items-center gap-4">
-                <div class="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                    <i data-lucide="motorbike" class="w-6 h-6 text-emerald-400"></i>
-                </div>
-                <div class="min-w-0">
-                    <p class="text-slate-400 text-sm">Motos</p>
-                    <p class="text-white font-bold text-lg">{{ stats.moto_count }} <span class="text-slate-500 font-normal">({{ stats.moto_pct }}%)</span></p>
-                </div>
-                <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
-                    <div class="h-full bg-emerald-500 rounded-full" style="width: {{ stats.moto_pct }}%"></div>
-                </div>
-            </div>
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 flex items-center gap-4">
-                <div class="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                    <i data-lucide="car" class="w-6 h-6 text-blue-400"></i>
-                </div>
-                <div class="min-w-0">
-                    <p class="text-slate-400 text-sm">Carros</p>
-                    <p class="text-white font-bold text-lg">{{ stats.carro_count }} <span class="text-slate-500 font-normal">({{ stats.carro_pct }}%)</span></p>
-                </div>
-                <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
-                    <div class="h-full bg-blue-500 rounded-full" style="width: {{ stats.carro_pct }}%"></div>
+                <div class="grid grid-cols-3 gap-4 sm:gap-6 w-full max-w-sm">
+                    <div class="text-center p-3 rounded-xl bg-slate-800/80 border border-slate-700/80">
+                        <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-500 mb-1.5"></span>
+                        <p class="text-slate-400 text-xs font-medium">Caminhões</p>
+                        <p class="text-white font-bold tabular-nums">{{ stats.caminhao_count }}</p>
+                        <p class="text-slate-500 text-[10px]">{{ stats.caminhao_pct }}%</p>
+                    </div>
+                    <div class="text-center p-3 rounded-xl bg-slate-800/80 border border-slate-700/80">
+                        <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 mb-1.5"></span>
+                        <p class="text-slate-400 text-xs font-medium">Motos</p>
+                        <p class="text-white font-bold tabular-nums">{{ stats.moto_count }}</p>
+                        <p class="text-slate-500 text-[10px]">{{ stats.moto_pct }}%</p>
+                    </div>
+                    <div class="text-center p-3 rounded-xl bg-slate-800/80 border border-slate-700/80">
+                        <span class="inline-block w-2.5 h-2.5 rounded-full bg-blue-500 mb-1.5"></span>
+                        <p class="text-slate-400 text-xs font-medium">Carros</p>
+                        <p class="text-white font-bold tabular-nums">{{ stats.carro_count }}</p>
+                        <p class="text-slate-500 text-[10px]">{{ stats.carro_pct }}%</p>
+                    </div>
                 </div>
             </div>
         </div>
         {% endif %}
-
-        <!-- Importar Excel -->
-        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg mb-8 overflow-hidden">
-            <div class="p-6 border-b border-slate-700/50">
-                <h2 class="text-lg font-semibold text-white mb-2 flex items-center gap-2">
-                    <i data-lucide="file-spreadsheet" class="w-5 h-5 text-emerald-400"></i>
-                    Importar do Excel
-                </h2>
-                <p class="text-slate-400 text-sm">Arquivo .xlsx ou .xls. Colunas obrigatórias: <strong>Placa</strong>, <strong>Veículo</strong>, <strong>Marca</strong>, <strong>Modelo</strong>. Opcionais: Renavam, Ano, Nº CRV, CHASSI.</p>
-            </div>
-            <div class="p-6 bg-slate-800/50">
-                <form action="/vehicles/import" method="post" enctype="multipart/form-data" class="flex flex-wrap items-center gap-3">
-                    <label class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 cursor-pointer transition-colors border border-slate-600">
-                        <i data-lucide="upload" class="w-5 h-5 text-slate-400"></i>
-                        <span>Escolher arquivo</span>
-                        <input type="file" name="file" accept=".xlsx,.xls" required class="hidden" id="excel-file-input">
-                    </label>
-                    <span id="file-name" class="text-slate-500 text-sm min-w-[180px]"></span>
-                    <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors">
-                        <i data-lucide="import" class="w-5 h-5"></i>
-                        Importar
-                    </button>
-                </form>
-                <a href="/vehicles/template" class="inline-flex items-center gap-2 mt-4 text-blue-400 hover:text-blue-300 text-sm font-medium" download="planilha_veiculos_modelo.xlsx">
-                    <i data-lucide="download" class="w-4 h-4"></i>
-                    Baixar planilha modelo
-                </a>
-            </div>
-        </div>
 
         <!-- Vehicles List -->
         <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden">

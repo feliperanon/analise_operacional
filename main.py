@@ -9274,11 +9274,14 @@ async def vehicle_history_page(request: Request, vehicle_id: int, session: Sessi
     rows = []
     for c in checklists:
         odom = getattr(c, "odometer_km", None)
+        shift_norm = normalize_shift(getattr(c, "shift", None))
+        shift_disp = shift_display_label(shift_norm)
         rows.append({
             "id": c.id,
             "date": c.date,
             "date_fmt": datetime.strptime(c.date, "%Y-%m-%d").strftime("%d/%m/%Y") if c.date else "-",
             "shift": c.shift,
+            "shift_display": shift_disp,
             "employee_name": emp_map.get(c.employee_id, "Desconhecido"),
             "odometer_km": odom,
             "odometer_fmt": f"{odom:,.0f}".replace(",", ".") if odom is not None else "-",
