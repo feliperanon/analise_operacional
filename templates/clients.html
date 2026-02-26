@@ -2,14 +2,57 @@
 
 {% block content %}
 <div class="p-8">
-    <div class="max-w-4xl mx-auto">
+    <div class="max-w-6xl mx-auto">
         <!-- Header -->
-        <div class="flex items-center justify-between mb-8">
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
             <div>
                 <h1 class="text-3xl font-bold text-white mb-2">Banco de Clientes</h1>
-                <p class="text-slate-400">Gerencie a lista de clientes para a operação.</p>
+                <p class="text-slate-400">Gerencie a lista de clientes para a operação. Cadastre manualmente ou importe via Excel.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <form action="/clients/import" method="post" enctype="multipart/form-data" class="flex flex-wrap items-center gap-2">
+                    <label class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 cursor-pointer transition-colors border border-slate-600 text-sm font-medium">
+                        <i data-lucide="upload" class="w-4 h-4 text-slate-400"></i>
+                        <span>Excel</span>
+                        <input type="file" name="file" accept=".xlsx,.xls" required class="hidden" id="clients-excel-input">
+                    </label>
+                    <span id="clients-file-name" class="text-slate-500 text-xs max-w-[140px] truncate"></span>
+                    <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-colors">
+                        <i data-lucide="import" class="w-4 h-4"></i>
+                        Importar
+                    </button>
+                </form>
+                <a href="/clients/template" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-600 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium transition-colors" download="planilha_clientes_modelo.xlsx">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                    Modelo Excel
+                </a>
             </div>
         </div>
+
+        {% if request.query_params.get("message") == "import_success" %}
+        <div class="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center gap-2">
+            <i data-lucide="check-circle" class="w-5 h-5 flex-shrink-0"></i>
+            <span>Importação concluída: {{ request.query_params.get('imported', 0) }} cliente(s) cadastrado(s){% if request.query_params.get('skipped', 0)|int > 0 %}, {{ request.query_params.get('skipped') }} ignorado(s) (nome já existe){% endif %}.</span>
+        </div>
+        {% endif %}
+        {% if request.query_params.get("error") == "invalid_file" %}
+        <div class="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center gap-2">
+            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
+            <span>Arquivo inválido. Envie um arquivo Excel (.xlsx ou .xls).</span>
+        </div>
+        {% endif %}
+        {% if request.query_params.get("error") == "missing_columns" %}
+        <div class="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center gap-2">
+            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
+            <span>O Excel precisa ter ao menos a coluna <strong>FANTAS</strong> (Nome Fantasia) ou <strong>Razão Social</strong>.</span>
+        </div>
+        {% endif %}
+        {% if request.query_params.get("error") == "import_failed" %}
+        <div class="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center gap-2">
+            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
+            <span>Erro ao processar o arquivo. Verifique o formato do Excel.</span>
+        </div>
+        {% endif %}
 
         <!-- Add Client Card -->
         <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg mb-8">
@@ -19,13 +62,85 @@
                 </svg>
                 Novo Cliente
             </h2>
-            <form action="/clients/add" method="post" class="flex gap-4">
-                <input type="text" name="name" required placeholder="Nome do Cliente (Ex: Supermercado X)"
-                    class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder-slate-500">
-                <button type="submit"
-                    class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg font-semibold transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2">
-                    <span>Adicionar</span>
-                </button>
+            <form action="/clients/add" method="post" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="md:col-span-2 lg:col-span-2">
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Nome * (Razão Social ou Nome Fantasia)</label>
+                        <input type="text" name="name" required placeholder="Ex: Supermercado X"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none placeholder-slate-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">NB (código)</label>
+                        <input type="text" name="nb" placeholder="Código"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">SETOR</label>
+                        <input type="text" name="setor" placeholder="Setor"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">ME</label>
+                        <input type="text" name="me" placeholder="ME"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">SA</label>
+                        <input type="text" name="sa" placeholder="SA"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">VISITA</label>
+                        <input type="text" name="visita" placeholder="Frequência"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Nome Fantasia (FANTAS)</label>
+                        <input type="text" name="nome_fantasia" placeholder="Nome Fantasia"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Razão Social</label>
+                        <input type="text" name="razao_social" placeholder="Razão Social"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">MUNICÍPIO</label>
+                        <input type="text" name="municipio" placeholder="Cidade"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">BAIRRO</label>
+                        <input type="text" name="bairro" placeholder="Bairro"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-medium text-slate-400 mb-1">ENDEREÇO</label>
+                        <input type="text" name="endereco" placeholder="Endereço completo"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">FONE</label>
+                        <input type="text" name="fone" placeholder="Telefone"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">SEGMENTO</label>
+                        <input type="text" name="segmento" placeholder="Segmento"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">STATUS</label>
+                        <input type="text" name="status_cliente" placeholder="Ativo, Inativo..."
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
+                    </div>
+                </div>
+                <div class="flex justify-end">
+                    <button type="submit"
+                        class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg font-semibold transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2">
+                        <span>Adicionar Cliente</span>
+                    </button>
+                </div>
             </form>
         </div>
 
@@ -36,26 +151,46 @@
             </div>
 
             {% if clients %}
-            <div class="divide-y divide-slate-700">
-                {% for client in clients %}
-                <a href="/clients/{{ client.id }}" class="block hover:bg-slate-700/30 transition-colors group">
-                    <div class="px-6 py-4 flex items-center justify-between">
-                        <div class="flex items-center gap-4">
-                            <div
-                                class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-slate-400 font-bold text-sm group-hover:bg-blue-500/20 group-hover:text-blue-400 transition-colors">
-                                {{ client.name[:2].upper() }}
-                            </div>
-                            <div>
-                                <span class="text-slate-200 font-medium block">{{ client.name }}</span>
-                                <span
-                                    class="text-[10px] text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">Ver
-                                    Perfil Completo &rarr;</span>
-                            </div>
-                        </div>
-                        <span class="text-xs text-slate-500">ID: #{{ client.id }}</span>
-                    </div>
-                </a>
-                {% endfor %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-900/50 text-slate-400 text-xs uppercase font-bold">
+                            <th class="px-6 py-4">NB</th>
+                            <th class="px-6 py-4">Nome</th>
+                            <th class="px-6 py-4">Setor</th>
+                            <th class="px-6 py-4">Município</th>
+                            <th class="px-6 py-4">Segmento</th>
+                            <th class="px-6 py-4">Status</th>
+                            <th class="px-6 py-4 text-right">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-700 text-sm">
+                        {% for client in clients %}
+                        <tr class="hover:bg-slate-700/30 transition-colors">
+                            <td class="px-6 py-4 text-slate-400 font-mono">{{ client.nb or '-' }}</td>
+                            <td class="px-6 py-4">
+                                <a href="/clients/{{ client.id }}" class="text-white font-medium hover:text-blue-400 transition-colors">{{ client.name }}</a>
+                            </td>
+                            <td class="px-6 py-4 text-slate-300">{{ client.setor or '-' }}</td>
+                            <td class="px-6 py-4 text-slate-300">{{ client.municipio or '-' }}</td>
+                            <td class="px-6 py-4 text-slate-300">{{ client.segmento or '-' }}</td>
+                            <td class="px-6 py-4">
+                                {% if client.status_cliente %}
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400">{{ client.status_cliente }}</span>
+                                {% else %}
+                                <span class="text-slate-500">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <a href="/clients/{{ client.id }}" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-700 hover:bg-blue-600 text-slate-300 hover:text-white transition-colors text-xs font-medium">
+                                    <i data-lucide="eye" class="w-4 h-4"></i>
+                                    Ver
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
             {% else %}
             <div class="p-12 text-center text-slate-500">
@@ -65,9 +200,18 @@
                     </path>
                 </svg>
                 <p>Nenhum cliente cadastrado ainda.</p>
+                <p class="text-sm mt-2">Use o formulário acima ou importe um arquivo Excel.</p>
             </div>
             {% endif %}
         </div>
     </div>
 </div>
+
+<script>
+document.getElementById('clients-excel-input')?.addEventListener('change', function() {
+    const span = document.getElementById('clients-file-name');
+    if (span) span.textContent = this.files?.length ? this.files[0].name : '';
+});
+if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+</script>
 {% endblock %}

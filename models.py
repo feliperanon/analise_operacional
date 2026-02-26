@@ -129,7 +129,21 @@ class SectorConfiguration(SQLModel, table=True):
 
 class Client(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    name: str = Field(index=True, unique=True)
+    name: str = Field(index=True, unique=True)  # Nome principal (Razão Social ou Nome Fantasia)
+    # Campos de cadastro completo
+    nb: Optional[str] = Field(default=None, index=True)  # Número/código do cliente
+    setor: Optional[str] = Field(default=None, index=True)
+    me: Optional[str] = Field(default=None)
+    sa: Optional[str] = Field(default=None)
+    visita: Optional[str] = Field(default=None)
+    nome_fantasia: Optional[str] = Field(default=None, index=True)  # FANTAS
+    razao_social: Optional[str] = Field(default=None, index=True)
+    municipio: Optional[str] = Field(default=None, index=True)
+    bairro: Optional[str] = Field(default=None)
+    endereco: Optional[str] = Field(default=None)
+    fone: Optional[str] = Field(default=None)
+    segmento: Optional[str] = Field(default=None, index=True)
+    status_cliente: Optional[str] = Field(default=None, index=True)  # STATUS (ativo, inativo, etc.)
     created_at: datetime = Field(default_factory=datetime.now)
 
 

@@ -375,8 +375,9 @@ async def lifespan(app: FastAPI):
     try:
         ensure_vehicle_schema()
         ensure_checklist_odometer_schema()
+        ensure_client_schema()
     except Exception as e:
-        logger.error(f"Erro ao migrar vehicle/checklist: {e}")
+        logger.error(f"Erro ao migrar vehicle/checklist/client: {e}")
     try:
         ensure_user_auth_schema()
         ensure_employee_access_schema()
@@ -6051,6 +6052,37 @@ def ensure_vehicle_schema():
         logger.error(f"ensure_vehicle_schema: {e}")
 
 
+def ensure_client_schema():
+    """Adiciona colunas extras de cadastro à tabela client se não existirem."""
+    try:
+        inspector = inspect(engine)
+        if "client" not in inspector.get_table_names():
+            return
+        cols = {c["name"] for c in inspector.get_columns("client")}
+        missing = {
+            "nb": "VARCHAR(64)",
+            "setor": "VARCHAR(128)",
+            "me": "VARCHAR(64)",
+            "sa": "VARCHAR(128)",
+            "visita": "VARCHAR(64)",
+            "nome_fantasia": "VARCHAR(255)",
+            "razao_social": "VARCHAR(255)",
+            "municipio": "VARCHAR(128)",
+            "bairro": "VARCHAR(128)",
+            "endereco": "VARCHAR(255)",
+            "fone": "VARCHAR(64)",
+            "segmento": "VARCHAR(128)",
+            "status_cliente": "VARCHAR(64)",
+        }
+        with engine.connect() as conn:
+            for col_name, col_type in missing.items():
+                if col_name not in cols:
+                    conn.execute(text(f"ALTER TABLE client ADD COLUMN {col_name} {col_type}"))
+                    conn.commit()
+    except Exception as e:
+        logger.error(f"ensure_client_schema: {e}")
+
+
 @app.on_event("startup")
 def on_startup():
     create_db_and_tables()
@@ -8822,23 +8854,56 @@ async def mobile_ai_today(request: Request, session: Session = Depends(get_sessi
 
 
 # --- Client Routes ---
+def _opt_form(v) -> Optional[str]:
+    """Converte Form() vazio em None."""
+    if v is None or (isinstance(v, str) and not v.strip()):
+        return None
+    return str(v).strip() or None
+
+
 @app.post("/clients/add", response_class=RedirectResponse)
 async def add_client(
     request: Request,
     name: str = Form(...),
+    nb: Optional[str] = Form(None),
+    setor: Optional[str] = Form(None),
+    me: Optional[str] = Form(None),
+    sa: Optional[str] = Form(None),
+    visita: Optional[str] = Form(None),
+    nome_fantasia: Optional[str] = Form(None),
+    razao_social: Optional[str] = Form(None),
+    municipio: Optional[str] = Form(None),
+    bairro: Optional[str] = Form(None),
+    endereco: Optional[str] = Form(None),
+    fone: Optional[str] = Form(None),
+    segmento: Optional[str] = Form(None),
+    status_cliente: Optional[str] = Form(None),
     session: Session = Depends(get_session)
 ):
     require_login(request)
     try:
-        # Check if exists
-        existing = session.exec(select(models.Client).where(models.Client.name == name)).first()
+        existing = session.exec(select(models.Client).where(models.Client.name == name.strip())).first()
         if not existing:
-            new_client = models.Client(name=name)
+            new_client = models.Client(
+                name=name.strip(),
+                nb=_opt_form(nb),
+                setor=_opt_form(setor),
+                me=_opt_form(me),
+                sa=_opt_form(sa),
+                visita=_opt_form(visita),
+                nome_fantasia=_opt_form(nome_fantasia),
+                razao_social=_opt_form(razao_social),
+                municipio=_opt_form(municipio),
+                bairro=_opt_form(bairro),
+                endereco=_opt_form(endereco),
+                fone=_opt_form(fone),
+                segmento=_opt_form(segmento),
+                status_cliente=_opt_form(status_cliente),
+            )
             session.add(new_client)
             session.commit()
     except Exception as e:
-        print(f"Error adding client: {e}")
-        # Redirect back to Clients page
+        logger.exception(f"Error adding client: {e}")
     return RedirectResponse(url="/clients", status_code=status.HTTP_303_SEE_OTHER)
 @app.get("/clients", response_class=HTMLResponse)
 async def clients_page(request: Request, session: Session = Depends(get_session)):
@@ -9001,11 +9066,42 @@ async def client_details(request: Request, client_id: int, session: Session = De
     })
 
 @app.post("/clients/{client_id}/update", response_class=RedirectResponse)
-async def update_client(request: Request, client_id: int, name: str = Form(...), session: Session = Depends(get_session)):
+async def update_client(
+    request: Request,
+    client_id: int,
+    name: str = Form(...),
+    nb: Optional[str] = Form(None),
+    setor: Optional[str] = Form(None),
+    me: Optional[str] = Form(None),
+    sa: Optional[str] = Form(None),
+    visita: Optional[str] = Form(None),
+    nome_fantasia: Optional[str] = Form(None),
+    razao_social: Optional[str] = Form(None),
+    municipio: Optional[str] = Form(None),
+    bairro: Optional[str] = Form(None),
+    endereco: Optional[str] = Form(None),
+    fone: Optional[str] = Form(None),
+    segmento: Optional[str] = Form(None),
+    status_cliente: Optional[str] = Form(None),
+    session: Session = Depends(get_session)
+):
     require_login(request)
     client = session.get(models.Client, client_id)
     if client:
-        client.name = name
+        client.name = name.strip()
+        client.nb = _opt_form(nb)
+        client.setor = _opt_form(setor)
+        client.me = _opt_form(me)
+        client.sa = _opt_form(sa)
+        client.visita = _opt_form(visita)
+        client.nome_fantasia = _opt_form(nome_fantasia)
+        client.razao_social = _opt_form(razao_social)
+        client.municipio = _opt_form(municipio)
+        client.bairro = _opt_form(bairro)
+        client.endereco = _opt_form(endereco)
+        client.fone = _opt_form(fone)
+        client.segmento = _opt_form(segmento)
+        client.status_cliente = _opt_form(status_cliente)
         session.add(client)
         session.commit()
     return RedirectResponse(url=f"/clients/{client_id}", status_code=status.HTTP_303_SEE_OTHER)
@@ -9022,6 +9118,188 @@ async def delete_client(request: Request, client_id: int, session: Session = Dep
         session.delete(client)
         session.commit()
     return RedirectResponse(url="/clients", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.get("/clients/template")
+async def clients_template(request: Request):
+    """Retorna planilha Excel modelo para importação de clientes."""
+    import pandas as pd
+    require_login(request)
+    df = pd.DataFrame([
+        {
+            "NB": "001",
+            "SETOR": "Varejo",
+            "ME": "01",
+            "SA": "Norte",
+            "VISITA": "Semanal",
+            "FANTAS": "Supermercado ABC",
+            "Razão Social": "ABC Comércio Ltda",
+            "MUNICÍPIO": "São Paulo",
+            "BAIRRO": "Centro",
+            "ENDEREÇO": "Rua Exemplo, 100",
+            "FONE": "(11) 3333-4444",
+            "SEGMENTO": "Alimentício",
+            "STATUS": "Ativo",
+        },
+        {
+            "NB": "002",
+            "SETOR": "Atacado",
+            "ME": "02",
+            "SA": "Sul",
+            "VISITA": "Quinzenal",
+            "FANTAS": "Atacadão XYZ",
+            "Razão Social": "XYZ Distribuidora S.A.",
+            "MUNICÍPIO": "Curitiba",
+            "BAIRRO": "Industrial",
+            "ENDEREÇO": "Av. Indústria, 500",
+            "FONE": "(41) 99999-0000",
+            "SEGMENTO": "Logística",
+            "STATUS": "Ativo",
+        },
+    ])
+    buf = io.BytesIO()
+    df.to_excel(buf, index=False, engine="openpyxl")
+    buf.seek(0)
+    return Response(
+        content=buf.read(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=planilha_clientes_modelo.xlsx"},
+    )
+
+
+@app.get("/clients/import")
+async def clients_import_get(request: Request):
+    """Redireciona para /clients se acessar /clients/import via GET."""
+    require_login(request)
+    return RedirectResponse(url="/clients", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.post("/clients/import", response_class=RedirectResponse)
+async def clients_import(
+    request: Request,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session)
+):
+    require_login(request)
+    if not file.filename or (not file.filename.lower().endswith((".xlsx", ".xls"))):
+        return RedirectResponse(url="/clients?error=invalid_file", status_code=status.HTTP_303_SEE_OTHER)
+    try:
+        import pandas as pd
+        content = await file.read()
+        engine_read = "openpyxl" if file.filename.lower().endswith(".xlsx") else "xlrd"
+
+        def norm(s: str) -> str:
+            s = (s or "").strip().lower()
+            return unicodedata.normalize("NFD", s).encode("ascii", "ignore").decode("ascii")
+
+        def find_col_map(columns) -> dict:
+            col_map = {}
+            keywords = {
+                "nb": ["nb"],
+                "setor": ["setor"],
+                "me": ["me"],
+                "sa": ["sa"],
+                "visita": ["visita"],
+                "fantas": ["fantas", "nome fantasia"],
+                "razao_social": ["razao social", "razão social", "razao_social"],
+                "municipio": ["municipio", "município"],
+                "bairro": ["bairro"],
+                "endereco": ["endereco", "endereço"],
+                "fone": ["fone", "telefone"],
+                "segmento": ["segmento"],
+                "status": ["status"],
+            }
+            for std, kws in keywords.items():
+                for c in columns:
+                    cn = norm(str(c))
+                    for kw in kws:
+                        kn = norm(kw)
+                        if cn == kn or kn in cn:
+                            col_map[std] = c
+                            break
+                    if std in col_map:
+                        break
+            return col_map
+
+        def _opt(v):
+            if pd.isna(v):
+                return None
+            s = str(v).strip()
+            return s if s else None
+
+        df = pd.read_excel(io=content, engine=engine_read, header=0)
+        df.columns = [str(c).strip() for c in df.columns]
+        col_map = find_col_map(df.columns)
+
+        # Coluna obrigatória: Nome do cliente (FANTAS ou Razão Social)
+        name_col = col_map.get("fantas") or col_map.get("razao_social")
+        if name_col is None and len(df.columns) >= 1:
+            # Fallback: primeira coluna como nome
+            name_col = df.columns[0]
+
+        if name_col is None:
+            return RedirectResponse(
+                url="/clients?error=missing_columns",
+                status_code=status.HTTP_303_SEE_OTHER
+            )
+
+        existing_names = {n[0].strip().lower() for n in session.exec(select(models.Client.name)).all()}
+        imported = 0
+        skipped = 0
+
+        for _, row in df.iterrows():
+            name_raw = row.get(name_col)
+            if pd.isna(name_raw):
+                continue
+            name = _opt(name_raw)
+            if not name or len(name) < 2:
+                continue
+            if name.lower() in existing_names:
+                skipped += 1
+                continue
+
+            nb = _opt(row.get(col_map.get("nb"))) if "nb" in col_map else None
+            setor = _opt(row.get(col_map.get("setor"))) if "setor" in col_map else None
+            me = _opt(row.get(col_map.get("me"))) if "me" in col_map else None
+            sa = _opt(row.get(col_map.get("sa"))) if "sa" in col_map else None
+            visita = _opt(row.get(col_map.get("visita"))) if "visita" in col_map else None
+            nome_fantasia = _opt(row.get(col_map.get("fantas"))) if "fantas" in col_map else None
+            razao_social = _opt(row.get(col_map.get("razao_social"))) if "razao_social" in col_map else None
+            municipio = _opt(row.get(col_map.get("municipio"))) if "municipio" in col_map else None
+            bairro = _opt(row.get(col_map.get("bairro"))) if "bairro" in col_map else None
+            endereco = _opt(row.get(col_map.get("endereco"))) if "endereco" in col_map else None
+            fone = _opt(row.get(col_map.get("fone"))) if "fone" in col_map else None
+            segmento = _opt(row.get(col_map.get("segmento"))) if "segmento" in col_map else None
+            status_cliente = _opt(row.get(col_map.get("status"))) if "status" in col_map else None
+
+            new_client = models.Client(
+                name=name,
+                nb=nb,
+                setor=setor,
+                me=me,
+                sa=sa,
+                visita=visita,
+                nome_fantasia=nome_fantasia,
+                razao_social=razao_social,
+                municipio=municipio,
+                bairro=bairro,
+                endereco=endereco,
+                fone=fone,
+                segmento=segmento,
+                status_cliente=status_cliente,
+            )
+            session.add(new_client)
+            existing_names.add(name.lower())
+            imported += 1
+
+        session.commit()
+        return RedirectResponse(
+            url=f"/clients?message=import_success&imported={imported}&skipped={skipped}",
+            status_code=status.HTTP_303_SEE_OTHER
+        )
+    except Exception as e:
+        logger.exception(f"Clients import error: {e}")
+        return RedirectResponse(url="/clients?error=import_failed", status_code=status.HTTP_303_SEE_OTHER)
 
 
 # --- Vehicle (Frota) Routes ---
