@@ -142,9 +142,55 @@ class Client(SQLModel, table=True):
     bairro: Optional[str] = Field(default=None)
     endereco: Optional[str] = Field(default=None)
     fone: Optional[str] = Field(default=None)
+    fone_e164: Optional[str] = Field(default=None, index=True)  # E.164 para dedup
+    endereco_normalizado: Optional[str] = Field(default=None, index=True)  # Endereço higienizado para dedup
     segmento: Optional[str] = Field(default=None, index=True)
     status_cliente: Optional[str] = Field(default=None, index=True)  # STATUS (ativo, inativo, etc.)
     created_at: datetime = Field(default_factory=datetime.now)
+
+
+class ClientImportBatch(SQLModel, table=True):
+    """Lote de importação de clientes (para resolução de conflitos)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=datetime.now, index=True)
+    filename: Optional[str] = None
+    status: str = Field(default="pending", index=True)  # pending, completed
+    created_by: Optional[str] = None  # username
+    log_created: int = Field(default=0)
+    log_updated: int = Field(default=0)
+    log_merged: int = Field(default=0)
+    log_skipped: int = Field(default=0)
+    log_rejected: int = Field(default=0)
+
+
+class ClientImportStaging(SQLModel, table=True):
+    """Linha de importação (para resolução de conflitos)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    batch_id: int = Field(foreign_key="clientimportbatch.id", index=True)
+    row_index: int = Field(index=True)
+    # Dados normalizados (JSON)
+    name: str
+    nb: Optional[str] = None
+    setor: Optional[str] = None
+    me: Optional[str] = None
+    sa: Optional[str] = None
+    visita: Optional[str] = None
+    nome_fantasia: Optional[str] = None
+    razao_social: Optional[str] = None
+    municipio: Optional[str] = None
+    bairro: Optional[str] = None
+    endereco: Optional[str] = None
+    endereco_normalizado: Optional[str] = None
+    fone: Optional[str] = None
+    fone_e164: Optional[str] = None
+    segmento: Optional[str] = None
+    status_cliente: Optional[str] = None
+    municipio_key: Optional[str] = None
+    bairro_key: Optional[str] = None
+    # Conflito
+    conflict_type: Optional[str] = None  # fone, razao_bairro, endereco
+    conflict_client_id: Optional[int] = Field(default=None, foreign_key="client.id")
+    action: str = Field(default="pending", index=True)  # pending, create, merge, skip
 
 
 # --- Frota / Veículos ---

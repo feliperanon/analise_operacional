@@ -28,6 +28,7 @@ from sqlalchemy import func, inspect
 from typing import List
 from database import create_db_and_tables, get_session, engine
 import models
+from client_import_utils import normalize_address, normalize_phone_br, normalize_key, find_col_map as find_client_col_map
 import logging
 import pydantic
 from logging.handlers import RotatingFileHandler
@@ -6071,6 +6072,8 @@ def ensure_client_schema():
             "bairro": "VARCHAR(128)",
             "endereco": "VARCHAR(255)",
             "fone": "VARCHAR(64)",
+            "fone_e164": "VARCHAR(32)",
+            "endereco_normalizado": "VARCHAR(255)",
             "segmento": "VARCHAR(128)",
             "status_cliente": "VARCHAR(64)",
         }
@@ -9174,105 +9177,131 @@ async def clients_import_get(request: Request):
     return RedirectResponse(url="/clients", status_code=status.HTTP_303_SEE_OTHER)
 
 
+def _load_clients_dataframe(content: bytes, filename: str):
+    """Carrega CSV ou Excel em DataFrame."""
+    import pandas as pd
+    ext = (filename or "").lower()
+    if ext.endswith(".csv"):
+        df = pd.read_csv(io.BytesIO(content), encoding="utf-8", sep=None, engine="python")
+    elif ext.endswith(".xlsx"):
+        df = pd.read_excel(io.BytesIO(content), engine="openpyxl", header=0)
+    elif ext.endswith(".xls"):
+        df = pd.read_excel(io.BytesIO(content), engine="xlrd", header=0)
+    else:
+        raise ValueError("Formato inválido")
+    df.columns = [str(c).strip() for c in df.columns]
+    return df
+
+
+def _opt_val(v) -> Optional[str]:
+    """Converte valor da planilha em string ou None."""
+    import pandas as pd
+    if pd.isna(v):
+        return None
+    s = str(v).strip()
+    return s if s else None
+
+
 @app.post("/clients/import", response_class=RedirectResponse)
 async def clients_import(
     request: Request,
     file: UploadFile = File(...),
     session: Session = Depends(get_session)
 ):
+    """Importação com normalização e deduplicação. Redireciona para tela de conflitos se houver duplicados."""
     require_login(request)
-    if not file.filename or (not file.filename.lower().endswith((".xlsx", ".xls"))):
+    user = request.session.get("username", "")
+    if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls", ".csv")):
         return RedirectResponse(url="/clients?error=invalid_file", status_code=status.HTTP_303_SEE_OTHER)
     try:
         import pandas as pd
         content = await file.read()
-        engine_read = "openpyxl" if file.filename.lower().endswith(".xlsx") else "xlrd"
+        df = _load_clients_dataframe(content, file.filename)
+        col_map = find_client_col_map(list(df.columns))
 
-        def norm(s: str) -> str:
-            s = (s or "").strip().lower()
-            return unicodedata.normalize("NFD", s).encode("ascii", "ignore").decode("ascii")
-
-        def find_col_map(columns) -> dict:
-            col_map = {}
-            keywords = {
-                "nb": ["nb"],
-                "setor": ["setor"],
-                "me": ["me"],
-                "sa": ["sa"],
-                "visita": ["visita"],
-                "fantas": ["fantas", "nome fantasia"],
-                "razao_social": ["razao social", "razão social", "razao_social"],
-                "municipio": ["municipio", "município"],
-                "bairro": ["bairro"],
-                "endereco": ["endereco", "endereço"],
-                "fone": ["fone", "telefone"],
-                "segmento": ["segmento"],
-                "status": ["status"],
-            }
-            for std, kws in keywords.items():
-                for c in columns:
-                    cn = norm(str(c))
-                    for kw in kws:
-                        kn = norm(kw)
-                        if cn == kn or kn in cn:
-                            col_map[std] = c
-                            break
-                    if std in col_map:
-                        break
-            return col_map
-
-        def _opt(v):
-            if pd.isna(v):
-                return None
-            s = str(v).strip()
-            return s if s else None
-
-        df = pd.read_excel(io=content, engine=engine_read, header=0)
-        df.columns = [str(c).strip() for c in df.columns]
-        col_map = find_col_map(df.columns)
-
-        # Coluna obrigatória: Nome do cliente (FANTAS ou Razão Social)
         name_col = col_map.get("fantas") or col_map.get("razao_social")
         if name_col is None and len(df.columns) >= 1:
-            # Fallback: primeira coluna como nome
             name_col = df.columns[0]
-
         if name_col is None:
-            return RedirectResponse(
-                url="/clients?error=missing_columns",
-                status_code=status.HTTP_303_SEE_OTHER
-            )
+            return RedirectResponse(url="/clients?error=missing_columns", status_code=status.HTTP_303_SEE_OTHER)
 
+        # Índices para dedup (fone_e164, endereco_normalizado, razao+bairro)
+        all_clients = list(session.exec(select(models.Client)).all())
+        existing_by_fone = {}
+        existing_by_endereco = {}
+        existing_by_razao_bairro_key = {}
+        for c in all_clients:
+            fe164 = c.fone_e164
+            if not fe164 and c.fone:
+                fe164, _ = normalize_phone_br(c.fone)
+            if fe164:
+                existing_by_fone[fe164] = c.id
+            eaddr = c.endereco_normalizado or (normalize_address(c.endereco).upper().replace(" ", "") if c.endereco and len(c.endereco) >= 10 else None)
+            if eaddr:
+                existing_by_endereco[eaddr] = c.id
+            rk, bk = normalize_key(c.razao_social or c.name or ""), normalize_key(c.bairro or "")
+            if rk and bk:
+                existing_by_razao_bairro_key[(rk, bk)] = c.id
         existing_names = {n[0].strip().lower() for n in session.exec(select(models.Client.name)).all()}
-        imported = 0
-        skipped = 0
 
-        for _, row in df.iterrows():
+        batch = models.ClientImportBatch(filename=file.filename, created_by=user)
+        session.add(batch)
+        session.flush()
+
+        rows_clean = []
+        rows_conflict = []
+
+        for idx, row in df.iterrows():
             name_raw = row.get(name_col)
             if pd.isna(name_raw):
                 continue
-            name = _opt(name_raw)
+            name = _opt_val(name_raw)
             if not name or len(name) < 2:
                 continue
-            if name.lower() in existing_names:
-                skipped += 1
-                continue
 
-            nb = _opt(row.get(col_map.get("nb"))) if "nb" in col_map else None
-            setor = _opt(row.get(col_map.get("setor"))) if "setor" in col_map else None
-            me = _opt(row.get(col_map.get("me"))) if "me" in col_map else None
-            sa = _opt(row.get(col_map.get("sa"))) if "sa" in col_map else None
-            visita = _opt(row.get(col_map.get("visita"))) if "visita" in col_map else None
-            nome_fantasia = _opt(row.get(col_map.get("fantas"))) if "fantas" in col_map else None
-            razao_social = _opt(row.get(col_map.get("razao_social"))) if "razao_social" in col_map else None
-            municipio = _opt(row.get(col_map.get("municipio"))) if "municipio" in col_map else None
-            bairro = _opt(row.get(col_map.get("bairro"))) if "bairro" in col_map else None
-            endereco = _opt(row.get(col_map.get("endereco"))) if "endereco" in col_map else None
-            fone = _opt(row.get(col_map.get("fone"))) if "fone" in col_map else None
-            segmento = _opt(row.get(col_map.get("segmento"))) if "segmento" in col_map else None
-            status_cliente = _opt(row.get(col_map.get("status"))) if "status" in col_map else None
+            nb = _opt_val(row.get(col_map.get("nb"))) if "nb" in col_map else None
+            setor = _opt_val(row.get(col_map.get("setor"))) if "setor" in col_map else None
+            me = _opt_val(row.get(col_map.get("me"))) if "me" in col_map else None
+            sa = _opt_val(row.get(col_map.get("sa"))) if "sa" in col_map else None
+            visita = _opt_val(row.get(col_map.get("visita"))) if "visita" in col_map else None
+            nome_fantasia = _opt_val(row.get(col_map.get("fantas"))) if "fantas" in col_map else None
+            razao_social = _opt_val(row.get(col_map.get("razao_social"))) if "razao_social" in col_map else None
+            municipio = _opt_val(row.get(col_map.get("municipio"))) if "municipio" in col_map else None
+            bairro = _opt_val(row.get(col_map.get("bairro"))) if "bairro" in col_map else None
+            endereco_raw = _opt_val(row.get(col_map.get("endereco"))) if "endereco" in col_map else None
+            fone_raw = _opt_val(row.get(col_map.get("fone"))) if "fone" in col_map else None
+            segmento = _opt_val(row.get(col_map.get("segmento"))) if "segmento" in col_map else None
+            status_cliente = _opt_val(row.get(col_map.get("status"))) if "status" in col_map else None
 
-            new_client = models.Client(
+            endereco = normalize_address(endereco_raw) if endereco_raw else None
+            endereco_norm = normalize_address(endereco_raw).upper().replace(" ", "") if endereco_raw else None
+            fone_e164, fone_amigavel = normalize_phone_br(fone_raw)
+            fone = fone_amigavel or fone_raw
+            municipio_key = normalize_key(municipio)
+            bairro_key = normalize_key(bairro)
+            razao_key = normalize_key(razao_social or name)
+
+            conflict_type = None
+            conflict_client_id = None
+            if fone_e164 and fone_e164 in existing_by_fone:
+                conflict_type = "fone"
+                conflict_client_id = next((c.id for c in session.exec(select(models.Client).where(models.Client.fone_e164 == fone_e164))), None)
+            elif endereco_norm and len(endereco_norm) >= 10 and endereco_norm in existing_by_endereco:
+                conflict_type = "endereco"
+                conflict_client_id = next((c.id for c in session.exec(select(models.Client).where(models.Client.endereco_normalizado == endereco_norm))), None)
+            elif razao_key and bairro_key:
+                key = (razao_key, bairro_key)
+                if key in existing_by_razao_bairro_key:
+                    conflict_type = "razao_bairro"
+                    conflict_client_id = existing_by_razao_bairro_key.get(key)
+
+            if name.lower() in existing_names and not conflict_type:
+                conflict_type = "nome"
+                conflict_client_id = None
+
+            staging = models.ClientImportStaging(
+                batch_id=batch.id,
+                row_index=int(idx),
                 name=name,
                 nb=nb,
                 setor=setor,
@@ -9283,23 +9312,183 @@ async def clients_import(
                 razao_social=razao_social,
                 municipio=municipio,
                 bairro=bairro,
-                endereco=endereco,
+                endereco=endereco or endereco_raw,
+                endereco_normalizado=endereco_norm,
                 fone=fone,
+                fone_e164=fone_e164,
                 segmento=segmento,
                 status_cliente=status_cliente,
+                municipio_key=municipio_key,
+                bairro_key=bairro_key,
+                conflict_type=conflict_type,
+                conflict_client_id=conflict_client_id,
+                action="create" if not conflict_type else "pending",
             )
-            session.add(new_client)
-            existing_names.add(name.lower())
-            imported += 1
+            session.add(staging)
+            if conflict_type:
+                rows_conflict.append(staging)
+            else:
+                rows_clean.append(staging)
 
         session.commit()
+
+        if rows_conflict:
+            return RedirectResponse(url=f"/clients/import/conflicts/{batch.id}", status_code=status.HTTP_303_SEE_OTHER)
+
+        log_created, log_rejected = 0, 0
+        for s in rows_clean:
+            if s.name.lower() in existing_names:
+                log_rejected += 1
+                continue
+            c = models.Client(
+                name=s.name,
+                nb=s.nb,
+                setor=s.setor,
+                me=s.me,
+                sa=s.sa,
+                visita=s.visita,
+                nome_fantasia=s.nome_fantasia,
+                razao_social=s.razao_social,
+                municipio=s.municipio,
+                bairro=s.bairro,
+                endereco=s.endereco,
+                endereco_normalizado=s.endereco_normalizado,
+                fone=s.fone,
+                fone_e164=s.fone_e164,
+                segmento=s.segmento,
+                status_cliente=s.status_cliente,
+            )
+            session.add(c)
+            existing_names.add(s.name.lower())
+            log_created += 1
+        batch.status = "completed"
+        batch.log_created = log_created
+        batch.log_rejected = log_rejected
+        session.add(batch)
+        session.exec(delete(models.ClientImportStaging).where(models.ClientImportStaging.batch_id == batch.id))
+        session.commit()
         return RedirectResponse(
-            url=f"/clients?message=import_success&imported={imported}&skipped={skipped}",
+            url=f"/clients?message=import_success&created={log_created}&rejected={log_rejected}",
             status_code=status.HTTP_303_SEE_OTHER
         )
+    except ValueError as e:
+        return RedirectResponse(url=f"/clients?error=invalid_file", status_code=status.HTTP_303_SEE_OTHER)
     except Exception as e:
         logger.exception(f"Clients import error: {e}")
         return RedirectResponse(url="/clients?error=import_failed", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.get("/clients/import/conflicts/{batch_id}", response_class=HTMLResponse)
+async def clients_import_conflicts(request: Request, batch_id: int, session: Session = Depends(get_session)):
+    require_login(request)
+    batch = session.get(models.ClientImportBatch, batch_id)
+    if not batch or batch.status != "pending":
+        return RedirectResponse(url="/clients", status_code=status.HTTP_303_SEE_OTHER)
+    rows = session.exec(
+        select(models.ClientImportStaging)
+        .where(models.ClientImportStaging.batch_id == batch_id)
+        .order_by(models.ClientImportStaging.row_index)
+    ).all()
+    conflict_rows = [r for r in rows if r.conflict_type]
+    conflict_map = {}
+    for r in conflict_rows:
+        if r.conflict_client_id:
+            c = session.get(models.Client, r.conflict_client_id)
+            if c:
+                conflict_map[r.id] = c
+    return templates.TemplateResponse("clients_import_conflicts.html", {
+        "request": request,
+        "user": request.session.get("username", ""),
+        "batch": batch,
+        "rows": rows,
+        "conflict_rows": conflict_rows,
+        "conflict_map": conflict_map,
+    })
+
+
+@app.post("/clients/import/confirm/{batch_id}", response_class=RedirectResponse)
+async def clients_import_confirm(
+    request: Request,
+    batch_id: int,
+    session: Session = Depends(get_session)
+):
+    require_login(request)
+    batch = session.get(models.ClientImportBatch, batch_id)
+    if not batch or batch.status != "pending":
+        return RedirectResponse(url="/clients", status_code=status.HTTP_303_SEE_OTHER)
+    form = await request.form()
+    log_created, log_updated, log_skipped, log_rejected = 0, 0, 0, 0
+    existing_names = {n[0].strip().lower() for n in session.exec(select(models.Client.name)).all()}
+    for key, val in form.items():
+        if not key.startswith("action_"):
+            continue
+        row_id = int(key.replace("action_", ""))
+        row = session.get(models.ClientImportStaging, row_id)
+        if not row or row.batch_id != batch_id:
+            continue
+        action = val
+        if action == "skip":
+            row.action = "skip"
+            session.add(row)
+            log_skipped += 1
+            continue
+        if action == "merge" and row.conflict_client_id:
+            client = session.get(models.Client, row.conflict_client_id)
+            if client:
+                client.nb = row.nb or client.nb
+                client.setor = row.setor or client.setor
+                client.me = row.me or client.me
+                client.sa = row.sa or client.sa
+                client.visita = row.visita or client.visita
+                client.nome_fantasia = row.nome_fantasia or client.nome_fantasia
+                client.razao_social = row.razao_social or client.razao_social
+                client.municipio = row.municipio or client.municipio
+                client.bairro = row.bairro or client.bairro
+                client.endereco = row.endereco or client.endereco
+                client.endereco_normalizado = row.endereco_normalizado or client.endereco_normalizado
+                client.fone = row.fone or client.fone
+                client.fone_e164 = row.fone_e164 or client.fone_e164
+                client.segmento = row.segmento or client.segmento
+                client.status_cliente = row.status_cliente or client.status_cliente
+                session.add(client)
+                log_updated += 1
+        elif action == "create":
+            if row.name.lower() in existing_names:
+                log_rejected += 1
+            else:
+                c = models.Client(
+                    name=row.name,
+                    nb=row.nb,
+                    setor=row.setor,
+                    me=row.me,
+                    sa=row.sa,
+                    visita=row.visita,
+                    nome_fantasia=row.nome_fantasia,
+                    razao_social=row.razao_social,
+                    municipio=row.municipio,
+                    bairro=row.bairro,
+                    endereco=row.endereco,
+                    endereco_normalizado=row.endereco_normalizado,
+                    fone=row.fone,
+                    fone_e164=row.fone_e164,
+                    segmento=row.segmento,
+                    status_cliente=row.status_cliente,
+                )
+                session.add(c)
+                existing_names.add(row.name.lower())
+                log_created += 1
+    batch.status = "completed"
+    batch.log_created = log_created
+    batch.log_updated = log_updated
+    batch.log_skipped = log_skipped
+    batch.log_rejected = log_rejected
+    session.add(batch)
+    session.exec(delete(models.ClientImportStaging).where(models.ClientImportStaging.batch_id == batch_id))
+    session.commit()
+    return RedirectResponse(
+        url=f"/clients?message=import_confirm&created={log_created}&updated={log_updated}&skipped={log_skipped}&rejected={log_rejected}",
+        status_code=status.HTTP_303_SEE_OTHER
+    )
 
 
 # --- Vehicle (Frota) Routes ---
