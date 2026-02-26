@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, Uplo
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from typing import Optional, List
+from typing import Optional, List, Any
 import json
 import csv
 import io
@@ -668,6 +668,44 @@ CHECKLIST_CRITICAL_KEYS = {item["key"] for item in CHECKLIST_ITEMS if item["crit
 
 def checklist_item_label_map() -> dict:
     return {item["key"]: item["label"] for item in CHECKLIST_ITEMS}
+
+def parse_items_payload(raw_items: Any) -> dict:
+    """Normaliza payload do checklist para {item_key: bool}."""
+    if raw_items is None:
+        return {}
+
+    data = raw_items
+    if isinstance(raw_items, str):
+        try:
+            data = json.loads(raw_items)
+        except Exception:
+            return {}
+
+    if isinstance(data, list):
+        normalized = {}
+        for entry in data:
+            if not isinstance(entry, dict):
+                continue
+            key = str(entry.get("key") or "").strip()
+            if not key:
+                continue
+            value = entry.get("value")
+            normalized[key] = bool(value)
+        return normalized
+
+    if not isinstance(data, dict):
+        return {}
+
+    normalized = {}
+    for key, value in data.items():
+        key_str = str(key).strip()
+        if not key_str:
+            continue
+        if isinstance(value, str):
+            normalized[key_str] = value.strip().lower() in ("1", "true", "yes", "ok", "sim")
+        else:
+            normalized[key_str] = bool(value)
+    return normalized
 
 CHECKLIST_XP = int(os.getenv("CHECKLIST_XP", "10"))
 CHECKLIST_IMAGE_DIR = os.path.join(str(BASE_DIR), "static", "uploads", "checklists")
