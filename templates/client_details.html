@@ -60,7 +60,7 @@
                 {% if client.razao_social %}<div><span class="text-slate-500">Razão Social:</span> <span class="text-white">{{ client.razao_social }}</span></div>{% endif %}
                 {% if client.municipio %}<div><span class="text-slate-500">Município:</span> <span class="text-white">{{ client.municipio }}</span></div>{% endif %}
                 {% if client.bairro %}<div><span class="text-slate-500">Bairro:</span> <span class="text-white">{{ client.bairro }}</span></div>{% endif %}
-                {% if client.endereco %}<div class="md:col-span-2 lg:col-span-4"><span class="text-slate-500">Endereço:</span> <span class="text-white">{{ client.endereco }}</span></div>{% endif %}
+                {% if endereco_display or client.endereco %}<div class="md:col-span-2 lg:col-span-4"><span class="text-slate-500">Endereço:</span> <span class="text-white">{{ endereco_display or client.endereco }}</span></div>{% endif %}
                 {% if client.fone %}<div><span class="text-slate-500">Fone:</span> <span class="text-white">{{ client.fone }}</span></div>{% endif %}
                 {% if client.segmento %}<div><span class="text-slate-500">Segmento:</span> <span class="text-white">{{ client.segmento }}</span></div>{% endif %}
                 {% if client.status_cliente %}<div><span class="text-slate-500">Status:</span> <span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400">{{ client.status_cliente }}</span></div>{% endif %}
@@ -385,7 +385,7 @@
                         class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Setor</label>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">SETOR</label>
                     <input type="text" name="setor" value="{{ client.setor or '' }}"
                         class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
@@ -400,12 +400,12 @@
                         class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Visita</label>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">VISITA</label>
                     <input type="text" name="visita" value="{{ client.visita or '' }}"
                         class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Nome Fantasia</label>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">FANTAS</label>
                     <input type="text" name="nome_fantasia" value="{{ client.nome_fantasia or '' }}"
                         class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
@@ -415,32 +415,32 @@
                         class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Município</label>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">MUNICÍPIO</label>
                     <input type="text" name="municipio" value="{{ client.municipio or '' }}"
                         class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Bairro</label>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">BAIRRO</label>
                     <input type="text" name="bairro" value="{{ client.bairro or '' }}"
                         class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div class="md:col-span-2">
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Endereço</label>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">ENDEREÇO</label>
                     <input type="text" name="endereco" value="{{ client.endereco or '' }}"
                         class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Fone</label>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">FONE</label>
                     <input type="text" name="fone" value="{{ client.fone or '' }}"
                         class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Segmento</label>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">SEGMENTO</label>
                     <input type="text" name="segmento" value="{{ client.segmento or '' }}"
                         class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Status</label>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">STATUS</label>
                     <input type="text" name="status_cliente" value="{{ client.status_cliente or '' }}"
                         class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
                 </div>

@@ -8956,19 +8956,23 @@ async def clients_page(request: Request, session: Session = Depends(get_session)
 
     query = select(models.Client)
     if status_filter == "ativos":
-        # Excluir FECHOU, INATIVO, CNPJ/CPF INVALIDOS e outros não-ativos
+        # Excluir FECHOU, INATIVO, CNPJ/CPF INVALIDOS (em status_cliente ou status_operacional)
         st_cli = func.lower(func.coalesce(models.Client.status_cliente, ""))
-        st_op = func.coalesce(models.Client.status_operacional, "")
         nao_fechou = and_(
             not_(st_cli.like("%fechou%")),
-            st_op != "FECHOU",
+            or_(
+                models.Client.status_operacional.is_(None),
+                models.Client.status_operacional != "FECHOU",
+            ),
         )
         nao_inativo = and_(
             not_(st_cli.like("%inativo%")),
-            st_op != "INATIVO",
+            or_(
+                models.Client.status_operacional.is_(None),
+                models.Client.status_operacional != "INATIVO",
+            ),
         )
         nao_invalidos = not_(st_cli.like("%invalidos%"))
-        # Incluir se: não é fechou E não é inativo E não contém invalidos
         query = query.where(and_(nao_fechou, nao_inativo, nao_invalidos))
     elif status_filter == "fechou":
         query = query.where(or_(
@@ -9177,10 +9181,12 @@ async def client_details(request: Request, client_id: int, session: Session = De
     except Exception:
         audit_logs = []
 
+    endereco_display = normalize_address(client.endereco or "") if client.endereco else ""
     return templates.TemplateResponse("client_details.html", {
         "request": request,
         "user": user,
         "client": client,
+        "endereco_display": endereco_display or client.endereco,
         "audit_logs": audit_logs,
         "stats": {
             "total_tonnage_fmt": fmt(total_tonnage),
@@ -9267,7 +9273,8 @@ async def update_client(
         fone_val = _opt_form(fone)
         fone_e164_val, _ = normalize_phone_br(fone_val)
         endereco_val = _opt_form(endereco)
-        endereco_norm_val = normalize_address(endereco_val).upper().replace(" ", "") if endereco_val and len(endereco_val) >= 10 else None
+        endereco_clean = normalize_address(endereco_val) if endereco_val else None
+        endereco_norm_val = endereco_clean.upper().replace(" ", "") if endereco_clean and len(endereco_clean) >= 10 else None
         client.name = name.strip()
         client.nb = _opt_form(nb)
         client.setor = _opt_form(setor)
@@ -9278,7 +9285,7 @@ async def update_client(
         client.razao_social = _opt_form(razao_social)
         client.municipio = _opt_form(municipio)
         client.bairro = _opt_form(bairro)
-        client.endereco = endereco_val
+        client.endereco = endereco_clean or endereco_val
         client.endereco_normalizado = endereco_norm_val
         client.fone = fone_val
         client.fone_e164 = fone_e164_val

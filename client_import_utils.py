@@ -13,16 +13,23 @@ def _norm_nfd(s: str) -> str:
 
 def normalize_address(raw: Optional[str]) -> str:
     """Higieniza endereço:
-    - Remove prefixos estranhos (||RUA:, ||AV:, etc.)
+    - Remove prefixos estranhos (||RUA:, ||AV :, etc.)
+    - Remove sufixos (||:, ||)
+    - Remove frases de instrução (Remover e padronizar)
     - Padroniza RUA/AV/ROD
-    - Extrai número quando possível
     """
     if not raw or not str(raw).strip():
         return ""
     s = str(raw).strip()
-    # Remove prefixos ||TIPO: ou ||TIPO
-    s = re.sub(r"^\|\|*(?:RUA|AV|ROD|AVENIDA|RUA):\s*", "", s, flags=re.IGNORECASE)
+    # Remove prefixos ||TIPO : ou ||TIPO:
+    s = re.sub(r"^\|\|*\s*(?:RUA|AV|ROD|AVENIDA)\s*:\s*", "", s, flags=re.IGNORECASE)
     s = re.sub(r"^\|\|+", "", s)
+    s = s.strip()
+    # Remove sufixos || : ou ||
+    s = re.sub(r"\s*\|\|\s*:?\s*$", "", s)
+    s = re.sub(r"\s*:\s*$", "", s)
+    # Remove frases de instrução comuns
+    s = re.sub(r"\s*remover\s+e\s+padronizar\s*", " ", s, flags=re.IGNORECASE)
     s = s.strip()
     # Padronizar abreviações
     s = re.sub(r"\bAV\s*[:\s]+", "AV. ", s, flags=re.IGNORECASE)
@@ -68,7 +75,10 @@ def normalize_key(text: Optional[str]) -> str:
 
 
 def find_col_map(columns: list, norm_func=None) -> dict:
-    """Mapeia colunas do arquivo para campos padrão."""
+    """Mapeia colunas do arquivo para campos padrão.
+    Nomes canônicos (Excel/CSV): NB, SETOR, ME, SA, VISITA, FANTAS, Razão Social,
+    MUNICÍPIO, BAIRRO, ENDEREÇO, FONE, SEGMENTO, STATUS.
+    """
     if norm_func is None:
         def norm_func(s):
             s = (s or "").strip().lower()
@@ -81,11 +91,11 @@ def find_col_map(columns: list, norm_func=None) -> dict:
         "me": ["me"],
         "sa": ["sa"],
         "visita": ["visita"],
-        "fantas": ["fantas", "fantasia", "nome fantasia"],
+        "fantas": ["fantas", "fantasia", "nome fantasia", "nome_fantasia"],
         "razao_social": ["razao social", "razão social", "razao_social"],
         "municipio": ["municipio", "município"],
         "bairro": ["bairro"],
-        "endereco": ["endereco", "endereço", "endereco"],
+        "endereco": ["endereco", "endereço"],
         "fone": ["fone", "fone(1)", "telefone", "fone 1"],
         "segmento": ["segmento"],
         "status": ["status"],
