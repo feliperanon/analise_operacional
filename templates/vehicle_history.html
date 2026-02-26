@@ -24,6 +24,9 @@
                 <div>
                     <p class="text-white font-bold">{{ vehicle.placa }}</p>
                     <p class="text-slate-400 text-sm">{{ vehicle.marca }} — {{ vehicle.modelo }} ({{ vehicle.ano or '-' }})</p>
+                    {% if last_km_fmt %}
+                    <p class="text-slate-500 text-xs mt-1">Último KM: <span class="font-mono text-slate-300">{{ last_km_fmt }}</span></p>
+                    {% endif %}
                 </div>
             </div>
             <a href="/vehicles/{{ vehicle.id }}" class="ml-auto px-4 py-2 rounded-lg bg-slate-700 hover:bg-blue-600 text-slate-300 hover:text-white transition text-sm font-medium">

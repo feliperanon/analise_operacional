@@ -149,6 +149,7 @@ class Vehicle(SQLModel, table=True):
     in_workshop: bool = Field(default=False, index=True)  # Está na oficina
     sale_value: Optional[float] = None  # Valor da venda (quando vendido)
     sold_at: Optional[datetime] = None  # Data da venda
+    odometer_km: Optional[float] = Field(default=None, index=True)  # Último KM (atualizado pelo checklist ou edição)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 

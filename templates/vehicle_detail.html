@@ -100,6 +100,15 @@
                         class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-500">
                 </div>
 
+                {% if vehicle and vehicle.vehicle_type == 'caminhao' %}
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Último KM (hodômetro)</label>
+                    <input type="text" name="odometer_km" value="{{ (vehicle.odometer_km|int) if vehicle.odometer_km is not none else '' }}" placeholder="Ex: 150000"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-500">
+                    <p class="text-xs text-slate-500 mt-1">Atualizado automaticamente a cada checklist; pode editar aqui.</p>
+                </div>
+                {% endif %}
+
                 {% if vehicle %}
                 <!-- Status: Oficina -->
                 <div class="flex items-center gap-3 pt-4 border-t border-slate-700">

@@ -31,7 +31,7 @@
                     </span>
                 </div>
                 <h1 class="text-3xl font-black text-white leading-tight">
-                    Caminhao
+                    Caminhão
                 </h1>
                 <p class="text-slate-400 text-sm mt-1">Garanta sua segurança e ganhe XP</p>
             </div>
@@ -71,8 +71,9 @@
                 <i data-lucide="package-search" class="w-6 h-6 text-slate-400"></i>
             </div>
             <select x-model="equipmentCode"
+                @change="odometerKm = (equipmentLastKm[equipmentCode] != null && equipmentLastKm[equipmentCode] !== '') ? equipmentLastKm[equipmentCode] : ''"
                 class="w-full bg-transparent border-none text-white font-bold text-lg focus:ring-0 p-3 appearance-none">
-                <option value="" disabled selected class="text-slate-500">Selecione o caminhao</option>
+                <option value="" disabled selected class="text-slate-500">Selecione o caminhão</option>
                 {% if equipment_list %}
                 {% for eq in equipment_list %}
                 <option value="{{ eq.code }}" class="bg-slate-800 text-white" data-last-km="{{ eq.last_km or '' }}">{{
@@ -94,21 +95,6 @@
                 KM anterior: <span x-text="equipmentLastKm[equipmentCode] || '-'"></span> — Máx hoje: <span
                     x-text="(equipmentLastKm[equipmentCode] || 0) + 1000"></span>
             </p>
-        </div>
-
-        <!-- Campo KM Hodômetro (apenas para caminhões) -->
-        <div x-show="isTruck" x-transition
-            class="bg-slate-800 border border-amber-500/30 rounded-3xl p-4 flex items-center gap-3">
-            <div class="pl-2">
-                <i data-lucide="gauge" class="w-6 h-6 text-amber-400"></i>
-            </div>
-            <div class="flex-1">
-                <label class="block text-xs font-bold text-amber-400 uppercase tracking-wider mb-1">KM do
-                    Hodômetro</label>
-                <input type="number" x-model="odometerKm" min="0" step="1" inputmode="numeric"
-                    class="w-full bg-transparent border-none text-white font-bold text-lg focus:ring-0 p-0 appearance-none placeholder:text-slate-500"
-                    placeholder="Ex: 125000">
-            </div>
         </div>
 
         <!-- Action Bar -->

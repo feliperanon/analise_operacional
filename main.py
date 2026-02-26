@@ -6043,6 +6043,9 @@ def ensure_vehicle_schema():
             if "sold_at" not in cols:
                 conn.execute(text("ALTER TABLE vehicle ADD COLUMN sold_at TIMESTAMP"))
                 conn.commit()
+            if "odometer_km" not in cols:
+                conn.execute(text("ALTER TABLE vehicle ADD COLUMN odometer_km REAL"))
+                conn.commit()
     except Exception as e:
         logger.error(f"ensure_vehicle_schema: {e}")
 
@@ -6862,12 +6865,15 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
             .order_by(models.Vehicle.placa)
         ).all()
         for v in trucks:
-            last_check = session.exec(
-                select(models.TranspalletChecklist)
-                .where(models.TranspalletChecklist.equipment_code == v.placa)
-                .order_by(desc(models.TranspalletChecklist.date), desc(models.TranspalletChecklist.submitted_at))
-            ).first()
-            last_km = last_check.odometer_km if last_check and last_check.odometer_km is not None else None
+            # Preferir KM do veículo (atualizado por checklist/edição); senão último checklist
+            last_km = getattr(v, "odometer_km", None)
+            if last_km is None:
+                last_check = session.exec(
+                    select(models.TranspalletChecklist)
+                    .where(models.TranspalletChecklist.equipment_code == v.placa)
+                    .order_by(desc(models.TranspalletChecklist.date), desc(models.TranspalletChecklist.submitted_at))
+                ).first()
+                last_km = last_check.odometer_km if last_check and last_check.odometer_km is not None else None
             marca = getattr(v, "marca", "") or ""
             modelo = getattr(v, "modelo", "") or ""
             equipment_list.append({
@@ -8253,8 +8259,14 @@ async def api_create_checklist(
         .where(models.TranspalletChecklist.equipment_code == equipment_code)
         .order_by(desc(models.TranspalletChecklist.date), desc(models.TranspalletChecklist.submitted_at))
     ).first()
-    if km_val is not None and last_check and last_check.odometer_km is not None:
-        last_km = float(last_check.odometer_km)
+    # Referência de KM: veículo (se caminhão e tiver) ou último checklist
+    last_km_ref = None
+    if is_truck and truck and getattr(truck, "odometer_km", None) is not None:
+        last_km_ref = float(truck.odometer_km)
+    elif last_check and last_check.odometer_km is not None:
+        last_km_ref = float(last_check.odometer_km)
+    if km_val is not None and last_km_ref is not None:
+        last_km = last_km_ref
         if km_val <= last_km:
             return JSONResponse({"error": f"KM deve ser maior que o anterior ({last_km:,.0f})."}, status_code=400)  # noqa: E501
         if km_val > last_km + 1000:
@@ -8299,6 +8311,13 @@ async def api_create_checklist(
     session.add(checklist)
     session.commit()
     session.refresh(checklist)
+
+    # Atualizar último KM do veículo quando checklist for de caminhão
+    if is_truck and km_val is not None and truck:
+        truck.odometer_km = km_val
+        truck.updated_at = now_br
+        session.add(truck)
+        session.commit()
 
     if critical_flag:
         blocked_items = ", ".join([checklist_item_label_map().get(k, k) for k in nonconforming_keys])
@@ -9268,9 +9287,14 @@ async def vehicle_history_page(request: Request, vehicle_id: int, session: Sessi
             "nonconforming": bool(c.nonconforming_keys),
             "submitted_at": c.submitted_at.strftime("%d/%m %H:%M") if c.submitted_at else "-",
         })
+    # Último KM: do veículo (atualizado por checklist/edição) ou do último checklist
+    last_km = getattr(vehicle, "odometer_km", None)
+    if last_km is None and rows:
+        last_km = rows[0].get("odometer_km")
+    last_km_fmt = f"{last_km:,.0f}".replace(",", ".") if last_km is not None else None
     return templates.TemplateResponse(
         "vehicle_history.html",
-        {"request": request, "user": user, "vehicle": vehicle, "checklists": rows}
+        {"request": request, "user": user, "vehicle": vehicle, "checklists": rows, "last_km": last_km, "last_km_fmt": last_km_fmt}
     )
 
 
@@ -9286,6 +9310,7 @@ async def update_vehicle(
     ano: Optional[str] = Form(default=None),
     crv_number: Optional[str] = Form(default=None),
     chassi: Optional[str] = Form(default=None),
+    odometer_km: Optional[str] = Form(default=None),
     in_workshop: Optional[str] = Form(default=None),
     sale_value: Optional[str] = Form(default=None),
     sold_at: Optional[str] = Form(default=None),
@@ -9325,6 +9350,11 @@ async def update_vehicle(
         vehicle.sold_at = vehicle.sold_at or datetime.now()
     else:
         vehicle.sold_at = None
+    try:
+        km_str = (odometer_km or "").strip().replace(",", ".")
+        vehicle.odometer_km = float(km_str) if km_str else None
+    except (ValueError, TypeError):
+        vehicle.odometer_km = None
     vehicle.updated_at = datetime.now()
     session.add(vehicle)
     session.commit()
@@ -21169,6 +21199,15 @@ async def admin_routine_checklist_detail(
             except (TypeError, ValueError):
                 odometer_km_br = str(chk.odometer_km)
 
+        # Revisado por: evitar exibir dict; extrair e-mail se for repr de dict
+        reviewed_by_raw = (chk.reviewed_by or "").strip()
+        if reviewed_by_raw and ("'type'" in reviewed_by_raw or "'email'" in reviewed_by_raw):
+            import re
+            m = re.search(r"'email':\s*'([^']*)'", reviewed_by_raw)
+            reviewed_by_display = m.group(1) if m else "—"
+        else:
+            reviewed_by_display = reviewed_by_raw or None
+
         return templates.TemplateResponse("admin_routine_checklist_detail.html", {
             "request": request,
             "checklist": chk,
@@ -21182,6 +21221,7 @@ async def admin_routine_checklist_detail(
             "status_label": status_labels.get(chk.status, chk.status),
             "equipment_status_label": equipment_status_labels.get(equipment.status, equipment.status) if equipment else "Disponível",
             "odometer_km_br": odometer_km_br,
+            "reviewed_by_display": reviewed_by_display,
         })
     except Exception as e:
         logger.exception(f"Error loading checklist {checklist_id}")
