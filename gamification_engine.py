@@ -344,7 +344,9 @@ def get_employee_progress(session: Session, employee_id: int):
     
     # Get all levels ordered
     levels = session.exec(select(GameLevel).order_by(GameLevel.level)).all()
-    
+    if not levels:
+        return None
+
     current_level_obj = levels[0]
     next_level_obj = None
     

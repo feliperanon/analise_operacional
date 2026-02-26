@@ -3,12 +3,8 @@
 {% block title %}Checklist Diário{% endblock %}
 
 {% block content %}
-<!-- Injecting Jinja data into Alpine scope via function arguments to avoid parser errors -->
-<div x-data="checklistController({
-        totalItems: {{ items|length }},
-        keys: [{% for item in items %}'{{ item.key }}',{% endfor %}],
-        equipmentLastKm: {{ equipment_last_km|tojson }}
-     })" class="min-h-screen pb-24">
+<script type="application/json" id="checklist-initial-data">{"totalItems":{{ items|length }},"keys":[{% for item in items %}{{ item.key|tojson }}{% if not loop.last %},{% endif %}{% endfor %}],"equipmentLastKm":{{ equipment_last_km|tojson }}}</script>
+<div x-data="checklistController()" class="min-h-screen pb-24">
 
     <!-- Hero Header with XP Badge -->
     <div
@@ -284,6 +280,10 @@
 {% block scripts %}
 <script>
     function checklistController(initialData) {
+        if (!initialData) {
+            const el = document.getElementById('checklist-initial-data');
+            initialData = el ? JSON.parse(el.textContent) : { totalItems: 0, keys: [], equipmentLastKm: {} };
+        }
         return {
             items: {}, // key: boolean (true=OK, false=Bad)
             equipmentCode: '',
