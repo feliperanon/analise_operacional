@@ -8196,12 +8196,12 @@ async def api_create_checklist(
         .where(models.TranspalletChecklist.equipment_code == equipment_code)
         .order_by(desc(models.TranspalletChecklist.date), desc(models.TranspalletChecklist.submitted_at))
     ).first()
-    if last_check and last_check.odometer_km is not None:
+    if km_val is not None and last_check and last_check.odometer_km is not None:
         last_km = float(last_check.odometer_km)
         if km_val <= last_km:
             return JSONResponse({"error": f"KM deve ser maior que o anterior ({last_km:,.0f})."}, status_code=400)  # noqa: E501
         if km_val > last_km + 1000:
-            return JSONResponse({"error": f"Máximo 1000 km/dia. KM anterior: {last_km:,.0f}. Máx hoje: {last_km + 1000:,.0f}."})  # noqa: E501
+            return JSONResponse({"error": f"Máximo 1000 km/dia. KM anterior: {last_km:,.0f}. Máx hoje: {last_km + 1000:,.0f}."}, status_code=400)  # noqa: E501
 
     payload_items = parse_items_payload(items)
     if not payload_items or len(payload_items) != len(CHECKLIST_ITEM_KEYS):

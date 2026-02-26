@@ -332,7 +332,9 @@
 
             get canSubmit() {
                 if (!this.equipmentCode) return false;
-                const km = Number(this.odometerKm);
+                const kmRaw = (this.odometerKm ?? '').toString().trim();
+                if (!kmRaw) return false;
+                const km = Number(kmRaw.replace(',', '.'));
                 if (isNaN(km) || km < 0) return false;
                 const answeredCount = Object.keys(this.items).length;
                 if (answeredCount < this.totalItems) return false;
