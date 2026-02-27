@@ -679,49 +679,51 @@
 
     <!-- Admin Start Modal -->
     <div x-show="showAdminStartModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
         x-transition.opacity x-cloak>
-        <div class="bg-slate-900 w-full max-w-sm rounded-[32px] border border-indigo-500/30 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]"
+        <div class="bg-white w-full max-w-sm rounded-xl surface shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
             @click.away="showAdminStartModal = false">
 
-            <div class="bg-indigo-500/10 p-6 text-center border-b border-indigo-500/10 shrink-0">
-                <div
-                    class="w-16 h-16 bg-indigo-500/20 rounded-2xl flex items-center justify-center mx-auto mb-3 text-indigo-400">
+            <!-- Header -->
+            <div class="bg-blue-50 p-6 text-center border-b border-blue-100 shrink-0">
+                <div class="w-16 h-16 bg-blue-900 rounded-xl flex items-center justify-center mx-auto mb-3 text-white">
                     <i data-lucide="users" class="w-8 h-8"></i>
                 </div>
-                <h3 class="text-xl font-bold text-white">Abertura Manual (Líder)</h3>
-                <p class="text-slate-400 text-sm">Iniciar rota para outro colaborador</p>
+                <h3 class="text-xl font-bold text-blue-900">Abertura Manual (Líder)</h3>
+                <p class="text-sm text-slate-600">Iniciar rota para outro colaborador</p>
             </div>
 
+            <!-- Body -->
             <div class="p-6 space-y-6 overflow-y-auto custom-scrollbar">
                 <!-- Employee Search -->
                 <div>
-                    <label
-                        class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2 block">Colaborador</label>
+                    <label class="text-xs text-slate-600 font-semibold uppercase tracking-wider mb-2 block">
+                        Colaborador
+                    </label>
                     <div class="relative">
-                        <i data-lucide="user" class="absolute left-4 top-3.5 w-5 h-5 text-slate-500"></i>
+                        <i data-lucide="user" class="absolute left-4 top-3.5 w-5 h-5 text-slate-400"></i>
                         <input type="text" x-model="adminStartForm.employeeSearch"
                             placeholder="Buscar por Nome ou Matrícula..."
-                            class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-12 pr-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
+                            class="w-full bg-white border-2 border-slate-200 rounded-lg pl-12 pr-4 py-3 text-blue-900 focus:border-blue-900 focus:ring-4 focus:ring-blue-100 outline-none">
                     </div>
                     <!-- Results -->
                     <div class="mt-2 max-h-40 overflow-y-auto custom-scrollbar space-y-1"
                         x-show="adminStartForm.employeeSearch.length > 0">
                         <template x-for="emp in filteredAdminStartEmployees" :key="emp.id">
                             <button @click="selectAdminStartEmployee(emp)"
-                                class="w-full text-left p-3 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-between group"
-                                :class="{'bg-indigo-500/20 border border-indigo-500/50': adminStartForm.registrationId === emp.registration_id}">
+                                class="w-full text-left p-3 rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-between"
+                                :class="{'bg-blue-50 border-2 border-blue-900': adminStartForm.registrationId === emp.registration_id}">
                                 <div>
-                                    <p class="text-slate-200 text-sm font-medium" x-text="emp.name"></p>
+                                    <p class="text-blue-900 text-sm font-medium" x-text="emp.name"></p>
                                     <p class="text-xs text-slate-500" x-text="emp.registration_id"></p>
                                 </div>
-                                <i data-lucide="check" class="w-4 h-4 text-indigo-400"
+                                <i data-lucide="check" class="w-4 h-4 text-blue-900"
                                     x-show="adminStartForm.registrationId === emp.registration_id"></i>
                             </button>
                         </template>
                     </div>
                     <div x-show="adminStartForm.employee_name"
-                        class="mt-2 text-sm text-green-400 flex items-center gap-2 bg-green-400/10 p-2 rounded-lg">
+                        class="mt-2 text-sm text-green-700 flex items-center gap-2 bg-green-50 p-2 rounded-lg border border-green-200">
                         <i data-lucide="check-circle" class="w-4 h-4"></i>
                         <span x-text="adminStartForm.employee_name + ' (' + adminStartForm.registrationId + ')'"></span>
                     </div>
@@ -729,27 +731,29 @@
 
                 <!-- Client Search -->
                 <div>
-                    <label class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2 block">Cliente</label>
+                    <label class="text-xs text-slate-600 font-semibold uppercase tracking-wider mb-2 block">
+                        Cliente
+                    </label>
                     <div class="relative">
-                        <i data-lucide="search" class="absolute left-4 top-3.5 w-5 h-5 text-slate-500"></i>
+                        <i data-lucide="search" class="absolute left-4 top-3.5 w-5 h-5 text-slate-400"></i>
                         <input type="text" x-model="adminStartForm.clientSearch" placeholder="Buscar cliente..."
-                            class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-12 pr-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
+                            class="w-full bg-white border-2 border-slate-200 rounded-lg pl-12 pr-4 py-3 text-blue-900 focus:border-blue-900 focus:ring-4 focus:ring-blue-100 outline-none">
                     </div>
                     <!-- Results -->
                     <div class="mt-2 max-h-40 overflow-y-auto custom-scrollbar space-y-1"
                         x-show="adminStartForm.clientSearch.length > 0">
                         <template x-for="client in filteredAdminStartClients" :key="client.id">
                             <button @click="selectAdminStartClient(client)"
-                                class="w-full text-left p-3 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-between group"
-                                :class="{'bg-indigo-500/20 border border-indigo-500/50': adminStartForm.client_id === client.id}">
-                                <span class="text-slate-200 text-sm font-medium" x-text="client.name"></span>
-                                <i data-lucide="check" class="w-4 h-4 text-indigo-400"
+                                class="w-full text-left p-3 rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-between"
+                                :class="{'bg-blue-50 border-2 border-blue-900': adminStartForm.client_id === client.id}">
+                                <span class="text-blue-900 text-sm font-medium" x-text="client.name"></span>
+                                <i data-lucide="check" class="w-4 h-4 text-blue-900"
                                     x-show="adminStartForm.client_id === client.id"></i>
                             </button>
                         </template>
                     </div>
                     <div x-show="adminStartForm.client_name"
-                        class="mt-2 text-sm text-green-400 flex items-center gap-2 bg-green-400/10 p-2 rounded-lg">
+                        class="mt-2 text-sm text-green-700 flex items-center gap-2 bg-green-50 p-2 rounded-lg border border-green-200">
                         <i data-lucide="check-circle" class="w-4 h-4"></i>
                         <span x-text="adminStartForm.client_name"></span>
                     </div>
@@ -757,22 +761,26 @@
 
                 <!-- Weight -->
                 <div>
-                    <label class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2 block">Peso
-                        (Kg)</label>
+                    <label class="text-xs text-slate-600 font-semibold uppercase tracking-wider mb-2 block">
+                        Peso (Kg)
+                    </label>
                     <div class="relative">
                         <input type="tel" inputmode="numeric" x-model="adminStartForm.weightInput"
                             @input="let v = $event.target.value.replace(/\D/g,''); if(!v) v='0'; adminStartForm.weightInput = (parseInt(v)/100).toLocaleString('pt-BR', {minimumFractionDigits: 2});"
-                            class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-lg font-mono focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
+                            class="w-full bg-white border-2 border-slate-200 rounded-lg px-4 py-3 text-blue-900 text-lg font-mono focus:border-blue-900 focus:ring-4 focus:ring-blue-100 outline-none">
                         <span class="absolute right-4 top-3.5 text-slate-500 font-medium">kg</span>
                     </div>
                 </div>
             </div>
 
-            <div class="p-6 border-t border-white/5 bg-slate-800/50 flex gap-3">
+            <!-- Footer -->
+            <div class="p-6 border-t border-slate-100 bg-slate-50 flex gap-3 shrink-0">
                 <button @click="showAdminStartModal = false"
-                    class="flex-1 py-3 bg-slate-700 text-slate-300 rounded-xl font-medium">Cancelar</button>
+                    class="flex-1 py-3 bg-white border-2 border-slate-200 text-blue-900 rounded-xl font-semibold hover:bg-slate-100 transition-colors">
+                    Cancelar
+                </button>
                 <button @click="confirmAdminStart()" :class="{'btn-loading': isLoading}"
-                    class="flex-1 py-3 bg-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20">
+                    class="flex-1 py-3 bg-blue-900 text-white rounded-xl font-bold hover:bg-blue-800 shadow-lg shadow-blue-900/20 transition-all">
                     <span x-text="isLoading ? 'Iniciando...' : 'Iniciar'"></span>
                 </button>
             </div>
@@ -781,30 +789,28 @@
 
     <!-- End Day Modal -->
     <div x-show="showEndDayModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
         x-transition.opacity x-cloak>
-        <div
-            class="bg-slate-900 w-full max-w-sm rounded-3xl border border-red-500/30 p-8 shadow-2xl text-center relative overflow-hidden">
-            <!-- Warning Glow -->
-            <div class="absolute -top-10 -left-10 w-32 h-32 bg-red-600/20 blur-[50px] rounded-full pointer-events-none">
+        <div class="bg-white w-full max-w-sm rounded-xl surface shadow-2xl p-8 text-center">
+            
+            <div class="w-16 h-16 bg-red-50 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="alert-triangle" class="w-8 h-8 text-red-600 animate-bounce"></i>
             </div>
 
-            <i data-lucide="alert-triangle" class="w-12 h-12 text-red-500 mx-auto mb-4 animate-bounce"></i>
-
-            <h3 class="text-2xl font-bold text-white mb-2">Encerrar Expediente?</h3>
-            <p class="text-slate-400 text-sm mb-8">
+            <h3 class="text-2xl font-bold text-blue-900 mb-2">Encerrar Expediente?</h3>
+            <p class="text-slate-600 text-sm mb-8">
                 Isso fechará todas as rotas pendentes e registrará seu horário de saída.
             </p>
 
             <div class="space-y-3">
                 <button @click="endDay()"
-                    class="w-full py-4 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-lg shadow-lg shadow-red-500/30 transition-all active:scale-95 flex items-center justify-center gap-2">
+                    class="w-full py-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-lg shadow-lg shadow-red-600/25 transition-all active:scale-95 flex items-center justify-center gap-2">
                     <i data-lucide="power" class="w-5 h-5 fill-current"></i>
                     Encerrar Agora
                 </button>
 
                 <button @click="showEndDayModal = false"
-                    class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition-colors">
+                    class="w-full py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-blue-900 font-semibold transition-colors">
                     Voltar ao Trabalho
                 </button>
             </div>
@@ -813,92 +819,81 @@
 
     <!-- Evaluation Modal (Placeholder) -->
     <div x-show="showEvaluation"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
         x-transition.opacity x-cloak>
-        <div class="bg-slate-900 w-full max-w-sm rounded-3xl border border-blue-500/30 p-8 shadow-2xl text-center"
+        <div class="bg-white w-full max-w-sm rounded-xl surface shadow-2xl p-8 text-center"
             @click.away="showEvaluation = false">
 
-            <div
-                class="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-400">
-                <i data-lucide="construction" class="w-8 h-8"></i>
+            <div class="w-16 h-16 bg-blue-50 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="construction" class="w-8 h-8 text-blue-600"></i>
             </div>
 
-            <h3 class="text-xl font-bold text-white mb-2">Em Breve</h3>
-            <p class="text-slate-400 text-sm mb-6">
+            <h3 class="text-xl font-bold text-blue-900 mb-2">Em Breve</h3>
+            <p class="text-slate-600 text-sm mb-6">
                 O módulo de avaliação de desempenho estará disponível na próxima atualização.
             </p>
 
             <button @click="showEvaluation = false"
-                class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold">
+                class="w-full py-3 rounded-xl bg-blue-900 hover:bg-blue-800 text-white font-bold shadow-lg shadow-blue-900/20 transition-all">
                 Entendi
             </button>
         </div>
     </div>
 
 <!-- XP Explanation Modal -->
-<div x-show="showHelpModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
+<div x-show="showHelpModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
     x-transition.opacity x-cloak>
-    <div class="bg-slate-900 w-full max-w-sm rounded-[32px] border border-yellow-500/20 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+    <div class="bg-white w-full max-w-sm rounded-xl surface shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
         @click.away="showHelpModal = false">
 
         <!-- Header -->
-        <div class="bg-yellow-500/10 p-6 text-center border-b border-yellow-500/10 shrink-0">
-            <div
-                class="w-16 h-16 bg-gradient-to-tr from-yellow-400 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-yellow-500/20">
+        <div class="bg-yellow-50 p-6 text-center border-b border-yellow-100 shrink-0">
+            <div class="w-16 h-16 bg-gradient-to-tr from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-yellow-500/20">
                 <i data-lucide="lightbulb" class="w-8 h-8 text-white"></i>
             </div>
-            <h3 class="text-xl font-bold text-white">Segredos do XP 🤫</h3>
-            <p class="text-slate-400 text-xs">Entenda como subir de nível mais rápido!</p>
+            <h3 class="text-xl font-bold text-blue-900">Segredos do XP</h3>
+            <p class="text-sm text-slate-600">Entenda como subir de nível mais rápido!</p>
         </div>
 
         <!-- Content -->
         <div class="p-6 overflow-y-auto space-y-4 custom-scrollbar">
 
             <!-- Cards -->
-            <div class="bg-slate-800/50 p-4 rounded-2xl border border-white/5 relative overflow-hidden group">
-                <div
-                    class="absolute right-0 top-0 w-20 h-20 bg-blue-500/10 rounded-bl-[100px] transition-transform group-hover:scale-110">
-                </div>
-                <div class="relative z-10">
-                    <h4 class="text-blue-400 font-bold text-sm mb-1 flex items-center gap-2">
+            <div class="surface p-4 border-l-4 border-blue-600 relative overflow-hidden">
+                <div>
+                    <h4 class="text-blue-900 font-bold text-sm mb-2 flex items-center gap-2">
                         <i data-lucide="truck" class="w-4 h-4"></i> Produção
                     </h4>
-                    <p class="text-slate-300 text-xs leading-relaxed">
-                        <strong class="text-white">Peso + Velocidade = XP</strong><br>
+                    <p class="text-slate-700 text-xs leading-relaxed">
+                        <strong class="text-blue-900">Peso + Velocidade = XP</strong><br>
                         Não adianta só pegar peso!
-                        <span class="block mt-1 pl-2 border-l-2 border-blue-500/30 text-slate-400 italic">
-                            1000kg em 30min = <span class="text-green-400">Muito XP</span> 🚀<br>
-                            1000kg em 2h = <span class="text-red-400">Pouco XP</span> 🐢
+                        <span class="block mt-2 pl-3 border-l-2 border-slate-200 text-slate-600 italic text-[11px]">
+                            1000kg em 30min = <span class="text-green-600 font-semibold">Muito XP 🚀</span><br>
+                            1000kg em 2h = <span class="text-red-600 font-semibold">Pouco XP 🐢</span>
                         </span>
                     </p>
                 </div>
             </div>
 
-            <div class="bg-slate-800/50 p-4 rounded-2xl border border-white/5 relative overflow-hidden group">
-                <div
-                    class="absolute right-0 top-0 w-20 h-20 bg-red-500/10 rounded-bl-[100px] transition-transform group-hover:scale-110">
-                </div>
-                <div class="relative z-10">
-                    <h4 class="text-red-400 font-bold text-sm mb-1 flex items-center gap-2">
+            <div class="surface p-4 border-l-4 border-red-600 relative overflow-hidden">
+                <div>
+                    <h4 class="text-red-600 font-bold text-sm mb-2 flex items-center gap-2">
                         <i data-lucide="alert-triangle" class="w-4 h-4"></i> Cuidado com Faltas!
                     </h4>
-                    <p class="text-slate-300 text-xs leading-relaxed">
+                    <p class="text-slate-700 text-xs leading-relaxed">
                         Faltas injustificadas tiram pontos na hora!
-                        Isso pode <strong class="text-red-400">travar seu nível</strong> e diminuir seus ganhos.
+                        Isso pode <strong class="text-red-600">travar seu nível</strong> e diminuir seus ganhos.
                     </p>
                 </div>
             </div>
 
-            <div class="bg-slate-800/50 p-4 rounded-2xl border border-white/5 relative overflow-hidden group">
-                <div
-                    class="absolute right-0 top-0 w-20 h-20 bg-purple-500/10 rounded-bl-[100px] transition-transform group-hover:scale-110">
-                </div>
-                <div class="relative z-10">
-                    <h4 class="text-purple-400 font-bold text-sm mb-1 flex items-center gap-2">
+            <div class="surface p-4 border-l-4 border-purple-600 relative overflow-hidden">
+                <div>
+                    <h4 class="text-purple-600 font-bold text-sm mb-2 flex items-center gap-2">
                         <i data-lucide="crown" class="w-4 h-4"></i> Tempo de Casa
                     </h4>
-                    <p class="text-slate-300 text-xs leading-relaxed">
-                        Sua lealdade vale ouro. Você ganha um <strong class="text-purple-400">bônus fixo diário</strong>
+                    <p class="text-slate-700 text-xs leading-relaxed">
+                        Sua lealdade vale ouro. Você ganha um <strong class="text-purple-600">bônus fixo diário</strong>
                         por cada ano completo de empresa.
                     </p>
                 </div>
@@ -907,9 +902,9 @@
         </div>
 
         <!-- Footer -->
-        <div class="p-4 border-t border-white/5 shrink-0">
+        <div class="p-6 border-t border-slate-100 shrink-0">
             <button @click="showHelpModal = false"
-                class="w-full py-3 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-bold shadow-lg shadow-yellow-500/20 transition-all active:scale-95">
+                class="w-full py-3 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-white font-bold shadow-lg shadow-yellow-500/20 transition-all active:scale-95">
                 Saquei! 👍
             </button>
         </div>
@@ -1930,30 +1925,4 @@
     }
 
 </script>
-<style>
-    .btn-action {
-        padding: 0.35rem 0.65rem;
-        border-radius: 0.45rem;
-        font-size: 11px;
-        font-weight: 700;
-        line-height: 1;
-        color: #fff;
-        border: 1px solid transparent;
-        transition: all .15s ease;
-        white-space: nowrap;
-    }
-    .btn-start { background: #4f46e5; border-color: #6366f1; }
-    .btn-finish { background: #059669; border-color: #10b981; }
-    .btn-return { background: #ea580c; border-color: #fb923c; }
-    .btn-reopen { background: #0f766e; border-color: #14b8a6; }
-    .btn-action:disabled { opacity: .4; cursor: not-allowed; }
-    .btn-modal {
-        padding: .65rem .9rem;
-        border-radius: .6rem;
-        font-size: 13px;
-        font-weight: 700;
-    }
-    .btn-modal-secondary { border: 1px solid #475569; color: #cbd5e1; background: rgba(15,23,42,.5); }
-    .btn-modal-primary { border: 1px solid #8b5cf6; color: #fff; background: #7c3aed; }
-</style>
 {% endblock %}
