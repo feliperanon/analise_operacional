@@ -4830,8 +4830,8 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
             },
             {
                 "key": "separation",
-                "label": "Separação de Mercadorias",
-                "description": "Inicie e finalize suas rotas.",
+                "label": "Rota de Entregas",
+                "description": "Informe a placa e execute suas entregas.",
                 "icon": "truck",
                 "href": "#",
                 "enabled": bool(employee.mobile_access_separation),
