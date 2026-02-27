@@ -71,14 +71,7 @@
 
         <div class="space-y-2 max-h-[62vh] overflow-y-auto custom-scrollbar mt-2" x-show="deliverySessionOpen && !!selectedDeliveryDay">
             <template x-for="route in orderedDeliveryRoutes" :key="`route-${route.id}`">
-                <div class="rounded-xl border border-slate-700 p-3"
-                    :class="{
-                        'bg-slate-900/30': routeStatus(route)==='pendente',
-                        'bg-blue-900/20 border-blue-500/40': routeStatus(route)==='reaberta',
-                        'bg-blue-900/20 border-blue-500/40': routeStatus(route)==='iniciada',
-                        'bg-emerald-900/25 border-emerald-400/50': routeStatus(route)==='entregue',
-                        'bg-red-900/25 border-red-400/50': routeStatus(route)==='devolucao'
-                    }">
+                <div class="rounded-xl border p-3" :class="routeCardClass(route)">
                     <div class="flex items-start justify-between gap-2">
                         <div>
                             <p class="text-sm font-bold text-white" x-text="route.client_name"></p>
@@ -93,6 +86,9 @@
                         <span class="px-2 py-1 rounded border text-slate-200" x-text="statusLabel(routeStatus(route))"></span>
                         <span class="px-2 py-1 rounded bg-slate-900/70 border border-slate-700 text-slate-300" x-show="routeStatus(route)==='iniciada'" x-text="`Tempo ${formatTimer(route.started_at || '00:00')}`"></span>
                         <span class="px-2 py-1 rounded bg-slate-900/70 border border-slate-700 text-slate-300" x-show="route.started_at && (route.finished_at || route.returned_at)" x-text="`Gasto ${formatSpent(route.started_at, route.finished_at || route.returned_at)}`"></span>
+                        <span class="px-2 py-1 rounded bg-indigo-900/20 border border-indigo-500/40 text-indigo-200" x-show="route.started_at" x-text="`Início ${route.started_at}`"></span>
+                        <span class="px-2 py-1 rounded bg-emerald-900/20 border border-emerald-500/40 text-emerald-200" x-show="route.finished_at" x-text="`Fim ${route.finished_at}`"></span>
+                        <span class="px-2 py-1 rounded bg-red-900/20 border border-red-500/40 text-red-200" x-show="route.returned_at" x-text="`Devolução ${route.returned_at}`"></span>
                     </div>
                     <div class="grid grid-cols-2 gap-1.5 mt-2">
                         <button @click="deliveryAction(route,'iniciar')" class="btn-action btn-start" :disabled="!deliverySessionOpen || (routeStatus(route)!=='pendente' && routeStatus(route)!=='reaberta')">Iniciar</button>
@@ -281,6 +277,13 @@
             haptic() { if ('vibrate' in navigator) navigator.vibrate([10]); },
             routeStatus(route) {
                 return ((route && route.status) || 'pendente').toString().toLowerCase().trim();
+            },
+            routeCardClass(route) {
+                const s = this.routeStatus(route);
+                if (s === 'iniciada' || s === 'reaberta') return 'bg-blue-900/20 border-blue-500/40';
+                if (s === 'entregue') return 'bg-emerald-900/25 border-emerald-400/50';
+                if (s === 'devolucao' || s === 'devolução') return 'bg-red-900/25 border-red-400/50';
+                return 'bg-slate-900/30 border-slate-700';
             },
             statusLabel(status) {
                 const map = { pendente: 'Pendente', iniciada: 'Iniciada', reaberta: 'Reaberta', entregue: 'Entregue', devolucao: 'Devolução' };

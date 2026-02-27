@@ -10695,6 +10695,7 @@ def _validate_delivery_assignment(
 ) -> Optional[str]:
     plate_norm = _norm_plate(vehicle_plate)
     if not plate_norm:
+        logger.warning(f"🚫 Validação falhou: Placa inválida '{vehicle_plate}'")
         return "Placa inválida."
 
     rows = session.exec(
@@ -10703,6 +10704,9 @@ def _validate_delivery_assignment(
         .where(models.Route.date == date)
     ).all()
 
+    logger.info(f"🔍 Validando troca: motorista_id={employee_id}, placa={plate_norm}, data={date}, total_entregas={len(rows)}")
+    logger.info(f"🔍 Parâmetros: exclude_route_id={exclude_route_id}, ignore_employee_id={ignore_employee_id}")
+
     # Regra 1: motorista não pode ter mais de um caminhão no mesmo dia
     driver_plates = set()
     for r in rows:
@@ -10710,9 +10714,14 @@ def _validate_delivery_assignment(
             continue
         if r.employee_id == employee_id and r.delivery_vehicle_plate:
             driver_plates.add(_norm_plate(r.delivery_vehicle_plate))
+    
+    logger.info(f"🚗 Caminhões já vinculados ao motorista {employee_id}: {driver_plates}")
+    
     if driver_plates and (len(driver_plates) > 1 or plate_norm not in driver_plates):
         existing = next(iter(driver_plates))
-        return f"Motorista já vinculado a outro caminhão no dia ({existing})."
+        error_msg = f"Motorista já vinculado a outro caminhão no dia ({existing})."
+        logger.warning(f"🚫 Regra 1 violada: {error_msg}")
+        return error_msg
 
     # Regra 2: caminhão não pode estar em dois motoristas
     plate_drivers = set()
@@ -10723,8 +10732,15 @@ def _validate_delivery_assignment(
             continue
         if _norm_plate(r.delivery_vehicle_plate) == plate_norm and r.employee_id:
             plate_drivers.add(r.employee_id)
+    
+    logger.info(f"👥 Motoristas já vinculados ao caminhão {plate_norm}: {plate_drivers}")
+    
     if plate_drivers and (len(plate_drivers) > 1 or employee_id not in plate_drivers):
-        return "Caminhão já vinculado a outro motorista no dia."
+        error_msg = "Caminhão já vinculado a outro motorista no dia."
+        logger.warning(f"🚫 Regra 2 violada: {error_msg}")
+        return error_msg
+    
+    logger.info(f"✅ Validação passou: motorista {employee_id} pode usar caminhão {plate_norm}")
 
     return None
 
@@ -10814,18 +10830,24 @@ def _build_delivery_sync_token(rows: List[models.Route], date: str, shift: str) 
 def _find_employee_by_driver_name(name: str, employees: List[models.Employee]) -> Optional[models.Employee]:
     target = _norm_text(name)
     if not target:
+        logger.debug(f"🔍 Busca motorista: nome vazio")
         return None
 
+    logger.debug(f"🔍 Buscando motorista: '{name}' (normalizado: '{target}')")
+    
+    # Busca exata
     exact = None
     for emp in employees:
         if _norm_text(emp.name) == target:
             exact = emp
             break
     if exact:
+        logger.debug(f"✅ Motorista encontrado (exato): {exact.name}")
         return exact
 
     target_tokens = {t for t in target.split() if t}
     if not target_tokens:
+        logger.debug(f"❌ Nenhum token válido em '{target}'")
         return None
 
     # Caso comum de abreviação de 1 palavra (ex.: "FERNANDO"):
@@ -10880,7 +10902,12 @@ def _find_employee_by_driver_name(name: str, employees: List[models.Employee]) -
             best_emp = emp
 
     # threshold conservador para evitar associação errada
-    return best_emp if best_score >= 0.75 else None
+    if best_emp and best_score >= 0.75:
+        logger.debug(f"✅ Motorista encontrado (similaridade {best_score:.0%}): {best_emp.name}")
+        return best_emp
+    
+    logger.warning(f"❌ Motorista NÃO encontrado: '{name}' (melhor match: {best_emp.name if best_emp else 'nenhum'}, score: {best_score:.0%})")
+    return None
 
 
 def _find_client(client_code_raw: Optional[str], client_name_raw: Optional[str], clients: List[models.Client]) -> Optional[models.Client]:
@@ -11507,6 +11534,15 @@ async def import_entregas_separacao(
         vehicles = session.exec(select(models.Vehicle).where(models.Vehicle.is_active == True)).all()
         vehicle_by_plate = {_norm_plate(v.placa): v for v in vehicles}
 
+        # Log dos motoristas cadastrados para debug
+        motoristas_cadastrados = [
+            f"{emp.name} (cargo: {emp.role or 'N/A'})"
+            for emp in employees
+            if "motorista" in (emp.role or "").lower()
+        ]
+        logger.info(f"👥 Total de funcionários ativos: {len(employees)}")
+        logger.info(f"🚗 Motoristas cadastrados ({len(motoristas_cadastrados)}): {motoristas_cadastrados}")
+
         parsed_rows = []
         route_totals = {}
 
@@ -11538,10 +11574,14 @@ async def import_entregas_separacao(
 
             emp = _find_employee_by_driver_name(driver_name_raw, employees)
             if not emp:
+                # Buscar motoristas disponíveis para sugerir
+                motoristas_cadastrados = [e.name for e in employees if "motorista" in (e.role or "").lower()][:5]
+                sugestao = f" Motoristas cadastrados: {', '.join(motoristas_cadastrados)}" if motoristas_cadastrados else ""
                 import_result["issues"].append({
                     "row": row_num,
-                    "reason": f"Motorista não cadastrado: {driver_name_raw}",
+                    "reason": f"Motorista não encontrado: '{driver_name_raw}'.{sugestao}",
                 })
+                logger.warning(f"❌ Motorista não encontrado na linha {row_num}: '{driver_name_raw}'")
                 continue
 
             vehicle = vehicle_by_plate.get(_norm_plate(plate_raw))
@@ -11982,6 +12022,15 @@ async def reassign_delivery_group(
     session: Session = Depends(get_session),
 ):
     require_login(request)
+    
+    # Buscar nomes para logs mais legíveis
+    source_emp = session.get(models.Employee, source_employee_id)
+    new_emp = session.get(models.Employee, new_employee_id)
+    source_name = source_emp.name if source_emp else f"ID={source_employee_id}"
+    new_name = new_emp.name if new_emp else f"ID={new_employee_id}"
+    
+    logger.info(f"🔄 Tentativa de troca de motorista: {source_name} → {new_name}, Caminhão: {new_vehicle_plate}, Data: {date}")
+    
     rows = session.exec(
         select(models.Route)
         .where(models.Route.type == "delivery")
@@ -11989,8 +12038,11 @@ async def reassign_delivery_group(
         .where(models.Route.employee_id == source_employee_id)
     ).all()
     if not rows:
+        logger.warning(f"❌ Nenhuma entrega encontrada para {source_name} na data {date}")
         feedback_encoded = urlencode({"delivery_feedback": "Nenhuma entrega encontrada para o motorista.", "delivery_feedback_level": "error"})
         return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
+
+    logger.info(f"📦 Encontradas {len(rows)} entregas para transferir")
 
     err = _validate_delivery_assignment(
         session=session,
@@ -12000,6 +12052,7 @@ async def reassign_delivery_group(
         ignore_employee_id=source_employee_id,
     )
     if err:
+        logger.error(f"❌ Validação falhou: {err}")
         feedback_encoded = urlencode({"delivery_feedback": err, "delivery_feedback_level": "error"})
         return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
 
@@ -12009,6 +12062,7 @@ async def reassign_delivery_group(
         session.add(r)
     session.commit()
 
+    logger.info(f"✅ Troca concluída: {len(rows)} entregas transferidas de {source_name} para {new_name}")
     feedback_encoded = urlencode({"delivery_feedback": f"Transferência concluída em {len(rows)} parada(s).", "delivery_feedback_level": "success"})
     return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
 
