@@ -57,10 +57,11 @@
                                     onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name }}&background=1e3a8a&color=fff'"
                                     class="w-full h-full rounded-xl object-cover bg-white" alt="Badge">
                             </div>
-                            <div class="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 border-2 border-blue-900">
-                                <span class="flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white bg-blue-900 rounded-full">
-                                    {{ gamification.level.level }}
-                                </span>
+                            <div class="absolute -bottom-1 left-1 right-1">
+                                <div class="h-2 bg-blue-200 rounded-full overflow-hidden border border-white/90">
+                                    <div class="h-full bg-blue-900 transition-all duration-1000"
+                                        style="width: {{ gamification.progress_percent }}%"></div>
+                                </div>
                             </div>
                         </div>
                         
