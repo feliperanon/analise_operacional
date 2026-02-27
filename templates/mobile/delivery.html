@@ -1,0 +1,315 @@
+{% extends "mobile/layout.html" %}
+
+{% block content %}
+<div x-data="deliveryPageController()" x-init="init()" class="min-h-screen px-4 pt-6 pb-24 bg-slate-950 text-slate-100">
+    <div class="flex items-center justify-between mb-4">
+        <a href="/mobile/dashboard" class="px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-sm">Voltar</a>
+        <h1 class="text-lg font-bold">Rota de Entregas</h1>
+        <div class="w-14"></div>
+    </div>
+
+    <div class="rounded-2xl border border-slate-700 bg-slate-900/70 p-4">
+        <div class="flex items-start justify-between gap-2 mb-3">
+            <div>
+                <p class="font-bold">Minhas Rotas</p>
+                <p class="text-xs text-slate-400" x-text="assignedPlate ? `Caminhão: ${assignedPlate}` : 'Sem caminhão planejado'"></p>
+            </div>
+            <button x-show="!deliverySessionOpen" @click="openStartEntry()" class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold">Iniciar</button>
+            <button x-show="deliverySessionOpen" @click="showDeliveryEndModal = true" class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold">Encerrar</button>
+        </div>
+
+        <div class="space-y-2 mb-3">
+            <template x-for="card in deliveryDayCards" :key="`day-${card.date}`">
+                <button @click="selectedDeliveryDay = card.date" class="w-full text-left px-3 py-2 rounded-xl border transition"
+                    :class="selectedDeliveryDay===card.date ? 'bg-indigo-900/20 border-indigo-500/40 text-indigo-200' : 'bg-slate-900/40 border-slate-700 text-slate-300'">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold" x-text="card.label"></span>
+                        <span class="text-xs opacity-80" x-text="`${card.count} cliente(s)`"></span>
+                    </div>
+                </button>
+            </template>
+        </div>
+
+        <div x-show="!deliverySessionOpen" class="rounded-xl border border-amber-500/30 bg-amber-900/10 p-3 text-xs text-amber-200">
+            Inicie a rotina para liberar os clientes.
+        </div>
+
+        <div class="space-y-2 max-h-[62vh] overflow-y-auto custom-scrollbar mt-2" x-show="deliverySessionOpen">
+            <template x-for="route in filteredDeliveryRoutes" :key="`route-${route.id}`">
+                <div class="rounded-xl border border-slate-700 p-3"
+                    :class="{
+                        'bg-amber-900/10': route.status==='pendente' || route.status==='reaberta',
+                        'bg-indigo-900/10': route.status==='iniciada',
+                        'bg-emerald-900/10': route.status==='entregue',
+                        'bg-orange-900/10': route.status==='devolucao'
+                    }">
+                    <div class="flex items-start justify-between gap-2">
+                        <div>
+                            <p class="text-sm font-bold text-white" x-text="route.client_name"></p>
+                            <p class="text-[11px] text-slate-400" x-text="`Cod ${route.client_code || '-'} • Pedido ${route.order_number || '-'}`"></p>
+                        </div>
+                        <a :href="route.maps_url" target="_blank" class="text-[11px] text-sky-300 underline">Mapa</a>
+                    </div>
+                    <p class="text-[11px] text-slate-300 mt-1" x-text="`${route.address} - ${route.city}/${route.state}`"></p>
+                    <div class="flex items-center gap-2 mt-2 text-[11px] flex-wrap">
+                        <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-200" x-text="`${route.weight.toFixed(2)} Kg`"></span>
+                        <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-200" x-text="`R$ ${route.value.toFixed(2)}`"></span>
+                        <span class="px-2 py-1 rounded border text-slate-200" x-text="route.status"></span>
+                        <span class="px-2 py-1 rounded bg-slate-900/70 border border-slate-700 text-slate-300" x-show="route.status==='iniciada'" x-text="`Tempo ${formatTimer(route.started_at || '00:00')}`"></span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1.5 mt-2">
+                        <button @click="deliveryAction(route,'iniciar')" class="btn-action btn-start" :disabled="!deliverySessionOpen || (route.status!=='pendente' && route.status!=='reaberta')">Iniciar</button>
+                        <button @click="deliveryAction(route,'finalizar')" class="btn-action btn-finish" :disabled="!deliverySessionOpen || route.status!=='iniciada'">Finalizar</button>
+                        <button @click="openMobileReturnModal(route)" class="btn-action btn-return" :disabled="!deliverySessionOpen || route.status!=='iniciada'">Devolução</button>
+                        <button @click="deliveryAction(route,'reabrir')" class="btn-action btn-reopen" :disabled="!deliverySessionOpen || (route.status!=='entregue' && route.status!=='devolucao')">Reabrir</button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <div x-show="showDeliverySetupModal" class="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-sm p-4" @click.self="showDeliverySetupModal = false">
+        <div @click.stop class="w-full max-w-lg bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-3 shadow-2xl">
+            <h3 class="text-white font-bold text-lg">Iniciar Entregas</h3>
+            <p class="text-sm text-slate-300">Preencha placa e KM de saída.</p>
+            <div x-show="deliverySetupError" class="rounded-lg border border-red-500/30 bg-red-900/20 px-3 py-2 text-xs text-red-200" x-text="deliverySetupError"></div>
+            <div>
+                <label class="block text-xs text-slate-300 mb-1">Placa *</label>
+                <input type="text" x-ref="deliveryPlateInput" x-model="deliverySetup.plate" @input="normalizePlateInput()" placeholder="ABC1D23"
+                    class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-3 text-white text-base uppercase">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-300 mb-1">KM de saída *</label>
+                <input type="number" step="0.1" min="0" x-model="deliverySetup.km_departure" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-3 text-white text-base">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-300 mb-1">Ajudantes (opcional)</label>
+                <div class="relative flex gap-2">
+                    <input type="text" x-model="deliverySetup.helperInput" @keydown.enter.prevent="addDeliveryHelperFromInput()" placeholder="Digite o nome e pressione Enter"
+                        class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-3 text-white text-sm" autocomplete="off">
+                    <button type="button" @click="addDeliveryHelperFromInput()" class="btn-modal btn-modal-secondary !py-2">Adicionar</button>
+                    <div x-show="filteredHelperOptions.length > 0" class="absolute left-0 right-24 top-full mt-1 max-h-44 overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 shadow-xl z-10">
+                        <template x-for="emp in filteredHelperOptions" :key="`helper-suggest-${emp.id}`">
+                            <button type="button" @click="selectDeliveryHelperName(emp.name)" class="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-slate-800" x-text="emp.name"></button>
+                        </template>
+                    </div>
+                </div>
+                <div class="mt-2 flex flex-wrap gap-1.5">
+                    <template x-for="(helper, idx) in deliverySetup.helpers" :key="`helper-${idx}-${helper}`">
+                        <span class="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-600 bg-slate-900 text-slate-200 text-xs">
+                            <span x-text="helper"></span>
+                            <button type="button" @click="removeDeliveryHelper(idx)" class="text-slate-400 hover:text-white">x</button>
+                        </span>
+                    </template>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 gap-2 pt-2">
+                <button @click="startDeliverySession()" class="btn-modal btn-modal-primary !py-3 text-base">Iniciar agora</button>
+                <button @click="showDeliverySetupModal=false" class="btn-modal btn-modal-secondary !py-3 text-sm">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="showDeliveryEndModal" class="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-sm p-4" @click.self="showDeliveryEndModal=false">
+        <div @click.stop class="w-full max-w-md bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-3 shadow-2xl">
+            <h3 class="text-white font-bold">Encerrar na Empresa</h3>
+            <input type="number" step="0.1" min="0" x-model="deliveryEndKm" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm" placeholder="KM de chegada">
+            <div class="grid grid-cols-2 gap-2 pt-2">
+                <button @click="showDeliveryEndModal=false" class="btn-modal btn-modal-secondary">Cancelar</button>
+                <button @click="endDeliverySession()" class="btn-modal btn-modal-primary">Encerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="showMobileReturnModal" class="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-sm p-4" @click.self="showMobileReturnModal=false">
+        <div @click.stop class="w-full max-w-lg bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-3 shadow-2xl">
+            <h3 class="text-white font-bold">Registrar Devolução</h3>
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">Motivo</label>
+                <select x-model="mobileReturn.reason" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm">
+                    <template x-for="reason in mobileReturnReasons" :key="reason">
+                        <option :value="reason" x-text="reason"></option>
+                    </template>
+                </select>
+            </div>
+            <label class="flex items-center gap-2 text-sm text-slate-200">
+                <input type="checkbox" x-model="mobileReturn.is_partial"> Devolução parcial
+            </label>
+            <div class="grid grid-cols-2 gap-2" x-show="mobileReturn.is_partial">
+                <input type="number" step="0.01" min="0" x-model="mobileReturn.weight" placeholder="Peso (Kg)" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm">
+                <input type="number" step="0.01" min="0" x-model="mobileReturn.value" placeholder="Valor (R$)" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm">
+            </div>
+            <div class="grid grid-cols-2 gap-2 pt-2">
+                <button @click="showMobileReturnModal=false" class="btn-modal btn-modal-secondary">Cancelar</button>
+                <button @click="confirmMobileReturn()" class="btn-modal btn-modal-primary">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script id="delivery-page-data" type="application/json">
+{
+    "employees": {{ employees_json | safe }}
+}
+</script>
+<script>
+    function deliveryPageController() {
+        const payload = JSON.parse(document.getElementById('delivery-page-data').textContent || '{"employees":[]}');
+        return {
+            employees: Array.isArray(payload.employees) ? payload.employees : [],
+            deliveryRoutes: [],
+            deliveryDayCards: [],
+            selectedDeliveryDay: '',
+            deliverySessionOpen: false,
+            assignedPlate: '',
+            showDeliverySetupModal: false,
+            showDeliveryEndModal: false,
+            showMobileReturnModal: false,
+            deliverySetupError: '',
+            deliveryEndKm: '',
+            mobileReturnRoute: null,
+            mobileReturnReasons: [],
+            mobileReturn: { reason: '', is_partial: false, weight: '', value: '' },
+            deliverySetup: { plate: '', km_departure: '', helpers: [], helperInput: '' },
+
+            get helperOptions() { return (this.employees || []).filter(e => e.id !== {{ employee.id }}); },
+            get filteredDeliveryRoutes() {
+                if (!this.selectedDeliveryDay) return this.deliveryRoutes || [];
+                return (this.deliveryRoutes || []).filter(r => r.date === this.selectedDeliveryDay);
+            },
+            get filteredHelperOptions() {
+                const q = (this.deliverySetup.helperInput || '').trim().toLowerCase();
+                if (!q) return [];
+                const selected = new Set((this.deliverySetup.helpers || []).map(h => (h || '').trim().toLowerCase()));
+                return (this.helperOptions || []).filter(emp => {
+                    const name = ((emp && emp.name) || '').trim();
+                    if (!name || selected.has(name.toLowerCase())) return false;
+                    return name.toLowerCase().includes(q);
+                }).slice(0, 8);
+            },
+
+            init() { this.loadDeliveryData(); },
+            haptic() { if ('vibrate' in navigator) navigator.vibrate([10]); },
+            formatTimer(startTimeStr) {
+                if (!startTimeStr) return "00:00:00";
+                const parts = startTimeStr.split(':');
+                if (parts.length < 2) return "--:--";
+                const h = parseInt(parts[0]); const m = parseInt(parts[1]);
+                if (isNaN(h) || isNaN(m)) return "--:--";
+                const now = new Date(); const start = new Date();
+                start.setHours(h, m, 0, 0);
+                if (start > now) start.setDate(start.getDate() - 1);
+                let diff = now - start; if (diff < 0) diff = 0;
+                const s = Math.floor(diff / 1000); const hh = Math.floor(s / 3600);
+                const mm = Math.floor((s % 3600) / 60); const ss = s % 60;
+                return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+            },
+            openStartEntry() {
+                this.deliverySetupError = '';
+                if (!this.deliverySetup.plate && this.assignedPlate) this.deliverySetup.plate = this.assignedPlate;
+                this.showDeliverySetupModal = true;
+                this.$nextTick(() => this.$refs.deliveryPlateInput && this.$refs.deliveryPlateInput.focus());
+            },
+            normalizePlateInput() {
+                const raw = (this.deliverySetup.plate || '').toUpperCase();
+                this.deliverySetup.plate = raw.replace(/[^A-Z0-9]/g, '').slice(0, 7);
+            },
+            addDeliveryHelperFromInput() {
+                const raw = (this.deliverySetup.helperInput || '').trim();
+                if (!raw) return;
+                const normalized = raw.replace(/\s+/g, ' ');
+                const exists = (this.deliverySetup.helpers || []).some(h => (h || '').trim().toLowerCase() === normalized.toLowerCase());
+                if (exists) return;
+                this.deliverySetup.helpers.push(normalized);
+                this.deliverySetup.helperInput = '';
+            },
+            removeDeliveryHelper(idx) { this.deliverySetup.helpers.splice(idx, 1); },
+            selectDeliveryHelperName(name) { this.deliverySetup.helperInput = (name || '').trim(); this.addDeliveryHelperFromInput(); },
+            loadDeliveryData() {
+                fetch('/api/mobile/delivery/my-routes').then(r => r.json()).then(data => {
+                    if (!data.success) return;
+                    this.deliveryRoutes = data.routes || [];
+                    this.deliveryDayCards = data.day_cards || [];
+                    this.selectedDeliveryDay = this.deliveryDayCards.length ? this.deliveryDayCards[0].date : '';
+                    this.deliverySessionOpen = !!data.session_open;
+                    this.assignedPlate = data.assigned_plate || '';
+                    this.mobileReturnReasons = data.return_reasons || [];
+                    if (!this.mobileReturn.reason && this.mobileReturnReasons.length) this.mobileReturn.reason = this.mobileReturnReasons[0];
+                });
+            },
+            startDeliverySession() {
+                this.deliverySetupError = '';
+                if (!this.deliverySetup.plate || this.deliverySetup.plate.length < 7) { this.deliverySetupError = 'Informe a placa completa.'; return; }
+                if (!this.deliverySetup.km_departure || Number(this.deliverySetup.km_departure) <= 0) { this.deliverySetupError = 'Informe um KM de saída válido.'; return; }
+                fetch('/api/mobile/delivery/session/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ plate: this.deliverySetup.plate, helpers: this.deliverySetup.helpers || [], km_departure: Number(this.deliverySetup.km_departure) })
+                }).then(r => r.json()).then(data => {
+                    if (!data.success) { this.deliverySetupError = data.error || 'Erro ao iniciar rotina.'; return; }
+                    this.showDeliverySetupModal = false;
+                    this.deliverySetup = { plate: '', km_departure: '', helpers: [], helperInput: '' };
+                    this.loadDeliveryData();
+                    this.haptic();
+                });
+            },
+            endDeliverySession() {
+                if (!this.deliveryEndKm || Number(this.deliveryEndKm) <= 0) { alert('Informe KM de chegada válido.'); return; }
+                fetch('/api/mobile/delivery/session/end', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ km_return: Number(this.deliveryEndKm) })
+                }).then(r => r.json()).then(data => {
+                    if (!data.success) return alert(data.error || 'Erro ao encerrar rotina.');
+                    this.showDeliveryEndModal = false; this.deliveryEndKm = ''; this.loadDeliveryData(); this.haptic();
+                });
+            },
+            deliveryAction(route, action) {
+                fetch(`/api/mobile/delivery/route/${route.id}/action`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action })
+                }).then(r => r.json()).then(data => {
+                    if (!data.success) return alert(data.error || 'Erro na ação.');
+                    this.loadDeliveryData(); this.haptic();
+                });
+            },
+            openMobileReturnModal(route) {
+                this.mobileReturnRoute = route;
+                this.mobileReturn = { reason: this.mobileReturnReasons[0] || '', is_partial: false, weight: '', value: '' };
+                this.showMobileReturnModal = true;
+            },
+            confirmMobileReturn() {
+                if (!this.mobileReturnRoute) return;
+                fetch(`/api/mobile/delivery/route/${this.mobileReturnRoute.id}/action`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'devolucao',
+                        return_reason: this.mobileReturn.reason,
+                        return_is_partial: !!this.mobileReturn.is_partial,
+                        return_partial_weight: this.mobileReturn.is_partial ? Number(this.mobileReturn.weight || 0) : null,
+                        return_partial_value: this.mobileReturn.is_partial ? Number(this.mobileReturn.value || 0) : null
+                    })
+                }).then(r => r.json()).then(data => {
+                    if (!data.success) return alert(data.error || 'Erro na devolução.');
+                    this.showMobileReturnModal = false; this.mobileReturnRoute = null; this.loadDeliveryData(); this.haptic();
+                });
+            },
+        }
+    }
+</script>
+<style>
+    .btn-action { padding: 0.55rem 0.65rem; border-radius: 0.5rem; font-size: 12px; font-weight: 700; color: #fff; border: 1px solid transparent; }
+    .btn-start { background: #4f46e5; border-color: #6366f1; }
+    .btn-finish { background: #059669; border-color: #10b981; }
+    .btn-return { background: #ea580c; border-color: #fb923c; }
+    .btn-reopen { background: #0f766e; border-color: #14b8a6; }
+    .btn-action:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-modal { padding: .65rem .9rem; border-radius: .6rem; font-size: 13px; font-weight: 700; }
+    .btn-modal-secondary { border: 1px solid #475569; color: #cbd5e1; background: rgba(15,23,42,.5); }
+    .btn-modal-primary { border: 1px solid #8b5cf6; color: #fff; background: #7c3aed; }
+</style>
+{% endblock %}

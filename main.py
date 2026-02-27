@@ -4941,9 +4941,9 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
                 "label": "Rota de Entregas",
                 "description": "Informe a placa e execute suas entregas.",
                 "icon": "truck",
-                "href": "#",
+                "href": "/mobile/delivery",
                 "enabled": bool(employee.mobile_access_separation),
-                "action": "start_separation"
+                "action": None
             },
             {
                 "key": "checklist",
@@ -5044,6 +5044,40 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
         error_msg = f"Error in mobile_dashboard: {str(e)}\n{traceback.format_exc()}"
         print(error_msg) # Log to console
         return JSONResponse(status_code=500, content={"error": "Erro interno do servidor", "details": str(e), "trace": traceback.format_exc()})
+
+
+@app.get("/mobile/delivery", response_class=HTMLResponse)
+async def mobile_delivery_page(
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    if not isinstance(current_user, dict):
+        return RedirectResponse(url="/mobile/login", status_code=303)
+
+    user_id = current_user.get("id")
+    if not user_id:
+        return RedirectResponse(url="/mobile/login", status_code=303)
+
+    employee = session.get(models.Employee, user_id)
+    if not employee:
+        request.session.clear()
+        return RedirectResponse(url="/mobile/login", status_code=303)
+
+    if not employee.mobile_access or not employee.mobile_access_separation:
+        return RedirectResponse(url="/mobile/dashboard?module=separation", status_code=303)
+
+    employees = session.exec(select(models.Employee).where(models.Employee.status == "active")).all()
+    employees_list = [{"id": e.id, "name": e.name} for e in employees]
+
+    return templates.TemplateResponse(
+        "mobile/delivery.html",
+        {
+            "request": request,
+            "employee": employee,
+            "employees_json": json.dumps(employees_list),
+        },
+    )
 
 # --- Conquistas Route ---
 @app.get("/mobile/achievements", response_class=HTMLResponse)

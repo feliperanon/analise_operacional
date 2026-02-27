@@ -212,7 +212,7 @@
     </div>
 
     <!-- 2b. Entregas do Motorista -->
-    <div class="px-6 mt-4" x-show="initialized && deliveryRoutes.length > 0" x-cloak>
+    <div class="px-6 mt-4 hidden" x-show="false" x-cloak>
         <div class="bg-slate-800/70 border border-slate-700 rounded-3xl p-4">
             <div class="flex items-start justify-between gap-3 mb-3">
                 <div>
@@ -1232,7 +1232,6 @@
                 // Setup pull to refresh
                 this.setupPullToRefresh();
                 this.helperOptions = (this.employees || []).filter(e => e.id !== {{ employee.id }});
-                this.loadDeliveryData();
             },
 
             // Haptic feedback helper
