@@ -280,6 +280,19 @@ class Route(SQLModel, table=True):
     status: str = "pending" # pending, completed
     created_at: datetime = Field(default_factory=datetime.now)
 
+
+class DeliverySession(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    date: str = Field(index=True)  # YYYY-MM-DD
+    employee_id: int = Field(foreign_key="employee.id", index=True)
+    status: str = Field(default="open", index=True)  # open, closed
+    vehicle_plate: str = Field(index=True)
+    helpers_json: Optional[str] = None  # JSON list de employee_id
+    km_departure: Optional[float] = None
+    km_return: Optional[float] = None
+    started_at: datetime = Field(default_factory=datetime.now)
+    ended_at: Optional[datetime] = None
+
 # --- Checklist Operacional (Transpaleteira) ---
 
 class TranspalletEquipment(SQLModel, table=True):

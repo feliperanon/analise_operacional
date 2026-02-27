@@ -4499,7 +4499,8 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
             .join(models.Client, models.Route.client_id == models.Client.id)
             .where(
                 models.Route.employee_id == employee.id,
-                models.Route.status == "pending"
+                models.Route.status == "pending",
+                or_(models.Route.type == None, models.Route.type == "separation")
             )
         )
         active_routes_result = session.exec(active_routes_stmt).all()
@@ -4539,7 +4540,8 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
             .where(
                 models.Route.employee_id == employee.id,
                 models.Route.date == today_str,
-                models.Route.status == "completed"
+                models.Route.status == "completed",
+                or_(models.Route.type == None, models.Route.type == "separation")
             )
             .order_by(models.Route.end_time.desc())
         )
@@ -5995,6 +5997,24 @@ class MobileUpdatePayload(BaseModel):
     client_id: Optional[int] = None
     tonnage: Optional[float] = None
 
+
+class MobileDeliverySessionStartPayload(BaseModel):
+    plate: str
+    helpers: List[int] = []
+    km_departure: float
+
+
+class MobileDeliverySessionEndPayload(BaseModel):
+    km_return: float
+
+
+class MobileDeliveryActionPayload(BaseModel):
+    action: str
+    return_reason: Optional[str] = None
+    return_is_partial: bool = False
+    return_partial_weight: Optional[float] = None
+    return_partial_value: Optional[float] = None
+
 class AdminStartRoutePayload(BaseModel):
     client_id: int
     tonnage: Optional[float] = 0.0
@@ -6243,6 +6263,301 @@ async def mobile_route_update(
     except Exception as e:
         logger.exception(f"Error updating route {route_id}: {e}")
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/mobile/delivery/my-routes", response_class=JSONResponse)
+async def api_mobile_delivery_my_routes(
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse({"error": "Não autorizado"}, status_code=401)
+
+    today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    routes = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.employee_id == user_id)
+        .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta"]))
+        .order_by(models.Route.date, models.Route.id)
+    ).all()
+    client_ids = list({r.client_id for r in routes})
+    clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
+    client_map = {c.id: c for c in clients}
+
+    session_open = session.exec(
+        select(models.DeliverySession)
+        .where(models.DeliverySession.employee_id == user_id)
+        .where(models.DeliverySession.date == today_str)
+        .where(models.DeliverySession.status == "open")
+        .order_by(models.DeliverySession.id.desc())
+    ).first()
+
+    payload = []
+    grouped = {}
+    for r in routes:
+        c = client_map.get(r.client_id)
+        item = {
+            "id": r.id,
+            "date": r.date,
+            "client_name": (c.razao_social if c and c.razao_social else (c.name if c else "Cliente")),
+            "client_secondary": (c.nome_fantasia if c and c.nome_fantasia else (c.name if c else "")),
+            "address": r.delivery_address or "",
+            "city": r.delivery_city or "",
+            "bairro": r.delivery_neighborhood or "",
+            "state": r.delivery_state or "",
+            "cep": r.delivery_cep or "",
+            "maps_url": _maps_link(r.delivery_address, r.delivery_neighborhood, r.delivery_city, r.delivery_state, r.delivery_cep),
+            "weight": r.tonnage or 0.0,
+            "value": r.valor_financeiro or 0.0,
+            "status": (r.delivery_status or "pendente"),
+            "started_at": r.delivery_started_at,
+            "finished_at": r.delivery_finished_at,
+            "returned_at": r.delivery_returned_at,
+            "reopen_count": r.delivery_reopen_count or 0,
+            "vehicle_plate": r.delivery_vehicle_plate or "",
+            "order_number": r.delivery_order_number or "",
+            "client_code": r.delivery_client_code or "",
+        }
+        payload.append(item)
+        grouped.setdefault(r.date, []).append(item)
+
+    assigned_plates = []
+    for r in routes:
+        if r.delivery_vehicle_plate and r.delivery_vehicle_plate not in assigned_plates:
+            assigned_plates.append(r.delivery_vehicle_plate)
+
+    day_cards = []
+    for d, items in grouped.items():
+        try:
+            d_fmt = datetime.strptime(d, "%Y-%m-%d").strftime("%d/%m")
+        except Exception:
+            d_fmt = d
+        day_cards.append({
+            "date": d,
+            "label": f"Entregas do Dia {d_fmt}",
+            "count": len(items),
+            "routes": items,
+        })
+    day_cards.sort(key=lambda x: x["date"])
+
+    return JSONResponse({
+        "success": True,
+        "date": today_str,
+        "assigned_plate": assigned_plates[0] if assigned_plates else "",
+        "assigned_plates": assigned_plates,
+        "session_open": bool(session_open),
+        "session": {
+            "id": session_open.id if session_open else None,
+            "km_departure": session_open.km_departure if session_open else None,
+            "vehicle_plate": session_open.vehicle_plate if session_open else None,
+        } if session_open else None,
+        "routes": payload,
+        "day_cards": day_cards,
+        "return_reasons": DELIVERY_RETURN_REASONS_FLAT,
+    })
+
+
+@app.post("/api/mobile/delivery/session/start", response_class=JSONResponse)
+async def api_mobile_delivery_session_start(
+    request: Request,
+    payload: MobileDeliverySessionStartPayload,
+    session: Session = Depends(get_session)
+):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse({"error": "Não autorizado"}, status_code=401)
+    today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+
+    routes = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.employee_id == user_id)
+        .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta"]))
+    ).all()
+    if not routes:
+        return JSONResponse({"error": "Sem entregas planejadas para hoje."}, status_code=400)
+
+    assigned_plates = sorted({r.delivery_vehicle_plate for r in routes if r.delivery_vehicle_plate})
+    if not assigned_plates:
+        return JSONResponse({"error": "Caminhão não definido no planejamento."}, status_code=400)
+
+    if _norm_plate(payload.plate) not in {_norm_plate(p) for p in assigned_plates}:
+        return JSONResponse({"error": f"Placa inválida. Placa(s) planejada(s): {', '.join(assigned_plates)}."}, status_code=400)
+
+    existing = session.exec(
+        select(models.DeliverySession)
+        .where(models.DeliverySession.employee_id == user_id)
+        .where(models.DeliverySession.date == today_str)
+        .where(models.DeliverySession.status == "open")
+    ).first()
+    if existing:
+        return JSONResponse({"error": "Rotina de entrega já iniciada."}, status_code=400)
+
+    new_session = models.DeliverySession(
+        date=today_str,
+        employee_id=user_id,
+        status="open",
+        vehicle_plate=payload.plate.strip().upper(),
+        helpers_json=json.dumps(payload.helpers or []),
+        km_departure=payload.km_departure,
+    )
+    session.add(new_session)
+    session.commit()
+    return JSONResponse({"success": True})
+
+
+@app.post("/api/mobile/delivery/session/end", response_class=JSONResponse)
+async def api_mobile_delivery_session_end(
+    request: Request,
+    payload: MobileDeliverySessionEndPayload,
+    session: Session = Depends(get_session)
+):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse({"error": "Não autorizado"}, status_code=401)
+    today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    ds = session.exec(
+        select(models.DeliverySession)
+        .where(models.DeliverySession.employee_id == user_id)
+        .where(models.DeliverySession.date == today_str)
+        .where(models.DeliverySession.status == "open")
+        .order_by(models.DeliverySession.id.desc())
+    ).first()
+    if not ds:
+        return JSONResponse({"error": "Nenhuma rotina aberta."}, status_code=400)
+    if payload.km_return <= 0:
+        return JSONResponse({"error": "KM de chegada inválido."}, status_code=400)
+
+    pending = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date == today_str)
+        .where(models.Route.employee_id == user_id)
+        .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta"]))
+    ).all()
+    if pending:
+        return JSONResponse({"error": "Ainda existem entregas em aberto. Finalize/devolva antes de encerrar."}, status_code=400)
+
+    ds.km_return = payload.km_return
+    ds.status = "closed"
+    ds.ended_at = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    session.add(ds)
+    session.commit()
+    return JSONResponse({"success": True})
+
+
+@app.post("/api/mobile/delivery/route/{route_id}/action", response_class=JSONResponse)
+async def api_mobile_delivery_route_action(
+    request: Request,
+    route_id: int,
+    payload: MobileDeliveryActionPayload,
+    session: Session = Depends(get_session)
+):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse({"error": "Não autorizado"}, status_code=401)
+    route = session.get(models.Route, route_id)
+    if not route or route.type != "delivery" or route.employee_id != user_id:
+        return JSONResponse({"error": "Rota inválida."}, status_code=404)
+
+    today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    ds = session.exec(
+        select(models.DeliverySession)
+        .where(models.DeliverySession.employee_id == user_id)
+        .where(models.DeliverySession.date == today_str)
+        .where(models.DeliverySession.status == "open")
+    ).first()
+    if not ds:
+        return JSONResponse({"error": "Inicie a rotina (placa/KM) antes de operar entregas."}, status_code=400)
+
+    action = (payload.action or "").lower().strip()
+    now = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
+    if action == "iniciar":
+        existing_started = session.exec(
+            select(models.Route)
+            .where(models.Route.type == "delivery")
+            .where(models.Route.date == route.date)
+            .where(models.Route.employee_id == user_id)
+            .where(models.Route.delivery_status == "iniciada")
+            .where(models.Route.id != route.id)
+        ).first()
+        if existing_started:
+            return JSONResponse({"error": "Já existe uma entrega iniciada."}, status_code=400)
+        if (route.delivery_status or "").lower() in ("entregue", "devolucao"):
+            return JSONResponse({"error": "Rota concluída. Reabra para iniciar novamente."}, status_code=400)
+        route.delivery_status = "iniciada"
+        route.start_time = now
+        if not route.delivery_started_at:
+            route.delivery_started_at = now
+        _append_delivery_event(route, "iniciar", now)
+
+    elif action == "finalizar":
+        if (route.delivery_status or "").lower() != "iniciada":
+            return JSONResponse({"error": "Só pode finalizar rota iniciada."}, status_code=400)
+        route.delivery_status = "entregue"
+        route.status = "completed"
+        route.end_time = now
+        if not route.delivery_finished_at:
+            route.delivery_finished_at = now
+        route.delivery_return_category = None
+        route.delivery_return_reason = None
+        _append_delivery_event(route, "finalizar", now)
+
+    elif action == "devolucao":
+        if (route.delivery_status or "").lower() != "iniciada":
+            return JSONResponse({"error": "Inicie a entrega antes de devolver."}, status_code=400)
+        if not payload.return_reason:
+            return JSONResponse({"error": "Informe o motivo da devolução."}, status_code=400)
+        if payload.return_reason not in DELIVERY_RETURN_REASONS_FLAT:
+            return JSONResponse({"error": "Motivo de devolução inválido."}, status_code=400)
+        route.delivery_status = "devolucao"
+        route.status = "completed"
+        route.end_time = now
+        if not route.delivery_returned_at:
+            route.delivery_returned_at = now
+        if not route.delivery_finished_at:
+            route.delivery_finished_at = now
+        route.delivery_return_category = "MOBILE"
+        route.delivery_return_reason = payload.return_reason
+        if payload.return_is_partial:
+            w = float(payload.return_partial_weight or 0.0)
+            v = float(payload.return_partial_value or 0.0)
+            if w <= 0 and v <= 0:
+                return JSONResponse({"error": "Para devolução parcial informe peso e/ou valor."}, status_code=400)
+            route.devolucao_volume = min(w, float(route.tonnage or 0.0)) if w > 0 else 0.0
+            route.valor_devolucao = min(v, float(route.valor_financeiro or 0.0)) if v > 0 else 0.0
+        else:
+            route.devolucao_volume = route.tonnage or 0.0
+            route.valor_devolucao = route.valor_financeiro or 0.0
+        _append_delivery_event(route, "devolucao", now, note=payload.return_reason)
+
+    elif action == "reabrir":
+        if (route.delivery_status or "").lower() not in ("entregue", "devolucao"):
+            return JSONResponse({"error": "Somente rotas concluídas podem ser reabertas."}, status_code=400)
+        existing_started = session.exec(
+            select(models.Route)
+            .where(models.Route.type == "delivery")
+            .where(models.Route.date == route.date)
+            .where(models.Route.employee_id == user_id)
+            .where(models.Route.delivery_status == "iniciada")
+            .where(models.Route.id != route.id)
+        ).first()
+        if existing_started:
+            return JSONResponse({"error": "Já existe uma entrega iniciada."}, status_code=400)
+        route.delivery_status = "reaberta"
+        route.status = "pending"
+        route.end_time = None
+        route.delivery_reopen_count = (route.delivery_reopen_count or 0) + 1
+        _append_delivery_event(route, "reabrir", now)
+
+    else:
+        return JSONResponse({"error": "Ação inválida."}, status_code=400)
+
+    session.add(route)
+    session.commit()
+    return JSONResponse({"success": True})
 
 # --- ADMIN ROUTE MANAGEMENT ---
 
@@ -10196,6 +10511,7 @@ DELIVERY_RETURN_REASONS = {
         "FALTA DE PRODUTO NO ESTOQUE",
     ],
 }
+DELIVERY_RETURN_REASONS_FLAT = [reason for reasons in DELIVERY_RETURN_REASONS.values() for reason in reasons]
 
 
 def _validate_delivery_assignment(
@@ -10673,6 +10989,7 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
         started_times = [h.get("time") for h in history if h.get("event") == "iniciar" and h.get("time")]
         finished_times = [h.get("time") for h in history if h.get("event") == "finalizar" and h.get("time")]
         returned_times = [h.get("time") for h in history if h.get("event") == "devolucao" and h.get("time")]
+        reopened_times = [h.get("time") for h in history if h.get("event") == "reabrir" and h.get("time")]
 
         delivery_by_employee[key]["rows"].append({
             "id": route.id,
@@ -10700,6 +11017,7 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
             "last_started_at": started_times[-1] if started_times else "",
             "last_finished_at": finished_times[-1] if finished_times else "",
             "last_returned_at": returned_times[-1] if returned_times else "",
+            "last_reopened_at": reopened_times[-1] if reopened_times else "",
             "reopen_count": route.delivery_reopen_count or 0,
             "is_partial_return": bool(route.devolucao_volume or route.valor_devolucao),
             "return_weight": route.devolucao_volume if route.devolucao_volume is not None else (route.tonnage or 0.0),
