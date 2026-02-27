@@ -170,74 +170,78 @@
                 </div>
             </template>
         </section>
-        <div class="bg-slate-800/70 border border-slate-700 rounded-3xl p-4">
-            <div class="flex items-start justify-between gap-3 mb-3">
-                <div>
-                    <h3 class="text-white font-bold text-base">Minhas Rotas de Entrega</h3>
-                    <p class="text-xs text-slate-400" x-text="assignedPlate ? `Caminhão planejado: ${assignedPlate}` : 'Sem caminhão planejado'"></p>
-                </div>
-                <div class="flex gap-2">
-                    <button x-show="!deliverySessionOpen" @click="showDeliverySetupModal = true"
-                        class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold">Iniciar Rotina</button>
-                    <button x-show="deliverySessionOpen" @click="showDeliveryEndModal = true"
-                        class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">Encerrar na Empresa</button>
-                </div>
-            </div>
-
-            <div class="space-y-2 mb-3">
-                <template x-for="card in deliveryDayCards" :key="'day-'+card.date">
-                    <button @click="selectedDeliveryDay = card.date"
-                        class="w-full text-left px-3 py-2 rounded-xl border transition"
-                        :class="selectedDeliveryDay===card.date ? 'bg-indigo-900/20 border-indigo-500/40 text-indigo-200' : 'bg-slate-900/40 border-slate-700 text-slate-300'">
-                        <div class="flex items-center justify-between">
-                            <span class="font-bold" x-text="card.label"></span>
-                            <span class="text-xs opacity-80" x-text="`${card.count} cliente(s)`"></span>
-                        </div>
-                    </button>
-                </template>
-            </div>
-
-            <div x-show="!deliverySessionOpen" class="rounded-xl border border-amber-500/30 bg-amber-900/10 p-3 text-xs text-amber-200 mb-3">
-                Informe sua placa e KM de saída para liberar os clientes da rota.
-            </div>
-
-            <div class="space-y-2 max-h-[360px] overflow-y-auto custom-scrollbar" x-show="deliverySessionOpen">
-                <template x-for="route in filteredDeliveryRoutes" :key="'droute-'+route.id">
-                    <div class="rounded-xl border border-slate-700 p-3"
-                        :class="{
-                            'bg-amber-900/10': route.status==='pendente' || route.status==='reaberta',
-                            'bg-indigo-900/10': route.status==='iniciada',
-                            'bg-emerald-900/10': route.status==='entregue',
-                            'bg-orange-900/10': route.status==='devolucao'
-                        }">
-                        <div class="flex items-start justify-between gap-2">
-                            <div>
-                                <p class="text-sm font-bold text-white" x-text="route.client_name"></p>
-                                <p class="text-[11px] text-slate-400" x-text="`Cod ${route.client_code || '-'} • Pedido ${route.order_number || '-'}`"></p>
-                            </div>
-                            <a :href="route.maps_url" target="_blank" class="text-[11px] text-sky-300 underline">Mapa</a>
-                        </div>
-                        <p class="text-[11px] text-slate-300 mt-1" x-text="`${route.address} - ${route.city}/${route.state}`"></p>
-                        <div class="flex items-center gap-2 mt-2 text-[11px]">
-                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-200" x-text="`${route.weight.toFixed(2)} Kg`"></span>
-                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-200" x-text="`R$ ${route.value.toFixed(2)}`"></span>
-                            <span class="px-2 py-1 rounded border text-slate-200" x-text="route.status"></span>
-                            <span class="px-2 py-1 rounded bg-slate-900/70 border border-slate-700 text-slate-300" x-show="route.status==='iniciada'" x-text="`Tempo ${formatTimer(route.started_at || '00:00')}`"></span>
-                        </div>
-                        <div class="flex gap-1.5 mt-2 overflow-x-auto custom-scrollbar pb-1">
-                            <button @click="deliveryAction(route,'iniciar')" class="btn-action btn-start"
-                                :disabled="!deliverySessionOpen || (route.status!=='pendente' && route.status!=='reaberta')">Iniciar</button>
-                            <button @click="deliveryAction(route,'finalizar')" class="btn-action btn-finish"
-                                :disabled="!deliverySessionOpen || route.status!=='iniciada'">Finalizar</button>
-                            <button @click="openMobileReturnModal(route)" class="btn-action btn-return"
-                                :disabled="!deliverySessionOpen || route.status!=='iniciada'">Devolução</button>
-                            <button @click="deliveryAction(route,'reabrir')" class="btn-action btn-reopen"
-                                :disabled="!deliverySessionOpen || (route.status!=='entregue' && route.status!=='devolucao')">Reabrir</button>
-                        </div>
+        
+        <!-- 2b. Delivery Routes Section -->
+        <section class="container-mobile mt-4" x-show="deliveryRoutes.length > 0">
+            <div class="surface p-4">
+                <div class="flex items-start justify-between gap-3 mb-4">
+                    <div class="flex-1 min-w-0">
+                        <h3 class="text-base font-bold text-blue-900">Minhas Rotas de Entrega</h3>
+                        <p class="text-xs text-slate-600" x-text="assignedPlate ? `Caminhão: ${assignedPlate}` : 'Sem caminhão planejado'"></p>
                     </div>
-                </template>
+                    <div class="flex gap-2">
+                        <button x-show="!deliverySessionOpen" @click="showDeliverySetupModal = true"
+                            class="px-3 py-2 rounded-lg bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold">Iniciar</button>
+                        <button x-show="deliverySessionOpen" @click="showDeliveryEndModal = true"
+                            class="px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-bold">Encerrar</button>
+                    </div>
+                </div>
+
+                <div class="space-y-2 mb-3">
+                    <template x-for="card in deliveryDayCards" :key="'day-'+card.date">
+                        <button @click="selectedDeliveryDay = card.date"
+                            class="w-full text-left px-3 py-2 rounded-lg border-2 transition"
+                            :class="selectedDeliveryDay===card.date ? 'bg-blue-50 border-blue-900 text-blue-900' : 'bg-white border-slate-200 text-slate-700'">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-sm" x-text="card.label"></span>
+                                <span class="text-xs" x-text="`${card.count} cliente(s)`"></span>
+                            </div>
+                        </button>
+                    </template>
+                </div>
+
+                <div x-show="!deliverySessionOpen" class="rounded-lg border-2 border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 mb-3">
+                    <strong>⚠️</strong> Informe sua placa e KM de saída para liberar os clientes da rota.
+                </div>
+
+                <div class="space-y-2 max-h-[360px] overflow-y-auto custom-scrollbar" x-show="deliverySessionOpen">
+                    <template x-for="route in filteredDeliveryRoutes" :key="'droute-'+route.id">
+                        <div class="rounded-lg border-2 p-3"
+                            :class="{
+                                'bg-amber-50 border-amber-200': route.status==='pendente' || route.status==='reaberta',
+                                'bg-blue-50 border-blue-200': route.status==='iniciada',
+                                'bg-green-50 border-green-200': route.status==='entregue',
+                                'bg-orange-50 border-orange-200': route.status==='devolucao'
+                            }">
+                            <div class="flex items-start justify-between gap-2 mb-2">
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-bold text-blue-900 truncate" x-text="route.client_name"></p>
+                                    <p class="text-[11px] text-slate-600 truncate" x-text="`Cod ${route.client_code || '-'} • Pedido ${route.order_number || '-'}`"></p>
+                                </div>
+                                <a :href="route.maps_url" target="_blank" class="text-[11px] text-blue-600 font-semibold underline">Mapa</a>
+                            </div>
+                            <p class="text-[11px] text-slate-700 mb-2 truncate" x-text="`${route.address} - ${route.city}/${route.state}`"></p>
+                            <div class="flex items-center gap-1.5 mb-2 text-[10px] flex-wrap">
+                                <span class="px-2 py-1 rounded-md bg-white border border-slate-200 text-blue-900 font-semibold" x-text="`${route.weight.toFixed(2)} Kg`"></span>
+                                <span class="px-2 py-1 rounded-md bg-white border border-slate-200 text-blue-900 font-semibold" x-text="`R$ ${route.value.toFixed(2)}`"></span>
+                                <span class="px-2 py-1 rounded-md bg-white border border-slate-200 text-blue-900 font-semibold uppercase" x-text="route.status"></span>
+                                <span class="px-2 py-1 rounded-md bg-white border border-slate-200 text-blue-900 font-mono" x-show="route.status==='iniciada'" x-text="`${formatTimer(route.started_at || '00:00')}`"></span>
+                            </div>
+                            <div class="flex gap-1.5 overflow-x-auto custom-scrollbar pb-1">
+                                <button @click="deliveryAction(route,'iniciar')" class="btn-action btn-start px-3 py-1.5 rounded-lg bg-blue-900 text-white text-xs font-semibold hover:bg-blue-800 disabled:opacity-50"
+                                    :disabled="!deliverySessionOpen || (route.status!=='pendente' && route.status!=='reaberta')">Iniciar</button>
+                                <button @click="deliveryAction(route,'finalizar')" class="btn-action btn-finish px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-semibold hover:bg-green-700 disabled:opacity-50"
+                                    :disabled="!deliverySessionOpen || route.status!=='iniciada'">Finalizar</button>
+                                <button @click="openMobileReturnModal(route)" class="btn-action btn-return px-3 py-1.5 rounded-lg bg-orange-600 text-white text-xs font-semibold hover:bg-orange-700 disabled:opacity-50"
+                                    :disabled="!deliverySessionOpen || route.status!=='iniciada'">Devolução</button>
+                                <button @click="deliveryAction(route,'reabrir')" class="btn-action btn-reopen px-3 py-1.5 rounded-lg bg-slate-600 text-white text-xs font-semibold hover:bg-slate-700 disabled:opacity-50"
+                                    :disabled="!deliverySessionOpen || (route.status!=='entregue' && route.status!=='devolucao')">Reabrir</button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
             </div>
-        </div>
+        </section>
     </div>
 
     <!-- 3. Modules -->
@@ -913,36 +917,36 @@
 </div>
 
 <!-- Delivery Setup Modal -->
-<div x-show="showDeliverySetupModal" class="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-sm p-4" @click.self="showDeliverySetupModal = false">
-    <div @click.stop class="w-full max-w-lg bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-3 shadow-2xl">
-        <h3 class="text-white font-bold text-lg">Iniciar Entregas</h3>
-        <p class="text-sm text-slate-300">Preencha 2 campos e toque em <strong>Iniciar agora</strong>.</p>
-        <div class="rounded-lg border border-indigo-500/30 bg-indigo-900/20 p-2 text-xs text-indigo-200">
+<div x-show="showDeliverySetupModal" class="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4" @click.self="showDeliverySetupModal = false">
+    <div @click.stop class="w-full max-w-lg bg-white border border-slate-200 rounded-xl p-6 space-y-4 shadow-2xl">
+        <h3 class="text-blue-900 font-bold text-lg">Iniciar Entregas</h3>
+        <p class="text-sm text-slate-700">Preencha 2 campos e toque em <strong>Iniciar agora</strong>.</p>
+        <div class="rounded-lg border-2 border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
             1) Placa do caminhão • 2) KM de saída. Ajudantes é opcional.
         </div>
-        <div x-show="deliverySetupError" class="rounded-lg border border-red-500/30 bg-red-900/20 px-3 py-2 text-xs text-red-200" x-text="deliverySetupError"></div>
+        <div x-show="deliverySetupError" class="rounded-lg border-2 border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900" x-text="deliverySetupError"></div>
         <div>
-            <label class="block text-xs text-slate-300 mb-1">Placa <span class="text-red-300">*</span></label>
+            <label class="block text-xs text-slate-700 font-semibold mb-1">Placa <span class="text-red-600">*</span></label>
             <input type="text" x-ref="deliveryPlateInput" x-model="deliverySetup.plate" @input="normalizePlateInput()"
-                placeholder="ABC1D23" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-3 text-white text-base uppercase">
+                placeholder="ABC1D23" class="w-full bg-white border-2 border-slate-200 rounded-lg px-3 py-3 text-blue-900 text-base uppercase focus:border-blue-900 focus:ring-4 focus:ring-blue-100 outline-none">
         </div>
         <div>
-            <label class="block text-xs text-slate-300 mb-1">KM de saída <span class="text-red-300">*</span></label>
+            <label class="block text-xs text-slate-700 font-semibold mb-1">KM de saída <span class="text-red-600">*</span></label>
             <input type="number" inputmode="decimal" step="0.1" min="0" x-model="deliverySetup.km_departure"
-                placeholder="Ex.: 125430,5" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-3 text-white text-base">
+                placeholder="Ex.: 125430,5" class="w-full bg-white border-2 border-slate-200 rounded-lg px-3 py-3 text-blue-900 text-base focus:border-blue-900 focus:ring-4 focus:ring-blue-100 outline-none">
         </div>
         <div>
-            <label class="block text-xs text-slate-300 mb-1">Ajudantes (opcional)</label>
+            <label class="block text-xs text-slate-700 font-semibold mb-1">Ajudantes (opcional)</label>
             <div class="relative flex gap-2">
                 <input type="text" x-model="deliverySetup.helperInput" @keydown.enter.prevent="addDeliveryHelperFromInput()"
                     placeholder="Digite o nome e pressione Enter" autocomplete="off"
-                    class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-3 text-white text-sm">
-                <button type="button" @click="addDeliveryHelperFromInput()" class="btn-modal btn-modal-secondary !py-2">Adicionar</button>
+                    class="w-full bg-white border-2 border-slate-200 rounded-lg px-3 py-3 text-blue-900 text-sm focus:border-blue-900 focus:ring-4 focus:ring-blue-100 outline-none">
+                <button type="button" @click="addDeliveryHelperFromInput()" class="px-4 py-2 bg-blue-900 text-white rounded-lg font-semibold hover:bg-blue-800">Adicionar</button>
                 <div x-show="filteredHelperOptions.length > 0"
-                    class="absolute left-0 right-24 top-full mt-1 max-h-44 overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 shadow-xl z-10">
+                    class="absolute left-0 right-24 top-full mt-1 max-h-44 overflow-y-auto rounded-lg border-2 border-slate-200 bg-white shadow-xl z-10">
                     <template x-for="emp in filteredHelperOptions" :key="`helper-suggest-${emp.id}`">
                         <button type="button" @click="selectDeliveryHelperName(emp.name)"
-                            class="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-slate-800">
+                            class="w-full text-left px-3 py-2 text-xs text-blue-900 hover:bg-blue-50">
                             <span x-text="emp.name"></span>
                         </button>
                     </template>
@@ -950,43 +954,43 @@
             </div>
             <div class="mt-2 flex flex-wrap gap-1.5">
                 <template x-for="(helper, idx) in deliverySetup.helpers" :key="`helper-tag-${idx}-${helper}`">
-                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-600 bg-slate-900 text-slate-200 text-xs">
+                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-md border-2 border-blue-200 bg-blue-50 text-blue-900 text-xs font-semibold">
                         <span x-text="helper"></span>
-                        <button type="button" @click="removeDeliveryHelper(idx)" class="text-slate-400 hover:text-white">x</button>
+                        <button type="button" @click="removeDeliveryHelper(idx)" class="text-blue-700 hover:text-blue-900">×</button>
                     </span>
                 </template>
             </div>
             <p class="mt-1 text-[10px] text-slate-500">Sem repetição de nomes.</p>
         </div>
         <div class="grid grid-cols-1 gap-2 pt-2">
-            <button @click="startDeliverySession()" class="btn-modal btn-modal-primary !py-3 text-base">Iniciar agora</button>
-            <button @click="showDeliverySetupModal=false" class="btn-modal btn-modal-secondary !py-3 text-sm">Fechar</button>
+            <button @click="startDeliverySession()" class="w-full py-3 bg-blue-900 text-white rounded-xl font-bold hover:bg-blue-800">Iniciar agora</button>
+            <button @click="showDeliverySetupModal=false" class="w-full py-3 bg-slate-100 text-blue-900 rounded-xl font-semibold hover:bg-slate-200">Fechar</button>
         </div>
     </div>
 </div>
 
 <!-- Delivery End Modal -->
-<div x-show="showDeliveryEndModal" class="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-sm p-4" @click.self="showDeliveryEndModal=false">
-    <div @click.stop class="w-full max-w-md bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-3 shadow-2xl">
-        <h3 class="text-white font-bold">Encerrar na Empresa</h3>
-        <p class="text-xs text-slate-400">Informe KM de chegada para concluir a rotina.</p>
+<div x-show="showDeliveryEndModal" class="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4" @click.self="showDeliveryEndModal=false">
+    <div @click.stop class="w-full max-w-md bg-white border border-slate-200 rounded-xl p-6 space-y-4 shadow-2xl">
+        <h3 class="text-blue-900 font-bold text-lg">Encerrar na Empresa</h3>
+        <p class="text-sm text-slate-700">Informe KM de chegada para concluir a rotina.</p>
         <input type="number" step="0.1" min="0" x-model="deliveryEndKm"
-            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm">
+            class="w-full bg-white border-2 border-slate-200 rounded-lg px-3 py-3 text-blue-900 focus:border-blue-900 focus:ring-4 focus:ring-blue-100 outline-none">
         <div class="grid grid-cols-2 gap-2 pt-2">
-            <button @click="showDeliveryEndModal=false" class="btn-modal btn-modal-secondary">Cancelar</button>
-            <button @click="endDeliverySession()" class="btn-modal btn-modal-primary">Encerrar</button>
+            <button @click="showDeliveryEndModal=false" class="py-3 bg-slate-100 text-blue-900 rounded-xl font-semibold hover:bg-slate-200">Cancelar</button>
+            <button @click="endDeliverySession()" class="py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700">Encerrar</button>
         </div>
     </div>
 </div>
 
 <!-- Mobile Return Modal -->
-<div x-show="showMobileReturnModal" class="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-sm p-4" @click.self="showMobileReturnModal=false">
-    <div @click.stop class="w-full max-w-lg bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-3 shadow-2xl">
-        <h3 class="text-white font-bold">Registrar Devolução</h3>
+<div x-show="showMobileReturnModal" class="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4" @click.self="showMobileReturnModal=false">
+    <div @click.stop class="w-full max-w-lg bg-white border border-slate-200 rounded-xl p-6 space-y-4 shadow-2xl">
+        <h3 class="text-blue-900 font-bold text-lg">Registrar Devolução</h3>
         <div>
-            <label class="block text-xs text-slate-400 mb-1">Motivo</label>
+            <label class="block text-xs text-slate-700 font-semibold mb-1">Motivo</label>
             <select x-model="mobileReturn.reason"
-                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm">
+                class="w-full bg-white border-2 border-slate-200 rounded-lg px-3 py-3 text-blue-900 focus:border-blue-900 focus:ring-4 focus:ring-blue-100 outline-none">
                 <template x-for="reason in mobileReturnReasons" :key="reason">
                     <option :value="reason" x-text="reason"></option>
                 </template>
