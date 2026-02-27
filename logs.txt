@@ -34457,3 +34457,4 @@ NameError: name 'parse_items_payload' is not defined
 2026-02-27 17:34:27,281 | ERROR    | main | Erro ao preparar auth: 'charmap' codec can't encode characters in position 0-1: character maps to <undefined>
 2026-02-27 17:34:27,281 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
 2026-02-27 17:34:27,281 | ERROR    | main | Erro ao iniciar sync: 'charmap' codec can't encode character '\u274c' in position 0: character maps to <undefined>
+2026-02-27 17:36:09,954 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db

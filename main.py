@@ -52,15 +52,24 @@ print(f"DEBUG: Loaded .env. SMTP_HOST='{os.getenv('SMTP_HOST')}'")
 handler = RotatingFileHandler(
     'logs.txt',
     maxBytes=5*1024*1024,  # 5 MB max per file
-    backupCount=3  # Keep 3 backup files
+    backupCount=3,  # Keep 3 backup files
+    encoding='utf-8'  # Fix Windows Unicode encoding issues
 )
 handler.setFormatter(logging.Formatter(
     '%(asctime)s | %(levelname)-8s | %(name)s | %(message)s'
 ))
 
+# Console handler with UTF-8 encoding
+console_handler = logging.StreamHandler()
+console_handler.setLevel(LOG_LEVEL)
+console_handler.setFormatter(logging.Formatter(
+    '%(levelname)-8s | %(message)s'
+))
+
 logger = logging.getLogger(__name__)
 logger.setLevel(LOG_LEVEL)
 logger.addHandler(handler)
+logger.addHandler(console_handler)
 
 # --- Config ---
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
