@@ -9,7 +9,7 @@
 
 <!-- Pull to Refresh -->
 <div id="pull-indicator" class="pull-indicator bg-blue-900 text-white px-4 py-2 rounded-full text-sm font-medium">
-    <i data-lucide="refresh-cw" class="w-4 h-4 inline-block mr-1 animate-spin"></i>
+    <i data-lucide="refresh-cw" class="w-4 h-4 inline-block mr-1"></i>
     Atualizando...
 </div>
 
@@ -1871,16 +1871,16 @@
                         scales: {
                             y: {
                                 beginAtZero: true,
-                                grid: { color: 'rgba(255,255,255,0.05)' },
+                                grid: { color: 'rgba(226, 232, 240, 0.5)' },
                                 ticks: { 
-                                    color: '#94a3b8', 
+                                    color: '#64748b', 
                                     font: { size: 10 },
                                     callback: (value) => `R$ ${value}`
                                 }
                             },
                             x: {
                                 grid: { display: false },
-                                ticks: { color: '#ffffff', font: { size: 10 } }
+                                ticks: { color: '#1e3a8a', font: { size: 10, weight: '600' } }
                             }
                         }
                     }
@@ -1897,19 +1897,19 @@
         listDiv.innerHTML = clients.map(client => {
             const percentCliente = totalEntregas > 0 ? (client.value / totalEntregas * 100).toFixed(1) : 0;
             return `
-            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
+            <div class="surface p-4 border-l-4 border-red-600">
                 <div class="flex items-center justify-between mb-2">
-                    <p class="text-white font-semibold text-sm">${client.name}</p>
-                    <span class="text-xs px-2 py-1 rounded-full bg-amber-500/20 text-amber-400 font-bold">${percentCliente}%</span>
+                    <p class="text-blue-900 font-semibold text-sm">${client.name}</p>
+                    <span class="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700 font-bold border border-amber-200">${percentCliente}%</span>
                 </div>
                 <div class="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                        <p class="text-slate-400">Valor Devolvido</p>
-                        <p class="text-red-400 font-bold">R$ ${client.value.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                        <p class="text-slate-600 mb-0.5">Valor Devolvido</p>
+                        <p class="text-red-600 font-bold">R$ ${client.value.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                     </div>
                     <div>
-                        <p class="text-slate-400">Volume (ton)</p>
-                        <p class="text-amber-400 font-bold">${client.volume.toFixed(2)}t</p>
+                        <p class="text-slate-600 mb-0.5">Volume (ton)</p>
+                        <p class="text-amber-600 font-bold">${client.volume.toFixed(2)}t</p>
                     </div>
                 </div>
             </div>
