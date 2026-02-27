@@ -2148,6 +2148,12 @@ def get_dashboard_data(session: Session, shift_filter: str):
     
     total_tonnage = sum(r.tonnage for r in todays_routes if r.tonnage)
     total_routes_count = len(todays_routes)
+    completed_routes_count = len([
+        r for r in todays_routes
+        if (r.end_time and str(r.end_time).strip())
+        or (str(getattr(r, "status", "")).lower() == "completed")
+        or (str(getattr(r, "delivery_status", "")).lower() in ("entregue", "devolucao"))
+    ])
     
     # Calculate Kg/h (Instant or Average)
     # Simple approach: Total Tonnage / Hours elapsed today (or shift duration)
@@ -2274,6 +2280,7 @@ def get_dashboard_data(session: Session, shift_filter: str):
         "kpi": {
             "tonnage": total_tonnage,
             "routes_count": total_routes_count,
+            "completed_routes_count": completed_routes_count,
             "avg_kgh": round(avg_kgh, 1),
             "headcount": present_count,
             "target_headcount": target_val

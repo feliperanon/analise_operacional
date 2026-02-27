@@ -58,123 +58,115 @@
 
     <!-- 1. Header & Gamification Card -->
     <header x-show="initialized"
-        class="relative px-6 pt-safe pb-8 bg-gradient-to-b from-slate-900 to-slate-800 rounded-b-[40px] shadow-2xl z-10 border-b border-white/5">
-        <div class="flex items-center justify-between mb-6">
-            <div class="flex items-center space-x-4">
+        class="relative px-6 pt-4 pb-6 bg-white border-b border-blue-100 z-10">
+        <div class="flex items-center justify-between mb-5">
+            <div class="flex items-center space-x-3">
                 <div class="relative">
                     <div
-                        class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-yellow-400 to-orange-500 p-[2px] shadow-lg shadow-orange-500/20">
+                        class="w-16 h-16 rounded-xl bg-blue-900 p-0.5">
                         <img src="{{ url_for('static', path='badges/' + gamification.level.badge_image) }}"
-                            onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name }}&background=0f172a&color=fff'"
-                            class="w-full h-full rounded-2xl object-cover bg-slate-900" alt="Badge">
+                            onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name }}&background=1e3a8a&color=fff'"
+                            class="w-full h-full rounded-xl object-cover bg-white" alt="Badge">
                     </div>
-                    <div class="absolute -bottom-2 -right-2 bg-slate-900 rounded-full p-1 border border-slate-700">
+                    <div class="absolute -bottom-1.5 -right-1.5 bg-white rounded-full p-1 border-2 border-blue-900">
                         <span
-                            class="flex items-center justify-center w-6 h-6 text-xs font-bold text-yellow-400 bg-yellow-400/10 rounded-full">
+                            class="flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-blue-900 rounded-full">
                             {{ gamification.level.level }}
                         </span>
                     </div>
                 </div>
                 <div>
-                    <h1 class="text-xl font-bold text-white tracking-tight leading-tight">{{ employee.name }}</h1>
+                    <h1 class="text-lg font-bold text-blue-900 tracking-tight leading-tight">{{ employee.name }}</h1>
                     <div class="flex items-center gap-2 flex-wrap">
-                        <p class="text-sm text-slate-400 font-medium">{{ gamification.level.name }}</p>
+                        <p class="text-xs text-slate-600 font-medium">{{ gamification.level.name }}</p>
 
                         <!-- Achievement Counter -->
                         <div
-                            class="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-                            <i data-lucide="trophy" class="w-3 h-3 text-yellow-500"></i>
-                            <span class="text-[10px] font-bold text-yellow-500">{{ gamification.achievements_unlocked
+                            class="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-yellow-50 border border-yellow-200">
+                            <i data-lucide="trophy" class="w-3 h-3 text-yellow-600"></i>
+                            <span class="text-[10px] font-bold text-yellow-700">{{ gamification.achievements_unlocked
                                 }}/{{ gamification.achievements_total }}</span>
                         </div>
 
                         {% if streak_days and streak_days >= 3 %}
-                        <span class="streak-badge">
+                        <span class="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-orange-50 border border-orange-200 text-[10px] font-bold text-orange-600">
                             <i data-lucide="flame" class="w-3 h-3"></i>
                             {{ streak_days }} dias
                         </span>
                         {% endif %}
                     </div>
                     {% if gamification.time_in_company < gamification.level.min_months %} <span
-                        class="text-[10px] text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded ml-1">Nível Travado
-                        (Tempo)</span>
+                        class="text-[10px] text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-md ml-1">Travado</span>
                         {% endif %}
                 </div>
             </div>
 
             <button @click="logout()"
-                class="p-2 rounded-xl bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white transition-colors backdrop-blur-md">
+                class="p-2 rounded-lg bg-blue-50 text-blue-900 hover:bg-blue-100 transition-colors">
                 <i data-lucide="log-out" class="w-5 h-5"></i>
             </button>
         </div>
 
-        <div class="relative mt-2 z-30">
-            <div class="flex justify-between text-xs font-medium text-slate-400 mb-2">
+        <div class="relative mt-4 z-30">
+            <div class="flex justify-between text-xs font-medium text-slate-600 mb-2">
                 <div class="flex flex-col">
-                    <div class="flex items-center">
-                        <span>XP Total: <span class="text-white">{{ "{:,}".format(gamification.total_xp).replace(",",
+                    <div class="flex items-center gap-1.5">
+                        <span>XP: <span class="text-blue-900 font-semibold">{{ "{:,}".format(gamification.total_xp).replace(",",
                                 ".")
                                 }}</span></span>
                         <button @click="openHelpModal()"
-                            class="ml-2 w-5 h-5 rounded-full bg-yellow-400/20 text-yellow-400 flex items-center justify-center animate-pulse hover:bg-yellow-400 hover:text-black transition-colors">
+                            class="w-5 h-5 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center hover:bg-yellow-200 transition-colors">
                             <i data-lucide="lightbulb" class="w-3 h-3"></i>
                         </button>
                     </div>
-                    <span class="text-[10px] text-green-400 font-bold mt-0.5" x-show="dailyXp > 0">
+                    <span class="text-[10px] text-green-600 font-bold mt-1" x-show="dailyXp > 0">
                         +<span x-text="dailyXp"></span> hoje
                     </span>
                 </div>
 
                 {% if gamification.next_level %}
-                <span>Próximo: {{ gamification.next_level.name }} ({{
-                    "{:,}".format(gamification.next_level.min_xp).replace(",", ".") }})</span>
+                <span class="text-[11px]">Próx: {{ gamification.next_level.name }}</span>
                 {% else %}
-                <span class="text-yellow-400">Nível Máximo! 🏆</span>
+                <span class="text-yellow-600 font-semibold text-[11px]">Nível Max! 🏆</span>
                 {% endif %}
             </div>
-            <div class="h-3 w-full bg-slate-700/50 rounded-full overflow-hidden backdrop-blur-sm border border-white/5">
-                <div class="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 shadow-[0_0_15px_rgba(99,102,241,0.5)] transition-all duration-1000 ease-out relative"
+            <div class="h-3 w-full bg-blue-100 rounded-full overflow-hidden border border-blue-200">
+                <div class="h-full bg-blue-900 transition-all duration-1000 ease-out"
                     style="width: {{ gamification.progress_percent }}%">
-                    <div class="absolute inset-0 bg-white/20 animate-[shimmer_2s_infinite]"></div>
                 </div>
             </div>
-            <p class="text-xs text-center text-slate-500 mt-2 italic animate-fade-in">{{ ai_message }}</p>
+            <p class="text-[11px] text-center text-slate-600 mt-2.5 font-medium">{{ ai_message }}</p>
         </div>
     </header>
 
     <!-- 2. Active Route Card -->
-    <div class="px-6 -mt-6 z-20" x-show="initialized && hasActiveRoutes" x-cloak>
+    <div class="px-6 mt-4 z-20" x-show="initialized && hasActiveRoutes" x-cloak>
         <template x-for="(route, routeIndex) in activeRoutes" :key="'active-' + routeIndex">
             <div
-                class="bg-slate-800/90 backdrop-blur-xl rounded-3xl p-5 border border-indigo-500/30 shadow-[0_10px_40px_-10px_rgba(79,70,229,0.3)] animate-slide-up bg-[url('/static/grid.svg')] bg-repeat opacity-95 mb-4 relative overflow-hidden group">
-
-                <!-- Background Pattern -->
-                <div
-                    class="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-[50px] rounded-full pointer-events-none">
-                </div>
+                class="bg-white rounded-2xl p-5 border-2 border-blue-900 animate-slide-up mb-4">
 
                 <div class="flex justify-between items-start mb-4 relative z-10">
                     <div class="flex items-center space-x-3">
-                        <div class="p-2.5 bg-indigo-500/20 rounded-xl animate-pulse">
-                            <i data-lucide="truck" class="w-6 h-6 text-indigo-400"></i>
+                        <div class="p-2.5 bg-blue-900 rounded-xl">
+                            <i data-lucide="truck" class="w-5 h-5 text-white"></i>
                         </div>
                         <div>
-                            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <h3 class="text-base font-bold text-blue-900 flex items-center gap-2">
                                 Separação Ativa
                                 <span class="w-2 h-2 rounded-full bg-green-500 animate-ping"></span>
                             </h3>
-                            <p class="text-indigo-300 text-sm font-medium" x-text="route.client_name"></p>
+                            <p class="text-blue-700 text-sm font-medium" x-text="route.client_name"></p>
                         </div>
                     </div>
 
                     <!-- Edit/Delete Actions -->
                     <div class="flex gap-2">
                         <button @click="openEditModal(route)"
-                            class="p-2 rounded-full bg-slate-700/50 text-slate-300 hover:bg-indigo-500 hover:text-white transition-colors">
+                            class="p-2 rounded-lg bg-blue-50 text-blue-900 hover:bg-blue-100 transition-colors">
                             <i data-lucide="pencil" class="w-4 h-4"></i>
                         </button>
                         <button @click="openDeleteModal(route)"
-                            class="p-2 rounded-full bg-slate-700/50 text-slate-300 hover:bg-red-500 hover:text-white transition-colors">
+                            class="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
                             <i data-lucide="trash-2" class="w-4 h-4"></i>
                         </button>
                     </div>
@@ -183,28 +175,28 @@
                 <div class="flex flex-wrap items-end justify-between gap-4 relative z-10">
                     <div class="flex gap-6">
                         <div>
-                            <p class="text-[10px] text-slate-400 uppercase tracking-wider font-bold mb-1">Tempo</p>
-                            <p class="text-2xl font-mono font-bold text-white tracking-widest tabular-nums"
+                            <p class="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Tempo</p>
+                            <p class="text-2xl font-mono font-bold text-blue-900 tracking-wide tabular-nums"
                                 x-text="formatTimer(route.start_time)"></p>
                         </div>
                         <div x-show="route.tonnage > 0">
-                            <p class="text-[10px] text-slate-400 uppercase tracking-wider font-bold mb-1">Peso</p>
-                            <p class="text-2xl font-bold text-green-400 tracking-wide tabular-nums">
+                            <p class="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Peso</p>
+                            <p class="text-2xl font-bold text-green-600 tracking-wide tabular-nums">
                                 <span x-text="route.tonnage"></span><span
-                                    class="text-sm ml-0.5 text-slate-500">kg</span>
+                                    class="text-sm ml-1 text-slate-500">kg</span>
                             </p>
                         </div>
                     </div>
 
                     <button @click="openStopModal(route)"
-                        class="mb-1 px-5 py-2.5 bg-red-500 hover:bg-red-600 active:scale-95 text-white rounded-xl font-bold shadow-lg shadow-red-500/25 transition-all flex items-center gap-2 group text-sm">
+                        class="px-5 py-2.5 bg-red-600 hover:bg-red-700 active:scale-95 text-white rounded-xl font-bold transition-all flex items-center gap-2 text-sm">
                         <i data-lucide="square" class="w-4 h-4 fill-current"></i>
                         <span>Encerrar</span>
                     </button>
                 </div>
 
-                <div class="mt-4 h-1 w-full bg-slate-700/50 rounded-full overflow-hidden">
-                    <div class="h-full bg-indigo-500 animate-[loading_2s_ease-in-out_infinite] w-1/3 rounded-full">
+                <div class="mt-4 h-1.5 w-full bg-blue-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-blue-900 animate-[loading_2s_ease-in-out_infinite] w-1/3 rounded-full">
                     </div>
                 </div>
             </div>

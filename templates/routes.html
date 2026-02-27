@@ -41,32 +41,24 @@
                         <h2 class="text-lg font-semibold text-white">Importação de Entregas (D-1)</h2>
                         <p class="text-xs text-slate-400">Importe pedidos de ontem para gerar rotas de hoje, com validação de cliente, motorista e caminhão.</p>
                     </div>
-                    <div class="text-xs text-slate-500">
-                        Data sugerida de pedidos: <span class="font-mono text-slate-300">{{ suggested_input_date }}</span>
-                    </div>
                 </div>
 
                 <form action="/separacao/import-entregas" method="post" enctype="multipart/form-data"
-                      class="grid grid-cols-1 lg:grid-cols-6 gap-3 items-end"
+                      class="grid grid-cols-1 lg:grid-cols-5 gap-3 items-end"
                       onsubmit="return confirmImportDeliveries(this)">
+                    <input type="hidden" name="date" value="{{ selected_date }}">
+                    <input type="hidden" name="input_date" value="{{ suggested_input_date }}">
                     <input type="hidden" name="shift" value="{{ selected_shift }}">
 
-                    <div>
-                        <label class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Data do Pedido</label>
-                        <input type="date" name="input_date" value="{{ suggested_input_date }}"
-                               class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-indigo-500 outline-none">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Data da Entrega</label>
-                        <input type="date" name="date" value="{{ selected_date }}" required
-                               class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-indigo-500 outline-none">
-                    </div>
-
-                    <div class="lg:col-span-3">
+                    <div class="lg:col-span-4">
                         <label class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Arquivo Excel</label>
-                        <input type="file" name="file" accept=".xls,.xlsx,.csv" required
-                               class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 file:mr-3 file:border-0 file:bg-indigo-600 file:px-3 file:py-1.5 file:text-white file:rounded-md">
+                        <input id="delivery-file-input" type="file" name="file" accept=".xls,.xlsx,.csv" required class="hidden" onchange="handleDeliveryFileSelect(this)">
+                        <div class="flex items-center gap-2">
+                            <label for="delivery-file-input" class="cursor-pointer inline-flex items-center justify-center rounded-lg border border-indigo-500/50 bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition-colors">
+                                Escolher arquivo
+                            </label>
+                            <span id="delivery-file-name" class="text-xs text-slate-300 truncate">Nenhum arquivo selecionado</span>
+                        </div>
                     </div>
 
                     <button type="submit"
@@ -1222,6 +1214,16 @@
             return false;
         }
         return confirm(`Confirma a importação das entregas para a data ${deliveryDate}?`);
+    }
+
+    function handleDeliveryFileSelect(input) {
+        const info = document.getElementById('delivery-file-name');
+        if (!info) return;
+        if (input.files && input.files.length > 0) {
+            info.textContent = input.files[0].name;
+        } else {
+            info.textContent = 'Nenhum arquivo selecionado';
+        }
     }
 
     let deliverySyncToken = "{{ delivery_sync_token }}";

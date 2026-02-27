@@ -1,0 +1,168 @@
+{# 
+COMPONENTES BASE - Mobile Design System
+Macros Jinja para componentes reutilizáveis
+
+Uso: {% from 'mobile/_components.html' import button, card, stat_card %}
+#}
+
+{# === BOTÕES === #}
+
+{# Botão primário #}
+{% macro button_primary(text, onclick='', type='button', id='', classes='', icon='', disabled=false) %}
+<button 
+    type="{{ type }}"
+    {% if id %}id="{{ id }}"{% endif %}
+    {% if onclick %}onclick="{{ onclick }}"{% endif %}
+    {% if disabled %}disabled{% endif %}
+    class="touch-target interactive flex items-center justify-center gap-2 px-6 py-3 bg-blue-900 text-white rounded-xl font-semibold text-sm hover:bg-blue-800 disabled:opacity-50 disabled:pointer-events-none {{ classes }}">
+    {% if icon %}<i data-lucide="{{ icon }}" class="w-5 h-5"></i>{% endif %}
+    <span>{{ text }}</span>
+</button>
+{% endmacro %}
+
+{# Botão secundário #}
+{% macro button_secondary(text, onclick='', type='button', id='', classes='', icon='', disabled=false) %}
+<button 
+    type="{{ type }}"
+    {% if id %}id="{{ id }}"{% endif %}
+    {% if onclick %}onclick="{{ onclick }}"{% endif %}
+    {% if disabled %}disabled{% endif %}
+    class="touch-target interactive flex items-center justify-center gap-2 px-6 py-3 bg-white border-2 border-blue-200 text-blue-900 rounded-xl font-semibold text-sm hover:bg-blue-50 disabled:opacity-50 disabled:pointer-events-none {{ classes }}">
+    {% if icon %}<i data-lucide="{{ icon }}" class="w-5 h-5"></i>{% endif %}
+    <span>{{ text }}</span>
+</button>
+{% endmacro %}
+
+{# Botão de perigo #}
+{% macro button_danger(text, onclick='', type='button', id='', classes='', icon='', disabled=false) %}
+<button 
+    type="{{ type }}"
+    {% if id %}id="{{ id }}"{% endif %}
+    {% if onclick %}onclick="{{ onclick }}"{% endif %}
+    {% if disabled %}disabled{% endif %}
+    class="touch-target interactive flex items-center justify-center gap-2 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold text-sm hover:bg-red-700 disabled:opacity-50 disabled:pointer-events-none {{ classes }}">
+    {% if icon %}<i data-lucide="{{ icon }}" class="w-5 h-5"></i>{% endif %}
+    <span>{{ text }}</span>
+</button>
+{% endmacro %}
+
+{# Botão de ícone #}
+{% macro button_icon(icon, onclick='', id='', classes='', size='md', variant='default') %}
+{% set size_class = 'w-10 h-10' if size == 'md' else 'w-12 h-12' if size == 'lg' else 'w-8 h-8' %}
+{% set variant_class = 'bg-blue-50 text-blue-900 hover:bg-blue-100' if variant == 'default' else 'bg-white border border-blue-200 text-blue-900 hover:bg-blue-50' if variant == 'outlined' else 'bg-transparent text-blue-900 hover:bg-blue-50' %}
+<button 
+    {% if id %}id="{{ id }}"{% endif %}
+    {% if onclick %}onclick="{{ onclick }}"{% endif %}
+    class="touch-target-icon interactive flex items-center justify-center rounded-lg transition-colors {{ size_class }} {{ variant_class }} {{ classes }}">
+    <i data-lucide="{{ icon }}" class="w-5 h-5"></i>
+</button>
+{% endmacro %}
+
+{# === CARDS === #}
+
+{# Card base #}
+{% macro card(classes='') %}
+<div class="surface p-4 {{ classes }}">
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+{# Card de estatística #}
+{% macro stat_card(label, value, icon='', variant='default', classes='') %}
+{% set variant_class = 'bg-blue-50 border-blue-200' if variant == 'primary' else 'bg-green-50 border-green-200' if variant == 'success' else 'bg-red-50 border-red-200' if variant == 'danger' else 'bg-yellow-50 border-yellow-200' if variant == 'warning' else 'bg-white border-slate-200' %}
+{% set icon_class = 'text-blue-900' if variant == 'primary' else 'text-green-600' if variant == 'success' else 'text-red-600' if variant == 'danger' else 'text-yellow-600' if variant == 'warning' else 'text-slate-600' %}
+{% set value_class = 'text-blue-900' if variant == 'primary' else 'text-green-600' if variant == 'success' else 'text-red-600' if variant == 'danger' else 'text-yellow-600' if variant == 'warning' else 'text-slate-900' %}
+<div class="surface p-4 {{ variant_class }} {{ classes }}">
+    <div class="flex items-start justify-between gap-3">
+        <div class="flex-1">
+            <p class="text-caption text-slate-600 mb-1">{{ label }}</p>
+            <p class="text-2xl font-bold {{ value_class }}">{{ value }}</p>
+        </div>
+        {% if icon %}
+        <div class="w-10 h-10 rounded-lg bg-white/50 flex items-center justify-center {{ icon_class }}">
+            <i data-lucide="{{ icon }}" class="w-5 h-5"></i>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}
+
+{# === LIST ROW === #}
+{% macro list_row(classes='') %}
+<div class="flex items-center gap-3 p-4 border-b border-slate-100 last:border-b-0 {{ classes }}">
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+{# === BADGES === #}
+{% macro badge(text, variant='default', size='md') %}
+{% set size_class = 'px-2 py-0.5 text-xs' if size == 'sm' else 'px-2.5 py-1 text-sm' %}
+{% set variant_class = 'bg-blue-100 text-blue-900 border-blue-200' if variant == 'primary' else 'bg-green-100 text-green-900 border-green-200' if variant == 'success' else 'bg-red-100 text-red-900 border-red-200' if variant == 'danger' else 'bg-yellow-100 text-yellow-900 border-yellow-200' if variant == 'warning' else 'bg-slate-100 text-slate-900 border-slate-200' %}
+<span class="inline-flex items-center font-medium rounded-md border {{ size_class }} {{ variant_class }}">{{ text }}</span>
+{% endmacro %}
+
+{# === INPUTS === #}
+{% macro input(name, type='text', placeholder='', value='', label='', id='', required=false, classes='') %}
+{% set input_id = id if id else name %}
+<div class="space-y-1.5 {{ classes }}">
+    {% if label %}
+    <label for="{{ input_id }}" class="text-label block">{{ label }}</label>
+    {% endif %}
+    <input 
+        type="{{ type }}"
+        id="{{ input_id }}"
+        name="{{ name }}"
+        {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+        {% if value %}value="{{ value }}"{% endif %}
+        {% if required %}required{% endif %}
+        class="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-lg text-blue-900 placeholder-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 focus:outline-none transition-all"
+    />
+</div>
+{% endmacro %}
+
+{# === MODAL BASE === #}
+{% macro modal(id, title, size='md') %}
+{% set size_class = 'max-w-sm' if size == 'sm' else 'max-w-md' if size == 'md' else 'max-w-lg' if size == 'lg' else 'max-w-2xl' %}
+<div id="{{ id }}" class="hidden fixed inset-0 z-50" role="dialog" aria-modal="true">
+    <div class="absolute inset-0 bg-black/40" onclick="document.getElementById('{{ id }}').classList.add('hidden')"></div>
+    <div class="fixed inset-0 flex items-center justify-center p-6">
+        <div class="surface w-full {{ size_class }} max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between p-4 border-b border-slate-200">
+                <h3 class="text-section">{{ title }}</h3>
+                <button 
+                    onclick="document.getElementById('{{ id }}').classList.add('hidden')"
+                    class="touch-target-icon flex items-center justify-center w-10 h-10 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4">
+                {{ caller() }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{# === ESTADOS VAZIOS === #}
+{% macro empty_state(title, description='', icon='inbox', action_text='', action_onclick='') %}
+<div class="flex flex-col items-center justify-center py-12 px-6 text-center">
+    <div class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4">
+        <i data-lucide="{{ icon }}" class="w-8 h-8 text-slate-400"></i>
+    </div>
+    <h3 class="text-label text-slate-900 mb-2">{{ title }}</h3>
+    {% if description %}
+    <p class="text-caption text-slate-600 mb-4">{{ description }}</p>
+    {% endif %}
+    {% if action_text %}
+    {{ button_secondary(action_text, onclick=action_onclick) }}
+    {% endif %}
+</div>
+{% endmacro %}
+
+{# === LOADING STATE === #}
+{% macro loading_spinner(text='Carregando...') %}
+<div class="flex flex-col items-center justify-center py-8">
+    <div class="w-8 h-8 border-4 border-blue-200 border-t-blue-900 rounded-full animate-spin mb-3"></div>
+    <p class="text-caption text-slate-600">{{ text }}</p>
+</div>
+{% endmacro %}
