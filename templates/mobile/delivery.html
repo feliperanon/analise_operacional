@@ -22,8 +22,9 @@
             <input type="text" x-model="deliverySearch" placeholder="Pesquisar cliente, código, pedido, endereço..."
                 class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
             <button type="button" @click="deliverySearch=''" x-show="deliverySearch"
-                class="px-3 py-2.5 rounded-xl border border-slate-600 bg-slate-800 text-slate-200 text-xs font-bold">
-                Limpar
+                class="min-w-[92px] px-4 py-3 rounded-xl border border-slate-500 bg-slate-800 text-slate-100 text-sm font-bold inline-flex items-center justify-center gap-1.5">
+                <i data-lucide="x-circle" class="w-4 h-4"></i>
+                <span>Limpar</span>
             </button>
         </div>
 

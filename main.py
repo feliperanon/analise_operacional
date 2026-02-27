@@ -11468,8 +11468,11 @@ async def import_entregas_separacao(
         "warnings": [],
     }
 
+    logger.info(f"🚚 Iniciando importação de entregas: {file.filename} para data {date}, turno {shift}")
+
     if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls", ".csv")):
         import_result["message"] = "Arquivo inválido. Use .xls, .xlsx ou .csv."
+        logger.warning(f"❌ Arquivo inválido: {file.filename}")
         response = await separacao_page(request=request, date=date, shift=shift, session=session)
         response.context["delivery_import"] = import_result
         return response
@@ -11477,8 +11480,14 @@ async def import_entregas_separacao(
     try:
         import pandas as pd
         content = await file.read()
+        logger.info(f"📄 Arquivo lido: {len(content)} bytes")
+        
         df = _load_clients_dataframe(content, file.filename)
+        logger.info(f"📊 DataFrame carregado: {len(df)} linhas, {len(df.columns)} colunas")
+        logger.info(f"📋 Colunas encontradas: {list(df.columns)}")
+        
         col_map = _delivery_col_map(list(df.columns))
+        logger.info(f"🗺️ Mapeamento de colunas: {col_map}")
 
         required = ["driver", "plate", "client_name", "client_code", "address", "peso_pedido", "route_code"]
         missing_required = [field for field in required if not col_map.get(field)]
@@ -11486,8 +11495,9 @@ async def import_entregas_separacao(
             import_result["message"] = "Planilha sem colunas obrigatórias para entregas."
             import_result["issues"].append({
                 "row": "-",
-                "reason": f"Colunas ausentes: {', '.join(missing_required)}",
+                "reason": f"Colunas ausentes: {', '.join(missing_required)}. Colunas encontradas: {', '.join(df.columns)}",
             })
+            logger.error(f"❌ Colunas ausentes: {missing_required}")
             response = await separacao_page(request=request, date=date, shift=shift, session=session)
             response.context["delivery_import"] = import_result
             return response
@@ -11635,6 +11645,8 @@ async def import_entregas_separacao(
         session.commit()
         import_result["ok"] = True
         import_result["created"] = len(parsed_rows)
+        logger.info(f"✅ Importação concluída: {len(parsed_rows)} entregas criadas")
+        
         if import_result["issues"]:
             import_result["message"] = (
                 f"Importação parcial concluída. {len(parsed_rows)} entregas criadas para {date}. "
@@ -11643,8 +11655,12 @@ async def import_entregas_separacao(
         else:
             import_result["message"] = f"Importação concluída com sucesso. {len(parsed_rows)} entregas criadas para {date}."
     except Exception as exc:
-        import_result["message"] = f"Erro ao importar planilha: {exc}"
-        logger.exception("Falha na importação de entregas")
+        import_result["message"] = f"Erro ao importar planilha: {str(exc)}"
+        logger.exception(f"❌ Falha na importação de entregas: {exc}")
+        import_result["issues"].append({
+            "row": "-",
+            "reason": f"Erro técnico: {str(exc)}"
+        })
 
     response = await separacao_page(request=request, date=date, shift=shift, session=session)
     response.context["delivery_import"] = import_result
