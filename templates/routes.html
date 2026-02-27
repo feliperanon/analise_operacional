@@ -29,6 +29,78 @@
         </div>
 
         <div class="space-y-8">
+            {% if delivery_feedback %}
+            <div class="rounded-xl border px-4 py-3 text-sm {% if delivery_feedback_level == 'error' %}border-red-500/40 bg-red-500/10 text-red-300{% else %}border-emerald-500/40 bg-emerald-500/10 text-emerald-300{% endif %}">
+                {{ delivery_feedback }}
+            </div>
+            {% endif %}
+
+            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
+                    <div>
+                        <h2 class="text-lg font-semibold text-white">Importação de Entregas (D-1)</h2>
+                        <p class="text-xs text-slate-400">Importe pedidos de ontem para gerar rotas de hoje, com validação de cliente, motorista e caminhão.</p>
+                    </div>
+                    <div class="text-xs text-slate-500">
+                        Data sugerida de pedidos: <span class="font-mono text-slate-300">{{ suggested_input_date }}</span>
+                    </div>
+                </div>
+
+                <form action="/separacao/import-entregas" method="post" enctype="multipart/form-data" class="grid grid-cols-1 lg:grid-cols-5 gap-3 items-end">
+                    <input type="hidden" name="date" value="{{ selected_date }}">
+                    <input type="hidden" name="shift" value="{{ selected_shift }}">
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Data do Pedido</label>
+                        <input type="date" name="input_date" value="{{ suggested_input_date }}"
+                               class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-indigo-500 outline-none">
+                    </div>
+
+                    <div class="lg:col-span-3">
+                        <label class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Arquivo Excel</label>
+                        <input type="file" name="file" accept=".xls,.xlsx,.csv" required
+                               class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 file:mr-3 file:border-0 file:bg-indigo-600 file:px-3 file:py-1.5 file:text-white file:rounded-md">
+                    </div>
+
+                    <button type="submit"
+                            class="bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors">
+                        Importar Entregas
+                    </button>
+                </form>
+
+                {% if delivery_import %}
+                <div class="mt-4 rounded-lg border px-4 py-3 {% if delivery_import.ok %}border-emerald-500/40 bg-emerald-500/10{% else %}border-amber-500/40 bg-amber-500/10{% endif %}">
+                    <p class="text-sm {% if delivery_import.ok %}text-emerald-300{% else %}text-amber-300{% endif %}">
+                        {{ delivery_import.message }}
+                        {% if delivery_import.ok %}
+                        <span class="font-semibold">({{ delivery_import.created }} linhas)</span>
+                        {% endif %}
+                    </p>
+
+                    {% if delivery_import.issues %}
+                    <div class="mt-3">
+                        <p class="text-xs uppercase tracking-wider text-red-300 font-bold mb-1">Pendências de cadastro</p>
+                        <ul class="text-xs text-red-200 space-y-1 max-h-36 overflow-y-auto custom-scrollbar">
+                            {% for issue in delivery_import.issues %}
+                            <li>Linha {{ issue.row }}: {{ issue.reason }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    {% if delivery_import.warnings %}
+                    <div class="mt-3">
+                        <p class="text-xs uppercase tracking-wider text-amber-200 font-bold mb-1">Alertas</p>
+                        <ul class="text-xs text-amber-100 space-y-1 max-h-28 overflow-y-auto custom-scrollbar">
+                            {% for warn in delivery_import.warnings %}
+                            <li>Rota {{ warn.route }}: {{ warn.reason }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
             <!-- Form Section (Horizontal) -->
             <form action="/separacao/add" method="post" autocomplete="off" onsubmit="return validateForm()">
                 <input type="hidden" name="date" value="{{ selected_date }}">
@@ -350,6 +422,217 @@
                     {% endif %}
                 </div>
             </div>
+
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-hidden">
+                <div class="px-6 pt-5">
+                    <form action="/separacao/delivery/planning-date/bulk" method="post" class="flex flex-wrap items-end gap-2">
+                        <input type="hidden" name="current_date" value="{{ selected_date }}">
+                        <input type="hidden" name="shift" value="{{ selected_shift }}">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Data Geral do Planejamento</label>
+                            <input type="date" name="planning_date" value="{{ selected_date }}"
+                                   class="bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200">
+                        </div>
+                        <button class="px-3 py-1.5 rounded bg-slate-700 hover:bg-slate-600 text-white text-xs">Aplicar para todas</button>
+                    </form>
+                </div>
+                <div class="px-6 py-5 border-b border-slate-700 flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-sky-500/30 to-indigo-500/30 border border-sky-500/30 flex items-center justify-center">
+                            <i data-lucide="truck" class="text-sky-300 w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-white">Rotina de Entregas</h3>
+                            <p class="text-xs text-slate-400">Planejamento diário com reatribuição de motorista, caminhão e cliente.</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-2 text-xs w-full lg:w-[760px]">
+                        <div class="rounded-xl border border-slate-700 bg-slate-900/60 p-2">
+                            <p class="text-[10px] uppercase tracking-wider text-slate-400 mb-2 font-bold">Planejado</p>
+                            <div class="grid grid-cols-3 gap-2">
+                                <span class="px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-200">Paradas: {{ delivery_summary.total_stops }}</span>
+                                <span class="px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-200">Peso: {{ "{:,.2f}".format(delivery_summary.total_weight).replace(",", "X").replace(".", ",").replace("X", ".") }} Kg</span>
+                                <span class="px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-200">Valor: R$ {{ "{:,.2f}".format(delivery_summary.total_value).replace(",", "X").replace(".", ",").replace("X", ".") }}</span>
+                            </div>
+                        </div>
+                        <div class="rounded-xl border border-slate-700 bg-slate-900/60 p-2">
+                            <p class="text-[10px] uppercase tracking-wider text-slate-400 mb-2 font-bold">Realizado</p>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                <span class="px-2 py-1 rounded-lg bg-amber-900/20 border border-amber-500/30 text-amber-300">Pendentes: {{ delivery_summary.pending }}</span>
+                                <span class="px-2 py-1 rounded-lg bg-indigo-900/20 border border-indigo-500/30 text-indigo-300">Iniciadas: {{ delivery_summary.started }}</span>
+                                <span class="px-2 py-1 rounded-lg bg-emerald-900/20 border border-emerald-500/30 text-emerald-300">Entregues: {{ delivery_summary.delivered }}</span>
+                                <span class="px-2 py-1 rounded-lg bg-orange-900/20 border border-orange-500/30 text-orange-300">Devolução: {{ delivery_summary.returned }} ({{ "%.2f"|format(delivery_summary.return_percentage)|replace(".", ",") }}%)</span>
+                                <span class="px-2 py-1 rounded-lg bg-orange-900/20 border border-orange-500/30 text-orange-300">Devolução (Kg): {{ "{:,.2f}".format(delivery_summary.returned_weight).replace(",", "X").replace(".", ",").replace("X", ".") }} ({{ "%.2f"|format(delivery_summary.returned_weight_percentage)|replace(".", ",") }}%)</span>
+                                <span class="px-2 py-1 rounded-lg bg-orange-900/20 border border-orange-500/30 text-orange-300">Devolução (R$): {{ "{:,.2f}".format(delivery_summary.returned_value).replace(",", "X").replace(".", ",").replace("X", ".") }} ({{ "%.2f"|format(delivery_summary.returned_value_percentage)|replace(".", ",") }}%)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-6">
+                    {% if delivery_groups %}
+                    <div class="space-y-5">
+                        {% for group in delivery_groups %}
+                        <details class="rounded-xl border border-slate-700 bg-slate-900/30 overflow-hidden group">
+                            <summary class="px-4 py-3 bg-slate-900/60 flex flex-wrap items-center justify-between gap-2 cursor-pointer list-none">
+                                <div class="flex items-center gap-2">
+                                    <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 transition-transform group-open:rotate-90"></i>
+                                    <div>
+                                        <p class="text-sm font-bold text-white">{{ group.driver_name }}</p>
+                                        <p class="text-xs text-slate-400">Placa: {{ group.vehicle_plate }} • {{ group.rows|length }} paradas</p>
+                                        {% if group.has_plate_conflict %}
+                                        <p class="text-[10px] text-red-300">Conflito: mais de uma placa para este motorista neste dia.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <p class="text-xs font-mono text-emerald-300">{{ "{:,.2f}".format(group.total_weight).replace(",", "X").replace(".", ",").replace("X", ".") }} Kg</p>
+                            </summary>
+
+                            <div class="px-3 py-2 border-t border-slate-700 bg-slate-900/40">
+                                <form action="/separacao/delivery/reassign-group" method="post" class="flex flex-wrap items-end gap-1">
+                                    <input type="hidden" name="source_employee_id" value="{{ group.employee_id }}">
+                                    <input type="hidden" name="date" value="{{ selected_date }}">
+                                    <input type="hidden" name="shift" value="{{ selected_shift }}">
+                                    <div>
+                                        <label class="block text-[10px] text-slate-400 uppercase mb-1">Motorista</label>
+                                        <select name="new_employee_id" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200">
+                                            {% for emp in delivery_employees %}
+                                            <option value="{{ emp.id }}" {% if emp.id == group.employee_id %}selected{% endif %}>{{ emp.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-slate-400 uppercase mb-1">Caminhão</label>
+                                        <select name="new_vehicle_plate" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200">
+                                            {% for veh in delivery_vehicles %}
+                                            <option value="{{ veh.placa }}" {% if veh.placa == group.vehicle_plate %}selected{% endif %}>{{ veh.placa }} - {{ veh.modelo }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <button class="px-2 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white text-[11px]">Aplicar em todas as paradas</button>
+                                </form>
+                            </div>
+
+                            <div class="overflow-x-auto border-t border-slate-700">
+                                <table class="w-full text-xs">
+                                    <thead class="bg-slate-900/50 text-slate-400 uppercase">
+                                        <tr>
+                                            <th class="text-left px-3 py-2">Cliente</th>
+                                            <th class="text-left px-3 py-2">Endereço</th>
+                                            <th class="text-left px-3 py-2">Peso</th>
+                                            <th class="text-left px-3 py-2">Valor</th>
+                                            <th class="text-left px-3 py-2">Status</th>
+                                            <th class="text-left px-3 py-2">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for row in group.rows %}
+                                        <tr class="border-t border-slate-800 align-top">
+                                            <td class="px-3 py-2 text-slate-200">
+                                                <div class="font-semibold">{{ row.client_name }}</div>
+                                                <div class="text-slate-500">Cod {{ row.client_code }} • Pedido {{ row.order_number }}</div>
+                                            </td>
+                                            <td class="px-3 py-2 text-slate-300">
+                                                <a href="{{ row.maps_url }}" target="_blank" class="text-sky-300 hover:text-sky-200 underline-offset-2 hover:underline">
+                                                    {{ row.address }}
+                                                </a>
+                                                <div class="text-slate-500">{{ row.bairro }} - {{ row.city }}/{{ row.state }} - {{ row.cep }}</div>
+                                            </td>
+                                            <td class="px-3 py-2 text-slate-200 font-mono">
+                                                {{ "{:,.2f}".format(row.weight).replace(",", "X").replace(".", ",").replace("X", ".") }} Kg
+                                            </td>
+                                            <td class="px-3 py-2 text-slate-200 font-mono">
+                                                R$ {{ "{:,.2f}".format(row.value).replace(",", "X").replace(".", ",").replace("X", ".") }}
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                <span class="px-2 py-1 rounded border
+                                                    {% if row.status_raw == 'pendente' %}border-amber-500/30 text-amber-300 bg-amber-900/20
+                                                    {% elif row.status_raw == 'iniciada' %}border-indigo-500/30 text-indigo-300 bg-indigo-900/20
+                                                    {% elif row.status_raw == 'entregue' %}border-emerald-500/30 text-emerald-300 bg-emerald-900/20
+                                                    {% elif row.status_raw == 'devolucao' %}border-orange-500/30 text-orange-300 bg-orange-900/20
+                                                    {% elif row.status_raw == 'cancelada' %}border-rose-500/30 text-rose-300 bg-rose-900/20
+                                                    {% else %}border-slate-600 text-slate-200 bg-slate-800{% endif %}">
+                                                    {{ row.status_label }}
+                                                </span>
+                                                <div class="mt-1 flex flex-wrap gap-1 text-[10px] font-mono">
+                                                    {% if row.started_at %}
+                                                    <span class="px-1.5 py-0.5 rounded bg-indigo-900/30 border border-indigo-500/30 text-indigo-300">Início {{ row.started_at }}</span>
+                                                    {% endif %}
+                                                    {% if row.finished_at %}
+                                                    <span class="px-1.5 py-0.5 rounded bg-emerald-900/30 border border-emerald-500/30 text-emerald-300">Fim {{ row.finished_at }}</span>
+                                                    {% endif %}
+                                                    {% if row.canceled_at %}
+                                                    <span class="px-1.5 py-0.5 rounded bg-rose-900/30 border border-rose-500/30 text-rose-300">Cancel. {{ row.canceled_at }}</span>
+                                                    {% endif %}
+                                                    {% if row.returned_at %}
+                                                    <span class="px-1.5 py-0.5 rounded bg-orange-900/30 border border-orange-500/30 text-orange-300">Devol. {{ row.returned_at }}</span>
+                                                    {% endif %}
+                                                </div>
+                                                {% if row.return_reason %}
+                                                <div class="text-[10px] text-orange-300 mt-1">{{ row.return_category }} - {{ row.return_reason }}</div>
+                                                {% endif %}
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                <div class="flex flex-wrap gap-1">
+                                                    <form action="/separacao/delivery/status" method="post">
+                                                        <input type="hidden" name="route_id" value="{{ row.id }}">
+                                                        <input type="hidden" name="date" value="{{ selected_date }}">
+                                                        <input type="hidden" name="shift" value="{{ selected_shift }}">
+                                                        <input type="hidden" name="action" value="iniciar">
+                                                        <button class="px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white">Iniciar</button>
+                                                    </form>
+                                                    <form action="/separacao/delivery/status" method="post">
+                                                        <input type="hidden" name="route_id" value="{{ row.id }}">
+                                                        <input type="hidden" name="date" value="{{ selected_date }}">
+                                                        <input type="hidden" name="shift" value="{{ selected_shift }}">
+                                                        <input type="hidden" name="action" value="finalizar">
+                                                        <button class="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white">Finalizar</button>
+                                                    </form>
+                                                    <button type="button"
+                                                            onclick="openReturnModal('{{ row.id }}', '{{ selected_date }}', '{{ selected_shift }}')"
+                                                            class="px-2 py-1 rounded bg-orange-600 hover:bg-orange-500 text-white">
+                                                        Devolução
+                                                    </button>
+                                                    <form action="/separacao/delivery/status" method="post">
+                                                        <input type="hidden" name="route_id" value="{{ row.id }}">
+                                                        <input type="hidden" name="date" value="{{ selected_date }}">
+                                                        <input type="hidden" name="shift" value="{{ selected_shift }}">
+                                                        <input type="hidden" name="action" value="cancelar">
+                                                        <button class="px-2 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white">Cancelar</button>
+                                                    </form>
+                                                    <form action="/separacao/delivery/reassign" method="post" class="flex items-center gap-1">
+                                                        <input type="hidden" name="route_id" value="{{ row.id }}">
+                                                        <input type="hidden" name="date" value="{{ selected_date }}">
+                                                        <input type="hidden" name="shift" value="{{ selected_shift }}">
+                                                        <select name="new_employee_id" class="bg-slate-900 border border-slate-700 rounded px-1 py-1 text-[10px] text-slate-200">
+                                                            {% for emp in delivery_employees %}
+                                                            <option value="{{ emp.id }}" {% if emp.id == group.employee_id %}selected{% endif %}>{{ emp.name }}</option>
+                                                            {% endfor %}
+                                                        </select>
+                                                        <select name="new_vehicle_plate" class="bg-slate-900 border border-slate-700 rounded px-1 py-1 text-[10px] text-slate-200">
+                                                            {% for veh in delivery_vehicles %}
+                                                            <option value="{{ veh.placa }}" {% if veh.placa == group.vehicle_plate %}selected{% endif %}>{{ veh.placa }}</option>
+                                                            {% endfor %}
+                                                        </select>
+                                                        <button class="px-2 py-1 rounded bg-violet-600 hover:bg-violet-500 text-white">Mover Cliente</button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </details>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-10 text-slate-500">
+                        Nenhuma entrega importada para {{ selected_date_fmt }}.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -448,9 +731,47 @@
     </div>
 </dialog>
 
+<dialog id="returnModal"
+    class="glass-panel p-0 backdrop:bg-black/80 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden mx-auto mt-20">
+    <div class="bg-slate-800 p-6">
+        <h3 class="text-lg font-bold text-white mb-4">Registrar Devolução</h3>
+        <form action="/separacao/delivery/status" method="post" class="space-y-4">
+            <input type="hidden" name="route_id" id="return-route-id">
+            <input type="hidden" name="date" id="return-date">
+            <input type="hidden" name="shift" id="return-shift">
+            <input type="hidden" name="action" value="devolucao">
+
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-1 uppercase">Categoria</label>
+                <select name="return_category" id="return-category" required onchange="refreshReturnReasons()"
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white">
+                    {% for category in delivery_return_reasons.keys() %}
+                    <option value="{{ category }}">{{ category }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-1 uppercase">Motivo</label>
+                <select name="return_reason" id="return-reason" required
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white">
+                </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 pt-2">
+                <button type="button" onclick="document.getElementById('returnModal').close()"
+                    class="py-2.5 rounded-lg border border-slate-600 text-slate-300 font-semibold hover:bg-slate-700 transition">Cancelar</button>
+                <button type="submit"
+                    class="py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg font-bold">Confirmar Devolução</button>
+            </div>
+        </form>
+    </div>
+</dialog>
+
 <script>
     // --- Icons ---
     lucide.createIcons();
+    const returnReasonsMap = {{ delivery_return_reasons | tojson }};
 
     // --- State ---
     const allocationTable = document.getElementById('allocation-table-body');
@@ -675,6 +996,27 @@
         document.getElementById('edit-end-time').value = end;
         document.getElementById('edit-tonnage').value = tonnage;
         document.getElementById('editModal').showModal();
+    }
+
+    function refreshReturnReasons() {
+        const category = document.getElementById('return-category').value;
+        const reasons = returnReasonsMap[category] || [];
+        const select = document.getElementById('return-reason');
+        select.innerHTML = '';
+        reasons.forEach((r) => {
+            const opt = document.createElement('option');
+            opt.value = r;
+            opt.textContent = r;
+            select.appendChild(opt);
+        });
+    }
+
+    function openReturnModal(routeId, date, shift) {
+        document.getElementById('return-route-id').value = routeId;
+        document.getElementById('return-date').value = date;
+        document.getElementById('return-shift').value = shift;
+        refreshReturnReasons();
+        document.getElementById('returnModal').showModal();
     }
 
 </script>

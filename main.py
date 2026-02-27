@@ -6103,13 +6103,38 @@ def ensure_client_schema():
 
 
 def ensure_route_schema():
-    """Adiciona colunas valor_financeiro, devolucao_volume, valor_devolucao à tabela route."""
+    """Adiciona colunas auxiliares da tabela route (separação + entregas)."""
     try:
         inspector = inspect(engine)
         if "route" not in inspector.get_table_names():
             return
         cols = {c["name"] for c in inspector.get_columns("route")}
-        missing = {"valor_financeiro": "REAL", "devolucao_volume": "REAL", "valor_devolucao": "REAL"}
+        missing = {
+            "type": "VARCHAR(32) DEFAULT 'separation'",
+            "valor_financeiro": "REAL",
+            "devolucao_volume": "REAL",
+            "valor_devolucao": "REAL",
+            "delivery_status": "VARCHAR(32)",
+            "delivery_route_code": "VARCHAR(64)",
+            "delivery_order_number": "VARCHAR(64)",
+            "delivery_client_code": "VARCHAR(64)",
+            "delivery_vehicle_plate": "VARCHAR(32)",
+            "delivery_cep": "VARCHAR(24)",
+            "delivery_address": "TEXT",
+            "delivery_neighborhood": "VARCHAR(120)",
+            "delivery_city": "VARCHAR(120)",
+            "delivery_state": "VARCHAR(8)",
+            "delivery_type": "VARCHAR(32)",
+            "delivery_total_weight": "REAL",
+            "delivery_order_date": "VARCHAR(10)",
+            "delivery_source_file": "VARCHAR(255)",
+            "delivery_return_category": "VARCHAR(64)",
+            "delivery_return_reason": "TEXT",
+            "delivery_started_at": "VARCHAR(5)",
+            "delivery_finished_at": "VARCHAR(5)",
+            "delivery_canceled_at": "VARCHAR(5)",
+            "delivery_returned_at": "VARCHAR(5)",
+        }
         with engine.connect() as conn:
             for col_name, col_type in missing.items():
                 if col_name not in cols:
@@ -10093,6 +10118,256 @@ async def delete_vehicle(request: Request, vehicle_id: int, session: Session = D
 
 # --- Route Management ---
 # --- Separação de Mercadorias Management ---
+def _norm_text(v: Any) -> str:
+    if v is None:
+        return ""
+    s = str(v).strip()
+    if not s:
+        return ""
+    s = unicodedata.normalize("NFD", s)
+    s = "".join(ch for ch in s if not unicodedata.combining(ch))
+    return s.lower().strip()
+
+
+def _norm_plate(v: Any) -> str:
+    if v is None:
+        return ""
+    return "".join(ch for ch in str(v).upper().strip() if ch.isalnum())
+
+
+def _as_str(v: Any) -> Optional[str]:
+    if v is None:
+        return None
+    s = str(v).strip()
+    if not s or s.lower() == "nan":
+        return None
+    return s
+
+
+def _as_float(v: Any) -> float:
+    if v is None:
+        return 0.0
+    if isinstance(v, (int, float)):
+        return float(v)
+    s = str(v).strip()
+    if not s or s.lower() == "nan":
+        return 0.0
+    s = s.replace(".", "").replace(",", ".")
+    try:
+        return float(s)
+    except Exception:
+        return 0.0
+
+
+def _maps_link(address: Optional[str], bairro: Optional[str], cidade: Optional[str], estado: Optional[str], cep: Optional[str]) -> str:
+    parts = [p for p in [address, bairro, cidade, estado, cep] if p]
+    return "https://www.google.com/maps/search/?api=1&query=" + urlencode({"": " ".join(parts)})[1:]
+
+
+DELIVERY_RETURN_REASONS = {
+    "COMERCIAL": [
+        "PEDIDO / PRODUTO ERRADO",
+        "CLIENTE NÃO FEZ PEDIDO",
+        "PRAZO ERRADO",
+        "PREÇO ERRADO",
+        "SEM VASILHAME",
+        "FORMA DE PAGAMENTO ERRADA",
+        "VENDEDOR NÃO PASSOU",
+        "TROCAS NÃO AUTORIZADAS",
+        "TROCAS NÃO ENVIADAS",
+    ],
+    "MERCADO": [
+        "HORÁRIO ENTREGA",
+        "PONTO VENDA FECHADO / AUSENTE",
+        "SEM DINHEIRO / CHEQUE",
+        "CLIENTE DESISTIU DA COMPRA",
+    ],
+    "LOGÍSTICA": [
+        "DIFÍCIL ACESSO",
+        "PRODUTO DANIFICADO E/OU FALTA",
+        "LOCAL ENTREGA NÃO LOCALIZADA",
+        "ÁREA DE RISCO",
+        "CAMINHÃO QUEBRADO NA ROTA",
+        "FURTO / ROUBO",
+        "QUANTIDADE ERRADA CARREGAMENTO",
+        "PEDIDO NÃO ENTREGUE",
+        "FALTA DE PRODUTO NO ESTOQUE",
+    ],
+}
+
+
+def _validate_delivery_assignment(
+    session: Session,
+    date: str,
+    employee_id: int,
+    vehicle_plate: str,
+    exclude_route_id: Optional[int] = None,
+    ignore_employee_id: Optional[int] = None,
+) -> Optional[str]:
+    plate_norm = _norm_plate(vehicle_plate)
+    if not plate_norm:
+        return "Placa inválida."
+
+    rows = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date == date)
+    ).all()
+
+    # Regra 1: motorista não pode ter mais de um caminhão no mesmo dia
+    driver_plates = set()
+    for r in rows:
+        if exclude_route_id and r.id == exclude_route_id:
+            continue
+        if r.employee_id == employee_id and r.delivery_vehicle_plate:
+            driver_plates.add(_norm_plate(r.delivery_vehicle_plate))
+    if driver_plates and (len(driver_plates) > 1 or plate_norm not in driver_plates):
+        existing = next(iter(driver_plates))
+        return f"Motorista já vinculado a outro caminhão no dia ({existing})."
+
+    # Regra 2: caminhão não pode estar em dois motoristas
+    plate_drivers = set()
+    for r in rows:
+        if exclude_route_id and r.id == exclude_route_id:
+            continue
+        if ignore_employee_id and r.employee_id == ignore_employee_id:
+            continue
+        if _norm_plate(r.delivery_vehicle_plate) == plate_norm and r.employee_id:
+            plate_drivers.add(r.employee_id)
+    if plate_drivers and (len(plate_drivers) > 1 or employee_id not in plate_drivers):
+        return "Caminhão já vinculado a outro motorista no dia."
+
+    return None
+
+
+def _delivery_col_map(columns: List[str]) -> dict:
+    normalized = {_norm_text(c): c for c in columns}
+
+    aliases = {
+        "route_code": ["n rota", "nº rota", "n° rota", "no rota", "numero rota", "rota"],
+        "plate": ["placa veiculo", "placa", "veiculo", "placa do veiculo"],
+        "driver": ["motorista", "nome motorista"],
+        "order_number": ["pedidos", "pedido", "n pedido", "numero pedido"],
+        "order_date": ["data do pedido", "data pedido"],
+        "client_code": ["cod cliente", "codigo cliente", "id cliente"],
+        "client_name": ["razao social", "cliente", "nome cliente"],
+        "cep": ["cep"],
+        "address": ["endereco", "logradouro"],
+        "bairro": ["bairro"],
+        "city": ["cidades", "cidade", "municipio"],
+        "state": ["estado", "uf"],
+        "peso_pedido": ["peso pedido", "peso", "peso da entrega"],
+        "peso_total": ["peso total"],
+        "valor": ["valor", "valor pedido"],
+        "tipo": ["tipo"],
+    }
+
+    out = {}
+    for key, options in aliases.items():
+        found = None
+        for opt in options:
+            if opt in normalized:
+                found = normalized[opt]
+                break
+        if not found:
+            for norm_name, original in normalized.items():
+                compact = norm_name.replace(" ", "")
+                if any(compact == opt.replace(" ", "") or norm_name.startswith(opt) for opt in options):
+                    found = original
+                    break
+        out[key] = found
+    return out
+
+
+def _find_employee_by_driver_name(name: str, employees: List[models.Employee]) -> Optional[models.Employee]:
+    target = _norm_text(name)
+    if not target:
+        return None
+
+    exact = None
+    for emp in employees:
+        if _norm_text(emp.name) == target:
+            exact = emp
+            break
+    if exact:
+        return exact
+
+    target_tokens = {t for t in target.split() if t}
+    if not target_tokens:
+        return None
+
+    # Caso o nome vindo da planilha seja abreviado (ex.: "GILMAR MARQUES")
+    # e exista apenas um colaborador que contenha todos os tokens, associar.
+    token_subset_matches = []
+    for emp in employees:
+        emp_tokens = {t for t in _norm_text(emp.name).split() if t}
+        if target_tokens.issubset(emp_tokens):
+            token_subset_matches.append(emp)
+    if len(token_subset_matches) == 1:
+        return token_subset_matches[0]
+
+    best_emp = None
+    best_score = 0.0
+    for emp in employees:
+        emp_norm = _norm_text(emp.name)
+        emp_tokens = {t for t in emp_norm.split() if t}
+        if not emp_tokens:
+            continue
+        overlap = len(target_tokens.intersection(emp_tokens))
+        score = overlap / max(len(target_tokens), len(emp_tokens))
+        if score > best_score:
+            best_score = score
+            best_emp = emp
+
+    # threshold conservador para evitar associação errada
+    return best_emp if best_score >= 0.75 else None
+
+
+def _find_client(client_code_raw: Optional[str], client_name_raw: Optional[str], clients: List[models.Client]) -> Optional[models.Client]:
+    target_name = _norm_text(client_name_raw)
+    target_code = _norm_text(client_code_raw)
+    target_code_nolead = _norm_text(str(client_code_raw).lstrip("0")) if client_code_raw else ""
+
+    for c in clients:
+        if c.nb:
+            nb = _norm_text(c.nb)
+            if target_code and (nb == target_code or nb == target_code_nolead):
+                return c
+
+    if target_code and str(client_code_raw).isdigit():
+        try:
+            cid = int(str(client_code_raw))
+            for c in clients:
+                if c.id == cid:
+                    return c
+        except Exception:
+            pass
+
+    for c in clients:
+        names = [_norm_text(c.name), _norm_text(c.razao_social), _norm_text(c.nome_fantasia)]
+        if target_name and target_name in names:
+            return c
+
+    if target_name:
+        target_tokens = {t for t in target_name.split() if t}
+        best_client = None
+        best_score = 0.0
+        for c in clients:
+            candidate_name = _norm_text(c.razao_social or c.name or c.nome_fantasia)
+            candidate_tokens = {t for t in candidate_name.split() if t}
+            if not candidate_tokens:
+                continue
+            overlap = len(target_tokens.intersection(candidate_tokens))
+            score = overlap / max(len(target_tokens), len(candidate_tokens))
+            if score > best_score:
+                best_score = score
+                best_client = c
+        if best_client and best_score >= 0.70:
+            return best_client
+
+    return None
+
+
 @app.get("/separacao", response_class=HTMLResponse)
 async def separacao_page(request: Request, date: Optional[str] = None, shift: str = "Manhã", session: Session = Depends(get_session)):
     user = require_login(request)
@@ -10107,6 +10382,8 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
     
     if not date:
         date = datetime.now().strftime("%Y-%m-%d")
+    selected_date_obj = datetime.strptime(date, "%Y-%m-%d")
+    suggested_input_date = (selected_date_obj - timedelta(days=1)).strftime("%Y-%m-%d")
         
     # 1. Fetch DailyOperation
     daily_op = session.exec(
@@ -10135,7 +10412,12 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
     cli_map = {c.id: c.name for c in clients}
 
     # 4. Fetch Routes
-    query = select(models.Route).where(models.Route.date == date).where(models.Route.shift == shift)
+    query = (
+        select(models.Route)
+        .where(models.Route.date == date)
+        .where(models.Route.shift == shift)
+        .where(or_(models.Route.type == None, models.Route.type == "separation"))
+    )
     
     # Remove mobile restriction for viewing routes (User wants to see Team status)
     # query = query.order_by(models.Route.start_time)
@@ -10259,6 +10541,124 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
         if not r['end_time']: # Active/Open route
             active_client_ids.add(r['client_id'])
 
+    # Delivery list (same selected date)
+    delivery_rows = session.exec(
+        select(models.Route)
+        .where(models.Route.date == date)
+        .where(models.Route.type == "delivery")
+        .order_by(models.Route.delivery_route_code, models.Route.created_at)
+    ).all()
+
+    delivery_by_employee = {}
+    delivery_summary = {
+        "total_stops": len(delivery_rows),
+        "total_weight": 0.0,
+        "total_value": 0.0,
+        "pending": 0,
+        "started": 0,
+        "returned": 0,
+        "canceled": 0,
+        "delivered": 0,
+        "returned_weight": 0.0,
+        "returned_value": 0.0,
+    }
+
+    for route in delivery_rows:
+        emp = emp_map_id.get(route.employee_id)
+        driver_name = emp.name if emp else "Motorista não cadastrado"
+        key = route.employee_id or 0
+        if key not in delivery_by_employee:
+            delivery_by_employee[key] = {
+                "employee_id": route.employee_id,
+                "driver_name": driver_name,
+                "vehicle_plate": route.delivery_vehicle_plate or "-",
+                "rows": [],
+                "total_weight": 0.0,
+                "has_plate_conflict": False,
+            }
+        else:
+            current_plate = _norm_plate(delivery_by_employee[key]["vehicle_plate"])
+            route_plate = _norm_plate(route.delivery_vehicle_plate)
+            if current_plate and route_plate and current_plate != route_plate:
+                delivery_by_employee[key]["has_plate_conflict"] = True
+
+        status_raw = (route.delivery_status or "pendente").lower()
+        status_map = {
+            "pendente": "Pendente",
+            "iniciada": "Iniciada",
+            "cancelada": "Cancelada",
+            "devolucao": "Devolução",
+            "entregue": "Entregue",
+        }
+
+        delivery_by_employee[key]["rows"].append({
+            "id": route.id,
+            "route_code": route.delivery_route_code or "-",
+            "order_number": route.delivery_order_number or "-",
+            "client_name": cli_map.get(route.client_id, "Cliente não cadastrado"),
+            "client_code": route.delivery_client_code or "-",
+            "address": route.delivery_address or "-",
+            "bairro": route.delivery_neighborhood or "-",
+            "city": route.delivery_city or "-",
+            "state": route.delivery_state or "-",
+            "cep": route.delivery_cep or "-",
+            "weight": route.tonnage or 0.0,
+            "value": route.valor_financeiro or 0.0,
+            "status_raw": status_raw,
+            "status_label": status_map.get(status_raw, status_raw.title()),
+            "return_category": route.delivery_return_category or "",
+            "return_reason": route.delivery_return_reason or "",
+            "planning_date": route.date,
+            "started_at": route.delivery_started_at or route.start_time or "",
+            "finished_at": route.delivery_finished_at or (route.end_time or ""),
+            "canceled_at": route.delivery_canceled_at or "",
+            "returned_at": route.delivery_returned_at or "",
+            "maps_url": _maps_link(
+                route.delivery_address,
+                route.delivery_neighborhood,
+                route.delivery_city,
+                route.delivery_state,
+                route.delivery_cep,
+            ),
+        })
+
+        delivery_by_employee[key]["total_weight"] += route.tonnage or 0.0
+        delivery_summary["total_weight"] += route.tonnage or 0.0
+        delivery_summary["total_value"] += route.valor_financeiro or 0.0
+        if status_raw == "iniciada":
+            delivery_summary["started"] += 1
+        elif status_raw == "devolucao":
+            delivery_summary["returned"] += 1
+            delivery_summary["returned_weight"] += route.tonnage or 0.0
+            delivery_summary["returned_value"] += route.valor_financeiro or 0.0
+        elif status_raw == "cancelada":
+            delivery_summary["canceled"] += 1
+        elif status_raw == "entregue":
+            delivery_summary["delivered"] += 1
+        else:
+            delivery_summary["pending"] += 1
+
+    delivery_groups = sorted(delivery_by_employee.values(), key=lambda x: x["driver_name"])
+    total_stops = delivery_summary["total_stops"] or 0
+    delivery_summary["return_percentage"] = round((delivery_summary["returned"] / total_stops) * 100.0, 2) if total_stops else 0.0
+    delivery_summary["returned_weight_percentage"] = round(
+        (delivery_summary["returned_weight"] / delivery_summary["total_weight"]) * 100.0, 2
+    ) if delivery_summary["total_weight"] else 0.0
+    delivery_summary["returned_value_percentage"] = round(
+        (delivery_summary["returned_value"] / delivery_summary["total_value"]) * 100.0, 2
+    ) if delivery_summary["total_value"] else 0.0
+
+    delivery_feedback = request.query_params.get("delivery_feedback")
+    delivery_feedback_level = request.query_params.get("delivery_feedback_level", "info")
+    delivery_employees = sorted(
+        session.exec(select(models.Employee).where(models.Employee.status != "fired")).all(),
+        key=lambda x: x.name
+    )
+    delivery_vehicles = sorted(
+        session.exec(select(models.Vehicle).where(models.Vehicle.is_active == True)).all(),
+        key=lambda x: x.placa
+    )
+
     return templates.TemplateResponse("routes.html", {
         "request": request, 
         "user": user,
@@ -10269,7 +10669,16 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
         "grouped_routes": grouped_routes, # New grouped structure
         "selected_date": date,
         "selected_shift": shift,
-        "selected_date_fmt": datetime.strptime(date, "%Y-%m-%d").strftime("%d/%m/%Y")
+        "selected_date_fmt": selected_date_obj.strftime("%d/%m/%Y"),
+        "suggested_input_date": suggested_input_date,
+        "delivery_groups": delivery_groups,
+        "delivery_summary": delivery_summary,
+        "delivery_feedback": delivery_feedback,
+        "delivery_feedback_level": delivery_feedback_level,
+        "delivery_import": None,
+        "delivery_return_reasons": DELIVERY_RETURN_REASONS,
+        "delivery_employees": delivery_employees,
+        "delivery_vehicles": delivery_vehicles,
     })
 @app.post("/separacao/add", response_class=RedirectResponse)
 async def add_separacao(
@@ -10363,6 +10772,455 @@ async def delete_separacao(
         session.commit()
         return RedirectResponse(url=f"/separacao?date={date}&shift={shift}", status_code=status.HTTP_303_SEE_OTHER)
     return RedirectResponse(url="/separacao", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.post("/separacao/import-entregas", response_class=HTMLResponse)
+async def import_entregas_separacao(
+    request: Request,
+    date: str = Form(...),
+    shift: str = Form("Manhã"),
+    input_date: Optional[str] = Form(None),
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+
+    import_result = {
+        "ok": False,
+        "message": "",
+        "created": 0,
+        "issues": [],
+        "warnings": [],
+    }
+
+    if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls", ".csv")):
+        import_result["message"] = "Arquivo inválido. Use .xls, .xlsx ou .csv."
+        response = await separacao_page(request=request, date=date, shift=shift, session=session)
+        response.context["delivery_import"] = import_result
+        return response
+
+    try:
+        import pandas as pd
+        content = await file.read()
+        df = _load_clients_dataframe(content, file.filename)
+        col_map = _delivery_col_map(list(df.columns))
+
+        required = ["driver", "plate", "client_name", "client_code", "address", "peso_pedido", "route_code"]
+        missing_required = [field for field in required if not col_map.get(field)]
+        if missing_required:
+            import_result["message"] = "Planilha sem colunas obrigatórias para entregas."
+            import_result["issues"].append({
+                "row": "-",
+                "reason": f"Colunas ausentes: {', '.join(missing_required)}",
+            })
+            response = await separacao_page(request=request, date=date, shift=shift, session=session)
+            response.context["delivery_import"] = import_result
+            return response
+
+        employees = session.exec(select(models.Employee).where(models.Employee.status != "fired")).all()
+        clients = session.exec(select(models.Client)).all()
+        vehicles = session.exec(select(models.Vehicle).where(models.Vehicle.is_active == True)).all()
+        vehicle_by_plate = {_norm_plate(v.placa): v for v in vehicles}
+
+        parsed_rows = []
+        route_totals = {}
+
+        for idx, row in df.iterrows():
+            row_num = idx + 2
+            route_code = _as_str(row.get(col_map["route_code"]))
+            driver_name_raw = _as_str(row.get(col_map["driver"]))
+            plate_raw = _as_str(row.get(col_map["plate"]))
+            client_name_raw = _as_str(row.get(col_map["client_name"]))
+            client_code_raw = _as_str(row.get(col_map["client_code"]))
+            peso_pedido = _as_float(row.get(col_map["peso_pedido"]))
+            peso_total = _as_float(row.get(col_map["peso_total"])) if col_map.get("peso_total") else 0.0
+            valor = _as_float(row.get(col_map["valor"])) if col_map.get("valor") else 0.0
+            pedido_num = _as_str(row.get(col_map["order_number"])) if col_map.get("order_number") else None
+            pedido_data = _as_str(row.get(col_map["order_date"])) if col_map.get("order_date") else None
+            address = _as_str(row.get(col_map["address"]))
+            bairro = _as_str(row.get(col_map["bairro"])) if col_map.get("bairro") else None
+            city = _as_str(row.get(col_map["city"])) if col_map.get("city") else None
+            state = _as_str(row.get(col_map["state"])) if col_map.get("state") else None
+            cep = _as_str(row.get(col_map["cep"])) if col_map.get("cep") else None
+            tipo = _as_str(row.get(col_map["tipo"])) if col_map.get("tipo") else "Entrega"
+
+            if not driver_name_raw or not client_name_raw:
+                import_result["issues"].append({
+                    "row": row_num,
+                    "reason": "Linha sem motorista ou cliente.",
+                })
+                continue
+
+            emp = _find_employee_by_driver_name(driver_name_raw, employees)
+            if not emp:
+                import_result["issues"].append({
+                    "row": row_num,
+                    "reason": f"Motorista não cadastrado: {driver_name_raw}",
+                })
+                continue
+
+            vehicle = vehicle_by_plate.get(_norm_plate(plate_raw))
+            if not vehicle:
+                import_result["issues"].append({
+                    "row": row_num,
+                    "reason": f"Caminhão/placa não cadastrado: {plate_raw or '-'}",
+                })
+                continue
+
+            client = _find_client(client_code_raw, client_name_raw, clients)
+
+            if not client:
+                import_result["issues"].append({
+                    "row": row_num,
+                    "reason": f"Cliente não cadastrado: {client_name_raw} (código {client_code_raw or '-'})",
+                })
+                continue
+
+            parsed_rows.append({
+                "employee_id": emp.id,
+                "client_id": client.id,
+                "route_code": route_code or "-",
+                "plate": plate_raw or "",
+                "client_code": client_code_raw or "",
+                "order_number": pedido_num or "",
+                "order_date": pedido_data or input_date,
+                "address": address or "",
+                "bairro": bairro or "",
+                "city": city or "",
+                "state": state or "",
+                "cep": cep or "",
+                "peso_pedido": peso_pedido,
+                "peso_total": peso_total,
+                "valor": valor,
+                "tipo": tipo or "Entrega",
+            })
+
+            route_key = route_code or f"row_{row_num}"
+            if route_key not in route_totals:
+                route_totals[route_key] = {"sum_pedidos": 0.0, "peso_total": 0.0}
+            route_totals[route_key]["sum_pedidos"] += peso_pedido
+            route_totals[route_key]["peso_total"] = max(route_totals[route_key]["peso_total"], peso_total)
+
+        for route_code, payload in route_totals.items():
+            sum_pedidos = payload["sum_pedidos"]
+            peso_total = payload["peso_total"]
+            if peso_total > 0 and abs(sum_pedidos - peso_total) > 1.0:
+                import_result["warnings"].append({
+                    "route": route_code,
+                    "reason": f"Soma PESO PEDIDO ({sum_pedidos:.2f}) difere de PESO TOTAL ({peso_total:.2f}).",
+                })
+
+        if not parsed_rows:
+            import_result["message"] = "Nenhuma entrega válida encontrada. Corrija os cadastros pendentes e tente novamente."
+            response = await separacao_page(request=request, date=date, shift=shift, session=session)
+            response.context["delivery_import"] = import_result
+            return response
+
+        imported_route_codes = list({row["route_code"] for row in parsed_rows if row["route_code"] and row["route_code"] != "-"})
+        if imported_route_codes:
+            existing = session.exec(
+                select(models.Route)
+                .where(models.Route.date == date)
+                .where(models.Route.type == "delivery")
+                .where(models.Route.delivery_route_code.in_(imported_route_codes))
+            ).all()
+            for old_row in existing:
+                session.delete(old_row)
+            session.flush()
+
+        for row in parsed_rows:
+            route = models.Route(
+                date=date,
+                shift=shift,
+                employee_id=row["employee_id"],
+                client_id=row["client_id"],
+                start_time="00:00",
+                end_time=None,
+                tonnage=row["peso_pedido"],
+                type="delivery",
+                status="pending",
+                valor_financeiro=row["valor"],
+                delivery_status="pendente",
+                delivery_route_code=row["route_code"],
+                delivery_order_number=row["order_number"],
+                delivery_client_code=row["client_code"],
+                delivery_vehicle_plate=row["plate"],
+                delivery_cep=row["cep"],
+                delivery_address=row["address"],
+                delivery_neighborhood=row["bairro"],
+                delivery_city=row["city"],
+                delivery_state=row["state"],
+                delivery_type=row["tipo"],
+                delivery_total_weight=row["peso_total"],
+                delivery_order_date=row["order_date"],
+                delivery_source_file=file.filename,
+            )
+            session.add(route)
+
+        session.commit()
+        import_result["ok"] = True
+        import_result["created"] = len(parsed_rows)
+        if import_result["issues"]:
+            import_result["message"] = (
+                f"Importação parcial concluída. {len(parsed_rows)} entregas criadas para {date}. "
+                f"{len(import_result['issues'])} linha(s) pendente(s) de cadastro."
+            )
+        else:
+            import_result["message"] = f"Importação concluída com sucesso. {len(parsed_rows)} entregas criadas para {date}."
+    except Exception as exc:
+        import_result["message"] = f"Erro ao importar planilha: {exc}"
+        logger.exception("Falha na importação de entregas")
+
+    response = await separacao_page(request=request, date=date, shift=shift, session=session)
+    response.context["delivery_import"] = import_result
+    return response
+
+
+@app.get("/separacao/import-entregas", response_class=RedirectResponse)
+async def import_entregas_separacao_get():
+    return RedirectResponse(url="/separacao", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.post("/separacao/delivery/status", response_class=RedirectResponse)
+async def update_delivery_status(
+    request: Request,
+    route_id: int = Form(...),
+    action: str = Form(...),
+    date: str = Form(...),
+    shift: str = Form("Manhã"),
+    return_category: Optional[str] = Form(None),
+    return_reason: Optional[str] = Form(None),
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    route = session.get(models.Route, route_id)
+    if not route or route.type != "delivery":
+        return RedirectResponse(
+            url=f"/separacao?date={date}&shift={shift}&delivery_feedback=Entrega%20não%20encontrada&delivery_feedback_level=error",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    now = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
+    action_norm = (action or "").strip().lower()
+    feedback = "Status atualizado."
+
+    if action_norm == "iniciar":
+        route.delivery_status = "iniciada"
+        if not route.start_time or route.start_time == "00:00":
+            route.start_time = now
+        route.delivery_started_at = now
+        feedback = "Entrega iniciada."
+    elif action_norm == "cancelar":
+        route.delivery_status = "cancelada"
+        route.status = "completed"
+        route.end_time = now
+        route.delivery_canceled_at = now
+        feedback = "Entrega cancelada."
+    elif action_norm == "devolucao":
+        if not return_category or not return_reason:
+            feedback_encoded = urlencode({
+                "delivery_feedback": "Para devolução, informe categoria e motivo.",
+                "delivery_feedback_level": "error",
+            })
+            return RedirectResponse(
+                url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}",
+                status_code=status.HTTP_303_SEE_OTHER,
+            )
+        route.delivery_status = "devolucao"
+        route.status = "completed"
+        route.end_time = now
+        route.delivery_returned_at = now
+        route.delivery_return_category = return_category
+        route.delivery_return_reason = return_reason
+        feedback = "Entrega marcada como devolução."
+    elif action_norm in ["entregue", "finalizar"]:
+        route.delivery_status = "entregue"
+        route.status = "completed"
+        route.end_time = now
+        route.delivery_finished_at = now
+        route.delivery_return_category = None
+        route.delivery_return_reason = None
+        feedback = "Entrega finalizada."
+
+    session.add(route)
+    session.commit()
+
+    feedback_encoded = urlencode({"delivery_feedback": feedback, "delivery_feedback_level": "success"})
+    return RedirectResponse(
+        url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@app.post("/separacao/delivery/planning-date", response_class=RedirectResponse)
+async def update_delivery_planning_date(
+    request: Request,
+    route_id: int = Form(...),
+    planning_date: str = Form(...),
+    date: str = Form(...),
+    shift: str = Form("Manhã"),
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    route = session.get(models.Route, route_id)
+    if not route or route.type != "delivery":
+        feedback_encoded = urlencode({
+            "delivery_feedback": "Entrega não encontrada.",
+            "delivery_feedback_level": "error",
+        })
+        return RedirectResponse(
+            url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    try:
+        datetime.strptime(planning_date, "%Y-%m-%d")
+    except Exception:
+        feedback_encoded = urlencode({
+            "delivery_feedback": "Data de planejamento inválida.",
+            "delivery_feedback_level": "error",
+        })
+        return RedirectResponse(
+            url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    route.date = planning_date
+    session.add(route)
+    session.commit()
+
+    feedback_encoded = urlencode({
+        "delivery_feedback": f"Data da entrega atualizada para {planning_date}.",
+        "delivery_feedback_level": "success",
+    })
+    return RedirectResponse(
+        url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@app.post("/separacao/delivery/planning-date/bulk", response_class=RedirectResponse)
+async def update_delivery_planning_date_bulk(
+    request: Request,
+    current_date: str = Form(...),
+    planning_date: str = Form(...),
+    shift: str = Form("Manhã"),
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    try:
+        datetime.strptime(planning_date, "%Y-%m-%d")
+    except Exception:
+        feedback_encoded = urlencode({
+            "delivery_feedback": "Data geral inválida.",
+            "delivery_feedback_level": "error",
+        })
+        return RedirectResponse(
+            url=f"/separacao?date={current_date}&shift={shift}&{feedback_encoded}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    rows = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date == current_date)
+    ).all()
+
+    for row in rows:
+        row.date = planning_date
+        session.add(row)
+    session.commit()
+
+    feedback_encoded = urlencode({
+        "delivery_feedback": f"Data geral atualizada para {planning_date} em {len(rows)} entrega(s).",
+        "delivery_feedback_level": "success",
+    })
+    return RedirectResponse(
+        url=f"/separacao?date={planning_date}&shift={shift}&{feedback_encoded}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@app.post("/separacao/delivery/reassign", response_class=RedirectResponse)
+async def reassign_delivery_stop(
+    request: Request,
+    route_id: int = Form(...),
+    new_employee_id: int = Form(...),
+    new_vehicle_plate: str = Form(...),
+    date: str = Form(...),
+    shift: str = Form("Manhã"),
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    route = session.get(models.Route, route_id)
+    if not route or route.type != "delivery":
+        feedback_encoded = urlencode({
+            "delivery_feedback": "Entrega não encontrada para reatribuição.",
+            "delivery_feedback_level": "error",
+        })
+        return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
+
+    err = _validate_delivery_assignment(
+        session=session,
+        date=route.date,
+        employee_id=new_employee_id,
+        vehicle_plate=new_vehicle_plate,
+        exclude_route_id=route.id,
+        ignore_employee_id=route.employee_id,
+    )
+    if err:
+        feedback_encoded = urlencode({"delivery_feedback": err, "delivery_feedback_level": "error"})
+        return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
+
+    route.employee_id = new_employee_id
+    route.delivery_vehicle_plate = new_vehicle_plate
+    session.add(route)
+    session.commit()
+
+    feedback_encoded = urlencode({"delivery_feedback": "Cliente movido para outra entrega.", "delivery_feedback_level": "success"})
+    return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
+
+
+@app.post("/separacao/delivery/reassign-group", response_class=RedirectResponse)
+async def reassign_delivery_group(
+    request: Request,
+    source_employee_id: int = Form(...),
+    new_employee_id: int = Form(...),
+    new_vehicle_plate: str = Form(...),
+    date: str = Form(...),
+    shift: str = Form("Manhã"),
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    rows = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date == date)
+        .where(models.Route.employee_id == source_employee_id)
+    ).all()
+    if not rows:
+        feedback_encoded = urlencode({"delivery_feedback": "Nenhuma entrega encontrada para o motorista.", "delivery_feedback_level": "error"})
+        return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
+
+    err = _validate_delivery_assignment(
+        session=session,
+        date=date,
+        employee_id=new_employee_id,
+        vehicle_plate=new_vehicle_plate,
+        ignore_employee_id=source_employee_id,
+    )
+    if err:
+        feedback_encoded = urlencode({"delivery_feedback": err, "delivery_feedback_level": "error"})
+        return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
+
+    for r in rows:
+        r.employee_id = new_employee_id
+        r.delivery_vehicle_plate = new_vehicle_plate
+        session.add(r)
+    session.commit()
+
+    feedback_encoded = urlencode({"delivery_feedback": f"Transferência concluída em {len(rows)} parada(s).", "delivery_feedback_level": "success"})
+    return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
 
 @app.post("/separacao/update", response_class=RedirectResponse)
 async def update_separacao(

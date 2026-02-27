@@ -251,9 +251,30 @@ class Route(SQLModel, table=True):
     start_time: str # HH:MM
     end_time: Optional[str] = None # HH:MM
     tonnage: float = 0.0
+    type: str = Field(default="separation", index=True)  # separation, delivery
     valor_financeiro: Optional[float] = None  # R$ mercadoria
     devolucao_volume: Optional[float] = None  # volume devolvido (ton)
     valor_devolucao: Optional[float] = None  # R$ valor da devolução
+    delivery_status: Optional[str] = Field(default=None, index=True)  # pendente, iniciada, cancelada, devolucao, entregue
+    delivery_route_code: Optional[str] = Field(default=None, index=True)
+    delivery_order_number: Optional[str] = Field(default=None, index=True)
+    delivery_client_code: Optional[str] = Field(default=None, index=True)
+    delivery_vehicle_plate: Optional[str] = Field(default=None, index=True)
+    delivery_cep: Optional[str] = None
+    delivery_address: Optional[str] = None
+    delivery_neighborhood: Optional[str] = Field(default=None, index=True)
+    delivery_city: Optional[str] = Field(default=None, index=True)
+    delivery_state: Optional[str] = Field(default=None, index=True)
+    delivery_type: Optional[str] = Field(default=None, index=True)
+    delivery_total_weight: Optional[float] = None
+    delivery_order_date: Optional[str] = Field(default=None, index=True)  # YYYY-MM-DD
+    delivery_source_file: Optional[str] = None
+    delivery_return_category: Optional[str] = Field(default=None, index=True)
+    delivery_return_reason: Optional[str] = None
+    delivery_started_at: Optional[str] = None   # HH:MM
+    delivery_finished_at: Optional[str] = None  # HH:MM
+    delivery_canceled_at: Optional[str] = None  # HH:MM
+    delivery_returned_at: Optional[str] = None  # HH:MM
     status: str = "pending" # pending, completed
     created_at: datetime = Field(default_factory=datetime.now)
 
