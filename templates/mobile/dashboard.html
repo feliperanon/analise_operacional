@@ -293,7 +293,7 @@
         <div class="space-y-3">
             {% for module in modules %}
             {% if module.action == "start_separation" %}
-            <button type="button" @click.stop.prevent="showDeliverySetupModal = true; haptic('light'); console.log('delivery setup modal opened')"
+            <button type="button" @click.stop.prevent="openStartEntry()"
                 class="w-full group relative overflow-hidden p-4 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-indigo-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg text-left flex items-center gap-4">
                 <div
                     class="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-300 group-hover:bg-indigo-500 group-hover:text-white transition-colors shrink-0 z-10">
@@ -493,12 +493,12 @@
         <div class="bg-slate-800/50 border border-white/5 p-4 rounded-3xl shadow-lg mb-4">
             <div class="grid grid-cols-2 gap-4 mb-4">
                 <div class="text-center p-3 bg-red-500/10 rounded-xl border border-red-500/20">
-                    <p class="text-xs text-slate-400 mb-1">Total Devoluções</p>
+                    <p class="text-xs text-slate-400 mb-1">Total Devoluções (R$)</p>
                     <p id="totalReturnValue" class="text-2xl font-bold text-red-400">R$ 0,00</p>
                 </div>
                 <div class="text-center p-3 bg-amber-500/10 rounded-xl border border-amber-500/20">
-                    <p class="text-xs text-slate-400 mb-1">Quantidade</p>
-                    <p id="totalReturnCount" class="text-2xl font-bold text-amber-400">0</p>
+                    <p class="text-xs text-slate-400 mb-1">% Devolvido (Valor)</p>
+                    <p id="totalReturnPercent" class="text-2xl font-bold text-amber-400">0%</p>
                 </div>
             </div>
             <div class="h-64 w-full">
@@ -1011,12 +1011,13 @@
             </button>
         </div>
     </div>
+</div>
 
 <!-- Delivery Setup Modal -->
-<div x-show="showDeliverySetupModal" x-cloak class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 p-4">
-    <div class="w-full max-w-lg bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-3">
+<div x-show="showDeliverySetupModal" class="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-sm p-4" @click.self="showDeliverySetupModal = false">
+    <div @click.stop class="w-full max-w-lg bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-3 shadow-2xl">
         <h3 class="text-white font-bold">Iniciar Rotina de Entregas</h3>
-        <p class="text-xs text-slate-400">Digite sua placa (deve bater com o planejamento), selecione ajudantes e informe KM de saída.</p>
+        <p class="text-xs text-slate-400">Digite sua placa (deve bater com o planejamento), informe os ajudantes e o KM de saída.</p>
         <div>
             <label class="block text-xs text-slate-400 mb-1">Placa</label>
             <input type="text" x-model="deliverySetup.plate" placeholder="ABC1D23"
@@ -1029,12 +1030,21 @@
         </div>
         <div>
             <label class="block text-xs text-slate-400 mb-1">Ajudantes</label>
-            <select multiple x-model="deliverySetup.helpers"
-                class="w-full h-28 bg-slate-900 border border-slate-700 rounded-lg px-2 py-2 text-white text-xs">
-                <template x-for="emp in helperOptions" :key="'helper-'+emp.id">
-                    <option :value="emp.id" x-text="emp.name"></option>
+            <div class="flex gap-2">
+                <input type="text" x-model="deliverySetup.helperInput" @keydown.enter.prevent="addDeliveryHelperFromInput()"
+                    placeholder="Digite o nome e pressione Enter"
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm">
+                <button type="button" @click="addDeliveryHelperFromInput()" class="btn-modal btn-modal-secondary !py-2">Adicionar</button>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-1.5">
+                <template x-for="(helper, idx) in deliverySetup.helpers" :key="`helper-tag-${idx}-${helper}`">
+                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-600 bg-slate-900 text-slate-200 text-xs">
+                        <span x-text="helper"></span>
+                        <button type="button" @click="removeDeliveryHelper(idx)" class="text-slate-400 hover:text-white">x</button>
+                    </span>
                 </template>
-            </select>
+            </div>
+            <p class="mt-1 text-[10px] text-slate-500">Sem repetição de nomes.</p>
         </div>
         <div class="grid grid-cols-2 gap-2 pt-2">
             <button @click="showDeliverySetupModal=false" class="btn-modal btn-modal-secondary">Fechar</button>
@@ -1044,8 +1054,8 @@
 </div>
 
 <!-- Delivery End Modal -->
-<div x-show="showDeliveryEndModal" x-cloak class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 p-4">
-    <div class="w-full max-w-md bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-3">
+<div x-show="showDeliveryEndModal" class="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-sm p-4" @click.self="showDeliveryEndModal=false">
+    <div @click.stop class="w-full max-w-md bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-3 shadow-2xl">
         <h3 class="text-white font-bold">Encerrar na Empresa</h3>
         <p class="text-xs text-slate-400">Informe KM de chegada para concluir a rotina.</p>
         <input type="number" step="0.1" min="0" x-model="deliveryEndKm"
@@ -1058,8 +1068,8 @@
 </div>
 
 <!-- Mobile Return Modal -->
-<div x-show="showMobileReturnModal" x-cloak class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 p-4">
-    <div class="w-full max-w-lg bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-3">
+<div x-show="showMobileReturnModal" class="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-sm p-4" @click.self="showMobileReturnModal=false">
+    <div @click.stop class="w-full max-w-lg bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-3 shadow-2xl">
         <h3 class="text-white font-bold">Registrar Devolução</h3>
         <div>
             <label class="block text-xs text-slate-400 mb-1">Motivo</label>
@@ -1154,7 +1164,7 @@
             showDeliveryEndModal: false,
             deliveryEndKm: '',
             helperOptions: [],
-            deliverySetup: { plate: '', km_departure: '', helpers: [] },
+            deliverySetup: { plate: '', km_departure: '', helpers: [], helperInput: '' },
             showMobileReturnModal: false,
             mobileReturnRoute: null,
             mobileReturnReasons: [],
@@ -1328,6 +1338,26 @@
                 this.showDeliverySetupModal = true;
             },
 
+            addDeliveryHelperFromInput() {
+                const raw = (this.deliverySetup.helperInput || '').trim();
+                if (!raw) return;
+                const normalized = raw.replace(/\s+/g, ' ');
+                const exists = (this.deliverySetup.helpers || []).some(
+                    h => (h || '').trim().toLowerCase() === normalized.toLowerCase()
+                );
+                if (exists) {
+                    alert('Ajudante já informado.');
+                    return;
+                }
+                this.deliverySetup.helpers.push(normalized);
+                this.deliverySetup.helperInput = '';
+            },
+
+            removeDeliveryHelper(index) {
+                if (index < 0) return;
+                this.deliverySetup.helpers.splice(index, 1);
+            },
+
             openStopModal(route) {
                 this.selectedRoute = route;
                 this.showStopModal = true;
@@ -1410,13 +1440,13 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         plate: this.deliverySetup.plate,
-                        helpers: (this.deliverySetup.helpers || []).map(x => Number(x)),
+                        helpers: this.deliverySetup.helpers || [],
                         km_departure: Number(this.deliverySetup.km_departure)
                     })
                 }).then(r => r.json()).then(data => {
                     if (data.success) {
                         this.showDeliverySetupModal = false;
-                        this.deliverySetup = { plate: '', km_departure: '', helpers: [] };
+                        this.deliverySetup = { plate: '', km_departure: '', helpers: [], helperInput: '' };
                         this.loadDeliveryData();
                         this.haptic('success');
                     } else {
@@ -1701,7 +1731,7 @@
                 // Atualizar cards
                 document.getElementById('totalReturnValue').textContent = 
                     `R$ ${data.total_value.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                document.getElementById('totalReturnCount').textContent = data.total_count;
+                document.getElementById('totalReturnPercent').textContent = `${data.percent_valor.toFixed(1)}%`;
                 
                 // Criar/atualizar gráfico
                 const ctx = document.getElementById('performanceChart').getContext('2d');
@@ -1729,7 +1759,7 @@
                         maintainAspectRatio: false,
                         onClick: (e, items) => {
                             if (items.length > 0) {
-                                showReturnDetails(data.top_clients);
+                                showReturnDetails(data.top_clients, data.total_entregas_value);
                             }
                         },
                         plugins: { 
@@ -1762,22 +1792,30 @@
     }
 
     // Mostrar detalhes de devoluções (drill-down)
-    function showReturnDetails(clients) {
+    function showReturnDetails(clients, totalEntregas) {
         const detailsDiv = document.getElementById('returnDetails');
         const listDiv = document.getElementById('returnDetailsList');
         
-        listDiv.innerHTML = clients.map(client => `
+        listDiv.innerHTML = clients.map(client => {
+            const percentCliente = totalEntregas > 0 ? (client.value / totalEntregas * 100).toFixed(1) : 0;
+            return `
             <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
                 <div class="flex items-center justify-between mb-2">
                     <p class="text-white font-semibold text-sm">${client.name}</p>
-                    <span class="text-xs text-slate-400">${client.count}x</span>
+                    <span class="text-xs px-2 py-1 rounded-full bg-amber-500/20 text-amber-400 font-bold">${percentCliente}%</span>
                 </div>
-                <div class="flex items-center justify-between">
-                    <p class="text-xs text-slate-400">Valor Total</p>
-                    <p class="text-red-400 font-bold">R$ ${client.value.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                        <p class="text-slate-400">Valor Devolvido</p>
+                        <p class="text-red-400 font-bold">R$ ${client.value.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                    </div>
+                    <div>
+                        <p class="text-slate-400">Volume (ton)</p>
+                        <p class="text-amber-400 font-bold">${client.volume.toFixed(2)}t</p>
+                    </div>
                 </div>
             </div>
-        `).join('');
+        `}).join('');
         
         detailsDiv.classList.remove('hidden');
         if (typeof lucide !== 'undefined') lucide.createIcons();

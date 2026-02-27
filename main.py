@@ -4357,7 +4357,7 @@ async def mobile_returns_data(
     current_user: dict = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
-    """API para dados de devolução do motorista (valor R$)."""
+    """API para dados de devolução do motorista (valor R$ e % do total)."""
     try:
         if not isinstance(current_user, dict):
             return JSONResponse({"error": "Unauthorized"}, status_code=401)
@@ -4370,45 +4370,56 @@ async def mobile_returns_data(
         today = datetime.now(ZoneInfo("America/Sao_Paulo"))
         start_date = (today - timedelta(days=days)).strftime("%Y-%m-%d")
         
-        # Buscar rotas com devoluções
-        routes = session.exec(
+        # Buscar TODAS as rotas do período (para calcular totais)
+        all_routes = session.exec(
             select(models.Route)
             .where(
                 models.Route.employee_id == employee.id,
                 models.Route.date >= start_date,
-                models.Route.valor_devolucao > 0
+                models.Route.status == "completed"
             )
-            .order_by(models.Route.date.desc())
         ).all()
+        
+        # Calcular totais gerais
+        total_valor_entregas = 0.0
+        total_valor_devolucao = 0.0
+        total_volume_entregas = 0.0
+        total_volume_devolucao = 0.0
         
         # Agregação por data
         daily_map = {}
         client_map = {}
-        total_value = 0.0
-        total_count = 0
         
-        for r in routes:
+        for r in all_routes:
+            val_fin = r.valor_financeiro or 0.0
             val_dev = r.valor_devolucao or 0.0
-            if val_dev <= 0:
-                continue
+            vol_ent = r.tonnage or 0.0
+            vol_dev = r.devolucao_volume or 0.0
             
-            total_value += val_dev
-            total_count += 1
+            total_valor_entregas += val_fin
+            total_valor_devolucao += val_dev
+            total_volume_entregas += vol_ent
+            total_volume_devolucao += vol_dev
             
-            # Por data
-            if r.date not in daily_map:
-                daily_map[r.date] = 0.0
-            daily_map[r.date] += val_dev
-            
-            # Por cliente
-            client_id = r.client_id
-            if client_id:
-                client_obj = session.get(models.Client, client_id)
-                client_name = client_obj.name if client_obj else f"Cliente #{client_id}"
-                if client_name not in client_map:
-                    client_map[client_name] = {"value": 0.0, "count": 0}
-                client_map[client_name]["value"] += val_dev
-                client_map[client_name]["count"] += 1
+            # Agregação por data (só devoluções)
+            if val_dev > 0:
+                if r.date not in daily_map:
+                    daily_map[r.date] = 0.0
+                daily_map[r.date] += val_dev
+                
+                # Por cliente
+                client_id = r.client_id
+                if client_id:
+                    client_obj = session.get(models.Client, client_id)
+                    client_name = client_obj.name if client_obj else f"Cliente #{client_id}"
+                    if client_name not in client_map:
+                        client_map[client_name] = {"value": 0.0, "volume": 0.0}
+                    client_map[client_name]["value"] += val_dev
+                    client_map[client_name]["volume"] += vol_dev
+        
+        # Calcular porcentagens
+        percent_valor = (total_valor_devolucao / total_valor_entregas * 100) if total_valor_entregas > 0 else 0.0
+        percent_volume = (total_volume_devolucao / total_volume_entregas * 100) if total_volume_entregas > 0 else 0.0
         
         # Preparar dados do gráfico (últimos N dias)
         chart_labels = []
@@ -4427,12 +4438,18 @@ async def mobile_returns_data(
         top_clients = sorted(client_map.items(), key=lambda x: x[1]["value"], reverse=True)[:10]
         
         return JSONResponse({
-            "total_value": round(total_value, 2),
-            "total_count": total_count,
+            "total_value": round(total_valor_devolucao, 2),
+            "total_entregas_value": round(total_valor_entregas, 2),
+            "percent_valor": round(percent_valor, 1),
+            "percent_volume": round(percent_volume, 1),
             "chart_labels": chart_labels,
             "chart_values": chart_values,
             "top_clients": [
-                {"name": name, "value": round(data["value"], 2), "count": data["count"]}
+                {
+                    "name": name, 
+                    "value": round(data["value"], 2),
+                    "volume": round(data["volume"], 2)
+                }
                 for name, data in top_clients
             ]
         })
@@ -6091,7 +6108,7 @@ class MobileUpdatePayload(BaseModel):
 
 class MobileDeliverySessionStartPayload(BaseModel):
     plate: str
-    helpers: List[int] = []
+    helpers: List[str] = []
     km_departure: float
 
 
@@ -6490,12 +6507,24 @@ async def api_mobile_delivery_session_start(
     if existing:
         return JSONResponse({"error": "Rotina de entrega já iniciada."}, status_code=400)
 
+    helper_names: List[str] = []
+    seen_helpers = set()
+    for h in (payload.helpers or []):
+        clean = (h or "").strip()
+        if not clean:
+            continue
+        key = clean.lower()
+        if key in seen_helpers:
+            continue
+        seen_helpers.add(key)
+        helper_names.append(clean)
+
     new_session = models.DeliverySession(
         date=today_str,
         employee_id=user_id,
         status="open",
         vehicle_plate=payload.plate.strip().upper(),
-        helpers_json=json.dumps(payload.helpers or []),
+        helpers_json=json.dumps(helper_names),
         km_departure=payload.km_departure,
     )
     session.add(new_session)
