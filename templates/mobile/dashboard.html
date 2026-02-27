@@ -1016,24 +1016,28 @@
 <!-- Delivery Setup Modal -->
 <div x-show="showDeliverySetupModal" class="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-sm p-4" @click.self="showDeliverySetupModal = false">
     <div @click.stop class="w-full max-w-lg bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-3 shadow-2xl">
-        <h3 class="text-white font-bold">Iniciar Rotina de Entregas</h3>
-        <p class="text-xs text-slate-400">Digite sua placa (deve bater com o planejamento), informe os ajudantes e o KM de saída.</p>
+        <h3 class="text-white font-bold text-lg">Iniciar Entregas</h3>
+        <p class="text-sm text-slate-300">Preencha 2 campos e toque em <strong>Iniciar agora</strong>.</p>
+        <div class="rounded-lg border border-indigo-500/30 bg-indigo-900/20 p-2 text-xs text-indigo-200">
+            1) Placa do caminhão • 2) KM de saída. Ajudantes é opcional.
+        </div>
+        <div x-show="deliverySetupError" class="rounded-lg border border-red-500/30 bg-red-900/20 px-3 py-2 text-xs text-red-200" x-text="deliverySetupError"></div>
         <div>
-            <label class="block text-xs text-slate-400 mb-1">Placa</label>
-            <input type="text" x-model="deliverySetup.plate" placeholder="ABC1D23"
-                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm uppercase">
+            <label class="block text-xs text-slate-300 mb-1">Placa <span class="text-red-300">*</span></label>
+            <input type="text" x-ref="deliveryPlateInput" x-model="deliverySetup.plate" @input="normalizePlateInput()"
+                placeholder="ABC1D23" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-3 text-white text-base uppercase">
         </div>
         <div>
-            <label class="block text-xs text-slate-400 mb-1">KM de saída</label>
-            <input type="number" step="0.1" min="0" x-model="deliverySetup.km_departure"
-                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm">
+            <label class="block text-xs text-slate-300 mb-1">KM de saída <span class="text-red-300">*</span></label>
+            <input type="number" inputmode="decimal" step="0.1" min="0" x-model="deliverySetup.km_departure"
+                placeholder="Ex.: 125430,5" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-3 text-white text-base">
         </div>
         <div>
-            <label class="block text-xs text-slate-400 mb-1">Ajudantes</label>
+            <label class="block text-xs text-slate-300 mb-1">Ajudantes (opcional)</label>
             <div class="relative flex gap-2">
                 <input type="text" x-model="deliverySetup.helperInput" @keydown.enter.prevent="addDeliveryHelperFromInput()"
                     placeholder="Digite o nome e pressione Enter" autocomplete="off"
-                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm">
+                    class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-3 text-white text-sm">
                 <button type="button" @click="addDeliveryHelperFromInput()" class="btn-modal btn-modal-secondary !py-2">Adicionar</button>
                 <div x-show="filteredHelperOptions.length > 0"
                     class="absolute left-0 right-24 top-full mt-1 max-h-44 overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 shadow-xl z-10">
@@ -1055,9 +1059,9 @@
             </div>
             <p class="mt-1 text-[10px] text-slate-500">Sem repetição de nomes.</p>
         </div>
-        <div class="grid grid-cols-2 gap-2 pt-2">
-            <button @click="showDeliverySetupModal=false" class="btn-modal btn-modal-secondary">Fechar</button>
-            <button @click="startDeliverySession()" class="btn-modal btn-modal-primary">Confirmar Início</button>
+        <div class="grid grid-cols-1 gap-2 pt-2">
+            <button @click="startDeliverySession()" class="btn-modal btn-modal-primary !py-3 text-base">Iniciar agora</button>
+            <button @click="showDeliverySetupModal=false" class="btn-modal btn-modal-secondary !py-3 text-sm">Fechar</button>
         </div>
     </div>
 </div>
@@ -1173,6 +1177,7 @@
             showDeliveryEndModal: false,
             deliveryEndKm: '',
             helperOptions: [],
+            deliverySetupError: '',
             deliverySetup: { plate: '', km_departure: '', helpers: [], helperInput: '' },
             showMobileReturnModal: false,
             mobileReturnRoute: null,
@@ -1358,7 +1363,19 @@
 
             // Delivery Entry (placa primeiro)
             openStartEntry() {
+                this.deliverySetupError = '';
+                if (!this.deliverySetup.plate && this.assignedPlate) {
+                    this.deliverySetup.plate = this.assignedPlate;
+                }
                 this.showDeliverySetupModal = true;
+                this.$nextTick(() => {
+                    if (this.$refs.deliveryPlateInput) this.$refs.deliveryPlateInput.focus();
+                });
+            },
+
+            normalizePlateInput() {
+                const raw = (this.deliverySetup.plate || '').toUpperCase();
+                this.deliverySetup.plate = raw.replace(/[^A-Z0-9]/g, '').slice(0, 7);
             },
 
             addDeliveryHelperFromInput() {
@@ -1461,8 +1478,15 @@
             },
 
             startDeliverySession() {
-                if (!this.deliverySetup.plate) { alert('Informe a placa.'); return; }
-                if (!this.deliverySetup.km_departure || Number(this.deliverySetup.km_departure) <= 0) { alert('Informe KM de saída válido.'); return; }
+                this.deliverySetupError = '';
+                if (!this.deliverySetup.plate || this.deliverySetup.plate.length < 7) {
+                    this.deliverySetupError = 'Informe a placa completa.';
+                    return;
+                }
+                if (!this.deliverySetup.km_departure || Number(this.deliverySetup.km_departure) <= 0) {
+                    this.deliverySetupError = 'Informe um KM de saída válido.';
+                    return;
+                }
                 fetch('/api/mobile/delivery/session/start', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1474,11 +1498,12 @@
                 }).then(r => r.json()).then(data => {
                     if (data.success) {
                         this.showDeliverySetupModal = false;
+                        this.deliverySetupError = '';
                         this.deliverySetup = { plate: '', km_departure: '', helpers: [], helperInput: '' };
                         this.loadDeliveryData();
                         this.haptic('success');
                     } else {
-                        alert(data.error || 'Erro ao iniciar rotina.');
+                        this.deliverySetupError = data.error || 'Erro ao iniciar rotina.';
                     }
                 });
             },
