@@ -6109,15 +6109,19 @@ def ensure_client_schema():
             "janela_horario_inicio": "VARCHAR(8)",
             "janela_horario_fim": "VARCHAR(8)",
             "prioridade_logistica": "VARCHAR(4)",
-            "lgpd_nao_contatar": "BOOLEAN DEFAULT 0",
-            "lgpd_restricao_dados": "BOOLEAN DEFAULT 0",
+            "lgpd_nao_contatar": "BOOLEAN DEFAULT FALSE",
+            "lgpd_restricao_dados": "BOOLEAN DEFAULT FALSE",
             "updated_at": "TIMESTAMP",
         }
         with engine.connect() as conn:
             for col_name, col_type in missing.items():
                 if col_name not in cols:
-                    conn.execute(text(f"ALTER TABLE client ADD COLUMN {col_name} {col_type}"))
-                    conn.commit()
+                    try:
+                        conn.execute(text(f"ALTER TABLE client ADD COLUMN {col_name} {col_type}"))
+                        conn.commit()
+                        logger.info(f"✅ Coluna {col_name} adicionada à tabela client")
+                    except Exception as col_err:
+                        logger.error(f"❌ Erro ao adicionar coluna {col_name}: {col_err}")
     except Exception as e:
         logger.error(f"ensure_client_schema: {e}")
 
