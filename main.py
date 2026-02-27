@@ -6438,7 +6438,7 @@ async def api_mobile_delivery_my_routes(
         select(models.Route)
         .where(models.Route.type == "delivery")
         .where(models.Route.employee_id == user_id)
-        .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta"]))
+        .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta", "entregue", "devolucao"]))
         .order_by(models.Route.date, models.Route.id)
     ).all()
     client_ids = list({r.client_id for r in routes})

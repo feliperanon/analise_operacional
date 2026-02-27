@@ -46,13 +46,20 @@
                     </div>
                 </div>
 
-                <form action="/separacao/import-entregas" method="post" enctype="multipart/form-data" class="grid grid-cols-1 lg:grid-cols-5 gap-3 items-end">
-                    <input type="hidden" name="date" value="{{ selected_date }}">
+                <form action="/separacao/import-entregas" method="post" enctype="multipart/form-data"
+                      class="grid grid-cols-1 lg:grid-cols-6 gap-3 items-end"
+                      onsubmit="return confirmImportDeliveries(this)">
                     <input type="hidden" name="shift" value="{{ selected_shift }}">
 
                     <div>
                         <label class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Data do Pedido</label>
                         <input type="date" name="input_date" value="{{ suggested_input_date }}"
+                               class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-indigo-500 outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Data da Entrega</label>
+                        <input type="date" name="date" value="{{ selected_date }}" required
                                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-indigo-500 outline-none">
                     </div>
 
@@ -1206,6 +1213,15 @@
         if (firstMatchedRow && matches === 1) {
             firstMatchedRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
+    }
+
+    function confirmImportDeliveries(form) {
+        const deliveryDate = form.querySelector('input[name="date"]')?.value;
+        if (!deliveryDate) {
+            alert('Informe a data da entrega.');
+            return false;
+        }
+        return confirm(`Confirma a importação das entregas para a data ${deliveryDate}?`);
     }
 
     let deliverySyncToken = "{{ delivery_sync_token }}";

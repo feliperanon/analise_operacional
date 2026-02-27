@@ -40,19 +40,44 @@
             </template>
         </div>
 
+        <div x-show="deliverySessionOpen && !!selectedDeliveryDay" class="px-1 py-2 border-t border-slate-700 bg-slate-900/30 rounded-xl mb-2">
+            <div class="grid grid-cols-1 gap-2 text-[11px]">
+                <div class="rounded-lg border border-slate-700 bg-slate-900/50 p-2">
+                    <p class="text-[10px] uppercase tracking-wider text-slate-400 mb-1 font-bold">Planejado (Motorista)</p>
+                    <div class="grid grid-cols-3 gap-1.5">
+                        <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-200" x-text="`Paradas: ${dayStats.totalStops}`"></span>
+                        <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-200" x-text="`Peso: ${formatNumberBR(dayStats.totalWeight)} Kg`"></span>
+                        <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-200" x-text="`Valor: ${formatCurrencyBR(dayStats.totalValue)}`"></span>
+                    </div>
+                </div>
+                <div class="rounded-lg border border-slate-700 bg-slate-900/50 p-2">
+                    <p class="text-[10px] uppercase tracking-wider text-slate-400 mb-1 font-bold">Realizado (Motorista)</p>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-1.5">
+                        <span class="px-2 py-1 rounded bg-amber-900/20 border border-amber-500/30 text-amber-300" x-text="`Pendentes: ${dayStats.pending}`"></span>
+                        <span class="px-2 py-1 rounded bg-indigo-900/20 border border-indigo-500/30 text-indigo-300" x-text="`Rotinas abertas: ${dayStats.opened}`"></span>
+                        <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-300" x-text="`Concluídas: ${dayStats.completed}`"></span>
+                        <span class="px-2 py-1 rounded bg-emerald-900/20 border border-emerald-500/30 text-emerald-300" x-text="`Entregues: ${dayStats.delivered}`"></span>
+                        <span class="px-2 py-1 rounded bg-orange-900/20 border border-orange-500/30 text-orange-300" x-text="`Devolução: ${dayStats.returned} (${formatPercent(dayStats.returnPct)})`"></span>
+                        <span class="px-2 py-1 rounded bg-orange-900/20 border border-orange-500/30 text-orange-300" x-text="`Dev. Kg: ${formatNumberBR(dayStats.returnWeight)} (${formatPercent(dayStats.returnWeightPct)})`"></span>
+                        <span class="px-2 py-1 rounded bg-orange-900/20 border border-orange-500/30 text-orange-300" x-text="`Dev. R$: ${formatCurrencyBR(dayStats.returnValue)} (${formatPercent(dayStats.returnValuePct)})`"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div x-show="!deliverySessionOpen" class="rounded-xl border border-amber-500/30 bg-amber-900/10 p-3 text-xs text-amber-200">
             Inicie a rotina para liberar os clientes.
         </div>
 
         <div class="space-y-2 max-h-[62vh] overflow-y-auto custom-scrollbar mt-2" x-show="deliverySessionOpen && !!selectedDeliveryDay">
-            <template x-for="route in filteredDeliveryRoutes" :key="`route-${route.id}`">
+            <template x-for="route in orderedDeliveryRoutes" :key="`route-${route.id}`">
                 <div class="rounded-xl border border-slate-700 p-3"
                     :class="{
-                        'bg-slate-900/30': route.status==='pendente',
-                        'bg-blue-900/20 border-blue-500/40': route.status==='reaberta',
-                        'bg-blue-900/20 border-blue-500/40': route.status==='iniciada',
-                        'bg-emerald-900/20 border-emerald-500/40': route.status==='entregue',
-                        'bg-red-900/20 border-red-500/40': route.status==='devolucao'
+                        'bg-slate-900/30': routeStatus(route)==='pendente',
+                        'bg-blue-900/20 border-blue-500/40': routeStatus(route)==='reaberta',
+                        'bg-blue-900/20 border-blue-500/40': routeStatus(route)==='iniciada',
+                        'bg-emerald-900/25 border-emerald-400/50': routeStatus(route)==='entregue',
+                        'bg-red-900/25 border-red-400/50': routeStatus(route)==='devolucao'
                     }">
                     <div class="flex items-start justify-between gap-2">
                         <div>
@@ -63,16 +88,17 @@
                     </div>
                     <p class="text-[11px] text-slate-300 mt-1" x-text="`${route.address} - ${route.city}/${route.state}`"></p>
                     <div class="flex items-center gap-2 mt-2 text-[11px] flex-wrap">
-                        <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-200" x-text="`${route.weight.toFixed(2)} Kg`"></span>
-                        <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-200" x-text="`R$ ${route.value.toFixed(2)}`"></span>
-                        <span class="px-2 py-1 rounded border text-slate-200" x-text="route.status"></span>
-                        <span class="px-2 py-1 rounded bg-slate-900/70 border border-slate-700 text-slate-300" x-show="route.status==='iniciada'" x-text="`Tempo ${formatTimer(route.started_at || '00:00')}`"></span>
+                        <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-200" x-text="`${formatNumberBR(route.weight)} Kg`"></span>
+                        <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-200" x-text="formatCurrencyBR(route.value)"></span>
+                        <span class="px-2 py-1 rounded border text-slate-200" x-text="statusLabel(routeStatus(route))"></span>
+                        <span class="px-2 py-1 rounded bg-slate-900/70 border border-slate-700 text-slate-300" x-show="routeStatus(route)==='iniciada'" x-text="`Tempo ${formatTimer(route.started_at || '00:00')}`"></span>
+                        <span class="px-2 py-1 rounded bg-slate-900/70 border border-slate-700 text-slate-300" x-show="route.started_at && (route.finished_at || route.returned_at)" x-text="`Gasto ${formatSpent(route.started_at, route.finished_at || route.returned_at)}`"></span>
                     </div>
                     <div class="grid grid-cols-2 gap-1.5 mt-2">
-                        <button @click="deliveryAction(route,'iniciar')" class="btn-action btn-start" :disabled="!deliverySessionOpen || (route.status!=='pendente' && route.status!=='reaberta')">Iniciar</button>
-                        <button @click="deliveryAction(route,'finalizar')" class="btn-action btn-finish" :disabled="!deliverySessionOpen || route.status!=='iniciada'">Finalizar</button>
-                        <button @click="openMobileReturnModal(route)" class="btn-action btn-return" :disabled="!deliverySessionOpen || route.status!=='iniciada'">Devolução</button>
-                        <button @click="deliveryAction(route,'reabrir')" class="btn-action btn-reopen" :disabled="!deliverySessionOpen || (route.status!=='entregue' && route.status!=='devolucao')">Reabrir</button>
+                        <button @click="deliveryAction(route,'iniciar')" class="btn-action btn-start" :disabled="!deliverySessionOpen || (routeStatus(route)!=='pendente' && routeStatus(route)!=='reaberta')">Iniciar</button>
+                        <button @click="deliveryAction(route,'finalizar')" class="btn-action btn-finish" :disabled="!deliverySessionOpen || routeStatus(route)!=='iniciada'">Finalizar</button>
+                        <button @click="openMobileReturnModal(route)" class="btn-action btn-return" :disabled="!deliverySessionOpen || routeStatus(route)!=='iniciada'">Devolução</button>
+                        <button @click="deliveryAction(route,'reabrir')" class="btn-action btn-reopen" :disabled="!deliverySessionOpen || (routeStatus(route)!=='entregue' && routeStatus(route)!=='devolucao')">Reabrir</button>
                     </div>
                 </div>
             </template>
@@ -209,6 +235,37 @@
                     return text.includes(q);
                 });
             },
+            get orderedDeliveryRoutes() {
+                const list = [...this.filteredDeliveryRoutes];
+                const statusOrder = { iniciada: 0, reaberta: 1, pendente: 2, entregue: 3, devolucao: 4 };
+                return list.sort((a, b) => {
+                    const sa = statusOrder[this.routeStatus(a)] ?? 99;
+                    const sb = statusOrder[this.routeStatus(b)] ?? 99;
+                    if (sa !== sb) return sa - sb;
+                    return (a.id || 0) - (b.id || 0);
+                });
+            },
+            get dayStats() {
+                const rows = (this.deliveryRoutes || []).filter(r => r.date === this.selectedDeliveryDay);
+                const totalStops = rows.length;
+                const totalWeight = rows.reduce((acc, r) => acc + Number(r.weight || 0), 0);
+                const totalValue = rows.reduce((acc, r) => acc + Number(r.value || 0), 0);
+                const pending = rows.filter(r => ['pendente', 'reaberta'].includes(this.routeStatus(r))).length;
+                const opened = rows.filter(r => this.routeStatus(r) === 'iniciada').length;
+                const delivered = rows.filter(r => this.routeStatus(r) === 'entregue').length;
+                const returnedRows = rows.filter(r => this.routeStatus(r) === 'devolucao');
+                const returned = returnedRows.length;
+                const completed = delivered + returned;
+                const returnWeight = returnedRows.reduce((acc, r) => acc + Number(r.weight || 0), 0);
+                const returnValue = returnedRows.reduce((acc, r) => acc + Number(r.value || 0), 0);
+                return {
+                    totalStops, totalWeight, totalValue, pending, opened, delivered, returned, completed,
+                    returnWeight, returnValue,
+                    returnPct: totalStops ? (returned / totalStops) * 100 : 0,
+                    returnWeightPct: totalWeight ? (returnWeight / totalWeight) * 100 : 0,
+                    returnValuePct: totalValue ? (returnValue / totalValue) * 100 : 0
+                };
+            },
             get filteredHelperOptions() {
                 const q = (this.deliverySetup.helperInput || '').trim().toLowerCase();
                 if (!q) return [];
@@ -222,6 +279,34 @@
 
             init() { this.loadDeliveryData(); },
             haptic() { if ('vibrate' in navigator) navigator.vibrate([10]); },
+            routeStatus(route) {
+                return ((route && route.status) || 'pendente').toString().toLowerCase().trim();
+            },
+            statusLabel(status) {
+                const map = { pendente: 'Pendente', iniciada: 'Iniciada', reaberta: 'Reaberta', entregue: 'Entregue', devolucao: 'Devolução' };
+                return map[status] || status;
+            },
+            formatNumberBR(value) {
+                return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value || 0));
+            },
+            formatCurrencyBR(value) {
+                return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
+            },
+            formatPercent(value) {
+                return `${this.formatNumberBR(Number(value || 0))}%`;
+            },
+            formatSpent(startTimeStr, endTimeStr) {
+                if (!startTimeStr || !endTimeStr) return '--';
+                const [sh, sm] = (startTimeStr || '').split(':').map(x => parseInt(x, 10));
+                const [eh, em] = (endTimeStr || '').split(':').map(x => parseInt(x, 10));
+                if ([sh, sm, eh, em].some(x => Number.isNaN(x))) return '--';
+                const start = sh * 60 + sm;
+                const end = eh * 60 + em;
+                const diff = Math.max(0, end - start);
+                const h = Math.floor(diff / 60);
+                const m = diff % 60;
+                return h > 0 ? `${h}h ${m}min` : `${m} min`;
+            },
             formatTimer(startTimeStr) {
                 if (!startTimeStr) return "00:00:00";
                 const parts = startTimeStr.split(':');
@@ -260,9 +345,14 @@
             loadDeliveryData() {
                 fetch('/api/mobile/delivery/my-routes').then(r => r.json()).then(data => {
                     if (!data.success) return;
+                    const prevSelectedDay = this.selectedDeliveryDay;
                     this.deliveryRoutes = data.routes || [];
                     this.deliveryDayCards = data.day_cards || [];
-                    this.selectedDeliveryDay = '';
+                    if (prevSelectedDay && this.deliveryDayCards.some(c => c.date === prevSelectedDay)) {
+                        this.selectedDeliveryDay = prevSelectedDay;
+                    } else if (!this.selectedDeliveryDay && this.deliveryDayCards.length) {
+                        this.selectedDeliveryDay = this.deliveryDayCards[0].date;
+                    }
                     this.deliverySessionOpen = !!data.session_open;
                     this.assignedPlate = data.assigned_plate || '';
                     this.mobileReturnReasons = data.return_reasons || [];
