@@ -932,8 +932,6 @@
         </div>
     </div>
 
-</div>
-
 <!-- XP Explanation Modal -->
 <div x-show="showHelpModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
     x-transition.opacity x-cloak>
@@ -1685,38 +1683,111 @@
             },
 
             initChart() {
+                loadReturnData();
+            }
+        }
+    }
+
+    // Variável global para o gráfico
+    let returnChart = null;
+
+    // Carregar dados de devolução
+    function loadReturnData() {
+        const period = document.getElementById('returnPeriodFilter').value;
+        
+        fetch(`/mobile/api/returns-data?days=${period}`)
+            .then(r => r.json())
+            .then(data => {
+                // Atualizar cards
+                document.getElementById('totalReturnValue').textContent = 
+                    `R$ ${data.total_value.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                document.getElementById('totalReturnCount').textContent = data.total_count;
+                
+                // Criar/atualizar gráfico
                 const ctx = document.getElementById('performanceChart').getContext('2d');
-                new Chart(ctx, {
+                
+                if (returnChart) {
+                    returnChart.destroy();
+                }
+                
+                returnChart = new Chart(ctx, {
                     type: 'bar',
                     data: {
-                        labels: this.labels,
+                        labels: data.chart_labels,
                         datasets: [{
-                            label: 'Produtividade (Kg/h)',
-                            data: this.dataKgh,
-                            backgroundColor: this.bgColors,
-                            borderRadius: 6,
-                            barThickness: 12
+                            label: 'Devoluções (R$)',
+                            data: data.chart_values,
+                            backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                            borderColor: 'rgba(239, 68, 68, 1)',
+                            borderWidth: 1,
+                            borderRadius: 8,
+                            barThickness: 16
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
+                        onClick: (e, items) => {
+                            if (items.length > 0) {
+                                showReturnDetails(data.top_clients);
+                            }
+                        },
+                        plugins: { 
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: (context) => `R$ ${context.parsed.y.toFixed(2)}`
+                                }
+                            }
+                        },
                         scales: {
                             y: {
+                                beginAtZero: true,
                                 grid: { color: 'rgba(255,255,255,0.05)' },
-                                ticks: { color: '#94a3b8', font: { size: 10 } }
+                                ticks: { 
+                                    color: '#94a3b8', 
+                                    font: { size: 10 },
+                                    callback: (value) => `R$ ${value}`
+                                }
                             },
                             x: {
                                 grid: { display: false },
-                                ticks: { color: '#ffffff', font: { size: 10 } } /* Forced White Text */
+                                ticks: { color: '#ffffff', font: { size: 10 } }
                             }
                         }
                     }
                 });
-            }
-        }
+            })
+            .catch(err => console.error('Erro ao carregar devoluções:', err));
     }
+
+    // Mostrar detalhes de devoluções (drill-down)
+    function showReturnDetails(clients) {
+        const detailsDiv = document.getElementById('returnDetails');
+        const listDiv = document.getElementById('returnDetailsList');
+        
+        listDiv.innerHTML = clients.map(client => `
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-white font-semibold text-sm">${client.name}</p>
+                    <span class="text-xs text-slate-400">${client.count}x</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <p class="text-xs text-slate-400">Valor Total</p>
+                    <p class="text-red-400 font-bold">R$ ${client.value.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                </div>
+            </div>
+        `).join('');
+        
+        detailsDiv.classList.remove('hidden');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // Fechar detalhes
+    function closeReturnDetails() {
+        document.getElementById('returnDetails').classList.add('hidden');
+    }
+
 </script>
 <style>
     .btn-action {
