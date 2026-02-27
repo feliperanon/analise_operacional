@@ -1780,6 +1780,11 @@
         fetch(`/mobile/api/returns-data?days=${period}`)
             .then(r => r.json())
             .then(data => {
+                // Debug: mostrar cálculo no console
+                if (data._debug) {
+                    console.log('📊 Cálculo de Devolução:', data._debug);
+                }
+                
                 // Atualizar cards
                 document.getElementById('totalReturnValue').textContent = 
                     `R$ ${data.total_value.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;

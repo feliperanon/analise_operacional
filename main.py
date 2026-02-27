@@ -4459,7 +4459,12 @@ async def mobile_returns_data(
                     "volume": round(data["volume"], 2)
                 }
                 for name, data in top_clients
-            ]
+            ],
+            "_debug": {
+                "total_routes": len(all_routes),
+                "routes_with_devolucao": len([r for r in all_routes if (r.valor_devolucao or 0) > 0]),
+                "formula": f"{total_valor_devolucao:.2f} / {total_valor_entregas:.2f} * 100 = {percent_valor:.1f}%"
+            }
         })
     except Exception as e:
         logger.exception(f"Error in mobile_returns_data: {e}")

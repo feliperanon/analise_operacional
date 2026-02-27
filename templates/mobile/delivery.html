@@ -18,9 +18,13 @@
             <button x-show="deliverySessionOpen" @click="showDeliveryEndModal = true" class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold">Encerrar</button>
         </div>
 
-        <div class="mb-3">
+        <div class="mb-3 flex gap-2">
             <input type="text" x-model="deliverySearch" placeholder="Pesquisar cliente, código, pedido, endereço..."
-                class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
+                class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
+            <button type="button" @click="deliverySearch=''" x-show="deliverySearch"
+                class="px-3 py-2.5 rounded-xl border border-slate-600 bg-slate-800 text-slate-200 text-xs font-bold">
+                Limpar
+            </button>
         </div>
 
         <div class="space-y-2 mb-3">
@@ -43,7 +47,8 @@
             <template x-for="route in filteredDeliveryRoutes" :key="`route-${route.id}`">
                 <div class="rounded-xl border border-slate-700 p-3"
                     :class="{
-                        'bg-amber-900/10': route.status==='pendente' || route.status==='reaberta',
+                        'bg-slate-900/30': route.status==='pendente',
+                        'bg-blue-900/20 border-blue-500/40': route.status==='reaberta',
                         'bg-blue-900/20 border-blue-500/40': route.status==='iniciada',
                         'bg-emerald-900/20 border-emerald-500/40': route.status==='entregue',
                         'bg-red-900/20 border-red-500/40': route.status==='devolucao'
