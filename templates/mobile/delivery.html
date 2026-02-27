@@ -18,6 +18,11 @@
             <button x-show="deliverySessionOpen" @click="showDeliveryEndModal = true" class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold">Encerrar</button>
         </div>
 
+        <div class="mb-3">
+            <input type="text" x-model="deliverySearch" placeholder="Pesquisar cliente, código, pedido, endereço..."
+                class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
+        </div>
+
         <div class="space-y-2 mb-3">
             <template x-for="card in deliveryDayCards" :key="`day-${card.date}`">
                 <button @click="toggleDeliveryDay(card.date)" class="w-full text-left px-3 py-2 rounded-xl border transition"
@@ -34,18 +39,14 @@
             Inicie a rotina para liberar os clientes.
         </div>
 
-        <div x-show="deliverySessionOpen && !selectedDeliveryDay" class="rounded-xl border border-slate-700 bg-slate-900/40 p-3 text-xs text-slate-300 mt-2">
-            Toque no dia da entrega para abrir a lista de clientes.
-        </div>
-
         <div class="space-y-2 max-h-[62vh] overflow-y-auto custom-scrollbar mt-2" x-show="deliverySessionOpen && !!selectedDeliveryDay">
             <template x-for="route in filteredDeliveryRoutes" :key="`route-${route.id}`">
                 <div class="rounded-xl border border-slate-700 p-3"
                     :class="{
                         'bg-amber-900/10': route.status==='pendente' || route.status==='reaberta',
-                        'bg-indigo-900/10': route.status==='iniciada',
-                        'bg-emerald-900/10': route.status==='entregue',
-                        'bg-orange-900/10': route.status==='devolucao'
+                        'bg-blue-900/20 border-blue-500/40': route.status==='iniciada',
+                        'bg-emerald-900/20 border-emerald-500/40': route.status==='entregue',
+                        'bg-red-900/20 border-red-500/40': route.status==='devolucao'
                     }">
                     <div class="flex items-start justify-between gap-2">
                         <div>
@@ -166,6 +167,7 @@
             deliveryRoutes: [],
             deliveryDayCards: [],
             selectedDeliveryDay: '',
+            deliverySearch: '',
             deliverySessionOpen: false,
             assignedPlate: '',
             showDeliverySetupModal: false,
@@ -180,8 +182,26 @@
 
             get helperOptions() { return (this.employees || []).filter(e => e.id !== {{ employee.id }}); },
             get filteredDeliveryRoutes() {
-                if (!this.selectedDeliveryDay) return this.deliveryRoutes || [];
-                return (this.deliveryRoutes || []).filter(r => r.date === this.selectedDeliveryDay);
+                let list = this.deliveryRoutes || [];
+                if (this.selectedDeliveryDay) {
+                    list = list.filter(r => r.date === this.selectedDeliveryDay);
+                }
+                const q = (this.deliverySearch || '').trim().toLowerCase();
+                if (!q) return list;
+                return list.filter(r => {
+                    const text = [
+                        r.client_name,
+                        r.client_code,
+                        r.order_number,
+                        r.address,
+                        r.city,
+                        r.state,
+                        r.status,
+                        r.weight,
+                        r.value
+                    ].map(v => (v ?? '').toString().toLowerCase()).join(' ');
+                    return text.includes(q);
+                });
             },
             get filteredHelperOptions() {
                 const q = (this.deliverySetup.helperInput || '').trim().toLowerCase();

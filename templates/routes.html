@@ -1208,6 +1208,42 @@
         }
     }
 
+    let deliverySyncToken = "{{ delivery_sync_token }}";
+    const deliverySyncDate = "{{ selected_date }}";
+    const deliverySyncShift = "{{ selected_shift }}";
+    let deliverySyncPendingReload = false;
+
+    function canAutoReloadDeliveries() {
+        return !document.querySelector('dialog[open]');
+    }
+
+    async function checkDeliveryRealtimeSync() {
+        if (document.hidden) return;
+        try {
+            const url = `/api/separacao/delivery/sync-token?date=${encodeURIComponent(deliverySyncDate)}&shift=${encodeURIComponent(deliverySyncShift)}`;
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (!data || !data.success || !data.token) return;
+            if (deliverySyncToken && data.token !== deliverySyncToken) {
+                if (canAutoReloadDeliveries()) {
+                    window.location.reload();
+                } else {
+                    deliverySyncPendingReload = true;
+                }
+            }
+        } catch (e) {
+            // polling silencioso
+        }
+    }
+
+    setInterval(checkDeliveryRealtimeSync, 5000);
+    document.addEventListener('click', () => {
+        if (deliverySyncPendingReload && canAutoReloadDeliveries()) {
+            window.location.reload();
+        }
+    });
+
 </script>
 
 <style>

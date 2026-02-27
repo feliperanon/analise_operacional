@@ -4370,13 +4370,20 @@ async def mobile_returns_data(
         today = datetime.now(ZoneInfo("America/Sao_Paulo"))
         start_date = (today - timedelta(days=days)).strftime("%Y-%m-%d")
         
-        # Buscar TODAS as rotas do período (para calcular totais)
+        # Buscar TODAS as rotas do período (exceto pendentes não iniciadas)
+        # Incluir: completed, rotas com end_time (finalizadas), rotas com delivery_status (entregas/devoluções)
+        # IMPORTANTE: Dados de devolução (valor_devolucao, devolucao_volume) são preservados
+        # mesmo após encerramento da rota, desde que a rota tenha sido iniciada/finalizada
         all_routes = session.exec(
             select(models.Route)
             .where(
                 models.Route.employee_id == employee.id,
                 models.Route.date >= start_date,
-                models.Route.status == "completed"
+                or_(
+                    models.Route.status == "completed",
+                    models.Route.end_time.isnot(None),
+                    models.Route.delivery_status.isnot(None)
+                )
             )
         ).all()
         
@@ -4396,18 +4403,19 @@ async def mobile_returns_data(
             vol_ent = r.tonnage or 0.0
             vol_dev = r.devolucao_volume or 0.0
             
+            # Somar TODOS os valores de entregas (base para porcentagem)
             total_valor_entregas += val_fin
             total_valor_devolucao += val_dev
             total_volume_entregas += vol_ent
             total_volume_devolucao += vol_dev
             
-            # Agregação por data (só devoluções)
+            # Agregação por data (só devoluções para o gráfico)
             if val_dev > 0:
                 if r.date not in daily_map:
                     daily_map[r.date] = 0.0
                 daily_map[r.date] += val_dev
                 
-                # Por cliente
+                # Por cliente (drill-down)
                 client_id = r.client_id
                 if client_id:
                     client_obj = session.get(models.Client, client_id)
@@ -10771,6 +10779,33 @@ def _append_delivery_event(route: models.Route, event_type: str, time_str: str, 
     route.delivery_time_log = json.dumps(history, ensure_ascii=False)
 
 
+def _build_delivery_sync_token(rows: List[models.Route], date: str, shift: str) -> str:
+    parts = [date or "", shift or "", str(len(rows))]
+    for r in sorted(rows, key=lambda x: (x.id or 0)):
+        parts.append("|".join([
+            str(r.id or ""),
+            str(r.employee_id or ""),
+            str(r.client_id or ""),
+            str(r.shift or ""),
+            str(r.status or ""),
+            str(r.delivery_status or ""),
+            str(r.delivery_vehicle_plate or ""),
+            str(r.delivery_return_category or ""),
+            str(r.delivery_return_reason or ""),
+            str(r.delivery_started_at or ""),
+            str(r.delivery_finished_at or ""),
+            str(r.delivery_returned_at or ""),
+            str(r.delivery_reopen_count or 0),
+            str(r.devolucao_volume if r.devolucao_volume is not None else ""),
+            str(r.valor_devolucao if r.valor_devolucao is not None else ""),
+            str(r.tonnage if r.tonnage is not None else ""),
+            str(r.valor_financeiro if r.valor_financeiro is not None else ""),
+            str(r.delivery_time_log or ""),
+        ]))
+    raw = "||".join(parts).encode("utf-8")
+    return hashlib.md5(raw).hexdigest()
+
+
 def _find_employee_by_driver_name(name: str, employees: List[models.Employee]) -> Optional[models.Employee]:
     target = _norm_text(name)
     if not target:
@@ -11080,6 +11115,7 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
         .where(models.Route.type == "delivery")
         .order_by(models.Route.delivery_route_code, models.Route.created_at)
     ).all()
+    delivery_sync_token = _build_delivery_sync_token(delivery_rows, date, shift)
 
     delivery_by_employee = {}
     delivery_summary = {
@@ -11306,6 +11342,7 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
         "suggested_input_date": suggested_input_date,
         "delivery_groups": delivery_groups,
         "delivery_summary": delivery_summary,
+        "delivery_sync_token": delivery_sync_token,
         "delivery_feedback": delivery_feedback,
         "delivery_feedback_level": delivery_feedback_level,
         "delivery_import": None,
@@ -11612,6 +11649,28 @@ async def import_entregas_separacao(
 @app.get("/separacao/import-entregas", response_class=RedirectResponse)
 async def import_entregas_separacao_get():
     return RedirectResponse(url="/separacao", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.get("/api/separacao/delivery/sync-token", response_class=JSONResponse)
+async def separacao_delivery_sync_token(
+    request: Request,
+    date: Optional[str] = None,
+    shift: str = "Manhã",
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    if not date:
+        date = datetime.now().strftime("%Y-%m-%d")
+
+    rows = session.exec(
+        select(models.Route)
+        .where(models.Route.date == date)
+        .where(models.Route.shift == shift)
+        .where(models.Route.type == "delivery")
+    ).all()
+
+    token = _build_delivery_sync_token(rows, date, shift)
+    return JSONResponse({"success": True, "token": token})
 
 
 @app.post("/separacao/delivery/status", response_class=RedirectResponse)
