@@ -4350,6 +4350,97 @@ async def mobile_logout(request: Request):
     request.session.clear()
     return RedirectResponse(url="/mobile/login", status_code=303)
 
+@app.get("/mobile/api/returns-data")
+async def mobile_returns_data(
+    request: Request,
+    days: int = 30,
+    current_user: dict = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """API para dados de devolução do motorista (valor R$)."""
+    try:
+        if not isinstance(current_user, dict):
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        
+        user_id = current_user.get("id")
+        employee = session.get(models.Employee, user_id)
+        if not employee:
+            return JSONResponse({"error": "Employee not found"}, status_code=404)
+        
+        today = datetime.now(ZoneInfo("America/Sao_Paulo"))
+        start_date = (today - timedelta(days=days)).strftime("%Y-%m-%d")
+        
+        # Buscar rotas com devoluções
+        routes = session.exec(
+            select(models.Route)
+            .where(
+                models.Route.employee_id == employee.id,
+                models.Route.date >= start_date,
+                models.Route.valor_devolucao > 0
+            )
+            .order_by(models.Route.date.desc())
+        ).all()
+        
+        # Agregação por data
+        daily_map = {}
+        client_map = {}
+        total_value = 0.0
+        total_count = 0
+        
+        for r in routes:
+            val_dev = r.valor_devolucao or 0.0
+            if val_dev <= 0:
+                continue
+            
+            total_value += val_dev
+            total_count += 1
+            
+            # Por data
+            if r.date not in daily_map:
+                daily_map[r.date] = 0.0
+            daily_map[r.date] += val_dev
+            
+            # Por cliente
+            client_id = r.client_id
+            if client_id:
+                client_obj = session.get(models.Client, client_id)
+                client_name = client_obj.name if client_obj else f"Cliente #{client_id}"
+                if client_name not in client_map:
+                    client_map[client_name] = {"value": 0.0, "count": 0}
+                client_map[client_name]["value"] += val_dev
+                client_map[client_name]["count"] += 1
+        
+        # Preparar dados do gráfico (últimos N dias)
+        chart_labels = []
+        chart_values = []
+        
+        for i in range(days - 1, -1, -1):
+            d = today - timedelta(days=i)
+            d_str = d.strftime("%Y-%m-%d")
+            label = d.strftime("%d/%m")
+            value = daily_map.get(d_str, 0.0)
+            
+            chart_labels.append(label)
+            chart_values.append(round(value, 2))
+        
+        # Top clientes com mais devoluções
+        top_clients = sorted(client_map.items(), key=lambda x: x[1]["value"], reverse=True)[:10]
+        
+        return JSONResponse({
+            "total_value": round(total_value, 2),
+            "total_count": total_count,
+            "chart_labels": chart_labels,
+            "chart_values": chart_values,
+            "top_clients": [
+                {"name": name, "value": round(data["value"], 2), "count": data["count"]}
+                for name, data in top_clients
+            ]
+        })
+    except Exception as e:
+        logger.exception(f"Error in mobile_returns_data: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 @app.get("/mobile/dashboard", response_class=HTMLResponse)
 async def mobile_dashboard(request: Request, current_user: dict = Depends(get_current_user), session: Session = Depends(get_session)):
     try:

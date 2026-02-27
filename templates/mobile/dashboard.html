@@ -293,7 +293,7 @@
         <div class="space-y-3">
             {% for module in modules %}
             {% if module.action == "start_separation" %}
-            <button @click="openStartEntry()"
+            <button type="button" @click.stop.prevent="showDeliverySetupModal = true; haptic('light'); console.log('delivery setup modal opened')"
                 class="w-full group relative overflow-hidden p-4 rounded-3xl bg-slate-800/50 border border-white/5 hover:border-indigo-500/50 hover:bg-slate-800 transition-all active:scale-95 shadow-lg text-left flex items-center gap-4">
                 <div
                     class="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-300 group-hover:bg-indigo-500 group-hover:text-white transition-colors shrink-0 z-10">
@@ -474,21 +474,49 @@
     </div>
     {% endif %}
 
-    <!-- 5. Performance Chart -->
+    <!-- 5. Devoluções por Valor (R$) -->
     <div class="px-6 mt-8">
-        <h2 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
-            <i data-lucide="bar-chart-2" class="w-5 h-5 text-blue-400"></i>
-            Sua Performance Diária
-        </h2>
-        <div class="bg-slate-800/50 border border-white/5 p-4 rounded-3xl shadow-lg h-64 w-full"
-            x-show="labels.length > 0">
-            <canvas id="performanceChart"></canvas>
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-white font-bold text-lg flex items-center gap-2">
+                <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-400"></i>
+                Devoluções (R$)
+            </h2>
+            <select id="returnPeriodFilter" onchange="loadReturnData()" 
+                class="text-xs bg-slate-800 border border-slate-600 rounded-lg px-2 py-1 text-white">
+                <option value="7">Últimos 7 dias</option>
+                <option value="30" selected>Últimos 30 dias</option>
+                <option value="90">Últimos 90 dias</option>
+                <option value="365">Último ano</option>
+            </select>
         </div>
-        <div class="bg-slate-800/50 border border-white/5 p-6 rounded-3xl text-center" x-show="labels.length === 0"
-            x-cloak>
-            <i data-lucide="bar-chart-2" class="w-12 h-12 text-slate-600 mx-auto mb-3"></i>
-            <p class="text-slate-500 text-sm">Nenhum dado de performance ainda.</p>
-            <p class="text-slate-600 text-xs mt-1">Complete separações para ver seu gráfico.</p>
+        
+        <div class="bg-slate-800/50 border border-white/5 p-4 rounded-3xl shadow-lg mb-4">
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="text-center p-3 bg-red-500/10 rounded-xl border border-red-500/20">
+                    <p class="text-xs text-slate-400 mb-1">Total Devoluções</p>
+                    <p id="totalReturnValue" class="text-2xl font-bold text-red-400">R$ 0,00</p>
+                </div>
+                <div class="text-center p-3 bg-amber-500/10 rounded-xl border border-amber-500/20">
+                    <p class="text-xs text-slate-400 mb-1">Quantidade</p>
+                    <p id="totalReturnCount" class="text-2xl font-bold text-amber-400">0</p>
+                </div>
+            </div>
+            <div class="h-64 w-full">
+                <canvas id="performanceChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Detalhamento de Devoluções (Drill-down) -->
+        <div id="returnDetails" class="hidden space-y-3">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-white font-semibold text-base">Detalhamento por Cliente</h3>
+                <button onclick="closeReturnDetails()" class="text-slate-400 hover:text-white transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div id="returnDetailsList" class="space-y-2 max-h-96 overflow-y-auto">
+                <!-- Preenchido via JS -->
+            </div>
         </div>
     </div>
 
