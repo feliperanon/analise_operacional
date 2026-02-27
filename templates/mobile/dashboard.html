@@ -647,32 +647,28 @@
 
     <!-- Delete Route Modal -->
     <div x-show="showDeleteModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
         x-transition.opacity x-cloak>
-        <div class="bg-slate-900 w-full max-w-sm rounded-[32px] border border-red-500/30 shadow-2xl relative overflow-hidden text-center p-6"
+        <div class="bg-white w-full max-w-sm rounded-xl surface shadow-2xl text-center p-6"
             @click.away="showDeleteModal = false">
 
-            <div class="absolute -top-10 -left-10 w-32 h-32 bg-red-600/20 blur-[50px] rounded-full pointer-events-none">
-            </div>
+            <i data-lucide="trash-2" class="w-12 h-12 text-red-600 mx-auto mb-4"></i>
 
-            <i data-lucide="trash-2" class="w-12 h-12 text-red-500 mx-auto mb-4"></i>
-
-            <h3 class="text-xl font-bold text-white mb-2">Excluir Separação?</h3>
-            <p class="text-slate-400 text-sm mb-6">Esta ação não pode ser desfeita. Digite sua matrícula para confirmar.
-            </p>
+            <h3 class="text-xl font-bold text-blue-900 mb-2">Excluir Separação?</h3>
+            <p class="text-slate-600 text-sm mb-6">Esta ação não pode ser desfeita. Digite sua matrícula para confirmar.</p>
 
             <div class="mb-6">
                 <input type="tel" x-model="deleteConfirmation" placeholder="Sua Matrícula"
-                    class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-center text-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none">
+                    class="w-full bg-white border-2 border-slate-200 rounded-lg px-4 py-3 text-blue-900 text-center text-lg focus:border-red-600 focus:ring-4 focus:ring-red-100 outline-none">
             </div>
 
             <div class="space-y-3">
                 <button @click="confirmDelete()" :class="{'btn-loading': isLoading}" :disabled="!deleteConfirmation"
-                    class="w-full py-3 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-xl font-bold shadow-lg shadow-red-500/25 transition-all">
+                    class="w-full py-3 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl font-bold shadow-lg shadow-red-600/25 transition-all">
                     <span x-text="isLoading ? 'Excluindo...' : 'Confirmar Exclusão'"></span>
                 </button>
                 <button @click="showDeleteModal = false"
-                    class="w-full py-3 bg-slate-800 text-slate-400 rounded-xl font-medium">Cancelar</button>
+                    class="w-full py-3 bg-slate-100 text-blue-900 rounded-xl font-semibold hover:bg-slate-200">Cancelar</button>
             </div>
         </div>
     </div>

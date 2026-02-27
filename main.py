@@ -396,10 +396,10 @@ async def lifespan(app: FastAPI):
         logger.error(f"Erro ao preparar auth: {e}")
     try:
 
-        print(f"🌍 DATABASE URL DETECTADA: {engine.url}")
+        logger.info(f"DATABASE URL DETECTADA: {engine.url}")
         sync_sectors_on_startup()
     except Exception as e:
-        print(f"❌ Erro ao iniciar sync: {e}")
+        logger.error(f"Erro ao iniciar sync: {e}")
     yield
 
 app = FastAPI(title="Análise Operacional", version="2.0.0", lifespan=lifespan)
