@@ -1030,11 +1030,20 @@
         </div>
         <div>
             <label class="block text-xs text-slate-400 mb-1">Ajudantes</label>
-            <div class="flex gap-2">
+            <div class="relative flex gap-2">
                 <input type="text" x-model="deliverySetup.helperInput" @keydown.enter.prevent="addDeliveryHelperFromInput()"
-                    placeholder="Digite o nome e pressione Enter"
+                    placeholder="Digite o nome e pressione Enter" autocomplete="off"
                     class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm">
                 <button type="button" @click="addDeliveryHelperFromInput()" class="btn-modal btn-modal-secondary !py-2">Adicionar</button>
+                <div x-show="filteredHelperOptions.length > 0"
+                    class="absolute left-0 right-24 top-full mt-1 max-h-44 overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 shadow-xl z-10">
+                    <template x-for="emp in filteredHelperOptions" :key="`helper-suggest-${emp.id}`">
+                        <button type="button" @click="selectDeliveryHelperName(emp.name)"
+                            class="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-slate-800">
+                            <span x-text="emp.name"></span>
+                        </button>
+                    </template>
+                </div>
             </div>
             <div class="mt-2 flex flex-wrap gap-1.5">
                 <template x-for="(helper, idx) in deliverySetup.helpers" :key="`helper-tag-${idx}-${helper}`">
@@ -1173,6 +1182,20 @@
             get filteredDeliveryRoutes() {
                 if (!this.selectedDeliveryDay) return this.deliveryRoutes || [];
                 return (this.deliveryRoutes || []).filter(r => r.date === this.selectedDeliveryDay);
+            },
+
+            get filteredHelperOptions() {
+                const q = (this.deliverySetup.helperInput || '').trim().toLowerCase();
+                if (!q) return [];
+                const selected = new Set((this.deliverySetup.helpers || []).map(h => (h || '').trim().toLowerCase()));
+                return (this.helperOptions || [])
+                    .filter(emp => {
+                        const name = ((emp && emp.name) || '').trim();
+                        if (!name) return false;
+                        if (selected.has(name.toLowerCase())) return false;
+                        return name.toLowerCase().includes(q);
+                    })
+                    .slice(0, 8);
             },
 
             get hasActiveRoutes() {
@@ -1356,6 +1379,11 @@
             removeDeliveryHelper(index) {
                 if (index < 0) return;
                 this.deliverySetup.helpers.splice(index, 1);
+            },
+
+            selectDeliveryHelperName(name) {
+                this.deliverySetup.helperInput = (name || '').trim();
+                this.addDeliveryHelperFromInput();
             },
 
             openStopModal(route) {
