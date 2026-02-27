@@ -779,12 +779,15 @@
                             <!-- Mobile Access Toggles -->
                             <div class="flex flex-col justify-end pb-2 space-y-3">
                                 <label class="flex items-center gap-3 cursor-pointer group">
-                                    <div class="relative">
-                                        <input type="checkbox" name="mobile_access_separation" value="true"
-                                            class="sr-only peer" {% if emp.mobile_access_separation %}checked{% endif
-                                            %}>
+                                    <input type="checkbox" name="mobile_access_separation" value="true"
+                                        class="sr-only peer" {% if emp.mobile_access_separation %}checked{% endif
+                                        %}>
+                                    <div class="relative inline-block w-10 h-6">
                                         <div
-                                            class="w-10 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+                                            class="absolute inset-0 bg-slate-700 rounded-full peer-checked:bg-blue-600 transition-colors">
+                                        </div>
+                                        <div
+                                            class="absolute top-[2px] left-[2px] bg-white border border-gray-300 rounded-full h-5 w-5 transition-transform peer-checked:translate-x-full">
                                         </div>
                                     </div>
                                     <span
@@ -792,11 +795,14 @@
                                         Separação de Mercadorias</span>
                                 </label>
                                 <label class="flex items-center gap-3 cursor-pointer group">
-                                    <div class="relative">
-                                        <input type="checkbox" name="mobile_access_checklist" value="true"
-                                            class="sr-only peer" {% if emp.mobile_access_checklist %}checked{% endif %}>
+                                    <input type="checkbox" name="mobile_access_checklist" value="true"
+                                        class="sr-only peer" {% if emp.mobile_access_checklist %}checked{% endif %}>
+                                    <div class="relative inline-block w-10 h-6">
                                         <div
-                                            class="w-10 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+                                            class="absolute inset-0 bg-slate-700 rounded-full peer-checked:bg-blue-600 transition-colors">
+                                        </div>
+                                        <div
+                                            class="absolute top-[2px] left-[2px] bg-white border border-gray-300 rounded-full h-5 w-5 transition-transform peer-checked:translate-x-full">
                                         </div>
                                     </div>
                                     <span
@@ -804,12 +810,15 @@
                                         Checklist Operacional</span>
                                 </label>
                                 <label class="flex items-center gap-3 cursor-pointer group">
-                                    <div class="relative">
-                                        <input type="checkbox" name="mobile_access_admin_start" value="true"
-                                            class="sr-only peer" {% if emp.mobile_access_admin_start %}checked{% endif
-                                            %}>
+                                    <input type="checkbox" name="mobile_access_admin_start" value="true"
+                                        class="sr-only peer" {% if emp.mobile_access_admin_start %}checked{% endif
+                                        %}>
+                                    <div class="relative inline-block w-10 h-6">
                                         <div
-                                            class="w-10 h-6 bg-slate-700 rounded-full peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+                                            class="absolute inset-0 bg-slate-700 rounded-full peer-checked:bg-blue-600 transition-colors">
+                                        </div>
+                                        <div
+                                            class="absolute top-[2px] left-[2px] bg-white border border-gray-300 rounded-full h-5 w-5 transition-transform peer-checked:translate-x-full">
                                         </div>
                                     </div>
                                     <span
@@ -1214,18 +1223,6 @@
     <div id="sheet-backdrop" role="presentation" aria-hidden="true"
         class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] transition-opacity duration-300 opacity-0 pointer-events-none"
         onclick="closeRoutineSheet()"></div>
-
-    <div id="employee-bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" aria-hidden="true"
-        tabindex="-1" inert
-        class="fixed inset-x-0 bottom-0 z-[101] transform translate-y-full transition-transform duration-300 ease-out safe-area-bottom pointer-events-none">
-        <div
-            class="bg-slate-800 border-t border-slate-700 rounded-t-3xl shadow-2xl p-6 pb-8 w-full max-w-3xl mx-auto max-h-[90vh] overflow-y-auto">
-            <div class="w-12 h-1.5 bg-slate-600 rounded-full mx-auto mb-6"></div>
-            <div id="sheet-content">
-                <!-- Conteúdo será injetado via JavaScript -->
-            </div>
-        </div>
-    </div>
 
     <!-- Scripts do Smart Flow para funcionalidade de rotinas -->
     <script src="/static/js/smart-flow/api.js?v=20260102X"></script>

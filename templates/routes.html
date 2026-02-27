@@ -425,15 +425,20 @@
 
             <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-hidden">
                 <div class="px-6 pt-5">
-                    <form action="/separacao/delivery/planning-date/bulk" method="post" class="flex flex-wrap items-end gap-2">
+                    <form action="/separacao/delivery/planning-date/bulk" method="post" class="flex flex-wrap items-end justify-between gap-3 rounded-xl border border-slate-700/70 bg-slate-900/40 p-3">
                         <input type="hidden" name="current_date" value="{{ selected_date }}">
                         <input type="hidden" name="shift" value="{{ selected_shift }}">
-                        <div>
-                            <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Data Geral do Planejamento</label>
-                            <input type="date" name="planning_date" value="{{ selected_date }}"
-                                   class="bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200">
+                        <div class="flex items-center gap-3">
+                            <div class="h-8 w-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center">
+                                <i data-lucide="calendar-days" class="w-4 h-4 text-slate-300"></i>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Data Geral do Planejamento</label>
+                                <input type="date" name="planning_date" value="{{ selected_date }}"
+                                       class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-200">
+                            </div>
                         </div>
-                        <button class="px-3 py-1.5 rounded bg-slate-700 hover:bg-slate-600 text-white text-xs">Aplicar para todas</button>
+                        <button class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-xs">Aplicar para todas</button>
                     </form>
                 </div>
                 <div class="px-6 py-5 border-b border-slate-700 flex flex-wrap items-center justify-between gap-3">
@@ -446,34 +451,45 @@
                             <p class="text-xs text-slate-400">Planejamento diário com reatribuição de motorista, caminhão e cliente.</p>
                         </div>
                     </div>
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-2 text-xs w-full lg:w-[760px]">
-                        <div class="rounded-xl border border-slate-700 bg-slate-900/60 p-2">
-                            <p class="text-[10px] uppercase tracking-wider text-slate-400 mb-2 font-bold">Planejado</p>
-                            <div class="grid grid-cols-3 gap-2">
-                                <span class="px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-200">Paradas: {{ delivery_summary.total_stops }}</span>
-                                <span class="px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-200">Peso: {{ "{:,.2f}".format(delivery_summary.total_weight).replace(",", "X").replace(".", ",").replace("X", ".") }} Kg</span>
-                                <span class="px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-200">Valor: R$ {{ "{:,.2f}".format(delivery_summary.total_value).replace(",", "X").replace(".", ",").replace("X", ".") }}</span>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-2 text-[11px] w-full lg:w-[820px]">
+                        <div class="rounded-xl border border-slate-700 bg-slate-900/60 p-2.5">
+                            <p class="text-[10px] uppercase tracking-wider text-slate-400 mb-1.5 font-bold">Planejado</p>
+                            <div class="grid grid-cols-3 gap-1.5">
+                                <span class="px-2 py-1 rounded-md bg-slate-900 border border-slate-700 text-slate-200">Paradas {{ delivery_summary.total_stops }}</span>
+                                <span class="px-2 py-1 rounded-md bg-slate-900 border border-slate-700 text-slate-200">Peso {{ "{:,.2f}".format(delivery_summary.total_weight).replace(",", "X").replace(".", ",").replace("X", ".") }} Kg</span>
+                                <span class="px-2 py-1 rounded-md bg-slate-900 border border-slate-700 text-slate-200">R$ {{ "{:,.2f}".format(delivery_summary.total_value).replace(",", "X").replace(".", ",").replace("X", ".") }}</span>
                             </div>
                         </div>
-                        <div class="rounded-xl border border-slate-700 bg-slate-900/60 p-2">
-                            <p class="text-[10px] uppercase tracking-wider text-slate-400 mb-2 font-bold">Realizado</p>
-                            <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                <span class="px-2 py-1 rounded-lg bg-amber-900/20 border border-amber-500/30 text-amber-300">Pendentes: {{ delivery_summary.pending }}</span>
-                                <span class="px-2 py-1 rounded-lg bg-indigo-900/20 border border-indigo-500/30 text-indigo-300">Iniciadas: {{ delivery_summary.started }}</span>
-                                <span class="px-2 py-1 rounded-lg bg-emerald-900/20 border border-emerald-500/30 text-emerald-300">Entregues: {{ delivery_summary.delivered }}</span>
-                                <span class="px-2 py-1 rounded-lg bg-orange-900/20 border border-orange-500/30 text-orange-300">Devolução: {{ delivery_summary.returned }} ({{ "%.2f"|format(delivery_summary.return_percentage)|replace(".", ",") }}%)</span>
-                                <span class="px-2 py-1 rounded-lg bg-orange-900/20 border border-orange-500/30 text-orange-300">Devolução (Kg): {{ "{:,.2f}".format(delivery_summary.returned_weight).replace(",", "X").replace(".", ",").replace("X", ".") }} ({{ "%.2f"|format(delivery_summary.returned_weight_percentage)|replace(".", ",") }}%)</span>
-                                <span class="px-2 py-1 rounded-lg bg-orange-900/20 border border-orange-500/30 text-orange-300">Devolução (R$): {{ "{:,.2f}".format(delivery_summary.returned_value).replace(",", "X").replace(".", ",").replace("X", ".") }} ({{ "%.2f"|format(delivery_summary.returned_value_percentage)|replace(".", ",") }}%)</span>
+                        <div class="rounded-xl border border-slate-700 bg-slate-900/60 p-2.5">
+                            <p class="text-[10px] uppercase tracking-wider text-slate-400 mb-1.5 font-bold">Realizado</p>
+                            <div class="grid grid-cols-3 gap-1.5">
+                                <span class="px-2 py-1 rounded-md bg-amber-900/20 border border-amber-500/30 text-amber-300">Pend. {{ delivery_summary.pending }}</span>
+                                <span class="px-2 py-1 rounded-md bg-indigo-900/20 border border-indigo-500/30 text-indigo-300">Abertas {{ delivery_summary.opened_routines }}</span>
+                                <span class="px-2 py-1 rounded-md bg-slate-900 border border-slate-700 text-slate-300">Concl. {{ delivery_summary.completed_routines }}</span>
+                                <span class="px-2 py-1 rounded-md bg-emerald-900/20 border border-emerald-500/30 text-emerald-300">Entregues {{ delivery_summary.delivered }}</span>
+                                <span class="px-2 py-1 rounded-md bg-orange-900/20 border border-orange-500/30 text-orange-300">Dev. {{ delivery_summary.returned }} ({{ "%.2f"|format(delivery_summary.return_percentage)|replace(".", ",") }}%)</span>
+                                <span class="px-2 py-1 rounded-md bg-orange-900/20 border border-orange-500/30 text-orange-300">Dev Kg {{ "{:,.2f}".format(delivery_summary.returned_weight).replace(",", "X").replace(".", ",").replace("X", ".") }}</span>
+                                <span class="px-2 py-1 rounded-md bg-orange-900/20 border border-orange-500/30 text-orange-300">Dev R$ {{ "{:,.2f}".format(delivery_summary.returned_value).replace(",", "X").replace(".", ",").replace("X", ".") }}</span>
                             </div>
                         </div>
                     </div>
+                </div>
+                <div class="px-6 py-3 border-b border-slate-700 bg-slate-900/30">
+                    <div class="relative max-w-xl">
+                        <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-slate-500"></i>
+                        <input type="text" id="delivery-global-search"
+                            placeholder="Pesquisar cliente, código, pedido, peso ou valor..."
+                            oninput="filterDeliveryRows(this.value)"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:ring-1 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <p id="delivery-search-result" class="text-[11px] text-slate-400 mt-1"></p>
                 </div>
 
                 <div class="p-6">
                     {% if delivery_groups %}
                     <div class="space-y-5">
                         {% for group in delivery_groups %}
-                        <details class="rounded-xl border border-slate-700 bg-slate-900/30 overflow-hidden group">
+                        <details class="delivery-group rounded-xl border border-slate-700 bg-slate-900/30 overflow-hidden group">
                             <summary class="px-4 py-3 bg-slate-900/60 flex flex-wrap items-center justify-between gap-2 cursor-pointer list-none">
                                 <div class="flex items-center gap-2">
                                     <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 transition-transform group-open:rotate-90"></i>
@@ -513,6 +529,31 @@
                                 </form>
                             </div>
 
+                            <div class="px-3 py-2 border-t border-slate-700 bg-slate-900/30">
+                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-2 text-[11px]">
+                                    <div class="rounded-lg border border-slate-700 bg-slate-900/50 p-2">
+                                        <p class="text-[10px] uppercase tracking-wider text-slate-400 mb-1 font-bold">Planejado (Motorista)</p>
+                                        <div class="grid grid-cols-3 gap-1.5">
+                                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-200">Paradas: {{ group.rows|length }}</span>
+                                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-200">Peso: {{ "{:,.2f}".format(group.total_weight).replace(",", "X").replace(".", ",").replace("X", ".") }} Kg</span>
+                                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-200">Valor: R$ {{ "{:,.2f}".format(group.total_value).replace(",", "X").replace(".", ",").replace("X", ".") }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="rounded-lg border border-slate-700 bg-slate-900/50 p-2">
+                                        <p class="text-[10px] uppercase tracking-wider text-slate-400 mb-1 font-bold">Realizado (Motorista)</p>
+                                        <div class="grid grid-cols-2 md:grid-cols-3 gap-1.5">
+                                            <span class="px-2 py-1 rounded bg-amber-900/20 border border-amber-500/30 text-amber-300">Pendentes: {{ group.pending }}</span>
+                                            <span class="px-2 py-1 rounded bg-indigo-900/20 border border-indigo-500/30 text-indigo-300">Rotinas abertas: {{ group.opened_routines }}</span>
+                                            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-300">Concluídas: {{ group.completed_routines }}</span>
+                                            <span class="px-2 py-1 rounded bg-emerald-900/20 border border-emerald-500/30 text-emerald-300">Entregues: {{ group.delivered }}</span>
+                                            <span class="px-2 py-1 rounded bg-orange-900/20 border border-orange-500/30 text-orange-300">Devolução: {{ group.returned }} ({{ "%.2f"|format(group.return_percentage)|replace(".", ",") }}%)</span>
+                                            <span class="px-2 py-1 rounded bg-orange-900/20 border border-orange-500/30 text-orange-300">Dev. Kg: {{ "{:,.2f}".format(group.returned_weight).replace(",", "X").replace(".", ",").replace("X", ".") }} ({{ "%.2f"|format(group.returned_weight_percentage)|replace(".", ",") }}%)</span>
+                                            <span class="px-2 py-1 rounded bg-orange-900/20 border border-orange-500/30 text-orange-300">Dev. R$: {{ "{:,.2f}".format(group.returned_value).replace(",", "X").replace(".", ",").replace("X", ".") }} ({{ "%.2f"|format(group.returned_value_percentage)|replace(".", ",") }}%)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="overflow-x-auto border-t border-slate-700">
                                 <table class="w-full text-xs">
                                     <thead class="bg-slate-900/50 text-slate-400 uppercase">
@@ -527,9 +568,26 @@
                                     </thead>
                                     <tbody>
                                         {% for row in group.rows %}
-                                        <tr class="border-t border-slate-800 align-top">
+                                        <tr class="delivery-row border-t border-slate-800 align-top
+                                            {% if row.status_raw == 'iniciada' %}
+                                                bg-indigo-900/10
+                                            {% elif row.status_raw == 'reaberta' %}
+                                                bg-violet-900/10
+                                            {% elif row.status_raw == 'entregue' %}
+                                                bg-emerald-900/10
+                                            {% elif row.status_raw == 'devolucao' %}
+                                                bg-orange-900/10
+                                            {% elif row.status_raw == 'pendente' %}
+                                                bg-amber-900/10
+                                            {% else %}
+                                                bg-slate-900/10
+                                            {% endif %}"
+                                            data-search="{{ (row.client_name ~ ' ' ~ row.client_code ~ ' ' ~ row.order_number ~ ' ' ~ row.weight ~ ' ' ~ row.value ~ ' ' ~ row.address ~ ' ' ~ row.city ~ ' ' ~ row.bairro)|lower }}">
                                             <td class="px-3 py-2 text-slate-200">
-                                                <div class="font-semibold">{{ row.client_name }}</div>
+                                                <div class="font-bold">{{ row.client_name }}</div>
+                                                {% if row.client_secondary %}
+                                                <div class="text-[10px] text-slate-400">Fantasia: {{ row.client_secondary }}</div>
+                                                {% endif %}
                                                 <div class="text-slate-500">Cod {{ row.client_code }} • Pedido {{ row.order_number }}</div>
                                             </td>
                                             <td class="px-3 py-2 text-slate-300">
@@ -538,15 +596,16 @@
                                                 </a>
                                                 <div class="text-slate-500">{{ row.bairro }} - {{ row.city }}/{{ row.state }} - {{ row.cep }}</div>
                                             </td>
-                                            <td class="px-3 py-2 text-slate-200 font-mono">
+                                            <td class="px-3 py-2 text-slate-200 font-mono font-bold">
                                                 {{ "{:,.2f}".format(row.weight).replace(",", "X").replace(".", ",").replace("X", ".") }} Kg
                                             </td>
-                                            <td class="px-3 py-2 text-slate-200 font-mono">
+                                            <td class="px-3 py-2 text-slate-200 font-mono font-bold">
                                                 R$ {{ "{:,.2f}".format(row.value).replace(",", "X").replace(".", ",").replace("X", ".") }}
                                             </td>
                                             <td class="px-3 py-2">
                                                 <span class="px-2 py-1 rounded border
                                                     {% if row.status_raw == 'pendente' %}border-amber-500/30 text-amber-300 bg-amber-900/20
+                                                    {% elif row.status_raw == 'reaberta' %}border-violet-500/30 text-violet-300 bg-violet-900/20
                                                     {% elif row.status_raw == 'iniciada' %}border-indigo-500/30 text-indigo-300 bg-indigo-900/20
                                                     {% elif row.status_raw == 'entregue' %}border-emerald-500/30 text-emerald-300 bg-emerald-900/20
                                                     {% elif row.status_raw == 'devolucao' %}border-orange-500/30 text-orange-300 bg-orange-900/20
@@ -567,55 +626,50 @@
                                                     {% if row.returned_at %}
                                                     <span class="px-1.5 py-0.5 rounded bg-orange-900/30 border border-orange-500/30 text-orange-300">Devol. {{ row.returned_at }}</span>
                                                     {% endif %}
+                                                    {% if row.reopen_count and row.reopen_count > 0 %}
+                                                    <span class="px-1.5 py-0.5 rounded bg-violet-900/30 border border-violet-500/30 text-violet-300">Reaberta {{ row.reopen_count }}x</span>
+                                                    {% endif %}
                                                 </div>
                                                 {% if row.return_reason %}
                                                 <div class="text-[10px] text-orange-300 mt-1">{{ row.return_category }} - {{ row.return_reason }}</div>
+                                                {% if row.is_partial_return %}
+                                                <div class="text-[10px] text-orange-200 mt-1">Devolução parcial • {{ "{:,.2f}".format(row.return_weight).replace(",", "X").replace(".", ",").replace("X", ".") }} Kg • R$ {{ "{:,.2f}".format(row.return_value).replace(",", "X").replace(".", ",").replace("X", ".") }}</div>
+                                                {% endif %}
                                                 {% endif %}
                                             </td>
-                                            <td class="px-3 py-2">
-                                                <div class="flex flex-wrap gap-1">
+                                            <td class="px-3 py-2 min-w-[330px]">
+                                                <div class="flex items-center gap-1.5 flex-nowrap whitespace-nowrap overflow-x-auto custom-scrollbar pb-1">
                                                     <form action="/separacao/delivery/status" method="post">
                                                         <input type="hidden" name="route_id" value="{{ row.id }}">
                                                         <input type="hidden" name="date" value="{{ selected_date }}">
                                                         <input type="hidden" name="shift" value="{{ selected_shift }}">
                                                         <input type="hidden" name="action" value="iniciar">
-                                                        <button class="px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white">Iniciar</button>
+                                                        <button {% if not row.can_start %}disabled title="Finalize a rotina iniciada antes de abrir outra."{% endif %} class="btn-action btn-start disabled:opacity-40 disabled:cursor-not-allowed">Iniciar</button>
                                                     </form>
                                                     <form action="/separacao/delivery/status" method="post">
                                                         <input type="hidden" name="route_id" value="{{ row.id }}">
                                                         <input type="hidden" name="date" value="{{ selected_date }}">
                                                         <input type="hidden" name="shift" value="{{ selected_shift }}">
                                                         <input type="hidden" name="action" value="finalizar">
-                                                        <button class="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white">Finalizar</button>
+                                                        <button {% if row.status_raw != 'iniciada' %}disabled{% endif %} class="btn-action btn-finish disabled:opacity-40 disabled:cursor-not-allowed">Finalizar</button>
                                                     </form>
                                                     <button type="button"
                                                             onclick="openReturnModal('{{ row.id }}', '{{ selected_date }}', '{{ selected_shift }}')"
-                                                            class="px-2 py-1 rounded bg-orange-600 hover:bg-orange-500 text-white">
+                                                            {% if row.status_raw != 'iniciada' %}disabled{% endif %}
+                                                            class="btn-action btn-return disabled:opacity-40 disabled:cursor-not-allowed">
                                                         Devolução
                                                     </button>
-                                                    <form action="/separacao/delivery/status" method="post">
+                                                    <form action="/separacao/delivery/reopen" method="post">
                                                         <input type="hidden" name="route_id" value="{{ row.id }}">
                                                         <input type="hidden" name="date" value="{{ selected_date }}">
                                                         <input type="hidden" name="shift" value="{{ selected_shift }}">
-                                                        <input type="hidden" name="action" value="cancelar">
-                                                        <button class="px-2 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white">Cancelar</button>
+                                                        <button {% if row.status_raw not in ['entregue','devolucao'] %}disabled{% endif %} class="btn-action btn-reopen disabled:opacity-40 disabled:cursor-not-allowed">Reabrir</button>
                                                     </form>
-                                                    <form action="/separacao/delivery/reassign" method="post" class="flex items-center gap-1">
-                                                        <input type="hidden" name="route_id" value="{{ row.id }}">
-                                                        <input type="hidden" name="date" value="{{ selected_date }}">
-                                                        <input type="hidden" name="shift" value="{{ selected_shift }}">
-                                                        <select name="new_employee_id" class="bg-slate-900 border border-slate-700 rounded px-1 py-1 text-[10px] text-slate-200">
-                                                            {% for emp in delivery_employees %}
-                                                            <option value="{{ emp.id }}" {% if emp.id == group.employee_id %}selected{% endif %}>{{ emp.name }}</option>
-                                                            {% endfor %}
-                                                        </select>
-                                                        <select name="new_vehicle_plate" class="bg-slate-900 border border-slate-700 rounded px-1 py-1 text-[10px] text-slate-200">
-                                                            {% for veh in delivery_vehicles %}
-                                                            <option value="{{ veh.placa }}" {% if veh.placa == group.vehicle_plate %}selected{% endif %}>{{ veh.placa }}</option>
-                                                            {% endfor %}
-                                                        </select>
-                                                        <button class="px-2 py-1 rounded bg-violet-600 hover:bg-violet-500 text-white">Mover Cliente</button>
-                                                    </form>
+                                                    <button type="button"
+                                                            onclick="openMoveModal('{{ row.id }}', '{{ selected_date }}', '{{ selected_shift }}', '{{ group.employee_id }}', '{{ group.vehicle_plate }}')"
+                                                            class="btn-action btn-move">
+                                                        Mover Cliente
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -758,11 +812,78 @@
                 </select>
             </div>
 
+            <div class="rounded-lg border border-slate-700 bg-slate-900/40 p-3 space-y-3">
+                <label class="flex items-center gap-2 text-sm text-slate-200">
+                    <input type="checkbox" id="return-is-partial" name="return_is_partial" value="1"
+                           onchange="togglePartialReturnFields()"
+                           class="rounded border-slate-600 bg-slate-900 text-orange-500 focus:ring-orange-500">
+                    Devolução parcial
+                </label>
+                <div id="partial-return-fields" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 mb-1 uppercase">Peso devolvido (Kg)</label>
+                        <input type="number" step="0.01" min="0" name="return_partial_weight" id="return-partial-weight"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 mb-1 uppercase">Valor devolvido (R$)</label>
+                        <input type="number" step="0.01" min="0" name="return_partial_value" id="return-partial-value"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm">
+                    </div>
+                </div>
+            </div>
+
             <div class="grid grid-cols-2 gap-3 pt-2">
                 <button type="button" onclick="document.getElementById('returnModal').close()"
                     class="py-2.5 rounded-lg border border-slate-600 text-slate-300 font-semibold hover:bg-slate-700 transition">Cancelar</button>
                 <button type="submit"
                     class="py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg font-bold">Confirmar Devolução</button>
+            </div>
+        </form>
+    </div>
+</dialog>
+
+<dialog id="moveModal"
+    class="glass-panel p-0 backdrop:bg-black/80 w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden mx-auto mt-20">
+    <div class="bg-slate-800 p-6 border-b border-slate-700">
+        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+            <i data-lucide="shuffle" class="w-5 h-5 text-violet-300"></i>
+            Mover Cliente para Outra Entrega
+        </h3>
+        <p class="text-xs text-slate-400 mt-1">Selecione o novo motorista e caminhão. A validação de vínculo é aplicada automaticamente.</p>
+    </div>
+    <div class="bg-slate-800 p-6">
+        <form action="/separacao/delivery/reassign" method="post" class="space-y-4">
+            <input type="hidden" name="route_id" id="move-route-id">
+            <input type="hidden" name="date" id="move-date">
+            <input type="hidden" name="shift" id="move-shift">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1 uppercase">Novo Motorista</label>
+                    <select name="new_employee_id" id="move-employee-id" required
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-1 focus:ring-violet-500 outline-none">
+                        {% for emp in delivery_employees %}
+                        <option value="{{ emp.id }}">{{ emp.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1 uppercase">Novo Caminhão</label>
+                    <select name="new_vehicle_plate" id="move-vehicle-plate" required
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-1 focus:ring-violet-500 outline-none">
+                        {% for veh in delivery_vehicles %}
+                        <option value="{{ veh.placa }}">{{ veh.placa }} - {{ veh.modelo }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 pt-2">
+                <button type="button" onclick="document.getElementById('moveModal').close()"
+                    class="btn-modal btn-modal-secondary">Fechar</button>
+                <button type="submit"
+                    class="btn-modal btn-modal-primary">Confirmar Movimento</button>
             </div>
         </form>
     </div>
@@ -1011,17 +1132,130 @@
         });
     }
 
+    function togglePartialReturnFields() {
+        const checked = document.getElementById('return-is-partial').checked;
+        const box = document.getElementById('partial-return-fields');
+        box.classList.toggle('hidden', !checked);
+    }
+
     function openReturnModal(routeId, date, shift) {
         document.getElementById('return-route-id').value = routeId;
         document.getElementById('return-date').value = date;
         document.getElementById('return-shift').value = shift;
+        document.getElementById('return-is-partial').checked = false;
+        document.getElementById('return-partial-weight').value = '';
+        document.getElementById('return-partial-value').value = '';
+        togglePartialReturnFields();
         refreshReturnReasons();
         document.getElementById('returnModal').showModal();
+    }
+
+    function openMoveModal(routeId, date, shift, employeeId, vehiclePlate) {
+        document.getElementById('move-route-id').value = routeId;
+        document.getElementById('move-date').value = date;
+        document.getElementById('move-shift').value = shift;
+        document.getElementById('move-employee-id').value = employeeId;
+        document.getElementById('move-vehicle-plate').value = vehiclePlate;
+        document.getElementById('moveModal').showModal();
+    }
+
+    function normalizeForSearch(text) {
+        return (text || '')
+            .toString()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+    }
+
+    function filterDeliveryRows(value) {
+        const term = normalizeForSearch(value);
+        const groups = document.querySelectorAll('.delivery-group');
+        let matches = 0;
+        let firstMatchedRow = null;
+
+        groups.forEach((group) => {
+            const rows = group.querySelectorAll('tr.delivery-row');
+            let groupMatches = 0;
+
+            rows.forEach((row) => {
+                const hay = normalizeForSearch(row.dataset.search || '');
+                const ok = !term || hay.includes(term);
+                row.style.display = ok ? '' : 'none';
+                if (ok) {
+                    groupMatches += 1;
+                    matches += 1;
+                    if (!firstMatchedRow) firstMatchedRow = row;
+                }
+            });
+
+            group.style.display = groupMatches > 0 ? '' : 'none';
+            if (term && groupMatches > 0) group.open = true;
+        });
+
+        const result = document.getElementById('delivery-search-result');
+        if (!result) return;
+        if (!term) {
+            result.textContent = '';
+            return;
+        }
+        result.textContent = `${matches} resultado(s) encontrado(s).`;
+        if (firstMatchedRow && matches === 1) {
+            firstMatchedRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
     }
 
 </script>
 
 <style>
+    .btn-action {
+        padding: 0.35rem 0.65rem;
+        border-radius: 0.45rem;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1;
+        color: #fff;
+        border: 1px solid transparent;
+        transition: all 0.15s ease;
+    }
+
+    .btn-start { background: #4f46e5; border-color: #6366f1; }
+    .btn-start:hover { background: #6366f1; }
+
+    .btn-finish { background: #059669; border-color: #10b981; }
+    .btn-finish:hover { background: #10b981; }
+
+    .btn-return { background: #ea580c; border-color: #fb923c; }
+    .btn-return:hover { background: #f97316; }
+
+    .btn-move { background: #7c3aed; border-color: #8b5cf6; }
+    .btn-move:hover { background: #8b5cf6; }
+
+    .btn-reopen { background: #0f766e; border-color: #14b8a6; }
+    .btn-reopen:hover { background: #0d9488; }
+
+    .btn-modal {
+        padding: 0.65rem 0.9rem;
+        border-radius: 0.6rem;
+        font-size: 13px;
+        font-weight: 700;
+        transition: all 0.15s ease;
+    }
+
+    .btn-modal-secondary {
+        border: 1px solid #475569;
+        color: #cbd5e1;
+        background: rgba(15, 23, 42, 0.5);
+    }
+    .btn-modal-secondary:hover { background: rgba(51, 65, 85, 0.7); }
+
+    .btn-modal-primary {
+        border: 1px solid #8b5cf6;
+        color: #fff;
+        background: #7c3aed;
+    }
+    .btn-modal-primary:hover { background: #8b5cf6; }
+
     /* Custom Scrollbar for the table */
     .custom-scrollbar::-webkit-scrollbar {
         width: 6px;

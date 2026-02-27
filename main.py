@@ -6134,6 +6134,8 @@ def ensure_route_schema():
             "delivery_finished_at": "VARCHAR(5)",
             "delivery_canceled_at": "VARCHAR(5)",
             "delivery_returned_at": "VARCHAR(5)",
+            "delivery_time_log": "TEXT",
+            "delivery_reopen_count": "INTEGER DEFAULT 0",
         }
         with engine.connect() as conn:
             for col_name, col_type in missing.items():
@@ -10279,6 +10281,22 @@ def _delivery_col_map(columns: List[str]) -> dict:
     return out
 
 
+def _append_delivery_event(route: models.Route, event_type: str, time_str: str, note: Optional[str] = None) -> None:
+    try:
+        history = json.loads(route.delivery_time_log) if route.delivery_time_log else []
+        if not isinstance(history, list):
+            history = []
+    except Exception:
+        history = []
+    history.append({
+        "event": event_type,
+        "time": time_str,
+        "at": datetime.now(ZoneInfo("America/Sao_Paulo")).isoformat(),
+        "note": note,
+    })
+    route.delivery_time_log = json.dumps(history, ensure_ascii=False)
+
+
 def _find_employee_by_driver_name(name: str, employees: List[models.Employee]) -> Optional[models.Employee]:
     target = _norm_text(name)
     if not target:
@@ -10295,6 +10313,34 @@ def _find_employee_by_driver_name(name: str, employees: List[models.Employee]) -
     target_tokens = {t for t in target.split() if t}
     if not target_tokens:
         return None
+
+    # Caso comum de abreviação de 1 palavra (ex.: "FERNANDO"):
+    # prioriza colaborador cujo nome COMEÇA com a palavra.
+    if len(target_tokens) == 1:
+        token = next(iter(target_tokens))
+        starts_with_matches = []
+        for emp in employees:
+            emp_norm = _norm_text(emp.name)
+            if emp_norm.startswith(token + " ") or emp_norm == token:
+                starts_with_matches.append(emp)
+        if starts_with_matches:
+            # Prioridade 1: cargo de motorista (ou variações)
+            driver_matches = [
+                emp for emp in starts_with_matches
+                if "motorista" in _norm_text(getattr(emp, "role", "") or "")
+            ]
+            if len(driver_matches) == 1:
+                return driver_matches[0]
+            if len(driver_matches) > 1:
+                # Em empate entre motoristas, usa nome mais curto (mais aderente ao nome simples da planilha)
+                return sorted(driver_matches, key=lambda e: len(_norm_text(e.name)))[0]
+
+            # Prioridade 2: se houver apenas um "começa com", usa ele
+            if len(starts_with_matches) == 1:
+                return starts_with_matches[0]
+
+            # Prioridade 3: fallback determinístico para evitar perda de importação
+            return sorted(starts_with_matches, key=lambda e: len(_norm_text(e.name)))[0]
 
     # Caso o nome vindo da planilha seja abreviado (ex.: "GILMAR MARQUES")
     # e exista apenas um colaborador que contenha todos os tokens, associar.
@@ -10410,6 +10456,18 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
     # 3. Fetch Clients
     clients = session.exec(select(models.Client)).all()
     cli_map = {c.id: c.name for c in clients}
+    cli_display_map = {}
+    cli_secondary_map = {}
+    for c in clients:
+        primary = c.razao_social or c.name or c.nome_fantasia or "Cliente"
+        secondary_candidates = [c.nome_fantasia, c.name]
+        secondary = None
+        for cand in secondary_candidates:
+            if cand and _norm_text(cand) != _norm_text(primary):
+                secondary = cand
+                break
+        cli_display_map[c.id] = primary
+        cli_secondary_map[c.id] = secondary
 
     # 4. Fetch Routes
     query = (
@@ -10574,6 +10632,18 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
                 "vehicle_plate": route.delivery_vehicle_plate or "-",
                 "rows": [],
                 "total_weight": 0.0,
+                "total_value": 0.0,
+                "pending": 0,
+                "started": 0,
+                "delivered": 0,
+                "returned": 0,
+                "opened_routines": 0,
+                "completed_routines": 0,
+                "returned_weight": 0.0,
+                "returned_value": 0.0,
+                "return_percentage": 0.0,
+                "returned_weight_percentage": 0.0,
+                "returned_value_percentage": 0.0,
                 "has_plate_conflict": False,
             }
         else:
@@ -10585,17 +10655,31 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
         status_raw = (route.delivery_status or "pendente").lower()
         status_map = {
             "pendente": "Pendente",
+            "reaberta": "Reaberta",
             "iniciada": "Iniciada",
             "cancelada": "Cancelada",
             "devolucao": "Devolução",
             "entregue": "Entregue",
         }
 
+        history = []
+        try:
+            history = json.loads(route.delivery_time_log) if route.delivery_time_log else []
+            if not isinstance(history, list):
+                history = []
+        except Exception:
+            history = []
+
+        started_times = [h.get("time") for h in history if h.get("event") == "iniciar" and h.get("time")]
+        finished_times = [h.get("time") for h in history if h.get("event") == "finalizar" and h.get("time")]
+        returned_times = [h.get("time") for h in history if h.get("event") == "devolucao" and h.get("time")]
+
         delivery_by_employee[key]["rows"].append({
             "id": route.id,
             "route_code": route.delivery_route_code or "-",
             "order_number": route.delivery_order_number or "-",
-            "client_name": cli_map.get(route.client_id, "Cliente não cadastrado"),
+            "client_name": cli_display_map.get(route.client_id, cli_map.get(route.client_id, "Cliente não cadastrado")),
+            "client_secondary": cli_secondary_map.get(route.client_id),
             "client_code": route.delivery_client_code or "-",
             "address": route.delivery_address or "-",
             "bairro": route.delivery_neighborhood or "-",
@@ -10613,6 +10697,14 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
             "finished_at": route.delivery_finished_at or (route.end_time or ""),
             "canceled_at": route.delivery_canceled_at or "",
             "returned_at": route.delivery_returned_at or "",
+            "last_started_at": started_times[-1] if started_times else "",
+            "last_finished_at": finished_times[-1] if finished_times else "",
+            "last_returned_at": returned_times[-1] if returned_times else "",
+            "reopen_count": route.delivery_reopen_count or 0,
+            "is_partial_return": bool(route.devolucao_volume or route.valor_devolucao),
+            "return_weight": route.devolucao_volume if route.devolucao_volume is not None else (route.tonnage or 0.0),
+            "return_value": route.valor_devolucao if route.valor_devolucao is not None else (route.valor_financeiro or 0.0),
+            "can_start": True,
             "maps_url": _maps_link(
                 route.delivery_address,
                 route.delivery_neighborhood,
@@ -10623,24 +10715,89 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
         })
 
         delivery_by_employee[key]["total_weight"] += route.tonnage or 0.0
+        delivery_by_employee[key]["total_value"] += route.valor_financeiro or 0.0
         delivery_summary["total_weight"] += route.tonnage or 0.0
         delivery_summary["total_value"] += route.valor_financeiro or 0.0
         if status_raw == "iniciada":
+            delivery_by_employee[key]["started"] += 1
             delivery_summary["started"] += 1
+        elif status_raw == "reaberta":
+            delivery_by_employee[key]["pending"] += 1
+            delivery_summary["pending"] += 1
         elif status_raw == "devolucao":
+            returned_weight = route.devolucao_volume if route.devolucao_volume is not None else (route.tonnage or 0.0)
+            returned_value = route.valor_devolucao if route.valor_devolucao is not None else (route.valor_financeiro or 0.0)
+            delivery_by_employee[key]["returned"] += 1
+            delivery_by_employee[key]["returned_weight"] += returned_weight
+            delivery_by_employee[key]["returned_value"] += returned_value
             delivery_summary["returned"] += 1
-            delivery_summary["returned_weight"] += route.tonnage or 0.0
-            delivery_summary["returned_value"] += route.valor_financeiro or 0.0
+            delivery_summary["returned_weight"] += returned_weight
+            delivery_summary["returned_value"] += returned_value
         elif status_raw == "cancelada":
             delivery_summary["canceled"] += 1
         elif status_raw == "entregue":
+            delivery_by_employee[key]["delivered"] += 1
             delivery_summary["delivered"] += 1
         else:
+            delivery_by_employee[key]["pending"] += 1
             delivery_summary["pending"] += 1
 
     delivery_groups = sorted(delivery_by_employee.values(), key=lambda x: x["driver_name"])
+    for group in delivery_groups:
+        stops = len(group["rows"])
+        group["opened_routines"] = group["started"] + group["delivered"] + group["returned"]
+        group["completed_routines"] = group["delivered"] + group["returned"]
+        group["return_percentage"] = round((group["returned"] / stops) * 100.0, 2) if stops else 0.0
+        group["returned_weight_percentage"] = round(
+            (group["returned_weight"] / group["total_weight"]) * 100.0, 2
+        ) if group["total_weight"] else 0.0
+        group["returned_value_percentage"] = round(
+            (group["returned_value"] / group["total_value"]) * 100.0, 2
+        ) if group["total_value"] else 0.0
+
+        has_open_started = any(r.get("status_raw") == "iniciada" for r in group["rows"])
+        if has_open_started:
+            for r in group["rows"]:
+                # Apenas a rotina já iniciada pode continuar ativa; as demais ficam bloqueadas para "Iniciar".
+                r["can_start"] = r.get("status_raw") == "iniciada"
+        else:
+            for r in group["rows"]:
+                r["can_start"] = r.get("status_raw") in ("pendente", "reaberta")
+
+        # Auto-organização:
+        # 1) Pendentes
+        # 2) Iniciadas
+        # 3) Concluídas (entregue/devolução)
+        # Em cada grupo, ordena por horário crescente para refletir a rotina ao longo do dia.
+        def _time_to_minutes(t: str) -> int:
+            try:
+                hh, mm = (t or "").split(":")
+                return int(hh) * 60 + int(mm)
+            except Exception:
+                return 10**9
+
+        def _row_sort_key(row: dict):
+            status = row.get("status_raw")
+            if status == "pendente":
+                return (0, _time_to_minutes(row.get("started_at") or ""), row.get("id", 0))
+            if status == "reaberta":
+                return (0, _time_to_minutes(row.get("last_started_at") or ""), row.get("id", 0))
+            if status == "iniciada":
+                return (1, _time_to_minutes(row.get("started_at") or ""), row.get("id", 0))
+            # concluídas: entregue/devolução
+            finished_time = row.get("finished_at") or row.get("returned_at") or row.get("canceled_at") or ""
+            return (2, _time_to_minutes(finished_time), row.get("id", 0))
+
+        group["rows"] = sorted(group["rows"], key=_row_sort_key)
+
     total_stops = delivery_summary["total_stops"] or 0
     delivery_summary["return_percentage"] = round((delivery_summary["returned"] / total_stops) * 100.0, 2) if total_stops else 0.0
+    delivery_summary["opened_routines"] = (
+        delivery_summary["started"] + delivery_summary["delivered"] + delivery_summary["returned"]
+    )
+    delivery_summary["completed_routines"] = (
+        delivery_summary["delivered"] + delivery_summary["returned"]
+    )
     delivery_summary["returned_weight_percentage"] = round(
         (delivery_summary["returned_weight"] / delivery_summary["total_weight"]) * 100.0, 2
     ) if delivery_summary["total_weight"] else 0.0
@@ -10990,6 +11147,9 @@ async def update_delivery_status(
     shift: str = Form("Manhã"),
     return_category: Optional[str] = Form(None),
     return_reason: Optional[str] = Form(None),
+    return_is_partial: Optional[str] = Form(None),
+    return_partial_weight: Optional[float] = Form(None),
+    return_partial_value: Optional[float] = Form(None),
     session: Session = Depends(get_session),
 ):
     require_login(request)
@@ -11005,18 +11165,58 @@ async def update_delivery_status(
     feedback = "Status atualizado."
 
     if action_norm == "iniciar":
+        if (route.delivery_status or "").lower() in ("entregue", "devolucao"):
+            feedback_encoded = urlencode({
+                "delivery_feedback": "Rotina já concluída. Use 'Reabrir' para iniciar novamente sem perder histórico.",
+                "delivery_feedback_level": "error",
+            })
+            return RedirectResponse(
+                url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}",
+                status_code=status.HTTP_303_SEE_OTHER,
+            )
+        already_started = session.exec(
+            select(models.Route)
+            .where(models.Route.type == "delivery")
+            .where(models.Route.date == route.date)
+            .where(models.Route.employee_id == route.employee_id)
+            .where(models.Route.delivery_status == "iniciada")
+            .where(models.Route.id != route.id)
+        ).first()
+        if already_started:
+            feedback_encoded = urlencode({
+                "delivery_feedback": "Motorista já possui uma rotina iniciada. Finalize antes de iniciar outra.",
+                "delivery_feedback_level": "error",
+            })
+            return RedirectResponse(
+                url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}",
+                status_code=status.HTTP_303_SEE_OTHER,
+            )
         route.delivery_status = "iniciada"
         if not route.start_time or route.start_time == "00:00":
             route.start_time = now
-        route.delivery_started_at = now
+        if not route.delivery_started_at:
+            route.delivery_started_at = now
+        _append_delivery_event(route, "iniciar", now)
         feedback = "Entrega iniciada."
     elif action_norm == "cancelar":
-        route.delivery_status = "cancelada"
-        route.status = "completed"
-        route.end_time = now
-        route.delivery_canceled_at = now
-        feedback = "Entrega cancelada."
+        feedback_encoded = urlencode({
+            "delivery_feedback": "A ação de cancelamento foi desativada.",
+            "delivery_feedback_level": "error",
+        })
+        return RedirectResponse(
+            url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
     elif action_norm == "devolucao":
+        if (route.delivery_status or "").lower() != "iniciada":
+            feedback_encoded = urlencode({
+                "delivery_feedback": "Para registrar devolução, inicie a entrega primeiro.",
+                "delivery_feedback_level": "error",
+            })
+            return RedirectResponse(
+                url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}",
+                status_code=status.HTTP_303_SEE_OTHER,
+            )
         if not return_category or not return_reason:
             feedback_encoded = urlencode({
                 "delivery_feedback": "Para devolução, informe categoria e motivo.",
@@ -11026,20 +11226,54 @@ async def update_delivery_status(
                 url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}",
                 status_code=status.HTTP_303_SEE_OTHER,
             )
+        is_partial = str(return_is_partial or "").lower() in ("1", "true", "on", "yes")
+        partial_weight = float(return_partial_weight or 0.0)
+        partial_value = float(return_partial_value or 0.0)
+        if is_partial:
+            if partial_weight <= 0 and partial_value <= 0:
+                feedback_encoded = urlencode({
+                    "delivery_feedback": "Para devolução parcial, informe peso e/ou valor devolvido.",
+                    "delivery_feedback_level": "error",
+                })
+                return RedirectResponse(
+                    url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}",
+                    status_code=status.HTTP_303_SEE_OTHER,
+                )
+            total_weight = float(route.tonnage or 0.0)
+            total_value = float(route.valor_financeiro or 0.0)
+            if total_weight > 0 and partial_weight > total_weight:
+                partial_weight = total_weight
+            if total_value > 0 and partial_value > total_value:
+                partial_value = total_value
+            route.devolucao_volume = partial_weight if partial_weight > 0 else 0.0
+            route.valor_devolucao = partial_value if partial_value > 0 else 0.0
+        else:
+            # Devolução total: usa o valor/peso integral para análises
+            route.devolucao_volume = route.tonnage or 0.0
+            route.valor_devolucao = route.valor_financeiro or 0.0
         route.delivery_status = "devolucao"
         route.status = "completed"
         route.end_time = now
-        route.delivery_returned_at = now
+        if not route.delivery_returned_at:
+            route.delivery_returned_at = now
+        if not route.delivery_finished_at:
+            route.delivery_finished_at = now
         route.delivery_return_category = return_category
         route.delivery_return_reason = return_reason
+        note = f"{return_category}: {return_reason}"
+        if is_partial:
+            note += f" | parcial | peso={route.devolucao_volume:.2f} | valor={route.valor_devolucao:.2f}"
+        _append_delivery_event(route, "devolucao", now, note=note)
         feedback = "Entrega marcada como devolução."
     elif action_norm in ["entregue", "finalizar"]:
         route.delivery_status = "entregue"
         route.status = "completed"
         route.end_time = now
-        route.delivery_finished_at = now
+        if not route.delivery_finished_at:
+            route.delivery_finished_at = now
         route.delivery_return_category = None
         route.delivery_return_reason = None
+        _append_delivery_event(route, "finalizar", now)
         feedback = "Entrega finalizada."
 
     session.add(route)
@@ -11220,6 +11454,52 @@ async def reassign_delivery_group(
     session.commit()
 
     feedback_encoded = urlencode({"delivery_feedback": f"Transferência concluída em {len(rows)} parada(s).", "delivery_feedback_level": "success"})
+    return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
+
+
+@app.post("/separacao/delivery/reopen", response_class=RedirectResponse)
+async def reopen_delivery_route(
+    request: Request,
+    route_id: int = Form(...),
+    date: str = Form(...),
+    shift: str = Form("Manhã"),
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    route = session.get(models.Route, route_id)
+    if not route or route.type != "delivery":
+        feedback_encoded = urlencode({"delivery_feedback": "Entrega não encontrada.", "delivery_feedback_level": "error"})
+        return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
+
+    if (route.delivery_status or "").lower() not in ("entregue", "devolucao"):
+        feedback_encoded = urlencode({"delivery_feedback": "Somente rotinas concluídas podem ser reabertas.", "delivery_feedback_level": "error"})
+        return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
+
+    already_started = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date == route.date)
+        .where(models.Route.employee_id == route.employee_id)
+        .where(models.Route.delivery_status == "iniciada")
+        .where(models.Route.id != route.id)
+    ).first()
+    if already_started:
+        feedback_encoded = urlencode({
+            "delivery_feedback": "Motorista já possui rotina iniciada. Finalize antes de reabrir outra.",
+            "delivery_feedback_level": "error",
+        })
+        return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
+
+    now = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
+    route.delivery_status = "reaberta"
+    route.status = "pending"
+    route.end_time = None
+    route.delivery_reopen_count = (route.delivery_reopen_count or 0) + 1
+    _append_delivery_event(route, "reabrir", now, note=f"Reabertura #{route.delivery_reopen_count}")
+    session.add(route)
+    session.commit()
+
+    feedback_encoded = urlencode({"delivery_feedback": "Rotina reaberta com sucesso.", "delivery_feedback_level": "success"})
     return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
 
 @app.post("/separacao/update", response_class=RedirectResponse)
