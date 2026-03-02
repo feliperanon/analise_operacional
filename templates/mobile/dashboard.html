@@ -53,21 +53,22 @@
             <div class="container-mobile py-5">
                 <div class="flex items-start justify-between gap-3 mb-4">
                     <div class="flex items-center gap-3 flex-1 min-w-0">
-                        <div class="relative flex-shrink-0">
-                            <div class="w-14 h-14 rounded-xl bg-blue-900 p-0.5">
-                                <img src="{{ url_for('static', path='badges/' + gamification.level.badge_image) }}"
-                                    onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name }}&background=1e3a8a&color=fff'"
-                                    class="w-full h-full rounded-xl object-cover bg-white" alt="Badge">
-                            </div>
-                            <div class="absolute -bottom-2 -right-1 flex flex-col items-end gap-1">
-                                <span class="flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white bg-blue-900 rounded-full border border-white">
+                        <div class="flex-shrink-0">
+                            <div class="relative">
+                                <div class="w-14 h-14 rounded-xl bg-blue-900 p-0.5">
+                                    <img src="{{ url_for('static', path='badges/' + gamification.level.badge_image) }}"
+                                        onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name }}&background=1e3a8a&color=fff'"
+                                        class="w-full h-full rounded-xl object-cover bg-white" alt="Badge">
+                                </div>
+                                <span class="absolute -bottom-1 -right-1 flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white bg-blue-900 rounded-full border border-white">
                                     {{ gamification.level.level }}
                                 </span>
-                                <div class="w-10 h-1.5 bg-blue-200 rounded-full overflow-hidden border border-white/90">
-                                    <div class="h-full bg-blue-900 transition-all duration-1000"
-                                        style="width: {{ gamification.progress_percent }}%"></div>
-                                </div>
                             </div>
+                            <div class="mt-1 w-24 h-3 bg-blue-200 rounded-full overflow-hidden border border-white/90">
+                                <div class="h-full bg-blue-900 transition-all duration-500"
+                                    :style="`width: ${xpProgressPercent}%`"></div>
+                            </div>
+                            <div class="text-[10px] font-semibold text-blue-800 text-center mt-0.5" x-text="`${Math.round(xpProgressPercent)}%`"></div>
                         </div>
                         
                         <div class="flex-1 min-w-0">
@@ -97,7 +98,7 @@
                 <div class="space-y-2">
                     <div class="flex items-center justify-between text-xs text-slate-600">
                         <div class="flex items-center gap-1">
-                            <span>XP: <strong class="text-blue-900">{{ "{:,}".format(gamification.total_xp).replace(",", ".") }}</strong></span>
+                            <span>XP: <strong class="text-blue-900" x-text="formatBrInt(totalXp)">{{ "{:,}".format(gamification.total_xp).replace(",", ".") }}</strong></span>
                             <button @click="openHelpModal()" class="w-4 h-4 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center hover:bg-yellow-200">
                                 <i data-lucide="lightbulb" class="w-3 h-3"></i>
                             </button>
@@ -110,7 +111,7 @@
                     </div>
                     
                     <div class="h-2.5 w-full bg-blue-200 rounded-full overflow-hidden">
-                        <div class="h-full bg-blue-900 transition-all duration-1000" style="width: {{ gamification.progress_percent }}%"></div>
+                        <div class="h-full bg-blue-900 transition-all duration-500" :style="`width: ${xpProgressPercent}%`"></div>
                     </div>
                     
                     <p class="text-xs text-center text-green-600 font-medium" x-show="dailyXp > 0">
@@ -1204,6 +1205,10 @@
             activeRoutes: Array.isArray(window.INITIAL_DATA.activeRoutes) ? window.INITIAL_DATA.activeRoutes : [],
             completedRoutes: Array.isArray(window.INITIAL_DATA.completedRoutes) ? window.INITIAL_DATA.completedRoutes : [],
             dailyXp: window.INITIAL_DATA.dailyXp || 0,
+            totalXp: Number({{ gamification.total_xp }}) || 0,
+            xpProgressPercent: Math.max(0, Math.min(100, Number({{ gamification.progress_percent }}) || 0)),
+            levelBaseXp: Number({{ gamification.level.min_xp if gamification.level and gamification.level.min_xp is not none else 0 }}) || 0,
+            nextLevelMinXp: {% if gamification.next_level and gamification.next_level.min_xp is not none %}Number({{ gamification.next_level.min_xp }}){% else %}null{% endif %},
             employees: Array.isArray(window.INITIAL_DATA.employees) ? window.INITIAL_DATA.employees : [],
 
             // Charts Data
@@ -1350,11 +1355,33 @@
                 const popup = document.getElementById('xp-popup');
                 const amountEl = document.getElementById('xp-amount');
                 amountEl.textContent = amount;
+                this.applyEarnedXp(amount);
                 popup.classList.remove('hidden');
                 this.haptic('success');
                 setTimeout(() => {
                     popup.classList.add('hidden');
                 }, 2000);
+            },
+
+            applyEarnedXp(amount) {
+                const earned = Number(amount) || 0;
+                if (earned <= 0) return;
+
+                this.dailyXp += earned;
+                this.totalXp += earned;
+
+                if (this.nextLevelMinXp !== null && this.nextLevelMinXp > this.levelBaseXp) {
+                    const span = this.nextLevelMinXp - this.levelBaseXp;
+                    const current = this.totalXp - this.levelBaseXp;
+                    this.xpProgressPercent = Math.max(0, Math.min(100, (current / span) * 100));
+                } else {
+                    this.xpProgressPercent = 100;
+                }
+            },
+
+            formatBrInt(value) {
+                const num = Number(value) || 0;
+                return Math.round(num).toLocaleString('pt-BR');
             },
 
             tick: Date.now(),
