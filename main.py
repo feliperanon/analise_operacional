@@ -514,6 +514,11 @@ async def global_exception_handler(request: Request, call_next):
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return RedirectResponse(url="/static/logo-souza-pinto.png", status_code=307)
 templates = Jinja2Templates(directory="templates")
 
 # Helper function to get user display name
@@ -9078,8 +9083,12 @@ async def _run_devolucoes_import(request: Request, file: UploadFile, session: Se
             "valid_preview": valid[:10],
         })
     except Exception as e:
-        logger.exception(f"Erro ao processar import de devoluÃ§Ãµes: {e}")
-        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+        logger.exception(f"Erro ao processar import de devoluções: {e}")
+        msg = str(e)[:200] if str(e) else "Erro desconhecido"
+        return JSONResponse({
+            "ok": False,
+            "error": f"Erro ao processar arquivo: {msg}. Verifique datas/planilha."
+        }, status_code=500)
 
 
 @app.post("/api/devolucoes/import/commit", response_class=JSONResponse)

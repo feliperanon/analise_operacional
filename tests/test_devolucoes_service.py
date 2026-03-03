@@ -11,6 +11,7 @@ from devolucoes_service import (
     compute_acima_300,
     compute_cluster,
     parse_date_dd_mm_yyyy,
+    safe_date_str,
     normalize_code,
     normalize_name,
     resolve_vendedor,
@@ -67,8 +68,56 @@ def test_compute_cluster():
 def test_parse_date_dd_mm_yyyy():
     assert parse_date_dd_mm_yyyy("02/02/2026") == datetime(2026, 2, 2)
     assert parse_date_dd_mm_yyyy("02-02-2026") == datetime(2026, 2, 2)
+    assert parse_date_dd_mm_yyyy("2026-02-02") == datetime(2026, 2, 2)
     assert parse_date_dd_mm_yyyy(None) is None
     assert parse_date_dd_mm_yyyy("") is None
+
+
+def test_parse_date_dd_mm_yyyy_nat_returns_none():
+    """pd.NaT deve retornar None, nunca causar 500."""
+    import pandas as pd
+    assert parse_date_dd_mm_yyyy(pd.NaT) is None
+
+
+def test_safe_date_str_nunca_levanta():
+    """safe_date_str nunca lança exceção, mesmo com NaT/None."""
+    import pandas as pd
+    assert safe_date_str(None) == "-"
+    assert safe_date_str(pd.NaT) == "-"
+    assert safe_date_str(datetime(2026, 2, 2)) == "2026-02-02"
+
+
+def test_validate_row_nao_lanca_quando_data_nat(monkeypatch):
+    """Validação não lança exceção quando data é NaT/None (evita 500)."""
+    import pandas as pd
+    client = MagicMock()
+    client.id = 1
+    cad = {
+        "client_by_nb": {},
+        "client_by_name": {},
+        "vendedor_by_code": {"110": MagicMock(id=2)},
+        "vendedor_by_name_exact": {},
+        "motorista_by_name": {"joao": MagicMock(id=3)},
+        "resp_by_norm": {"r": MagicMock(id=4)},
+        "motivo_by_norm": {"m": MagicMock(id=5)},
+    }
+    row = DevolucaoRow(
+        data_romaneio=pd.NaT,
+        data_entrega=pd.NaT,
+        codigo="10",
+        nome_cliente="X",
+        vendedor="110",
+        motorista="Joao",
+        valor=100.0,
+        motivo="m",
+        observacao=None,
+        responsabilidade="r",
+        row_index=2,
+    )
+    result = validate_row(row, cad)
+    assert result.valid is False
+    reasons = [e["reason"] for e in result.errors]
+    assert any("DATA ROMANEIO inválida" in r for r in reasons)
 
 
 def test_normalize_code():
