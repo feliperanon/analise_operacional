@@ -13439,22 +13439,34 @@ async def bi_delivery_page(
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     shift: str = "Todos",
-    driver_id: Optional[int] = None,
+    driver_id: Optional[str] = None,
     plate: str = "Todos",
     status: str = "Todos",
-    detail_driver_id: Optional[int] = None,
+    detail_driver_id: Optional[str] = None,
     detail_status: str = "Todos",
     session: Session = Depends(get_session),
 ):
+    parsed_driver_id: Optional[int] = None
+    if driver_id is not None:
+        raw_driver_filter = str(driver_id).strip()
+        if raw_driver_filter.isdigit():
+            parsed_driver_id = int(raw_driver_filter)
+
+    parsed_detail_driver_id: Optional[int] = None
+    if detail_driver_id is not None:
+        raw_driver = str(detail_driver_id).strip()
+        if raw_driver.isdigit():
+            parsed_detail_driver_id = int(raw_driver)
+
     dataset = _build_bi_delivery_dataset(
         session=session,
         date_from=date_from,
         date_to=date_to,
         shift=shift,
-        driver_id=driver_id,
+        driver_id=parsed_driver_id,
         plate=plate,
         status=status,
-        detail_driver_id=detail_driver_id,
+        detail_driver_id=parsed_detail_driver_id,
         detail_status=detail_status,
     )
     return templates.TemplateResponse("bi_delivery.html", {"request": request, **dataset})
@@ -13466,17 +13478,23 @@ async def bi_delivery_export(
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     shift: str = "Todos",
-    driver_id: Optional[int] = None,
+    driver_id: Optional[str] = None,
     plate: str = "Todos",
     status: str = "Todos",
     session: Session = Depends(get_session),
 ):
+    parsed_driver_id: Optional[int] = None
+    if driver_id is not None:
+        raw_driver_filter = str(driver_id).strip()
+        if raw_driver_filter.isdigit():
+            parsed_driver_id = int(raw_driver_filter)
+
     dataset = _build_bi_delivery_dataset(
         session=session,
         date_from=date_from,
         date_to=date_to,
         shift=shift,
-        driver_id=driver_id,
+        driver_id=parsed_driver_id,
         plate=plate,
         status=status,
     )
@@ -25817,6 +25835,4 @@ async def api_delete_admin_route(
     except Exception as e:
         logger.exception("Error deleting route")
         return JSONResponse({"error": f"Erro interno: {str(e)}"}, status_code=500)
-
-
 
