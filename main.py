@@ -1,4 +1,4 @@
-﻿# Force Reload for TZDATA and Models - v2
+# Force Reload for TZDATA and Models - v2
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, UploadFile, File, BackgroundTasks
 from fastapi.templating import Jinja2Templates
@@ -416,11 +416,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Erro ao preparar auth: {e}")
     try:
-        from devolucoes_routes import ensure_devolucao_seed
+        from devolucoes_routes import ensure_devolucao_seed, ensure_vendedores_especiais
         with Session(engine) as session:
             ensure_devolucao_seed(session)
+            ensure_vendedores_especiais(session)
     except Exception as e:
-        logger.error(f"Erro ao seed devoluÃƒÂ§ÃƒÂµes: {e}")
+        logger.error(f"Erro ao seed devoluções: {e}")
     try:
         logger.info(f"DATABASE URL DETECTADA: {engine.url}")
         sync_sectors_on_startup()

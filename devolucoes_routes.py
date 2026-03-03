@@ -97,3 +97,34 @@ def ensure_devolucao_seed(session: Session):
                 m.nome_normalizado = ((m.nome_normalizado or "") + " " + alias_norm).strip()
             break
     session.commit()
+
+
+VENDEDORES_ESPECIAIS = [
+    ("ESP-999", "999", "999 - Varejo"),
+    ("ESP-777", "777", "777 - Venda particular"),
+    ("ESP-900", "900", "900 - SV Balcão"),
+]
+
+
+def ensure_vendedores_especiais(session: Session):
+    """Cria vendedores especiais (canais) que não vêm do cadastro de colaboradores."""
+    for reg_id, seller_code, name in VENDEDORES_ESPECIAIS:
+        existing = session.exec(
+            select(models.Employee).where(models.Employee.registration_id == reg_id)
+        ).first()
+        if existing:
+            if not existing.seller_code or str(existing.seller_code) != seller_code:
+                existing.seller_code = seller_code
+                session.add(existing)
+            continue
+        emp = models.Employee(
+            registration_id=reg_id,
+            seller_code=seller_code,
+            name=name,
+            role="Canal",
+            work_shift="Manhã",
+            cost_center="Geral",
+            status="active",
+        )
+        session.add(emp)
+    session.commit()
