@@ -277,6 +277,7 @@ class Route(SQLModel, table=True):
     delivery_returned_at: Optional[str] = None  # HH:MM
     delivery_time_log: Optional[str] = None  # JSON array com histórico de status/horários
     delivery_reopen_count: Optional[int] = 0
+    delivery_helpers_json: Optional[str] = None  # JSON list de employee_id (ajudantes)
     status: str = "pending" # pending, completed
     created_at: datetime = Field(default_factory=datetime.now)
 

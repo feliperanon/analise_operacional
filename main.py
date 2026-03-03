@@ -6331,6 +6331,7 @@ def ensure_route_schema():
             "delivery_returned_at": "VARCHAR(5)",
             "delivery_time_log": "TEXT",
             "delivery_reopen_count": "INTEGER DEFAULT 0",
+            "delivery_helpers_json": "TEXT",
         }
         with engine.connect() as conn:
             for col_name, col_type in missing.items():
@@ -11203,12 +11204,47 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
                 "returned_weight_percentage": 0.0,
                 "returned_value_percentage": 0.0,
                 "has_plate_conflict": False,
+                "helper_ids": [],
+                "helper_names": [],
             }
         else:
             current_plate = _norm_plate(delivery_by_employee[key]["vehicle_plate"])
             route_plate = _norm_plate(route.delivery_vehicle_plate)
             if current_plate and route_plate and current_plate != route_plate:
                 delivery_by_employee[key]["has_plate_conflict"] = True
+
+        helper_ids: List[int] = []
+        helper_names: List[str] = []
+        try:
+            parsed_helpers = json.loads(route.delivery_helpers_json) if route.delivery_helpers_json else []
+            if isinstance(parsed_helpers, list):
+                for helper in parsed_helpers:
+                    helper_id: Optional[int] = None
+                    if isinstance(helper, int):
+                        helper_id = helper
+                    elif isinstance(helper, str) and helper.strip().isdigit():
+                        helper_id = int(helper.strip())
+                    if helper_id is None or helper_id == route.employee_id:
+                        continue
+                    helper_ids.append(helper_id)
+                    helper_emp = emp_map_id.get(helper_id)
+                    if helper_emp:
+                        helper_names.append(helper_emp.name)
+        except Exception:
+            pass
+
+        known_helper_ids = set(delivery_by_employee[key]["helper_ids"])
+        for helper_id in helper_ids:
+            if helper_id not in known_helper_ids:
+                known_helper_ids.add(helper_id)
+                delivery_by_employee[key]["helper_ids"].append(helper_id)
+
+        known_helper_names = {name.lower() for name in delivery_by_employee[key]["helper_names"]}
+        for helper_name in helper_names:
+            helper_key = helper_name.lower()
+            if helper_key not in known_helper_names:
+                known_helper_names.add(helper_key)
+                delivery_by_employee[key]["helper_names"].append(helper_name)
 
         status_raw = (route.delivery_status or "pendente").lower()
         status_map = {
@@ -11272,6 +11308,8 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
                 route.delivery_state,
                 route.delivery_cep,
             ),
+            "helper_ids": helper_ids,
+            "helper_names": helper_names,
         })
 
         delivery_by_employee[key]["total_weight"] += route.tonnage or 0.0
@@ -12033,6 +12071,7 @@ async def reassign_delivery_group(
     source_employee_id: int = Form(...),
     new_employee_id: int = Form(...),
     new_vehicle_plate: str = Form(...),
+    helper_ids: Optional[List[int]] = Form(None),
     date: str = Form(...),
     shift: str = Form("Manhã"),
     session: Session = Depends(get_session),
@@ -12044,6 +12083,17 @@ async def reassign_delivery_group(
     new_emp = session.get(models.Employee, new_employee_id)
     source_name = source_emp.name if source_emp else f"ID={source_employee_id}"
     new_name = new_emp.name if new_emp else f"ID={new_employee_id}"
+
+    normalized_helper_ids: List[int] = []
+    seen_helpers = set()
+    for helper_id in (helper_ids or []):
+        if helper_id == new_employee_id:
+            continue
+        if helper_id in seen_helpers:
+            continue
+        seen_helpers.add(helper_id)
+        normalized_helper_ids.append(helper_id)
+    helpers_json = json.dumps(normalized_helper_ids) if normalized_helper_ids else None
     
     logger.info(f"🔄 Tentativa de troca de motorista: {source_name} → {new_name}, Caminhão: {new_vehicle_plate}, Data: {date}")
     
@@ -12075,6 +12125,7 @@ async def reassign_delivery_group(
     for r in rows:
         r.employee_id = new_employee_id
         r.delivery_vehicle_plate = new_vehicle_plate
+        r.delivery_helpers_json = helpers_json
         session.add(r)
     session.commit()
 

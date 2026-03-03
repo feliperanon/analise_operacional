@@ -495,6 +495,9 @@
                                     <div>
                                         <p class="text-sm font-bold text-white">{{ group.driver_name }}</p>
                                         <p class="text-xs text-slate-400">Placa: {{ group.vehicle_plate }} • {{ group.rows|length }} paradas</p>
+                                        {% if group.helper_names %}
+                                        <p class="text-[10px] text-slate-300">Ajudantes: {{ group.helper_names|join(", ") }}</p>
+                                        {% endif %}
                                         {% if group.has_plate_conflict %}
                                         <p class="text-[10px] text-red-300">Conflito: mais de uma placa para este motorista neste dia.</p>
                                         {% endif %}
@@ -523,6 +526,17 @@
                                             <option value="{{ veh.placa }}" {% if veh.placa == group.vehicle_plate %}selected{% endif %}>{{ veh.placa }} - {{ veh.modelo }}</option>
                                             {% endfor %}
                                         </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-slate-400 uppercase mb-1">Ajudantes (1 ou mais)</label>
+                                        <select name="helper_ids" multiple size="4" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 min-w-[240px]">
+                                            {% for emp in delivery_employees %}
+                                            {% if emp.id != group.employee_id %}
+                                            <option value="{{ emp.id }}" {% if emp.id in group.helper_ids %}selected{% endif %}>{{ emp.name }}</option>
+                                            {% endif %}
+                                            {% endfor %}
+                                        </select>
+                                        <p class="text-[10px] text-slate-500 mt-1">Ctrl/Cmd para selecionar vários.</p>
                                     </div>
                                     <button class="px-2 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white text-[11px]">Aplicar em todas as paradas</button>
                                 </form>

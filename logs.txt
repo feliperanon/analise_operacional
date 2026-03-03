@@ -34475,3 +34475,20 @@ NameError: name 'parse_items_payload' is not defined
 2026-02-27 17:47:15,733 | ERROR    | main | Erro ao preparar auth: 'charmap' codec can't encode characters in position 0-1: character maps to <undefined>
 2026-02-27 17:47:15,733 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
 2026-02-27 17:47:15,733 | ERROR    | main | Erro ao iniciar sync: 'charmap' codec can't encode character '\u274c' in position 0: character maps to <undefined>
+2026-03-02 10:09:39,187 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 07:26:07,747 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 08:08:35,248 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 08:09:00,000 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 08:12:14,066 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 08:12:18,763 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 08:12:44,284 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 08:14:00,148 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 08:14:43,631 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 08:14:56,321 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 08:15:32,718 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 08:16:10,171 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 08:16:53,156 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 08:17:04,790 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 08:17:21,596 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 08:17:42,164 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 08:18:03,021 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
