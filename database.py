@@ -20,13 +20,14 @@ connect_args = {}
 if "sqlite" in sqlite_url:
     connect_args = {"check_same_thread": False}
 else:
-    # Postgres Production Options (Render)
+    # Postgres Production Options (Render) + UTF-8 explícito
     connect_args = {
         "keepalives": 1,
         "keepalives_idle": 30,
         "keepalives_interval": 10,
         "keepalives_count": 5,
-        "sslmode": "require"
+        "sslmode": "require",
+        "options": "-c client_encoding=UTF8"
     }
 
 # Performance: Only echo SQL in DEBUG mode
