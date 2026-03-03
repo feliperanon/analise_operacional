@@ -995,8 +995,8 @@ def persist_import_batch(
         raw_payload = None
         if raw_row:
             raw_payload = {
-                "data_romaneio": safe_date_str(raw_row.data_romaneio) if _is_valid_dt(raw_row.data_romaneio) else None,
-                "data_entrega": safe_date_str(raw_row.data_entrega) if _is_valid_dt(raw_row.data_entrega) else None,
+                "data_romaneio": safe_date_str(raw_row.data_romaneio),
+                "data_entrega": safe_date_str(raw_row.data_entrega),
                 "codigo": raw_row.codigo,
                 "nome_cliente": raw_row.nome_cliente,
                 "vendedor": raw_row.vendedor,
@@ -1026,8 +1026,8 @@ def persist_import_batch(
                     batch_id=batch.id,
                     row_index=row_index,
                     status="PENDENTE_VALIDACAO",
-                    data_romaneio=safe_date_str(raw_row.data_romaneio) if raw_row and _is_valid_dt(raw_row.data_romaneio) else None,
-                    data_entrega=safe_date_str(raw_row.data_entrega) if raw_row and _is_valid_dt(raw_row.data_entrega) else None,
+                    data_romaneio=safe_date_str(raw_row.data_romaneio) if raw_row else None,
+                    data_entrega=safe_date_str(raw_row.data_entrega) if raw_row else None,
                     codigo_cliente=(raw_row.codigo if raw_row else None),
                     nome_cliente=(raw_row.nome_cliente if raw_row else None),
                     codigo_vendedor=(raw_row.vendedor if raw_row else None),

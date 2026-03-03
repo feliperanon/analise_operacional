@@ -1,4 +1,4 @@
-﻿# Force Reload for TZDATA and Models - v2
+# Force Reload for TZDATA and Models - v2
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, UploadFile, File, BackgroundTasks
 from fastapi.templating import Jinja2Templates
@@ -9018,9 +9018,13 @@ async def api_devolucoes_import(
     except Exception as e:
         import traceback
         tb = traceback.format_exc()
-        logger.exception(f"Erro import devoluÃ§Ãµes: {e}")
+        logger.exception(f"Erro import devoluções: {e}")
         _dbg_log("devolucoes_import_500", {"error": str(e), "traceback": tb})
-        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+        msg = str(e)[:200] if str(e) else "Erro desconhecido"
+        return JSONResponse({
+            "ok": False,
+            "error": f"Erro ao processar arquivo: {msg}. Verifique datas/planilha."
+        }, status_code=500)
 
 
 async def _run_devolucoes_import(request: Request, file: UploadFile, session: Session):
