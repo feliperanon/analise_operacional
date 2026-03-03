@@ -474,6 +474,7 @@ def _load_cadastros(session: Session) -> Dict[str, Any]:
         "client_by_name": client_by_name,
         "employees": employees,
         "employees_with_seller_code": employees_with_seller_code,
+        "seller_code_collisions": seller_code_collisions,
         "vendedor_by_code": vendedor_by_code,
         "vendedor_by_name_exact": vendedor_by_name_exact,
         "motorista_by_name": motorista_by_name,
@@ -499,6 +500,10 @@ def get_cadastro_health(cad: Dict) -> Tuple[Dict[str, Any], List[str]]:
     motivos = cad.get("motivos", [])
     resp_list = cad.get("resp_list", [])
 
+    seller_code_collisions = cad.get("seller_code_collisions", {})
+    collision_count = sum(1 for ids in seller_code_collisions.values() if len(ids) > 1)
+    collision_details = [{"seller_code": sc, "employee_ids": ids} for sc, ids in seller_code_collisions.items() if len(ids) > 1]
+
     diagnostics = {
         "employees_total": len(employees),
         "employees_with_seller_code": employees_with_seller_code,
@@ -507,6 +512,8 @@ def get_cadastro_health(cad: Dict) -> Tuple[Dict[str, Any], List[str]]:
         "client_by_nb_size": client_by_nb_size,
         "motivos_total": len(motivos),
         "responsabilidades_total": len(resp_list),
+        "seller_code_duplicates_count": collision_count,
+        "seller_code_duplicates": collision_details,
     }
 
     global_errors = []
@@ -526,6 +533,12 @@ def get_cadastro_health(cad: Dict) -> Tuple[Dict[str, Any], List[str]]:
                 "Cadastro de vendedores vazio (vendedor_by_code=0). "
                 "Verifique preenchimento do seller_code nos colaboradores."
             )
+
+    if collision_count > 0:
+        global_errors.append(
+            f"seller_code duplicado em {collision_count} código(s). "
+            f"Detalhes: {collision_details}. Cada vendedor deve ter código único."
+        )
 
     if len(motivos) == 0:
         global_errors.append("Cadastro de motivos de devolução vazio (motivos_total=0). Execute o seed de motivos.")

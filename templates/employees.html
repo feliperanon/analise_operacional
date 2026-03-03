@@ -730,6 +730,12 @@
                     <input type="text" name="registration_id" required
                         class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
                 </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Código do Vendedor</label>
+                    <input type="text" name="seller_code" placeholder="Ex: 110, 201"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+                    <p class="text-xs text-slate-500 mt-0.5">Para importação de devoluções</p>
+                </div>
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
@@ -839,6 +845,11 @@
                     <div>
                         <label class="block text-xs font-medium text-slate-400 mb-1">Matrícula</label>
                         <input type="text" name="registration_id" id="editReg" required
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Código do Vendedor</label>
+                        <input type="text" name="seller_code" id="editSellerCode" placeholder="Ex: 110, 201"
                             class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
                     </div>
                 </div>
@@ -1200,6 +1211,7 @@
         document.getElementById('editForm').action = '/employees/' + emp.id + '/update';
         document.getElementById('editName').value = emp.name;
         document.getElementById('editReg').value = emp.registration_id;
+        document.getElementById('editSellerCode').value = emp.seller_code || '';
         document.getElementById('editRole').value = emp.role;
         document.getElementById('editCost').value = emp.cost_center;
         document.getElementById('editShift').value = emp.work_shift;
