@@ -506,46 +506,48 @@
                                 <p class="text-xs font-mono text-emerald-300">{{ "{:,.2f}".format(group.total_weight).replace(",", "X").replace(".", ",").replace("X", ".") }} Kg</p>
                             </summary>
 
-                            <div class="px-3 py-2 border-t border-slate-700 bg-slate-900/40">
-                                <form action="/separacao/delivery/reassign-group" method="post" class="flex flex-wrap items-end gap-1">
+                            <div class="px-4 py-4 border-t border-slate-700 bg-slate-900/40">
+                                <form action="/separacao/delivery/reassign-group" method="post" class="grid grid-cols-1 xl:grid-cols-12 gap-3 xl:gap-4">
                                     <input type="hidden" name="source_employee_id" value="{{ group.employee_id }}">
                                     <input type="hidden" name="date" value="{{ selected_date }}">
                                     <input type="hidden" name="shift" value="{{ selected_shift }}">
-                                    <div>
-                                        <label class="block text-[10px] text-slate-400 uppercase mb-1">Motorista</label>
-                                        <select name="new_employee_id" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200">
+                                    <div class="xl:col-span-4">
+                                        <label class="block text-xs font-semibold tracking-wide text-slate-300 uppercase mb-1.5">Motorista</label>
+                                        <select name="new_employee_id" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500/40 outline-none">
                                             {% for emp in delivery_employees %}
                                             <option value="{{ emp.id }}" {% if emp.id == group.employee_id %}selected{% endif %}>{{ emp.name }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
-                                    <div>
-                                        <label class="block text-[10px] text-slate-400 uppercase mb-1">Caminhão</label>
-                                        <select name="new_vehicle_plate" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200">
+                                    <div class="xl:col-span-3">
+                                        <label class="block text-xs font-semibold tracking-wide text-slate-300 uppercase mb-1.5">Caminhão</label>
+                                        <select name="new_vehicle_plate" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500/40 outline-none">
                                             {% for veh in delivery_vehicles %}
                                             <option value="{{ veh.placa }}" {% if veh.placa == group.vehicle_plate %}selected{% endif %}>{{ veh.placa }} - {{ veh.modelo }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
-                                    <div>
-                                        <label class="block text-[10px] text-slate-400 uppercase mb-1">Ajudantes (1 ou mais)</label>
-                                        <div class="delivery-helper-picker min-w-[240px]" data-driver-id="{{ group.employee_id }}">
+                                    <div class="xl:col-span-5">
+                                        <label class="block text-xs font-semibold tracking-wide text-slate-300 uppercase mb-1.5">Ajudantes (1 ou mais)</label>
+                                        <div class="delivery-helper-picker" data-driver-id="{{ group.employee_id }}">
                                             <div class="relative">
                                                 <input type="text"
-                                                    class="delivery-helper-search w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200"
+                                                    class="delivery-helper-search w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500/40 outline-none"
                                                     placeholder="Digite o nome do ajudante e pressione Enter">
-                                                <div class="delivery-helper-suggestions hidden absolute z-20 mt-1 w-full max-h-40 overflow-y-auto rounded border border-slate-700 bg-slate-900 shadow-xl"></div>
+                                                <div class="delivery-helper-suggestions hidden absolute z-20 mt-1 w-full max-h-52 overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 shadow-xl"></div>
                                             </div>
                                             <div class="delivery-helper-hidden">
                                                 {% for helper_id in group.helper_ids %}
                                                 <input type="hidden" name="helper_ids" value="{{ helper_id }}">
                                                 {% endfor %}
                                             </div>
-                                            <div class="delivery-helper-selected mt-1 flex flex-wrap gap-1"></div>
+                                            <div class="delivery-helper-selected mt-2 flex flex-wrap gap-2"></div>
                                         </div>
-                                        <p class="text-[10px] text-slate-500 mt-1">Digite para buscar e pressione Enter para adicionar.</p>
+                                        <p class="text-xs text-slate-400 mt-1.5">Digite para buscar e pressione Enter para adicionar.</p>
                                     </div>
-                                    <button class="px-2 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white text-[11px]">Aplicar em todas as paradas</button>
+                                    <div class="xl:col-span-12 flex justify-end">
+                                        <button class="w-full sm:w-auto px-4 py-2.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-sm font-semibold shadow-sm shadow-sky-900/40">Aplicar em todas as paradas</button>
+                                    </div>
                                 </form>
                             </div>
 
@@ -1221,10 +1223,10 @@
                     const emp = byId.get(String(id));
                     if (!emp) return;
                     const tag = document.createElement('span');
-                    tag.className = 'inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-sky-900/30 border border-sky-500/30 text-sky-200 text-[10px]';
+                    tag.className = 'inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-sky-900/30 border border-sky-500/30 text-sky-100 text-xs font-medium';
                     tag.innerHTML = `
                         <span>${emp.name}</span>
-                        <button type="button" class="delivery-helper-remove text-sky-300 hover:text-white" data-id="${emp.id}" title="Remover">x</button>
+                        <button type="button" class="delivery-helper-remove inline-flex items-center justify-center w-5 h-5 rounded bg-sky-950/50 text-sky-200 hover:bg-sky-800 hover:text-white" data-id="${emp.id}" title="Remover">x</button>
                     `;
                     selectedBox.appendChild(tag);
                 });
@@ -1260,7 +1262,7 @@
                 filtered.forEach((emp) => {
                     const btn = document.createElement('button');
                     btn.type = 'button';
-                    btn.className = 'w-full text-left px-2 py-1 text-[11px] text-slate-200 hover:bg-slate-800';
+                    btn.className = 'w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-800/80';
                     btn.dataset.id = String(emp.id);
                     btn.textContent = emp.name;
                     suggestionsBox.appendChild(btn);
