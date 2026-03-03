@@ -407,7 +407,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Erro ao preparar auth: {e}")
     try:
-
+        from devolucoes_routes import ensure_devolucao_seed
+        with Session(engine) as session:
+            ensure_devolucao_seed(session)
+    except Exception as e:
+        logger.error(f"Erro ao seed devoluções: {e}")
+    try:
         logger.info(f"DATABASE URL DETECTADA: {engine.url}")
         sync_sectors_on_startup()
     except Exception as e:
@@ -5003,6 +5008,15 @@ async def mobile_dashboard(request: Request, current_user: dict = Depends(get_cu
                 "href": "/mobile/admin/routes",
                 "enabled": bool(employee.mobile_access_admin_start),
                 "action": "manage_routes"
+            },
+            {
+                "key": "devolucoes",
+                "label": "Devoluções",
+                "description": "Registro de devoluções e ocorrências de entrega.",
+                "icon": "rotate-ccw",
+                "href": "/devolucoes",
+                "enabled": bool(employee.mobile_access_separation),
+                "action": None
             },
             # Removido: Chamados de Equipamento (agora disponível no checklist)
             # {
@@ -12228,6 +12242,214 @@ async def update_separacao(
         session.commit()
         return RedirectResponse(url=f"/separacao?date={route.date}&shift={route.shift}", status_code=status.HTTP_303_SEE_OTHER)
     return RedirectResponse(url="/separacao", status_code=status.HTTP_303_SEE_OTHER)
+
+
+# --- Devoluções (Ocorrências de Entrega) ---
+from devolucoes_service import (
+    parse_excel as devolucoes_parse_excel,
+    validate_rows as devolucoes_validate_rows,
+    save_batch as devolucoes_save_batch,
+)
+from pydantic import BaseModel as PydanticBaseModel
+
+class DevolucaoManualPayload(PydanticBaseModel):
+    data_romaneio: str
+    data_entrega: str
+    client_id: int
+    vendedor_id: int
+    motorista_id: int
+    ajudante_id: Optional[int] = None
+    valor: float
+    motivo_id: int
+    observacao: Optional[str] = None
+    responsabilidade_id: int
+
+@app.get("/devolucoes", response_class=HTMLResponse)
+async def devolucoes_page(
+    request: Request,
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    clients = session.exec(select(models.Client).order_by(models.Client.name)).all()
+    employees = session.exec(select(models.Employee).where(models.Employee.status != "fired").order_by(models.Employee.name)).all()
+    motivos = session.exec(select(models.DevolucaoMotivo).where(models.DevolucaoMotivo.is_active == True)).all()
+    responsabilidades = session.exec(select(models.DevolucaoResponsabilidade).where(models.DevolucaoResponsabilidade.is_active == True)).all()
+    devolucoes = session.exec(
+        select(models.Devolucao)
+        .order_by(models.Devolucao.data_romaneio.desc(), models.Devolucao.created_at.desc())
+        .limit(200)
+    ).all()
+    rows = []
+    for dev in devolucoes:
+        c = session.get(models.Client, dev.client_id)
+        m = session.get(models.Employee, dev.motorista_id)
+        rows.append({
+            "id": dev.id,
+            "data_romaneio": dev.data_romaneio,
+            "valor": dev.valor,
+            "cluster": dev.cluster,
+            "acima_300": dev.acima_300,
+            "source": dev.source,
+            "client_name": c.name if c else "-",
+            "motorista_name": m.name if m else "-",
+        })
+    return templates.TemplateResponse("devolucoes.html", {
+        "request": request,
+        "clients": clients,
+        "employees": employees,
+        "motivos": motivos,
+        "responsabilidades": responsabilidades,
+        "devolucoes": rows,
+        "import_result": getattr(request.state, "devolucoes_import_result", None),
+    })
+
+
+@app.post("/api/devolucoes/import", response_class=JSONResponse)
+async def api_devolucoes_import(
+    request: Request,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    MAX_SIZE = 10 * 1024 * 1024  # 10MB
+    if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls", ".xlsm")):
+        return JSONResponse({"ok": False, "error": "Arquivo inválido. Use .xlsx, .xls ou .xlsm."}, status_code=400)
+    content = await file.read()
+    if len(content) > MAX_SIZE:
+        return JSONResponse({"ok": False, "error": "Arquivo muito grande (máx. 10MB)."}, status_code=400)
+    rows, err = devolucoes_parse_excel(content, file.filename or "upload.xlsx")
+    if err:
+        return JSONResponse({"ok": False, "error": err}, status_code=400)
+    valid, invalid, _, _ = devolucoes_validate_rows(rows, session, to_staging_on_invalid=False)
+    return JSONResponse({
+        "ok": True,
+        "total": len(rows),
+        "valid_count": len(valid),
+        "invalid_count": len(invalid),
+        "invalid_details": invalid[:50],
+        "valid_rows": valid,
+        "valid_preview": valid[:10],
+    })
+
+
+@app.post("/api/devolucoes/import/commit", response_class=JSONResponse)
+async def api_devolucoes_import_commit(
+    request: Request,
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    try:
+        body = await request.json()
+        valid_rows = body.get("valid_rows", [])
+        filename = body.get("filename", "import.xlsx")
+        if not valid_rows:
+            return JSONResponse({"ok": False, "error": "Nenhuma linha válida para gravar."}, status_code=400)
+        created_by = None
+        if request.session.get("user_id"):
+            u = session.get(models.User, request.session["user_id"])
+            if u:
+                created_by = u.username
+        created, skipped = devolucoes_save_batch(
+            session, valid_rows, {"filename": filename}, source="EXCEL", created_by=created_by
+        )
+        session.commit()
+        return JSONResponse({
+            "ok": True,
+            "created": created,
+            "skipped": len(skipped),
+        })
+    except Exception as e:
+        logger.exception(f"Erro ao commitar importação de devoluções: {e}")
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+@app.post("/api/devolucoes", response_class=JSONResponse)
+async def api_devolucoes_create(
+    request: Request,
+    payload: DevolucaoManualPayload,
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    from devolucoes_service import (
+        compute_dia, compute_semana, compute_acima_300, compute_cluster,
+        make_idempotency_hash,
+    )
+    try:
+        uid = request.session.get("user_id")
+        created_by = session.get(models.User, uid).username if uid and session.get(models.User, uid) else None
+        dt = datetime.strptime(payload.data_romaneio, "%Y-%m-%d")
+        dia = compute_dia(dt)
+        semana = compute_semana(dt)
+        acima_300 = compute_acima_300(payload.valor)
+        cluster = compute_cluster(payload.valor)
+        h = make_idempotency_hash(
+            payload.data_romaneio, payload.client_id, payload.vendedor_id,
+            payload.motorista_id, payload.valor, payload.motivo_id,
+        )
+        dev = models.Devolucao(
+            data_romaneio=payload.data_romaneio,
+            data_entrega=payload.data_entrega,
+            client_id=payload.client_id,
+            vendedor_id=payload.vendedor_id,
+            motorista_id=payload.motorista_id,
+            ajudante_id=payload.ajudante_id,
+            valor=payload.valor,
+            motivo_id=payload.motivo_id,
+            observacao=payload.observacao,
+            responsabilidade_id=payload.responsabilidade_id,
+            dia=dia,
+            semana=semana,
+            acima_300=acima_300,
+            cluster=cluster,
+            idempotency_hash=h,
+            source="MANUAL",
+            created_by=created_by,
+        )
+        session.add(dev)
+        session.commit()
+        return JSONResponse({"ok": True, "id": dev.id})
+    except Exception as e:
+        logger.exception(f"Erro ao criar devolução manual: {e}")
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+
+@app.get("/api/devolucoes", response_class=JSONResponse)
+async def api_devolucoes_list(
+    request: Request,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    q = select(models.Devolucao).order_by(models.Devolucao.data_romaneio.desc(), models.Devolucao.created_at.desc())
+    if start_date:
+        q = q.where(models.Devolucao.data_romaneio >= start_date)
+    if end_date:
+        q = q.where(models.Devolucao.data_romaneio <= end_date)
+    rows = session.exec(q.limit(500)).all()
+    out = []
+    for d in rows:
+        c = session.get(models.Client, d.client_id)
+        m = session.get(models.Employee, d.motorista_id)
+        v = session.get(models.Employee, d.vendedor_id)
+        motivo = session.get(models.DevolucaoMotivo, d.motivo_id)
+        resp = session.get(models.DevolucaoResponsabilidade, d.responsabilidade_id)
+        out.append({
+            "id": d.id,
+            "data_romaneio": d.data_romaneio,
+            "data_entrega": d.data_entrega,
+            "valor": d.valor,
+            "cluster": d.cluster,
+            "acima_300": d.acima_300,
+            "source": d.source,
+            "client_name": c.name if c else "-",
+            "motorista_name": m.name if m else "-",
+            "vendedor_name": v.name if v else "-",
+            "motivo": motivo.nome if motivo else "-",
+            "responsabilidade": resp.nome if resp else "-",
+        })
+    return JSONResponse({"ok": True, "data": out})
+
 
 @app.get("/admin/backfill_xp")
 async def backfill_xp(request: Request, session: Session = Depends(get_session)):

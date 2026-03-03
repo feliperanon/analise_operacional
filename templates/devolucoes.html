@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-8">
+    <div class="max-w-7xl mx-auto">
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-white mb-2">Devoluções</h1>
+                <p class="text-slate-400">Registro de devoluções e ocorrências de entrega. Importe via Excel ou cadastre manualmente.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <button type="button" onclick="openManualModal()"
+                    class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    Lançamento Manual
+                </button>
+                <label class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 cursor-pointer transition-colors border border-slate-600 text-sm font-medium">
+                    <i data-lucide="upload" class="w-4 h-4 text-slate-400"></i>
+                    <span>Importar Excel</span>
+                    <input type="file" id="devolucoes-excel-input" accept=".xlsx,.xls,.xlsm" class="hidden">
+                </label>
+            </div>
+        </div>
+
+        <div id="import-preview-box" class="hidden mb-6 p-4 rounded-xl bg-slate-800 border border-slate-600">
+            <h3 class="text-white font-semibold mb-2">Prévia da importação</h3>
+            <p class="text-slate-400 text-sm mb-3"><span id="import-valid-count">0</span> válida(s), <span id="import-invalid-count">0</span> inválida(s)</p>
+            <div id="import-errors" class="text-rose-400 text-sm mb-3 max-h-32 overflow-y-auto"></div>
+            <div class="flex gap-2">
+                <button type="button" id="import-commit-btn" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-colors">
+                    Confirmar e gravar
+                </button>
+                <button type="button" id="import-cancel-btn" class="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-slate-200 text-sm transition-colors">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+
+        <div id="import-success-msg" class="hidden mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center gap-2">
+            <i data-lucide="check-circle" class="w-5 h-5 flex-shrink-0"></i>
+            <span id="import-success-text"></span>
+        </div>
+
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-700 bg-slate-800/50">
+                <h3 class="text-slate-300 font-medium">Registros de devolução</h3>
+            </div>
+            {% if devolucoes %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-900/50 text-slate-400 text-xs uppercase font-bold">
+                            <th class="px-6 py-4">Data</th>
+                            <th class="px-6 py-4">Cliente</th>
+                            <th class="px-6 py-4">Motorista</th>
+                            <th class="px-6 py-4">Valor</th>
+                            <th class="px-6 py-4">Cluster</th>
+                            <th class="px-6 py-4">≥ R$ 300</th>
+                            <th class="px-6 py-4">Origem</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-700 text-sm">
+                        {% for d in devolucoes %}
+                        <tr class="hover:bg-slate-700/30 transition-colors">
+                            <td class="px-6 py-4 text-slate-300">{{ d.data_romaneio }}</td>
+                            <td class="px-6 py-4 text-white">{{ d.client_name }}</td>
+                            <td class="px-6 py-4 text-slate-300">{{ d.motorista_name }}</td>
+                            <td class="px-6 py-4 text-slate-300">R$ {{ "%.2f"|format(d.valor)|replace(".", ",") }}</td>
+                            <td class="px-6 py-4 text-slate-400">{{ d.cluster or '-' }}</td>
+                            <td class="px-6 py-4">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold {% if d.acima_300 == 'SIM' %}bg-amber-500/20 text-amber-400{% else %}bg-slate-500/20 text-slate-400{% endif %}">{{ d.acima_300 }}</span>
+                            </td>
+                            <td class="px-6 py-4 text-slate-500 text-xs">{{ d.source }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-12 text-center text-slate-500">
+                <svg class="w-12 h-12 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+                </svg>
+                <p>Nenhuma devolução registrada ainda.</p>
+                <p class="text-sm mt-2">Use o botão Lançamento Manual ou importe um arquivo Excel.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal Lançamento Manual -->
+<div id="manualDevolucaoModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm overflow-y-auto py-8">
+    <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-2xl mx-4">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold text-white">Nova Devolução</h2>
+            <button type="button" onclick="closeManualModal()" class="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700 transition">×</button>
+        </div>
+        <form id="manual-devolucao-form" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Data Romaneio *</label>
+                    <input type="date" name="data_romaneio" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Data Entrega *</label>
+                    <input type="date" name="data_entrega" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Cliente *</label>
+                    <select name="client_id" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                        <option value="">Selecione</option>
+                        {% for c in clients %}
+                        <option value="{{ c.id }}">{{ c.name }}{% if c.nb %} ({{ c.nb }}){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Vendedor *</label>
+                    <select name="vendedor_id" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                        <option value="">Selecione</option>
+                        {% for e in employees %}
+                        <option value="{{ e.id }}">{{ e.name }}{% if e.seller_code %} ({{ e.seller_code }}){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Motorista *</label>
+                    <select name="motorista_id" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                        <option value="">Selecione</option>
+                        {% for e in employees %}
+                        <option value="{{ e.id }}">{{ e.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Valor (R$) *</label>
+                    <input type="text" name="valor" required placeholder="0,00" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Responsabilidade *</label>
+                    <select name="responsabilidade_id" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                        <option value="">Selecione</option>
+                        {% for r in responsabilidades %}
+                        <option value="{{ r.id }}">{{ r.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Motivo *</label>
+                    <select name="motivo_id" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                        <option value="">Selecione</option>
+                        {% for m in motivos %}
+                        <option value="{{ m.id }}" data-resp="{{ m.responsabilidade_id }}">{{ m.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Ajudante (opcional)</label>
+                    <select name="ajudante_id" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                        <option value="">—</option>
+                        {% for e in employees %}
+                        <option value="{{ e.id }}">{{ e.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Observação</label>
+                    <input type="text" name="observacao" placeholder="Opcional" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-4 border-t border-slate-700">
+                <button type="button" onclick="closeManualModal()" class="px-4 py-2 text-slate-400 hover:text-white transition">Cancelar</button>
+                <button type="submit" class="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition-colors">Salvar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let _importValidRows = [];
+let _importFilename = '';
+
+document.getElementById('devolucoes-excel-input')?.addEventListener('change', async function() {
+    const file = this.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+        const r = await fetch('/api/devolucoes/import', { method: 'POST', body: fd });
+        const j = await r.json();
+        if (!j.ok) {
+            alert(j.error || 'Erro ao processar arquivo');
+            return;
+        }
+        _importValidRows = j.valid_rows || [];
+        _importFilename = file.name;
+        document.getElementById('import-valid-count').textContent = j.valid_count;
+        document.getElementById('import-invalid-count').textContent = j.invalid_count;
+        const errDiv = document.getElementById('import-errors');
+        errDiv.innerHTML = '';
+        if (j.invalid_details && j.invalid_details.length) {
+            j.invalid_details.slice(0, 15).forEach(function(e) {
+                const p = document.createElement('p');
+                p.textContent = 'Linha ' + e.row_index + ': ' + (e.errors && e.errors[0] ? e.errors[0].reason : JSON.stringify(e));
+                errDiv.appendChild(p);
+            });
+        }
+        document.getElementById('import-preview-box').classList.remove('hidden');
+        document.getElementById('import-preview-box').classList.add('block');
+    } catch (e) {
+        alert('Erro: ' + e.message);
+    }
+    this.value = '';
+});
+
+document.getElementById('import-commit-btn')?.addEventListener('click', async function() {
+    if (_importValidRows.length === 0) {
+        alert('Nenhuma linha válida para gravar.');
+        return;
+    }
+    try {
+        const r = await fetch('/api/devolucoes/import/commit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ valid_rows: _importValidRows, filename: _importFilename })
+        });
+        const j = await r.json();
+        if (j.ok) {
+            document.getElementById('import-preview-box').classList.add('hidden');
+            document.getElementById('import-success-text').textContent = 'Importação concluída: ' + j.created + ' registrado(s)' + (j.skipped ? ', ' + j.skipped + ' duplicado(s) ignorado(s)' : '') + '.';
+            document.getElementById('import-success-msg').classList.remove('hidden');
+            document.getElementById('import-success-msg').classList.add('flex');
+            setTimeout(function() { window.location.reload(); }, 1500);
+        } else {
+            alert(j.error || 'Erro ao gravar');
+        }
+    } catch (e) {
+        alert('Erro: ' + e.message);
+    }
+});
+
+document.getElementById('import-cancel-btn')?.addEventListener('click', function() {
+    document.getElementById('import-preview-box').classList.add('hidden');
+});
+
+function openManualModal() {
+    const modal = document.getElementById('manualDevolucaoModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    const today = new Date().toISOString().slice(0, 10);
+    modal.querySelector('input[name="data_romaneio"]').value = today;
+    modal.querySelector('input[name="data_entrega"]').value = today;
+}
+function closeManualModal() {
+    document.getElementById('manualDevolucaoModal').classList.add('hidden');
+    document.getElementById('manualDevolucaoModal').classList.remove('flex');
+}
+
+document.getElementById('manual-devolucao-form')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const fd = new FormData(this);
+    let valorStr = fd.get('valor').toString().replace(/\./g, '').replace(',', '.');
+    const payload = {
+        data_romaneio: fd.get('data_romaneio'),
+        data_entrega: fd.get('data_entrega'),
+        client_id: parseInt(fd.get('client_id')),
+        vendedor_id: parseInt(fd.get('vendedor_id')),
+        motorista_id: parseInt(fd.get('motorista_id')),
+        valor: parseFloat(valorStr) || 0,
+        motivo_id: parseInt(fd.get('motivo_id')),
+        responsabilidade_id: parseInt(fd.get('responsabilidade_id')),
+        observacao: fd.get('observacao') || null,
+        ajudante_id: fd.get('ajudante_id') ? parseInt(fd.get('ajudante_id')) : null
+    };
+    try {
+        const r = await fetch('/api/devolucoes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const j = await r.json();
+        if (j.ok) {
+            closeManualModal();
+            window.location.reload();
+        } else {
+            alert(j.error || 'Erro ao salvar');
+        }
+    } catch (err) {
+        alert('Erro: ' + err.message);
+    }
+});
+
+if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+</script>
+{% endblock %}

@@ -727,3 +727,99 @@ class OperationalTaskExecution(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.now, index=True)
     updated_at: datetime = Field(default_factory=datetime.now)
 
+
+# --- Módulo Devoluções / Ocorrências de Entrega ---
+
+class DevolucaoResponsabilidade(SQLModel, table=True):
+    """Cadastro oficial: setor responsável (MERCADO, COMERCIAL, LOGÍSTICA)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    nome: str = Field(index=True, unique=True)
+    is_active: bool = Field(default=True, index=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+class DevolucaoMotivo(SQLModel, table=True):
+    """Cadastro oficial: motivo de devolução (normalizado)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    nome: str = Field(index=True)
+    responsabilidade_id: int = Field(foreign_key="devolucaoresponsabilidade.id", index=True)
+    nome_normalizado: str = Field(default="", index=True)  # para match flexível
+    is_active: bool = Field(default=True, index=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+class Devolucao(SQLModel, table=True):
+    """Registro de devolução/ocorrência de entrega."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    data_romaneio: str = Field(index=True)  # YYYY-MM-DD
+    data_entrega: str = Field(index=True)  # YYYY-MM-DD
+    client_id: int = Field(foreign_key="client.id", index=True)
+    vendedor_id: int = Field(foreign_key="employee.id", index=True)
+    motorista_id: int = Field(foreign_key="employee.id", index=True)
+    ajudante_id: Optional[int] = Field(default=None, foreign_key="employee.id", index=True)
+    valor: float = Field(default=0.0)
+    motivo_id: int = Field(foreign_key="devolucaomotivo.id", index=True)
+    observacao: Optional[str] = None
+    responsabilidade_id: int = Field(foreign_key="devolucaoresponsabilidade.id", index=True)
+    # Campos calculados
+    dia: int = Field(default=0, index=True)
+    semana: int = Field(default=0, index=True)
+    acima_300: str = Field(default="NAO", index=True)  # SIM | NAO
+    cluster: Optional[str] = Field(default=None, index=True)
+    # Auditoria
+    source: str = Field(default="manual", index=True)  # EXCEL | MANUAL | MOBILE | WEB
+    created_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.now, index=True)
+    # Idempotência: hash para evitar duplicatas
+    idempotency_hash: Optional[str] = Field(default=None, index=True, unique=True)
+
+
+class DevolucaoImportBatch(SQLModel, table=True):
+    """Lote de importação de devoluções (Preview → Commit)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    filename: Optional[str] = None
+    status: str = Field(default="preview", index=True)  # preview | committed
+    total_rows: int = Field(default=0)
+    valid_count: int = Field(default=0)
+    invalid_count: int = Field(default=0)
+    pending_count: int = Field(default=0)  # fila de pendências
+    created_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.now, index=True)
+    committed_at: Optional[datetime] = None
+
+
+class DevolucaoImportRowError(SQLModel, table=True):
+    """Erro por linha na importação."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    batch_id: int = Field(foreign_key="devolucaoimportbatch.id", index=True)
+    row_index: int = Field(index=True)
+    column_name: Optional[str] = None
+    value: Optional[str] = None
+    reason: str = Field(index=True)
+    raw_row_json: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+class DevolucaoStaging(SQLModel, table=True):
+    """Fila de pendências: linha com referência não cadastrada (opcional)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    batch_id: Optional[int] = Field(default=None, foreign_key="devolucaoimportbatch.id", index=True)
+    row_index: int = Field(index=True)
+    status: str = Field(default="PENDENTE_VALIDACAO", index=True)  # PENDENTE_VALIDACAO | RESOLVIDO | REJEITADO
+    data_romaneio: Optional[str] = None
+    data_entrega: Optional[str] = None
+    codigo_cliente: Optional[str] = None
+    nome_cliente: Optional[str] = None
+    codigo_vendedor: Optional[str] = None
+    nome_motorista: Optional[str] = None
+    valor: float = Field(default=0.0)
+    motivo_raw: Optional[str] = None
+    responsabilidade_raw: Optional[str] = None
+    observacao: Optional[str] = None
+    ajudante_raw: Optional[str] = None
+    validation_errors: Optional[str] = None  # JSON com erros
+    resolved_at: Optional[datetime] = None
+    resolved_by: Optional[str] = None
+    devolucao_id: Optional[int] = Field(default=None, foreign_key="devolucao.id", index=True)
+    created_at: datetime = Field(default_factory=datetime.now, index=True)
+
