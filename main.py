@@ -1806,15 +1806,16 @@ async def mobile_auth(
 
 @app.get("/mobile/logout", response_class=RedirectResponse)
 async def mobile_logout(request: Request):
-    request.session.pop("user_id", None)
+    request.session.clear()
     return RedirectResponse(url="/mobile/login", status_code=303)
 
 
-@app.get("/mobile/dashboard", response_class=RedirectResponse)
+@app.get("/mobile/dashboard", response_class=HTMLResponse)
 async def mobile_dashboard(
     request: Request,
     session: Session = Depends(get_session),
     module: Optional[str] = None,
+    error: Optional[str] = None,
 ):
     user = get_current_user(request)
     if not isinstance(user, dict) or user.get("type") != "employee":
@@ -1825,22 +1826,98 @@ async def mobile_dashboard(
         request.session.pop("user_id", None)
         return RedirectResponse(url="/mobile/login", status_code=303)
 
+    module_notice = None
     module_value = (module or "").strip().lower()
-    if module_value == "checklist":
-        return RedirectResponse(url="/mobile/routine/checklist", status_code=303)
-    if module_value == "separation":
-        if bool(getattr(employee, "mobile_access_separation", False)):
-            return RedirectResponse(url="/mobile/routine/checklist", status_code=303)
-        return RedirectResponse(url="/mobile/routine/checklist?error=no_permission", status_code=303)
+    error_value = (error or "").strip().lower()
+    if error_value == "no_permission":
+        module_notice = "Você não possui permissão para este módulo."
+    elif module_value in {"checklist", "separation"}:
+        module_notice = f"Módulo '{module_value}' indisponível para seu perfil."
 
-    if bool(getattr(employee, "mobile_access_checklist", False)):
-        return RedirectResponse(url="/mobile/routine/checklist", status_code=303)
+    has_any_mobile_access = bool(
+        getattr(employee, "mobile_access", False)
+        or getattr(employee, "mobile_access_separation", False)
+        or getattr(employee, "mobile_access_checklist", False)
+        or getattr(employee, "mobile_access_admin_start", False)
+    )
+    if not has_any_mobile_access:
+        request.session.pop("user_id", None)
+        return RedirectResponse(url="/mobile/login?error=access_revoked", status_code=303)
+
+    modules = []
     if bool(getattr(employee, "mobile_access_separation", False)):
-        return RedirectResponse(url="/mobile/routine/checklist", status_code=303)
+        modules.append({
+            "label": "Iniciar Separação",
+            "description": "Abrir rota de separação.",
+            "icon": "play-circle",
+            "action": "start_separation",
+        })
+    if bool(getattr(employee, "mobile_access_checklist", False)):
+        modules.extend([
+            {
+                "label": "Checklist",
+                "description": "Executar checklist operacional.",
+                "icon": "clipboard-check",
+                "href": "/mobile/routine/checklist",
+            },
+            {
+                "label": "Histórico Checklist",
+                "description": "Consultar checklists enviados.",
+                "icon": "history",
+                "href": "/mobile/routine/history",
+            },
+            {
+                "label": "Chamados de Equipamento",
+                "description": "Acompanhar chamados abertos.",
+                "icon": "wrench",
+                "href": "/mobile/equipment/tickets",
+            },
+        ])
     if bool(getattr(employee, "mobile_access_admin_start", False)):
-        return RedirectResponse(url="/mobile/admin/routes", status_code=303)
+        modules.append({
+            "label": "Gerenciar Rotas",
+            "description": "Editar e iniciar rotas manualmente.",
+            "icon": "route",
+            "action": "manage_routes",
+        })
 
-    return RedirectResponse(url="/mobile/login?error=access_revoked", status_code=303)
+    gamification = {
+        "total_xp": float(getattr(employee, "total_xp", 0.0) or 0.0),
+        "progress_percent": 0,
+        "achievements_unlocked": 0,
+        "achievements_total": 0,
+        "level": {
+            "level": 1,
+            "name": "Colaborador",
+            "badge_image": "bronze.png",
+            "min_xp": 0,
+        },
+        "next_level": None,
+    }
+
+    return templates.TemplateResponse(
+        "mobile/dashboard.html",
+        {
+            "request": request,
+            "employee": employee,
+            "module_notice": module_notice,
+            "modules": modules,
+            "gamification": gamification,
+            "streak_days": 0,
+            "time_bonuses": [],
+            "upcoming_events": [],
+            "xp_history": [],
+            "clients_json": json.dumps([], ensure_ascii=False),
+            "employees_json": json.dumps([], ensure_ascii=False),
+            "active_routes": json.dumps([], ensure_ascii=False),
+            "completed_routes": json.dumps([], ensure_ascii=False),
+            "daily_xp_gain": 0,
+            "chart_labels": json.dumps([], ensure_ascii=False),
+            "chart_daily_kg": json.dumps([], ensure_ascii=False),
+            "chart_daily_kgh": json.dumps([], ensure_ascii=False),
+            "chart_bg_colors": json.dumps([], ensure_ascii=False),
+        },
+    )
 
 app.include_router(init_devolucoes_router(templates=templates, require_login=require_login, logger=logger, dbg_log=_dbg_log))
 app.include_router(init_game_achievements_router(templates=templates, require_leader=require_leader, require_login=require_login, logger=logger))
