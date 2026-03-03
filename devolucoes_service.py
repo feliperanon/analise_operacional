@@ -165,16 +165,16 @@ def _find_col_map(columns: List[str]) -> Dict[str, str]:
     # Também mapear por "contém" para colunas como "DATA ROMANEIO (dd/mm/aaaa)"
     norm_cols = list(norm_map.keys())
     aliases = {
-        "data_romaneio": ["data romaneio", "data romaneo", "data_romaneio", "romaneio"],
+        "data_romaneio": ["data romaneio", "data romaneo", "data_romaneio", "romaneio", "data"],
         "data_entrega": ["data entrega", "data_entrega", "entrega"],
         "codigo": ["codigo", "codigo cliente", "cod", "código"],
         "nome_cliente": ["nome do cliente", "nome cliente", "cliente", "razao social", "nome cliente"],
-        "vendedor": ["vendedor"],
+        "vendedor": ["vendedor", "comercia (sv / vd)", "comercia", "sv", "vd"],
         "motorista": ["motorista"],
-        "valor": ["valor"],
-        "motivo": ["motivo"],
+        "valor": ["valor", "r$ devolução", "r$ devolucao", "devolucao", "r$ venda bruta"],
+        "motivo": ["motivo", "motivos de devolução", "motivos comercial", "motivos cliente", "motivos logistica"],
         "observacao": ["observacao", "observação", "observacão", "obs"],
-        "responsabilidade": ["responsabilidade"],
+        "responsabilidade": ["responsabilidade", "setor"],
         "ajudante": ["ajudante"],
     }
     out = {}
@@ -221,43 +221,61 @@ def parse_excel(
         return [], "Formato inválido. Use .xlsx, .xls ou .xlsm."
 
     engine = "openpyxl" if ext.endswith((".xlsx", ".xlsm")) else "xlrd"
-    df = None
     last_err = None
+    required = ["data_romaneio", "data_entrega", "codigo", "vendedor", "motorista", "valor", "motivo", "responsabilidade"]
 
     def _try_read(header_row: int = 0, sheet=0):
         try:
             return pd.read_excel(BytesIO(content), engine=engine, header=header_row, sheet_name=sheet)
-        except Exception as ex:
+        except Exception:
             return None
+
+    def _find_header_row(sheet) -> int:
+        """Encontra a linha que contém os cabeçalhos (scan nas primeiras 20 linhas)."""
+        try:
+            df_raw = pd.read_excel(BytesIO(content), engine=engine, header=None, sheet_name=sheet)
+            if df_raw is None or df_raw.empty:
+                return 0
+            best_row, best_score = 0, 0
+            for row_idx in range(min(20, len(df_raw))):
+                row_vals = df_raw.iloc[row_idx].tolist()
+                cols_str = [str(v).strip() for v in row_vals if v is not None and str(v).strip() and str(v).lower() not in ("nan", "")]
+                if not cols_str:
+                    continue
+                col_map = _find_col_map(cols_str)
+                score = sum(1 for k in required if k in col_map)
+                if score > best_score:
+                    best_score = score
+                    best_row = row_idx
+            return best_row
+        except Exception:
+            return 0
 
     df = _try_read(0, 0)
     if df is None or df.empty:
-        sheet_names_try = sheet_names or DEVOLUCOES_SHEET_NAMES
-        for sheet in sheet_names_try:
+        for sheet in (sheet_names or DEVOLUCOES_SHEET_NAMES):
             df = _try_read(0, sheet)
             if df is not None and not df.empty:
                 break
-    if df is None or df.empty:
-        df = _try_read(0, 0)
     if df is None or df.empty:
         return [], f"Planilha vazia ou erro ao ler. {last_err or ''}"
 
     raw_cols = list(df.columns)
     col_map = _find_col_map(raw_cols)
-    required = ["data_romaneio", "data_entrega", "codigo", "vendedor", "motorista", "valor", "motivo", "responsabilidade"]
     missing = [k for k in required if k not in col_map]
-    if missing:
-        # Fallback: header pode estar na linha 1 (ex: linha 0 = título "Souza Pinto")
-        try:
-            df2 = pd.read_excel(BytesIO(content), engine=engine, header=1, sheet_name=0)
-            if df2 is not None and not df2.empty:
-                raw_cols2 = list(df2.columns)
-                col_map2 = _find_col_map(raw_cols2)
-                missing2 = [k for k in required if k not in col_map2]
-                if len(missing2) < len(missing):
-                    df, raw_cols, col_map, missing = df2, raw_cols2, col_map2, missing2
-        except Exception:
-            pass
+
+    header_row_used = 0
+    # Se Unnamed: X, cabeçalho real está em outra linha — procurar
+    if missing and any(str(c).startswith("Unnamed:") for c in raw_cols):
+        header_row = _find_header_row(0)
+        df2 = _try_read(header_row, 0)
+        if df2 is not None and not df2.empty:
+            raw_cols2 = [str(c) for c in df2.columns]
+            col_map2 = _find_col_map(raw_cols2)
+            missing2 = [k for k in required if k not in col_map2]
+            if len(missing2) < len(missing):
+                df, raw_cols, col_map, missing = df2, raw_cols2, col_map2, missing2
+                header_row_used = header_row
     if missing:
         try:
             from pathlib import Path
@@ -272,15 +290,18 @@ def parse_excel(
         except Exception:
             pass
         cols_found = [str(c) for c in raw_cols][:15]
+        hint = ""
+        if any("comercia" in str(c).lower() or "r$ devolução" in str(c).lower() for c in raw_cols):
+            hint = " Seu arquivo parece ser um relatório resumido. Para importar devoluções, use uma planilha com uma linha por devolução e as colunas: "
         return [], (
             f"Colunas obrigatórias ausentes: {', '.join(missing)}. "
             f"Colunas encontradas: {cols_found}. "
-            f"Use: DATA ROMANEIO, DATA ENTREGA, CODIGO, VENDEDOR, MOTORISTA, VALOR, MOTIVO, RESPONSABILIDADE"
+            f"{hint}DATA ROMANEIO, DATA ENTREGA, CODIGO, NOME DO CLIENTE, VENDEDOR, MOTORISTA, VALOR, MOTIVO, RESPONSABILIDADE."
         )
 
     rows = []
     for idx, row in df.iterrows():
-        row_num = int(idx) + 2
+        row_num = int(idx) + header_row_used + 2
         dr = parse_date_dd_mm_yyyy(row.get(col_map["data_romaneio"]))
         de = parse_date_dd_mm_yyyy(row.get(col_map["data_entrega"]))
         cod = _as_str(row.get(col_map["codigo"]))

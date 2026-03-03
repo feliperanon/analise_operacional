@@ -12313,6 +12313,48 @@ async def devolucoes_page(
     })
 
 
+@app.get("/devolucoes/template")
+async def devolucoes_template(request: Request):
+    """Retorna planilha Excel modelo para importação de devoluções."""
+    import pandas as pd
+    import io
+    require_login(request)
+    df = pd.DataFrame([
+        {
+            "DATA ROMANEIO": "02/02/2026",
+            "DATA ENTREGA": "02/02/2026",
+            "CODIGO": "61/50",
+            "NOME DO CLIENTE": "FIMA CENTRAL DE COMPRA",
+            "VENDEDOR": "110",
+            "MOTORISTA": "GILMAR",
+            "VALOR": "702,77",
+            "MOTIVO": "CLIENTE DESISTIU DA COMPRA",
+            "OBSERVAÇÃO": "",
+            "RESPONSABILIDADE": "MERCADO",
+        },
+        {
+            "DATA ROMANEIO": "03/02/2026",
+            "DATA ENTREGA": "03/02/2026",
+            "CODIGO": "164M0",
+            "NOME DO CLIENTE": "WANASINAMON",
+            "VENDEDOR": "310",
+            "MOTORISTA": "JOSE MARIA CESAR",
+            "VALOR": "107,99",
+            "MOTIVO": "PEDIDO/PRODUTO ERRADO",
+            "OBSERVAÇÃO": "",
+            "RESPONSABILIDADE": "COMERCIAL",
+        },
+    ])
+    buf = io.BytesIO()
+    df.to_excel(buf, index=False, engine="openpyxl")
+    buf.seek(0)
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=planilha_devolucoes_modelo.xlsx"},
+    )
+
+
 @app.post("/api/devolucoes/import", response_class=JSONResponse)
 async def api_devolucoes_import(
     request: Request,
@@ -12830,6 +12872,369 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
 async def strategy_page(request: Request):
     # Static Skeleton - Data loaded via API
     return templates.TemplateResponse("strategy.html", {"request": request})
+
+
+@app.get("/bi", response_class=HTMLResponse)
+async def bi_entry():
+    return RedirectResponse(url="/bi/delivery", status_code=302)
+
+
+@app.get("/bi/delivery", response_class=HTMLResponse)
+async def bi_delivery_page(
+    request: Request,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    shift: str = "Todos",
+    driver_id: Optional[int] = None,
+    plate: str = "Todos",
+    status: str = "Todos",
+    session: Session = Depends(get_session),
+):
+    tz = ZoneInfo("America/Sao_Paulo")
+    today = datetime.now(tz).date()
+
+    def _parse_date(raw: Optional[str]) -> Optional[date]:
+        if not raw:
+            return None
+        try:
+            return datetime.strptime(raw, "%Y-%m-%d").date()
+        except Exception:
+            return None
+
+    parsed_from = _parse_date(date_from) or (today - timedelta(days=6))
+    parsed_to = _parse_date(date_to) or today
+    if parsed_from > parsed_to:
+        parsed_from, parsed_to = parsed_to, parsed_from
+
+    status_norm = (status or "Todos").strip().lower()
+    plate_norm = (plate or "Todos").strip().upper()
+
+    query = (
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date >= parsed_from.strftime("%Y-%m-%d"))
+        .where(models.Route.date <= parsed_to.strftime("%Y-%m-%d"))
+    )
+    if shift and shift != "Todos":
+        query = query.where(models.Route.shift == shift)
+    if driver_id:
+        query = query.where(models.Route.employee_id == driver_id)
+    if plate_norm and plate_norm != "TODOS":
+        query = query.where(models.Route.delivery_vehicle_plate == plate_norm)
+    if status_norm and status_norm != "todos":
+        query = query.where(func.lower(models.Route.delivery_status) == status_norm)
+
+    routes = session.exec(query.order_by(models.Route.date, models.Route.created_at)).all()
+
+    employee_ids = sorted({r.employee_id for r in routes if r.employee_id})
+    client_ids = sorted({r.client_id for r in routes if r.client_id})
+    plate_set = sorted({(r.delivery_vehicle_plate or "").strip().upper() for r in routes if (r.delivery_vehicle_plate or "").strip()})
+
+    employee_map = {}
+    if employee_ids:
+        emps = session.exec(select(models.Employee).where(models.Employee.id.in_(employee_ids))).all()
+        employee_map = {e.id: e for e in emps}
+
+    client_map = {}
+    if client_ids:
+        clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all()
+        client_map = {c.id: c for c in clients}
+
+    vehicle_map = {}
+    if plate_set:
+        vehicles = session.exec(select(models.Vehicle).where(models.Vehicle.placa.in_(plate_set))).all()
+        vehicle_map = {v.placa.upper(): v for v in vehicles}
+
+    def _parse_hhmm(value: Optional[str]) -> Optional[int]:
+        if not value:
+            return None
+        try:
+            hh, mm = str(value).strip().split(":")
+            return int(hh) * 60 + int(mm)
+        except Exception:
+            return None
+
+    def _duration_minutes(start_value: Optional[str], end_value: Optional[str]) -> Optional[int]:
+        start_m = _parse_hhmm(start_value)
+        end_m = _parse_hhmm(end_value)
+        if start_m is None or end_m is None:
+            return None
+        if end_m < start_m:
+            end_m += 24 * 60
+        return max(0, end_m - start_m)
+
+    per_driver = {}
+    per_day = {}
+    exception_rows = []
+    route_durations = []
+    anomaly_flags = []
+
+    planned_stops = len(routes)
+    planned_kg = 0.0
+    planned_value = 0.0
+    realized_stops = 0
+    realized_kg = 0.0
+    realized_value = 0.0
+    started_stops = 0
+    returned_stops = 0
+    returned_kg = 0.0
+    returned_value = 0.0
+    reopen_routes = 0
+
+    for r in routes:
+        status_raw = (r.delivery_status or "pendente").strip().lower()
+        employee = employee_map.get(r.employee_id)
+        client = client_map.get(r.client_id)
+
+        driver_name = employee.name if employee else f"Motorista #{r.employee_id}"
+        truck_plate = (r.delivery_vehicle_plate or "-").upper()
+        vehicle = vehicle_map.get(truck_plate)
+        vehicle_label = f"{truck_plate} - {vehicle.modelo}" if vehicle else truck_plate
+        planned_w = float(r.tonnage or 0.0)
+        planned_v = float(r.valor_financeiro or 0.0)
+        return_w = float(r.devolucao_volume if r.devolucao_volume is not None else (planned_w if status_raw == "devolucao" else 0.0))
+        return_v = float(r.valor_devolucao if r.valor_devolucao is not None else (planned_v if status_raw == "devolucao" else 0.0))
+        delivered_w = max(0.0, planned_w - return_w) if status_raw == "devolucao" else (planned_w if status_raw == "entregue" else 0.0)
+        delivered_v = max(0.0, planned_v - return_v) if status_raw == "devolucao" else (planned_v if status_raw == "entregue" else 0.0)
+
+        planned_kg += planned_w
+        planned_value += planned_v
+
+        is_started = status_raw in ("iniciada", "devolucao", "entregue")
+        is_realized = status_raw in ("devolucao", "entregue")
+        if is_started:
+            started_stops += 1
+        if is_realized:
+            realized_stops += 1
+            realized_kg += delivered_w
+            realized_value += delivered_v
+        if status_raw == "devolucao":
+            returned_stops += 1
+            returned_kg += return_w
+            returned_value += return_v
+        if (r.delivery_reopen_count or 0) > 0:
+            reopen_routes += 1
+
+        duration_m = _duration_minutes(
+            r.delivery_started_at or r.start_time,
+            r.delivery_finished_at or r.end_time,
+        )
+        if duration_m is not None and is_realized:
+            route_durations.append(duration_m)
+
+        driver_bucket = per_driver.setdefault(
+            driver_name,
+            {
+                "driver_name": driver_name,
+                "driver_id": r.employee_id,
+                "planned_stops": 0,
+                "realized_stops": 0,
+                "pending_stops": 0,
+                "started_stops": 0,
+                "returned_stops": 0,
+                "planned_kg": 0.0,
+                "realized_kg": 0.0,
+                "returned_kg": 0.0,
+                "planned_value": 0.0,
+                "realized_value": 0.0,
+                "returned_value": 0.0,
+                "reopen_count": 0,
+                "durations": [],
+                "main_plate": truck_plate,
+            },
+        )
+        driver_bucket["planned_stops"] += 1
+        driver_bucket["planned_kg"] += planned_w
+        driver_bucket["planned_value"] += planned_v
+        driver_bucket["reopen_count"] += (r.delivery_reopen_count or 0)
+        if is_started:
+            driver_bucket["started_stops"] += 1
+        if is_realized:
+            driver_bucket["realized_stops"] += 1
+            driver_bucket["realized_kg"] += delivered_w
+            driver_bucket["realized_value"] += delivered_v
+        else:
+            driver_bucket["pending_stops"] += 1
+        if status_raw == "devolucao":
+            driver_bucket["returned_stops"] += 1
+            driver_bucket["returned_kg"] += return_w
+            driver_bucket["returned_value"] += return_v
+        if duration_m is not None:
+            driver_bucket["durations"].append(duration_m)
+
+        day_bucket = per_day.setdefault(
+            r.date,
+            {
+                "date": r.date,
+                "planned_stops": 0,
+                "started_stops": 0,
+                "realized_stops": 0,
+                "returned_stops": 0,
+                "planned_kg": 0.0,
+                "returned_kg": 0.0,
+                "planned_value": 0.0,
+                "returned_value": 0.0,
+            },
+        )
+        day_bucket["planned_stops"] += 1
+        day_bucket["planned_kg"] += planned_w
+        day_bucket["planned_value"] += planned_v
+        if is_started:
+            day_bucket["started_stops"] += 1
+        if is_realized:
+            day_bucket["realized_stops"] += 1
+        if status_raw == "devolucao":
+            day_bucket["returned_stops"] += 1
+            day_bucket["returned_kg"] += return_w
+            day_bucket["returned_value"] += return_v
+
+        score = 0
+        if status_raw in ("pendente", "reaberta"):
+            score += 25
+        if status_raw == "iniciada":
+            score += 20
+        if status_raw == "devolucao":
+            score += 55
+        score += min(20, (r.delivery_reopen_count or 0) * 6)
+        if duration_m is not None and duration_m > 120:
+            score += 10
+        if planned_w >= 500:
+            score += 8
+
+        if score >= 30:
+            exception_rows.append(
+                {
+                    "route_id": r.id,
+                    "date": r.date,
+                    "shift": r.shift,
+                    "driver_name": driver_name,
+                    "client_name": client.name if client else f"Cliente #{r.client_id}",
+                    "status": status_raw,
+                    "planned_kg": round(planned_w, 2),
+                    "planned_value": round(planned_v, 2),
+                    "returned_kg": round(return_w if status_raw == "devolucao" else 0.0, 2),
+                    "reopen_count": r.delivery_reopen_count or 0,
+                    "duration_m": duration_m,
+                    "score": score,
+                    "vehicle_label": vehicle_label,
+                }
+            )
+
+    global_return_rate = (returned_stops / planned_stops * 100.0) if planned_stops else 0.0
+    avg_duration = statistics.mean(route_durations) if route_durations else 0.0
+
+    tactical_rows = []
+    for _, bucket in per_driver.items():
+        avg_driver_duration = statistics.mean(bucket["durations"]) if bucket["durations"] else 0.0
+        efficiency = (bucket["realized_stops"] / bucket["planned_stops"] * 100.0) if bucket["planned_stops"] else 0.0
+        return_rate = (bucket["returned_stops"] / bucket["planned_stops"] * 100.0) if bucket["planned_stops"] else 0.0
+        started_rate = (bucket["started_stops"] / bucket["planned_stops"] * 100.0) if bucket["planned_stops"] else 0.0
+        tactical_rows.append(
+            {
+                **bucket,
+                "efficiency": round(efficiency, 2),
+                "return_rate": round(return_rate, 2),
+                "started_rate": round(started_rate, 2),
+                "avg_duration": round(avg_driver_duration, 1),
+            }
+        )
+        if bucket["planned_stops"] >= 5 and return_rate >= (global_return_rate + 10.0):
+            anomaly_flags.append(
+                f"{bucket['driver_name']} com devolução {return_rate:.1f}% (média geral {global_return_rate:.1f}%)."
+            )
+        if avg_driver_duration > 0 and avg_duration > 0 and avg_driver_duration >= (avg_duration * 1.8):
+            anomaly_flags.append(
+                f"{bucket['driver_name']} com tempo médio {avg_driver_duration:.0f} min (média geral {avg_duration:.0f} min)."
+            )
+    tactical_rows.sort(key=lambda x: (x["efficiency"], -x["return_rate"], x["planned_stops"]), reverse=True)
+
+    daily_rows = []
+    for day in sorted(per_day.keys()):
+        row = per_day[day]
+        row["started_rate"] = round((row["started_stops"] / row["planned_stops"] * 100.0), 2) if row["planned_stops"] else 0.0
+        row["return_rate"] = round((row["returned_stops"] / row["planned_stops"] * 100.0), 2) if row["planned_stops"] else 0.0
+        daily_rows.append(row)
+
+    last_n = daily_rows[-7:] if len(daily_rows) >= 7 else daily_rows
+    if last_n:
+        forecast_stops = round(statistics.mean([x["planned_stops"] for x in last_n]), 1)
+        forecast_return_rate = round(statistics.mean([x["return_rate"] for x in last_n]), 2)
+    else:
+        forecast_stops = 0.0
+        forecast_return_rate = 0.0
+
+    exception_rows.sort(key=lambda x: (x["score"], x["planned_kg"]), reverse=True)
+    top_exceptions = exception_rows[:25]
+
+    recommendations = []
+    if global_return_rate >= 10:
+        recommendations.append("Priorizar auditoria de devolução nas rotas com maior peso e revisar motivo/cliente recorrente.")
+    if tactical_rows:
+        worst_return = max(tactical_rows, key=lambda x: x["return_rate"])
+        if worst_return["return_rate"] >= 15 and worst_return["planned_stops"] >= 5:
+            recommendations.append(
+                f"Rebalancear carga de {worst_return['driver_name']} e aplicar apoio adicional para reduzir devolução."
+            )
+    if started_stops < planned_stops:
+        recommendations.append("Atuar na fila de pendentes com priorização por alto peso para reduzir risco de atraso.")
+    if avg_duration >= 120:
+        recommendations.append("Tempo médio elevado: revisar sequência de paradas e pontos de congestionamento.")
+    if not recommendations:
+        recommendations.append("Operação estável no período; manter monitoramento diário dos alertas de devolução.")
+
+    filters_payload = {
+        "date_from": parsed_from.strftime("%Y-%m-%d"),
+        "date_to": parsed_to.strftime("%Y-%m-%d"),
+        "shift": shift,
+        "driver_id": driver_id,
+        "plate": plate,
+        "status": status,
+    }
+
+    drivers_filter = sorted(
+        [{"id": d["driver_id"], "name": d["driver_name"]} for d in tactical_rows],
+        key=lambda x: x["name"],
+    )
+    plates_filter = sorted({x["main_plate"] for x in tactical_rows if x["main_plate"] and x["main_plate"] != "-"})
+
+    kpis = {
+        "planned_stops": planned_stops,
+        "realized_stops": realized_stops,
+        "started_stops": started_stops,
+        "pending_stops": max(0, planned_stops - started_stops),
+        "planned_kg": round(planned_kg, 2),
+        "realized_kg": round(realized_kg, 2),
+        "returned_kg": round(returned_kg, 2),
+        "planned_value": round(planned_value, 2),
+        "realized_value": round(realized_value, 2),
+        "returned_value": round(returned_value, 2),
+        "return_rate_qtd": round((returned_stops / planned_stops * 100.0), 2) if planned_stops else 0.0,
+        "return_rate_kg": round((returned_kg / planned_kg * 100.0), 2) if planned_kg else 0.0,
+        "return_rate_value": round((returned_value / planned_value * 100.0), 2) if planned_value else 0.0,
+        "sla_start": round((started_stops / planned_stops * 100.0), 2) if planned_stops else 0.0,
+        "sla_finish": round((realized_stops / planned_stops * 100.0), 2) if planned_stops else 0.0,
+        "reopen_index": round((reopen_routes / planned_stops * 100.0), 2) if planned_stops else 0.0,
+        "avg_duration_m": round(avg_duration, 1) if avg_duration else 0.0,
+        "forecast_next_stops": forecast_stops,
+        "forecast_next_return_rate": forecast_return_rate,
+    }
+
+    return templates.TemplateResponse(
+        "bi_delivery.html",
+        {
+            "request": request,
+            "filters": filters_payload,
+            "kpis": kpis,
+            "daily_rows": daily_rows,
+            "tactical_rows": tactical_rows,
+            "exception_rows": top_exceptions,
+            "anomaly_flags": anomaly_flags[:10],
+            "recommendations": recommendations[:6],
+            "drivers_filter": drivers_filter,
+            "plates_filter": plates_filter,
+            "statuses_filter": ["Todos", "Pendente", "Iniciada", "Entregue", "Devolucao", "Reaberta", "Cancelada"],
+        },
+    )
 
 ABSENCE_JUSTIFIED_KEYWORDS = [
     "atestado",
