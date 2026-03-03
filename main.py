@@ -6351,6 +6351,7 @@ def on_startup():
     ensure_checklist_odometer_schema()
     # Migration for new column
     ensure_column(engine, "employee", "mobile_access_admin_start", "BOOLEAN DEFAULT FALSE")
+    ensure_column(engine, "employee", "seller_code", "VARCHAR(64)")
 
 @app.get("/api/admin/clients", dependencies=[Depends(require_leader)])
 async def api_get_admin_clients(session: Session = Depends(get_session)):
@@ -20036,6 +20037,7 @@ async def add_employee(
     request: Request,
     name: str = Form(...),
     registration_id: str = Form(...),
+    seller_code: str = Form(None),
     role: str = Form(...),
     work_shift: str = Form(...),
     cost_center: str = Form(...),
@@ -20082,6 +20084,7 @@ async def add_employee(
     new_employee = models.Employee(
         name=name,
         registration_id=registration_id,
+        seller_code=seller_code.strip() if seller_code else None,
         role=role,
         work_shift=work_shift,
         cost_center=cost_center,
@@ -21022,6 +21025,7 @@ async def update_employee(
     request: Request,
     name: str = Form(...),
     registration_id: str = Form(...),
+    seller_code: str = Form(None),
     role: str = Form(...),
     work_shift: str = Form(...),
     cost_center: str = Form(...),
@@ -21066,6 +21070,7 @@ async def update_employee(
             
         emp.name = name
         emp.registration_id = registration_id
+        emp.seller_code = seller_code.strip() if seller_code else None
         emp.role = role
         emp.work_shift = work_shift
         emp.cost_center = cost_center

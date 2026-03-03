@@ -22,6 +22,7 @@ class HeadcountTarget(SQLModel, table=True):
 class Employee(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     registration_id: str = Field(index=True, unique=True) # Matrícula
+    seller_code: Optional[str] = Field(default=None, index=True) # Código do vendedor
     name: str
     admission_date: Optional[datetime] = None
     cost_center: Optional[str] = None

@@ -712,7 +712,7 @@
                 <div class="p-6 max-h-[80vh] overflow-y-auto">
                     <form action="/employees/{{ emp.id }}/update" method="POST" id="header-edit-form" class="space-y-4">
                         <!-- Basic Info -->
-                        <div class="grid grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-xs font-medium text-slate-400 mb-1">Nome</label>
                                 <input type="text" name="name" value="{{ emp.name }}" required
@@ -721,6 +721,11 @@
                             <div>
                                 <label class="block text-xs font-medium text-slate-400 mb-1">Matrícula</label>
                                 <input type="text" name="registration_id" value="{{ emp.registration_id }}" required
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Codigo do Vendedor</label>
+                                <input type="text" name="seller_code" value="{{ emp.seller_code or '' }}"
                                     class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 outline-none">
                             </div>
                         </div>
@@ -1568,3 +1573,4 @@
         }
     </script>
     {% endblock %}
+

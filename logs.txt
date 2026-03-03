@@ -34492,3 +34492,21 @@ NameError: name 'parse_items_payload' is not defined
 2026-03-03 08:17:21,596 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
 2026-03-03 08:17:42,164 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
 2026-03-03 08:18:03,021 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 09:05:09,457 | ERROR    | main | Erro ao preparar auth: (sqlite3.OperationalError) no such column: employee.seller_code
+[SQL: SELECT employee.id, employee.registration_id, employee.seller_code, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.work_days, employee.work_schedule, employee.mobile_access, employee.mobile_access_separation, employee.mobile_access_checklist, employee.mobile_access_admin_start, employee.total_xp, employee.vacation_start, employee.vacation_end, employee.termination_date, employee.replaced_by 
+FROM employee 
+WHERE employee.replaced_by IS NOT NULL]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-03-03 09:05:09,458 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 09:05:14,888 | ERROR    | main | Erro ao preparar auth: (sqlite3.OperationalError) no such column: employee.seller_code
+[SQL: SELECT employee.id, employee.registration_id, employee.seller_code, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.work_days, employee.work_schedule, employee.mobile_access, employee.mobile_access_separation, employee.mobile_access_checklist, employee.mobile_access_admin_start, employee.total_xp, employee.vacation_start, employee.vacation_end, employee.termination_date, employee.replaced_by 
+FROM employee 
+WHERE employee.replaced_by IS NOT NULL]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-03-03 09:05:14,888 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 09:05:19,340 | ERROR    | main | Erro ao preparar auth: (sqlite3.OperationalError) no such column: employee.seller_code
+[SQL: SELECT employee.id, employee.registration_id, employee.seller_code, employee.name, employee.admission_date, employee.cost_center, employee.role, employee.birthday, employee.photo_url, employee.status, employee.work_shift, employee.work_days, employee.work_schedule, employee.mobile_access, employee.mobile_access_separation, employee.mobile_access_checklist, employee.mobile_access_admin_start, employee.total_xp, employee.vacation_start, employee.vacation_end, employee.termination_date, employee.replaced_by 
+FROM employee 
+WHERE employee.replaced_by IS NOT NULL]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-03-03 09:05:19,340 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
