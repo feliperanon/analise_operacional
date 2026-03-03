@@ -530,6 +530,29 @@ def validate_row(row: DevolucaoRow, cad: Dict) -> ValidationResult:
         if not vendedor:
             vendedor = _find_vendedor_by_name(row.vendedor, cad)
     if not vendedor:
+        # #region agent log
+        if row.row_index <= 7:
+            try:
+                from pathlib import Path
+                log_path = Path(__file__).resolve().parent / "debug-c5b864.log"
+                with open(log_path, "a", encoding="utf-8") as f:
+                    import json as _j
+                    f.write(_j.dumps({
+                        "sessionId": "c5b864", "message": "vendedor_nao_encontrado",
+                        "data": {
+                            "row_vendedor_raw": str(row.vendedor),
+                            "row_vendedor_repr": repr(row.vendedor),
+                            "vc_norm": _norm_text(str(row.vendedor)) if row.vendedor else None,
+                            "vc_nolead": (_norm_text(str(row.vendedor)).lstrip("0") or "0") if row.vendedor else None,
+                            "vendedor_by_code_keys": list(cad["vendedor_by_code"].keys())[:30],
+                            "vendedor_by_id_keys": list(cad["vendedor_by_id"].keys())[:30],
+                            "employees_com_seller_code": [(e.id, e.name, str(e.seller_code)) for e in cad["employees"] if e.seller_code][:20],
+                        },
+                        "timestamp": datetime.now().isoformat()
+                    }, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
+        # #endregion
         errors.append({"column": "VENDEDOR", "value": row.vendedor or "-", "reason": "Vendedor não cadastrado."})
 
     motorista = _find_motorista(row.motorista, cad)
