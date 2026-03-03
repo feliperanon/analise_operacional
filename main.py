@@ -1744,6 +1744,104 @@ def require_gm(request: Request, session: Session = Depends(get_session)):
     except Exception as e:
         raise HTTPException(status_code=403, detail=str(e))
 
+@app.get("/mobile", response_class=RedirectResponse)
+async def mobile_index(request: Request):
+    user = get_current_user(request)
+    if isinstance(user, dict) and user.get("type") == "employee":
+        return RedirectResponse(url="/mobile/dashboard", status_code=303)
+    return RedirectResponse(url="/mobile/login", status_code=303)
+
+
+@app.get("/mobile/login", response_class=HTMLResponse)
+async def mobile_login_page(request: Request, error: Optional[str] = None):
+    user = get_current_user(request)
+    if isinstance(user, dict) and user.get("type") == "employee":
+        return RedirectResponse(url="/mobile/dashboard", status_code=303)
+
+    error_map = {
+        "missing_registration": "Informe a matrícula para continuar.",
+        "invalid_registration": "Matrícula não encontrada.",
+        "access_revoked": "Acesso mobile não liberado para este colaborador.",
+    }
+    error_text = error_map.get((error or "").strip().lower(), "Erro ao autenticar.") if error else None
+    return templates.TemplateResponse("mobile/login.html", {"request": request, "error": error_text})
+
+
+@app.post("/mobile/auth", response_class=RedirectResponse)
+async def mobile_auth(
+    request: Request,
+    registration_id: str = Form(...),
+    session: Session = Depends(get_session),
+):
+    reg = str(registration_id or "").strip()
+    if not reg:
+        return RedirectResponse(url="/mobile/login?error=missing_registration", status_code=303)
+
+    employee = session.exec(
+        select(models.Employee).where(models.Employee.registration_id == reg)
+    ).first()
+    if not employee:
+        return RedirectResponse(url="/mobile/login?error=invalid_registration", status_code=303)
+
+    status_value = (employee.status or "").strip().lower()
+    if status_value == "fired":
+        return RedirectResponse(url="/mobile/login?error=access_revoked", status_code=303)
+
+    has_mobile_access = bool(
+        getattr(employee, "mobile_access", False)
+        or getattr(employee, "mobile_access_separation", False)
+        or getattr(employee, "mobile_access_checklist", False)
+        or getattr(employee, "mobile_access_admin_start", False)
+    )
+    if not has_mobile_access:
+        return RedirectResponse(url="/mobile/login?error=access_revoked", status_code=303)
+
+    # Evita sessão mista entre desktop/admin e mobile.
+    request.session.pop("auth_user_id", None)
+    request.session.pop("auth_user_role", None)
+    request.session.pop("auth_user_email", None)
+    request.session["user_id"] = employee.id
+    return RedirectResponse(url="/mobile/dashboard", status_code=303)
+
+
+@app.get("/mobile/logout", response_class=RedirectResponse)
+async def mobile_logout(request: Request):
+    request.session.pop("user_id", None)
+    return RedirectResponse(url="/mobile/login", status_code=303)
+
+
+@app.get("/mobile/dashboard", response_class=RedirectResponse)
+async def mobile_dashboard(
+    request: Request,
+    session: Session = Depends(get_session),
+    module: Optional[str] = None,
+):
+    user = get_current_user(request)
+    if not isinstance(user, dict) or user.get("type") != "employee":
+        return RedirectResponse(url="/mobile/login", status_code=303)
+
+    employee = session.get(models.Employee, user.get("id"))
+    if not employee:
+        request.session.pop("user_id", None)
+        return RedirectResponse(url="/mobile/login", status_code=303)
+
+    module_value = (module or "").strip().lower()
+    if module_value == "checklist":
+        return RedirectResponse(url="/mobile/routine/checklist", status_code=303)
+    if module_value == "separation":
+        if bool(getattr(employee, "mobile_access_separation", False)):
+            return RedirectResponse(url="/mobile/routine/checklist", status_code=303)
+        return RedirectResponse(url="/mobile/routine/checklist?error=no_permission", status_code=303)
+
+    if bool(getattr(employee, "mobile_access_checklist", False)):
+        return RedirectResponse(url="/mobile/routine/checklist", status_code=303)
+    if bool(getattr(employee, "mobile_access_separation", False)):
+        return RedirectResponse(url="/mobile/routine/checklist", status_code=303)
+    if bool(getattr(employee, "mobile_access_admin_start", False)):
+        return RedirectResponse(url="/mobile/admin/routes", status_code=303)
+
+    return RedirectResponse(url="/mobile/login?error=access_revoked", status_code=303)
+
 app.include_router(init_devolucoes_router(templates=templates, require_login=require_login, logger=logger, dbg_log=_dbg_log))
 app.include_router(init_game_achievements_router(templates=templates, require_leader=require_leader, require_login=require_login, logger=logger))
 app.include_router(init_game_audit_router(require_login=require_login, require_leader=require_leader))
