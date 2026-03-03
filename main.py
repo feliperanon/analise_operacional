@@ -94,6 +94,15 @@ if GEMINI_API_KEY:
     except Exception as e:
         logger.error(f"Failed to initialize Gemini client: {e}")
 
+# --- Debug logging (session c5b864) ---
+def _dbg_log(msg: str, data: dict):
+    try:
+        import json as _json
+        with open(BASE_DIR / "debug-c5b864.log", "a", encoding="utf-8") as f:
+            f.write(_json.dumps({"sessionId": "c5b864", "message": msg, "data": data, "timestamp": datetime.now().isoformat()}, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
 # --- Helper Functions ---
 def calculate_expected_work_days(
     work_days_json: str, 
@@ -12311,14 +12320,25 @@ async def api_devolucoes_import(
     session: Session = Depends(get_session),
 ):
     require_login(request)
-    MAX_SIZE = 10 * 1024 * 1024  # 10MB
-    if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls", ".xlsm")):
-        return JSONResponse({"ok": False, "error": "Arquivo inválido. Use .xlsx, .xls ou .xlsm."}, status_code=400)
+    MAX_SIZE = 50 * 1024 * 1024  # 50MB
+    if not file or not file.filename:
+        return JSONResponse({"ok": False, "error": "Nenhum arquivo enviado. Selecione um arquivo Excel (.xlsx, .xls ou .xlsm)."}, status_code=400)
+    fn = (file.filename or "").lower()
+    if not fn.endswith((".xlsx", ".xls", ".xlsm")):
+        return JSONResponse({"ok": False, "error": "Arquivo inválido. Use .xlsx, .xls ou .xlsm. (Recebido: " + (file.filename or "sem nome") + ")"}, status_code=400)
     content = await file.read()
     if len(content) > MAX_SIZE:
-        return JSONResponse({"ok": False, "error": "Arquivo muito grande (máx. 10MB)."}, status_code=400)
-    rows, err = devolucoes_parse_excel(content, file.filename or "upload.xlsx")
+        return JSONResponse({"ok": False, "error": "Arquivo muito grande (máx. 50MB)."}, status_code=400)
+    try:
+        rows, err = devolucoes_parse_excel(content, file.filename or "upload.xlsx")
+    except Exception as ex:
+        import traceback
+        tb = traceback.format_exc()
+        _dbg_log("devolucoes_import", {"error": str(ex), "traceback": tb})
+        return JSONResponse({"ok": False, "error": f"Erro ao processar: {ex}"}, status_code=400)
     if err:
+        _dbg_log("devolucoes_import_err", {"error": err, "filename": file.filename})
+        logger.warning(f"Devoluções import parse error: {err}")
         return JSONResponse({"ok": False, "error": err}, status_code=400)
     valid, invalid, _, _ = devolucoes_validate_rows(rows, session, to_staging_on_invalid=False)
     return JSONResponse({

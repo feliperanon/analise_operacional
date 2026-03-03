@@ -156,25 +156,39 @@ class ValidationResult:
 
 def _find_col_map(columns: List[str]) -> Dict[str, str]:
     """Mapeia colunas do Excel para campos canônicos (flexível a espaços/acentos)."""
-    norm_map = {_norm_text(c): c for c in columns}
+    cols_str = [str(c).strip() for c in columns if c is not None]
+    norm_map = {}
+    for c in cols_str:
+        n = _norm_text(c)
+        if n:
+            norm_map[n] = c
+    # Também mapear por "contém" para colunas como "DATA ROMANEIO (dd/mm/aaaa)"
+    norm_cols = list(norm_map.keys())
     aliases = {
-        "data_romaneio": ["data romaneio", "data romaneo", "data_romaneio"],
-        "data_entrega": ["data entrega", "data_entrega"],
-        "codigo": ["codigo", "codigo cliente", "cod"],
-        "nome_cliente": ["nome do cliente", "nome cliente", "cliente", "razao social"],
+        "data_romaneio": ["data romaneio", "data romaneo", "data_romaneio", "romaneio"],
+        "data_entrega": ["data entrega", "data_entrega", "entrega"],
+        "codigo": ["codigo", "codigo cliente", "cod", "código"],
+        "nome_cliente": ["nome do cliente", "nome cliente", "cliente", "razao social", "nome cliente"],
         "vendedor": ["vendedor"],
         "motorista": ["motorista"],
         "valor": ["valor"],
         "motivo": ["motivo"],
-        "observacao": ["observacao", "observação", "obs"],
+        "observacao": ["observacao", "observação", "observacão", "obs"],
         "responsabilidade": ["responsabilidade"],
         "ajudante": ["ajudante"],
     }
     out = {}
     for key, options in aliases.items():
         for opt in options:
-            if opt in norm_map:
-                out[key] = norm_map[opt]
+            opt_n = _norm_text(opt)
+            if opt_n in norm_map:
+                out[key] = norm_map[opt_n]
+                break
+            for nc in norm_cols:
+                if opt_n in nc or nc in opt_n:
+                    out[key] = norm_map[nc]
+                    break
+            if key in out:
                 break
     return out
 
@@ -206,33 +220,63 @@ def parse_excel(
     if not ext.endswith((".xlsx", ".xls", ".xlsm")):
         return [], "Formato inválido. Use .xlsx, .xls ou .xlsm."
 
-    try:
-        engine = "openpyxl" if ext.endswith((".xlsx", ".xlsm")) else "xlrd"
-        df = pd.read_excel(BytesIO(content), engine=engine, header=0, sheet_name=0)
-    except Exception:
-        # Tentar aba específica
-        sheet_names_try = sheet_names or DEVOLUCOES_SHEET_NAMES
-        df = None
-        for sheet in sheet_names_try:
-            try:
-                df = pd.read_excel(BytesIO(content), engine=engine, header=0, sheet_name=sheet)
-                break
-            except Exception:
-                continue
-        if df is None:
-            try:
-                df = pd.read_excel(BytesIO(content), engine=engine, header=0)
-            except Exception as ex:
-                return [], f"Erro ao ler planilha: {ex}"
+    engine = "openpyxl" if ext.endswith((".xlsx", ".xlsm")) else "xlrd"
+    df = None
+    last_err = None
 
+    def _try_read(header_row: int = 0, sheet=0):
+        try:
+            return pd.read_excel(BytesIO(content), engine=engine, header=header_row, sheet_name=sheet)
+        except Exception as ex:
+            return None
+
+    df = _try_read(0, 0)
     if df is None or df.empty:
-        return [], "Planilha vazia."
+        sheet_names_try = sheet_names or DEVOLUCOES_SHEET_NAMES
+        for sheet in sheet_names_try:
+            df = _try_read(0, sheet)
+            if df is not None and not df.empty:
+                break
+    if df is None or df.empty:
+        df = _try_read(0, 0)
+    if df is None or df.empty:
+        return [], f"Planilha vazia ou erro ao ler. {last_err or ''}"
 
-    col_map = _find_col_map(list(df.columns))
+    raw_cols = list(df.columns)
+    col_map = _find_col_map(raw_cols)
     required = ["data_romaneio", "data_entrega", "codigo", "vendedor", "motorista", "valor", "motivo", "responsabilidade"]
     missing = [k for k in required if k not in col_map]
     if missing:
-        return [], f"Colunas obrigatórias ausentes: {', '.join(missing)}. Colunas: {list(df.columns)}"
+        # Fallback: header pode estar na linha 1 (ex: linha 0 = título "Souza Pinto")
+        try:
+            df2 = pd.read_excel(BytesIO(content), engine=engine, header=1, sheet_name=0)
+            if df2 is not None and not df2.empty:
+                raw_cols2 = list(df2.columns)
+                col_map2 = _find_col_map(raw_cols2)
+                missing2 = [k for k in required if k not in col_map2]
+                if len(missing2) < len(missing):
+                    df, raw_cols, col_map, missing = df2, raw_cols2, col_map2, missing2
+        except Exception:
+            pass
+    if missing:
+        try:
+            from pathlib import Path
+            log_path = Path(__file__).resolve().parent / "debug-c5b864.log"
+            with open(log_path, "a", encoding="utf-8") as f:
+                import json as _j
+                f.write(_j.dumps({
+                    "sessionId": "c5b864", "message": "parse_excel_missing_cols",
+                    "data": {"missing": missing, "raw_cols": [str(c) for c in raw_cols], "col_map": col_map},
+                    "timestamp": datetime.now().isoformat()
+                }, ensure_ascii=False) + "\n")
+        except Exception:
+            pass
+        cols_found = [str(c) for c in raw_cols][:15]
+        return [], (
+            f"Colunas obrigatórias ausentes: {', '.join(missing)}. "
+            f"Colunas encontradas: {cols_found}. "
+            f"Use: DATA ROMANEIO, DATA ENTREGA, CODIGO, VENDEDOR, MOTORISTA, VALOR, MOTIVO, RESPONSABILIDADE"
+        )
 
     rows = []
     for idx, row in df.iterrows():

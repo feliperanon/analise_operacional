@@ -1,0 +1,106 @@
+{
+  "timestamp": "2026-03-03T11:50:37",
+  "url": "http://127.0.0.1:8000/devolucoes",
+  "status_geral": "Aprovado com ressalvas",
+  "total_testes": 13,
+  "aprovados": 9,
+  "falhas": 4,
+  "lista_achados": [
+    {
+      "id": "DV-003",
+      "severidade": "MEDIO",
+      "area": "UX/Funcional",
+      "descricao": "Tabela/listagem n?o encontrada",
+      "evidencia": "artifacts/devolucoes/01_home.png"
+    },
+    {
+      "id": "DV-004",
+      "severidade": "MEDIO",
+      "area": "Analytics/Produto",
+      "descricao": "Filtros apenas no modal de lan?amento manual",
+      "evidencia": "artifacts/devolucoes/01_home.png"
+    },
+    {
+      "id": "DV-005",
+      "severidade": "MEDIO",
+      "area": "BI",
+      "descricao": "KPIs agregados n?o identificados",
+      "evidencia": "artifacts/devolucoes/01_home.png"
+    }
+  ],
+  "detalhes_testes": [
+    {
+      "name": "Autentica??o e acesso ? p?gina",
+      "ok": true,
+      "details": "url=http://127.0.0.1:8000/devolucoes"
+    },
+    {
+      "name": "Carregamento do m?dulo devolu??es",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "Presen?a de tabela/listagem",
+      "ok": false,
+      "details": "tables=0"
+    },
+    {
+      "name": "A??es principais (manual/importar)",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "Filtro por data (modal manual)",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "Filtro por turno",
+      "ok": false,
+      "details": "[N/A] filtro n?o existe na p?gina"
+    },
+    {
+      "name": "Filtro por motorista (modal manual)",
+      "ok": true,
+      "details": "value=1"
+    },
+    {
+      "name": "Filtro por status/motivo (modal manual)",
+      "ok": true,
+      "details": "motivo=1"
+    },
+    {
+      "name": "Busca textual (observa??o modal)",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "Reset de filtros/formul?rio",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "Estado sem resultado (filtro extremo)",
+      "ok": false,
+      "details": "[N/A] sem filtros da listagem"
+    },
+    {
+      "name": "Responsividade mobile",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "Consist?ncia KPI agregado vs detalhe",
+      "ok": false,
+      "details": "[N/A] KPI agregado n?o identificado na p?gina"
+    }
+  ],
+  "console_issues": [],
+  "network_issues": [],
+  "calculo": {
+    "formula_soma_valor": "SUM(valor_linhas_visiveis)",
+    "soma_tabela": 0,
+    "kpi_agregado": null,
+    "percentual_validacao": "N/A"
+  }
+}
