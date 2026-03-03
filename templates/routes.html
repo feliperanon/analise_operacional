@@ -529,14 +529,21 @@
                                     </div>
                                     <div>
                                         <label class="block text-[10px] text-slate-400 uppercase mb-1">Ajudantes (1 ou mais)</label>
-                                        <select name="helper_ids" multiple size="4" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 min-w-[240px]">
-                                            {% for emp in delivery_employees %}
-                                            {% if emp.id != group.employee_id %}
-                                            <option value="{{ emp.id }}" {% if emp.id in group.helper_ids %}selected{% endif %}>{{ emp.name }}</option>
-                                            {% endif %}
-                                            {% endfor %}
-                                        </select>
-                                        <p class="text-[10px] text-slate-500 mt-1">Ctrl/Cmd para selecionar vários.</p>
+                                        <div class="delivery-helper-picker min-w-[240px]" data-driver-id="{{ group.employee_id }}">
+                                            <div class="relative">
+                                                <input type="text"
+                                                    class="delivery-helper-search w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200"
+                                                    placeholder="Digite o nome do ajudante e pressione Enter">
+                                                <div class="delivery-helper-suggestions hidden absolute z-20 mt-1 w-full max-h-40 overflow-y-auto rounded border border-slate-700 bg-slate-900 shadow-xl"></div>
+                                            </div>
+                                            <div class="delivery-helper-hidden">
+                                                {% for helper_id in group.helper_ids %}
+                                                <input type="hidden" name="helper_ids" value="{{ helper_id }}">
+                                                {% endfor %}
+                                            </div>
+                                            <div class="delivery-helper-selected mt-1 flex flex-wrap gap-1"></div>
+                                        </div>
+                                        <p class="text-[10px] text-slate-500 mt-1">Digite para buscar e pressione Enter para adicionar.</p>
                                     </div>
                                     <button class="px-2 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white text-[11px]">Aplicar em todas as paradas</button>
                                 </form>
@@ -1067,6 +1074,7 @@
             document.getElementById('form-start-time').value = `${hours}:${minutes}`;
         }
         startLiveTimers();
+        initDeliveryHelperPickers();
     });
 
     // --- Live Timers (Copy from old) ---
@@ -1175,6 +1183,12 @@
         document.getElementById('moveModal').showModal();
     }
 
+    const deliveryHelperEmployees = [
+        {% for emp in delivery_employees %}
+        { id: {{ emp.id }}, name: {{ emp.name|tojson }} }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+
     function normalizeForSearch(text) {
         return (text || '')
             .toString()
@@ -1182,6 +1196,124 @@
             .replace(/[\u0300-\u036f]/g, '')
             .toLowerCase()
             .trim();
+    }
+
+    function initDeliveryHelperPickers() {
+        const allEmployees = deliveryHelperEmployees || [];
+        const byId = new Map(allEmployees.map((e) => [String(e.id), e]));
+
+        document.querySelectorAll('.delivery-helper-picker').forEach((picker) => {
+            const driverId = String(picker.dataset.driverId || '');
+            const searchInput = picker.querySelector('.delivery-helper-search');
+            const suggestionsBox = picker.querySelector('.delivery-helper-suggestions');
+            const hiddenBox = picker.querySelector('.delivery-helper-hidden');
+            const selectedBox = picker.querySelector('.delivery-helper-selected');
+            if (!searchInput || !suggestionsBox || !hiddenBox || !selectedBox) return;
+
+            const selectedIds = new Set(
+                Array.from(hiddenBox.querySelectorAll('input[name="helper_ids"]'))
+                    .map((input) => String(input.value))
+            );
+
+            function renderSelected() {
+                selectedBox.innerHTML = '';
+                Array.from(selectedIds).forEach((id) => {
+                    const emp = byId.get(String(id));
+                    if (!emp) return;
+                    const tag = document.createElement('span');
+                    tag.className = 'inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-sky-900/30 border border-sky-500/30 text-sky-200 text-[10px]';
+                    tag.innerHTML = `
+                        <span>${emp.name}</span>
+                        <button type="button" class="delivery-helper-remove text-sky-300 hover:text-white" data-id="${emp.id}" title="Remover">x</button>
+                    `;
+                    selectedBox.appendChild(tag);
+                });
+            }
+
+            function syncHiddenInputs() {
+                hiddenBox.innerHTML = '';
+                Array.from(selectedIds).forEach((id) => {
+                    const hidden = document.createElement('input');
+                    hidden.type = 'hidden';
+                    hidden.name = 'helper_ids';
+                    hidden.value = String(id);
+                    hiddenBox.appendChild(hidden);
+                });
+            }
+
+            function getFiltered(term) {
+                const q = normalizeForSearch(term);
+                return allEmployees
+                    .filter((emp) => String(emp.id) !== driverId)
+                    .filter((emp) => !selectedIds.has(String(emp.id)))
+                    .filter((emp) => !q || normalizeForSearch(emp.name).includes(q))
+                    .slice(0, 8);
+            }
+
+            function renderSuggestions(term) {
+                const filtered = getFiltered(term);
+                suggestionsBox.innerHTML = '';
+                if (!filtered.length) {
+                    suggestionsBox.classList.add('hidden');
+                    return;
+                }
+                filtered.forEach((emp) => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'w-full text-left px-2 py-1 text-[11px] text-slate-200 hover:bg-slate-800';
+                    btn.dataset.id = String(emp.id);
+                    btn.textContent = emp.name;
+                    suggestionsBox.appendChild(btn);
+                });
+                suggestionsBox.classList.remove('hidden');
+            }
+
+            function addHelper(id) {
+                const key = String(id);
+                if (!key || key === driverId || selectedIds.has(key)) return;
+                if (!byId.has(key)) return;
+                selectedIds.add(key);
+                syncHiddenInputs();
+                renderSelected();
+                searchInput.value = '';
+                suggestionsBox.classList.add('hidden');
+            }
+
+            searchInput.addEventListener('input', () => renderSuggestions(searchInput.value));
+            searchInput.addEventListener('focus', () => renderSuggestions(searchInput.value));
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const first = getFiltered(searchInput.value)[0];
+                    if (first) addHelper(first.id);
+                } else if (e.key === 'Escape') {
+                    suggestionsBox.classList.add('hidden');
+                }
+            });
+
+            suggestionsBox.addEventListener('click', (e) => {
+                const btn = e.target.closest('button[data-id]');
+                if (!btn) return;
+                addHelper(btn.dataset.id);
+            });
+
+            selectedBox.addEventListener('click', (e) => {
+                const btn = e.target.closest('.delivery-helper-remove');
+                if (!btn) return;
+                selectedIds.delete(String(btn.dataset.id));
+                syncHiddenInputs();
+                renderSelected();
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!picker.contains(e.target)) {
+                    suggestionsBox.classList.add('hidden');
+                }
+            });
+
+            syncHiddenInputs();
+            renderSelected();
+        });
     }
 
     function filterDeliveryRows(value) {
@@ -1346,3 +1478,4 @@
     }
 </style>
 {% endblock %}
+

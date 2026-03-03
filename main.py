@@ -387,6 +387,9 @@ async def lifespan(app: FastAPI):
         ensure_checklist_odometer_schema()
         ensure_client_schema()
         ensure_route_schema()
+        # Employee schema compatibility must run before auth/bootstrap queries
+        ensure_column(engine, "employee", "mobile_access_admin_start", "BOOLEAN DEFAULT FALSE")
+        ensure_column(engine, "employee", "seller_code", "VARCHAR(64)")
     except Exception as e:
         logger.error(f"Erro ao migrar vehicle/checklist/client/route: {e}")
     try:
