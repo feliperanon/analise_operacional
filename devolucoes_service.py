@@ -165,8 +165,23 @@ def _is_valid_dt(dt: Any) -> bool:
     return True
 
 
+def safe_date_str(dt: Any, fmt: str = "%Y-%m-%d") -> str:
+    """
+    Converte datetime para string de forma segura; nunca lança exceção.
+    Retorna dt.strftime(fmt) se for datetime válido, senão retorna "-".
+    """
+    if not _is_valid_dt(dt):
+        return "-"
+    if hasattr(dt, "strftime"):
+        try:
+            return dt.strftime(fmt)
+        except (ValueError, TypeError):
+            return "-"
+    return str(dt) if dt is not None else "-"
+
+
 def _safe_strftime(dt: Any, fmt: str = "%Y-%m-%d") -> Optional[str]:
-    """Converte datetime para string; retorna None se for NaT, None ou inválido."""
+    """Converte datetime para string; retorna None se for NaT, None ou inválido (para payloads opcionais)."""
     if not _is_valid_dt(dt):
         return None
     if hasattr(dt, "strftime"):
@@ -178,7 +193,10 @@ def _safe_strftime(dt: Any, fmt: str = "%Y-%m-%d") -> Optional[str]:
 
 
 def parse_date_dd_mm_yyyy(value: Any) -> Optional[datetime]:
-    """Parse data dd/mm/yyyy, dd-mm-yyyy, ou datetime/Timestamp do Excel."""
+    """
+    Parse data dd/mm/yyyy, dd-mm-yyyy, yyyy-mm-dd, datetime, date ou Timestamp do Excel.
+    Detecta NaT explicitamente e retorna None. Nunca retorna NaT.
+    """
     if value is None:
         return None
     try:
@@ -186,25 +204,43 @@ def parse_date_dd_mm_yyyy(value: Any) -> Optional[datetime]:
         if hasattr(pd, "isna") and pd.isna(value):
             return None
     except ImportError:
-        pass
-    if isinstance(value, datetime):
-        return value
-    if hasattr(value, "to_pydatetime"):  # pd.Timestamp
+        pd = None
+    s = str(value).strip()
+    if not s or s.lower() in ("nan", "none", "nat"):
+        return None
+    if hasattr(value, "to_pydatetime"):
         try:
-            return value.to_pydatetime()
+            import pandas as _pd
+            dt = value.to_pydatetime()
+            if not isinstance(dt, datetime):
+                return None
+            if hasattr(_pd, "isna") and _pd.isna(dt):
+                return None
+            return dt
         except Exception:
             pass
-    if isinstance(value, date):
+    if isinstance(value, datetime):
+        try:
+            import pandas as _pd
+            if hasattr(_pd, "isna") and _pd.isna(value):
+                return None
+        except ImportError:
+            pass
+        return value
+    if isinstance(value, date) and not isinstance(value, datetime):
         return datetime(value.year, value.month, value.day)
     if isinstance(value, (int, float)) and value > 0:
         try:
             import pandas as pd
-            return pd.Timestamp(value).to_pydatetime()
+            ts = pd.Timestamp(value)
+            if pd.isna(ts):
+                return None
+            dt = ts.to_pydatetime()
+            if not isinstance(dt, datetime):
+                return None
+            return dt
         except Exception:
             pass
-    s = str(value).strip()
-    if not s or s.lower() in ("nan", "none"):
-        return None
     s = s.split()[0] if " " in s else s
     for sep in ["/", "-", "."]:
         if sep in s:
@@ -212,7 +248,7 @@ def parse_date_dd_mm_yyyy(value: Any) -> Optional[datetime]:
             if len(parts) == 3:
                 try:
                     p0, p1, p2 = int(parts[0]), int(parts[1]), int(parts[2])
-                    if p0 > 31 or (len(parts[0]) == 4 and p0 >= 1900):
+                    if p0 > 31 or (len(str(parts[0])) == 4 and p0 >= 1900):
                         y, m, d = p0, p1, p2
                     else:
                         d, m, y = p0, p1, p2
@@ -221,6 +257,11 @@ def parse_date_dd_mm_yyyy(value: Any) -> Optional[datetime]:
                     return datetime(y, m, d)
                 except (ValueError, IndexError):
                     pass
+    if len(s) == 10 and s[4] == "-" and s[7] == "-":
+        try:
+            return datetime.strptime(s, "%Y-%m-%d")
+        except ValueError:
+            pass
     return None
 
 
@@ -677,13 +718,13 @@ def validate_row(row: DevolucaoRow, cad: Dict) -> ValidationResult:
     errors = []
 
     if not _is_valid_dt(row.data_romaneio):
-        errors.append({"column": "DATA ROMANEIO", "value": str(row.data_romaneio), "reason": "Data inválida ou ausente."})
+        errors.append({"column": "DATA ROMANEIO", "value": safe_date_str(row.data_romaneio), "reason": "DATA ROMANEIO inválida ou ausente."})
     if not _is_valid_dt(row.data_entrega):
         row.data_entrega = row.data_romaneio
     if _is_valid_dt(row.data_romaneio) and _is_valid_dt(row.data_entrega) and row.data_entrega < row.data_romaneio:
         errors.append({
             "column": "DATA ENTREGA",
-            "value": _safe_strftime(row.data_entrega) or str(row.data_entrega),
+            "value": safe_date_str(row.data_entrega),
             "reason": "Data entrega anterior à data romaneio.",
         })
     if _is_valid_dt(row.data_romaneio):
@@ -692,7 +733,7 @@ def validate_row(row: DevolucaoRow, cad: Dict) -> ValidationResult:
             if dr_date and dr_date > date.today():
                 errors.append({
                     "column": "DATA ROMANEIO",
-                    "value": _safe_strftime(row.data_romaneio) or str(row.data_romaneio),
+                    "value": safe_date_str(row.data_romaneio),
                     "reason": "Data romaneio não pode ser futura.",
                 })
         except (ValueError, TypeError):
@@ -954,8 +995,8 @@ def persist_import_batch(
         raw_payload = None
         if raw_row:
             raw_payload = {
-                "data_romaneio": _safe_strftime(raw_row.data_romaneio),
-                "data_entrega": _safe_strftime(raw_row.data_entrega),
+                "data_romaneio": safe_date_str(raw_row.data_romaneio) if _is_valid_dt(raw_row.data_romaneio) else None,
+                "data_entrega": safe_date_str(raw_row.data_entrega) if _is_valid_dt(raw_row.data_entrega) else None,
                 "codigo": raw_row.codigo,
                 "nome_cliente": raw_row.nome_cliente,
                 "vendedor": raw_row.vendedor,
@@ -985,8 +1026,8 @@ def persist_import_batch(
                     batch_id=batch.id,
                     row_index=row_index,
                     status="PENDENTE_VALIDACAO",
-                    data_romaneio=_safe_strftime(raw_row.data_romaneio) if raw_row else None,
-                    data_entrega=_safe_strftime(raw_row.data_entrega) if raw_row else None,
+                    data_romaneio=safe_date_str(raw_row.data_romaneio) if raw_row and _is_valid_dt(raw_row.data_romaneio) else None,
+                    data_entrega=safe_date_str(raw_row.data_entrega) if raw_row and _is_valid_dt(raw_row.data_entrega) else None,
                     codigo_cliente=(raw_row.codigo if raw_row else None),
                     nome_cliente=(raw_row.nome_cliente if raw_row else None),
                     codigo_vendedor=(raw_row.vendedor if raw_row else None),
