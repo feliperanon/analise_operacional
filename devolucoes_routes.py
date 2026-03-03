@@ -3,11 +3,12 @@
 Rotas e lógica de inicialização do módulo Devoluções.
 """
 from datetime import datetime
+from calendar import monthrange
 from typing import Optional, List, Any, Callable
 import io
 from fastapi import Request, Depends, UploadFile, File, APIRouter
 from fastapi.responses import HTMLResponse, JSONResponse, Response
-from sqlmodel import Session, select
+from sqlmodel import Session, select, func
 from pydantic import BaseModel
 
 from database import get_session, engine
@@ -164,9 +165,21 @@ def init_devolucoes_router(
     @router.get("/devolucoes", response_class=HTMLResponse)
     async def devolucoes_page(
         request: Request,
+        month: Optional[int] = None,
+        year: Optional[int] = None,
+        page: int = 1,
+        per_page: int = 100,
         session: Session = Depends(get_session),
     ):
         require_login(request)
+        now = datetime.now()
+        year = year or now.year
+        month = month or now.month
+        month = max(1, min(12, month))
+        _, last_day = monthrange(year, month)
+        start_date = f"{year:04d}-{month:02d}-01"
+        end_date = f"{year:04d}-{month:02d}-{last_day:02d}"
+
         clients = session.exec(select(models.Client).order_by(models.Client.name)).all()
         employees = session.exec(
             select(models.Employee).where(models.Employee.status != "fired").order_by(models.Employee.name)
@@ -175,15 +188,32 @@ def init_devolucoes_router(
         responsabilidades = session.exec(
             select(models.DevolucaoResponsabilidade).where(models.DevolucaoResponsabilidade.is_active == True)
         ).all()
-        devolucoes = session.exec(
+
+        count_q = (
+            select(func.count(models.Devolucao.id))
+            .where(models.Devolucao.data_romaneio >= start_date)
+            .where(models.Devolucao.data_romaneio <= end_date)
+        )
+        total_count = session.exec(count_q).one()
+
+        base_q = (
             select(models.Devolucao)
+            .where(models.Devolucao.data_romaneio >= start_date)
+            .where(models.Devolucao.data_romaneio <= end_date)
             .order_by(models.Devolucao.data_romaneio.desc(), models.Devolucao.created_at.desc())
-            .limit(200)
-        ).all()
+        )
+        offset = max(0, (page - 1) * per_page)
+        devolucoes = session.exec(base_q.offset(offset).limit(per_page)).all()
+
+        client_ids = {d.client_id for d in devolucoes}
+        motorista_ids = {d.motorista_id for d in devolucoes}
+        client_map = {c.id: c for c in session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all()} if client_ids else {}
+        emp_map = {e.id: e for e in session.exec(select(models.Employee).where(models.Employee.id.in_(motorista_ids))).all()} if motorista_ids else {}
+
         rows = []
         for dev in devolucoes:
-            c = session.get(models.Client, dev.client_id)
-            m = session.get(models.Employee, dev.motorista_id)
+            c = client_map.get(dev.client_id)
+            m = emp_map.get(dev.motorista_id)
             rows.append(
                 {
                     "id": dev.id,
@@ -196,6 +226,9 @@ def init_devolucoes_router(
                     "motorista_name": m.name if m else "-",
                 }
             )
+
+        total_pages = (total_count + per_page - 1) // per_page if total_count > 0 else 1
+
         return templates.TemplateResponse(
             "devolucoes.html",
             {
@@ -206,6 +239,22 @@ def init_devolucoes_router(
                 "responsabilidades": responsabilidades,
                 "devolucoes": rows,
                 "import_result": getattr(request.state, "devolucoes_import_result", None),
+                "filters": {
+                    "month": month,
+                    "year": year,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                },
+                "pagination": {
+                    "page": page,
+                    "per_page": per_page,
+                    "total_count": total_count,
+                    "total_pages": total_pages,
+                    "has_prev": page > 1,
+                    "has_next": page < total_pages,
+                    "prev_page": page - 1 if page > 1 else 1,
+                    "next_page": page + 1 if page < total_pages else total_pages,
+                },
             },
         )
 

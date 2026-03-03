@@ -1384,20 +1384,25 @@
         return !document.querySelector('dialog[open]');
     }
 
+    function getCurrentShiftFilter() {
+        const shiftSelect = document.getElementById('route-shift');
+        return (shiftSelect && shiftSelect.value) ? shiftSelect.value : deliverySyncShift;
+    }
+
     async function checkDeliveryRealtimeSync() {
         if (document.hidden) return;
         try {
-            const url = `/api/separacao/delivery/sync-token?date=${encodeURIComponent(deliverySyncDate)}&shift=${encodeURIComponent(deliverySyncShift)}`;
+            const currentShift = getCurrentShiftFilter();
+            const url = `/api/separacao/delivery/sync-token?date=${encodeURIComponent(deliverySyncDate)}&shift=${encodeURIComponent(currentShift)}`;
             const res = await fetch(url, { cache: 'no-store' });
             if (!res.ok) return;
             const data = await res.json();
             if (!data || !data.success || !data.token) return;
             if (deliverySyncToken && data.token !== deliverySyncToken) {
-                if (canAutoReloadDeliveries()) {
-                    window.location.reload();
-                } else {
-                    deliverySyncPendingReload = true;
-                }
+                // Evita loop de reload automático; apenas marca que há atualização remota.
+                deliverySyncPendingReload = true;
+                deliverySyncToken = data.token;
+                console.info('Dados de entregas atualizados em outro cliente. Recarregue manualmente quando desejar.');
             }
         } catch (e) {
             // polling silencioso
@@ -1407,7 +1412,7 @@
     setInterval(checkDeliveryRealtimeSync, 5000);
     document.addEventListener('click', () => {
         if (deliverySyncPendingReload && canAutoReloadDeliveries()) {
-            window.location.reload();
+            deliverySyncPendingReload = false;
         }
     });
 
