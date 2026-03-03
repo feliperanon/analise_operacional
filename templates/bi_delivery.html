@@ -62,6 +62,9 @@
                 <div class="xl:col-span-6 flex flex-wrap gap-2 pt-1">
                     <button class="h-11 px-5 rounded-xl bg-sky-600 hover:bg-sky-500 text-sm font-bold text-white">Aplicar filtros</button>
                     <a href="/bi/delivery" class="h-11 px-5 rounded-xl border border-slate-600 hover:bg-slate-700/60 text-sm font-bold text-slate-200 inline-flex items-center">Limpar</a>
+                    <a href="/bi/delivery/export?format=csv&{{ filters_query }}" class="h-11 px-5 rounded-xl border border-emerald-500/40 bg-emerald-900/20 hover:bg-emerald-900/40 text-sm font-bold text-emerald-200 inline-flex items-center">Exportar CSV</a>
+                    <a href="/bi/delivery/export?format=xlsx&{{ filters_query }}" class="h-11 px-5 rounded-xl border border-indigo-500/40 bg-indigo-900/20 hover:bg-indigo-900/40 text-sm font-bold text-indigo-200 inline-flex items-center">Exportar XLSX</a>
+                    <a href="/bi/delivery/export?format=pdf&{{ filters_query }}" class="h-11 px-5 rounded-xl border border-rose-500/40 bg-rose-900/20 hover:bg-rose-900/40 text-sm font-bold text-rose-200 inline-flex items-center">Exportar PDF</a>
                 </div>
             </form>
         </section>
@@ -168,7 +171,9 @@
                     <tbody>
                         {% for row in tactical_rows %}
                         <tr class="border-t border-slate-800">
-                            <td class="py-2 text-slate-200 font-semibold">{{ row.driver_name }}</td>
+                            <td class="py-2 text-slate-200 font-semibold">
+                                <a class="underline decoration-dotted hover:text-cyan-300" href="/bi/delivery?{{ filters_query }}&detail_driver_id={{ row.driver_id }}">{{ row.driver_name }}</a>
+                            </td>
                             <td class="py-2 text-slate-300">{{ row.realized_stops }}/{{ row.planned_stops }}</td>
                             <td class="py-2 {% if row.efficiency < 70 %}text-amber-300{% else %}text-emerald-300{% endif %} font-semibold">{{ "%.1f"|format(row.efficiency) }}%</td>
                             <td class="py-2 {% if row.return_rate >= 10 %}text-amber-300{% else %}text-slate-300{% endif %}">{{ "%.1f"|format(row.return_rate) }}%</td>
@@ -223,10 +228,61 @@
                             <td class="py-2 text-slate-300">{{ "{:,.0f}".format(ex.planned_value).replace(",", ".") }}</td>
                             <td class="py-2 text-slate-300">{{ ex.reopen_count }}</td>
                             <td class="py-2 text-slate-300">{% if ex.duration_m %}{{ ex.duration_m }} min{% else %}-{% endif %}</td>
-                            <td class="py-2 text-sky-300">Priorizar contato e replanejar rota/apoio</td>
+                            <td class="py-2 text-sky-300">
+                                <a class="underline decoration-dotted hover:text-sky-200" href="/bi/delivery?{{ filters_query }}&detail_driver_id={{ ex.driver_id }}&detail_status={{ ex.status }}">Detalhar</a>
+                            </td>
                         </tr>
                         {% else %}
                         <tr><td colspan="10" class="py-6 text-center text-slate-500">Nenhuma excecao relevante no periodo.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="rounded-2xl border border-slate-700 bg-slate-900/50 p-4">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-lg font-bold text-white">Drill-through operacional</h2>
+                <span class="text-xs text-slate-400">{{ detail_title }} | {{ detail_total }} registros</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm min-w-[1300px]">
+                    <thead class="text-slate-400 uppercase text-[11px]">
+                        <tr>
+                            <th class="text-left py-2">Data</th>
+                            <th class="text-left py-2">Turno</th>
+                            <th class="text-left py-2">Motorista</th>
+                            <th class="text-left py-2">Cliente</th>
+                            <th class="text-left py-2">Status</th>
+                            <th class="text-left py-2">Pedido</th>
+                            <th class="text-left py-2">Kg pl.</th>
+                            <th class="text-left py-2">Kg dev.</th>
+                            <th class="text-left py-2">R$ pl.</th>
+                            <th class="text-left py-2">R$ dev.</th>
+                            <th class="text-left py-2">Reab.</th>
+                            <th class="text-left py-2">Tempo</th>
+                            <th class="text-left py-2">Placa</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in detail_rows %}
+                        <tr class="border-t border-slate-800">
+                            <td class="py-2 text-slate-300">{{ d.date }}</td>
+                            <td class="py-2 text-slate-300">{{ d.shift }}</td>
+                            <td class="py-2 text-slate-200 font-semibold">{{ d.driver_name }}</td>
+                            <td class="py-2 text-slate-300">{{ d.client_name }}</td>
+                            <td class="py-2 text-slate-300">{{ d.status|title }}</td>
+                            <td class="py-2 text-slate-300">{{ d.order_number }}</td>
+                            <td class="py-2 text-slate-300">{{ "{:,.1f}".format(d.planned_kg).replace(",", ".") }}</td>
+                            <td class="py-2 text-slate-300">{{ "{:,.1f}".format(d.returned_kg).replace(",", ".") }}</td>
+                            <td class="py-2 text-slate-300">{{ "{:,.0f}".format(d.planned_value).replace(",", ".") }}</td>
+                            <td class="py-2 text-slate-300">{{ "{:,.0f}".format(d.returned_value).replace(",", ".") }}</td>
+                            <td class="py-2 text-slate-300">{{ d.reopen_count }}</td>
+                            <td class="py-2 text-slate-300">{% if d.duration_m %}{{ d.duration_m }} min{% else %}-{% endif %}</td>
+                            <td class="py-2 text-slate-300">{{ d.plate }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="13" class="py-6 text-center text-slate-500">Nenhum detalhe para o recorte selecionado.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
