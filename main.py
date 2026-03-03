@@ -12463,31 +12463,35 @@ async def api_devolucoes_import(
             "error": " | ".join(global_errors),
             "global_errors": global_errors,
         }, status_code=400)
-    created_by = None
-    if request.session.get("user_id"):
-        u = session.get(models.User, request.session["user_id"])
-        if u:
-            created_by = u.username
-    batch_id = devolucoes_persist_import_batch(
-        session=session,
-        filename=file.filename or "upload.xlsx",
-        rows=rows,
-        valid_rows=valid,
-        invalid_rows=invalid,
-        created_by=created_by,
-        create_staging=True,
-    )
-    session.commit()
-    return JSONResponse({
-        "ok": True,
-        "batch_id": batch_id,
-        "total": len(rows),
-        "valid_count": len(valid),
-        "invalid_count": len(invalid),
-        "invalid_details": invalid[:50],
-        "valid_rows": valid,
-        "valid_preview": valid[:10],
-    })
+    try:
+        created_by = None
+        if request.session.get("user_id"):
+            u = session.get(models.User, request.session["user_id"])
+            if u:
+                created_by = u.username
+        batch_id = devolucoes_persist_import_batch(
+            session=session,
+            filename=file.filename or "upload.xlsx",
+            rows=rows,
+            valid_rows=valid,
+            invalid_rows=invalid,
+            created_by=created_by,
+            create_staging=True,
+        )
+        session.commit()
+        return JSONResponse({
+            "ok": True,
+            "batch_id": batch_id,
+            "total": len(rows),
+            "valid_count": len(valid),
+            "invalid_count": len(invalid),
+            "invalid_details": invalid[:50],
+            "valid_rows": valid,
+            "valid_preview": valid[:10],
+        })
+    except Exception as e:
+        logger.exception(f"Erro ao processar import de devoluções: {e}")
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
 
 @app.post("/api/devolucoes/import/commit", response_class=JSONResponse)

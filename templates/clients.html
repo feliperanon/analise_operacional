@@ -109,7 +109,7 @@
                         <tr class="hover:bg-slate-700/30 transition-colors">
                             <td class="px-6 py-4 text-slate-400 font-mono">{{ client.nb or '-' }}</td>
                             <td class="px-6 py-4">
-                                <a href="/clients/{{ client.id }}" class="text-white font-medium hover:text-blue-400 transition-colors">{{ client.name }}</a>
+                                <a href="/clients/{{ client.id }}" class="text-white font-medium hover:text-blue-400 transition-colors">{{ client.name or client.nb or '-' }}</a>
                             </td>
                             <td class="px-6 py-4 text-slate-300">{{ client.setor or '-' }}</td>
                             <td class="px-6 py-4 text-slate-300">{{ client.municipio or '-' }}</td>
