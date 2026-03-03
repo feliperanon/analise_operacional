@@ -191,14 +191,14 @@ document.getElementById('devolucoes-excel-input')?.addEventListener('change', as
     const fd = new FormData();
     fd.append('file', file);
     try {
-        const r = await fetch('/api/devolucoes/import', { method: 'POST', body: fd });
-        const j = await r.json().catch(function() { return { ok: false, error: 'Resposta inválida do servidor' }; });
-        if (!j.ok) {
+        const r = await fetch('/api/devolucoes/import', { method: 'POST', body: fd, credentials: 'same-origin' });
+        const j = await r.json().catch(function() { return { ok: false, error: (r.status === 500 ? 'Erro 500 no servidor. Verifique os logs ou tente novamente.' : 'Resposta inválida do servidor') }; });
+        if (!r.ok || !j.ok) {
             document.getElementById('import-preview-box').classList.remove('hidden');
             document.getElementById('import-preview-box').classList.add('block');
             document.getElementById('import-valid-count').textContent = '0';
             document.getElementById('import-invalid-count').textContent = '0';
-            document.getElementById('import-errors').innerHTML = '<p class="text-rose-400 font-semibold">' + (j.error || 'Erro ao processar arquivo') + '</p>';
+            document.getElementById('import-errors').innerHTML = '<p class="text-rose-400 font-semibold">' + (j.error || 'Erro ' + r.status + ' ao processar arquivo') + '</p>';
             document.getElementById('import-commit-btn').style.display = 'none';
             return;
         }

@@ -12436,25 +12436,29 @@ async def api_devolucoes_import(
     session: Session = Depends(get_session),
 ):
     require_login(request)
+    try:
+        return await _run_devolucoes_import(request, file, session)
+    except Exception as e:
+        logger.exception(f"Erro import devoluções: {e}")
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+async def _run_devolucoes_import(request: Request, file: UploadFile, session: Session):
     MAX_SIZE = 50 * 1024 * 1024  # 50MB
     if not file or not file.filename:
         return JSONResponse({"ok": False, "error": "Nenhum arquivo enviado. Selecione um arquivo Excel (.xlsx, .xls ou .xlsm)."}, status_code=400)
     fn = (file.filename or "").lower()
     if not fn.endswith((".xlsx", ".xls", ".xlsm")):
-        return JSONResponse({"ok": False, "error": "Arquivo invÃƒÂ¡lido. Use .xlsx, .xls ou .xlsm. (Recebido: " + (file.filename or "sem nome") + ")"}, status_code=400)
+        return JSONResponse({"ok": False, "error": "Arquivo inválido. Use .xlsx, .xls ou .xlsm."}, status_code=400)
     content = await file.read()
     if len(content) > MAX_SIZE:
-        return JSONResponse({"ok": False, "error": "Arquivo muito grande (mÃƒÂ¡x. 50MB)."}, status_code=400)
+        return JSONResponse({"ok": False, "error": "Arquivo muito grande (máx. 50MB)."}, status_code=400)
     try:
         rows, err = devolucoes_parse_excel(content, file.filename or "upload.xlsx")
     except Exception as ex:
-        import traceback
-        tb = traceback.format_exc()
-        _dbg_log("devolucoes_import", {"error": str(ex), "traceback": tb})
-        return JSONResponse({"ok": False, "error": f"Erro ao processar: {ex}"}, status_code=400)
+        logger.exception(f"Erro parse Excel: {ex}")
+        return JSONResponse({"ok": False, "error": f"Erro ao processar planilha: {ex}"}, status_code=400)
     if err:
-        _dbg_log("devolucoes_import_err", {"error": err, "filename": file.filename})
-        logger.warning(f"DevoluÃƒÂ§ÃƒÂµes import parse error: {err}")
         return JSONResponse({"ok": False, "error": err}, status_code=400)
     valid, invalid, _, _, global_errors = devolucoes_validate_rows(rows, session, to_staging_on_invalid=False)
     if global_errors:
