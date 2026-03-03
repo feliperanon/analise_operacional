@@ -12439,7 +12439,10 @@ async def api_devolucoes_import(
     try:
         return await _run_devolucoes_import(request, file, session)
     except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
         logger.exception(f"Erro import devoluções: {e}")
+        _dbg_log("devolucoes_import_500", {"error": str(e), "traceback": tb})
         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
 
