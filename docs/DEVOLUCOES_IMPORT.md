@@ -73,7 +73,23 @@ Exemplo de retorno do `POST /api/devolucoes/import`:
 
 ## Como corrigir
 
-1. **Vendedores vazios**: Preencha o campo "Codigo do Vendedor" em Colaboradores.
+1. **Vendedores vazios**: Preencha o campo "Codigo do Vendedor" em Colaboradores (editar) ou use o preenchimento em lote.
 2. **Motivos vazios**: Execute o seed de motivos de devolução.
 3. **Responsabilidades vazias**: Execute o seed de responsabilidades.
 4. **Clientes vazios**: Importe o cadastro de clientes antes.
+
+## Preenchimento em lote de seller_code
+
+`POST /api/admin/seller-code/batch` (requer admin)
+
+**A) Excel/CSV** – Colunas: `registration_id` ou `name`, `seller_code`.
+
+**B) JSON** – Array de objetos:
+```json
+[
+  {"registration_id": "123", "seller_code": "201"},
+  {"name": "JOSE MARIA CESAR", "seller_code": "311"}
+]
+```
+
+Retorna relatório: `updated`, `ignored`, `not_found`, `duplicates`.
