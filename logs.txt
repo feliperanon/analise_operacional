@@ -34848,3 +34848,125 @@ WHERE employee.status != ?]
 [parameters: ('fired',)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
 
+2026-03-03 09:14:52,506 | INFO     | main | Adding column seller_code to table employee
+2026-03-03 09:14:52,577 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 09:16:36,268 | INFO     | main | 🚚 Iniciando importação de entregas: pedidos.xls para data 2026-03-03, turno Manhã
+2026-03-03 09:16:36,269 | INFO     | main | 📄 Arquivo lido: 102912 bytes
+2026-03-03 09:16:36,311 | INFO     | main | 📊 DataFrame carregado: 200 linhas, 18 colunas
+2026-03-03 09:16:36,312 | INFO     | main | 📋 Colunas encontradas: ['Nº ROTA', 'PLACA VEICULO', 'MOTORISTA', 'Nº LOTE', 'PEDIDOS', 'QTDE ORDENS', 'DATA DO PEDIDO', 'COD CLIENTE', 'RAZÃO SOCIAL', 'CEP', 'ENDERECO', 'BAIRRO', 'Cidades', 'ESTADO', 'PESO PEDIDO', 'PESO TOTAL', 'VALOR', 'TIPO']
+2026-03-03 09:16:36,313 | INFO     | main | 🗺️ Mapeamento de colunas: {'route_code': 'Nº ROTA', 'plate': 'PLACA VEICULO', 'driver': 'MOTORISTA', 'order_number': 'PEDIDOS', 'order_date': 'DATA DO PEDIDO', 'client_code': 'COD CLIENTE', 'client_name': 'RAZÃO SOCIAL', 'cep': 'CEP', 'address': 'ENDERECO', 'bairro': 'BAIRRO', 'city': 'Cidades', 'state': 'ESTADO', 'peso_pedido': 'PESO PEDIDO', 'peso_total': 'PESO TOTAL', 'valor': 'VALOR', 'tipo': 'TIPO'}
+2026-03-03 09:16:36,733 | INFO     | main | 👥 Total de funcionários ativos: 151
+2026-03-03 09:16:36,733 | INFO     | main | 🚗 Motoristas cadastrados (25): ['ALESSANDRO BRANDAO RIBEIRO (cargo: AJUDANTE DE MOTORISTA)', 'ANTÔNIO JUNIO LELES (cargo: AJUDANTE DE MOTORISTA)', 'EMERSON ALVES DOS SANTOS (cargo: MOTORISTA)', 'EVERI MARTINS DOS SANTOS (cargo: AJUDANTE DE MOTORISTA)', 'FERNANDO MARIO DOS SANTOS (cargo: MOTORISTA)', 'GERALDO MÁRCIO DE OLIVEIRA (cargo: MOTORISTA)', 'GILMAR MARQUES DOS SANTOS (cargo: MOTORISTA)', 'GIVANILDO FERNANDES DA CRUZ (cargo: AJUDANTE DE MOTORISTA)', 'HAMILTON BARBOSA HARMONICO JUNIOR (cargo: MOTORISTA)', 'HEBER TIAGO BRANDÃO (cargo: MOTORISTA)', 'IALIS AUGUSTO DE PAIVA (cargo: AJUDANTE DE MOTORISTA)', 'ITAMAR FERREIRA DA SILVA (cargo: MOTORISTA)', 'JEFFERSON VINICIUS MAIA ARAUJO (cargo: AJUDANTE DE MOTORISTA)', 'JONATHAN ARAUJO PRATES DE OLIVEIRA (cargo: AJUDANTE DE MOTORISTA)', 'JOSÉ MARIA CÉSAR DOS SANTOS (cargo: MOTORISTA)', 'MARCIO EDUARDO MARTINS COSTA (cargo: AJUDANTE DE MOTORISTA)', 'MARCO AURÉLIO RODRIGUES DE ALMEIDA (cargo: AJUDANTE DE MOTORISTA)', 'MARCOS ANTONIO DOS REIS ALMEIDA (cargo: MOTORISTA)', 'MARCOS HENRIQUE COSTA (cargo: AJUDANTE DE MOTORISTA)', 'RAFAEL JUNIOR GONÇALVES COSTA (cargo: AJUDANTE DE MOTORISTA)', 'RONILSON BATISTA DE ARAÚJO (cargo: AJUDANTE DE MOTORISTA)', 'TIAGO OLÍMPIO DE OLIVEIRA (cargo: AJUDANTE DE MOTORISTA)', 'TIAGO OLIVEIRA VIEIRA (cargo: MOTORISTA)', 'VALTER SENA EVANGELISTA (cargo: AJUDANTE DE MOTORISTA)', 'WALISSON DA SILVA SANTOS (cargo: AJUDANTE DE MOTORISTA)']
+2026-03-03 09:16:37,416 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:16:37,417 | WARNING  | main | ❌ Motorista não encontrado na linha 41: 'HAMILTON JR'
+2026-03-03 09:16:37,420 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:16:37,421 | WARNING  | main | ❌ Motorista não encontrado na linha 42: 'HAMILTON JR'
+2026-03-03 09:16:37,423 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:16:37,424 | WARNING  | main | ❌ Motorista não encontrado na linha 43: 'HAMILTON JR'
+2026-03-03 09:16:37,426 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:16:37,427 | WARNING  | main | ❌ Motorista não encontrado na linha 44: 'HAMILTON JR'
+2026-03-03 09:16:37,429 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:16:37,430 | WARNING  | main | ❌ Motorista não encontrado na linha 45: 'HAMILTON JR'
+2026-03-03 09:16:37,432 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:16:37,433 | WARNING  | main | ❌ Motorista não encontrado na linha 46: 'HAMILTON JR'
+2026-03-03 09:16:37,435 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:16:37,435 | WARNING  | main | ❌ Motorista não encontrado na linha 47: 'HAMILTON JR'
+2026-03-03 09:16:37,438 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:16:37,438 | WARNING  | main | ❌ Motorista não encontrado na linha 48: 'HAMILTON JR'
+2026-03-03 09:16:37,440 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:16:37,441 | WARNING  | main | ❌ Motorista não encontrado na linha 49: 'HAMILTON JR'
+2026-03-03 09:16:37,444 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:16:37,445 | WARNING  | main | ❌ Motorista não encontrado na linha 50: 'HAMILTON JR'
+2026-03-03 09:16:37,447 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:16:37,447 | WARNING  | main | ❌ Motorista não encontrado na linha 51: 'HAMILTON JR'
+2026-03-03 09:16:37,450 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:16:37,450 | WARNING  | main | ❌ Motorista não encontrado na linha 52: 'HAMILTON JR'
+2026-03-03 09:16:37,453 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:16:37,453 | WARNING  | main | ❌ Motorista não encontrado na linha 53: 'HAMILTON JR'
+2026-03-03 09:16:37,456 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:16:37,456 | WARNING  | main | ❌ Motorista não encontrado na linha 54: 'HAMILTON JR'
+2026-03-03 09:16:37,458 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:16:37,459 | WARNING  | main | ❌ Motorista não encontrado na linha 55: 'HAMILTON JR'
+2026-03-03 09:16:37,462 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:16:37,462 | WARNING  | main | ❌ Motorista não encontrado na linha 56: 'HAMILTON JR'
+2026-03-03 09:16:37,465 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:16:37,465 | WARNING  | main | ❌ Motorista não encontrado na linha 57: 'HAMILTON JR'
+2026-03-03 09:16:37,468 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:16:37,468 | WARNING  | main | ❌ Motorista não encontrado na linha 58: 'HAMILTON JR'
+2026-03-03 09:16:37,470 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:16:37,471 | WARNING  | main | ❌ Motorista não encontrado na linha 59: 'HAMILTON JR'
+2026-03-03 09:16:37,473 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:16:37,474 | WARNING  | main | ❌ Motorista não encontrado na linha 60: 'HAMILTON JR'
+2026-03-03 09:16:37,476 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:16:37,477 | WARNING  | main | ❌ Motorista não encontrado na linha 61: 'HAMILTON JR'
+2026-03-03 09:16:37,480 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:16:37,480 | WARNING  | main | ❌ Motorista não encontrado na linha 62: 'HAMILTON JR'
+2026-03-03 09:16:40,507 | INFO     | main | ✅ Importação concluída: 177 entregas criadas
+2026-03-03 09:17:54,632 | INFO     | main | 🚚 Iniciando importação de entregas: pedidos (1).xls para data 2026-03-02, turno Manhã
+2026-03-03 09:17:54,633 | INFO     | main | 📄 Arquivo lido: 117248 bytes
+2026-03-03 09:17:54,646 | INFO     | main | 📊 DataFrame carregado: 227 linhas, 18 colunas
+2026-03-03 09:17:54,646 | INFO     | main | 📋 Colunas encontradas: ['Nº ROTA', 'PLACA VEICULO', 'MOTORISTA', 'Nº LOTE', 'PEDIDOS', 'QTDE ORDENS', 'DATA DO PEDIDO', 'COD CLIENTE', 'RAZÃO SOCIAL', 'CEP', 'ENDERECO', 'BAIRRO', 'Cidades', 'ESTADO', 'PESO PEDIDO', 'PESO TOTAL', 'VALOR', 'TIPO']
+2026-03-03 09:17:54,647 | INFO     | main | 🗺️ Mapeamento de colunas: {'route_code': 'Nº ROTA', 'plate': 'PLACA VEICULO', 'driver': 'MOTORISTA', 'order_number': 'PEDIDOS', 'order_date': 'DATA DO PEDIDO', 'client_code': 'COD CLIENTE', 'client_name': 'RAZÃO SOCIAL', 'cep': 'CEP', 'address': 'ENDERECO', 'bairro': 'BAIRRO', 'city': 'Cidades', 'state': 'ESTADO', 'peso_pedido': 'PESO PEDIDO', 'peso_total': 'PESO TOTAL', 'valor': 'VALOR', 'tipo': 'TIPO'}
+2026-03-03 09:17:55,047 | INFO     | main | 👥 Total de funcionários ativos: 151
+2026-03-03 09:17:55,048 | INFO     | main | 🚗 Motoristas cadastrados (25): ['ALESSANDRO BRANDAO RIBEIRO (cargo: AJUDANTE DE MOTORISTA)', 'ANTÔNIO JUNIO LELES (cargo: AJUDANTE DE MOTORISTA)', 'EMERSON ALVES DOS SANTOS (cargo: MOTORISTA)', 'EVERI MARTINS DOS SANTOS (cargo: AJUDANTE DE MOTORISTA)', 'FERNANDO MARIO DOS SANTOS (cargo: MOTORISTA)', 'GERALDO MÁRCIO DE OLIVEIRA (cargo: MOTORISTA)', 'GILMAR MARQUES DOS SANTOS (cargo: MOTORISTA)', 'GIVANILDO FERNANDES DA CRUZ (cargo: AJUDANTE DE MOTORISTA)', 'HAMILTON BARBOSA HARMONICO JUNIOR (cargo: MOTORISTA)', 'HEBER TIAGO BRANDÃO (cargo: MOTORISTA)', 'IALIS AUGUSTO DE PAIVA (cargo: AJUDANTE DE MOTORISTA)', 'ITAMAR FERREIRA DA SILVA (cargo: MOTORISTA)', 'JEFFERSON VINICIUS MAIA ARAUJO (cargo: AJUDANTE DE MOTORISTA)', 'JONATHAN ARAUJO PRATES DE OLIVEIRA (cargo: AJUDANTE DE MOTORISTA)', 'JOSÉ MARIA CÉSAR DOS SANTOS (cargo: MOTORISTA)', 'MARCIO EDUARDO MARTINS COSTA (cargo: AJUDANTE DE MOTORISTA)', 'MARCO AURÉLIO RODRIGUES DE ALMEIDA (cargo: AJUDANTE DE MOTORISTA)', 'MARCOS ANTONIO DOS REIS ALMEIDA (cargo: MOTORISTA)', 'MARCOS HENRIQUE COSTA (cargo: AJUDANTE DE MOTORISTA)', 'RAFAEL JUNIOR GONÇALVES COSTA (cargo: AJUDANTE DE MOTORISTA)', 'RONILSON BATISTA DE ARAÚJO (cargo: AJUDANTE DE MOTORISTA)', 'TIAGO OLÍMPIO DE OLIVEIRA (cargo: AJUDANTE DE MOTORISTA)', 'TIAGO OLIVEIRA VIEIRA (cargo: MOTORISTA)', 'VALTER SENA EVANGELISTA (cargo: AJUDANTE DE MOTORISTA)', 'WALISSON DA SILVA SANTOS (cargo: AJUDANTE DE MOTORISTA)']
+2026-03-03 09:17:55,051 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,051 | WARNING  | main | ❌ Motorista não encontrado na linha 2: 'HAMILTON JR'
+2026-03-03 09:17:55,054 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,054 | WARNING  | main | ❌ Motorista não encontrado na linha 3: 'HAMILTON JR'
+2026-03-03 09:17:55,057 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,058 | WARNING  | main | ❌ Motorista não encontrado na linha 4: 'HAMILTON JR'
+2026-03-03 09:17:55,060 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,060 | WARNING  | main | ❌ Motorista não encontrado na linha 5: 'HAMILTON JR'
+2026-03-03 09:17:55,063 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,063 | WARNING  | main | ❌ Motorista não encontrado na linha 6: 'HAMILTON JR'
+2026-03-03 09:17:55,065 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,066 | WARNING  | main | ❌ Motorista não encontrado na linha 7: 'HAMILTON JR'
+2026-03-03 09:17:55,069 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,070 | WARNING  | main | ❌ Motorista não encontrado na linha 8: 'HAMILTON JR'
+2026-03-03 09:17:55,073 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,073 | WARNING  | main | ❌ Motorista não encontrado na linha 9: 'HAMILTON JR'
+2026-03-03 09:17:55,076 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,076 | WARNING  | main | ❌ Motorista não encontrado na linha 10: 'HAMILTON JR'
+2026-03-03 09:17:55,079 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,079 | WARNING  | main | ❌ Motorista não encontrado na linha 11: 'HAMILTON JR'
+2026-03-03 09:17:55,083 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,084 | WARNING  | main | ❌ Motorista não encontrado na linha 12: 'HAMILTON JR'
+2026-03-03 09:17:55,088 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,088 | WARNING  | main | ❌ Motorista não encontrado na linha 13: 'HAMILTON JR'
+2026-03-03 09:17:55,092 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,092 | WARNING  | main | ❌ Motorista não encontrado na linha 14: 'HAMILTON JR'
+2026-03-03 09:17:55,096 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,096 | WARNING  | main | ❌ Motorista não encontrado na linha 15: 'HAMILTON JR'
+2026-03-03 09:17:55,100 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,100 | WARNING  | main | ❌ Motorista não encontrado na linha 16: 'HAMILTON JR'
+2026-03-03 09:17:55,104 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,105 | WARNING  | main | ❌ Motorista não encontrado na linha 17: 'HAMILTON JR'
+2026-03-03 09:17:55,108 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,109 | WARNING  | main | ❌ Motorista não encontrado na linha 18: 'HAMILTON JR'
+2026-03-03 09:17:55,112 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,112 | WARNING  | main | ❌ Motorista não encontrado na linha 19: 'HAMILTON JR'
+2026-03-03 09:17:55,115 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,116 | WARNING  | main | ❌ Motorista não encontrado na linha 20: 'HAMILTON JR'
+2026-03-03 09:17:55,120 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,121 | WARNING  | main | ❌ Motorista não encontrado na linha 21: 'HAMILTON JR'
+2026-03-03 09:17:55,124 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,125 | WARNING  | main | ❌ Motorista não encontrado na linha 22: 'HAMILTON JR'
+2026-03-03 09:17:55,129 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,129 | WARNING  | main | ❌ Motorista não encontrado na linha 23: 'HAMILTON JR'
+2026-03-03 09:17:55,134 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,134 | WARNING  | main | ❌ Motorista não encontrado na linha 24: 'HAMILTON JR'
+2026-03-03 09:17:55,138 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,138 | WARNING  | main | ❌ Motorista não encontrado na linha 25: 'HAMILTON JR'
+2026-03-03 09:17:55,141 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,141 | WARNING  | main | ❌ Motorista não encontrado na linha 26: 'HAMILTON JR'
+2026-03-03 09:17:55,144 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,145 | WARNING  | main | ❌ Motorista não encontrado na linha 27: 'HAMILTON JR'
+2026-03-03 09:17:55,148 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,149 | WARNING  | main | ❌ Motorista não encontrado na linha 28: 'HAMILTON JR'
+2026-03-03 09:17:55,153 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,154 | WARNING  | main | ❌ Motorista não encontrado na linha 29: 'HAMILTON JR'
+2026-03-03 09:17:55,157 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,157 | WARNING  | main | ❌ Motorista não encontrado na linha 30: 'HAMILTON JR'
+2026-03-03 09:17:55,161 | WARNING  | main | ❌ Motorista NÃO encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-03 09:17:55,161 | WARNING  | main | ❌ Motorista não encontrado na linha 31: 'HAMILTON JR'
+2026-03-03 09:18:00,367 | INFO     | main | ✅ Importação concluída: 195 entregas criadas
