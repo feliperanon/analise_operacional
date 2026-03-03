@@ -58,6 +58,51 @@ def _norm_text(s: Optional[str]) -> str:
     return cleaned.lower().strip()
 
 
+def normalize_code(value: Any) -> Optional[str]:
+    """
+    Normaliza código: trim, remove .0 no final (Excel float), múltiplos espaços.
+    Ex: 201, 201.0, " 201 " -> "201"
+    """
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s or s.lower() in ("nan", "none"):
+        return None
+    s = re.sub(r"\.0+$", "", s)
+    s = " ".join(s.split())
+    return s if s else None
+
+
+def normalize_name(value: Any) -> Optional[str]:
+    """
+    Normaliza nome: remove acentos, lower, trim, múltiplos espaços.
+    Usa unicodedata (stdlib), sem libs externas.
+    """
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s or s.lower() in ("nan", "none"):
+        return None
+    s = " ".join(s.split())
+    return _norm_text(s) if s else None
+
+
+def _is_numeric_value(value: Any) -> bool:
+    """Indica se o valor parece numérico (código do Excel)."""
+    if value is None:
+        return False
+    if isinstance(value, (int, float)):
+        return True
+    s = str(value).strip()
+    if not s:
+        return False
+    try:
+        float(s)
+        return True
+    except (ValueError, TypeError):
+        return False
+
+
 def parse_valor_pt_br(value: Any) -> float:
     """
     Parse valor em formato pt-BR: vírgula decimal, ponto milhar.
@@ -375,23 +420,18 @@ def _load_cadastros(session: Session) -> Dict[str, Any]:
                 client_by_name[_norm_text(f)] = c
 
     vendedor_by_code = {}
-    vendedor_by_id = {}
-    vendedor_by_name = {}
+    vendedor_by_name_exact: Dict[str, List[Any]] = {}
     for e in employees:
         if e.seller_code:
-            sc = _norm_text(str(e.seller_code))
-            vendedor_by_code[sc] = e
-            vendedor_by_code[sc.lstrip("0") or "0"] = e
-        if e.id:
-            vendedor_by_id[str(e.id)] = e
-        vendedor_by_name[_norm_text(e.name)] = e
-        for t in _norm_text(e.name).split():
-            if len(t) >= 3:
-                vendedor_by_name[t] = e
-        tokens = set(_norm_text(e.name).split())
-        for t in tokens:
-            if len(t) >= 3:
-                vendedor_by_name[t] = e
+            sc = normalize_code(e.seller_code)
+            if sc:
+                vendedor_by_code[sc] = e
+                vendedor_by_code[sc.lstrip("0") or "0"] = e
+        nn = normalize_name(e.name)
+        if nn:
+            if nn not in vendedor_by_name_exact:
+                vendedor_by_name_exact[nn] = []
+            vendedor_by_name_exact[nn].append(e)
 
     motorista_by_name = {}
     for e in employees:
@@ -424,8 +464,7 @@ def _load_cadastros(session: Session) -> Dict[str, Any]:
         "client_by_name": client_by_name,
         "employees": employees,
         "vendedor_by_code": vendedor_by_code,
-        "vendedor_by_id": vendedor_by_id,
-        "vendedor_by_name": vendedor_by_name,
+        "vendedor_by_name_exact": vendedor_by_name_exact,
         "motorista_by_name": motorista_by_name,
         "motivo_by_norm": motivo_by_norm,
         "motivo_resp_map": motivo_resp_map,
@@ -433,19 +472,43 @@ def _load_cadastros(session: Session) -> Dict[str, Any]:
     }
 
 
-def _find_vendedor_by_name(name: Optional[str], cad: Dict) -> Optional[Employee]:
-    if not name or not _norm_text(name):
-        return None
-    target = _norm_text(name)
-    emp = cad["vendedor_by_name"].get(target)
-    if emp:
-        return emp
-    tokens = target.split()
-    if tokens:
-        emp = cad["vendedor_by_name"].get(tokens[0])
+def resolve_vendedor(
+    value_from_excel: Any, cad: Dict
+) -> Tuple[Optional[Employee], Optional[str]]:
+    """
+    Resolve vendedor por seller_code (prioritário) ou por nome (fallback).
+    Retorna (Employee|None, error_reason|None).
+    """
+    if value_from_excel is None or (isinstance(value_from_excel, str) and not value_from_excel.strip()):
+        return None, None
+
+    code = normalize_code(value_from_excel)
+    if code:
+        emp = cad["vendedor_by_code"].get(code) or cad["vendedor_by_code"].get(
+            code.lstrip("0") or "0"
+        )
         if emp:
-            return emp
-    return None
+            return emp, None
+        if _is_numeric_value(value_from_excel):
+            return None, "Vendedor não cadastrado (tentado por seller_code)"
+
+    name = normalize_name(value_from_excel)
+    if name:
+        candidates = cad["vendedor_by_name_exact"].get(name, [])
+        if len(candidates) > 1:
+            return None, f"Vendedor ambíguo: mais de um cadastro combina com '{value_from_excel}'"
+        if len(candidates) == 1:
+            return candidates[0], None
+        matches = []
+        for norm_n, emps in cad["vendedor_by_name_exact"].items():
+            if name in norm_n or norm_n in name:
+                matches.extend(emps)
+        if len(matches) > 1:
+            return None, f"Vendedor ambíguo: mais de um cadastro combina com '{value_from_excel}'"
+        if len(matches) == 1:
+            return matches[0], None
+
+    return None, "Vendedor não cadastrado (tentado por seller_code e por nome)"
 
 
 def _find_motorista(name: Optional[str], cad: Dict) -> Optional[Employee]:
@@ -517,43 +580,12 @@ def validate_row(row: DevolucaoRow, cad: Dict) -> ValidationResult:
         errors.append({"column": "CODIGO", "value": row.codigo or "-", "reason": "Cliente não cadastrado."})
 
     vendedor = None
+    vendedor_reason = None
     if row.vendedor:
-        vc = _norm_text(str(row.vendedor))
-        vc_nolead = vc.lstrip("0") or "0"
-        vendedor = (
-            cad["vendedor_by_code"].get(vc)
-            or cad["vendedor_by_code"].get(vc_nolead)
-            or cad["vendedor_by_id"].get(str(row.vendedor).strip())
-            or cad["vendedor_by_id"].get(vc)
-            or cad["vendedor_by_id"].get(vc_nolead)
-        )
-        if not vendedor:
-            vendedor = _find_vendedor_by_name(row.vendedor, cad)
+        vendedor, vendedor_reason = resolve_vendedor(row.vendedor, cad)
     if not vendedor:
-        # #region agent log
-        if row.row_index <= 7:
-            try:
-                from pathlib import Path
-                log_path = Path(__file__).resolve().parent / "debug-c5b864.log"
-                with open(log_path, "a", encoding="utf-8") as f:
-                    import json as _j
-                    f.write(_j.dumps({
-                        "sessionId": "c5b864", "message": "vendedor_nao_encontrado",
-                        "data": {
-                            "row_vendedor_raw": str(row.vendedor),
-                            "row_vendedor_repr": repr(row.vendedor),
-                            "vc_norm": _norm_text(str(row.vendedor)) if row.vendedor else None,
-                            "vc_nolead": (_norm_text(str(row.vendedor)).lstrip("0") or "0") if row.vendedor else None,
-                            "vendedor_by_code_keys": list(cad["vendedor_by_code"].keys())[:30],
-                            "vendedor_by_id_keys": list(cad["vendedor_by_id"].keys())[:30],
-                            "employees_com_seller_code": [(e.id, e.name, str(e.seller_code)) for e in cad["employees"] if e.seller_code][:20],
-                        },
-                        "timestamp": datetime.now().isoformat()
-                    }, ensure_ascii=False) + "\n")
-            except Exception:
-                pass
-        # #endregion
-        errors.append({"column": "VENDEDOR", "value": row.vendedor or "-", "reason": "Vendedor não cadastrado."})
+        reason = vendedor_reason or "Vendedor não cadastrado."
+        errors.append({"column": "VENDEDOR", "value": str(row.vendedor) if row.vendedor else "-", "reason": reason})
 
     motorista = _find_motorista(row.motorista, cad)
     if not motorista:
