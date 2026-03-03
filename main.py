@@ -1,4 +1,4 @@
-﻿# Force Reload for TZDATA and Models - v2
+# Force Reload for TZDATA and Models - v2
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, UploadFile, File, BackgroundTasks
 from fastapi.templating import Jinja2Templates
@@ -12258,7 +12258,9 @@ from devolucoes_service import (
     parse_excel as devolucoes_parse_excel,
     validate_rows as devolucoes_validate_rows,
     save_batch as devolucoes_save_batch,
+    get_cadastro_health as devolucoes_get_cadastro_health,
 )
+from devolucoes_service import _load_cadastros as devolucoes_load_cadastros
 from pydantic import BaseModel as PydanticBaseModel
 
 class DevolucaoManualPayload(PydanticBaseModel):
@@ -12355,6 +12357,29 @@ async def devolucoes_template(request: Request):
     )
 
 
+@app.get("/api/devolucoes/health", response_class=JSONResponse)
+async def api_devolucoes_health(
+    request: Request,
+    session: Session = Depends(get_session),
+):
+    """Diagnóstico dos cadastros necessários para importação de devoluções."""
+    require_login(request)
+    try:
+        cad = devolucoes_load_cadastros(session)
+        diagnostics, global_errors = devolucoes_get_cadastro_health(cad)
+        return JSONResponse({
+            "ok": len(global_errors) == 0,
+            "diagnostics": diagnostics,
+            "global_errors": global_errors,
+            "ok_vendedores": diagnostics.get("vendedor_by_code_size", 0) > 0,
+            "ok_motivos": diagnostics.get("motivos_total", 0) > 0,
+            "ok_responsabilidades": diagnostics.get("responsabilidades_total", 0) > 0,
+            "ok_clientes": diagnostics.get("client_by_nb_size", 0) > 0,
+        })
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
 @app.post("/api/devolucoes/import", response_class=JSONResponse)
 async def api_devolucoes_import(
     request: Request,
@@ -12382,7 +12407,13 @@ async def api_devolucoes_import(
         _dbg_log("devolucoes_import_err", {"error": err, "filename": file.filename})
         logger.warning(f"DevoluÃ§Ãµes import parse error: {err}")
         return JSONResponse({"ok": False, "error": err}, status_code=400)
-    valid, invalid, _, _ = devolucoes_validate_rows(rows, session, to_staging_on_invalid=False)
+    valid, invalid, _, _, global_errors = devolucoes_validate_rows(rows, session, to_staging_on_invalid=False)
+    if global_errors:
+        return JSONResponse({
+            "ok": False,
+            "error": " | ".join(global_errors),
+            "global_errors": global_errors,
+        }, status_code=400)
     return JSONResponse({
         "ok": True,
         "total": len(rows),

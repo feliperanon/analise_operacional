@@ -35054,3 +35054,15 @@ WHERE employee.status != ?]
 2026-03-03 13:20:20,200 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
 2026-03-03 13:20:47,412 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
 2026-03-03 13:21:01,292 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 13:21:07,694 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 13:21:20,311 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 13:21:27,320 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 13:21:50,976 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 13:22:05,618 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 13:23:00,622 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 13:23:13,818 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 13:23:25,168 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 13:24:17,867 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 13:24:21,006 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 13:24:59,146 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 13:25:00,330 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db

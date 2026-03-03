@@ -353,18 +353,6 @@ def parse_excel(
     if df is None or df.empty:
         return [], f"Planilha vazia ou erro ao ler. {last_err or ''}"
     if missing:
-        try:
-            from pathlib import Path
-            log_path = Path(__file__).resolve().parent / "debug-c5b864.log"
-            with open(log_path, "a", encoding="utf-8") as f:
-                import json as _j
-                f.write(_j.dumps({
-                    "sessionId": "c5b864", "message": "parse_excel_missing_cols",
-                    "data": {"missing": missing, "raw_cols": [str(c) for c in raw_cols], "col_map": col_map},
-                    "timestamp": datetime.now().isoformat()
-                }, ensure_ascii=False) + "\n")
-        except Exception:
-            pass
         cols_found = [str(c) for c in raw_cols][:20]
         hint = ""
         if any("comercia" in str(c).lower() or "r$ devolução" in str(c).lower() for c in raw_cols):
@@ -437,11 +425,13 @@ def _load_cadastros(session: Session) -> Dict[str, Any]:
     vendedor_by_code = {}
     vendedor_by_name_exact: Dict[str, List[Any]] = {}
     employees_with_seller_code = 0
+    seller_code_collisions: Dict[str, List[int]] = {}
     for e in employees:
         if e.seller_code:
             employees_with_seller_code += 1
             sc = normalize_code(e.seller_code)
             if sc:
+                seller_code_collisions.setdefault(sc, []).append(e.id)
                 vendedor_by_code[sc] = e
                 vendedor_by_code[sc.lstrip("0") or "0"] = e
                 digits_only = re.sub(r"\D", "", sc)
@@ -646,8 +636,24 @@ def validate_row(row: DevolucaoRow, cad: Dict) -> ValidationResult:
         errors.append({"column": "DATA ROMANEIO", "value": str(row.data_romaneio), "reason": "Data inválida ou ausente."})
     if not row.data_entrega:
         row.data_entrega = row.data_romaneio
+    if row.data_romaneio and row.data_entrega and row.data_entrega < row.data_romaneio:
+        errors.append({
+            "column": "DATA ENTREGA",
+            "value": row.data_entrega.strftime("%Y-%m-%d"),
+            "reason": "Data entrega anterior à data romaneio.",
+        })
+    if row.data_romaneio and row.data_romaneio.date() > date.today():
+        errors.append({
+            "column": "DATA ROMANEIO",
+            "value": row.data_romaneio.strftime("%Y-%m-%d"),
+            "reason": "Data romaneio não pode ser futura.",
+        })
     if not row.codigo:
         errors.append({"column": "CODIGO", "value": str(row.codigo), "reason": "Código do cliente ausente."})
+    if row.valor <= 0:
+        errors.append({"column": "VALOR", "value": str(row.valor), "reason": "Valor deve ser maior que zero."})
+    if row.valor > 1_000_000:
+        errors.append({"column": "VALOR", "value": str(row.valor), "reason": "Valor muito alto; validar planilha."})
 
     client = None
     if row.codigo:
@@ -756,6 +762,7 @@ def validate_rows(
     invalid = []
     staging = []
     batch_id = None
+    seen_hashes: set[str] = set()
 
     for row in rows:
         val = validate_row(row, cad)
@@ -766,6 +773,17 @@ def validate_rows(
             h = make_idempotency_hash(
                 dt_str, val.client_id, val.vendedor_id, val.motorista_id, row.valor, val.motivo_id
             )
+            if h in seen_hashes:
+                invalid.append({
+                    "row_index": row.row_index,
+                    "errors": [{
+                        "column": "LINHA",
+                        "value": str(row.row_index),
+                        "reason": "Duplicidade no arquivo (mesma devolução repetida).",
+                    }],
+                })
+                continue
+            seen_hashes.add(h)
             valid.append({
                 "data_romaneio": dt_str,
                 "data_entrega": de_str,

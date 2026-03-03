@@ -155,3 +155,88 @@ def test_resolve_vendedor_numerico_nao_encontrado():
     v, err = resolve_vendedor(999, cad)
     assert v is None
     assert "seller_code" in err
+
+
+def test_get_cadastro_health_vendedor_by_code_vazio():
+    """Quando vendedor_by_code vazio, retorna erro global."""
+    from devolucoes_service import get_cadastro_health
+
+    cad = {
+        "employees": [MagicMock()],
+        "employees_with_seller_code": 0,
+        "vendedor_by_code": {},
+        "clients": [MagicMock()],
+        "client_by_nb": {"x": MagicMock()},
+        "motivos": [MagicMock()],
+        "resp_list": [MagicMock()],
+    }
+    diag, errors = get_cadastro_health(cad)
+    assert len(errors) > 0
+    assert any("seller_code" in e or "vendedor" in e.lower() for e in errors)
+
+
+def test_get_cadastro_health_ok():
+    """Quando cadastros ok, global_errors vazio."""
+    from devolucoes_service import get_cadastro_health
+
+    cad = {
+        "employees": [MagicMock()],
+        "employees_with_seller_code": 2,
+        "vendedor_by_code": {"110": MagicMock(), "201": MagicMock()},
+        "clients": [MagicMock()],
+        "client_by_nb": {"x": MagicMock()},
+        "motivos": [MagicMock()],
+        "resp_list": [MagicMock()],
+    }
+    diag, errors = get_cadastro_health(cad)
+    assert len(errors) == 0
+    assert diag["vendedor_by_code_size"] == 2
+
+
+def test_validate_rows_global_error_quando_vendedor_vazio(monkeypatch):
+    """Quando vendedor_by_code vazio, validate_rows retorna global_errors, não N erros por linha."""
+    from devolucoes_service import validate_rows, _load_cadastros, get_cadastro_health
+
+    cad_vazio_vendedor = {
+        "employees": [MagicMock()],
+        "employees_with_seller_code": 0,
+        "vendedor_by_code": {},
+        "clients": [MagicMock()],
+        "client_by_nb": {"x": MagicMock()},
+        "motivos": [MagicMock()],
+        "resp_list": [MagicMock()],
+        "client_by_name": {},
+        "vendedor_by_name_exact": {},
+        "motorista_by_name": {},
+        "motivo_by_norm": {},
+        "motivo_resp_map": {},
+        "resp_by_norm": {},
+    }
+
+    def fake_load(_session):
+        return cad_vazio_vendedor
+
+    monkeypatch.setattr("devolucoes_service._load_cadastros", fake_load)
+    from devolucoes_service import DevolucaoRow
+    from datetime import datetime
+
+    rows = [
+        DevolucaoRow(
+            data_romaneio=datetime(2026, 2, 2),
+            data_entrega=datetime(2026, 2, 2),
+            codigo="x",
+            nome_cliente="Cliente X",
+            vendedor="110",
+            motorista="Motorista",
+            valor=100.0,
+            motivo="x",
+            observacao=None,
+            responsabilidade="x",
+            row_index=i + 2,
+        )
+        for i in range(5)
+    ]
+    valid, invalid, _, _, global_errors = validate_rows(rows, MagicMock())
+    assert len(global_errors) > 0
+    assert len(invalid) == 0
+    assert len(valid) == 0
