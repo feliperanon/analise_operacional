@@ -35087,3 +35087,10 @@ WHERE employee.status != ?]
 2026-03-03 14:24:14,191 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
 2026-03-03 14:28:49,518 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
 2026-03-03 14:32:21,007 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 14:34:01,252 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 14:34:11,892 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 14:34:22,631 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 14:34:32,416 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 14:34:42,335 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 14:34:47,529 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 14:35:00,932 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db

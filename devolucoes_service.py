@@ -152,10 +152,41 @@ def compute_cluster(valor: float) -> str:
     return CLUSTER_ABOVE
 
 
+def _is_valid_dt(dt: Any) -> bool:
+    """Retorna True se dt for datetime válido (não None, não NaT)."""
+    if dt is None:
+        return False
+    try:
+        import pandas as pd
+        if hasattr(pd, "isna") and pd.isna(dt):
+            return False
+    except ImportError:
+        pass
+    return True
+
+
+def _safe_strftime(dt: Any, fmt: str = "%Y-%m-%d") -> Optional[str]:
+    """Converte datetime para string; retorna None se for NaT, None ou inválido."""
+    if not _is_valid_dt(dt):
+        return None
+    if hasattr(dt, "strftime"):
+        try:
+            return dt.strftime(fmt)
+        except (ValueError, TypeError):
+            return None
+    return None
+
+
 def parse_date_dd_mm_yyyy(value: Any) -> Optional[datetime]:
     """Parse data dd/mm/yyyy, dd-mm-yyyy, ou datetime/Timestamp do Excel."""
     if value is None:
         return None
+    try:
+        import pandas as pd
+        if hasattr(pd, "isna") and pd.isna(value):
+            return None
+    except ImportError:
+        pass
     if isinstance(value, datetime):
         return value
     if hasattr(value, "to_pydatetime"):  # pd.Timestamp
@@ -645,22 +676,27 @@ def validate_row(row: DevolucaoRow, cad: Dict) -> ValidationResult:
     """Valida uma linha contra os cadastros."""
     errors = []
 
-    if not row.data_romaneio:
+    if not _is_valid_dt(row.data_romaneio):
         errors.append({"column": "DATA ROMANEIO", "value": str(row.data_romaneio), "reason": "Data inválida ou ausente."})
-    if not row.data_entrega:
+    if not _is_valid_dt(row.data_entrega):
         row.data_entrega = row.data_romaneio
-    if row.data_romaneio and row.data_entrega and row.data_entrega < row.data_romaneio:
+    if _is_valid_dt(row.data_romaneio) and _is_valid_dt(row.data_entrega) and row.data_entrega < row.data_romaneio:
         errors.append({
             "column": "DATA ENTREGA",
-            "value": row.data_entrega.strftime("%Y-%m-%d"),
+            "value": _safe_strftime(row.data_entrega) or str(row.data_entrega),
             "reason": "Data entrega anterior à data romaneio.",
         })
-    if row.data_romaneio and row.data_romaneio.date() > date.today():
-        errors.append({
-            "column": "DATA ROMANEIO",
-            "value": row.data_romaneio.strftime("%Y-%m-%d"),
-            "reason": "Data romaneio não pode ser futura.",
-        })
+    if _is_valid_dt(row.data_romaneio):
+        try:
+            dr_date = row.data_romaneio.date() if hasattr(row.data_romaneio, "date") else row.data_romaneio
+            if dr_date and dr_date > date.today():
+                errors.append({
+                    "column": "DATA ROMANEIO",
+                    "value": _safe_strftime(row.data_romaneio) or str(row.data_romaneio),
+                    "reason": "Data romaneio não pode ser futura.",
+                })
+        except (ValueError, TypeError):
+            pass
     if not row.codigo:
         errors.append({"column": "CODIGO", "value": str(row.codigo), "reason": "Código do cliente ausente."})
     if row.valor <= 0:
@@ -732,7 +768,7 @@ def validate_row(row: DevolucaoRow, cad: Dict) -> ValidationResult:
 
 def compute_fields(row: DevolucaoRow, val: ValidationResult) -> Dict[str, Any]:
     """Enriquece linha validada com DIA, SEMANA, ACIMA_300, CLUSTER."""
-    dt = row.data_romaneio or datetime.now()
+    dt = row.data_romaneio if _is_valid_dt(row.data_romaneio) else datetime.now()
     valor = row.valor
     return {
         "dia": compute_dia(dt),
@@ -780,8 +816,10 @@ def validate_rows(
     for row in rows:
         val = validate_row(row, cad)
         if val.valid:
-            dt_str = (row.data_romaneio or datetime.now()).strftime("%Y-%m-%d")
-            de_str = (row.data_entrega or row.data_romaneio or datetime.now()).strftime("%Y-%m-%d")
+            dr = row.data_romaneio if _is_valid_dt(row.data_romaneio) else datetime.now()
+            de = row.data_entrega if _is_valid_dt(row.data_entrega) else dr
+            dt_str = _safe_strftime(dr) or datetime.now().strftime("%Y-%m-%d")
+            de_str = _safe_strftime(de) or dt_str
             comp = compute_fields(row, val)
             h = make_idempotency_hash(
                 dt_str, val.client_id, val.vendedor_id, val.motorista_id, row.valor, val.motivo_id
@@ -916,8 +954,8 @@ def persist_import_batch(
         raw_payload = None
         if raw_row:
             raw_payload = {
-                "data_romaneio": raw_row.data_romaneio.strftime("%Y-%m-%d") if raw_row.data_romaneio else None,
-                "data_entrega": raw_row.data_entrega.strftime("%Y-%m-%d") if raw_row.data_entrega else None,
+                "data_romaneio": _safe_strftime(raw_row.data_romaneio),
+                "data_entrega": _safe_strftime(raw_row.data_entrega),
                 "codigo": raw_row.codigo,
                 "nome_cliente": raw_row.nome_cliente,
                 "vendedor": raw_row.vendedor,
@@ -947,8 +985,8 @@ def persist_import_batch(
                     batch_id=batch.id,
                     row_index=row_index,
                     status="PENDENTE_VALIDACAO",
-                    data_romaneio=(raw_row.data_romaneio.strftime("%Y-%m-%d") if raw_row and raw_row.data_romaneio else None),
-                    data_entrega=(raw_row.data_entrega.strftime("%Y-%m-%d") if raw_row and raw_row.data_entrega else None),
+                    data_romaneio=_safe_strftime(raw_row.data_romaneio) if raw_row else None,
+                    data_entrega=_safe_strftime(raw_row.data_entrega) if raw_row else None,
                     codigo_cliente=(raw_row.codigo if raw_row else None),
                     nome_cliente=(raw_row.nome_cliente if raw_row else None),
                     codigo_vendedor=(raw_row.vendedor if raw_row else None),
