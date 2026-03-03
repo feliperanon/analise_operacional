@@ -243,6 +243,23 @@
                     class="w-full h-10 bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition">
             </div>
             
+            <!-- Filtro de Funções (multi-seleção) -->
+            <details id="roleFilterMenu" class="w-full md:w-auto relative group">
+                <summary class="list-none cursor-pointer select-none h-10 px-3 min-w-[220px] bg-slate-900 border border-slate-700 rounded-xl text-sm text-slate-200 flex items-center justify-between gap-2 hover:border-slate-500 transition">
+                    <span id="roleFilterLabel">Funções: Todas</span>
+                    <svg class="w-4 h-4 text-slate-400 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </summary>
+                <div class="absolute z-30 mt-1 w-full min-w-[260px] bg-slate-900 border border-slate-700 rounded-xl shadow-xl p-2">
+                    <div class="flex items-center justify-between mb-2 px-1">
+                        <span class="text-[11px] text-slate-400 uppercase tracking-wide">Selecionar Funções</span>
+                        <button type="button" onclick="clearRoleFilters()" class="text-[11px] text-blue-400 hover:text-blue-300">Limpar</button>
+                    </div>
+                    <div id="roleFilterOptions" class="max-h-52 overflow-y-auto custom-scrollbar space-y-1 pr-1"></div>
+                </div>
+            </details>
+
             <!-- Filtros de Turno com Cores -->
             <div class="flex gap-1 bg-slate-900 p-1 rounded-xl">
                 <button onclick="setFilter('all')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-slate-600 text-white" data-filter="all">Todos</button>
@@ -321,7 +338,8 @@
                 {% set row_shift = emp.work_shift %}
 
                 <tr class="hover:bg-white/5 transition-colors group employee-row" data-name="{{ emp.name|lower }}"
-                    data-reg="{{ emp.registration_id }}" data-shift="{{ row_shift }}" data-status="{{ emp.status }}">
+                    data-reg="{{ emp.registration_id }}" data-shift="{{ row_shift }}" data-status="{{ emp.status }}"
+                    data-role="{{ emp.role }}" data-role-norm="{{ (emp.role or '')|lower }}">
                     <td class="p-4 pl-6">
                         <div class="flex items-center gap-3">
                             <div
@@ -1298,6 +1316,83 @@
 
     // --- Filter Logic ---
     let currentFilter = 'all';
+    let selectedRoles = new Set();
+
+    function normalizeText(value) {
+        return (value || '')
+            .toString()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+    }
+
+    function updateRoleFilterLabel() {
+        const label = document.getElementById('roleFilterLabel');
+        if (!label) return;
+        if (selectedRoles.size === 0) {
+            label.textContent = 'Funções: Todas';
+            return;
+        }
+        label.textContent = `Funções: ${selectedRoles.size} selecionada(s)`;
+    }
+
+    function clearRoleFilters() {
+        selectedRoles.clear();
+        document.querySelectorAll('.role-filter-checkbox').forEach((input) => {
+            input.checked = false;
+        });
+        updateRoleFilterLabel();
+        filterTable();
+    }
+
+    function initRoleFilterOptions() {
+        const container = document.getElementById('roleFilterOptions');
+        if (!container) return;
+
+        const rolesMap = new Map();
+        document.querySelectorAll('.employee-row').forEach((row) => {
+            const role = (row.dataset.role || '').trim();
+            const roleNorm = normalizeText(row.dataset.roleNorm || row.dataset.role || '');
+            if (!roleNorm || rolesMap.has(roleNorm)) return;
+            rolesMap.set(roleNorm, role);
+        });
+
+        const roles = Array.from(rolesMap.entries()).sort((a, b) => a[1].localeCompare(b[1], 'pt-BR'));
+        container.innerHTML = '';
+        roles.forEach(([value, label]) => {
+            const wrapper = document.createElement('label');
+            wrapper.className = 'flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-800 cursor-pointer';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'role-filter-checkbox rounded border-slate-600 bg-slate-900 text-blue-500 focus:ring-blue-500';
+            checkbox.value = value;
+
+            const text = document.createElement('span');
+            text.className = 'text-sm text-slate-200';
+            text.textContent = label;
+
+            wrapper.appendChild(checkbox);
+            wrapper.appendChild(text);
+            container.appendChild(wrapper);
+        });
+
+        container.querySelectorAll('.role-filter-checkbox').forEach((input) => {
+            input.addEventListener('change', (e) => {
+                const value = e.target.value;
+                if (e.target.checked) {
+                    selectedRoles.add(value);
+                } else {
+                    selectedRoles.delete(value);
+                }
+                updateRoleFilterLabel();
+                filterTable();
+            });
+        });
+
+        updateRoleFilterLabel();
+    }
 
     function setFilter(filter) {
         currentFilter = filter;
@@ -1335,7 +1430,7 @@
 
     function filterTable() {
         const input = document.getElementById('searchInput');
-        const searchVal = input.value.toLowerCase();
+        const searchVal = normalizeText(input.value);
         const rows = document.querySelectorAll('.employee-row');
         const tbody = document.getElementById('tableBody');
         let hasVisible = false;
@@ -1345,9 +1440,11 @@
             const reg = row.dataset.reg;
             const shift = row.dataset.shift;
             const status = row.dataset.status;
+            const roleNorm = normalizeText(row.dataset.roleNorm || row.dataset.role || '');
 
-            let matchesSearch = !searchVal || name.includes(searchVal) || reg.includes(searchVal);
+            let matchesSearch = !searchVal || normalizeText(name).includes(searchVal) || normalizeText(reg).includes(searchVal) || roleNorm.includes(searchVal);
             let matchesFilter = false;
+            const matchesRoleFilter = selectedRoles.size === 0 || selectedRoles.has(roleNorm);
 
             if (currentFilter === 'all') {
                 matchesFilter = true;
@@ -1360,7 +1457,7 @@
                 matchesFilter = status === currentFilter;
             }
 
-            if (matchesSearch && matchesFilter) {
+            if (matchesSearch && matchesFilter && matchesRoleFilter) {
                 row.classList.remove('hidden');
                 hasVisible = true;
             } else {
@@ -1800,7 +1897,16 @@
 
     // Ensure employee rows are visible on first page load.
     document.addEventListener('DOMContentLoaded', () => {
+        initRoleFilterOptions();
         filterTable();
+
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('roleFilterMenu');
+            if (!menu) return;
+            if (!menu.contains(e.target)) {
+                menu.removeAttribute('open');
+            }
+        });
     });
 </script>
 {% endblock %}
