@@ -10,7 +10,7 @@ import re
 import hashlib
 import json
 from io import BytesIO
-from datetime import datetime
+from datetime import datetime, date
 from typing import Any, Optional, List, Tuple, Dict
 from dataclasses import dataclass, field
 
@@ -104,20 +104,40 @@ def compute_cluster(valor: float) -> str:
 
 
 def parse_date_dd_mm_yyyy(value: Any) -> Optional[datetime]:
-    """Parse data dd/mm/yyyy ou dd-mm-yyyy."""
+    """Parse data dd/mm/yyyy, dd-mm-yyyy, ou datetime/Timestamp do Excel."""
     if value is None:
         return None
+    if isinstance(value, datetime):
+        return value
+    if hasattr(value, "to_pydatetime"):  # pd.Timestamp
+        try:
+            return value.to_pydatetime()
+        except Exception:
+            pass
+    if isinstance(value, date):
+        return datetime(value.year, value.month, value.day)
+    if isinstance(value, (int, float)) and value > 0:
+        try:
+            import pandas as pd
+            return pd.Timestamp(value).to_pydatetime()
+        except Exception:
+            pass
     s = str(value).strip()
     if not s or s.lower() in ("nan", "none"):
         return None
+    s = s.split()[0] if " " in s else s
     for sep in ["/", "-", "."]:
         if sep in s:
             parts = s.split(sep)
             if len(parts) == 3:
                 try:
-                    d, m, y = int(parts[0]), int(parts[1]), int(parts[2])
-                    if y < 100:
-                        y += 2000
+                    p0, p1, p2 = int(parts[0]), int(parts[1]), int(parts[2])
+                    if p0 > 31 or (len(parts[0]) == 4 and p0 >= 1900):
+                        y, m, d = p0, p1, p2
+                    else:
+                        d, m, y = p0, p1, p2
+                        if y < 100:
+                            y += 2000
                     return datetime(y, m, d)
                 except (ValueError, IndexError):
                     pass
@@ -251,31 +271,35 @@ def parse_excel(
         except Exception:
             return 0
 
-    df = _try_read(0, 0)
-    if df is None or df.empty:
-        for sheet in (sheet_names or DEVOLUCOES_SHEET_NAMES):
-            df = _try_read(0, sheet)
-            if df is not None and not df.empty:
-                break
+    sheets_to_try = list(sheet_names or DEVOLUCOES_SHEET_NAMES) + [0]
+    df, raw_cols, col_map, missing, header_row_used, used_sheet = None, [], {}, required.copy(), 0, None
+
+    for sheet in sheets_to_try:
+        df_cand = _try_read(0, sheet)
+        if df_cand is None or df_cand.empty:
+            continue
+        raw_cand = list(df_cand.columns)
+        col_map_cand = _find_col_map(raw_cand)
+        missing_cand = [k for k in required if k not in col_map_cand]
+        hdr_used = 0
+        if missing_cand and any(str(c).startswith("Unnamed:") for c in raw_cand):
+            hdr_row = _find_header_row(sheet)
+            df2 = _try_read(hdr_row, sheet)
+            if df2 is not None and not df2.empty:
+                raw2 = [str(c) for c in df2.columns]
+                col_map2 = _find_col_map(raw2)
+                missing2 = [k for k in required if k not in col_map2]
+                if len(missing2) < len(missing_cand):
+                    df_cand, raw_cand, col_map_cand, missing_cand = df2, raw2, col_map2, missing2
+                    hdr_used = hdr_row
+        if not missing_cand:
+            df, raw_cols, col_map, missing, header_row_used, used_sheet = df_cand, raw_cand, col_map_cand, [], hdr_used, sheet
+            break
+        if df is None or len(missing_cand) < len(missing):
+            df, raw_cols, col_map, missing, header_row_used, used_sheet = df_cand, raw_cand, col_map_cand, missing_cand, hdr_used, sheet
+
     if df is None or df.empty:
         return [], f"Planilha vazia ou erro ao ler. {last_err or ''}"
-
-    raw_cols = list(df.columns)
-    col_map = _find_col_map(raw_cols)
-    missing = [k for k in required if k not in col_map]
-
-    header_row_used = 0
-    # Se Unnamed: X, cabeçalho real está em outra linha — procurar
-    if missing and any(str(c).startswith("Unnamed:") for c in raw_cols):
-        header_row = _find_header_row(0)
-        df2 = _try_read(header_row, 0)
-        if df2 is not None and not df2.empty:
-            raw_cols2 = [str(c) for c in df2.columns]
-            col_map2 = _find_col_map(raw_cols2)
-            missing2 = [k for k in required if k not in col_map2]
-            if len(missing2) < len(missing):
-                df, raw_cols, col_map, missing = df2, raw_cols2, col_map2, missing2
-                header_row_used = header_row
     if missing:
         try:
             from pathlib import Path
@@ -339,15 +363,35 @@ def _load_cadastros(session: Session) -> Dict[str, Any]:
     resp_list = session.exec(select(DevolucaoResponsabilidade).where(DevolucaoResponsabilidade.is_active == True)).all()
 
     client_by_nb = {}
+    client_by_name = {}
     for c in clients:
         if c.nb:
-            client_by_nb[_norm_text(c.nb)] = c
-            client_by_nb[_norm_text(str(c.nb).lstrip("0"))] = c
+            n = _norm_text(str(c.nb))
+            client_by_nb[n] = c
+            client_by_nb[n.lstrip("0") or "0"] = c
+            client_by_nb[n.replace("/", "").replace("-", "").replace(".", "")] = c
+        for f in (c.name, c.nome_fantasia, c.razao_social):
+            if f and _norm_text(f):
+                client_by_name[_norm_text(f)] = c
 
     vendedor_by_code = {}
+    vendedor_by_id = {}
+    vendedor_by_name = {}
     for e in employees:
         if e.seller_code:
-            vendedor_by_code[_norm_text(str(e.seller_code))] = e
+            sc = _norm_text(str(e.seller_code))
+            vendedor_by_code[sc] = e
+            vendedor_by_code[sc.lstrip("0") or "0"] = e
+        if e.id:
+            vendedor_by_id[str(e.id)] = e
+        vendedor_by_name[_norm_text(e.name)] = e
+        for t in _norm_text(e.name).split():
+            if len(t) >= 3:
+                vendedor_by_name[t] = e
+        tokens = set(_norm_text(e.name).split())
+        for t in tokens:
+            if len(t) >= 3:
+                vendedor_by_name[t] = e
 
     motorista_by_name = {}
     for e in employees:
@@ -377,13 +421,31 @@ def _load_cadastros(session: Session) -> Dict[str, Any]:
     return {
         "clients": clients,
         "client_by_nb": client_by_nb,
+        "client_by_name": client_by_name,
         "employees": employees,
         "vendedor_by_code": vendedor_by_code,
+        "vendedor_by_id": vendedor_by_id,
+        "vendedor_by_name": vendedor_by_name,
         "motorista_by_name": motorista_by_name,
         "motivo_by_norm": motivo_by_norm,
         "motivo_resp_map": motivo_resp_map,
         "resp_by_norm": resp_by_norm,
     }
+
+
+def _find_vendedor_by_name(name: Optional[str], cad: Dict) -> Optional[Employee]:
+    if not name or not _norm_text(name):
+        return None
+    target = _norm_text(name)
+    emp = cad["vendedor_by_name"].get(target)
+    if emp:
+        return emp
+    tokens = target.split()
+    if tokens:
+        emp = cad["vendedor_by_name"].get(tokens[0])
+        if emp:
+            return emp
+    return None
 
 
 def _find_motorista(name: Optional[str], cad: Dict) -> Optional[Employee]:
@@ -441,15 +503,32 @@ def validate_row(row: DevolucaoRow, cad: Dict) -> ValidationResult:
 
     client = None
     if row.codigo:
-        nb_norm = _norm_text(row.codigo)
-        nb_nolead = _norm_text(str(row.codigo).lstrip("0"))
-        client = cad["client_by_nb"].get(nb_norm) or cad["client_by_nb"].get(nb_nolead)
+        nb_raw = _norm_text(str(row.codigo))
+        nb_nolead = nb_raw.lstrip("0") or "0"
+        nb_compact = nb_raw.replace("/", "").replace("-", "").replace(".", "")
+        client = (
+            cad["client_by_nb"].get(nb_raw)
+            or cad["client_by_nb"].get(nb_nolead)
+            or cad["client_by_nb"].get(nb_compact)
+        )
+    if not client and row.nome_cliente:
+        client = cad["client_by_name"].get(_norm_text(row.nome_cliente))
     if not client:
         errors.append({"column": "CODIGO", "value": row.codigo or "-", "reason": "Cliente não cadastrado."})
 
     vendedor = None
     if row.vendedor:
-        vendedor = cad["vendedor_by_code"].get(_norm_text(str(row.vendedor)))
+        vc = _norm_text(str(row.vendedor))
+        vc_nolead = vc.lstrip("0") or "0"
+        vendedor = (
+            cad["vendedor_by_code"].get(vc)
+            or cad["vendedor_by_code"].get(vc_nolead)
+            or cad["vendedor_by_id"].get(str(row.vendedor).strip())
+            or cad["vendedor_by_id"].get(vc)
+            or cad["vendedor_by_id"].get(vc_nolead)
+        )
+        if not vendedor:
+            vendedor = _find_vendedor_by_name(row.vendedor, cad)
     if not vendedor:
         errors.append({"column": "VENDEDOR", "value": row.vendedor or "-", "reason": "Vendedor não cadastrado."})
 

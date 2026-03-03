@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-4 lg:p-8">
+    <div class="max-w-[1700px] mx-auto space-y-6">
+        <section class="rounded-2xl border border-slate-700 bg-slate-800/70 p-5 lg:p-7">
+            <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+                <div>
+                    <h1 class="text-2xl lg:text-3xl font-black text-white">BI de Entregas e Devolucoes</h1>
+                    <p class="text-sm lg:text-base text-slate-300 mt-1">
+                        Visao executiva, tatica e operacional do modulo de separacao e entregas.
+                    </p>
+                </div>
+                <a href="/separacao" class="inline-flex items-center justify-center rounded-xl border border-slate-600 px-4 py-2.5 text-sm font-semibold text-slate-100 hover:bg-slate-700/60">
+                    Ir para Operacao
+                </a>
+            </div>
+
+            <form method="get" action="/bi/delivery" class="mt-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+                <div>
+                    <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Data inicial</label>
+                    <input type="date" name="date_from" value="{{ filters.date_from }}" class="mt-1 w-full h-11 rounded-xl border border-slate-600 bg-slate-900 px-3 text-sm text-white">
+                </div>
+                <div>
+                    <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Data final</label>
+                    <input type="date" name="date_to" value="{{ filters.date_to }}" class="mt-1 w-full h-11 rounded-xl border border-slate-600 bg-slate-900 px-3 text-sm text-white">
+                </div>
+                <div>
+                    <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Turno</label>
+                    <select name="shift" class="mt-1 w-full h-11 rounded-xl border border-slate-600 bg-slate-900 px-3 text-sm text-white">
+                        {% for sh in ["Todos", "Manhã", "Tarde", "Noite"] %}
+                        <option value="{{ sh }}" {% if filters.shift == sh %}selected{% endif %}>{{ sh }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Motorista</label>
+                    <select name="driver_id" class="mt-1 w-full h-11 rounded-xl border border-slate-600 bg-slate-900 px-3 text-sm text-white">
+                        <option value="">Todos</option>
+                        {% for d in drivers_filter %}
+                        <option value="{{ d.id }}" {% if filters.driver_id == d.id %}selected{% endif %}>{{ d.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Placa</label>
+                    <select name="plate" class="mt-1 w-full h-11 rounded-xl border border-slate-600 bg-slate-900 px-3 text-sm text-white">
+                        <option value="Todos">Todas</option>
+                        {% for p in plates_filter %}
+                        <option value="{{ p }}" {% if filters.plate == p %}selected{% endif %}>{{ p }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Status</label>
+                    <select name="status" class="mt-1 w-full h-11 rounded-xl border border-slate-600 bg-slate-900 px-3 text-sm text-white">
+                        {% for s in statuses_filter %}
+                        <option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="xl:col-span-6 flex flex-wrap gap-2 pt-1">
+                    <button class="h-11 px-5 rounded-xl bg-sky-600 hover:bg-sky-500 text-sm font-bold text-white">Aplicar filtros</button>
+                    <a href="/bi/delivery" class="h-11 px-5 rounded-xl border border-slate-600 hover:bg-slate-700/60 text-sm font-bold text-slate-200 inline-flex items-center">Limpar</a>
+                </div>
+            </form>
+        </section>
+
+        <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+            <div class="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
+                <p class="text-xs uppercase tracking-wider text-slate-400 font-bold">Planejado x Realizado</p>
+                <p class="mt-2 text-3xl font-black text-white">{{ kpis.realized_stops }} <span class="text-lg text-slate-400">/ {{ kpis.planned_stops }}</span></p>
+                <p class="text-sm text-slate-300 mt-1">SLA finalizacao: <span class="font-bold text-emerald-300">{{ "%.1f"|format(kpis.sla_finish) }}%</span></p>
+            </div>
+            <div class="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
+                <p class="text-xs uppercase tracking-wider text-slate-400 font-bold">Peso (Kg)</p>
+                <p class="mt-2 text-3xl font-black text-white">{{ "{:,.0f}".format(kpis.realized_kg).replace(",", ".") }}</p>
+                <p class="text-sm text-slate-300 mt-1">Planejado: {{ "{:,.0f}".format(kpis.planned_kg).replace(",", ".") }} Kg</p>
+            </div>
+            <div class="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
+                <p class="text-xs uppercase tracking-wider text-slate-400 font-bold">Valor (R$)</p>
+                <p class="mt-2 text-3xl font-black text-white">{{ "{:,.0f}".format(kpis.realized_value).replace(",", ".") }}</p>
+                <p class="text-sm text-slate-300 mt-1">Planejado: R$ {{ "{:,.0f}".format(kpis.planned_value).replace(",", ".") }}</p>
+            </div>
+            <div class="rounded-2xl border border-amber-500/40 bg-amber-900/20 p-4">
+                <p class="text-xs uppercase tracking-wider text-amber-300 font-bold">Devolucao</p>
+                <p class="mt-2 text-3xl font-black text-amber-200">{{ "%.1f"|format(kpis.return_rate_qtd) }}%</p>
+                <p class="text-sm text-amber-100 mt-1">{{ kpis.returned_stops }} paradas | {{ "%.1f"|format(kpis.return_rate_kg) }}% em Kg</p>
+            </div>
+            <div class="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
+                <p class="text-xs uppercase tracking-wider text-slate-400 font-bold">Risco Proximo Turno</p>
+                <p class="mt-2 text-3xl font-black text-white">{{ "%.1f"|format(kpis.forecast_next_stops) }}</p>
+                <p class="text-sm text-slate-300 mt-1">Prev. devolucao: {{ "%.1f"|format(kpis.forecast_next_return_rate) }}%</p>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <div class="xl:col-span-2 rounded-2xl border border-slate-700 bg-slate-900/50 p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-lg font-bold text-white">Tendencia diaria (7/30/90)</h2>
+                    <span class="text-xs text-slate-400">Leitura rapida para diretoria</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="text-slate-400 uppercase text-[11px]">
+                            <tr>
+                                <th class="text-left py-2">Data</th>
+                                <th class="text-left py-2">Planejado</th>
+                                <th class="text-left py-2">Iniciadas</th>
+                                <th class="text-left py-2">Realizadas</th>
+                                <th class="text-left py-2">Taxa devolucao</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for day in daily_rows %}
+                            <tr class="border-t border-slate-800">
+                                <td class="py-2 text-slate-200 font-semibold">{{ day.date }}</td>
+                                <td class="py-2 text-slate-300">{{ day.planned_stops }}</td>
+                                <td class="py-2 text-slate-300">{{ day.started_stops }} ({{ "%.1f"|format(day.started_rate) }}%)</td>
+                                <td class="py-2 text-slate-300">{{ day.realized_stops }}</td>
+                                <td class="py-2 {% if day.return_rate >= 10 %}text-amber-300{% else %}text-emerald-300{% endif %} font-semibold">{{ "%.1f"|format(day.return_rate) }}%</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="5" class="py-6 text-center text-slate-500">Sem dados para o periodo selecionado.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="rounded-2xl border border-slate-700 bg-slate-900/50 p-4">
+                <h2 class="text-lg font-bold text-white mb-3">Anomalias detectadas</h2>
+                <div class="space-y-2">
+                    {% for item in anomaly_flags %}
+                    <div class="rounded-xl border border-amber-500/30 bg-amber-900/20 p-2 text-sm text-amber-100">{{ item }}</div>
+                    {% else %}
+                    <p class="text-sm text-slate-400">Nenhuma anomalia relevante no periodo.</p>
+                    {% endfor %}
+                </div>
+                <h3 class="text-sm uppercase tracking-wider text-slate-400 font-bold mt-5 mb-2">Proximas acoes recomendadas</h3>
+                <ol class="space-y-2">
+                    {% for rec in recommendations %}
+                    <li class="rounded-xl border border-sky-500/30 bg-sky-900/20 p-2 text-sm text-sky-100">{{ loop.index }}. {{ rec }}</li>
+                    {% endfor %}
+                </ol>
+            </div>
+        </section>
+
+        <section class="rounded-2xl border border-slate-700 bg-slate-900/50 p-4">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-lg font-bold text-white">Painel tatico por motorista</h2>
+                <span class="text-xs text-slate-400">Balanceamento de carga e devolucao</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm min-w-[1100px]">
+                    <thead class="text-slate-400 uppercase text-[11px]">
+                        <tr>
+                            <th class="text-left py-2">Motorista</th>
+                            <th class="text-left py-2">Paradas</th>
+                            <th class="text-left py-2">Efetividade</th>
+                            <th class="text-left py-2">Devolucao</th>
+                            <th class="text-left py-2">Kg planejado</th>
+                            <th class="text-left py-2">Kg realizado</th>
+                            <th class="text-left py-2">R$ devolucao</th>
+                            <th class="text-left py-2">Reaberturas</th>
+                            <th class="text-left py-2">Tempo medio</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in tactical_rows %}
+                        <tr class="border-t border-slate-800">
+                            <td class="py-2 text-slate-200 font-semibold">{{ row.driver_name }}</td>
+                            <td class="py-2 text-slate-300">{{ row.realized_stops }}/{{ row.planned_stops }}</td>
+                            <td class="py-2 {% if row.efficiency < 70 %}text-amber-300{% else %}text-emerald-300{% endif %} font-semibold">{{ "%.1f"|format(row.efficiency) }}%</td>
+                            <td class="py-2 {% if row.return_rate >= 10 %}text-amber-300{% else %}text-slate-300{% endif %}">{{ "%.1f"|format(row.return_rate) }}%</td>
+                            <td class="py-2 text-slate-300">{{ "{:,.0f}".format(row.planned_kg).replace(",", ".") }}</td>
+                            <td class="py-2 text-slate-300">{{ "{:,.0f}".format(row.realized_kg).replace(",", ".") }}</td>
+                            <td class="py-2 text-slate-300">{{ "{:,.0f}".format(row.returned_value).replace(",", ".") }}</td>
+                            <td class="py-2 text-slate-300">{{ row.reopen_count }}</td>
+                            <td class="py-2 text-slate-300">{{ "%.0f"|format(row.avg_duration) }} min</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="9" class="py-6 text-center text-slate-500">Sem dados no recorte atual.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="rounded-2xl border border-slate-700 bg-slate-900/50 p-4">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-lg font-bold text-white">Fila operacional de excecoes</h2>
+                <span class="text-xs text-slate-400">Priorizada por impacto</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm min-w-[1100px]">
+                    <thead class="text-slate-400 uppercase text-[11px]">
+                        <tr>
+                            <th class="text-left py-2">Score</th>
+                            <th class="text-left py-2">Data/Turno</th>
+                            <th class="text-left py-2">Motorista</th>
+                            <th class="text-left py-2">Cliente</th>
+                            <th class="text-left py-2">Status</th>
+                            <th class="text-left py-2">Kg</th>
+                            <th class="text-left py-2">R$</th>
+                            <th class="text-left py-2">Reab.</th>
+                            <th class="text-left py-2">Tempo</th>
+                            <th class="text-left py-2">Acao sugerida</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ex in exception_rows %}
+                        <tr class="border-t border-slate-800">
+                            <td class="py-2">
+                                <span class="px-2 py-1 rounded-lg font-bold text-xs {% if ex.score >= 60 %}bg-red-900/50 text-red-200 border border-red-500/30{% elif ex.score >= 40 %}bg-amber-900/50 text-amber-200 border border-amber-500/30{% else %}bg-slate-800 text-slate-300 border border-slate-600{% endif %}">
+                                    {{ ex.score }}
+                                </span>
+                            </td>
+                            <td class="py-2 text-slate-300">{{ ex.date }} / {{ ex.shift }}</td>
+                            <td class="py-2 text-slate-200 font-semibold">{{ ex.driver_name }}</td>
+                            <td class="py-2 text-slate-300">{{ ex.client_name }}</td>
+                            <td class="py-2 text-slate-300">{{ ex.status|title }}</td>
+                            <td class="py-2 text-slate-300">{{ "{:,.1f}".format(ex.planned_kg).replace(",", ".") }}</td>
+                            <td class="py-2 text-slate-300">{{ "{:,.0f}".format(ex.planned_value).replace(",", ".") }}</td>
+                            <td class="py-2 text-slate-300">{{ ex.reopen_count }}</td>
+                            <td class="py-2 text-slate-300">{% if ex.duration_m %}{{ ex.duration_m }} min{% else %}-{% endif %}</td>
+                            <td class="py-2 text-sky-300">Priorizar contato e replanejar rota/apoio</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="10" class="py-6 text-center text-slate-500">Nenhuma excecao relevante no periodo.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

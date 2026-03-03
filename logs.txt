@@ -35018,3 +35018,17 @@ WHERE employee.status != ?]
 2026-03-03 12:34:04,007 | WARNING  | main | Devoluções import parse error: Colunas obrigatórias ausentes: data_romaneio, data_entrega, codigo, motorista. Colunas encontradas: ['Unnamed: 0', 'Comercia (SV / VD)', 'R$ Venda Bruta', 'R$ Devolução', '% Devolução/ Faturamento Vendedor', 'Motivos Comercial', 'Motivos     Cliente', 'Motivos  Logistica', 'Unnamed: 8', 'Setor', 'Motivos de Devolução', 'Quantidade Pedidos', '% Pedidos', 'TOTAL', 'Unnamed: 14'].  Seu arquivo parece ser um relatório resumido. Para importar devoluções, use uma planilha com uma linha por devolução e as colunas: DATA ROMANEIO, DATA ENTREGA, CODIGO, NOME DO CLIENTE, VENDEDOR, MOTORISTA, VALOR, MOTIVO, RESPONSABILIDADE.
 2026-03-03 12:36:04,087 | WARNING  | main | Devoluções import parse error: Colunas obrigatórias ausentes: data_romaneio, data_entrega, codigo, motorista. Colunas encontradas: ['Unnamed: 0', 'Comercia (SV / VD)', 'R$ Venda Bruta', 'R$ Devolução', '% Devolução/ Faturamento Vendedor', 'Motivos Comercial', 'Motivos     Cliente', 'Motivos  Logistica', 'Unnamed: 8', 'Setor', 'Motivos de Devolução', 'Quantidade Pedidos', '% Pedidos', 'TOTAL', 'Unnamed: 14'].  Seu arquivo parece ser um relatório resumido. Para importar devoluções, use uma planilha com uma linha por devolução e as colunas: DATA ROMANEIO, DATA ENTREGA, CODIGO, NOME DO CLIENTE, VENDEDOR, MOTORISTA, VALOR, MOTIVO, RESPONSABILIDADE.
 2026-03-03 12:39:01,382 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 12:39:45,652 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 12:40:03,521 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 12:40:13,950 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 12:42:34,996 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 12:42:42,632 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 12:43:00,662 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 12:43:09,462 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 12:45:13,454 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 12:45:19,001 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 12:45:24,534 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 12:45:34,403 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 12:49:46,699 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 12:53:00,249 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-03 12:53:07,426 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
