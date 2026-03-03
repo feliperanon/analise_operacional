@@ -768,7 +768,7 @@
             }
 
             // Save achievements
-            const achRes = await fetch('/api/game/achievements', {
+            const achRes = await fetch('/api/game/achievements/sync', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ achievements: this.achievements })
