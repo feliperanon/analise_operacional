@@ -436,12 +436,17 @@ def _load_cadastros(session: Session) -> Dict[str, Any]:
 
     vendedor_by_code = {}
     vendedor_by_name_exact: Dict[str, List[Any]] = {}
+    employees_with_seller_code = 0
     for e in employees:
         if e.seller_code:
+            employees_with_seller_code += 1
             sc = normalize_code(e.seller_code)
             if sc:
                 vendedor_by_code[sc] = e
                 vendedor_by_code[sc.lstrip("0") or "0"] = e
+                digits_only = re.sub(r"\D", "", sc)
+                if digits_only:
+                    vendedor_by_code[digits_only] = e
         nn = normalize_name(e.name)
         if nn:
             if nn not in vendedor_by_name_exact:
@@ -478,13 +483,73 @@ def _load_cadastros(session: Session) -> Dict[str, Any]:
         "client_by_nb": client_by_nb,
         "client_by_name": client_by_name,
         "employees": employees,
+        "employees_with_seller_code": employees_with_seller_code,
         "vendedor_by_code": vendedor_by_code,
         "vendedor_by_name_exact": vendedor_by_name_exact,
         "motorista_by_name": motorista_by_name,
         "motivo_by_norm": motivo_by_norm,
         "motivo_resp_map": motivo_resp_map,
         "resp_by_norm": resp_by_norm,
+        "motivos": motivos,
+        "resp_list": resp_list,
     }
+
+
+def get_cadastro_health(cad: Dict) -> Tuple[Dict[str, Any], List[str]]:
+    """
+    Diagnóstico automático dos cadastros.
+    Retorna (diagnostics, global_errors).
+    Se global_errors não for vazio, a validação deve ser abortada e retornar erro global.
+    """
+    employees = cad.get("employees", [])
+    employees_with_seller_code = cad.get("employees_with_seller_code", 0)
+    vendedor_by_code_size = len(cad.get("vendedor_by_code", {}))
+    clients_total = len(cad.get("clients", []))
+    client_by_nb_size = len(cad.get("client_by_nb", {}))
+    motivos = cad.get("motivos", [])
+    resp_list = cad.get("resp_list", [])
+
+    diagnostics = {
+        "employees_total": len(employees),
+        "employees_with_seller_code": employees_with_seller_code,
+        "vendedor_by_code_size": vendedor_by_code_size,
+        "clients_total": clients_total,
+        "client_by_nb_size": client_by_nb_size,
+        "motivos_total": len(motivos),
+        "responsabilidades_total": len(resp_list),
+    }
+
+    global_errors = []
+
+    if vendedor_by_code_size == 0:
+        if len(employees) == 0:
+            global_errors.append(
+                "Cadastro de vendedores não carregou (employees=0). Verifique a base de colaboradores."
+            )
+        elif employees_with_seller_code == 0:
+            global_errors.append(
+                "Nenhum colaborador com seller_code preenchido (employees_with_seller_code=0). "
+                "Preencha o campo 'Codigo do Vendedor' em Colaboradores para cada vendedor."
+            )
+        else:
+            global_errors.append(
+                "Cadastro de vendedores vazio (vendedor_by_code=0). "
+                "Verifique preenchimento do seller_code nos colaboradores."
+            )
+
+    if len(motivos) == 0:
+        global_errors.append("Cadastro de motivos de devolução vazio (motivos_total=0). Execute o seed de motivos.")
+
+    if len(resp_list) == 0:
+        global_errors.append("Cadastro de responsabilidades vazio (responsabilidades_total=0). Execute o seed de responsabilidades.")
+
+    if clients_total == 0 or client_by_nb_size == 0:
+        global_errors.append(
+            "Cadastro de clientes vazio (clients_total=0 ou client_by_nb vazio). "
+            "Importe clientes antes de importar devoluções."
+        )
+
+    return diagnostics, global_errors
 
 
 def resolve_vendedor(
@@ -499,13 +564,15 @@ def resolve_vendedor(
 
     code = normalize_code(value_from_excel)
     if code:
-        emp = cad["vendedor_by_code"].get(code) or cad["vendedor_by_code"].get(
-            code.lstrip("0") or "0"
+        emp = (
+            cad["vendedor_by_code"].get(code)
+            or cad["vendedor_by_code"].get(code.lstrip("0") or "0")
+            or cad["vendedor_by_code"].get(re.sub(r"\D", "", code))
         )
         if emp:
             return emp, None
         if _is_numeric_value(value_from_excel):
-            return None, "Vendedor não cadastrado (tentado por seller_code)"
+            return None, f"Vendedor não cadastrado (valor='{value_from_excel}', normalizado='{code}'). Preencha seller_code no cadastro de colaboradores."
 
     name = normalize_name(value_from_excel)
     if name:
@@ -523,7 +590,10 @@ def resolve_vendedor(
         if len(matches) == 1:
             return matches[0], None
 
-    return None, "Vendedor não cadastrado (tentado por seller_code e por nome)"
+    return None, (
+        f"Vendedor não cadastrado (valor='{value_from_excel}'). "
+        f"Cadastre o vendedor e preencha seller_code no cadastro de colaboradores."
+    )
 
 
 def _find_motorista(name: Optional[str], cad: Dict) -> Optional[Employee]:
@@ -670,16 +740,18 @@ def validate_rows(
     rows: List[DevolucaoRow],
     session: Session,
     to_staging_on_invalid: bool = False,
-) -> Tuple[List[Dict], List[Dict], List[Dict], Optional[int]]:
+) -> Tuple[List[Dict], List[Dict], List[Dict], Optional[int], List[str]]:
     """
     Valida todas as linhas.
-    Retorna (valid_rows, invalid_errors, staging_rows, batch_id ou None).
-    valid_rows: lista de dict prontos para Devolucao
-    invalid_errors: lista de {row_index, column, value, reason}
-    staging_rows: se to_staging_on_invalid, linhas que vão para fila de pendências
-    batch_id: ID do batch se criado (para staging)
+    Retorna (valid_rows, invalid_errors, staging_rows, batch_id, global_errors).
+    Se global_errors não for vazio, valid/invalid podem estar vazios — retornar erro global.
     """
     cad = _load_cadastros(session)
+    diagnostics, global_errors = get_cadastro_health(cad)
+
+    if global_errors:
+        return [], [], None, None, global_errors
+
     valid = []
     invalid = []
     staging = []
@@ -719,7 +791,7 @@ def validate_rows(
                     "row": row,
                     "errors": val.errors,
                 })
-    return valid, invalid, staging, batch_id
+    return valid, invalid, staging, batch_id, []
 
 
 def save_batch(
