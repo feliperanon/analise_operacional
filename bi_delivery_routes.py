@@ -69,8 +69,23 @@ def _build_bi_delivery_dataset(
 
     routes = session.exec(query.order_by(models.Route.date, models.Route.created_at)).all()
 
+    # Devoluções lançadas manualmente (módulo Devoluções - Excel/manual)
+    include_manual = (status_norm == "todos" or status_norm == "devolucao") and plate_norm == "TODOS"
+    manual_devolucoes = []
+    if include_manual:
+        q_manual = (
+            select(models.Devolucao)
+            .where(models.Devolucao.data_romaneio >= parsed_from.strftime("%Y-%m-%d"))
+            .where(models.Devolucao.data_romaneio <= parsed_to.strftime("%Y-%m-%d"))
+        )
+        if driver_id:
+            q_manual = q_manual.where(models.Devolucao.motorista_id == driver_id)
+        manual_devolucoes = session.exec(q_manual.order_by(models.Devolucao.data_romaneio, models.Devolucao.created_at)).all()
+
     employee_ids = sorted({r.employee_id for r in routes if r.employee_id})
     client_ids = sorted({r.client_id for r in routes if r.client_id})
+    employee_ids = sorted(set(employee_ids) | {d.motorista_id for d in manual_devolucoes if d.motorista_id})
+    client_ids = sorted(set(client_ids) | {d.client_id for d in manual_devolucoes if d.client_id})
     plate_set = sorted({(r.delivery_vehicle_plate or "").strip().upper() for r in routes if (r.delivery_vehicle_plate or "").strip()})
 
     employee_map = {}
@@ -280,6 +295,7 @@ def _build_bi_delivery_dataset(
                     "planned_kg": round(planned_w, 2),
                     "planned_value": round(planned_v, 2),
                     "returned_kg": round(return_w if status_raw == "devolucao" else 0.0, 2),
+                    "returned_value": round(return_v if status_raw == "devolucao" else 0.0, 2),
                     "reopen_count": r.delivery_reopen_count or 0,
                     "duration_m": duration_m,
                     "score": score,
@@ -287,7 +303,103 @@ def _build_bi_delivery_dataset(
                 }
             )
 
-    global_return_rate = (returned_stops / planned_stops * 100.0) if planned_stops else 0.0
+    # Incluir devoluções manuais (Excel/manual)
+    for d in manual_devolucoes:
+        employee = employee_map.get(d.motorista_id)
+        client = client_map.get(d.client_id)
+        driver_name = employee.name if employee else f"Motorista #{d.motorista_id}"
+        client_name = client.name if client else f"Cliente #{d.client_id}"
+        return_v = float(d.valor or 0.0)
+        return_w = 0.0  # manual não tem kg
+        returned_stops += 1
+        returned_value += return_v
+        returned_kg += return_w
+        route_rows.append({
+            "route_id": -d.id,
+            "date": d.data_romaneio,
+            "shift": "-",
+            "driver_id": d.motorista_id,
+            "driver_name": driver_name,
+            "client_id": d.client_id,
+            "client_name": client_name,
+            "status": "devolucao",
+            "planned_kg": 0.0,
+            "planned_value": 0.0,
+            "delivered_kg": 0.0,
+            "delivered_value": 0.0,
+            "returned_kg": return_w,
+            "returned_value": round(return_v, 2),
+            "reopen_count": 0,
+            "duration_m": None,
+            "plate": "-",
+            "vehicle_label": "-",
+            "address": "",
+            "neighborhood": "",
+            "city": "",
+            "order_number": f"Man. {d.id}",
+            "source": "MANUAL",
+        })
+        driver_bucket = per_driver.setdefault(
+            driver_name,
+            {
+                "driver_name": driver_name,
+                "driver_id": d.motorista_id,
+                "planned_stops": 0,
+                "realized_stops": 0,
+                "pending_stops": 0,
+                "started_stops": 0,
+                "returned_stops": 0,
+                "planned_kg": 0.0,
+                "realized_kg": 0.0,
+                "returned_kg": 0.0,
+                "planned_value": 0.0,
+                "realized_value": 0.0,
+                "returned_value": 0.0,
+                "reopen_count": 0,
+                "durations": [],
+                "main_plate": "-",
+            },
+        )
+        driver_bucket["returned_stops"] += 1
+        driver_bucket["returned_value"] += return_v
+        driver_bucket["returned_kg"] += return_w
+        day_bucket = per_day.setdefault(
+            d.data_romaneio,
+            {
+                "date": d.data_romaneio,
+                "planned_stops": 0,
+                "started_stops": 0,
+                "realized_stops": 0,
+                "returned_stops": 0,
+                "planned_kg": 0.0,
+                "returned_kg": 0.0,
+                "planned_value": 0.0,
+                "returned_value": 0.0,
+            },
+        )
+        day_bucket["returned_stops"] += 1
+        day_bucket["returned_value"] += return_v
+        day_bucket["returned_kg"] += return_w
+        exception_rows.append({
+            "route_id": -d.id,
+            "date": d.data_romaneio,
+            "shift": "-",
+            "driver_name": driver_name,
+            "driver_id": d.motorista_id,
+            "client_name": client_name,
+            "status": "devolucao",
+            "planned_kg": 0.0,
+            "planned_value": 0.0,
+            "returned_kg": return_w,
+            "returned_value": round(return_v, 2),
+            "reopen_count": 0,
+            "duration_m": None,
+            "score": 55,
+            "vehicle_label": "Manual",
+            "source": "MANUAL",
+        })
+
+    global_return_rate = (returned_stops / max(planned_stops, 1) * 100.0) if (planned_stops or manual_devolucoes) else 0.0
     avg_duration = statistics.mean(route_durations) if route_durations else 0.0
 
     tactical_rows = []
@@ -316,8 +428,9 @@ def _build_bi_delivery_dataset(
     daily_rows = []
     for day in sorted(per_day.keys()):
         row = per_day[day]
-        row["started_rate"] = round((row["started_stops"] / row["planned_stops"] * 100.0), 2) if row["planned_stops"] else 0.0
-        row["return_rate"] = round((row["returned_stops"] / row["planned_stops"] * 100.0), 2) if row["planned_stops"] else 0.0
+        denom = max(row["planned_stops"], 1)
+        row["started_rate"] = round((row["started_stops"] / denom * 100.0), 2)
+        row["return_rate"] = round((row["returned_stops"] / denom * 100.0), 2)
         daily_rows.append(row)
 
     last_n = daily_rows[-7:] if len(daily_rows) >= 7 else daily_rows

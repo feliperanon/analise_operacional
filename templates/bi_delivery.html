@@ -223,9 +223,9 @@
                             <td class="py-2 text-slate-300">{{ ex.date }} / {{ ex.shift }}</td>
                             <td class="py-2 text-slate-200 font-semibold">{{ ex.driver_name }}</td>
                             <td class="py-2 text-slate-300">{{ ex.client_name }}</td>
-                            <td class="py-2 text-slate-300">{{ ex.status|title }}</td>
-                            <td class="py-2 text-slate-300">{{ "{:,.1f}".format(ex.planned_kg).replace(",", ".") }}</td>
-                            <td class="py-2 text-slate-300">{{ "{:,.0f}".format(ex.planned_value).replace(",", ".") }}</td>
+                            <td class="py-2 text-slate-300">{{ ex.status|title }}{% if ex.get('source') == 'MANUAL' %} <span class="text-amber-400 text-xs">(Man.)</span>{% endif %}</td>
+                            <td class="py-2 text-slate-300">{{ "{:,.1f}".format(ex.get('returned_kg', ex.planned_kg)).replace(",", ".") }}</td>
+                            <td class="py-2 text-slate-300">{{ "{:,.0f}".format(ex.get('returned_value', ex.planned_value)).replace(",", ".") }}</td>
                             <td class="py-2 text-slate-300">{{ ex.reopen_count }}</td>
                             <td class="py-2 text-slate-300">{% if ex.duration_m %}{{ ex.duration_m }} min{% else %}-{% endif %}</td>
                             <td class="py-2 text-sky-300">
@@ -271,7 +271,7 @@
                             <td class="py-2 text-slate-300">{{ d.shift }}</td>
                             <td class="py-2 text-slate-200 font-semibold">{{ d.driver_name }}</td>
                             <td class="py-2 text-slate-300">{{ d.client_name }}</td>
-                            <td class="py-2 text-slate-300">{{ d.status|title }}</td>
+                            <td class="py-2 text-slate-300">{{ d.status|title }}{% if d.get('source') == 'MANUAL' %} <span class="text-amber-400 text-xs">(Man.)</span>{% endif %}</td>
                             <td class="py-2 text-slate-300">{{ d.order_number }}</td>
                             <td class="py-2 text-slate-300">{{ "{:,.1f}".format(d.planned_kg).replace(",", ".") }}</td>
                             <td class="py-2 text-slate-300">{{ "{:,.1f}".format(d.returned_kg).replace(",", ".") }}</td>
