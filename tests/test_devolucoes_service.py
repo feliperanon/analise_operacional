@@ -14,6 +14,11 @@ from devolucoes_service import (
     normalize_code,
     normalize_name,
     resolve_vendedor,
+    validate_row,
+    validate_rows,
+    DevolucaoRow,
+    ValidationResult,
+    persist_import_batch,
 )
 
 
@@ -240,3 +245,162 @@ def test_validate_rows_global_error_quando_vendedor_vazio(monkeypatch):
     assert len(global_errors) > 0
     assert len(invalid) == 0
     assert len(valid) == 0
+
+
+def test_get_cadastro_health_com_seller_code_duplicado():
+    from devolucoes_service import get_cadastro_health
+    cad = {
+        "employees": [MagicMock(), MagicMock()],
+        "employees_with_seller_code": 2,
+        "vendedor_by_code": {"110": MagicMock()},
+        "clients": [MagicMock()],
+        "client_by_nb": {"x": MagicMock()},
+        "motivos": [MagicMock()],
+        "resp_list": [MagicMock()],
+        "seller_code_collisions": {"110": [1, 2]},
+    }
+    diag, errors = get_cadastro_health(cad)
+    assert diag["seller_code_duplicates_count"] == 1
+    assert any("duplicado" in e.lower() for e in errors)
+
+
+def test_validate_row_rejeita_data_invertida_e_valor_zero():
+    client = MagicMock()
+    client.id = 1
+    vendedor = MagicMock()
+    vendedor.id = 2
+    motorista = MagicMock()
+    motorista.id = 3
+    resp = MagicMock()
+    resp.id = 4
+    motivo = MagicMock()
+    motivo.id = 5
+    motivo.nome_normalizado = "pedidoerrado"
+
+    row = DevolucaoRow(
+        data_romaneio=datetime(2026, 2, 10),
+        data_entrega=datetime(2026, 2, 9),
+        codigo="123",
+        nome_cliente="Cliente",
+        vendedor="201",
+        motorista="Joao",
+        valor=0.0,
+        motivo="Pedido errado",
+        observacao=None,
+        responsabilidade="COMERCIAL",
+        row_index=2,
+    )
+    cad = {
+        "client_by_nb": {"123": client},
+        "client_by_name": {"cliente": client},
+        "vendedor_by_code": {"201": vendedor},
+        "vendedor_by_name_exact": {},
+        "motorista_by_name": {"joao": motorista},
+        "resp_by_norm": {"comercial": resp},
+        "motivo_by_norm": {"pedido errado": motivo, "pedidoerrado": motivo},
+    }
+    result = validate_row(row, cad)
+    assert result.valid is False
+    reasons = [e["reason"] for e in result.errors]
+    assert any("Data entrega anterior" in r for r in reasons)
+    assert any("maior que zero" in r for r in reasons)
+
+
+def test_validate_rows_detecta_duplicidade_no_arquivo(monkeypatch):
+    def fake_load(_session):
+        return {}
+    def fake_health(_cad):
+        return {}, []
+    def fake_validate(_row, _cad):
+        return ValidationResult(
+            valid=True,
+            client_id=1,
+            vendedor_id=2,
+            motorista_id=3,
+            ajudante_id=None,
+            motivo_id=4,
+            responsabilidade_id=5,
+        )
+
+    monkeypatch.setattr("devolucoes_service._load_cadastros", fake_load)
+    monkeypatch.setattr("devolucoes_service.get_cadastro_health", fake_health)
+    monkeypatch.setattr("devolucoes_service.validate_row", fake_validate)
+
+    row_a = DevolucaoRow(
+        data_romaneio=datetime(2026, 2, 2),
+        data_entrega=datetime(2026, 2, 2),
+        codigo="10",
+        nome_cliente="A",
+        vendedor="201",
+        motorista="M",
+        valor=100.0,
+        motivo="X",
+        observacao=None,
+        responsabilidade="R",
+        row_index=2,
+    )
+    row_b = DevolucaoRow(
+        data_romaneio=datetime(2026, 2, 2),
+        data_entrega=datetime(2026, 2, 2),
+        codigo="10",
+        nome_cliente="A",
+        vendedor="201",
+        motorista="M",
+        valor=100.0,
+        motivo="X",
+        observacao=None,
+        responsabilidade="R",
+        row_index=3,
+    )
+    valid, invalid, _, _, global_errors = validate_rows([row_a, row_b], MagicMock())
+    assert global_errors == []
+    assert len(valid) == 1
+    assert len(invalid) == 1
+    assert "Duplicidade no arquivo" in invalid[0]["errors"][0]["reason"]
+
+
+def test_persist_import_batch_grava_batch_erros_e_staging():
+    class FakeSession:
+        def __init__(self):
+            self.added = []
+        def add(self, obj):
+            if obj.__class__.__name__ == "DevolucaoImportBatch" and getattr(obj, "id", None) is None:
+                obj.id = 999
+            self.added.append(obj)
+        def flush(self):
+            return None
+
+    session = FakeSession()
+    rows = [
+        DevolucaoRow(
+            data_romaneio=datetime(2026, 2, 2),
+            data_entrega=datetime(2026, 2, 2),
+            codigo="10",
+            nome_cliente="A",
+            vendedor="201",
+            motorista="M",
+            valor=100.0,
+            motivo="X",
+            observacao=None,
+            responsabilidade="R",
+            row_index=2,
+        )
+    ]
+    invalid = [{
+        "row_index": 2,
+        "errors": [{"column": "VENDEDOR", "value": "201", "reason": "Nao cadastrado"}],
+    }]
+    batch_id = persist_import_batch(
+        session=session,
+        filename="arquivo.xlsx",
+        rows=rows,
+        valid_rows=[],
+        invalid_rows=invalid,
+        created_by="tester",
+        create_staging=True,
+    )
+    assert batch_id == 999
+    types = [x.__class__.__name__ for x in session.added]
+    assert "DevolucaoImportBatch" in types
+    assert "DevolucaoImportRowError" in types
+    assert "DevolucaoStaging" in types

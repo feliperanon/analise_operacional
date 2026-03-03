@@ -867,4 +867,99 @@ def save_batch(
         )
         session.add(dev)
         created += 1
+    batch_id = metadata.get("batch_id") if metadata else None
+    if batch_id:
+        batch = session.get(DevolucaoImportBatch, batch_id)
+        if batch:
+            batch.status = "committed"
+            batch.committed_at = datetime.now()
+            # valid_count é o total validado no preview; aqui guardamos o que foi de fato criado.
+            batch.valid_count = created
+            batch.pending_count = max(0, (batch.invalid_count or 0))
+            session.add(batch)
     return created, skipped
+
+
+def persist_import_batch(
+    session: Session,
+    filename: str,
+    rows: List[DevolucaoRow],
+    valid_rows: List[Dict],
+    invalid_rows: List[Dict],
+    created_by: Optional[str] = None,
+    create_staging: bool = True,
+) -> int:
+    """
+    Persiste o preview de importação em lote auditável.
+    - Cria DevolucaoImportBatch
+    - Cria DevolucaoImportRowError por erro
+    - Cria DevolucaoStaging por linha inválida (opcional)
+    Retorna batch_id.
+    """
+    batch = DevolucaoImportBatch(
+        filename=filename,
+        status="preview",
+        total_rows=len(rows),
+        valid_count=len(valid_rows),
+        invalid_count=len(invalid_rows),
+        pending_count=len(invalid_rows),
+        created_by=created_by,
+    )
+    session.add(batch)
+    session.flush()
+
+    row_by_index = {r.row_index: r for r in rows}
+    for inv in invalid_rows:
+        row_index = int(inv.get("row_index") or 0)
+        errors = inv.get("errors") or []
+        raw_row = row_by_index.get(row_index)
+        raw_payload = None
+        if raw_row:
+            raw_payload = {
+                "data_romaneio": raw_row.data_romaneio.strftime("%Y-%m-%d") if raw_row.data_romaneio else None,
+                "data_entrega": raw_row.data_entrega.strftime("%Y-%m-%d") if raw_row.data_entrega else None,
+                "codigo": raw_row.codigo,
+                "nome_cliente": raw_row.nome_cliente,
+                "vendedor": raw_row.vendedor,
+                "motorista": raw_row.motorista,
+                "valor": raw_row.valor,
+                "motivo": raw_row.motivo,
+                "observacao": raw_row.observacao,
+                "responsabilidade": raw_row.responsabilidade,
+                "ajudante": raw_row.ajudante,
+            }
+
+        for err in errors:
+            session.add(
+                DevolucaoImportRowError(
+                    batch_id=batch.id,
+                    row_index=row_index,
+                    column_name=str(err.get("column") or ""),
+                    value=str(err.get("value") or ""),
+                    reason=str(err.get("reason") or "Erro de validação"),
+                    raw_row_json=json.dumps(raw_payload, ensure_ascii=False) if raw_payload else None,
+                )
+            )
+
+        if create_staging:
+            session.add(
+                DevolucaoStaging(
+                    batch_id=batch.id,
+                    row_index=row_index,
+                    status="PENDENTE_VALIDACAO",
+                    data_romaneio=(raw_row.data_romaneio.strftime("%Y-%m-%d") if raw_row and raw_row.data_romaneio else None),
+                    data_entrega=(raw_row.data_entrega.strftime("%Y-%m-%d") if raw_row and raw_row.data_entrega else None),
+                    codigo_cliente=(raw_row.codigo if raw_row else None),
+                    nome_cliente=(raw_row.nome_cliente if raw_row else None),
+                    codigo_vendedor=(raw_row.vendedor if raw_row else None),
+                    nome_motorista=(raw_row.motorista if raw_row else None),
+                    valor=(raw_row.valor if raw_row else 0.0),
+                    motivo_raw=(raw_row.motivo if raw_row else None),
+                    responsabilidade_raw=(raw_row.responsabilidade if raw_row else None),
+                    observacao=(raw_row.observacao if raw_row else None),
+                    ajudante_raw=(raw_row.ajudante if raw_row else None),
+                    validation_errors=json.dumps(errors, ensure_ascii=False),
+                )
+            )
+
+    return batch.id
