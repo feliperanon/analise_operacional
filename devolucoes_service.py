@@ -15,6 +15,7 @@ from typing import Any, Optional, List, Tuple, Dict
 from dataclasses import dataclass, field
 
 from sqlmodel import Session, select
+from sqlalchemy import or_
 import models
 from models import (
     Client,
@@ -61,7 +62,8 @@ def _norm_text(s: Optional[str]) -> str:
 def normalize_code(value: Any) -> Optional[str]:
     """
     Normaliza código: trim, remove .0 no final (Excel float), múltiplos espaços.
-    Ex: 201, 201.0, " 201 " -> "201"
+    Para código puro numérico: também aceita variação só dígitos.
+    Ex: 201, 201.0, " 201 ", "110.0" -> "201", "110"
     """
     if value is None:
         return None
@@ -70,7 +72,9 @@ def normalize_code(value: Any) -> Optional[str]:
         return None
     s = re.sub(r"\.0+$", "", s)
     s = " ".join(s.split())
-    return s if s else None
+    if not s:
+        return None
+    return s
 
 
 def normalize_name(value: Any) -> Optional[str]:
@@ -234,7 +238,10 @@ def _find_col_map(columns: List[str]) -> Dict[str, str]:
         "data_entrega": ["data entrega", "data_entrega", "entrega"],
         "codigo": ["codigo", "codigo cliente", "cod", "código"],
         "nome_cliente": ["nome do cliente", "nome cliente", "cliente", "razao social", "nome cliente"],
-        "vendedor": ["vendedor", "comercia (sv / vd)", "comercia", "sv", "vd"],
+        "vendedor": [
+            "vendedor", "comercia (sv / vd)", "comercia", "sv", "vd",
+            "codigo do vendedor", "código do vendedor", "seller_code", "cod vendedor", "cod. vendedor",
+        ],
         "motorista": ["motorista"],
         "valor": ["valor", "r$ devolução", "r$ devolucao", "devolucao", "r$ venda bruta"],
         "motivo": ["motivo", "motivos de devolução", "motivos comercial", "motivos cliente", "motivos logistica"],
@@ -358,14 +365,15 @@ def parse_excel(
                 }, ensure_ascii=False) + "\n")
         except Exception:
             pass
-        cols_found = [str(c) for c in raw_cols][:15]
+        cols_found = [str(c) for c in raw_cols][:20]
         hint = ""
         if any("comercia" in str(c).lower() or "r$ devolução" in str(c).lower() for c in raw_cols):
-            hint = " Seu arquivo parece ser um relatório resumido. Para importar devoluções, use uma planilha com uma linha por devolução e as colunas: "
+            hint = " Seu arquivo parece ser um relatório resumido. "
         return [], (
-            f"Colunas obrigatórias ausentes: {', '.join(missing)}. "
-            f"Colunas encontradas: {cols_found}. "
-            f"{hint}DATA ROMANEIO, DATA ENTREGA, CODIGO, NOME DO CLIENTE, VENDEDOR, MOTORISTA, VALOR, MOTIVO, RESPONSABILIDADE."
+            f"Colunas obrigatórias ausentes: {', '.join(missing).upper()}. "
+            f"Colunas encontradas (top 20): {cols_found}. "
+            f"{hint}Use o Modelo Excel (botão 'Modelo Excel' na tela) ou planilha com: "
+            f"DATA ROMANEIO, DATA ENTREGA, CODIGO, NOME DO CLIENTE, VENDEDOR, MOTORISTA, VALOR, MOTIVO, RESPONSABILIDADE."
         )
 
     rows = []
@@ -403,7 +411,14 @@ def parse_excel(
 def _load_cadastros(session: Session) -> Dict[str, Any]:
     """Carrega cadastros em dict para validação rápida (evitar N+1)."""
     clients = session.exec(select(Client)).all()
-    employees = session.exec(select(Employee).where(Employee.status != "fired")).all()
+    # Filtro seguro: incluir status NULL como ativo; excluir apenas fired
+    employees = session.exec(
+        select(Employee).where(
+            or_(Employee.status.is_(None), Employee.status != "fired")
+        )
+    ).all()
+    if not employees:
+        employees = session.exec(select(Employee)).all()
     motivos = session.exec(select(DevolucaoMotivo).where(DevolucaoMotivo.is_active == True)).all()
     resp_list = session.exec(select(DevolucaoResponsabilidade).where(DevolucaoResponsabilidade.is_active == True)).all()
 
