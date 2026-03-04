@@ -59,6 +59,11 @@
       fullscreenChartId = null;
       compareWindow = null;
     }
+    if (id === "chartFullscreenModal") {
+      const canvas = byId("fullscreenChartCanvas");
+      const existing = canvas ? Chart.getChart(canvas) : null;
+      if (existing) existing.destroy();
+    }
   }
 
   function getChart(id) {
@@ -131,6 +136,34 @@
     };
   }
 
+  function cloneChartData(data) {
+    return JSON.parse(JSON.stringify(data || { labels: [], datasets: [] }));
+  }
+
+  function buildFullscreenOptions(type) {
+    const isCartesian = type !== "doughnut" && type !== "pie" && type !== "polarArea";
+    const options = {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 420, easing: "easeOutQuart" },
+      plugins: {
+        legend: { labels: { color: "#94a3b8" } },
+        tooltip: { enabled: true },
+        zoom: {
+          pan: { enabled: true, mode: "xy" },
+          zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: "xy" }
+        }
+      }
+    };
+    if (isCartesian) {
+      options.scales = {
+        x: { ticks: { color: "#94a3b8" }, grid: { color: "rgba(148,163,184,0.2)" } },
+        y: { ticks: { color: "#94a3b8" }, grid: { color: "rgba(148,163,184,0.2)" } }
+      };
+    }
+    return options;
+  }
+
   function generateInsightsFromDataset(chartId, data) {
     const out = [];
     const labels = data?.labels || [];
@@ -190,22 +223,14 @@
     byId("fullChartTitle").textContent = chartTitles[chartId] || "Gráfico";
     byId("fullChartTag").textContent = "Use setas para navegar entre gráficos.";
     if (fullscreenChart) fullscreenChart.destroy();
-    const clipped = clipData(src.data, compareWindow);
+    const fullscreenCanvas = byId("fullscreenChartCanvas");
+    const existingCanvasChart = fullscreenCanvas ? Chart.getChart(fullscreenCanvas) : null;
+    if (existingCanvasChart) existingCanvasChart.destroy();
+    const clipped = cloneChartData(clipData(src.data, compareWindow));
     fullscreenChart = new Chart(byId("fullscreenChartCanvas"), {
       type: currentType,
       data: clipped,
-      options: {
-        ...src.options,
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          ...(src.options.plugins || {}),
-          zoom: {
-            pan: { enabled: true, mode: "xy" },
-            zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: "xy" }
-          }
-        }
-      }
+      options: buildFullscreenOptions(currentType)
     });
     byId("chartTypeToggleBtn").dataset.allowed = JSON.stringify(allowed);
     byId("chartTypeToggleBtn").dataset.current = currentType;
@@ -281,9 +306,12 @@
     const next = allowed[(idx + 1) % allowed.length] || current;
     byId("chartTypeToggleBtn").dataset.current = next;
     const src = getChart(fullscreenChartId);
-    const clipped = clipData(src.data, compareWindow);
+    const clipped = cloneChartData(clipData(src.data, compareWindow));
     fullscreenChart.destroy();
-    fullscreenChart = new Chart(byId("fullscreenChartCanvas"), { type: next, data: clipped, options: src.options });
+    const fullscreenCanvas = byId("fullscreenChartCanvas");
+    const existingCanvasChart = fullscreenCanvas ? Chart.getChart(fullscreenCanvas) : null;
+    if (existingCanvasChart) existingCanvasChart.destroy();
+    fullscreenChart = new Chart(byId("fullscreenChartCanvas"), { type: next, data: clipped, options: buildFullscreenOptions(next) });
   });
 
   byId("chartCompare7Btn")?.addEventListener("click", () => { compareWindow = 7; if (fullscreenChartId) openChartFullscreen(fullscreenChartId); });
