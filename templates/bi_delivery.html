@@ -30,7 +30,7 @@
           <label>Turno</label>
           <select name="shift">
             {% for sh in ["Todos", "Manhã", "Tarde", "Noite"] %}
-            <option value="{{ sh }}" {% if filters.shift == sh %}selected{% endif %}>{{ sh }}</option>
+            <option value="{{ sh }}" {% if filters.shift==sh %}selected{% endif %}>{{ sh }}</option>
             {% endfor %}
           </select>
         </div>
@@ -39,7 +39,7 @@
           <select name="driver_id">
             <option value="">Todos</option>
             {% for d in drivers_filter %}
-            <option value="{{ d.id }}" {% if filters.driver_id == d.id %}selected{% endif %}>{{ d.name }}</option>
+            <option value="{{ d.id }}" {% if filters.driver_id==d.id %}selected{% endif %}>{{ d.name }}</option>
             {% endfor %}
           </select>
         </div>
@@ -48,7 +48,7 @@
           <select name="plate">
             <option value="Todos">Todas</option>
             {% for p in plates_filter %}
-            <option value="{{ p }}" {% if filters.plate == p %}selected{% endif %}>{{ p }}</option>
+            <option value="{{ p }}" {% if filters.plate==p %}selected{% endif %}>{{ p }}</option>
             {% endfor %}
           </select>
         </div>
@@ -56,7 +56,7 @@
           <label>Status</label>
           <select name="status">
             {% for s in statuses_filter %}
-            <option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s }}</option>
+            <option value="{{ s }}" {% if filters.status==s %}selected{% endif %}>{{ s }}</option>
             {% endfor %}
           </select>
         </div>
@@ -73,12 +73,19 @@
 
     <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-7 gap-3">
       {{ kpi_card("Paradas Planejadas", kpis.planned_stops, "Base do período", "route", "neutral") }}
-      {{ kpi_card("Paradas Realizadas", kpis.realized_stops, "SLA " ~ "%.1f"|format(kpis.sla_finish) ~ "%", "check-circle-2", "success" if kpis.sla_finish >= 90 else "warning") }}
-      {{ kpi_card("Taxa Devolução", "%.1f"|format(kpis.return_rate_qtd) ~ "%", kpis.total_devolucoes ~ " ocorrências", "undo-2", "danger" if kpis.return_rate_qtd >= 10 else "warning") }}
-      {{ kpi_card("Valor Devolvido", "R$ " ~ "{:,.2f}".format(kpis.valor_total_devolvido).replace(",", "X").replace(".", ",").replace("X", "."), "Total acumulado", "wallet", "danger" if kpis.valor_total_devolvido > 0 else "neutral") }}
-      {{ kpi_card("% Acima de R$300", "%.1f"|format(kpis.devolucoes_acima_300_pct) ~ "%", kpis.devolucoes_acima_300_count ~ " linhas", "alert-triangle", "warning" if kpis.devolucoes_acima_300_pct >= 35 else "success") }}
-      {{ kpi_card("Tempo Médio", "%.0f"|format(kpis.avg_duration_m) ~ " min", "Rotas finalizadas", "timer", "warning" if kpis.avg_duration_m >= 120 else "success") }}
-      {{ kpi_card("Risco Próx. Turno", kpis.risk_label, "Prev. devolução " ~ "%.1f"|format(kpis.forecast_next_return_rate) ~ "%", "shield-alert", kpis.risk_severity) }}
+      {{ kpi_card("Paradas Realizadas", kpis.realized_stops, "SLA " ~ "%.1f"|format(kpis.sla_finish) ~ "%",
+      "check-circle-2", "success" if kpis.sla_finish >= 90 else "warning") }}
+      {{ kpi_card("Taxa Devolução", "%.1f"|format(kpis.return_rate_qtd) ~ "%", kpis.total_devolucoes ~ " ocorrências",
+      "undo-2", "danger" if kpis.return_rate_qtd >= 10 else "warning") }}
+      {{ kpi_card("Valor Devolvido", "R$ " ~ "{:,.2f}".format(kpis.valor_total_devolvido).replace(",", "X").replace(".",
+      ",").replace("X", "."), "Total acumulado", "wallet", "danger" if kpis.valor_total_devolvido > 0 else "neutral") }}
+      {{ kpi_card("% Acima de R$300", "%.1f"|format(kpis.devolucoes_acima_300_pct) ~ "%",
+      kpis.devolucoes_acima_300_count ~ " linhas", "alert-triangle", "warning" if kpis.devolucoes_acima_300_pct >= 35
+      else "success") }}
+      {{ kpi_card("Tempo Médio", "%.0f"|format(kpis.avg_duration_m) ~ " min", "Rotas finalizadas", "timer", "warning" if
+      kpis.avg_duration_m >= 120 else "success") }}
+      {{ kpi_card("Risco Próx. Turno", kpis.risk_label, "Prev. devolução " ~
+      "%.1f"|format(kpis.forecast_next_return_rate) ~ "%", "shield-alert", kpis.risk_severity) }}
     </section>
 
     <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -120,38 +127,42 @@
       </section>
     </section>
 
-    {% call table_section("Painel tático por motorista", "Clique no motorista para drill-down no período.", "tacticalTable") %}
-      <thead>
-        <tr>
-          <th>Motorista</th>
-          <th>Paradas</th>
-          <th>Eficiência</th>
-          <th>Devolução %</th>
-          <th>KG pl.</th>
-          <th>KG real.</th>
-          <th>R$ devolvido</th>
-          <th>Reaberturas</th>
-          <th>Tempo médio</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in tactical_rows %}
-        <tr>
-          <td><a class="table-link" href="/bi/delivery?{{ filters_query }}&detail_driver_id={{ row.driver_id }}">{{ row.driver_name }}</a></td>
-          <td>{{ row.realized_stops }}/{{ row.planned_stops }}</td>
-          <td class="{{ 'tone-danger' if row.efficiency < 70 else 'tone-success' }}">{{ "%.1f"|format(row.efficiency) }}%</td>
-          <td class="{{ 'tone-warning' if row.return_rate >= 10 else '' }}">{{ "%.1f"|format(row.return_rate) }}%</td>
-          <td>{{ "{:,.0f}".format(row.planned_kg).replace(",", ".") }}</td>
-          <td>{{ "{:,.0f}".format(row.realized_kg).replace(",", ".") }}</td>
-          <td>{{ "{:,.0f}".format(row.returned_value).replace(",", ".") }}</td>
-          <td>{{ row.reopen_count }}</td>
-          <td>{{ "%.0f"|format(row.avg_duration) }} min</td>
-        </tr>
-        {% endfor %}
-      </tbody>
+    {% call table_section("Painel tático por motorista", "Clique no motorista para drill-down no período.",
+    "tacticalTable") %}
+    <thead>
+      <tr>
+        <th>Motorista</th>
+        <th>Paradas</th>
+        <th>Eficiência</th>
+        <th>Devolução %</th>
+        <th>KG pl.</th>
+        <th>KG real.</th>
+        <th>R$ devolvido</th>
+        <th>Reaberturas</th>
+        <th>Tempo médio</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in tactical_rows %}
+      <tr>
+        <td><a class="table-link"
+            href="/bi/delivery?{{ filters_query }}&detail_driver_id={{ row.driver_id }}#drilldown-section">{{
+            row.driver_name }}</a></td>
+        <td>{{ row.realized_stops }}/{{ row.planned_stops }}</td>
+        <td class="{{ 'tone-danger' if row.efficiency < 70 else 'tone-success' }}">{{ "%.1f"|format(row.efficiency) }}%
+        </td>
+        <td class="{{ 'tone-warning' if row.return_rate >= 10 else '' }}">{{ "%.1f"|format(row.return_rate) }}%</td>
+        <td>{{ "{:,.0f}".format(row.planned_kg).replace(",", ".") }}</td>
+        <td>{{ "{:,.0f}".format(row.realized_kg).replace(",", ".") }}</td>
+        <td>{{ "{:,.0f}".format(row.returned_value).replace(",", ".") }}</td>
+        <td>{{ row.reopen_count }}</td>
+        <td>{{ "%.0f"|format(row.avg_duration) }} min</td>
+      </tr>
+      {% endfor %}
+    </tbody>
     {% endcall %}
 
-    <section class="surface-shadow bi-card">
+    <section id="drilldown-section" class="surface-shadow bi-card">
       <div class="bi-card-head bi-card-head-between">
         <div>
           <h3 class="text-section">Drill-through operacional</h3>
@@ -203,8 +214,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  const chartData = {{ chart_payload_json|safe }};
-  const detailRows = {{ detail_rows_json|safe }};
+  const chartData = {{ chart_payload_json| safe }};
+  const detailRows = {{ detail_rows_json| safe }};
 
   const token = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
   const palette = {
@@ -388,35 +399,195 @@
 </script>
 
 <style>
-  .bi-page { background: var(--color-bg); color: var(--color-text); }
-  .bi-card { padding: var(--space-4, 1rem); }
-  .bi-card-head { display: flex; align-items: center; gap: .75rem; }
-  .bi-card-head-between { justify-content: space-between; }
-  .surface-shadow { background: var(--color-surface); border-radius: var(--radius-lg, 1rem); box-shadow: var(--shadow-card); border: 1px solid var(--color-border); }
-  .surface { background: var(--color-surface); border-radius: var(--radius-lg, 1rem); border: 1px solid var(--color-border); }
-  .icon-wrap, .icon-wrap-sm { background: var(--color-border-light); color: var(--color-text-secondary); border-radius: var(--radius-md, .75rem); display: flex; align-items: center; justify-content: center; }
-  .icon-wrap { width: 2.25rem; height: 2.25rem; }
-  .icon-wrap-sm { width: 2rem; height: 2rem; }
-  .text-title-lg { font-size: var(--text-title-lg, 1.125rem); color: var(--color-text); font-weight: 600; }
-  .text-section { font-size: var(--text-section, .875rem); color: var(--color-text); font-weight: 600; }
-  .text-body { font-size: var(--text-body, .8125rem); color: var(--color-text-secondary); }
-  .text-caption { font-size: var(--text-caption, .6875rem); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .06em; }
-  .form-field label { display:block; margin-bottom: .35rem; font-size: var(--text-caption, .6875rem); text-transform: uppercase; color: var(--color-text-muted); }
-  .form-field input, .form-field select, .input-mini { width: 100%; min-height: 42px; border-radius: var(--radius-md, .75rem); border: 2px solid var(--color-border); background: var(--color-input-bg, var(--color-surface)); color: var(--color-text); padding: 0 .75rem; }
-  .btn-primary, .btn-secondary { min-height: 42px; border-radius: var(--radius-md, .75rem); padding: 0 1rem; display: inline-flex; align-items: center; justify-content: center; font-size: var(--text-body, .8125rem); font-weight: 600; transition: opacity .2s ease; }
-  .btn-primary { background: var(--color-primary); color: var(--color-text-inverse); border: 1px solid var(--color-primary); }
-  .btn-secondary { background: var(--color-surface); color: var(--color-text); border: 2px solid var(--color-border); }
-  .btn-primary:hover, .btn-secondary:hover { opacity: .9; }
-  .bi-table { width: 100%; border-collapse: collapse; }
-  .bi-table thead th { position: sticky; top: 0; background: var(--color-surface); border-bottom: 1px solid var(--color-border); text-align: left; font-size: var(--text-caption, .6875rem); color: var(--color-text-muted); padding: .65rem .5rem; cursor: pointer; }
-  .bi-table tbody td { border-bottom: 1px solid var(--color-border-light); padding: .6rem .5rem; color: var(--color-text-secondary); }
-  .bi-table tbody tr:hover { background: var(--color-hover); }
-  .table-link { color: var(--color-primary); text-decoration: underline dotted; font-weight: 600; }
-  .tone-success { color: var(--color-success) !important; font-weight: 600; }
-  .tone-warning { color: var(--color-warning) !important; font-weight: 600; }
-  .tone-danger { color: var(--color-danger) !important; font-weight: 600; }
-  .insight-row { border: 1px solid var(--color-border); border-radius: var(--radius-sm, .5rem); padding: .6rem .7rem; background: var(--color-surface); font-size: var(--text-body, .8125rem); color: var(--color-text-secondary); }
-  .insight-warning { border-color: var(--color-warning); }
-  .bi-help-card { border: 1px solid var(--color-border); }
+  .bi-page {
+    background: var(--color-bg);
+    color: var(--color-text);
+  }
+
+  .bi-card {
+    padding: var(--space-4, 1rem);
+  }
+
+  .bi-card-head {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+  }
+
+  .bi-card-head-between {
+    justify-content: space-between;
+  }
+
+  .surface-shadow {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg, 1rem);
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--color-border);
+  }
+
+  .surface {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg, 1rem);
+    border: 1px solid var(--color-border);
+  }
+
+  .icon-wrap,
+  .icon-wrap-sm {
+    background: var(--color-border-light);
+    color: var(--color-text-secondary);
+    border-radius: var(--radius-md, .75rem);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .icon-wrap {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .icon-wrap-sm {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .text-title-lg {
+    font-size: var(--text-title-lg, 1.125rem);
+    color: var(--color-text);
+    font-weight: 600;
+  }
+
+  .text-section {
+    font-size: var(--text-section, .875rem);
+    color: var(--color-text);
+    font-weight: 600;
+  }
+
+  .text-body {
+    font-size: var(--text-body, .8125rem);
+    color: var(--color-text-secondary);
+  }
+
+  .text-caption {
+    font-size: var(--text-caption, .6875rem);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+
+  .form-field label {
+    display: block;
+    margin-bottom: .35rem;
+    font-size: var(--text-caption, .6875rem);
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  .form-field input,
+  .form-field select,
+  .input-mini {
+    width: 100%;
+    min-height: 42px;
+    border-radius: var(--radius-md, .75rem);
+    border: 2px solid var(--color-border);
+    background: var(--color-input-bg, var(--color-surface));
+    color: var(--color-text);
+    padding: 0 .75rem;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    min-height: 42px;
+    border-radius: var(--radius-md, .75rem);
+    padding: 0 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-body, .8125rem);
+    font-weight: 600;
+    transition: opacity .2s ease;
+  }
+
+  .btn-primary {
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+    border: 1px solid var(--color-primary);
+  }
+
+  .btn-secondary {
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 2px solid var(--color-border);
+  }
+
+  .btn-primary:hover,
+  .btn-secondary:hover {
+    opacity: .9;
+  }
+
+  .bi-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .bi-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    text-align: left;
+    font-size: var(--text-caption, .6875rem);
+    color: var(--color-text-muted);
+    padding: .65rem .5rem;
+    cursor: pointer;
+  }
+
+  .bi-table tbody td {
+    border-bottom: 1px solid var(--color-border-light);
+    padding: .6rem .5rem;
+    color: var(--color-text-secondary);
+  }
+
+  .bi-table tbody tr:hover {
+    background: var(--color-hover);
+  }
+
+  .table-link {
+    color: var(--color-primary);
+    text-decoration: underline dotted;
+    font-weight: 600;
+  }
+
+  .tone-success {
+    color: var(--color-success) !important;
+    font-weight: 600;
+  }
+
+  .tone-warning {
+    color: var(--color-warning) !important;
+    font-weight: 600;
+  }
+
+  .tone-danger {
+    color: var(--color-danger) !important;
+    font-weight: 600;
+  }
+
+  .insight-row {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm, .5rem);
+    padding: .6rem .7rem;
+    background: var(--color-surface);
+    font-size: var(--text-body, .8125rem);
+    color: var(--color-text-secondary);
+  }
+
+  .insight-warning {
+    border-color: var(--color-warning);
+  }
+
+  .bi-help-card {
+    border: 1px solid var(--color-border);
+  }
 </style>
 {% endblock %}

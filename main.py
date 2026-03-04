@@ -2346,17 +2346,26 @@ async def mobile_achievements_page(request: Request, session: Session = Depends(
         "level": {"level": 1, "name": "Colaborador", "badge_image": "badge_1.png", "min_xp": 0},
         "next_level": {"name": "Próximo", "min_xp": 1000} if total_xp < 1000 else None,
     }
-    all_achievements = session.exec(select(models.GameAchievement).order_by(models.GameAchievement.xp_reward)).all()
+    all_achievements = session.exec(
+        select(
+            models.GameAchievement.id,
+            models.GameAchievement.name,
+            models.GameAchievement.description,
+            models.GameAchievement.icon,
+            models.GameAchievement.xp_reward,
+        ).order_by(models.GameAchievement.xp_reward)
+    ).all()
     earned = {ea.achievement_id: ea for ea in session.exec(
         select(models.EmployeeAchievement).where(models.EmployeeAchievement.employee_id == employee.id)).all()}
     achievements_list = []
     for ach in all_achievements:
-        ea = earned.get(ach.id)
+        ach_id, ach_name, ach_desc, ach_icon, ach_xp_reward = ach
+        ea = earned.get(ach_id)
         achievements_list.append({
-            "name": ach.name,
-            "description": ach.description or "",
-            "icon": ach.icon if ach.icon and not str(ach.icon).startswith("\\U0001f") else "award",
-            "xp_reward": ach.xp_reward or 0,
+            "name": ach_name,
+            "description": ach_desc or "",
+            "icon": ach_icon if ach_icon and not str(ach_icon).startswith("\\U0001f") else "award",
+            "xp_reward": ach_xp_reward or 0,
             "unlocked": ea is not None,
             "earned_at": ea.earned_at if ea else None,
         })
@@ -7514,6 +7523,25 @@ def _norm_plate(v: Any) -> str:
     return "".join(ch for ch in str(v).upper().strip() if ch.isalnum())
 
 
+def _fmt_br_date(date_str: str) -> str:
+    """Converte YYYY-MM-DD para dd/mm/yyyy."""
+    if not date_str or len(date_str) < 10:
+        return date_str or ""
+    try:
+        y, m, d = date_str[:10].split("-")
+        return f"{d}/{m}/{y}"
+    except Exception:
+        return date_str
+
+
+def _fmt_br_float(val: float, decimals: int = 2) -> str:
+    """Formata número em padrão BR: 1234.56 -> 1.234,56."""
+    if val is None:
+        return "0"
+    s = f"{float(val):,.{decimals}f}"
+    return s.replace(",", "X").replace(".", ",").replace("X", ".")
+
+
 def _as_str(v: Any) -> Optional[str]:
     if v is None:
         return None
@@ -8440,7 +8468,7 @@ async def import_entregas_separacao(
     logger.info(f"ðŸšš Iniciando importaÃ§Ã£o de entregas: {file.filename} para data {date}, turno {shift}")
 
     if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls", ".csv")):
-        import_result["message"] = "Arquivo invÃ¡lido. Use .xls, .xlsx ou .csv."
+        import_result["message"] = "Arquivo inválido. Use .xls, .xlsx ou .csv."
         logger.warning(f"Ã¢ÂÃ…' Arquivo invÃ¡lido: {file.filename}")
         return await separacao_page(request=request, date=date, shift=shift, session=session, delivery_import=import_result)
 
@@ -8459,7 +8487,7 @@ async def import_entregas_separacao(
         required = ["driver", "plate", "client_name", "client_code", "address", "peso_pedido", "route_code"]
         missing_required = [field for field in required if not col_map.get(field)]
         if missing_required:
-            import_result["message"] = "Planilha sem colunas obrigatÃ³rias para entregas."
+            import_result["message"] = "Planilha sem colunas obrigatórias para entregas."
             import_result["issues"].append({
                 "row": "-",
                 "reason": f"Colunas ausentes: {', '.join(missing_required)}. Colunas encontradas: {', '.join(df.columns)}",
@@ -8517,7 +8545,7 @@ async def import_entregas_separacao(
                 sugestao = f" Motoristas cadastrados: {', '.join(motoristas_cadastrados)}" if motoristas_cadastrados else ""
                 import_result["issues"].append({
                     "row": row_num,
-                    "reason": f"Motorista nÃ£o encontrado: '{driver_name_raw}'.{sugestao}",
+                    "reason": f"Motorista não encontrado: '{driver_name_raw}'.{sugestao}",
                 })
                 logger.warning(f"Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha {row_num}: '{driver_name_raw}'")
                 continue
@@ -8526,7 +8554,7 @@ async def import_entregas_separacao(
             if not vehicle:
                 import_result["issues"].append({
                     "row": row_num,
-                    "reason": f"CaminhÃ£o/placa nÃ£o cadastrado: {plate_raw or '-'}",
+                    "reason": f"Caminhão/placa não cadastrado: {plate_raw or '-'}",
                 })
                 continue
 
@@ -8535,7 +8563,7 @@ async def import_entregas_separacao(
             if not client:
                 import_result["issues"].append({
                     "row": row_num,
-                    "reason": f"Cliente nÃ£o cadastrado: {client_name_raw} (cÃ³digo {client_code_raw or '-'})",
+                    "reason": f"Cliente não cadastrado: {client_name_raw} (código {client_code_raw or '-'})",
                 })
                 continue
 
@@ -8570,11 +8598,11 @@ async def import_entregas_separacao(
             if peso_total > 0 and abs(sum_pedidos - peso_total) > 1.0:
                 import_result["warnings"].append({
                     "route": route_code,
-                    "reason": f"Soma PESO PEDIDO ({sum_pedidos:.2f}) difere de PESO TOTAL ({peso_total:.2f}).",
+                    "reason": f"Soma PESO PEDIDO ({_fmt_br_float(sum_pedidos)}) difere de PESO TOTAL ({_fmt_br_float(peso_total)}).",
                 })
 
         if not parsed_rows:
-            import_result["message"] = "Nenhuma entrega vÃ¡lida encontrada. Corrija os cadastros pendentes e tente novamente."
+            import_result["message"] = "Nenhuma entrega válida encontrada. Corrija os cadastros pendentes e tente novamente."
             return await separacao_page(request=request, date=date, shift=shift, session=session, delivery_import=import_result)
 
         imported_route_codes = list({row["route_code"] for row in parsed_rows if row["route_code"] and row["route_code"] != "-"})
@@ -8623,19 +8651,20 @@ async def import_entregas_separacao(
         import_result["created"] = len(parsed_rows)
         logger.info("info log")
         
+        date_br = _fmt_br_date(date)
         if import_result["issues"]:
             import_result["message"] = (
-                f"ImportaÃ§Ã£o parcial concluÃ­da. {len(parsed_rows)} entregas criadas para {date}. "
+                f"Importação parcial concluída. {len(parsed_rows)} entregas criadas para {date_br}. "
                 f"{len(import_result['issues'])} linha(s) pendente(s) de cadastro."
             )
         else:
-            import_result["message"] = f"ImportaÃ§Ã£o concluÃ­da com sucesso. {len(parsed_rows)} entregas criadas para {date}."
+            import_result["message"] = f"Importação concluída com sucesso. {len(parsed_rows)} entregas criadas para {date_br}."
     except Exception as exc:
         import_result["message"] = f"Erro ao importar planilha: {str(exc)}"
         logger.exception(f"Ã¢ÂÃ…' Falha na importaÃ§Ã£o de entregas: {exc}")
         import_result["issues"].append({
             "row": "-",
-            "reason": f"Erro tÃ©cnico: {str(exc)}"
+            "reason": f"Erro técnico: {str(exc)}"
         })
 
     return await separacao_page(request=request, date=date, shift=shift, session=session, delivery_import=import_result)
