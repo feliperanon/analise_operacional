@@ -2189,6 +2189,275 @@ async def admin_users_page(request: Request, session: Session = Depends(get_sess
     )
 
 
+@app.post("/admin/users/create", response_class=RedirectResponse)
+async def admin_users_create(
+    request: Request,
+    session: Session = Depends(get_session),
+):
+    require_admin(request)
+    form = await request.form()
+    email = normalize_email(str(form.get("email", "") or ""))
+    password = str(form.get("password", "") or "")
+    role_raw = str(form.get("role", "leader") or "leader").strip().lower()
+    role_value = "admin" if role_raw == "admin" else "leader"
+    employee_id_raw = str(form.get("employee_id", "") or "").strip()
+    selected_pages = [str(k) for k in form.getlist("pages") if str(k) in PAGE_KEYS]
+
+    if "@" not in email:
+        return admin_users_redirect("Informe um e-mail válido.", "error")
+    if len(password) < 6:
+        return admin_users_redirect("A senha deve ter pelo menos 6 caracteres.", "error")
+
+    existing_email = session.exec(select(models.User).where(models.User.username == email)).first()
+    if existing_email:
+        return admin_users_redirect("Já existe usuário com este e-mail.", "error")
+
+    employee_id: Optional[int] = None
+    if employee_id_raw:
+        try:
+            employee_id = int(employee_id_raw)
+        except Exception:
+            return admin_users_redirect("Colaborador inválido.", "error")
+        employee = session.get(models.Employee, employee_id)
+        if not employee or str(getattr(employee, "status", "") or "").lower() == "fired":
+            return admin_users_redirect("Colaborador não encontrado.", "error")
+        existing_employee_link = session.exec(
+            select(models.User).where(models.User.employee_id == employee_id)
+        ).first()
+        if existing_employee_link:
+            return admin_users_redirect("Este colaborador já está vinculado a outro usuário.", "error")
+
+    if role_value == "leader" and not selected_pages:
+        return admin_users_redirect("Selecione pelo menos uma página para o perfil Líder.", "error")
+
+    user = models.User(
+        username=email,
+        password_hash=hash_password(password),
+        role=role_value,
+        is_active=True,
+        employee_id=employee_id,
+        allowed_pages=serialize_allowed_pages(selected_pages),
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    session.add(user)
+    session.commit()
+    return admin_users_redirect("Usuário criado com sucesso.")
+
+
+@app.get("/admin/users/{user_id}/edit", response_class=HTMLResponse)
+async def admin_user_edit_page(
+    request: Request,
+    user_id: int,
+    session: Session = Depends(get_session),
+):
+    require_admin(request)
+    user = session.get(models.User, user_id)
+    if not user:
+        return admin_users_redirect("Usuário não encontrado.", "error")
+    employees = session.exec(
+        select(models.Employee)
+        .where(models.Employee.status != "fired")
+        .order_by(models.Employee.name)
+    ).all()
+    employee_map = {e.id: e for e in employees}
+    return templates.TemplateResponse(
+        "admin_user_edit.html",
+        {
+            "request": request,
+            "u": user,
+            "employees": employees,
+            "employee_map": employee_map,
+            "page_options": PAGE_OPTIONS,
+            "allowed": set(parse_allowed_pages(getattr(user, "allowed_pages", None))),
+        },
+    )
+
+
+@app.post("/admin/users/{user_id}/status", response_class=RedirectResponse)
+async def admin_user_toggle_status(
+    request: Request,
+    user_id: int,
+    session: Session = Depends(get_session),
+):
+    actor = require_admin(request)
+    actor_id = actor.get("id") if isinstance(actor, dict) else None
+    target_user = session.get(models.User, user_id)
+    if not target_user:
+        return admin_users_redirect("Usuário não encontrado.", "error")
+
+    form = await request.form()
+    active_raw = str(form.get("active", "") or "").strip().lower()
+    will_be_active = active_raw in {"1", "true", "on", "yes"}
+
+    if actor_id and int(actor_id) == int(user_id) and not will_be_active:
+        return admin_users_redirect("Você não pode desativar seu próprio usuário.", "error")
+
+    if (
+        (target_user.role or "").strip().lower() == "admin"
+        and bool(target_user.is_active)
+        and not will_be_active
+    ):
+        active_admins = session.exec(
+            select(models.User).where(models.User.role == "admin").where(models.User.is_active == True)
+        ).all()
+        if len(active_admins) <= 1:
+            return admin_users_redirect("Não é possível desativar o último admin ativo.", "error")
+
+    target_user.is_active = will_be_active
+    target_user.updated_at = datetime.now()
+    session.add(target_user)
+    session.commit()
+    return admin_users_redirect("Status atualizado com sucesso.")
+
+
+@app.post("/admin/users/{user_id}/employee", response_class=RedirectResponse)
+async def admin_user_update_employee(
+    request: Request,
+    user_id: int,
+    session: Session = Depends(get_session),
+):
+    require_admin(request)
+    target_user = session.get(models.User, user_id)
+    if not target_user:
+        return admin_users_redirect("Usuário não encontrado.", "error")
+
+    form = await request.form()
+    employee_id_raw = str(form.get("employee_id", "") or "").strip()
+
+    new_employee_id: Optional[int] = None
+    if employee_id_raw:
+        try:
+            new_employee_id = int(employee_id_raw)
+        except Exception:
+            return admin_users_redirect("Colaborador inválido.", "error")
+        employee = session.get(models.Employee, new_employee_id)
+        if not employee or str(getattr(employee, "status", "") or "").lower() == "fired":
+            return admin_users_redirect("Colaborador não encontrado.", "error")
+        existing_link = session.exec(
+            select(models.User)
+            .where(models.User.employee_id == new_employee_id)
+            .where(models.User.id != user_id)
+        ).first()
+        if existing_link:
+            return admin_users_redirect("Este colaborador já está vinculado a outro usuário.", "error")
+
+    target_user.employee_id = new_employee_id
+    target_user.updated_at = datetime.now()
+    session.add(target_user)
+    session.commit()
+    return admin_users_redirect("Colaborador atualizado com sucesso.")
+
+
+@app.post("/admin/users/{user_id}/role", response_class=RedirectResponse)
+async def admin_user_update_role(
+    request: Request,
+    user_id: int,
+    session: Session = Depends(get_session),
+):
+    require_admin(request)
+    target_user = session.get(models.User, user_id)
+    if not target_user:
+        return admin_users_redirect("Usuário não encontrado.", "error")
+
+    form = await request.form()
+    role_raw = str(form.get("role", "") or "").strip().lower()
+    if role_raw not in {"admin", "leader"}:
+        return admin_users_redirect("Perfil inválido.", "error")
+
+    old_role = (target_user.role or "").strip().lower()
+    new_role = "admin" if role_raw == "admin" else "leader"
+    if old_role == "admin" and new_role != "admin" and bool(target_user.is_active):
+        active_admins = session.exec(
+            select(models.User).where(models.User.role == "admin").where(models.User.is_active == True)
+        ).all()
+        if len(active_admins) <= 1:
+            return admin_users_redirect("Não é possível remover o último admin ativo.", "error")
+
+    target_user.role = new_role
+    target_user.updated_at = datetime.now()
+    session.add(target_user)
+    session.commit()
+    return admin_users_redirect("Perfil atualizado com sucesso.")
+
+
+@app.post("/admin/users/{user_id}/pages", response_class=RedirectResponse)
+async def admin_user_update_pages(
+    request: Request,
+    user_id: int,
+    session: Session = Depends(get_session),
+):
+    require_admin(request)
+    target_user = session.get(models.User, user_id)
+    if not target_user:
+        return admin_users_redirect("Usuário não encontrado.", "error")
+
+    if (target_user.role or "").strip().lower() == "admin":
+        return admin_users_redirect("Admins não precisam de páginas específicas.", "error")
+
+    form = await request.form()
+    selected_pages = [str(k) for k in form.getlist("pages") if str(k) in PAGE_KEYS]
+    if not selected_pages:
+        return admin_users_redirect("Selecione pelo menos uma página.", "error")
+
+    target_user.allowed_pages = serialize_allowed_pages(selected_pages)
+    target_user.updated_at = datetime.now()
+    session.add(target_user)
+    session.commit()
+    return admin_users_redirect("Páginas atualizadas com sucesso.")
+
+
+@app.post("/admin/users/{user_id}/password", response_class=RedirectResponse)
+async def admin_user_update_password(
+    request: Request,
+    user_id: int,
+    session: Session = Depends(get_session),
+):
+    require_admin(request)
+    target_user = session.get(models.User, user_id)
+    if not target_user:
+        return admin_users_redirect("Usuário não encontrado.", "error")
+
+    form = await request.form()
+    password = str(form.get("password", "") or "")
+    if len(password) < 6:
+        return admin_users_redirect("A senha deve ter pelo menos 6 caracteres.", "error")
+
+    target_user.password_hash = hash_password(password)
+    target_user.updated_at = datetime.now()
+    session.add(target_user)
+    session.commit()
+    return admin_users_redirect("Senha atualizada com sucesso.")
+
+
+@app.post("/admin/users/{user_id}/delete", response_class=RedirectResponse)
+async def admin_user_delete(
+    request: Request,
+    user_id: int,
+    session: Session = Depends(get_session),
+):
+    actor = require_admin(request)
+    actor_id = actor.get("id") if isinstance(actor, dict) else None
+
+    target_user = session.get(models.User, user_id)
+    if not target_user:
+        return admin_users_redirect("Usuário não encontrado.", "error")
+
+    if actor_id and int(actor_id) == int(user_id):
+        return admin_users_redirect("Você não pode excluir seu próprio usuário.", "error")
+
+    if (target_user.role or "").strip().lower() == "admin" and bool(target_user.is_active):
+        active_admins = session.exec(
+            select(models.User).where(models.User.role == "admin").where(models.User.is_active == True)
+        ).all()
+        if len(active_admins) <= 1:
+            return admin_users_redirect("Não é possível excluir o último admin ativo.", "error")
+
+    session.delete(target_user)
+    session.commit()
+    return admin_users_redirect("Usuário excluído com sucesso.")
+
+
 @app.get("/mobile", response_class=RedirectResponse)
 async def mobile_index(request: Request):
     user = get_current_user(request)
