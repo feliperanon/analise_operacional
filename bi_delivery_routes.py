@@ -242,7 +242,9 @@ def _build_bi_delivery_dataset(
     tactical = []
     for row in per_driver.values():
         p = max(1, row["planned_stops"])
-        tactical.append({**row, "efficiency": round(row["realized_stops"] / p * 100.0, 2) if row["planned_stops"] else 0.0, "return_rate": round(row["returned_stops"] / p * 100.0, 2) if row["planned_stops"] else 0.0, "started_rate": round(row["started_stops"] / p * 100.0, 2) if row["planned_stops"] else 0.0, "avg_duration": round(statistics.mean(row["durations"]), 1) if row["durations"] else 0.0})
+        delivered_stops = row["realized_stops"] - row["returned_stops"]
+        efficiency = round(delivered_stops / p * 100.0, 2) if row["planned_stops"] else 0.0
+        tactical.append({**row, "delivered_stops": delivered_stops, "efficiency": efficiency, "return_rate": round(row["returned_stops"] / p * 100.0, 2) if row["planned_stops"] else 0.0, "started_rate": round(row["started_stops"] / p * 100.0, 2) if row["planned_stops"] else 0.0, "avg_duration": round(statistics.mean(row["durations"]), 1) if row["durations"] else 0.0})
     tactical.sort(key=lambda x: (x["efficiency"], -x["return_rate"], x["planned_stops"]), reverse=True)
 
     daily_rows = []
