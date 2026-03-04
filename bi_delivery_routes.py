@@ -53,7 +53,7 @@ def _build_bi_delivery_dataset(
         except Exception:
             return None
 
-    date_i = _d(date_from) or (today - timedelta(days=6))
+    date_i = _d(date_from) or today.replace(day=1)
     date_f = _d(date_to) or today
     if date_i > date_f:
         date_i, date_f = date_f, date_i

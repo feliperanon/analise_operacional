@@ -996,6 +996,53 @@ def reconcile_all_devolucoes_with_routes(
     return updated
 
 
+def rematch_motoristas_from_ajudantes(
+    session: Session,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+) -> int:
+    """
+    Corrige devoluções cujo motorista_id aponta para ajudante: substitui pelo
+    motorista correto quando o primeiro nome coincide (ex: Marcos Henrique -> Marcos Antonio).
+    Retorna quantidade de devoluções atualizadas.
+    """
+    cad = _load_cadastros(session)
+    motorista_by_name = cad.get("motorista_by_name", {})
+
+    def _is_ajudante(emp: Employee) -> bool:
+        r = _norm_text(getattr(emp, "role", "") or "")
+        return "ajudante" in r
+
+    def _is_motorista(emp: Employee) -> bool:
+        r = _norm_text(getattr(emp, "role", "") or "")
+        return "motorista" in r and "ajudante" not in r
+
+    q = select(Devolucao).order_by(Devolucao.data_romaneio, Devolucao.id)
+    if start_date:
+        q = q.where(Devolucao.data_romaneio >= start_date)
+    if end_date:
+        q = q.where(Devolucao.data_romaneio <= end_date)
+    devolucoes = session.exec(q).all()
+    updated = 0
+    for d in devolucoes:
+        emp = session.get(Employee, d.motorista_id)
+        if not emp or not _is_ajudante(emp):
+            continue
+        tokens = _norm_text(emp.name).split()
+        if not tokens or len(tokens[0]) < 3:
+            continue
+        first = tokens[0]
+        correct = motorista_by_name.get(first)
+        if not correct or correct.id == emp.id:
+            continue
+        if not _is_motorista(correct):
+            continue
+        d.motorista_id = correct.id
+        session.add(d)
+        updated += 1
+    return updated
+
+
 def save_batch(
     session: Session,
     valid_rows: List[Dict],

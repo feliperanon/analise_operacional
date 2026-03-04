@@ -16,6 +16,7 @@ import models
 from devolucoes_service import (
     _reconcile_devolucao_with_route,
     reconcile_all_devolucoes_with_routes,
+    rematch_motoristas_from_ajudantes,
     parse_excel,
     validate_rows,
     save_batch,
@@ -567,6 +568,28 @@ def init_devolucoes_router(
             return JSONResponse({"ok": True, "updated_routes": updated})
         except Exception as e:
             logger.exception(f"Erro ao reconciliar devolucoes com rotas: {e}")
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    @router.post("/api/devolucoes/rematch-motoristas", response_class=JSONResponse)
+    async def api_devolucoes_rematch_motoristas(
+        request: Request,
+        session: Session = Depends(get_session),
+    ):
+        """Corrige devoluções que ficaram com motorista_id = ajudante: substitui pelo motorista correto."""
+        require_login(request)
+        try:
+            body = {}
+            try:
+                body = await request.json()
+            except Exception:
+                pass
+            start_date = body.get("start_date")
+            end_date = body.get("end_date")
+            updated = rematch_motoristas_from_ajudantes(session, start_date, end_date)
+            session.commit()
+            return JSONResponse({"ok": True, "updated_devolucoes": updated})
+        except Exception as e:
+            logger.exception(f"Erro ao corrigir motoristas: {e}")
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
     @router.get("/api/devolucoes", response_class=JSONResponse)

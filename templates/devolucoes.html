@@ -28,6 +28,11 @@
                     <i data-lucide="refresh-cw" class="w-4 h-4"></i>
                     Reconciliar rotas
                 </button>
+                <button type="button" id="rematch-motoristas-btn" title="Corrige devoluções vinculadas a ajudante: troca pelo motorista correto (prioridade motorista)"
+                    class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-sky-500/50 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 text-sm font-medium transition-colors">
+                    <i data-lucide="user-check" class="w-4 h-4"></i>
+                    Corrigir motoristas
+                </button>
             </div>
         </div>
 
@@ -316,6 +321,40 @@ document.getElementById('reconcile-routes-btn')?.addEventListener('click', async
             window.location.reload();
         } else {
             alert(j.error || 'Erro ao reconciliar');
+        }
+    } catch (e) {
+        alert('Erro: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = origText;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+});
+
+document.getElementById('rematch-motoristas-btn')?.addEventListener('click', async function() {
+    const btn = this;
+    const origText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Corrigindo...';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const month = params.get('month') || new Date().getMonth() + 1;
+        const year = params.get('year') || new Date().getFullYear();
+        const lastDay = new Date(year, month, 0).getDate();
+        const start = year + '-' + String(month).padStart(2, '0') + '-01';
+        const end = year + '-' + String(month).padStart(2, '0') + '-' + String(lastDay).padStart(2, '0');
+        const r = await fetch('/api/devolucoes/rematch-motoristas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ start_date: start, end_date: end })
+        });
+        const j = await r.json();
+        if (j.ok) {
+            alert('Motoristas corrigidos: ' + j.updated_devolucoes + ' devolução(ões) atualizada(s).');
+            window.location.reload();
+        } else {
+            alert(j.error || 'Erro ao corrigir motoristas');
         }
     } catch (e) {
         alert('Erro: ' + e.message);
