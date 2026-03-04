@@ -357,7 +357,7 @@ def _build_bi_delivery_dataset(
         "responsabilidade_rows": resp_rows,
         "cluster_rows": cluster_rows,
         "chart_payload_json": json.dumps(chart_payload, ensure_ascii=False),
-        "detail_rows_json": json.dumps(sorted(route_rows, key=lambda x: (x["date"], x["shift"], x["driver_name"], x["route_id"]), reverse=True), ensure_ascii=False),
+        "detail_rows_json": json.dumps(detail_rows, ensure_ascii=False),
     }
 
 

@@ -7469,6 +7469,27 @@ def _norm_text(v: Any) -> str:
     return s.lower().strip()
 
 
+# Equivalentes para matching de nomes (ex.: planilha "HAMILTON JR" -> cadastro "HAMILTON ... JUNIOR")
+_NAME_TOKEN_EQUIVALENTS = {
+    "jr": "junior",
+    "junior": "junior",
+    "filho": "filho",
+    "neto": "neto",
+    "sobrinho": "sobrinho",
+}
+
+
+def _canonical_name_tokens(text: str) -> set:
+    """Tokens normalizados para comparação de nomes; unifica JR/JUNIOR etc."""
+    norm = _norm_text(text)
+    tokens = set()
+    for t in norm.split():
+        if not t:
+            continue
+        tokens.add(_NAME_TOKEN_EQUIVALENTS.get(t, t))
+    return tokens
+
+
 def _norm_plate(v: Any) -> str:
     if v is None:
         return ""
@@ -7601,7 +7622,7 @@ def _delivery_col_map(columns: List[str]) -> dict:
     normalized = {_norm_text(c): c for c in columns}
 
     aliases = {
-        "route_code": ["n rota", "nÂº rota", "nÂ° rota", "no rota", "numero rota", "rota"],
+        "route_code": ["n rota", "nº rota", "nÂº rota", "nÂ° rota", "no rota", "numero rota", "rota", "nº rota / placa veiculo", "n rota / placa veiculo"],
         "plate": ["placa veiculo", "placa", "veiculo", "placa do veiculo"],
         "driver": ["motorista", "nome motorista"],
         "order_number": ["pedidos", "pedido", "n pedido", "numero pedido"],

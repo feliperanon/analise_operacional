@@ -35953,3 +35953,94 @@ NameError: name 'anomaly_flags' is not defined
 2026-03-04 09:04:38,546 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
 2026-03-04 09:04:46,519 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
 2026-03-04 09:04:55,462 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-04 09:16:24,706 | INFO     | main | ðŸšš Iniciando importaÃ§Ã£o de entregas: pedidos (2).xls para data 2026-03-04, turno ManhÃ£
+2026-03-04 09:16:24,707 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Å¾ Arquivo lido: 103424 bytes
+2026-03-04 09:16:24,760 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Å  DataFrame carregado: 195 linhas, 18 colunas
+2026-03-04 09:16:24,761 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Â¹ Colunas encontradas: ['Nº ROTA', 'PLACA VEICULO', 'MOTORISTA', 'Nº LOTE', 'PEDIDOS', 'QTDE ORDENS', 'DATA DO PEDIDO', 'COD CLIENTE', 'RAZÃO SOCIAL', 'CEP', 'ENDERECO', 'BAIRRO', 'Cidades', 'ESTADO', 'PESO PEDIDO', 'PESO TOTAL', 'VALOR', 'TIPO']
+2026-03-04 09:16:24,762 | INFO     | main | info log
+2026-03-04 09:16:24,762 | ERROR    | main | Ã¢ÂÃ…' Colunas ausentes: ['route_code']
+2026-03-04 09:16:35,668 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-04 09:17:19,931 | INFO     | main | ðŸšš Iniciando importaÃ§Ã£o de entregas: pedidos (2).xls para data 2026-03-04, turno ManhÃ£
+2026-03-04 09:17:19,932 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Å¾ Arquivo lido: 103424 bytes
+2026-03-04 09:17:19,975 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Å  DataFrame carregado: 195 linhas, 18 colunas
+2026-03-04 09:17:19,975 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Â¹ Colunas encontradas: ['Nº ROTA', 'PLACA VEICULO', 'MOTORISTA', 'Nº LOTE', 'PEDIDOS', 'QTDE ORDENS', 'DATA DO PEDIDO', 'COD CLIENTE', 'RAZÃO SOCIAL', 'CEP', 'ENDERECO', 'BAIRRO', 'Cidades', 'ESTADO', 'PESO PEDIDO', 'PESO TOTAL', 'VALOR', 'TIPO']
+2026-03-04 09:17:19,976 | INFO     | main | info log
+2026-03-04 09:17:19,976 | ERROR    | main | Ã¢ÂÃ…' Colunas ausentes: ['route_code']
+2026-03-04 09:19:04,639 | INFO     | main | ðŸšš Iniciando importaÃ§Ã£o de entregas: pedidos (2).xls para data 2026-03-04, turno ManhÃ£
+2026-03-04 09:19:04,640 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Å¾ Arquivo lido: 103424 bytes
+2026-03-04 09:19:04,651 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Å  DataFrame carregado: 195 linhas, 18 colunas
+2026-03-04 09:19:04,651 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Â¹ Colunas encontradas: ['Nº ROTA', 'PLACA VEICULO', 'MOTORISTA', 'Nº LOTE', 'PEDIDOS', 'QTDE ORDENS', 'DATA DO PEDIDO', 'COD CLIENTE', 'RAZÃO SOCIAL', 'CEP', 'ENDERECO', 'BAIRRO', 'Cidades', 'ESTADO', 'PESO PEDIDO', 'PESO TOTAL', 'VALOR', 'TIPO']
+2026-03-04 09:19:04,652 | INFO     | main | info log
+2026-03-04 09:19:04,652 | ERROR    | main | Ã¢ÂÃ…' Colunas ausentes: ['route_code']
+2026-03-04 09:19:18,636 | ERROR    | main | Error in smart_flow_page
+Traceback (most recent call last):
+  File "C:\Projetos\NL\main.py", line 13584, in smart_flow_page
+    user = require_login(request)
+  File "C:\Projetos\NL\main.py", line 1764, in require_login
+    raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/login"})
+fastapi.exceptions.HTTPException: 303: See Other
+2026-03-04 09:19:32,135 | ERROR    | main | Error in smart_flow_page
+Traceback (most recent call last):
+  File "C:\Projetos\NL\main.py", line 13584, in smart_flow_page
+    user = require_login(request)
+  File "C:\Projetos\NL\main.py", line 1764, in require_login
+    raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/login"})
+fastapi.exceptions.HTTPException: 303: See Other
+2026-03-04 09:23:02,569 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-04 09:23:28,520 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
+2026-03-04 09:24:57,017 | INFO     | main | ðŸšš Iniciando importaÃ§Ã£o de entregas: pedidos (2).xls para data 2026-03-04, turno ManhÃ£
+2026-03-04 09:24:57,018 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Å¾ Arquivo lido: 103424 bytes
+2026-03-04 09:24:57,080 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Å  DataFrame carregado: 195 linhas, 18 colunas
+2026-03-04 09:24:57,080 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Â¹ Colunas encontradas: ['Nº ROTA', 'PLACA VEICULO', 'MOTORISTA', 'Nº LOTE', 'PEDIDOS', 'QTDE ORDENS', 'DATA DO PEDIDO', 'COD CLIENTE', 'RAZÃO SOCIAL', 'CEP', 'ENDERECO', 'BAIRRO', 'Cidades', 'ESTADO', 'PESO PEDIDO', 'PESO TOTAL', 'VALOR', 'TIPO']
+2026-03-04 09:24:57,081 | INFO     | main | info log
+2026-03-04 09:24:57,841 | INFO     | main | Ã°Å¸Ã¢â‚¬ËœÃ‚Â¥ Total de funcionÃ¡rios ativos: 154
+2026-03-04 09:24:57,841 | INFO     | main | info log
+2026-03-04 09:25:01,207 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,208 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 108: 'HAMILTON JR'
+2026-03-04 09:25:01,211 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,211 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 109: 'HAMILTON JR'
+2026-03-04 09:25:01,214 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,215 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 110: 'HAMILTON JR'
+2026-03-04 09:25:01,218 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,218 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 111: 'HAMILTON JR'
+2026-03-04 09:25:01,222 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,222 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 112: 'HAMILTON JR'
+2026-03-04 09:25:01,226 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,227 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 113: 'HAMILTON JR'
+2026-03-04 09:25:01,230 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,231 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 114: 'HAMILTON JR'
+2026-03-04 09:25:01,234 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,234 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 115: 'HAMILTON JR'
+2026-03-04 09:25:01,238 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,239 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 116: 'HAMILTON JR'
+2026-03-04 09:25:01,242 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,243 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 117: 'HAMILTON JR'
+2026-03-04 09:25:01,246 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,246 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 118: 'HAMILTON JR'
+2026-03-04 09:25:01,250 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,250 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 119: 'HAMILTON JR'
+2026-03-04 09:25:01,254 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,254 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 120: 'HAMILTON JR'
+2026-03-04 09:25:01,258 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,258 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 121: 'HAMILTON JR'
+2026-03-04 09:25:01,262 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,262 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 122: 'HAMILTON JR'
+2026-03-04 09:25:01,265 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,266 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 123: 'HAMILTON JR'
+2026-03-04 09:25:01,268 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,269 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 124: 'HAMILTON JR'
+2026-03-04 09:25:01,273 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,274 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 125: 'HAMILTON JR'
+2026-03-04 09:25:01,277 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,278 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 126: 'HAMILTON JR'
+2026-03-04 09:25:01,281 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,281 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 127: 'HAMILTON JR'
+2026-03-04 09:25:01,284 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,285 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 128: 'HAMILTON JR'
+2026-03-04 09:25:01,289 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,289 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 129: 'HAMILTON JR'
+2026-03-04 09:25:01,292 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,293 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 130: 'HAMILTON JR'
+2026-03-04 09:25:01,297 | WARNING  | main | Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: 'HAMILTON JR' (melhor match: HAMILTON BARBOSA HARMONICO JUNIOR, score: 25%)
+2026-03-04 09:25:01,297 | WARNING  | main | Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha 131: 'HAMILTON JR'
+2026-03-04 09:25:03,269 | INFO     | main | info log
