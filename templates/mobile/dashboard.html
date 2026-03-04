@@ -998,6 +998,9 @@
                 // Setup pull to refresh
                 this.setupPullToRefresh();
                 this.helperOptions = (this.employees || []).filter(e => e.id !== {{ employee.id }});
+
+                // Carregar rotas de entrega para que "Iniciar Separação" abra o modal correto
+                this.loadDeliveryData();
             },
 
             // Haptic feedback helper
