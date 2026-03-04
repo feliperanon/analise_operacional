@@ -1844,6 +1844,11 @@ def require_gm(request: Request, session: Session = Depends(get_session)):
 
 @app.get("/", response_class=RedirectResponse)
 async def root_entry(request: Request):
+    return RedirectResponse(url="/dashboard", status_code=303)
+
+
+@app.get("/dashboard", response_class=RedirectResponse)
+async def dashboard_entry(request: Request):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=303)
