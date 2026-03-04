@@ -49,6 +49,56 @@ Uso: {% from 'mobile/_components.html' import btn_primary, card, list_row, ... %
 </button>
 {% endmacro %}
 
+{% macro btn_success(text, onclick='', type='button', id='', classes='', icon='', disabled=false) %}
+<button type="{{ type }}" {% if id %}id="{{ id }}"{% endif %} {% if onclick %}onclick="{{ onclick }}"{% endif %} {% if disabled %}disabled{% endif %}
+    class="touch-target interactive flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity {{ classes }}"
+    style="background-color: var(--color-success);">
+    {% if icon %}<i data-lucide="{{ icon }}" class="w-5 h-5"></i>{% endif %}
+    <span>{{ text }}</span>
+</button>
+{% endmacro %}
+
+{% macro btn_warning(text, onclick='', type='button', id='', classes='', icon='', disabled=false) %}
+<button type="{{ type }}" {% if id %}id="{{ id }}"{% endif %} {% if onclick %}onclick="{{ onclick }}"{% endif %} {% if disabled %}disabled{% endif %}
+    class="touch-target interactive flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity {{ classes }}"
+    style="background-color: var(--color-warning);">
+    {% if icon %}<i data-lucide="{{ icon }}" class="w-5 h-5"></i>{% endif %}
+    <span>{{ text }}</span>
+</button>
+{% endmacro %}
+
+{# === KPI CARD === #}
+{% macro kpi_card(icon='', title='', value='', subtitle='', state='primary') %}
+{% set bg_c = 'background: var(--color-primary-bg); color: var(--color-primary);' if state == 'primary' else 'background: var(--color-success-bg); color: var(--color-success);' if state == 'success' else 'background: var(--color-warning-bg); color: var(--color-warning);' if state == 'warning' else 'background: var(--color-danger-bg); color: var(--color-danger);' if state == 'danger' else 'background: var(--color-border-light); color: var(--color-icon);' %}
+<div class="surface p-4">
+    <div class="flex items-start justify-between gap-3">
+        <div class="flex-1 min-w-0">
+            <p class="text-caption mb-1" style="color: var(--color-text-muted);">{{ title }}</p>
+            <p class="text-title-lg truncate" style="color: var(--color-text);">{{ value }}</p>
+            {% if subtitle %}<p class="text-caption-lg mt-0.5">{{ subtitle }}</p>{% endif %}
+        </div>
+        {% if icon %}
+        <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center" style="{{ bg_c }}">
+            <i data-lucide="{{ icon }}" class="w-6 h-6"></i>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}
+
+{# === BI CHART CARD === #}
+{% macro bi_chart_card(title, caption='', chart_id='', classes='') %}
+<div class="surface-shadow p-4 {{ classes }}">
+    <div class="mb-3">
+        <h3 class="text-title" style="color: var(--color-text);">{{ title }}</h3>
+        {% if caption %}<p class="text-caption-lg mt-0.5">{{ caption }}</p>{% endif %}
+    </div>
+    <div class="min-h-[200px]">
+        {% if chart_id %}<canvas id="{{ chart_id }}"></canvas>{% endif %}
+    </div>
+</div>
+{% endmacro %}
+
 {# === CARD === #}
 {% macro card(classes='') %}
 <div class="surface p-4 {{ classes }}">

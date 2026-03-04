@@ -1,100 +1,80 @@
 {% extends "mobile/layout.html" %}
+{% from 'mobile/_components.html' import btn_primary, btn_secondary, btn_success, btn_danger, btn_icon, empty_state %}
 
 {% block content %}
-<div x-data="gameMasterMobile()" x-init="init()" class="flex flex-col min-h-screen pb-safe">
+<div x-data="gameMasterMobile()" x-init="init()" class="flex flex-col min-h-screen pb-safe" style="background: var(--color-bg);">
 
-    <!-- Header -->
-    <header
-        class="relative px-6 pt-safe pb-6 bg-gradient-to-b from-yellow-900/30 to-slate-900 border-b border-yellow-500/20">
+    <header class="container-mobile py-4 border-b shrink-0 sticky top-0 z-20" style="border-color: var(--color-border-light); background: var(--color-surface);">
         <div class="flex items-center justify-between">
-            <a href="/mobile/dashboard"
-                class="p-2 rounded-full bg-slate-800/80 border border-slate-700 text-slate-400 hover:text-white transition-colors active:scale-95">
+            <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap">
                 <i data-lucide="arrow-left" class="w-5 h-5"></i>
             </a>
             <div class="flex items-center gap-3">
-                <div class="p-3 bg-yellow-500/20 rounded-2xl text-yellow-400 shadow-lg shadow-yellow-500/10">
-                    <i data-lucide="gamepad-2" class="w-7 h-7"></i>
+                <div class="icon-wrap w-10 h-10 flex items-center justify-center" style="background: var(--color-primary); color: white;">
+                    <i data-lucide="gamepad-2" class="w-5 h-5"></i>
                 </div>
-                <div class="text-right">
-                    <h1 class="text-2xl font-bold text-white tracking-tight">Game Master</h1>
-                    <p class="text-xs text-slate-400">Painel de Gamificação</p>
+                <div>
+                    <h1 class="text-title-lg" style="color: var(--color-text);">Game Master</h1>
+                    <p class="text-caption-lg">Painel de Gamificação</p>
                 </div>
             </div>
-            <div class="w-10"></div>
+            <button @click="loadPending()" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap">
+                <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+            </button>
         </div>
     </header>
 
-    <!-- Quick Actions -->
-    <div class="px-6 -mt-3 z-20">
-        <div class="bg-slate-800/90 backdrop-blur-xl rounded-3xl p-4 border border-slate-700/50 shadow-xl">
-            <div class="grid grid-cols-3 gap-3">
-                <a href="/admin/game/settings"
-                    class="flex flex-col items-center p-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/20 transition-colors">
-                    <i data-lucide="sliders" class="w-6 h-6 text-purple-400 mb-2"></i>
-                    <span class="text-xs font-bold text-purple-300">Config</span>
-                </a>
-                <a href="/admin/game/audit"
-                    class="flex flex-col items-center p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-colors">
-                    <i data-lucide="list" class="w-6 h-6 text-blue-400 mb-2"></i>
-                    <span class="text-xs font-bold text-blue-300">Auditoria</span>
-                </a>
-                <a href="/admin/game/achievements"
-                    class="flex flex-col items-center p-3 rounded-2xl bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 transition-colors">
-                    <i data-lucide="award" class="w-6 h-6 text-orange-400 mb-2"></i>
-                    <span class="text-xs font-bold text-orange-300">Conquistas</span>
-                </a>
-            </div>
-        </div>
+    <div class="container-mobile mt-4 grid grid-cols-3 gap-3">
+        <a href="/admin/game/settings" class="surface p-4 text-center interactive flex flex-col items-center gap-2">
+            <div class="icon-wrap w-12 h-12"><i data-lucide="sliders" class="w-6 h-6"></i></div>
+            <span class="text-body font-semibold" style="color: var(--color-text);">Config</span>
+        </a>
+        <a href="/admin/game/audit" class="surface p-4 text-center interactive flex flex-col items-center gap-2">
+            <div class="icon-wrap w-12 h-12"><i data-lucide="list" class="w-6 h-6"></i></div>
+            <span class="text-body font-semibold" style="color: var(--color-text);">Auditoria</span>
+        </a>
+        <a href="/admin/game/achievements" class="surface p-4 text-center interactive flex flex-col items-center gap-2">
+            <div class="icon-wrap w-12 h-12"><i data-lucide="award" class="w-6 h-6"></i></div>
+            <span class="text-body font-semibold" style="color: var(--color-text);">Conquistas</span>
+        </a>
     </div>
 
-    <!-- Main Content -->
-    <main class="flex-1 p-6 space-y-6 overflow-y-auto">
-
-        <!-- Pending Approvals -->
-        <div class="bg-slate-800/50 rounded-3xl border border-slate-700/50 overflow-hidden">
-            <div class="px-5 py-4 border-b border-slate-700/50 bg-slate-900/50 flex justify-between items-center">
-                <h2 class="font-bold text-white flex items-center gap-2">
-                    <i data-lucide="inbox" class="w-5 h-5 text-yellow-500"></i>
+    <main class="container-mobile mt-4 space-y-4 pb-6">
+        <div class="surface overflow-hidden">
+            <div class="p-4 border-b flex justify-between items-center" style="border-color: var(--color-border-light);">
+                <h2 class="text-title flex items-center gap-2" style="color: var(--color-text);">
+                    <div class="icon-wrap w-8 h-8 flex items-center justify-center" style="background: var(--color-warning-bg); color: var(--color-warning);">
+                        <i data-lucide="inbox" class="w-4 h-4"></i>
+                    </div>
                     Pendentes
                 </h2>
-                <span class="bg-yellow-500/20 text-yellow-500 text-xs px-3 py-1 rounded-full font-bold"
-                    x-text="pendingCount"></span>
+                <span class="text-caption font-bold px-3 py-1 rounded-full" style="background: var(--color-warning-bg); color: var(--color-warning);" x-text="pendingCount"></span>
             </div>
 
-            <div class="divide-y divide-slate-700/50 max-h-[400px] overflow-y-auto">
-                <!-- Empty State -->
+            <div class="divide-y max-h-[400px] overflow-y-auto" style="border-color: var(--color-border-light);">
                 <template x-if="pending.length === 0">
-                    <div class="p-8 text-center text-slate-500">
-                        <i data-lucide="thumbs-up" class="w-10 h-10 mx-auto mb-3 opacity-50"></i>
-                        <p class="font-medium">Nenhuma pendência!</p>
+                    <div class="p-8 text-center">
+                        <div class="icon-wrap w-14 h-14 rounded-full mx-auto mb-3"><i data-lucide="thumbs-up" class="w-7 h-7"></i></div>
+                        <p class="text-body font-medium" style="color: var(--color-text-secondary);">Nenhuma pendência!</p>
                     </div>
                 </template>
 
-                <!-- Pending Items -->
                 <template x-for="tx in pending" :key="tx.id">
-                    <div class="p-4 hover:bg-slate-700/30 transition-colors">
+                    <div class="p-4 transition-colors" style="border-color: var(--color-border-light);">
                         <div class="flex justify-between items-start mb-3">
                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold text-xs uppercase border border-slate-600"
-                                    x-text="tx.employee_name.substring(0,2)"></div>
+                                <div class="w-10 h-10 rounded-lg flex items-center justify-center text-body font-bold uppercase" style="background: var(--color-border-light); color: var(--color-text);" x-text="tx.employee_name ? tx.employee_name.substring(0,2) : ''"></div>
                                 <div>
-                                    <p class="font-bold text-white text-sm" x-text="tx.employee_name"></p>
-                                    <p class="text-xs text-slate-400" x-text="tx.description"></p>
+                                    <p class="text-body font-semibold" style="color: var(--color-text);" x-text="tx.employee_name"></p>
+                                    <p class="text-caption" x-text="tx.description"></p>
                                 </div>
                             </div>
-                            <span
-                                class="bg-indigo-500/20 text-indigo-400 font-bold px-2 py-1 rounded-lg text-xs border border-indigo-500/20"
-                                x-text="'+' + tx.amount + ' XP'"></span>
+                            <span class="text-body font-bold px-2 py-1 rounded" style="background: var(--color-primary-bg); color: var(--color-primary);" x-text="'+' + tx.amount + ' XP'"></span>
                         </div>
                         <div class="flex gap-2 justify-end">
-                            <button @click="reject(tx.id)"
-                                class="px-4 py-2 text-xs font-medium text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-xl transition-colors border border-red-500/20">
-                                Rejeitar
-                            </button>
-                            <button @click="approve(tx.id)"
-                                class="px-4 py-2 text-xs font-bold text-white bg-green-600 hover:bg-green-500 rounded-xl shadow-lg shadow-green-500/20 transition-all">
-                                <i data-lucide="check" class="w-3 h-3 inline-block mr-1"></i>
-                                Aprovar
+                            <button @click="reject(tx.id)" class="px-4 py-2 rounded-lg text-body font-medium transition-opacity" style="background: var(--color-danger-bg); color: var(--color-danger);">Rejeitar</button>
+                            <button @click="approve(tx.id)" class="px-4 py-2 rounded-lg text-body font-semibold text-white transition-opacity flex items-center gap-1" style="background: var(--color-success);">
+                                <i data-lucide="check" class="w-4 h-4"></i> Aprovar
                             </button>
                         </div>
                     </div>
@@ -102,33 +82,28 @@
             </div>
         </div>
 
-        <!-- Manual XP Adjustment -->
-        <div class="bg-slate-800/50 rounded-3xl border border-slate-700/50 p-5">
-            <h3 class="font-bold text-white mb-4 flex items-center gap-2">
-                <i data-lucide="sliders" class="w-5 h-5 text-blue-400"></i>
+        <div class="surface p-4">
+            <h3 class="text-title mb-4 flex items-center gap-2" style="color: var(--color-text);">
+                <div class="icon-wrap w-8 h-8"><i data-lucide="sliders" class="w-4 h-4"></i></div>
                 Ajuste Manual de XP
             </h3>
 
-            <!-- Toggle -->
             <div class="grid grid-cols-2 gap-3 mb-4">
-                <button @click="form.type='add'"
-                    :class="form.type==='add' ? 'bg-green-600 text-white border-green-500' : 'bg-slate-900 text-slate-300 border-slate-700'"
-                    class="py-3 rounded-xl border font-bold text-sm transition-colors">
+                <button @click="form.type='add'" class="py-3 rounded-lg border-2 font-semibold text-body transition-colors"
+                    :style="form.type==='add' ? 'background: var(--color-success); color: white; border-color: var(--color-success);' : 'background: var(--color-surface); border-color: var(--color-border); color: var(--color-text-secondary);'">
                     + Bonificar
                 </button>
-                <button @click="form.type='remove'"
-                    :class="form.type==='remove' ? 'bg-red-600 text-white border-red-500' : 'bg-slate-900 text-slate-300 border-slate-700'"
-                    class="py-3 rounded-xl border font-bold text-sm transition-colors">
+                <button @click="form.type='remove'" class="py-3 rounded-lg border-2 font-semibold text-body transition-colors"
+                    :style="form.type==='remove' ? 'background: var(--color-danger); color: white; border-color: var(--color-danger);' : 'background: var(--color-surface); border-color: var(--color-border); color: var(--color-text-secondary);'">
                     - Penalizar
                 </button>
             </div>
 
-            <!-- Form -->
             <div class="space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 mb-2">Colaborador</label>
-                    <select x-model.number="form.employee_id"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-blue-500">
+                    <label class="text-section block mb-2" style="color: var(--color-text);">Colaborador</label>
+                    <select x-model.number="form.employee_id" class="w-full rounded-lg px-4 py-3 border-2 text-body focus:outline-none focus:ring-2 transition-colors"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
                         <option value="0">Selecione...</option>
                         <template x-for="e in employees" :key="e.id">
                             <option :value="e.id" x-text="e.name"></option>
@@ -137,56 +112,49 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 mb-2">Quantidade (XP)</label>
-                    <input type="number" x-model="form.amount" inputmode="numeric"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-blue-500"
-                        placeholder="Ex: 100">
+                    <label class="text-section block mb-2" style="color: var(--color-text);">Quantidade (XP)</label>
+                    <input type="number" x-model="form.amount" inputmode="numeric" placeholder="Ex: 100"
+                        class="w-full rounded-lg px-4 py-3 border-2 text-body focus:outline-none focus:ring-2 transition-colors"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 mb-2">Motivo</label>
-                    <textarea rows="3" x-model="form.reason"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-blue-500 resize-none"
-                        placeholder="Descreva o motivo..."></textarea>
+                    <label class="text-section block mb-2" style="color: var(--color-text);">Motivo</label>
+                    <textarea rows="3" x-model="form.reason" placeholder="Descreva o motivo..."
+                        class="w-full rounded-lg px-4 py-3 border-2 text-body focus:outline-none focus:ring-2 transition-colors resize-none"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);"></textarea>
                 </div>
 
-                <!-- Messages -->
-                <div x-show="error" x-transition
-                    class="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-sm text-red-300">
-                    <i data-lucide="alert-circle" class="w-4 h-4 inline-block mr-1"></i>
+                <div x-show="error" x-transition class="rounded-lg p-3 text-body flex items-center gap-2" style="background: var(--color-danger-bg); color: var(--color-danger);">
+                    <i data-lucide="alert-circle" class="w-4 h-4 flex-shrink-0"></i>
                     <span x-text="error"></span>
                 </div>
-                <div x-show="success" x-transition
-                    class="bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-sm text-green-300">
-                    <i data-lucide="check-circle" class="w-4 h-4 inline-block mr-1"></i>
+                <div x-show="success" x-transition class="rounded-lg p-3 text-body flex items-center gap-2" style="background: var(--color-success-bg); color: var(--color-success);">
+                    <i data-lucide="check-circle" class="w-4 h-4 flex-shrink-0"></i>
                     <span x-text="success"></span>
                 </div>
 
-                <button @click="submitManual()" :disabled="saving"
-                    class="w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                    :class="form.type==='add' ? 'bg-green-600 hover:bg-green-500 shadow-green-500/20' : 'bg-red-600 hover:bg-red-500 shadow-red-500/20'">
+                <button @click="submitManual()" :disabled="saving" class="w-full py-4 rounded-lg font-semibold text-body-lg text-white transition-opacity flex items-center justify-center gap-2 disabled:opacity-50"
+                    :style="form.type==='add' ? 'background: var(--color-success);' : 'background: var(--color-danger);'">
                     <i data-lucide="loader-2" class="w-5 h-5 animate-spin" x-show="saving"></i>
-                    <span
-                        x-text="saving ? 'Aplicando...' : (form.type==='add' ? 'Aplicar Bonificação' : 'Aplicar Penalidade')"></span>
+                    <span x-text="saving ? 'Aplicando...' : (form.type==='add' ? 'Aplicar Bonificação' : 'Aplicar Penalidade')"></span>
                 </button>
             </div>
         </div>
 
-        <!-- Sync Button -->
-        <div class="bg-slate-800/50 rounded-3xl border border-slate-700/50 p-5">
-            <h3 class="font-bold text-white mb-3 flex items-center gap-2">
-                <i data-lucide="refresh-cw" class="w-5 h-5 text-blue-400"></i>
+        <div class="surface p-4">
+            <h3 class="text-title mb-2 flex items-center gap-2" style="color: var(--color-text);">
+                <div class="icon-wrap w-8 h-8"><i data-lucide="refresh-cw" class="w-4 h-4"></i></div>
                 Sincronização
             </h3>
-            <p class="text-xs text-slate-400 mb-4">Recalcula XP de produção para hoje.</p>
-            <button @click="recalculateToday()" :disabled="syncing"
-                class="w-full py-3 rounded-xl bg-slate-700 hover:bg-slate-600 font-bold text-sm text-white transition-all border border-slate-600 flex items-center justify-center gap-2">
+            <p class="text-caption mb-4">Recalcula XP de produção para hoje.</p>
+            <button @click="recalculateToday()" :disabled="syncing" class="w-full py-3 rounded-lg font-semibold text-body transition-opacity flex items-center justify-center gap-2 disabled:opacity-50"
+                style="background: var(--color-border-light); color: var(--color-text);">
                 <i data-lucide="loader-2" class="w-4 h-4 animate-spin" x-show="syncing"></i>
-                <i data-lucide="zap" class="w-4 h-4 text-yellow-500" x-show="!syncing"></i>
+                <i data-lucide="zap" class="w-4 h-4" style="color: var(--color-warning);" x-show="!syncing"></i>
                 <span x-text="syncing ? 'Sincronizando...' : 'Recalcular XP (Hoje)'"></span>
             </button>
         </div>
-
     </main>
 </div>
 
@@ -196,138 +164,114 @@
     function gameMasterMobile() {
         return {
             pending: [],
-            pendingCount: {{ pending_txs | length }
-    },
-    employees: [],
-        saving: false,
+            pendingCount: {{ pending_txs | length }},
+            employees: [],
+            saving: false,
             syncing: false,
-                error: '',
-                    success: '',
-                        form: {
-        type: 'add',
-            employee_id: 0,
-                amount: '',
-                    reason: ''
-    },
+            error: '',
+            success: '',
+            form: { type: 'add', employee_id: 0, amount: '', reason: '' },
 
             async init() {
-        this.loadPending();
-        this.loadEmployees();
-    },
+                this.loadPending();
+                this.loadEmployees();
+            },
 
             async loadPending() {
-        try {
-            // Use pending_txs from Jinja
-            this.pending = {{ pending_txs | tojson | safe }
-        };
-    } catch (e) {
-        console.error('Error loading pending:', e);
-        this.pending = [];
-    }
-    this.$nextTick(() => lucide.createIcons());
+                try {
+                    this.pending = {{ pending_txs | tojson | safe }};
+                } catch (e) {
+                    this.pending = [];
+                }
+                this.$nextTick(() => lucide.createIcons());
             },
 
             async loadEmployees() {
-        try {
-            const res = await fetch('/api/employees');
-            const data = await res.json();
-            this.employees = (data.employees || data.data || []).sort((a, b) => a.name.localeCompare(b.name));
-        } catch (e) {
-            this.employees = [];
-        }
-        this.$nextTick(() => lucide.createIcons());
-    },
+                try {
+                    const res = await fetch('/api/employees');
+                    const data = await res.json();
+                    this.employees = (data.employees || data.data || []).sort((a, b) => a.name.localeCompare(b.name));
+                } catch (e) {
+                    this.employees = [];
+                }
+                this.$nextTick(() => lucide.createIcons());
+            },
 
-            async approve(id) {
-        await this.sendAction(id, 'approve');
-    },
-
-            async reject(id) {
-        await this.sendAction(id, 'reject');
-    },
+            async approve(id) { await this.sendAction(id, 'approve'); },
+            async reject(id) { await this.sendAction(id, 'reject'); },
 
             async sendAction(id, action) {
-        try {
-            const res = await fetch(`/api/game/transaction/${id}/${action}`, { method: 'POST' });
-            const data = await res.json();
-            if (data.success) {
-                this.pending = this.pending.filter(tx => tx.id !== id);
-                this.pendingCount = this.pending.length;
-            } else {
-                alert('Erro ao processar: ' + (data.error || ''));
-            }
-        } catch (e) {
-            alert('Erro de conexão');
-        }
-        this.$nextTick(() => lucide.createIcons());
-    },
+                try {
+                    const res = await fetch(`/api/game/transaction/${id}/${action}`, { method: 'POST' });
+                    const data = await res.json();
+                    if (data.success) {
+                        this.pending = this.pending.filter(tx => tx.id !== id);
+                        this.pendingCount = this.pending.length;
+                    } else {
+                        alert('Erro: ' + (data.error || ''));
+                    }
+                } catch (e) {
+                    alert('Erro de conexão');
+                }
+                this.$nextTick(() => lucide.createIcons());
+            },
 
             async submitManual() {
-        this.error = '';
-        this.success = '';
+                this.error = '';
+                this.success = '';
+                if (!this.form.employee_id || this.form.employee_id <= 0) { this.error = 'Selecione um colaborador.'; return; }
+                if (!this.form.amount || parseInt(this.form.amount) <= 0) { this.error = 'Informe uma quantidade válida.'; return; }
+                if (!this.form.reason.trim()) { this.error = 'Informe o motivo.'; return; }
 
-        if (!this.form.employee_id || this.form.employee_id <= 0) {
-            this.error = 'Selecione um colaborador.';
-            return;
-        }
-        if (!this.form.amount || parseInt(this.form.amount) <= 0) {
-            this.error = 'Informe uma quantidade válida.';
-            return;
-        }
-        if (!this.form.reason.trim()) {
-            this.error = 'Informe o motivo.';
-            return;
-        }
+                this.saving = true;
+                let amount = parseInt(this.form.amount);
+                if (this.form.type === 'remove') amount = -Math.abs(amount);
 
-        this.saving = true;
-        let amount = parseInt(this.form.amount);
-        if (this.form.type === 'remove') amount = -Math.abs(amount);
-
-        try {
-            const res = await fetch('/api/game/manual-xp', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    employee_id: Number(this.form.employee_id),
-                    amount,
-                    reason: this.form.reason.trim(),
-                    status: 'confirmed'
-                })
-            });
-            const data = await res.json();
-            if (data.success) {
-                this.success = 'Ajuste aplicado com sucesso!';
-                this.form.amount = '';
-                this.form.reason = '';
-            } else {
-                this.error = data.error || 'Erro ao aplicar ajuste.';
-            }
-        } catch (e) {
-            this.error = 'Erro de conexão.';
-        } finally {
-            this.saving = false;
-            this.$nextTick(() => lucide.createIcons());
-        }
-    },
+                try {
+                    const res = await fetch('/api/game/manual-xp', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            employee_id: Number(this.form.employee_id),
+                            amount,
+                            reason: this.form.reason.trim(),
+                            status: 'confirmed'
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        this.success = 'Ajuste aplicado com sucesso!';
+                        this.form.amount = '';
+                        this.form.reason = '';
+                    } else {
+                        this.error = data.error || 'Erro ao aplicar ajuste.';
+                    }
+                } catch (e) {
+                    this.error = 'Erro de conexão.';
+                } finally {
+                    this.saving = false;
+                    this.$nextTick(() => lucide.createIcons());
+                }
+            },
 
             async recalculateToday() {
-        this.syncing = true;
-        const today = new Date().toISOString().split('T')[0];
-        try {
-            const res = await fetch(`/api/game/recalculate-all/${today}`, { method: 'POST' });
-            const data = await res.json();
-            if (data.success) {
-                alert('XP recalculado! ' + (data.processed || 0) + ' transações processadas.');
-                location.reload();
-            } else {
-                alert('Erro: ' + (data.error || 'Desconhecido'));
+                this.syncing = true;
+                const today = new Date().toISOString().split('T')[0];
+                try {
+                    const res = await fetch(`/api/game/recalculate-all/${today}`, { method: 'POST' });
+                    const data = await res.json();
+                    if (data.success) {
+                        alert('XP recalculado! ' + (data.processed || 0) + ' transações processadas.');
+                        location.reload();
+                    } else {
+                        alert('Erro: ' + (data.error || 'Desconhecido'));
+                    }
+                } catch (e) {
+                    alert('Erro de conexão.');
+                } finally {
+                    this.syncing = false;
+                }
             }
-        } catch (e) {
-            alert('Erro de conexão.');
-        } finally {
-            this.syncing = false;
-        }
-    }
         };
     }
 </script>
