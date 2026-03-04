@@ -1847,15 +1847,250 @@ async def root_entry(request: Request):
     return RedirectResponse(url="/dashboard", status_code=303)
 
 
-@app.get("/dashboard", response_class=RedirectResponse)
-async def dashboard_entry(request: Request):
+def _infer_shift_name(now_br: datetime) -> str:
+    hhmm = now_br.hour * 60 + now_br.minute
+    # 05:00 - 13:20
+    if (5 * 60) <= hhmm < (13 * 60 + 20):
+        return "Manha"
+    # 12:00 - 20:20
+    if (12 * 60) <= hhmm < (20 * 60 + 20):
+        return "Tarde"
+    # 18:00 - 06:00
+    return "Noite"
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard_entry(
+    request: Request,
+    shift: Optional[str] = None,
+    date_ref: Optional[str] = None,
+    session: Session = Depends(get_session),
+):
     user = get_current_user(request)
-    # Mobile employee sessions stay in the mobile dashboard.
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
     if isinstance(user, dict) and user.get("type") == "employee":
         return RedirectResponse(url="/mobile/dashboard", status_code=303)
-    # Desktop dashboard canonical entrypoint.
-    # Unauthenticated users are handled by /smart-flow -> require_login -> /login.
-    return RedirectResponse(url="/smart-flow", status_code=303)
+
+    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    selected_shift = (shift or _infer_shift_name(now_br) or "Manha").strip().title()
+    if selected_shift not in {"Manha", "Tarde", "Noite"}:
+        selected_shift = "Manha"
+
+    selected_date = now_br.date()
+    if date_ref:
+        try:
+            selected_date = datetime.strptime(date_ref, "%Y-%m-%d").date()
+        except Exception:
+            pass
+    selected_date_str = selected_date.strftime("%Y-%m-%d")
+
+    employees = session.exec(
+        select(models.Employee).where(models.Employee.status != "fired")
+    ).all()
+    employee_by_id = {e.id: e for e in employees if e.id is not None}
+
+    clients = session.exec(select(models.Client)).all()
+    client_by_id = {c.id: c for c in clients if c.id is not None}
+
+    routines = session.exec(
+        select(models.EmployeeRoutine)
+        .where(models.EmployeeRoutine.date == selected_date_str)
+        .where(models.EmployeeRoutine.shift == selected_shift)
+    ).all()
+    routine_by_employee = {r.employee_id: r for r in routines}
+
+    targets = session.exec(select(models.HeadcountTarget)).all()
+    target_map = {"Manha": 0, "Tarde": 0, "Noite": 0}
+    for t in targets:
+        raw = (t.shift_name or "").lower()
+        if "tarde" in raw:
+            target_map["Tarde"] = int(t.target_value or 0)
+        elif "noite" in raw:
+            target_map["Noite"] = int(t.target_value or 0)
+        else:
+            target_map["Manha"] = int(t.target_value or 0)
+
+    # Shift summary cards
+    shifts_summary = {}
+    for shift_name in ("Manha", "Tarde", "Noite"):
+        shift_employees = [e for e in employees if (e.work_shift or "").lower().startswith(shift_name.lower())]
+        away_count = sum(1 for e in shift_employees if (e.status or "").lower() in {"away", "vacation", "sick", "day_off"})
+        present_count = max(0, len(shift_employees) - away_count)
+        shifts_summary[shift_name.lower()] = {
+            "headcount": present_count,
+            "target": target_map.get(shift_name, 0),
+            "away": away_count,
+        }
+
+    # Delivery routes for selected day/shift (operational KPIs + live)
+    routes = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date == selected_date_str)
+        .where(models.Route.shift == selected_shift)
+    ).all()
+
+    def _parse_hhmm(v: Optional[str]) -> Optional[int]:
+        if not v:
+            return None
+        try:
+            h, m = str(v).strip().split(":")
+            return int(h) * 60 + int(m)
+        except Exception:
+            return None
+
+    def _duration_m(start_v: Optional[str], end_v: Optional[str]) -> Optional[int]:
+        s = _parse_hhmm(start_v)
+        e = _parse_hhmm(end_v)
+        if s is None or e is None:
+            return None
+        if e < s:
+            e += 24 * 60
+        return max(0, e - s)
+
+    completed_statuses = {"entregue", "devolucao"}
+    completed_routes = [r for r in routes if (r.delivery_status or "").lower() in completed_statuses]
+    total_tonnage = float(sum(float(r.tonnage or 0.0) for r in routes))
+    completed_count = len(completed_routes)
+
+    durations_hours = []
+    for r in completed_routes:
+        d = _duration_m(r.delivery_started_at or r.start_time, r.delivery_finished_at or r.end_time)
+        if d and d > 0:
+            durations_hours.append(d / 60.0)
+    total_hours = sum(durations_hours)
+    avg_kgh = (total_tonnage / total_hours) if total_hours > 0 else 0.0
+
+    # Faltas/atestados from routine (fallback to employee status when absent routine not present)
+    ausentes = []
+    atestados = []
+    for e in employees:
+        routine = routine_by_employee.get(e.id)
+        r_status = (routine.routine if routine else "").lower()
+        e_status = (e.status or "").lower()
+
+        if r_status == "absent" or e_status == "away":
+            ausentes.append({"name": e.name, "shift": e.work_shift or "-", "status": "Falta"})
+        if r_status == "sick" or e_status == "sick":
+            atestados.append({"name": e.name, "shift": e.work_shift or "-", "status": "Atestado"})
+
+    # HR cards
+    birthdays = []
+    for e in employees:
+        if not e.birthday:
+            continue
+        bday = e.birthday.date()
+        if bday.month == selected_date.month:
+            birthdays.append({
+                "name": e.name,
+                "day": bday.day,
+                "is_today": bday.day == selected_date.day,
+            })
+    birthdays.sort(key=lambda x: x["day"])
+
+    experience_expiring = []
+    for e in employees:
+        if not e.admission_date:
+            continue
+        adm = e.admission_date.date()
+        for marker, label in ((45, "45 Dias"), (90, "90 Dias")):
+            dt = adm + timedelta(days=marker)
+            delta = (dt - selected_date).days
+            if 0 <= delta <= 30:
+                experience_expiring.append({
+                    "name": e.name,
+                    "date": dt.strftime("%d/%m"),
+                    "days": delta,
+                    "type": label,
+                })
+    experience_expiring.sort(key=lambda x: x["days"])
+
+    active_vacation = []
+    upcoming_vacation = []
+    for e in employees:
+        if not e.vacation_start or not e.vacation_end:
+            continue
+        vs = e.vacation_start.date()
+        ve = e.vacation_end.date()
+        if vs <= selected_date <= ve:
+            active_vacation.append({
+                "name": e.name,
+                "end_date": ve.strftime("%d/%m"),
+                "days_left": f"{(ve - selected_date).days + 1}d",
+            })
+        elif vs > selected_date:
+            upcoming_vacation.append({
+                "name": e.name,
+                "start_date": vs.strftime("%d/%m"),
+                "start_in": f"{(vs - selected_date).days}d",
+            })
+    upcoming_vacation.sort(key=lambda x: int(str(x["start_in"]).replace("d", "")))
+
+    # Live delivery cards grouped by driver
+    live_buckets = {}
+    for r in routes:
+        st = (r.delivery_status or "").lower()
+        if st not in {"iniciada", "entregue", "devolucao"}:
+            continue
+        emp = employee_by_id.get(r.employee_id)
+        if not emp:
+            continue
+        bucket = live_buckets.setdefault(
+            emp.id,
+            {
+                "employee_name": emp.name,
+                "photo_url": emp.photo_url,
+                "routes": [],
+            },
+        )
+        d_m = _duration_m(r.delivery_started_at or r.start_time, r.delivery_finished_at or r.end_time) or 0
+        client_name = client_by_id.get(r.client_id).name if client_by_id.get(r.client_id) else f"Cliente #{r.client_id}"
+        bucket["routes"].append({
+            "client": client_name,
+            "start_time": r.delivery_started_at or r.start_time or "--:--",
+            "duration_mins": d_m,
+            "tonnage": float(r.tonnage or 0.0),
+        })
+
+    live_separation = list(live_buckets.values())
+    live_separation.sort(key=lambda x: len(x["routes"]), reverse=True)
+
+    selected_shift_headcount = shifts_summary[selected_shift.lower()]["headcount"]
+    selected_shift_target = shifts_summary[selected_shift.lower()]["target"]
+
+    dashboard_payload = {
+        "current_shift_name": selected_shift,
+        "shifts_summary": shifts_summary,
+        "kpi": {
+            "tonnage": round(total_tonnage, 2),
+            "avg_kgh": round(avg_kgh, 1),
+            "completed_routes_count": completed_count,
+            "headcount": selected_shift_headcount,
+            "target_headcount": selected_shift_target,
+        },
+        "alerts": {
+            "ausentes": ausentes,
+            "atestados": atestados,
+            "vacations_upcoming": upcoming_vacation,
+        },
+        "hr": {
+            "birthdays": birthdays,
+            "experience_expiring": experience_expiring,
+            "vacation": active_vacation,
+        },
+        "live_separation": live_separation,
+    }
+
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "dashboard": dashboard_payload,
+            "current_shift": selected_shift,
+            "current_date": selected_date_str,
+        },
+    )
 
 
 @app.get("/login", response_class=HTMLResponse)
