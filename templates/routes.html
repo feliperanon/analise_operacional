@@ -460,7 +460,8 @@
                                 <span class="px-2 py-1 rounded-md bg-slate-900 border border-slate-700 text-slate-200">R$ {{ "{:,.2f}".format(delivery_summary.total_value).replace(",", "X").replace(".", ",").replace("X", ".") }}</span>
                             </div>
                         </div>
-                        <div class="rounded-xl border border-slate-700 bg-slate-900/60 p-2.5">
+                        <div class="rounded-xl border border-slate-700 bg-slate-900/60 p-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div>
                             <p class="text-[10px] uppercase tracking-wider text-slate-400 mb-1.5 font-bold">Realizado</p>
                             <div class="grid grid-cols-3 gap-1.5">
                                 <span class="px-2 py-1 rounded-md bg-amber-900/20 border border-amber-500/30 text-amber-300">Pend. {{ delivery_summary.pending }}</span>
@@ -471,6 +472,17 @@
                                 <span class="px-2 py-1 rounded-md bg-orange-900/20 border border-orange-500/30 text-orange-300">Dev Kg {{ "{:,.2f}".format(delivery_summary.returned_weight).replace(",", "X").replace(".", ",").replace("X", ".") }}</span>
                                 <span class="px-2 py-1 rounded-md bg-orange-900/20 border border-orange-500/30 text-orange-300">Dev R$ {{ "{:,.2f}".format(delivery_summary.returned_value).replace(",", "X").replace(".", ",").replace("X", ".") }}</span>
                             </div>
+                            </div>
+                            {% if delivery_summary.pending > 0 or delivery_summary.opened_routines > 0 %}
+                            <form action="/separacao/delivery/finish-all-routes" method="post" class="flex-shrink-0" onsubmit="return confirm('Finalizar TODAS as rotas deste dia/turno? Paradas sem devolução serão marcadas como entregues; paradas com devolução permanecem devolução.');">
+                                <input type="hidden" name="date" value="{{ selected_date }}">
+                                <input type="hidden" name="shift" value="{{ selected_shift }}">
+                                <button type="submit" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold flex items-center gap-2">
+                                    <i data-lucide="check-circle" class="w-4 h-4"></i>
+                                    Finalizar todas em massa
+                                </button>
+                            </form>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

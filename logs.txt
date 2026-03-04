@@ -36255,3 +36255,11 @@ FROM gameachievement ORDER BY gameachievement.xp_reward]
 2026-03-04 14:09:30,731 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db | source=local_fallback
 2026-03-04 14:09:56,253 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db | source=local_fallback
 2026-03-04 14:10:08,053 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db | source=local_fallback
+2026-03-04 14:21:41,873 | INFO     | main | ðŸšš Iniciando importaÃ§Ã£o de entregas: 02.xls para data 2026-02-02, turno Manhã
+2026-03-04 14:21:41,873 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Å¾ Arquivo lido: 107520 bytes
+2026-03-04 14:21:41,914 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Å  DataFrame carregado: 204 linhas, 18 colunas
+2026-03-04 14:21:41,914 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Â¹ Colunas encontradas: ['Nº ROTA', 'PLACA VEICULO', 'MOTORISTA', 'Nº LOTE', 'PEDIDOS', 'QTDE ORDENS', 'DATA DO PEDIDO', 'COD CLIENTE', 'RAZÃO SOCIAL', 'CEP', 'ENDERECO', 'BAIRRO', 'Cidades', 'ESTADO', 'PESO PEDIDO', 'PESO TOTAL', 'VALOR', 'TIPO']
+2026-03-04 14:21:41,915 | INFO     | main | info log
+2026-03-04 14:21:42,226 | INFO     | main | Ã°Å¸Ã¢â‚¬ËœÃ‚Â¥ Total de funcionÃ¡rios ativos: 154
+2026-03-04 14:21:42,226 | INFO     | main | info log
+2026-03-04 14:21:46,792 | INFO     | main | info log
