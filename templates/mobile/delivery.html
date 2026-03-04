@@ -1,180 +1,204 @@
 {% extends "mobile/layout.html" %}
 
 {% block content %}
-<div x-data="deliveryPageController()" x-init="init()" class="min-h-screen px-4 pt-6 pb-24 bg-slate-950 text-slate-100">
-    <div class="flex items-center justify-between mb-4">
-        <a href="/mobile/dashboard" class="px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-sm">Voltar</a>
-        <h1 class="text-lg font-bold">Rota de Entregas</h1>
-        <div class="w-14"></div>
-    </div>
+<div x-data="deliveryPageController()" x-init="init()" class="min-h-screen pb-safe" style="background: var(--color-bg);">
+    <header class="container-mobile py-4 border-b shrink-0 sticky top-0 z-20" style="border-color: var(--color-border-light); background: var(--color-surface);">
+        <div class="flex items-center justify-between">
+            <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </a>
+            <h1 class="text-title-lg" style="color: var(--color-text);">Rota de Entregas</h1>
+            <div class="w-10"></div>
+        </div>
+    </header>
 
-    <div class="rounded-2xl border border-slate-700 bg-slate-900/70 p-4">
-        <div class="flex items-start justify-between gap-2 mb-3">
-            <div>
-                <p class="font-bold">Minhas Rotas</p>
-                <p class="text-xs text-slate-400" x-text="assignedPlate ? `Caminhão: ${assignedPlate}` : 'Sem caminhão planejado'"></p>
+    <div class="container-mobile mt-4">
+        <div class="surface p-4">
+            <div class="flex items-start justify-between gap-2 mb-3">
+                <div>
+                    <p class="text-section" style="color: var(--color-text);">Minhas Rotas</p>
+                    <p class="text-caption-lg mt-0.5" x-text="assignedPlate ? `Caminhão: ${assignedPlate}` : 'Sem caminhão planejado'"></p>
+                </div>
+                <button x-show="!deliverySessionOpen" @click="openStartEntry()" class="px-3 py-2 rounded-lg font-semibold text-body text-white transition-opacity" style="background: var(--color-primary);">Iniciar</button>
+                <button x-show="deliverySessionOpen" @click="showDeliveryEndModal = true" class="px-3 py-2 rounded-lg font-semibold text-body text-white transition-opacity" style="background: var(--color-success);">Encerrar</button>
             </div>
-            <button x-show="!deliverySessionOpen" @click="openStartEntry()" class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold">Iniciar</button>
-            <button x-show="deliverySessionOpen" @click="showDeliveryEndModal = true" class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold">Encerrar</button>
-        </div>
 
-        <div class="mb-3 flex gap-2">
-            <input type="text" x-model="deliverySearch" placeholder="Pesquisar cliente, código, pedido, endereço..."
-                class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
-            <button type="button" @click="deliverySearch=''" x-show="deliverySearch"
-                class="min-w-[92px] px-4 py-3 rounded-xl border border-slate-500 bg-slate-800 text-slate-100 text-sm font-bold inline-flex items-center justify-center gap-1.5">
-                <i data-lucide="x-circle" class="w-4 h-4"></i>
-                <span>Limpar</span>
-            </button>
-        </div>
-
-        <div class="space-y-2 mb-3">
-            <template x-for="card in deliveryDayCards" :key="`day-${card.date}`">
-                <button @click="toggleDeliveryDay(card.date)" class="w-full text-left px-3 py-2 rounded-xl border transition"
-                    :class="selectedDeliveryDay===card.date ? 'bg-indigo-900/20 border-indigo-500/40 text-indigo-200' : 'bg-slate-900/40 border-slate-700 text-slate-300'">
-                    <div class="flex items-center justify-between">
-                        <span class="font-bold" x-text="card.label"></span>
-                        <span class="text-xs opacity-80" x-text="`${card.count} cliente(s)`"></span>
-                    </div>
+            <div class="mb-3 flex gap-2">
+                <input type="text" x-model="deliverySearch" placeholder="Pesquisar cliente, código, pedido..."
+                    class="flex-1 rounded-lg px-3 py-2.5 border-2 text-body focus:outline-none focus:ring-2 transition-colors"
+                    style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                <button type="button" @click="deliverySearch=''" x-show="deliverySearch"
+                    class="px-4 py-2.5 rounded-lg border-2 font-semibold text-body transition-opacity flex items-center justify-center gap-1.5"
+                    style="border-color: var(--color-border); color: var(--color-text);">
+                    <i data-lucide="x-circle" class="w-4 h-4"></i> Limpar
                 </button>
-            </template>
-        </div>
+            </div>
 
-        <div x-show="deliverySessionOpen && !!selectedDeliveryDay" class="mb-3">
-            <div class="rounded-2xl border border-slate-700/80 bg-gradient-to-br from-slate-900/95 to-slate-800/85 p-3 shadow-lg">
-                <div class="flex items-center justify-between mb-2">
-                    <p class="text-[11px] uppercase tracking-[0.12em] text-slate-400 font-bold">Resumo da Rota</p>
-                    <span class="text-[10px] px-2 py-1 rounded-full border border-slate-600 bg-slate-900/60 text-slate-300" x-text="formatDateBR(selectedDeliveryDay)"></span>
-                </div>
+            <div class="space-y-2 mb-3">
+                <template x-for="card in deliveryDayCards" :key="`day-${card.date}`">
+                    <button @click="toggleDeliveryDay(card.date)" class="w-full text-left px-3 py-2 rounded-lg border-2 transition-colors"
+                        :style="selectedDeliveryDay===card.date ? 'background: var(--color-primary-bg); border-color: var(--color-primary); color: var(--color-primary);' : 'border-color: var(--color-border); color: var(--color-text);'">
+                        <div class="flex items-center justify-between">
+                            <span class="font-semibold text-body" x-text="card.label"></span>
+                            <span class="text-caption-lg" x-text="`${card.count} cliente(s)`"></span>
+                        </div>
+                    </button>
+                </template>
+            </div>
 
-                <div class="grid grid-cols-3 gap-1.5 mb-2">
-                    <span class="summary-chip summary-chip-neutral" x-text="`Paradas ${dayStats.totalStops}`"></span>
-                    <span class="summary-chip summary-chip-neutral" x-text="`${formatNumberBR(dayStats.totalWeight)} Kg`"></span>
-                    <span class="summary-chip summary-chip-neutral" x-text="formatCurrencyBR(dayStats.totalValue)"></span>
-                </div>
-
-                <div class="grid grid-cols-2 gap-1.5">
-                    <span class="summary-chip summary-chip-amber" x-text="`Pendentes ${dayStats.pending}`"></span>
-                    <span class="summary-chip summary-chip-blue" x-text="`Abertas ${dayStats.opened}`"></span>
-                    <span class="summary-chip summary-chip-slate" x-text="`Concluídas ${dayStats.completed}`"></span>
-                    <span class="summary-chip summary-chip-green" x-text="`Entregues ${dayStats.delivered}`"></span>
-                    <span class="summary-chip summary-chip-red" x-text="`Devoluções ${dayStats.returned} (${formatPercent(dayStats.returnPct)})`"></span>
-                    <span class="summary-chip summary-chip-red" x-text="`Dev. Kg ${formatNumberBR(dayStats.returnWeight)} (${formatPercent(dayStats.returnWeightPct)})`"></span>
-                    <span class="summary-chip summary-chip-red col-span-2" x-text="`Dev. R$ ${formatCurrencyBR(dayStats.returnValue)} (${formatPercent(dayStats.returnValuePct)})`"></span>
+            <div x-show="deliverySessionOpen && !!selectedDeliveryDay" class="mb-3">
+                <div class="surface p-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-caption font-semibold" style="color: var(--color-text-muted);">Resumo da Rota</p>
+                        <span class="text-caption px-2 py-1 rounded" style="background: var(--color-border-light); color: var(--color-text-secondary);" x-text="formatDateBR(selectedDeliveryDay)"></span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-1.5 mb-2">
+                        <span class="summary-chip" style="background: var(--color-border-light); color: var(--color-text-secondary);" x-text="`Paradas ${dayStats.totalStops}`"></span>
+                        <span class="summary-chip" style="background: var(--color-border-light); color: var(--color-text-secondary);" x-text="`${formatNumberBR(dayStats.totalWeight)} Kg`"></span>
+                        <span class="summary-chip" style="background: var(--color-border-light); color: var(--color-text-secondary);" x-text="formatCurrencyBR(dayStats.totalValue)"></span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <span class="summary-chip" style="background: var(--color-warning-bg); color: var(--color-warning);" x-text="`Pendentes ${dayStats.pending}`"></span>
+                        <span class="summary-chip" style="background: var(--color-primary-bg); color: var(--color-primary);" x-text="`Abertas ${dayStats.opened}`"></span>
+                        <span class="summary-chip" style="background: var(--color-border-light); color: var(--color-text-secondary);" x-text="`Concluídas ${dayStats.completed}`"></span>
+                        <span class="summary-chip" style="background: var(--color-success-bg); color: var(--color-success);" x-text="`Entregues ${dayStats.delivered}`"></span>
+                        <span class="summary-chip col-span-2" style="background: var(--color-danger-bg); color: var(--color-danger);" x-text="`Dev. R$ ${formatCurrencyBR(dayStats.returnValue)} (${formatPercent(dayStats.returnValuePct)})`"></span>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div x-show="!deliverySessionOpen" class="rounded-xl border border-amber-500/30 bg-amber-900/10 p-3 text-xs text-amber-200">
-            Inicie a rotina para liberar os clientes.
-        </div>
+            <div x-show="!deliverySessionOpen" class="rounded-lg p-3 text-body" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning); color: var(--color-text);">
+                Inicie a rotina para liberar os clientes.
+            </div>
 
-        <div class="space-y-2 max-h-[62vh] overflow-y-auto custom-scrollbar mt-2" x-show="deliverySessionOpen && !!selectedDeliveryDay">
-            <template x-for="route in orderedDeliveryRoutes" :key="`route-${route.id}`">
-                <div class="rounded-xl border p-3" :class="routeCardClass(route)">
-                    <div class="flex items-start justify-between gap-2">
-                        <div>
-                            <p class="text-sm font-bold text-white" x-text="route.client_name"></p>
-                            <p class="text-[11px] text-slate-400" x-text="`Cod ${route.client_code || '-'} • Pedido ${route.order_number || '-'}`"></p>
+            <div class="space-y-2 max-h-[62vh] overflow-y-auto custom-scrollbar mt-2" x-show="deliverySessionOpen && !!selectedDeliveryDay">
+                <template x-for="route in orderedDeliveryRoutes" :key="`route-${route.id}`">
+                    <div class="surface p-3 rounded-lg" :class="routeStatusCardClass(route)">
+                        <div class="flex items-start justify-between gap-2">
+                            <div>
+                                <p class="text-body font-semibold truncate" style="color: var(--color-text);" x-text="route.client_name"></p>
+                                <p class="text-caption" x-text="`Cod ${route.client_code || '-'} • Pedido ${route.order_number || '-'}`"></p>
+                            </div>
+                            <a :href="route.maps_url" target="_blank" class="text-caption font-semibold" style="color: var(--color-primary);">Mapa</a>
                         </div>
-                        <a :href="route.maps_url" target="_blank" class="text-[11px] text-sky-300 underline">Mapa</a>
+                        <p class="text-caption mt-1 truncate" x-text="`${route.address} - ${route.city}/${route.state}`"></p>
+                        <div class="flex items-center gap-2 mt-2 flex-wrap">
+                            <span class="chip" x-text="`${formatNumberBR(route.weight)} Kg`"></span>
+                            <span class="chip" x-text="formatCurrencyBR(route.value)"></span>
+                            <span class="chip" x-text="statusLabel(routeStatus(route))"></span>
+                            <span class="chip" x-show="routeStatus(route)==='iniciada'" x-text="`${formatTimer(route.started_at || '00:00')}`"></span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-1.5 mt-2">
+                            <button @click="deliveryAction(route,'iniciar')" class="btn-delivery" :disabled="!deliverySessionOpen || (routeStatus(route)!=='pendente' && routeStatus(route)!=='reaberta')" style="background: var(--color-primary);">Iniciar</button>
+                            <button @click="deliveryAction(route,'finalizar')" class="btn-delivery" :disabled="!deliverySessionOpen || routeStatus(route)!=='iniciada'" style="background: var(--color-success);">Finalizar</button>
+                            <button @click="openMobileReturnModal(route)" class="btn-delivery" :disabled="!deliverySessionOpen || routeStatus(route)!=='iniciada'" style="background: var(--color-warning);">Devolução</button>
+                            <button @click="deliveryAction(route,'reabrir')" class="btn-delivery" :disabled="!deliverySessionOpen || (routeStatus(route)!=='entregue' && routeStatus(route)!=='devolucao')" style="background: var(--color-text-secondary); color: white;">Reabrir</button>
+                        </div>
                     </div>
-                    <p class="text-[11px] text-slate-300 mt-1" x-text="`${route.address} - ${route.city}/${route.state}`"></p>
-                    <div class="flex items-center gap-2 mt-2 text-[11px] flex-wrap">
-                        <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-200" x-text="`${formatNumberBR(route.weight)} Kg`"></span>
-                        <span class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-200" x-text="formatCurrencyBR(route.value)"></span>
-                        <span class="px-2 py-1 rounded border text-slate-200" x-text="statusLabel(routeStatus(route))"></span>
-                        <span class="px-2 py-1 rounded bg-slate-900/70 border border-slate-700 text-slate-300" x-show="routeStatus(route)==='iniciada'" x-text="`Tempo ${formatTimer(route.started_at || '00:00')}`"></span>
-                        <span class="px-2 py-1 rounded bg-slate-900/70 border border-slate-700 text-slate-300" x-show="route.started_at && (route.finished_at || route.returned_at)" x-text="`Gasto ${formatSpent(route.started_at, route.finished_at || route.returned_at)}`"></span>
-                        <span class="px-2 py-1 rounded bg-indigo-900/20 border border-indigo-500/40 text-indigo-200" x-show="route.started_at" x-text="`Início ${route.started_at}`"></span>
-                        <span class="px-2 py-1 rounded bg-emerald-900/20 border border-emerald-500/40 text-emerald-200" x-show="route.finished_at" x-text="`Fim ${route.finished_at}`"></span>
-                        <span class="px-2 py-1 rounded bg-red-900/20 border border-red-500/40 text-red-200" x-show="route.returned_at" x-text="`Devolução ${route.returned_at}`"></span>
-                    </div>
-                    <div class="grid grid-cols-2 gap-1.5 mt-2">
-                        <button @click="deliveryAction(route,'iniciar')" class="btn-action btn-start" :disabled="!deliverySessionOpen || (routeStatus(route)!=='pendente' && routeStatus(route)!=='reaberta')">Iniciar</button>
-                        <button @click="deliveryAction(route,'finalizar')" class="btn-action btn-finish" :disabled="!deliverySessionOpen || routeStatus(route)!=='iniciada'">Finalizar</button>
-                        <button @click="openMobileReturnModal(route)" class="btn-action btn-return" :disabled="!deliverySessionOpen || routeStatus(route)!=='iniciada'">Devolução</button>
-                        <button @click="deliveryAction(route,'reabrir')" class="btn-action btn-reopen" :disabled="!deliverySessionOpen || (routeStatus(route)!=='entregue' && routeStatus(route)!=='devolucao')">Reabrir</button>
-                    </div>
-                </div>
-            </template>
+                </template>
+            </div>
         </div>
     </div>
 
-    <div x-show="showDeliverySetupModal" class="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-sm p-4" @click.self="showDeliverySetupModal = false">
-        <div @click.stop class="w-full max-w-lg bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-3 shadow-2xl">
-            <h3 class="text-white font-bold text-lg">Iniciar Entregas</h3>
-            <p class="text-sm text-slate-300">Preencha placa e KM de saída.</p>
-            <div x-show="deliverySetupError" class="rounded-lg border border-red-500/30 bg-red-900/20 px-3 py-2 text-xs text-red-200" x-text="deliverySetupError"></div>
-            <div>
-                <label class="block text-xs text-slate-300 mb-1">Placa *</label>
-                <input type="text" x-ref="deliveryPlateInput" x-model="deliverySetup.plate" @input="normalizePlateInput()" placeholder="ABC1D23"
-                    class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-3 text-white text-base uppercase">
+    <!-- Modal: Iniciar Entregas -->
+    <div x-show="showDeliverySetupModal" class="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" @click.self="showDeliverySetupModal = false">
+        <div @click.stop class="w-full max-w-lg rounded-lg flex flex-col max-h-[90vh] overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
+            <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
+                <div class="icon-wrap w-12 h-12 flex-shrink-0" style="background: var(--color-primary); color: white;"><i data-lucide="truck" class="w-6 h-6"></i></div>
+                <div class="flex-1">
+                    <h3 class="text-title" style="color: var(--color-text);">Iniciar Entregas</h3>
+                    <p class="text-caption-lg">Placa e KM de saída obrigatórios</p>
+                </div>
             </div>
-            <div>
-                <label class="block text-xs text-slate-300 mb-1">KM de saída *</label>
-                <input type="number" step="0.1" min="0" x-model="deliverySetup.km_departure" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-3 text-white text-base">
-            </div>
-            <div>
-                <label class="block text-xs text-slate-300 mb-1">Ajudantes (opcional)</label>
-                <div class="relative flex gap-2">
-                    <input type="text" x-model="deliverySetup.helperInput" @keydown.enter.prevent="addDeliveryHelperFromInput()" placeholder="Digite o nome e pressione Enter"
-                        class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-3 text-white text-sm" autocomplete="off">
-                    <button type="button" @click="addDeliveryHelperFromInput()" class="btn-modal btn-modal-secondary !py-2">Adicionar</button>
-                    <div x-show="filteredHelperOptions.length > 0" class="absolute left-0 right-24 top-full mt-1 max-h-44 overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 shadow-xl z-10">
-                        <template x-for="emp in filteredHelperOptions" :key="`helper-suggest-${emp.id}`">
-                            <button type="button" @click="selectDeliveryHelperName(emp.name)" class="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-slate-800" x-text="emp.name"></button>
+            <div class="p-4 space-y-4 overflow-y-auto">
+                <div x-show="deliverySetupError" class="rounded-lg p-3 text-body" style="background: var(--color-danger-bg); color: var(--color-danger);" x-text="deliverySetupError"></div>
+                <div>
+                    <label class="text-section block mb-2" style="color: var(--color-text);">Placa *</label>
+                    <input type="text" x-ref="deliveryPlateInput" x-model="deliverySetup.plate" @input="normalizePlateInput()" placeholder="ABC1D23"
+                        class="w-full rounded-lg px-4 py-3 border-2 text-body uppercase font-mono focus:outline-none focus:ring-2"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                </div>
+                <div>
+                    <label class="text-section block mb-2" style="color: var(--color-text);">KM de saída *</label>
+                    <input type="number" step="0.1" min="0" x-model="deliverySetup.km_departure" placeholder="Ex.: 125430,5"
+                        class="w-full rounded-lg px-4 py-3 border-2 text-body font-mono focus:outline-none focus:ring-2"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                </div>
+                <div>
+                    <label class="text-section block mb-2" style="color: var(--color-text);">Ajudantes (opcional)</label>
+                    <div class="flex gap-2">
+                        <input type="text" x-model="deliverySetup.helperInput" @keydown.enter.prevent="addDeliveryHelperFromInput()" placeholder="Nome + Enter"
+                            class="flex-1 rounded-lg px-3 py-3 border-2 text-body focus:outline-none focus:ring-2"
+                            style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);" autocomplete="off">
+                        <button type="button" @click="addDeliveryHelperFromInput()" class="px-4 py-3 rounded-lg font-semibold text-body text-white" style="background: var(--color-primary);">Adicionar</button>
+                    </div>
+                    <div class="mt-2 flex flex-wrap gap-1.5" x-show="deliverySetup.helpers.length > 0">
+                        <template x-for="(helper, idx) in deliverySetup.helpers" :key="`h-${idx}`">
+                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded text-body font-medium" style="background: var(--color-primary-bg); color: var(--color-primary);">
+                                <span x-text="helper"></span>
+                                <button type="button" @click="removeDeliveryHelper(idx)" class="font-bold">×</button>
+                            </span>
                         </template>
                     </div>
                 </div>
-                <div class="mt-2 flex flex-wrap gap-1.5">
-                    <template x-for="(helper, idx) in deliverySetup.helpers" :key="`helper-${idx}-${helper}`">
-                        <span class="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-600 bg-slate-900 text-slate-200 text-xs">
-                            <span x-text="helper"></span>
-                            <button type="button" @click="removeDeliveryHelper(idx)" class="text-slate-400 hover:text-white">x</button>
-                        </span>
-                    </template>
-                </div>
             </div>
-            <div class="grid grid-cols-1 gap-2 pt-2">
-                <button @click="startDeliverySession()" class="btn-modal btn-modal-primary !py-3 text-base">Iniciar agora</button>
-                <button @click="showDeliverySetupModal=false" class="btn-modal btn-modal-secondary !py-3 text-sm">Fechar</button>
+            <div class="p-4 border-t flex gap-3 shrink-0" style="border-color: var(--color-border);">
+                <button @click="showDeliverySetupModal=false" class="flex-1 py-3 rounded-lg font-semibold text-body" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
+                <button @click="startDeliverySession()" class="flex-1 py-3 rounded-lg font-semibold text-body text-white" style="background: var(--color-primary);">Iniciar agora</button>
             </div>
         </div>
     </div>
 
-    <div x-show="showDeliveryEndModal" class="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-sm p-4" @click.self="showDeliveryEndModal=false">
-        <div @click.stop class="w-full max-w-md bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-3 shadow-2xl">
-            <h3 class="text-white font-bold">Encerrar na Empresa</h3>
-            <input type="number" step="0.1" min="0" x-model="deliveryEndKm" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm" placeholder="KM de chegada">
-            <div class="grid grid-cols-2 gap-2 pt-2">
-                <button @click="showDeliveryEndModal=false" class="btn-modal btn-modal-secondary">Cancelar</button>
-                <button @click="endDeliverySession()" class="btn-modal btn-modal-primary">Encerrar</button>
+    <!-- Modal: Encerrar -->
+    <div x-show="showDeliveryEndModal" class="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" @click.self="showDeliveryEndModal=false">
+        <div @click.stop class="w-full max-w-md rounded-lg p-4" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
+            <div class="mb-4">
+                <h3 class="text-title" style="color: var(--color-text);">Encerrar na Empresa</h3>
+                <p class="text-caption-lg mt-0.5">KM de chegada</p>
+            </div>
+            <input type="number" step="0.1" min="0" x-model="deliveryEndKm" placeholder="Ex.: 125630,2"
+                class="w-full rounded-lg px-4 py-3 border-2 text-body mb-4 focus:outline-none focus:ring-2"
+                style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+            <div class="flex gap-3">
+                <button @click="showDeliveryEndModal=false" class="flex-1 py-3 rounded-lg font-semibold text-body" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
+                <button @click="endDeliverySession()" class="flex-1 py-3 rounded-lg font-semibold text-body text-white" style="background: var(--color-success);">Encerrar</button>
             </div>
         </div>
     </div>
 
-    <div x-show="showMobileReturnModal" class="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-sm p-4" @click.self="showMobileReturnModal=false">
-        <div @click.stop class="w-full max-w-lg bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-3 shadow-2xl">
-            <h3 class="text-white font-bold">Registrar Devolução</h3>
+    <!-- Modal: Devolução -->
+    <div x-show="showMobileReturnModal" class="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" @click.self="showMobileReturnModal=false">
+        <div @click.stop class="w-full max-w-lg rounded-lg p-4 space-y-4" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
+            <h3 class="text-title" style="color: var(--color-text);">Registrar Devolução</h3>
             <div>
-                <label class="block text-xs text-slate-400 mb-1">Motivo</label>
-                <select x-model="mobileReturn.reason" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm">
+                <label class="text-section block mb-2" style="color: var(--color-text);">Motivo</label>
+                <select x-model="mobileReturn.reason" class="w-full rounded-lg px-4 py-3 border-2 text-body focus:outline-none focus:ring-2"
+                    style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
                     <template x-for="reason in mobileReturnReasons" :key="reason">
                         <option :value="reason" x-text="reason"></option>
                     </template>
                 </select>
             </div>
-            <label class="flex items-center gap-2 text-sm text-slate-200">
+            <label class="flex items-center gap-2 text-body font-semibold cursor-pointer" style="color: var(--color-text);">
                 <input type="checkbox" x-model="mobileReturn.is_partial"> Devolução parcial
             </label>
-            <div class="grid grid-cols-2 gap-2" x-show="mobileReturn.is_partial">
-                <input type="number" step="0.01" min="0" x-model="mobileReturn.weight" placeholder="Peso (Kg)" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm">
-                <input type="number" step="0.01" min="0" x-model="mobileReturn.value" placeholder="Valor (R$)" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm">
+            <div class="grid grid-cols-2 gap-3" x-show="mobileReturn.is_partial">
+                <div>
+                    <label class="text-section block mb-1" style="color: var(--color-text);">Peso (Kg)</label>
+                    <input type="number" step="0.01" min="0" x-model="mobileReturn.weight" placeholder="0,00"
+                        class="w-full rounded-lg px-3 py-2.5 border-2 text-body font-mono"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                </div>
+                <div>
+                    <label class="text-section block mb-1" style="color: var(--color-text);">Valor (R$)</label>
+                    <input type="number" step="0.01" min="0" x-model="mobileReturn.value" placeholder="0,00"
+                        class="w-full rounded-lg px-3 py-2.5 border-2 text-body font-mono"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                </div>
             </div>
-            <div class="grid grid-cols-2 gap-2 pt-2">
-                <button @click="showMobileReturnModal=false" class="btn-modal btn-modal-secondary">Cancelar</button>
-                <button @click="confirmMobileReturn()" class="btn-modal btn-modal-primary">Confirmar</button>
+            <div class="flex gap-3">
+                <button @click="showMobileReturnModal=false" class="flex-1 py-3 rounded-lg font-semibold text-body" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
+                <button @click="confirmMobileReturn()" class="flex-1 py-3 rounded-lg font-semibold text-body text-white" style="background: var(--color-warning);">Confirmar</button>
             </div>
         </div>
     </div>
@@ -182,10 +206,14 @@
 {% endblock %}
 
 {% block scripts %}
+<style>
+    .summary-chip { padding: 0.35rem 0.5rem; border-radius: 0.5rem; font-size: 11px; font-weight: 600; }
+    .chip { padding: 0.25rem 0.5rem; border-radius: 0.375rem; font-size: 11px; font-weight: 600; background: var(--color-border-light); color: var(--color-text-secondary); }
+    .btn-delivery { padding: 0.5rem 0.75rem; border-radius: 0.5rem; font-size: 12px; font-weight: 600; color: white; transition: opacity 0.2s; }
+    .btn-delivery:disabled { opacity: 0.4; cursor: not-allowed; }
+</style>
 <script id="delivery-page-data" type="application/json">
-{
-    "employees": {{ employees_json | safe }}
-}
+{"employees": {{ employees_json | safe }}}
 </script>
 <script>
     function deliveryPageController() {
@@ -211,23 +239,11 @@
             get helperOptions() { return (this.employees || []).filter(e => e.id !== {{ employee.id }}); },
             get filteredDeliveryRoutes() {
                 let list = this.deliveryRoutes || [];
-                if (this.selectedDeliveryDay) {
-                    list = list.filter(r => r.date === this.selectedDeliveryDay);
-                }
+                if (this.selectedDeliveryDay) list = list.filter(r => r.date === this.selectedDeliveryDay);
                 const q = (this.deliverySearch || '').trim().toLowerCase();
                 if (!q) return list;
                 return list.filter(r => {
-                    const text = [
-                        r.client_name,
-                        r.client_code,
-                        r.order_number,
-                        r.address,
-                        r.city,
-                        r.state,
-                        r.status,
-                        r.weight,
-                        r.value
-                    ].map(v => (v ?? '').toString().toLowerCase()).join(' ');
+                    const text = [r.client_name, r.client_code, r.order_number, r.address, r.city, r.state, r.status].map(v => (v ?? '').toString().toLowerCase()).join(' ');
                     return text.includes(q);
                 });
             },
@@ -237,8 +253,7 @@
                 return list.sort((a, b) => {
                     const sa = statusOrder[this.routeStatus(a)] ?? 99;
                     const sb = statusOrder[this.routeStatus(b)] ?? 99;
-                    if (sa !== sb) return sa - sb;
-                    return (a.id || 0) - (b.id || 0);
+                    return sa !== sb ? sa - sb : (a.id || 0) - (b.id || 0);
                 });
             },
             get dayStats() {
@@ -250,15 +265,10 @@
                 const opened = rows.filter(r => this.routeStatus(r) === 'iniciada').length;
                 const delivered = rows.filter(r => this.routeStatus(r) === 'entregue').length;
                 const returnedRows = rows.filter(r => this.routeStatus(r) === 'devolucao');
-                const returned = returnedRows.length;
-                const completed = delivered + returned;
-                const returnWeight = returnedRows.reduce((acc, r) => acc + Number(r.weight || 0), 0);
                 const returnValue = returnedRows.reduce((acc, r) => acc + Number(r.value || 0), 0);
                 return {
-                    totalStops, totalWeight, totalValue, pending, opened, delivered, returned, completed,
-                    returnWeight, returnValue,
-                    returnPct: totalStops ? (returned / totalStops) * 100 : 0,
-                    returnWeightPct: totalWeight ? (returnWeight / totalWeight) * 100 : 0,
+                    totalStops, totalWeight, totalValue, pending, opened, delivered, returned: returnedRows.length,
+                    completed: delivered + returnedRows.length, returnValue,
                     returnValuePct: totalValue ? (returnValue / totalValue) * 100 : 0
                 };
             },
@@ -268,68 +278,33 @@
                 const selected = new Set((this.deliverySetup.helpers || []).map(h => (h || '').trim().toLowerCase()));
                 return (this.helperOptions || []).filter(emp => {
                     const name = ((emp && emp.name) || '').trim();
-                    if (!name || selected.has(name.toLowerCase())) return false;
-                    return name.toLowerCase().includes(q);
+                    return name && !selected.has(name.toLowerCase()) && name.toLowerCase().includes(q);
                 }).slice(0, 8);
             },
 
-            init() { this.loadDeliveryData(); },
+            init() { this.loadDeliveryData(); lucide.createIcons(); },
             haptic() { if ('vibrate' in navigator) navigator.vibrate([10]); },
-            routeStatus(route) {
-                return ((route && route.status) || 'pendente').toString().toLowerCase().trim();
-            },
-            routeCardClass(route) {
+            routeStatus(route) { return ((route && route.status) || 'pendente').toString().toLowerCase().trim(); },
+            routeStatusCardClass(route) {
                 const s = this.routeStatus(route);
-                if (s === 'iniciada' || s === 'reaberta') return 'bg-blue-900/20 border-blue-500/40';
-                if (s === 'entregue') return 'bg-emerald-900/25 border-emerald-400/50';
-                if (s === 'devolucao' || s === 'devolução') return 'bg-red-900/25 border-red-400/50';
-                return 'bg-slate-900/30 border-slate-700';
+                if (s === 'iniciada') return '';
+                if (s === 'entregue') return '';
+                if (s === 'devolucao') return '';
+                return '';
             },
-            statusLabel(status) {
-                const map = { pendente: 'Pendente', iniciada: 'Iniciada', reaberta: 'Reaberta', entregue: 'Entregue', devolucao: 'Devolução' };
-                return map[status] || status;
-            },
-            formatNumberBR(value) {
-                return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value || 0));
-            },
-            formatCurrencyBR(value) {
-                return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
-            },
-            formatPercent(value) {
-                return `${this.formatNumberBR(Number(value || 0))}%`;
-            },
-            formatDateBR(value) {
-                if (!value) return '';
-                try {
-                    const parts = value.split('-');
-                    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
-                } catch (e) {}
-                return value;
-            },
-            formatSpent(startTimeStr, endTimeStr) {
-                if (!startTimeStr || !endTimeStr) return '--';
-                const [sh, sm] = (startTimeStr || '').split(':').map(x => parseInt(x, 10));
-                const [eh, em] = (endTimeStr || '').split(':').map(x => parseInt(x, 10));
-                if ([sh, sm, eh, em].some(x => Number.isNaN(x))) return '--';
-                const start = sh * 60 + sm;
-                const end = eh * 60 + em;
-                const diff = Math.max(0, end - start);
-                const h = Math.floor(diff / 60);
-                const m = diff % 60;
-                return h > 0 ? `${h}h ${m}min` : `${m} min`;
-            },
-            formatTimer(startTimeStr) {
-                if (!startTimeStr) return "00:00:00";
-                const parts = startTimeStr.split(':');
-                if (parts.length < 2) return "--:--";
-                const h = parseInt(parts[0]); const m = parseInt(parts[1]);
+            statusLabel(s) { const m = { pendente: 'Pendente', iniciada: 'Iniciada', reaberta: 'Reaberta', entregue: 'Entregue', devolucao: 'Devolução' }; return m[s] || s; },
+            formatNumberBR(v) { return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(v || 0)); },
+            formatCurrencyBR(v) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v || 0)); },
+            formatPercent(v) { return this.formatNumberBR(Number(v || 0)) + '%'; },
+            formatDateBR(v) { if (!v) return ''; const p = v.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : v; },
+            formatTimer(st) {
+                if (!st) return "00:00:00";
+                const [h, m] = st.split(':').map(x => parseInt(x, 10));
                 if (isNaN(h) || isNaN(m)) return "--:--";
-                const now = new Date(); const start = new Date();
-                start.setHours(h, m, 0, 0);
+                const now = new Date(); const start = new Date(); start.setHours(h, m, 0, 0);
                 if (start > now) start.setDate(start.getDate() - 1);
-                let diff = now - start; if (diff < 0) diff = 0;
-                const s = Math.floor(diff / 1000); const hh = Math.floor(s / 3600);
-                const mm = Math.floor((s % 3600) / 60); const ss = s % 60;
+                let diff = Math.max(0, now - start);
+                const s = Math.floor(diff / 1000), hh = Math.floor(s / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60;
                 return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
             },
             openStartEntry() {
@@ -338,17 +313,13 @@
                 this.showDeliverySetupModal = true;
                 this.$nextTick(() => this.$refs.deliveryPlateInput && this.$refs.deliveryPlateInput.focus());
             },
-            normalizePlateInput() {
-                const raw = (this.deliverySetup.plate || '').toUpperCase();
-                this.deliverySetup.plate = raw.replace(/[^A-Z0-9]/g, '').slice(0, 7);
-            },
+            normalizePlateInput() { const raw = (this.deliverySetup.plate || '').toUpperCase(); this.deliverySetup.plate = raw.replace(/[^A-Z0-9]/g, '').slice(0, 7); },
             addDeliveryHelperFromInput() {
                 const raw = (this.deliverySetup.helperInput || '').trim();
                 if (!raw) return;
-                const normalized = raw.replace(/\s+/g, ' ');
-                const exists = (this.deliverySetup.helpers || []).some(h => (h || '').trim().toLowerCase() === normalized.toLowerCase());
-                if (exists) return;
-                this.deliverySetup.helpers.push(normalized);
+                const n = raw.replace(/\s+/g, ' ');
+                if ((this.deliverySetup.helpers || []).some(h => (h || '').trim().toLowerCase() === n.toLowerCase())) return;
+                this.deliverySetup.helpers.push(n);
                 this.deliverySetup.helperInput = '';
             },
             removeDeliveryHelper(idx) { this.deliverySetup.helpers.splice(idx, 1); },
@@ -356,70 +327,53 @@
             loadDeliveryData() {
                 fetch('/api/mobile/delivery/my-routes').then(r => r.json()).then(data => {
                     if (!data.success) return;
-                    const prevSelectedDay = this.selectedDeliveryDay;
+                    const prev = this.selectedDeliveryDay;
                     this.deliveryRoutes = data.routes || [];
                     this.deliveryDayCards = data.day_cards || [];
-                    if (prevSelectedDay && this.deliveryDayCards.some(c => c.date === prevSelectedDay)) {
-                        this.selectedDeliveryDay = prevSelectedDay;
-                    } else if (!this.selectedDeliveryDay && this.deliveryDayCards.length) {
-                        this.selectedDeliveryDay = this.deliveryDayCards[0].date;
-                    }
+                    this.selectedDeliveryDay = prev && this.deliveryDayCards.some(c => c.date === prev) ? prev : (this.deliveryDayCards[0]?.date || '');
                     this.deliverySessionOpen = !!data.session_open;
                     this.assignedPlate = data.assigned_plate || '';
                     this.mobileReturnReasons = data.return_reasons || [];
                     if (!this.mobileReturn.reason && this.mobileReturnReasons.length) this.mobileReturn.reason = this.mobileReturnReasons[0];
+                    this.$nextTick(() => lucide.createIcons());
                 });
             },
-            toggleDeliveryDay(date) {
-                this.selectedDeliveryDay = this.selectedDeliveryDay === date ? '' : date;
-            },
+            toggleDeliveryDay(date) { this.selectedDeliveryDay = this.selectedDeliveryDay === date ? '' : date; },
             startDeliverySession() {
                 this.deliverySetupError = '';
                 if (!this.deliverySetup.plate || this.deliverySetup.plate.length < 7) { this.deliverySetupError = 'Informe a placa completa.'; return; }
-                if (!this.deliverySetup.km_departure || Number(this.deliverySetup.km_departure) <= 0) { this.deliverySetupError = 'Informe um KM de saída válido.'; return; }
+                if (!this.deliverySetup.km_departure || Number(this.deliverySetup.km_departure) <= 0) { this.deliverySetupError = 'Informe KM de saída válido.'; return; }
                 fetch('/api/mobile/delivery/session/start', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ plate: this.deliverySetup.plate, helpers: this.deliverySetup.helpers || [], km_departure: Number(this.deliverySetup.km_departure) })
                 }).then(r => r.json()).then(data => {
-                    if (!data.success) { this.deliverySetupError = data.error || 'Erro ao iniciar rotina.'; return; }
-                    this.showDeliverySetupModal = false;
-                    this.deliverySetup = { plate: '', km_departure: '', helpers: [], helperInput: '' };
-                    this.loadDeliveryData();
-                    this.haptic();
+                    if (!data.success) { this.deliverySetupError = data.error || 'Erro.'; return; }
+                    this.showDeliverySetupModal = false; this.deliverySetup = { plate: '', km_departure: '', helpers: [], helperInput: '' };
+                    this.loadDeliveryData(); this.haptic();
                 });
             },
             endDeliverySession() {
-                if (!this.deliveryEndKm || Number(this.deliveryEndKm) <= 0) { alert('Informe KM de chegada válido.'); return; }
+                if (!this.deliveryEndKm || Number(this.deliveryEndKm) <= 0) { alert('Informe KM de chegada.'); return; }
                 fetch('/api/mobile/delivery/session/end', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ km_return: Number(this.deliveryEndKm) })
                 }).then(r => r.json()).then(data => {
-                    if (!data.success) return alert(data.error || 'Erro ao encerrar rotina.');
+                    if (!data.success) return alert(data.error || 'Erro.');
                     this.showDeliveryEndModal = false; this.deliveryEndKm = ''; this.loadDeliveryData(); this.haptic();
                 });
             },
             deliveryAction(route, action) {
-                fetch(`/api/mobile/delivery/route/${route.id}/action`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action })
-                }).then(r => r.json()).then(data => {
-                    if (!data.success) return alert(data.error || 'Erro na ação.');
-                    this.loadDeliveryData(); this.haptic();
-                });
+                fetch(`/api/mobile/delivery/route/${route.id}/action`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) })
+                    .then(r => r.json()).then(data => {
+                        if (!data.success) return alert(data.error || 'Erro.');
+                        this.loadDeliveryData(); this.haptic();
+                    });
             },
-            openMobileReturnModal(route) {
-                this.mobileReturnRoute = route;
-                this.mobileReturn = { reason: this.mobileReturnReasons[0] || '', is_partial: false, weight: '', value: '' };
-                this.showMobileReturnModal = true;
-            },
+            openMobileReturnModal(route) { this.mobileReturnRoute = route; this.mobileReturn = { reason: this.mobileReturnReasons[0] || '', is_partial: false, weight: '', value: '' }; this.showMobileReturnModal = true; },
             confirmMobileReturn() {
                 if (!this.mobileReturnRoute) return;
                 fetch(`/api/mobile/delivery/route/${this.mobileReturnRoute.id}/action`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         action: 'devolucao',
                         return_reason: this.mobileReturn.reason,
@@ -428,30 +382,11 @@
                         return_partial_value: this.mobileReturn.is_partial ? Number(this.mobileReturn.value || 0) : null
                     })
                 }).then(r => r.json()).then(data => {
-                    if (!data.success) return alert(data.error || 'Erro na devolução.');
+                    if (!data.success) return alert(data.error || 'Erro.');
                     this.showMobileReturnModal = false; this.mobileReturnRoute = null; this.loadDeliveryData(); this.haptic();
                 });
             },
-        }
+        };
     }
 </script>
-<style>
-    .summary-chip { padding: 0.45rem 0.55rem; border-radius: 0.55rem; font-size: 11px; font-weight: 700; border: 1px solid transparent; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .summary-chip-neutral { background: rgba(15,23,42,.85); border-color: #334155; color: #e2e8f0; }
-    .summary-chip-amber { background: rgba(120,53,15,.28); border-color: rgba(245,158,11,.45); color: #fcd34d; }
-    .summary-chip-blue { background: rgba(30,58,138,.28); border-color: rgba(59,130,246,.45); color: #93c5fd; }
-    .summary-chip-slate { background: rgba(30,41,59,.75); border-color: #475569; color: #cbd5e1; }
-    .summary-chip-green { background: rgba(6,78,59,.3); border-color: rgba(16,185,129,.45); color: #86efac; }
-    .summary-chip-red { background: rgba(127,29,29,.28); border-color: rgba(248,113,113,.45); color: #fca5a5; }
-
-    .btn-action { padding: 0.55rem 0.65rem; border-radius: 0.5rem; font-size: 12px; font-weight: 700; color: #fff; border: 1px solid transparent; }
-    .btn-start { background: #4f46e5; border-color: #6366f1; }
-    .btn-finish { background: #059669; border-color: #10b981; }
-    .btn-return { background: #ea580c; border-color: #fb923c; }
-    .btn-reopen { background: #0f766e; border-color: #14b8a6; }
-    .btn-action:disabled { opacity: .4; cursor: not-allowed; }
-    .btn-modal { padding: .65rem .9rem; border-radius: .6rem; font-size: 13px; font-weight: 700; }
-    .btn-modal-secondary { border: 1px solid #475569; color: #cbd5e1; background: rgba(15,23,42,.5); }
-    .btn-modal-primary { border: 1px solid #8b5cf6; color: #fff; background: #7c3aed; }
-</style>
 {% endblock %}
