@@ -2337,7 +2337,7 @@ async def mobile_achievements_page(request: Request, session: Session = Depends(
         achievements_list.append({
             "name": ach.name,
             "description": ach.description or "",
-            "icon": ach.icon if ach.icon and not ach.icon.startswith(("\U0001f")) else "award",
+            "icon": ach.icon if ach.icon and not str(ach.icon).startswith("\\U0001f") else "award",
             "xp_reward": ach.xp_reward or 0,
             "unlocked": ea is not None,
             "earned_at": ea.earned_at if ea else None,
@@ -7808,7 +7808,13 @@ def _find_client(client_code_raw: Optional[str], client_name_raw: Optional[str],
 
 
 @app.get("/separacao", response_class=HTMLResponse)
-async def separacao_page(request: Request, date: Optional[str] = None, shift: str = "ManhÃ£", session: Session = Depends(get_session)):
+async def separacao_page(
+    request: Request,
+    date: Optional[str] = None,
+    shift: str = "ManhÃ£",
+    session: Session = Depends(get_session),
+    delivery_import: Optional[dict] = None,
+):
     user = require_login(request)
     
     # Check for Mobile User
@@ -8266,7 +8272,7 @@ async def separacao_page(request: Request, date: Optional[str] = None, shift: st
         "delivery_sync_token": delivery_sync_token,
         "delivery_feedback": delivery_feedback,
         "delivery_feedback_level": delivery_feedback_level,
-        "delivery_import": None,
+        "delivery_import": delivery_import,
         "delivery_return_reasons": DELIVERY_RETURN_REASONS,
         "delivery_employees": delivery_employees,
         "delivery_vehicles": delivery_vehicles,
@@ -8389,9 +8395,7 @@ async def import_entregas_separacao(
     if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls", ".csv")):
         import_result["message"] = "Arquivo invÃ¡lido. Use .xls, .xlsx ou .csv."
         logger.warning(f"Ã¢ÂÃ…' Arquivo invÃ¡lido: {file.filename}")
-        response = await separacao_page(request=request, date=date, shift=shift, session=session)
-        response.context["delivery_import"] = import_result
-        return response
+        return await separacao_page(request=request, date=date, shift=shift, session=session, delivery_import=import_result)
 
     try:
         import pandas as pd
@@ -8414,9 +8418,7 @@ async def import_entregas_separacao(
                 "reason": f"Colunas ausentes: {', '.join(missing_required)}. Colunas encontradas: {', '.join(df.columns)}",
             })
             logger.error(f"Ã¢ÂÃ…' Colunas ausentes: {missing_required}")
-            response = await separacao_page(request=request, date=date, shift=shift, session=session)
-            response.context["delivery_import"] = import_result
-            return response
+            return await separacao_page(request=request, date=date, shift=shift, session=session, delivery_import=import_result)
 
         employees = session.exec(select(models.Employee).where(models.Employee.status != "fired")).all()
         clients = session.exec(select(models.Client)).all()
@@ -8526,9 +8528,7 @@ async def import_entregas_separacao(
 
         if not parsed_rows:
             import_result["message"] = "Nenhuma entrega vÃ¡lida encontrada. Corrija os cadastros pendentes e tente novamente."
-            response = await separacao_page(request=request, date=date, shift=shift, session=session)
-            response.context["delivery_import"] = import_result
-            return response
+            return await separacao_page(request=request, date=date, shift=shift, session=session, delivery_import=import_result)
 
         imported_route_codes = list({row["route_code"] for row in parsed_rows if row["route_code"] and row["route_code"] != "-"})
         if imported_route_codes:
@@ -8591,9 +8591,7 @@ async def import_entregas_separacao(
             "reason": f"Erro tÃ©cnico: {str(exc)}"
         })
 
-    response = await separacao_page(request=request, date=date, shift=shift, session=session)
-    response.context["delivery_import"] = import_result
-    return response
+    return await separacao_page(request=request, date=date, shift=shift, session=session, delivery_import=import_result)
 
 
 @app.get("/separacao/import-entregas", response_class=RedirectResponse)

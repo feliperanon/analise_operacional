@@ -59,6 +59,7 @@
                             </label>
                             <span id="delivery-file-name" class="text-xs text-slate-300 truncate">Nenhum arquivo selecionado</span>
                         </div>
+                        <p class="text-[11px] text-slate-500 mt-1">Se a importação redirecionar para o login, desative “Prevenção de rastreamento” para este site ou use o Chrome.</p>
                     </div>
 
                     <button type="submit"
@@ -1357,9 +1358,15 @@
     }
 
     function confirmImportDeliveries(form) {
+        if (!form) return false;
         const deliveryDate = form.querySelector('input[name="date"]')?.value;
         if (!deliveryDate) {
             alert('Informe a data da entrega.');
+            return false;
+        }
+        const fileInput = form.querySelector('input[name="file"]');
+        if (fileInput && (!fileInput.files || fileInput.files.length === 0)) {
+            alert('Selecione um arquivo Excel (.xls, .xlsx ou .csv) para importar.');
             return false;
         }
         return confirm(`Confirma a importação das entregas para a data ${deliveryDate}?`);
@@ -1368,7 +1375,7 @@
     function handleDeliveryFileSelect(input) {
         const info = document.getElementById('delivery-file-name');
         if (!info) return;
-        if (input.files && input.files.length > 0) {
+        if (input && input.files && input.files.length > 0) {
             info.textContent = input.files[0].name;
         } else {
             info.textContent = 'Nenhum arquivo selecionado';
