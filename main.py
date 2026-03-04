@@ -1,4 +1,4 @@
-﻿# Force Reload for TZDATA and Models - v2
+# Force Reload for TZDATA and Models - v2
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, UploadFile, File, BackgroundTasks
 from fastapi.templating import Jinja2Templates
@@ -104,15 +104,6 @@ if GEMINI_API_KEY:
         logger.warning("Google GenAI library not installed. AI reports will be unavailable.")
     except Exception as e:
         logger.error(f"Failed to initialize Gemini client: {e}")
-
-# --- Debug logging (session c5b864) ---
-def _dbg_log(msg: str, data: dict):
-    try:
-        import json as _json
-        with open(BASE_DIR / "debug-c5b864.log", "a", encoding="utf-8") as f:
-            f.write(_json.dumps({"sessionId": "c5b864", "message": msg, "data": data, "timestamp": datetime.now().isoformat()}, ensure_ascii=False) + "\n")
-    except Exception:
-        pass
 
 # --- Helper Functions ---
 def calculate_expected_work_days(
@@ -2007,8 +1998,8 @@ async def mobile_dashboard(
     modules = []
     if bool(getattr(employee, "mobile_access_separation", False)):
         modules.append({
-            "label": "Iniciar SeparaÃ§Ã£o",
-            "description": "Abrir rota de separaÃ§Ã£o.",
+            "label": "Iniciar Separação",
+            "description": "Abrir rota de separação.",
             "icon": "play-circle",
             "action": "start_separation",
         })
@@ -2021,7 +2012,7 @@ async def mobile_dashboard(
                 "href": "/mobile/routine/checklist",
             },
             {
-                "label": "HistÃ³rico Checklist",
+                "label": "Histórico Checklist",
                 "description": "Consultar checklists enviados.",
                 "icon": "history",
                 "href": "/mobile/routine/history",
@@ -2079,7 +2070,7 @@ async def mobile_dashboard(
         },
     )
 
-app.include_router(init_devolucoes_router(templates=templates, require_login=require_login, logger=logger, dbg_log=_dbg_log))
+app.include_router(init_devolucoes_router(templates=templates, require_login=require_login, logger=logger))
 app.include_router(init_game_achievements_router(templates=templates, require_leader=require_leader, require_login=require_login, logger=logger))
 app.include_router(init_game_audit_router(require_login=require_login, require_leader=require_leader))
 

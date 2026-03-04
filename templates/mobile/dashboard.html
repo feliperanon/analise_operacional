@@ -256,7 +256,7 @@
         <div class="space-y-2">
             {% for module in modules %}
             {% if module.action == "start_separation" %}
-            <button type="button" @click.stop.prevent="openStartEntry()"
+            <button type="button" @click="openStartEntry()"
                 class="interactive w-full surface p-4 text-left flex items-center gap-3 hover:border-blue-900">
                 <div class="w-10 h-10 rounded-lg bg-blue-900 text-white flex items-center justify-center">
                     <i data-lucide="{{ module.icon }}" class="w-5 h-5"></i>
@@ -1434,11 +1434,11 @@
 
             // Delivery Entry (placa primeiro)
             openStartEntry() {
+                this.showDeliverySetupModal = true;
                 this.deliverySetupError = '';
-                if (!this.deliverySetup.plate && this.assignedPlate) {
+                if (this.deliverySetup && !this.deliverySetup.plate && this.assignedPlate) {
                     this.deliverySetup.plate = this.assignedPlate;
                 }
-                this.showDeliverySetupModal = true;
                 this.$nextTick(() => {
                     if (this.$refs.deliveryPlateInput) this.$refs.deliveryPlateInput.focus();
                 });
