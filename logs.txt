@@ -36049,3 +36049,27 @@ fastapi.exceptions.HTTPException: 303: See Other
 2026-03-04 09:29:48,367 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
 2026-03-04 09:29:56,762 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db
 2026-03-04 09:30:00,736 | INFO     | main | mobile_auth role fallback granted employee_id=114 registration_id=632886 role=AJUDANTE DE MOTORISTA
+2026-03-04 09:33:07,888 | INFO     | main | ðŸšš Iniciando importaÃ§Ã£o de entregas: pedidos (2).xls para data 2026-03-04, turno ManhÃ£
+2026-03-04 09:33:07,889 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Å¾ Arquivo lido: 103424 bytes
+2026-03-04 09:33:07,925 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Å  DataFrame carregado: 195 linhas, 18 colunas
+2026-03-04 09:33:07,926 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Â¹ Colunas encontradas: ['Nº ROTA', 'PLACA VEICULO', 'MOTORISTA', 'Nº LOTE', 'PEDIDOS', 'QTDE ORDENS', 'DATA DO PEDIDO', 'COD CLIENTE', 'RAZÃO SOCIAL', 'CEP', 'ENDERECO', 'BAIRRO', 'Cidades', 'ESTADO', 'PESO PEDIDO', 'PESO TOTAL', 'VALOR', 'TIPO']
+2026-03-04 09:33:07,926 | INFO     | main | info log
+2026-03-04 09:33:08,385 | INFO     | main | Ã°Å¸Ã¢â‚¬ËœÃ‚Â¥ Total de funcionÃ¡rios ativos: 154
+2026-03-04 09:33:08,386 | INFO     | main | info log
+2026-03-04 09:33:13,811 | INFO     | main | info log
+2026-03-04 09:33:25,614 | INFO     | main | ðŸšš Iniciando importaÃ§Ã£o de entregas: pedidos (2).xls para data 2026-03-04, turno ManhÃ£
+2026-03-04 09:33:25,614 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Å¾ Arquivo lido: 103424 bytes
+2026-03-04 09:33:25,626 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Å  DataFrame carregado: 195 linhas, 18 colunas
+2026-03-04 09:33:25,626 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Â¹ Colunas encontradas: ['Nº ROTA', 'PLACA VEICULO', 'MOTORISTA', 'Nº LOTE', 'PEDIDOS', 'QTDE ORDENS', 'DATA DO PEDIDO', 'COD CLIENTE', 'RAZÃO SOCIAL', 'CEP', 'ENDERECO', 'BAIRRO', 'Cidades', 'ESTADO', 'PESO PEDIDO', 'PESO TOTAL', 'VALOR', 'TIPO']
+2026-03-04 09:33:25,626 | INFO     | main | info log
+2026-03-04 09:33:26,049 | INFO     | main | Ã°Å¸Ã¢â‚¬ËœÃ‚Â¥ Total de funcionÃ¡rios ativos: 154
+2026-03-04 09:33:26,050 | INFO     | main | info log
+2026-03-04 09:33:32,354 | INFO     | main | info log
+2026-03-04 09:35:02,774 | INFO     | main | ðŸšš Iniciando importaÃ§Ã£o de entregas: pedidos.xls para data 2026-03-03, turno Manhã
+2026-03-04 09:35:02,774 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Å¾ Arquivo lido: 102912 bytes
+2026-03-04 09:35:02,786 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Å  DataFrame carregado: 200 linhas, 18 colunas
+2026-03-04 09:35:02,787 | INFO     | main | Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Â¹ Colunas encontradas: ['Nº ROTA', 'PLACA VEICULO', 'MOTORISTA', 'Nº LOTE', 'PEDIDOS', 'QTDE ORDENS', 'DATA DO PEDIDO', 'COD CLIENTE', 'RAZÃO SOCIAL', 'CEP', 'ENDERECO', 'BAIRRO', 'Cidades', 'ESTADO', 'PESO PEDIDO', 'PESO TOTAL', 'VALOR', 'TIPO']
+2026-03-04 09:35:02,788 | INFO     | main | info log
+2026-03-04 09:35:03,206 | INFO     | main | Ã°Å¸Ã¢â‚¬ËœÃ‚Â¥ Total de funcionÃ¡rios ativos: 154
+2026-03-04 09:35:03,206 | INFO     | main | info log
+2026-03-04 09:35:07,628 | INFO     | main | info log
