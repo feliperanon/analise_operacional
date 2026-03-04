@@ -43,15 +43,26 @@ Apenas utilitários necessários: safe area, skeleton, scrollbar, loading.
 
 .pull-indicator {
     position: fixed;
-    top: 80px;
+    top: 60px;
     left: 50%;
     transform: translate(-50%, -100%);
-    transition: transform 0.2s ease;
+    transition: transform 0.15s ease;
     z-index: 100;
+    padding: 8px 16px;
+    border-radius: var(--radius-md);
+    font-size: var(--text-caption);
+    font-weight: 500;
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-sm);
+    opacity: 0;
+    pointer-events: none;
 }
 
 .pull-indicator.visible {
     transform: translate(-50%, 0);
+    opacity: 1;
 }
 
 .custom-scrollbar::-webkit-scrollbar {

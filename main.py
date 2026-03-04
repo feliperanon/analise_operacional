@@ -4021,6 +4021,18 @@ async def mobile_checklist_history(request: Request, session: Session = Depends(
         "history_checklists": history_view
     })
 
+
+@app.get("/mobile/tarefas", response_class=HTMLResponse)
+async def mobile_tarefas_page(request: Request, session: Session = Depends(get_session)):
+    user = require_login(request)
+    if not isinstance(user, dict) or user.get("type") != "employee":
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    employee = session.get(models.Employee, user.get("id"))
+    if not employee:
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    return templates.TemplateResponse("mobile/tarefas.html", {"request": request})
+
+
 @app.get("/mobile/routine/checklist", response_class=HTMLResponse)
 async def mobile_checklist_page(request: Request, session: Session = Depends(get_session)):
     user = require_login(request)

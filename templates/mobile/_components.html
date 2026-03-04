@@ -122,7 +122,7 @@ Uso: {% from 'mobile/_components.html' import btn_primary, card, list_row, ... %
 {# === BADGE (neutro por padrão) === #}
 {% macro badge(text, variant='default', size='sm') %}
 {% set size_c = 'px-2 py-0.5 text-[11px]' if size == 'sm' else 'px-2.5 py-1 text-body' %}
-{% set variant_c = 'background: var(--color-primary-bg); color: var(--color-primary); border: 1px solid var(--color-primary-border)' if variant == 'primary' else 'background: var(--color-success-bg); color: var(--color-success)' if variant == 'success' else 'background: var(--color-danger-bg); color: var(--color-danger)' if variant == 'danger' else 'background: var(--color-border-light); color: var(--color-text-secondary)' %}
+{% set variant_c = 'background: var(--color-primary-bg); color: var(--color-primary); border: 1px solid var(--color-primary-border)' if variant == 'primary' else 'background: var(--color-success-bg); color: var(--color-success)' if variant == 'success' else 'background: var(--color-danger-bg); color: var(--color-danger)' if variant == 'danger' else 'background: var(--color-warning-bg); color: var(--color-warning)' if variant == 'warning' else 'background: var(--color-border-light); color: var(--color-text-secondary)' %}
 <span class="inline-flex items-center font-medium rounded-md {{ size_c }}" style="{{ variant_c }}">{{ text }}</span>
 {% endmacro %}
 

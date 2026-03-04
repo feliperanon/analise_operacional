@@ -1,293 +1,372 @@
 {% extends "base.html" %}
+{% from "bi/_components.html" import kpi_card, chart_card, table_section %}
 
 {% block content %}
-<div class="p-4 lg:p-8">
-    <div class="max-w-[1700px] mx-auto space-y-6">
-        <section class="rounded-2xl border border-slate-700 bg-slate-800/70 p-5 lg:p-7">
-            <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
-                <div>
-                    <h1 class="text-2xl lg:text-3xl font-black text-white">BI de Entregas e Devolucoes</h1>
-                    <p class="text-sm lg:text-base text-slate-300 mt-1">
-                        Visao executiva, tatica e operacional do modulo de separacao e entregas.
-                    </p>
-                </div>
-                <a href="/separacao" class="inline-flex items-center justify-center rounded-xl border border-slate-600 px-4 py-2.5 text-sm font-semibold text-slate-100 hover:bg-slate-700/60">
-                    Ir para Operacao
-                </a>
-            </div>
+{% include "mobile/_design_tokens.html" %}
+<div class="bi-page p-4 lg:p-8">
+  <div class="max-w-[1800px] mx-auto space-y-5">
+    <header class="surface-shadow bi-card">
+      <div class="bi-card-head bi-card-head-between">
+        <div class="flex items-center gap-3">
+          <div class="icon-wrap"><i data-lucide="layout-dashboard" class="w-5 h-5"></i></div>
+          <div>
+            <h1 class="text-title-lg">BI Delivery - Entregas e Devoluções</h1>
+            <p class="text-caption mt-1">Dashboard unificado executivo, tático e operacional.</p>
+          </div>
+        </div>
+        <a href="/separacao" class="btn-secondary">Abrir Operação</a>
+      </div>
 
-            <form method="get" action="/bi/delivery" class="mt-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
-                <div>
-                    <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Data inicial</label>
-                    <input type="date" name="date_from" value="{{ filters.date_from }}" class="mt-1 w-full h-11 rounded-xl border border-slate-600 bg-slate-900 px-3 text-sm text-white">
-                </div>
-                <div>
-                    <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Data final</label>
-                    <input type="date" name="date_to" value="{{ filters.date_to }}" class="mt-1 w-full h-11 rounded-xl border border-slate-600 bg-slate-900 px-3 text-sm text-white">
-                </div>
-                <div>
-                    <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Turno</label>
-                    <select name="shift" class="mt-1 w-full h-11 rounded-xl border border-slate-600 bg-slate-900 px-3 text-sm text-white">
-                        {% for sh in ["Todos", "Manhã", "Tarde", "Noite"] %}
-                        <option value="{{ sh }}" {% if filters.shift == sh %}selected{% endif %}>{{ sh }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Motorista</label>
-                    <select name="driver_id" class="mt-1 w-full h-11 rounded-xl border border-slate-600 bg-slate-900 px-3 text-sm text-white">
-                        <option value="">Todos</option>
-                        {% for d in drivers_filter %}
-                        <option value="{{ d.id }}" {% if filters.driver_id == d.id %}selected{% endif %}>{{ d.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Placa</label>
-                    <select name="plate" class="mt-1 w-full h-11 rounded-xl border border-slate-600 bg-slate-900 px-3 text-sm text-white">
-                        <option value="Todos">Todas</option>
-                        {% for p in plates_filter %}
-                        <option value="{{ p }}" {% if filters.plate == p %}selected{% endif %}>{{ p }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Status</label>
-                    <select name="status" class="mt-1 w-full h-11 rounded-xl border border-slate-600 bg-slate-900 px-3 text-sm text-white">
-                        {% for s in statuses_filter %}
-                        <option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="xl:col-span-6 flex flex-wrap gap-2 pt-1">
-                    <button class="h-11 px-5 rounded-xl bg-sky-600 hover:bg-sky-500 text-sm font-bold text-white">Aplicar filtros</button>
-                    <a href="/bi/delivery" class="h-11 px-5 rounded-xl border border-slate-600 hover:bg-slate-700/60 text-sm font-bold text-slate-200 inline-flex items-center">Limpar</a>
-                    <a href="/bi/delivery/export?format=csv&{{ filters_query }}" class="h-11 px-5 rounded-xl border border-emerald-500/40 bg-emerald-900/20 hover:bg-emerald-900/40 text-sm font-bold text-emerald-200 inline-flex items-center">Exportar CSV</a>
-                    <a href="/bi/delivery/export?format=xlsx&{{ filters_query }}" class="h-11 px-5 rounded-xl border border-indigo-500/40 bg-indigo-900/20 hover:bg-indigo-900/40 text-sm font-bold text-indigo-200 inline-flex items-center">Exportar XLSX</a>
-                    <a href="/bi/delivery/export?format=pdf&{{ filters_query }}" class="h-11 px-5 rounded-xl border border-rose-500/40 bg-rose-900/20 hover:bg-rose-900/40 text-sm font-bold text-rose-200 inline-flex items-center">Exportar PDF</a>
-                </div>
-            </form>
-        </section>
+      <form method="get" action="/bi/delivery" class="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+        <div class="form-field">
+          <label>Data inicial</label>
+          <input type="date" name="date_from" value="{{ filters.date_from }}">
+        </div>
+        <div class="form-field">
+          <label>Data final</label>
+          <input type="date" name="date_to" value="{{ filters.date_to }}">
+        </div>
+        <div class="form-field">
+          <label>Turno</label>
+          <select name="shift">
+            {% for sh in ["Todos", "Manhã", "Tarde", "Noite"] %}
+            <option value="{{ sh }}" {% if filters.shift == sh %}selected{% endif %}>{{ sh }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Motorista</label>
+          <select name="driver_id">
+            <option value="">Todos</option>
+            {% for d in drivers_filter %}
+            <option value="{{ d.id }}" {% if filters.driver_id == d.id %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Placa</label>
+          <select name="plate">
+            <option value="Todos">Todas</option>
+            {% for p in plates_filter %}
+            <option value="{{ p }}" {% if filters.plate == p %}selected{% endif %}>{{ p }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Status</label>
+          <select name="status">
+            {% for s in statuses_filter %}
+            <option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
 
-        <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
-            <div class="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
-                <p class="text-xs uppercase tracking-wider text-slate-400 font-bold">Planejado x Realizado</p>
-                <p class="mt-2 text-3xl font-black text-white">{{ kpis.realized_stops }} <span class="text-lg text-slate-400">/ {{ kpis.planned_stops }}</span></p>
-                <p class="text-sm text-slate-300 mt-1">SLA finalizacao: <span class="font-bold text-emerald-300">{{ "%.1f"|format(kpis.sla_finish) }}%</span></p>
-            </div>
-            <div class="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
-                <p class="text-xs uppercase tracking-wider text-slate-400 font-bold">Peso (Kg)</p>
-                <p class="mt-2 text-3xl font-black text-white">{{ "{:,.0f}".format(kpis.realized_kg).replace(",", ".") }}</p>
-                <p class="text-sm text-slate-300 mt-1">Planejado: {{ "{:,.0f}".format(kpis.planned_kg).replace(",", ".") }} Kg</p>
-            </div>
-            <div class="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
-                <p class="text-xs uppercase tracking-wider text-slate-400 font-bold">Valor (R$)</p>
-                <p class="mt-2 text-3xl font-black text-white">{{ "{:,.0f}".format(kpis.realized_value).replace(",", ".") }}</p>
-                <p class="text-sm text-slate-300 mt-1">Planejado: R$ {{ "{:,.0f}".format(kpis.planned_value).replace(",", ".") }}</p>
-            </div>
-            <div class="rounded-2xl border border-amber-500/40 bg-amber-900/20 p-4">
-                <p class="text-xs uppercase tracking-wider text-amber-300 font-bold">Devolucao</p>
-                <p class="mt-2 text-3xl font-black text-amber-200">{{ "%.1f"|format(kpis.return_rate_qtd) }}%</p>
-                <p class="text-sm text-amber-100 mt-1">{{ kpis.returned_stops }} paradas | {{ "%.1f"|format(kpis.return_rate_kg) }}% em Kg</p>
-            </div>
-            <div class="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
-                <p class="text-xs uppercase tracking-wider text-slate-400 font-bold">Risco Proximo Turno</p>
-                <p class="mt-2 text-3xl font-black text-white">{{ "%.1f"|format(kpis.forecast_next_stops) }}</p>
-                <p class="text-sm text-slate-300 mt-1">Prev. devolucao: {{ "%.1f"|format(kpis.forecast_next_return_rate) }}%</p>
-            </div>
-        </section>
+        <div class="xl:col-span-6 flex flex-wrap gap-2 pt-1">
+          <button class="btn-primary" type="submit">Aplicar filtros</button>
+          <a href="/bi/delivery" class="btn-secondary">Limpar</a>
+          <a href="/bi/delivery/export?format=csv&{{ filters_query }}" class="btn-secondary">CSV</a>
+          <a href="/bi/delivery/export?format=xlsx&{{ filters_query }}" class="btn-secondary">XLSX</a>
+          <a href="/bi/delivery/export?format=pdf&{{ filters_query }}" class="btn-secondary">PDF</a>
+        </div>
+      </form>
+    </header>
 
-        <section class="grid grid-cols-1 xl:grid-cols-3 gap-4">
-            <div class="xl:col-span-2 rounded-2xl border border-slate-700 bg-slate-900/50 p-4">
-                <div class="flex items-center justify-between mb-3">
-                    <h2 class="text-lg font-bold text-white">Tendencia diaria (7/30/90)</h2>
-                    <span class="text-xs text-slate-400">Leitura rapida para diretoria</span>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead class="text-slate-400 uppercase text-[11px]">
-                            <tr>
-                                <th class="text-left py-2">Data</th>
-                                <th class="text-left py-2">Planejado</th>
-                                <th class="text-left py-2">Iniciadas</th>
-                                <th class="text-left py-2">Realizadas</th>
-                                <th class="text-left py-2">Taxa devolucao</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for day in daily_rows %}
-                            <tr class="border-t border-slate-800">
-                                <td class="py-2 text-slate-200 font-semibold">{{ day.date }}</td>
-                                <td class="py-2 text-slate-300">{{ day.planned_stops }}</td>
-                                <td class="py-2 text-slate-300">{{ day.started_stops }} ({{ "%.1f"|format(day.started_rate) }}%)</td>
-                                <td class="py-2 text-slate-300">{{ day.realized_stops }}</td>
-                                <td class="py-2 {% if day.return_rate >= 10 %}text-amber-300{% else %}text-emerald-300{% endif %} font-semibold">{{ "%.1f"|format(day.return_rate) }}%</td>
-                            </tr>
-                            {% else %}
-                            <tr><td colspan="5" class="py-6 text-center text-slate-500">Sem dados para o periodo selecionado.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="rounded-2xl border border-slate-700 bg-slate-900/50 p-4">
-                <h2 class="text-lg font-bold text-white mb-3">Anomalias detectadas</h2>
-                <div class="space-y-2">
-                    {% for item in anomaly_flags %}
-                    <div class="rounded-xl border border-amber-500/30 bg-amber-900/20 p-2 text-sm text-amber-100">{{ item }}</div>
-                    {% else %}
-                    <p class="text-sm text-slate-400">Nenhuma anomalia relevante no periodo.</p>
-                    {% endfor %}
-                </div>
-                <h3 class="text-sm uppercase tracking-wider text-slate-400 font-bold mt-5 mb-2">Proximas acoes recomendadas</h3>
-                <ol class="space-y-2">
-                    {% for rec in recommendations %}
-                    <li class="rounded-xl border border-sky-500/30 bg-sky-900/20 p-2 text-sm text-sky-100">{{ loop.index }}. {{ rec }}</li>
-                    {% endfor %}
-                </ol>
-            </div>
-        </section>
+    <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-7 gap-3">
+      {{ kpi_card("Paradas Planejadas", kpis.planned_stops, "Base do período", "route", "neutral") }}
+      {{ kpi_card("Paradas Realizadas", kpis.realized_stops, "SLA " ~ "%.1f"|format(kpis.sla_finish) ~ "%", "check-circle-2", "success" if kpis.sla_finish >= 90 else "warning") }}
+      {{ kpi_card("Taxa Devolução", "%.1f"|format(kpis.return_rate_qtd) ~ "%", kpis.total_devolucoes ~ " ocorrências", "undo-2", "danger" if kpis.return_rate_qtd >= 10 else "warning") }}
+      {{ kpi_card("Valor Devolvido", "R$ " ~ "{:,.2f}".format(kpis.valor_total_devolvido).replace(",", "X").replace(".", ",").replace("X", "."), "Total acumulado", "wallet", "danger" if kpis.valor_total_devolvido > 0 else "neutral") }}
+      {{ kpi_card("% Acima de R$300", "%.1f"|format(kpis.devolucoes_acima_300_pct) ~ "%", kpis.devolucoes_acima_300_count ~ " linhas", "alert-triangle", "warning" if kpis.devolucoes_acima_300_pct >= 35 else "success") }}
+      {{ kpi_card("Tempo Médio", "%.0f"|format(kpis.avg_duration_m) ~ " min", "Rotas finalizadas", "timer", "warning" if kpis.avg_duration_m >= 120 else "success") }}
+      {{ kpi_card("Risco Próx. Turno", kpis.risk_label, "Prev. devolução " ~ "%.1f"|format(kpis.forecast_next_return_rate) ~ "%", "shield-alert", kpis.risk_severity) }}
+    </section>
 
-        <section class="rounded-2xl border border-slate-700 bg-slate-900/50 p-4">
-            <div class="flex items-center justify-between mb-3">
-                <h2 class="text-lg font-bold text-white">Painel tatico por motorista</h2>
-                <span class="text-xs text-slate-400">Balanceamento de carga e devolucao</span>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm min-w-[1100px]">
-                    <thead class="text-slate-400 uppercase text-[11px]">
-                        <tr>
-                            <th class="text-left py-2">Motorista</th>
-                            <th class="text-left py-2">Paradas</th>
-                            <th class="text-left py-2">Efetividade</th>
-                            <th class="text-left py-2">Devolucao</th>
-                            <th class="text-left py-2">Kg planejado</th>
-                            <th class="text-left py-2">Kg realizado</th>
-                            <th class="text-left py-2">R$ devolucao</th>
-                            <th class="text-left py-2">Reaberturas</th>
-                            <th class="text-left py-2">Tempo medio</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in tactical_rows %}
-                        <tr class="border-t border-slate-800">
-                            <td class="py-2 text-slate-200 font-semibold">
-                                <a class="underline decoration-dotted hover:text-cyan-300" href="/bi/delivery?{{ filters_query }}&detail_driver_id={{ row.driver_id }}">{{ row.driver_name }}</a>
-                            </td>
-                            <td class="py-2 text-slate-300">{{ row.realized_stops }}/{{ row.planned_stops }}</td>
-                            <td class="py-2 {% if row.efficiency < 70 %}text-amber-300{% else %}text-emerald-300{% endif %} font-semibold">{{ "%.1f"|format(row.efficiency) }}%</td>
-                            <td class="py-2 {% if row.return_rate >= 10 %}text-amber-300{% else %}text-slate-300{% endif %}">{{ "%.1f"|format(row.return_rate) }}%</td>
-                            <td class="py-2 text-slate-300">{{ "{:,.0f}".format(row.planned_kg).replace(",", ".") }}</td>
-                            <td class="py-2 text-slate-300">{{ "{:,.0f}".format(row.realized_kg).replace(",", ".") }}</td>
-                            <td class="py-2 text-slate-300">{{ "{:,.0f}".format(row.returned_value).replace(",", ".") }}</td>
-                            <td class="py-2 text-slate-300">{{ row.reopen_count }}</td>
-                            <td class="py-2 text-slate-300">{{ "%.0f"|format(row.avg_duration) }} min</td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="9" class="py-6 text-center text-slate-500">Sem dados no recorte atual.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </section>
+    <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      {{ chart_card("Tendência diária", "Quantidade e valor devolvido + médias móveis 7/30", "trendChart") }}
+      {{ chart_card("Motivos de devolução", "Qtd, valor e participação", "motivosChart") }}
+    </section>
 
-        <section class="rounded-2xl border border-slate-700 bg-slate-900/50 p-4">
-            <div class="flex items-center justify-between mb-3">
-                <h2 class="text-lg font-bold text-white">Fila operacional de excecoes</h2>
-                <span class="text-xs text-slate-400">Priorizada por impacto</span>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm min-w-[1100px]">
-                    <thead class="text-slate-400 uppercase text-[11px]">
-                        <tr>
-                            <th class="text-left py-2">Score</th>
-                            <th class="text-left py-2">Data/Turno</th>
-                            <th class="text-left py-2">Motorista</th>
-                            <th class="text-left py-2">Cliente</th>
-                            <th class="text-left py-2">Status</th>
-                            <th class="text-left py-2">Kg</th>
-                            <th class="text-left py-2">R$</th>
-                            <th class="text-left py-2">Reab.</th>
-                            <th class="text-left py-2">Tempo</th>
-                            <th class="text-left py-2">Acao sugerida</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for ex in exception_rows %}
-                        <tr class="border-t border-slate-800">
-                            <td class="py-2">
-                                <span class="px-2 py-1 rounded-lg font-bold text-xs {% if ex.score >= 60 %}bg-red-900/50 text-red-200 border border-red-500/30{% elif ex.score >= 40 %}bg-amber-900/50 text-amber-200 border border-amber-500/30{% else %}bg-slate-800 text-slate-300 border border-slate-600{% endif %}">
-                                    {{ ex.score }}
-                                </span>
-                            </td>
-                            <td class="py-2 text-slate-300">{{ ex.date }} / {{ ex.shift }}</td>
-                            <td class="py-2 text-slate-200 font-semibold">{{ ex.driver_name }}</td>
-                            <td class="py-2 text-slate-300">{{ ex.client_name }}</td>
-                            <td class="py-2 text-slate-300">{{ ex.status|title }}{% if ex.get('source') == 'MANUAL' %} <span class="text-amber-400 text-xs">(Man.)</span>{% endif %}</td>
-                            <td class="py-2 text-slate-300">{{ "{:,.1f}".format(ex.get('returned_kg', ex.planned_kg)).replace(",", ".") }}</td>
-                            <td class="py-2 text-slate-300">{{ "{:,.0f}".format(ex.get('returned_value', ex.planned_value)).replace(",", ".") }}</td>
-                            <td class="py-2 text-slate-300">{{ ex.reopen_count }}</td>
-                            <td class="py-2 text-slate-300">{% if ex.duration_m %}{{ ex.duration_m }} min{% else %}-{% endif %}</td>
-                            <td class="py-2 text-sky-300">
-                                <a class="underline decoration-dotted hover:text-sky-200" href="/bi/delivery?{{ filters_query }}&detail_driver_id={{ ex.driver_id }}&detail_status={{ ex.status }}">Detalhar</a>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="10" class="py-6 text-center text-slate-500">Nenhuma excecao relevante no periodo.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </section>
+    <section class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+      {{ chart_card("Responsabilidade", "Mercado / Comercial / Logística", "respChart") }}
+      {{ chart_card("Cluster x Valor", "Concentração financeira por faixa", "clusterChart") }}
+      {{ chart_card("Eficiência por motorista", "Comparativo tático", "driverChart") }}
+    </section>
 
-        <section class="rounded-2xl border border-slate-700 bg-slate-900/50 p-4">
-            <div class="flex items-center justify-between mb-3">
-                <h2 class="text-lg font-bold text-white">Drill-through operacional</h2>
-                <span class="text-xs text-slate-400">{{ detail_title }} | {{ detail_total }} registros</span>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm min-w-[1300px]">
-                    <thead class="text-slate-400 uppercase text-[11px]">
-                        <tr>
-                            <th class="text-left py-2">Data</th>
-                            <th class="text-left py-2">Turno</th>
-                            <th class="text-left py-2">Motorista</th>
-                            <th class="text-left py-2">Cliente</th>
-                            <th class="text-left py-2">Status</th>
-                            <th class="text-left py-2">Pedido</th>
-                            <th class="text-left py-2">Kg pl.</th>
-                            <th class="text-left py-2">Kg dev.</th>
-                            <th class="text-left py-2">R$ pl.</th>
-                            <th class="text-left py-2">R$ dev.</th>
-                            <th class="text-left py-2">Reab.</th>
-                            <th class="text-left py-2">Tempo</th>
-                            <th class="text-left py-2">Placa</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for d in detail_rows %}
-                        <tr class="border-t border-slate-800">
-                            <td class="py-2 text-slate-300">{{ d.date }}</td>
-                            <td class="py-2 text-slate-300">{{ d.shift }}</td>
-                            <td class="py-2 text-slate-200 font-semibold">{{ d.driver_name }}</td>
-                            <td class="py-2 text-slate-300">{{ d.client_name }}</td>
-                            <td class="py-2 text-slate-300">{{ d.status|title }}{% if d.get('source') == 'MANUAL' %} <span class="text-amber-400 text-xs">(Man.)</span>{% endif %}</td>
-                            <td class="py-2 text-slate-300">{{ d.order_number }}</td>
-                            <td class="py-2 text-slate-300">{{ "{:,.1f}".format(d.planned_kg).replace(",", ".") }}</td>
-                            <td class="py-2 text-slate-300">{{ "{:,.1f}".format(d.returned_kg).replace(",", ".") }}</td>
-                            <td class="py-2 text-slate-300">{{ "{:,.0f}".format(d.planned_value).replace(",", ".") }}</td>
-                            <td class="py-2 text-slate-300">{{ "{:,.0f}".format(d.returned_value).replace(",", ".") }}</td>
-                            <td class="py-2 text-slate-300">{{ d.reopen_count }}</td>
-                            <td class="py-2 text-slate-300">{% if d.duration_m %}{{ d.duration_m }} min{% else %}-{% endif %}</td>
-                            <td class="py-2 text-slate-300">{{ d.plate }}</td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="13" class="py-6 text-center text-slate-500">Nenhum detalhe para o recorte selecionado.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </section>
-    </div>
+    <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      <section class="surface-shadow bi-card">
+        <div class="bi-card-head">
+          <div class="icon-wrap"><i data-lucide="siren" class="w-4 h-4"></i></div>
+          <h3 class="text-section">Anomalias detectadas</h3>
+        </div>
+        <div class="mt-4 space-y-2">
+          {% for item in anomaly_flags %}
+          <div class="insight-row insight-warning">{{ item }}</div>
+          {% else %}
+          <div class="insight-row">Nenhuma anomalia relevante no período.</div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="surface-shadow bi-card">
+        <div class="bi-card-head">
+          <div class="icon-wrap"><i data-lucide="bot" class="w-4 h-4"></i></div>
+          <h3 class="text-section">Recomendações</h3>
+        </div>
+        <div class="mt-4 space-y-2">
+          {% for rec in recommendations %}
+          <div class="insight-row">{{ loop.index }}. {{ rec }}</div>
+          {% endfor %}
+        </div>
+      </section>
+    </section>
+
+    {% call table_section("Painel tático por motorista", "Clique no motorista para drill-down no período.", "tacticalTable") %}
+      <thead>
+        <tr>
+          <th>Motorista</th>
+          <th>Paradas</th>
+          <th>Eficiência</th>
+          <th>Devolução %</th>
+          <th>KG pl.</th>
+          <th>KG real.</th>
+          <th>R$ devolvido</th>
+          <th>Reaberturas</th>
+          <th>Tempo médio</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in tactical_rows %}
+        <tr>
+          <td><a class="table-link" href="/bi/delivery?{{ filters_query }}&detail_driver_id={{ row.driver_id }}">{{ row.driver_name }}</a></td>
+          <td>{{ row.realized_stops }}/{{ row.planned_stops }}</td>
+          <td class="{{ 'tone-danger' if row.efficiency < 70 else 'tone-success' }}">{{ "%.1f"|format(row.efficiency) }}%</td>
+          <td class="{{ 'tone-warning' if row.return_rate >= 10 else '' }}">{{ "%.1f"|format(row.return_rate) }}%</td>
+          <td>{{ "{:,.0f}".format(row.planned_kg).replace(",", ".") }}</td>
+          <td>{{ "{:,.0f}".format(row.realized_kg).replace(",", ".") }}</td>
+          <td>{{ "{:,.0f}".format(row.returned_value).replace(",", ".") }}</td>
+          <td>{{ row.reopen_count }}</td>
+          <td>{{ "%.0f"|format(row.avg_duration) }} min</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    {% endcall %}
+
+    <section class="surface-shadow bi-card">
+      <div class="bi-card-head bi-card-head-between">
+        <div>
+          <h3 class="text-section">Drill-through operacional</h3>
+          <p class="text-caption mt-1">{{ detail_title }} | {{ detail_total }} registros</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <input id="drillSearch" class="input-mini" placeholder="Filtrar cliente/motorista/status...">
+          <select id="drillPageSize" class="input-mini">
+            <option value="15">15</option>
+            <option value="30" selected>30</option>
+            <option value="60">60</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="mt-4 overflow-auto">
+        <table class="bi-table min-w-[1300px]">
+          <thead>
+            <tr>
+              <th data-sort="date">Data</th>
+              <th data-sort="shift">Turno</th>
+              <th data-sort="driver_name">Motorista</th>
+              <th data-sort="client_name">Cliente</th>
+              <th data-sort="status">Status</th>
+              <th data-sort="order_number">Pedido</th>
+              <th data-sort="planned_kg">KG pl.</th>
+              <th data-sort="returned_kg">KG dev.</th>
+              <th data-sort="planned_value">R$ pl.</th>
+              <th data-sort="returned_value">R$ dev.</th>
+              <th data-sort="reopen_count">Reab.</th>
+              <th data-sort="duration_m">Duração</th>
+              <th data-sort="plate">Placa</th>
+            </tr>
+          </thead>
+          <tbody id="drillBody"></tbody>
+        </table>
+      </div>
+
+      <footer class="mt-4 flex items-center justify-between gap-2">
+        <p class="text-caption" id="drillSummary">0 registros</p>
+        <div class="flex items-center gap-2">
+          <button id="prevPage" class="btn-secondary">Anterior</button>
+          <button id="nextPage" class="btn-secondary">Próxima</button>
+        </div>
+      </footer>
+    </section>
+  </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const chartData = {{ chart_payload_json|safe }};
+  const detailRows = {{ detail_rows_json|safe }};
+
+  const token = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+  const palette = {
+    primary: token('--color-primary', ''),
+    success: token('--color-success', ''),
+    warning: token('--color-warning', ''),
+    danger: token('--color-danger', ''),
+    text: token('--color-text', ''),
+    muted: token('--color-text-secondary', ''),
+    border: token('--color-border', '')
+  };
+
+  const baseOpt = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: palette.muted } } },
+    scales: {
+      x: { ticks: { color: palette.muted }, grid: { color: palette.border } },
+      y: { ticks: { color: palette.muted }, grid: { color: palette.border } }
+    }
+  };
+
+  new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+      labels: chartData.trend.dates,
+      datasets: [
+        { label: 'Qtd devoluções', data: chartData.trend.qtd, borderColor: palette.warning, backgroundColor: 'transparent', tension: .25, yAxisID: 'y' },
+        { label: 'Valor devolvido', data: chartData.trend.valor, borderColor: palette.danger, backgroundColor: 'transparent', tension: .25, yAxisID: 'y1' },
+        { label: 'Média 7', data: chartData.trend.ma7, borderColor: palette.primary, borderDash: [5, 5], tension: .25, yAxisID: 'y1' },
+        { label: 'Média 30', data: chartData.trend.ma30, borderColor: palette.success, borderDash: [3, 3], tension: .25, yAxisID: 'y1' }
+      ]
+    },
+    options: { ...baseOpt, scales: { ...baseOpt.scales, y: { ...baseOpt.scales.y, position: 'left' }, y1: { ...baseOpt.scales.y, position: 'right' } } }
+  });
+
+  new Chart(document.getElementById('motivosChart'), {
+    type: 'bar',
+    data: {
+      labels: chartData.motivos.map(x => `${x.motivo} (${x.pct}%)`),
+      datasets: [
+        { label: 'Quantidade', data: chartData.motivos.map(x => x.qtd), backgroundColor: palette.warning },
+        { label: 'Valor', data: chartData.motivos.map(x => x.valor), backgroundColor: palette.danger }
+      ]
+    },
+    options: { ...baseOpt, indexAxis: 'y' }
+  });
+
+  new Chart(document.getElementById('respChart'), {
+    type: 'doughnut',
+    data: {
+      labels: chartData.responsabilidade.map(x => x.responsabilidade),
+      datasets: [{ data: chartData.responsabilidade.map(x => x.qtd), backgroundColor: [palette.primary, palette.warning, palette.danger, palette.success] }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: palette.muted } } } }
+  });
+
+  new Chart(document.getElementById('clusterChart'), {
+    type: 'bar',
+    data: {
+      labels: chartData.cluster.map(x => x.cluster),
+      datasets: [{ label: 'Valor devolvido', data: chartData.cluster.map(x => x.valor), backgroundColor: palette.primary }]
+    },
+    options: baseOpt
+  });
+
+  new Chart(document.getElementById('driverChart'), {
+    type: 'bar',
+    data: {
+      labels: chartData.drivers.map(x => x.driver),
+      datasets: [
+        { label: 'Eficiência %', data: chartData.drivers.map(x => x.eficiencia), backgroundColor: palette.success },
+        { label: 'Devolução %', data: chartData.drivers.map(x => x.devolucao_pct), backgroundColor: palette.warning }
+      ]
+    },
+    options: baseOpt
+  });
+
+  let state = { rows: [...detailRows], page: 1, pageSize: 30, sortKey: 'date', sortDir: 'desc', search: '' };
+  const drillBody = document.getElementById('drillBody');
+  const drillSummary = document.getElementById('drillSummary');
+  const searchInput = document.getElementById('drillSearch');
+  const pageSize = document.getElementById('drillPageSize');
+
+  function cmp(a, b) {
+    const av = a[state.sortKey], bv = b[state.sortKey];
+    if (av == null && bv == null) return 0;
+    if (av == null) return -1;
+    if (bv == null) return 1;
+    return typeof av === 'number' && typeof bv === 'number'
+      ? av - bv
+      : String(av).localeCompare(String(bv), 'pt-BR');
+  }
+
+  function renderDrill() {
+    const filtered = state.rows.filter(r => {
+      if (!state.search) return true;
+      const k = `${r.driver_name} ${r.client_name} ${r.status} ${r.order_number} ${r.plate}`.toLowerCase();
+      return k.includes(state.search);
+    }).sort((a, b) => state.sortDir === 'asc' ? cmp(a, b) : cmp(b, a));
+
+    const total = filtered.length;
+    const pages = Math.max(1, Math.ceil(total / state.pageSize));
+    state.page = Math.min(state.page, pages);
+    const slice = filtered.slice((state.page - 1) * state.pageSize, state.page * state.pageSize);
+
+    drillBody.innerHTML = slice.map(r => `
+      <tr>
+        <td>${r.date || '-'}</td><td>${r.shift || '-'}</td><td>${r.driver_name || '-'}</td><td>${r.client_name || '-'}</td>
+        <td>${r.status || '-'}</td><td>${r.order_number || '-'}</td><td>${Number(r.planned_kg || 0).toFixed(1)}</td>
+        <td>${Number(r.returned_kg || 0).toFixed(1)}</td><td>${Number(r.planned_value || 0).toFixed(2)}</td>
+        <td>${Number(r.returned_value || 0).toFixed(2)}</td><td>${r.reopen_count || 0}</td>
+        <td>${r.duration_m ? `${r.duration_m} min` : '-'}</td><td>${r.plate || '-'}</td>
+      </tr>
+    `).join('');
+
+    drillSummary.textContent = `${total} registros | página ${state.page}/${pages}`;
+  }
+
+  searchInput.addEventListener('input', e => { state.search = e.target.value.toLowerCase().trim(); state.page = 1; renderDrill(); });
+  pageSize.addEventListener('change', e => { state.pageSize = Number(e.target.value || 30); state.page = 1; renderDrill(); });
+  document.getElementById('prevPage').addEventListener('click', () => { state.page = Math.max(1, state.page - 1); renderDrill(); });
+  document.getElementById('nextPage').addEventListener('click', () => { state.page += 1; renderDrill(); });
+  document.querySelectorAll('th[data-sort]').forEach(th => th.addEventListener('click', () => {
+    const key = th.dataset.sort;
+    if (state.sortKey === key) state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+    else { state.sortKey = key; state.sortDir = 'asc'; }
+    renderDrill();
+  }));
+  renderDrill();
+  if (window.lucide) window.lucide.createIcons();
+</script>
+
+<style>
+  .bi-page { background: var(--color-bg); color: var(--color-text); }
+  .bi-card { padding: var(--space-4, 1rem); }
+  .bi-card-head { display: flex; align-items: center; gap: .75rem; }
+  .bi-card-head-between { justify-content: space-between; }
+  .surface-shadow { background: var(--color-surface); border-radius: var(--radius-lg, 1rem); box-shadow: var(--shadow-card); border: 1px solid var(--color-border); }
+  .surface { background: var(--color-surface); border-radius: var(--radius-lg, 1rem); border: 1px solid var(--color-border); }
+  .icon-wrap, .icon-wrap-sm { background: var(--color-border-light); color: var(--color-text-secondary); border-radius: var(--radius-md, .75rem); display: flex; align-items: center; justify-content: center; }
+  .icon-wrap { width: 2.25rem; height: 2.25rem; }
+  .icon-wrap-sm { width: 2rem; height: 2rem; }
+  .text-title-lg { font-size: var(--text-title-lg, 1.125rem); color: var(--color-text); font-weight: 600; }
+  .text-section { font-size: var(--text-section, .875rem); color: var(--color-text); font-weight: 600; }
+  .text-body { font-size: var(--text-body, .8125rem); color: var(--color-text-secondary); }
+  .text-caption { font-size: var(--text-caption, .6875rem); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .06em; }
+  .form-field label { display:block; margin-bottom: .35rem; font-size: var(--text-caption, .6875rem); text-transform: uppercase; color: var(--color-text-muted); }
+  .form-field input, .form-field select, .input-mini { width: 100%; min-height: 42px; border-radius: var(--radius-md, .75rem); border: 2px solid var(--color-border); background: var(--color-input-bg, var(--color-surface)); color: var(--color-text); padding: 0 .75rem; }
+  .btn-primary, .btn-secondary { min-height: 42px; border-radius: var(--radius-md, .75rem); padding: 0 1rem; display: inline-flex; align-items: center; justify-content: center; font-size: var(--text-body, .8125rem); font-weight: 600; transition: opacity .2s ease; }
+  .btn-primary { background: var(--color-primary); color: var(--color-text-inverse); border: 1px solid var(--color-primary); }
+  .btn-secondary { background: var(--color-surface); color: var(--color-text); border: 2px solid var(--color-border); }
+  .btn-primary:hover, .btn-secondary:hover { opacity: .9; }
+  .bi-table { width: 100%; border-collapse: collapse; }
+  .bi-table thead th { position: sticky; top: 0; background: var(--color-surface); border-bottom: 1px solid var(--color-border); text-align: left; font-size: var(--text-caption, .6875rem); color: var(--color-text-muted); padding: .65rem .5rem; cursor: pointer; }
+  .bi-table tbody td { border-bottom: 1px solid var(--color-border-light); padding: .6rem .5rem; color: var(--color-text-secondary); }
+  .bi-table tbody tr:hover { background: var(--color-hover); }
+  .table-link { color: var(--color-primary); text-decoration: underline dotted; font-weight: 600; }
+  .tone-success { color: var(--color-success) !important; font-weight: 600; }
+  .tone-warning { color: var(--color-warning) !important; font-weight: 600; }
+  .tone-danger { color: var(--color-danger) !important; font-weight: 600; }
+  .insight-row { border: 1px solid var(--color-border); border-radius: var(--radius-sm, .5rem); padding: .6rem .7rem; background: var(--color-surface); font-size: var(--text-body, .8125rem); color: var(--color-text-secondary); }
+  .insight-warning { border-color: var(--color-warning); }
+</style>
 {% endblock %}
