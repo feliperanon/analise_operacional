@@ -3,6 +3,7 @@
 
 {% block content %}
 {% include "mobile/_design_tokens.html" %}
+<link rel="stylesheet" href="/static/css/bi_delivery_premium.css">
 <div class="bi-page p-4 lg:p-8">
   <div class="max-w-[1800px] mx-auto space-y-5">
     <header class="surface-shadow bi-card">
@@ -14,7 +15,12 @@
             <p class="text-caption mt-1">Dashboard unificado executivo, tático e operacional.</p>
           </div>
         </div>
-        <a href="/separacao" class="btn-secondary">Abrir Operação</a>
+        <div class="flex items-center gap-2">
+          <button type="button" id="execModeToggle" class="btn-secondary" aria-pressed="false">
+            Executivo
+          </button>
+          <a href="/separacao" class="btn-secondary">Abrir Operação</a>
+        </div>
       </div>
 
       <form method="get" action="/bi/delivery" class="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
@@ -127,6 +133,7 @@
       </section>
     </section>
 
+    <div class="exec-hidden">
     {% call table_section("Painel tático por motorista", "Clique no motorista para drill-down no período.",
     "tacticalTable") %}
     <thead>
@@ -161,12 +168,14 @@
       {% endfor %}
     </tbody>
     {% endcall %}
+    </div>
 
-    <section id="drilldown-section" class="surface-shadow bi-card">
+    <section id="drilldown-section" class="surface-shadow bi-card exec-hidden">
       <div class="bi-card-head bi-card-head-between">
         <div>
           <h3 class="text-section">Drill-through operacional</h3>
           <p class="text-caption mt-1">{{ detail_title }} | {{ detail_total }} registros</p>
+          <div id="drillBreadcrumb" class="hidden mt-2 text-body"></div>
         </div>
         <div class="flex items-center gap-2">
           <input id="drillSearch" class="input-mini" placeholder="Filtrar cliente/motorista/status...">
@@ -175,6 +184,7 @@
             <option value="30" selected>30</option>
             <option value="60">60</option>
           </select>
+          <button id="drillBackBtn" class="btn-secondary hidden" type="button">Voltar nível</button>
         </div>
       </div>
 
@@ -183,18 +193,18 @@
           <thead>
             <tr>
               <th data-sort="date">Data</th>
-              <th data-sort="shift">Turno</th>
+              <th data-sort="shift" class="operational-col">Turno</th>
               <th data-sort="driver_name">Motorista</th>
               <th data-sort="client_name">Cliente</th>
               <th data-sort="status">Status</th>
-              <th data-sort="order_number">Pedido</th>
+              <th data-sort="order_number" class="operational-col">Pedido</th>
               <th data-sort="planned_kg">KG pl.</th>
               <th data-sort="returned_kg">KG dev.</th>
               <th data-sort="planned_value">R$ pl.</th>
               <th data-sort="returned_value">R$ dev.</th>
-              <th data-sort="reopen_count">Reab.</th>
-              <th data-sort="duration_m">Duração</th>
-              <th data-sort="plate">Placa</th>
+              <th data-sort="reopen_count" class="operational-col">Reab.</th>
+              <th data-sort="duration_m" class="operational-col">Duração</th>
+              <th data-sort="plate" class="operational-col">Placa</th>
             </tr>
           </thead>
           <tbody id="drillBody"></tbody>
@@ -212,10 +222,66 @@
   </div>
 </div>
 
+<div id="kpiDetailModal" class="bi-modal hidden" aria-hidden="true">
+  <div class="bi-modal-panel">
+    <div class="bi-modal-head">
+      <div>
+        <p class="text-caption" id="kpiModalTag">KPI</p>
+        <h3 class="text-title-lg" id="kpiModalTitle">Detalhes do KPI</h3>
+      </div>
+      <button type="button" class="btn-secondary" data-close-modal="kpiDetailModal">Fechar</button>
+    </div>
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-4">
+      <section class="surface p-4 space-y-2">
+        <p class="text-body"><strong>Significado:</strong> <span id="kpiMeaning"></span></p>
+        <p class="text-body"><strong>Fórmula:</strong> <span id="kpiFormula"></span></p>
+        <p class="text-body"><strong>Benchmark:</strong> <span id="kpiBenchmark"></span></p>
+        <p class="text-body"><strong>Tendência:</strong> <span id="kpiTrend"></span></p>
+        <div id="kpiAlerts" class="space-y-2 mt-3"></div>
+      </section>
+      <section class="surface p-4">
+        <h4 class="text-section mb-3">Sparkline</h4>
+        <div style="height:160px"><canvas id="kpiSparkline"></canvas></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div id="chartFullscreenModal" class="bi-modal hidden" aria-hidden="true">
+  <div class="bi-modal-panel bi-modal-panel-xl">
+    <div class="bi-modal-head">
+      <div>
+        <p class="text-caption" id="fullChartTag">Análise expandida</p>
+        <h3 class="text-title-lg" id="fullChartTitle">Gráfico</h3>
+      </div>
+      <div class="flex items-center gap-2">
+        <button type="button" id="chartTypeToggleBtn" class="btn-secondary">Alternar tipo</button>
+        <button type="button" id="chartCompare7Btn" class="btn-secondary">D-7</button>
+        <button type="button" id="chartCompare30Btn" class="btn-secondary">D-30</button>
+        <button type="button" id="chartCompareAllBtn" class="btn-secondary">Completo</button>
+        <button type="button" id="chartResetZoomBtn" class="btn-secondary">Reset zoom</button>
+        <button type="button" id="chartExportPngBtn" class="btn-secondary">Exportar PNG</button>
+        <button type="button" class="btn-secondary" data-close-modal="chartFullscreenModal">Fechar</button>
+      </div>
+    </div>
+    <div class="mt-4" style="height: 62vh;">
+      <canvas id="fullscreenChartCanvas"></canvas>
+    </div>
+    <section class="surface p-4 mt-4">
+      <h4 class="text-section mb-2">Storytelling automático</h4>
+      <div id="fullscreenInsights" class="space-y-2"></div>
+    </section>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
 <script>
   const chartData = {{ chart_payload_json| safe }};
   const detailRows = {{ detail_rows_json| safe }};
+  window.__biChartData = chartData;
+  window.__biDetailRows = detailRows;
 
   const token = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
   const palette = {
@@ -294,7 +360,7 @@
     options: baseOpt
   });
 
-  let state = { rows: [...detailRows], page: 1, pageSize: 30, sortKey: 'date', sortDir: 'desc', search: '' };
+  let state = { rows: [...detailRows], page: 1, pageSize: 30, sortKey: 'date', sortDir: 'desc', search: '', externalFilter: null, drillStack: [] };
   const drillBody = document.getElementById('drillBody');
   const drillSummary = document.getElementById('drillSummary');
   const searchInput = document.getElementById('drillSearch');
@@ -312,6 +378,7 @@
 
   function renderDrill() {
     const filtered = state.rows.filter(r => {
+      if (typeof state.externalFilter === 'function' && !state.externalFilter(r)) return false;
       if (!state.search) return true;
       const k = `${r.driver_name} ${r.client_name} ${r.status} ${r.order_number} ${r.plate}`.toLowerCase();
       return k.includes(state.search);
@@ -324,11 +391,11 @@
 
     drillBody.innerHTML = slice.map(r => `
       <tr>
-        <td>${r.date || '-'}</td><td>${r.shift || '-'}</td><td>${r.driver_name || '-'}</td><td>${r.client_name || '-'}</td>
-        <td>${r.status || '-'}</td><td>${r.order_number || '-'}</td><td>${Number(r.planned_kg || 0).toFixed(1)}</td>
+        <td>${r.date || '-'}</td><td class="operational-col">${r.shift || '-'}</td><td>${r.driver_name || '-'}</td><td>${r.client_name || '-'}</td>
+        <td>${r.status || '-'}</td><td class="operational-col">${r.order_number || '-'}</td><td>${Number(r.planned_kg || 0).toFixed(1)}</td>
         <td>${Number(r.returned_kg || 0).toFixed(1)}</td><td>${Number(r.planned_value || 0).toFixed(2)}</td>
-        <td>${Number(r.returned_value || 0).toFixed(2)}</td><td>${r.reopen_count || 0}</td>
-        <td>${r.duration_m ? `${r.duration_m} min` : '-'}</td><td>${r.plate || '-'}</td>
+        <td>${Number(r.returned_value || 0).toFixed(2)}</td><td class="operational-col">${r.reopen_count || 0}</td>
+        <td class="operational-col">${r.duration_m ? `${r.duration_m} min` : '-'}</td><td class="operational-col">${r.plate || '-'}</td>
       </tr>
     `).join('');
 
@@ -395,8 +462,11 @@
   });
 
   renderDrill();
+  window.__biRenderDrill = renderDrill;
+  window.__biState = state;
   if (window.lucide) window.lucide.createIcons();
 </script>
+<script src="/static/js/bi_delivery_premium.js"></script>
 
 <style>
   .bi-page {

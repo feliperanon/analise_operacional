@@ -5,7 +5,16 @@
   "danger": "var(--color-danger)",
   "neutral": "var(--color-primary)"
 }[state] %}
-<article class="surface-shadow bi-card">
+<article
+  class="surface-shadow bi-card kpi-card"
+  data-kpi-title="{{ title }}"
+  data-kpi-value="{{ value }}"
+  data-kpi-subtitle="{{ subtitle }}"
+  data-kpi-state="{{ state }}"
+  tabindex="0"
+  role="button"
+  aria-label="Detalhes do KPI {{ title }}"
+>
   <div class="bi-card-head">
     <div class="icon-wrap" style="color: {{ tone }};">
       <i data-lucide="{{ icon }}" class="w-4 h-4"></i>
@@ -20,15 +29,26 @@
 {%- endmacro %}
 
 {% macro chart_card(title, subtitle="", chart_id="") -%}
-<section class="surface-shadow bi-card">
+<section
+  class="surface-shadow bi-card chart-card"
+  data-chart-card="1"
+  data-chart-id="{{ chart_id }}"
+  data-chart-title="{{ title }}"
+  data-chart-subtitle="{{ subtitle }}"
+>
   <div class="bi-card-head bi-card-head-between">
     <div>
       <h3 class="text-section">{{ title }}</h3>
       {% if subtitle %}<p class="text-caption mt-1">{{ subtitle }}</p>{% endif %}
     </div>
-    <button class="icon-wrap-sm" type="button" title="Ajuda">
-      <i data-lucide="info" class="w-4 h-4"></i>
-    </button>
+    <div class="flex items-center gap-2">
+      <button class="icon-wrap-sm" type="button" title="Ajuda">
+        <i data-lucide="info" class="w-4 h-4"></i>
+      </button>
+      <button class="icon-wrap-sm chart-expand-btn" type="button" title="Expandir gráfico" data-chart-expand="{{ chart_id }}">
+        <i data-lucide="maximize-2" class="w-4 h-4"></i>
+      </button>
+    </div>
   </div>
   <div class="mt-4" style="height: 280px;">
     <canvas id="{{ chart_id }}"></canvas>

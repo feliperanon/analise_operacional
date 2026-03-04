@@ -1,0 +1,322 @@
+(() => {
+  const byId = (id) => document.getElementById(id);
+  const qs = (s) => document.querySelector(s);
+  const qsa = (s) => Array.from(document.querySelectorAll(s));
+  const state = window.__biState;
+  const renderDrill = window.__biRenderDrill;
+
+  if (!state || !renderDrill || typeof Chart === 'undefined') return;
+
+  const chartIds = ["trendChart", "motivosChart", "respChart", "clusterChart", "driverChart"];
+  const chartTitles = {
+    trendChart: "Tendência diária",
+    motivosChart: "Motivos de devolução",
+    respChart: "Responsabilidade",
+    clusterChart: "Cluster x Valor",
+    driverChart: "Eficiência por motorista"
+  };
+  const chartAllowedTypes = {
+    trendChart: ["line", "bar"],
+    motivosChart: ["bar", "doughnut"],
+    respChart: ["doughnut", "bar"],
+    clusterChart: ["bar", "doughnut"],
+    driverChart: ["bar", "line"]
+  };
+
+  const kpiDefs = {
+    "Paradas Planejadas": ["Volume previsto de paradas no período.", "Σ rotas planejadas", ">=95% realização"],
+    "Paradas Realizadas": ["Paradas concluídas no período.", "Σ concluídas ÷ Σ planejadas", "SLA >= 90%"],
+    "Taxa Devolução": ["Incidência de devoluções na operação.", "(devoluções ÷ planejadas) x 100", "< 7%"],
+    "Valor Devolvido": ["Impacto financeiro das devoluções.", "Σ valor devolvido", "Tendência de queda"],
+    "% Acima de R$300": ["Risco financeiro por ticket alto.", "(devoluções>=300 ÷ total) x 100", "< 35%"],
+    "Tempo Médio": ["Agilidade de conclusão de rotas.", "Média de duração das rotas", "< 120 min"],
+    "Risco Próx. Turno": ["Risco preditivo operacional.", "Sinal derivado de tendência + anomalias", "Controlado"]
+  };
+
+  let fullscreenChart = null;
+  let fullscreenChartId = null;
+  let compareWindow = null;
+  let kpiSparklineChart = null;
+  let fullscreenIndex = 0;
+
+  function modalOpen(id) {
+    const m = byId(id);
+    if (!m) return;
+    m.classList.remove("hidden");
+    m.classList.add("flex");
+    m.setAttribute("aria-hidden", "false");
+  }
+
+  function modalClose(id) {
+    const m = byId(id);
+    if (!m) return;
+    m.classList.add("hidden");
+    m.classList.remove("flex");
+    m.setAttribute("aria-hidden", "true");
+    if (id === "chartFullscreenModal" && fullscreenChart) {
+      fullscreenChart.destroy();
+      fullscreenChart = null;
+      fullscreenChartId = null;
+      compareWindow = null;
+    }
+  }
+
+  function getChart(id) {
+    const canvas = byId(id);
+    if (!canvas) return null;
+    return Chart.getChart(canvas);
+  }
+
+  function toNum(v) {
+    if (typeof v === "number") return v;
+    const s = String(v ?? "").replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
+    return Number(s) || 0;
+  }
+
+  function sparklineSeries(title) {
+    const trend = window.__biChartData?.trend || { valor: [], qtd: [] };
+    if (title === "Valor Devolvido") return trend.valor || [];
+    if (title === "Taxa Devolução") return trend.qtd || [];
+    return trend.valor || trend.qtd || [];
+  }
+
+  function createSparkline(series) {
+    const canvas = byId("kpiSparkline");
+    if (!canvas) return;
+    if (kpiSparklineChart) kpiSparklineChart.destroy();
+    kpiSparklineChart = new Chart(canvas, {
+      type: "line",
+      data: { labels: series.map((_, i) => i + 1), datasets: [{ data: series, borderColor: "#3b82f6", pointRadius: 0, tension: 0.3 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } }, scales: { x: { display: false }, y: { display: false } } }
+    });
+  }
+
+  function buildKpiTrend(series) {
+    if (!series || series.length < 2) return "Sem histórico suficiente.";
+    const a = Number(series.at(-1) || 0);
+    const b = Number(series.at(-2) || 0);
+    if (!b) return a ? "Sinal inicial de tendência de alta." : "Sem oscilação relevante.";
+    const d = ((a - b) / Math.abs(b)) * 100;
+    const s = d >= 0 ? "alta" : "queda";
+    return `Último período indica ${s} de ${Math.abs(d).toFixed(1)}%.`;
+  }
+
+  function openKpiModal(card) {
+    const title = card.dataset.kpiTitle || "KPI";
+    const value = card.dataset.kpiValue || "-";
+    const [meaning, formula, benchmark] = kpiDefs[title] || ["Indicador estratégico.", "Cálculo interno", "Meta interna"];
+    byId("kpiModalTitle").textContent = title;
+    byId("kpiModalTag").textContent = `Valor atual: ${value}`;
+    byId("kpiMeaning").textContent = meaning;
+    byId("kpiFormula").textContent = formula;
+    byId("kpiBenchmark").textContent = benchmark;
+    const series = sparklineSeries(title);
+    byId("kpiTrend").textContent = buildKpiTrend(series);
+    createSparkline(series);
+
+    const alerts = [];
+    if (title === "Taxa Devolução" && toNum(value) >= 10) alerts.push("Taxa de devolução acima do limite recomendado.");
+    if (title === "Tempo Médio" && toNum(value) >= 120) alerts.push("Tempo médio acima da janela executiva.");
+    if (!alerts.length) alerts.push("Sem alertas críticos para este indicador.");
+    byId("kpiAlerts").innerHTML = alerts.map((x) => `<div class="insight-row insight-warning">${x}</div>`).join("");
+
+    modalOpen("kpiDetailModal");
+  }
+
+  function clipData(data, n) {
+    if (!n) return data;
+    return {
+      labels: (data.labels || []).slice(-n),
+      datasets: (data.datasets || []).map((ds) => ({ ...ds, data: (ds.data || []).slice(-n) }))
+    };
+  }
+
+  function generateInsightsFromDataset(chartId, data) {
+    const out = [];
+    const labels = data?.labels || [];
+    const ds = data?.datasets || [];
+    if (!labels.length || !ds.length) return ["Sem dados suficientes para storytelling."];
+    if (chartId === "trendChart") {
+      const values = ds[1]?.data || ds[0]?.data || [];
+      const recent = values.slice(-7).reduce((a, b) => a + Number(b || 0), 0);
+      const prev = values.slice(-14, -7).reduce((a, b) => a + Number(b || 0), 0) || 1;
+      const delta = ((recent - prev) / Math.abs(prev)) * 100;
+      out.push(`Últimos 7 dias mostram ${delta >= 0 ? "alta" : "queda"} de ${Math.abs(delta).toFixed(1)}%.`);
+      const p = values.reduce((best, v, i, arr) => Number(v || 0) > Number(arr[best] || 0) ? i : best, 0);
+      out.push(`Pico no período em ${labels[p]}: ${Number(values[p] || 0).toLocaleString("pt-BR")}.`);
+    } else {
+      const values = (ds[0]?.data || []).map(Number);
+      const sum = values.reduce((a, b) => a + b, 0) || 1;
+      const top = values.reduce((best, v, i, arr) => v > arr[best] ? i : best, 0);
+      out.push(`${labels[top]} concentra ${((values[top] / sum) * 100).toFixed(1)}% do total.`);
+    }
+    return out;
+  }
+
+  function bindChartClickDrill(id) {
+    const c = getChart(id);
+    if (!c) return;
+    const baseOnClick = c.options.onClick;
+    c.options.onClick = (evt, elements, chart) => {
+      if (baseOnClick) baseOnClick(evt, elements, chart);
+      if (!elements?.length) return;
+      const idx = elements[0].index;
+      const label = chart.data.labels?.[idx];
+      if (label == null) return;
+      let fn = null;
+      if (id === "trendChart") fn = (r) => r.date === label;
+      if (id === "motivosChart") fn = (r) => r.motivo === String(label).split(" (")[0];
+      if (id === "respChart") fn = (r) => r.responsabilidade === label;
+      if (id === "clusterChart") fn = (r) => r.cluster === label;
+      if (id === "driverChart") fn = (r) => r.driver_name === label;
+      if (!fn) return;
+      state.drillStack.push({ label: `${chartTitles[id]}: ${label}`, fn });
+      state.externalFilter = fn;
+      state.page = 1;
+      renderDrill();
+      refreshBreadcrumb();
+      byId("drilldown-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    c.update();
+  }
+
+  function openChartFullscreen(chartId) {
+    const src = getChart(chartId);
+    if (!src) return;
+    fullscreenChartId = chartId;
+    fullscreenIndex = Math.max(0, chartIds.indexOf(chartId));
+    const allowed = chartAllowedTypes[chartId] || [src.config.type];
+    const currentType = src.config.type;
+    byId("fullChartTitle").textContent = chartTitles[chartId] || "Gráfico";
+    byId("fullChartTag").textContent = "Use setas para navegar entre gráficos.";
+    if (fullscreenChart) fullscreenChart.destroy();
+    const clipped = clipData(src.data, compareWindow);
+    fullscreenChart = new Chart(byId("fullscreenChartCanvas"), {
+      type: currentType,
+      data: clipped,
+      options: {
+        ...src.options,
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          ...(src.options.plugins || {}),
+          zoom: {
+            pan: { enabled: true, mode: "xy" },
+            zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: "xy" }
+          }
+        }
+      }
+    });
+    byId("chartTypeToggleBtn").dataset.allowed = JSON.stringify(allowed);
+    byId("chartTypeToggleBtn").dataset.current = currentType;
+    const insights = generateInsightsFromDataset(chartId, clipped);
+    byId("fullscreenInsights").innerHTML = insights.map((x) => `<div class="insight-row">${x}</div>`).join("");
+    modalOpen("chartFullscreenModal");
+  }
+
+  function toggleExecutiveMode(force) {
+    const page = qs(".bi-page");
+    const btn = byId("execModeToggle");
+    if (!page || !btn) return;
+    const next = typeof force === "boolean" ? force : !page.classList.contains("executive-mode");
+    page.classList.toggle("executive-mode", next);
+    btn.textContent = next ? "Operacional" : "Executivo";
+    btn.setAttribute("aria-pressed", next ? "true" : "false");
+    localStorage.setItem("bi_exec_mode", next ? "1" : "0");
+  }
+
+  function refreshBreadcrumb() {
+    const wrap = byId("drillBreadcrumb");
+    const back = byId("drillBackBtn");
+    if (!wrap || !back) return;
+    if (!state.drillStack.length) {
+      wrap.classList.add("hidden");
+      back.classList.add("hidden");
+      wrap.innerHTML = "";
+      return;
+    }
+    wrap.classList.remove("hidden");
+    back.classList.remove("hidden");
+    wrap.innerHTML = state.drillStack.map((x, i) => `<span class="crumb">${i + 1}. ${x.label}</span>`).join('<span class="crumb-sep">›</span>');
+  }
+
+  byId("drillBackBtn")?.addEventListener("click", () => {
+    state.drillStack.pop();
+    state.externalFilter = state.drillStack.length ? state.drillStack[state.drillStack.length - 1].fn : null;
+    state.page = 1;
+    renderDrill();
+    refreshBreadcrumb();
+  });
+
+  byId("execModeToggle")?.addEventListener("click", () => toggleExecutiveMode());
+  toggleExecutiveMode(localStorage.getItem("bi_exec_mode") === "1");
+
+  qsa(".kpi-card").forEach((card) => {
+    card.addEventListener("click", () => openKpiModal(card));
+    card.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openKpiModal(card);
+      }
+    });
+  });
+
+  qsa("[data-chart-expand]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openChartFullscreen(btn.dataset.chartExpand);
+    });
+  });
+  qsa(".chart-card canvas").forEach((canvas) => canvas.addEventListener("dblclick", () => openChartFullscreen(canvas.id)));
+
+  qsa("[data-close-modal]").forEach((btn) => btn.addEventListener("click", () => modalClose(btn.dataset.closeModal)));
+  byId("kpiDetailModal")?.addEventListener("click", (e) => { if (e.target.id === "kpiDetailModal") modalClose("kpiDetailModal"); });
+  byId("chartFullscreenModal")?.addEventListener("click", (e) => { if (e.target.id === "chartFullscreenModal") modalClose("chartFullscreenModal"); });
+
+  byId("chartTypeToggleBtn")?.addEventListener("click", () => {
+    if (!fullscreenChart || !fullscreenChartId) return;
+    const allowed = JSON.parse(byId("chartTypeToggleBtn").dataset.allowed || "[]");
+    const current = byId("chartTypeToggleBtn").dataset.current;
+    const idx = allowed.indexOf(current);
+    const next = allowed[(idx + 1) % allowed.length] || current;
+    byId("chartTypeToggleBtn").dataset.current = next;
+    const src = getChart(fullscreenChartId);
+    const clipped = clipData(src.data, compareWindow);
+    fullscreenChart.destroy();
+    fullscreenChart = new Chart(byId("fullscreenChartCanvas"), { type: next, data: clipped, options: src.options });
+  });
+
+  byId("chartCompare7Btn")?.addEventListener("click", () => { compareWindow = 7; if (fullscreenChartId) openChartFullscreen(fullscreenChartId); });
+  byId("chartCompare30Btn")?.addEventListener("click", () => { compareWindow = 30; if (fullscreenChartId) openChartFullscreen(fullscreenChartId); });
+  byId("chartCompareAllBtn")?.addEventListener("click", () => { compareWindow = null; if (fullscreenChartId) openChartFullscreen(fullscreenChartId); });
+  byId("chartResetZoomBtn")?.addEventListener("click", () => fullscreenChart?.resetZoom?.());
+  byId("chartExportPngBtn")?.addEventListener("click", () => {
+    if (!fullscreenChart) return;
+    const a = document.createElement("a");
+    a.href = fullscreenChart.toBase64Image("image/png", 1);
+    a.download = `bi-delivery-${fullscreenChartId || "chart"}.png`;
+    a.click();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    const isOpen = !byId("chartFullscreenModal")?.classList.contains("hidden");
+    if (e.key === "Escape") {
+      modalClose("kpiDetailModal");
+      modalClose("chartFullscreenModal");
+      return;
+    }
+    if (!isOpen) return;
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      fullscreenIndex = (fullscreenIndex + (e.key === "ArrowRight" ? 1 : -1) + chartIds.length) % chartIds.length;
+      openChartFullscreen(chartIds[fullscreenIndex]);
+    }
+  });
+
+  chartIds.forEach(bindChartClickDrill);
+  refreshBreadcrumb();
+
+  window.openKpiModal = openKpiModal;
+  window.openChartFullscreen = openChartFullscreen;
+  window.generateInsightsFromDataset = generateInsightsFromDataset;
+  window.toggleExecutiveMode = toggleExecutiveMode;
+})();

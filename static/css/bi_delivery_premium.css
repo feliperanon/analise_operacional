@@ -1,0 +1,97 @@
+.kpi-card {
+  cursor: pointer;
+  transition: transform .22s ease, box-shadow .22s ease;
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px rgba(2, 6, 23, .25);
+}
+
+.kpi-card:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.bi-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(2, 6, 23, .75);
+  backdrop-filter: blur(6px);
+}
+
+.bi-modal.flex {
+  display: flex;
+}
+
+.bi-modal-panel {
+  width: min(1180px, 96vw);
+  max-height: 92vh;
+  overflow: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg, 1rem);
+  box-shadow: var(--shadow-card);
+  padding: 1rem;
+  animation: biModalIn .24s ease;
+}
+
+.bi-modal-panel-xl {
+  width: min(1600px, 97vw);
+}
+
+.bi-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+
+.crumb {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--text-caption, .6875rem);
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: .2rem .55rem;
+}
+
+.crumb-sep {
+  margin: 0 .35rem;
+  color: var(--color-text-muted);
+}
+
+.executive-mode .exec-hidden {
+  display: none !important;
+}
+
+.executive-mode .operational-col {
+  display: none !important;
+}
+
+.executive-mode .kpi-card .text-caption {
+  font-size: .62rem;
+}
+
+.executive-mode .kpi-card p.text-title-lg {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+@keyframes biModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
