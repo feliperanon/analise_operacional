@@ -1,21 +1,19 @@
 {% extends "mobile/layout.html" %}
-{% from 'mobile/_components.html' import badge %}
 
-{% block title %}Detalhe Chamado{% endblock %}
+{% block title %}Detalhe Chamado #{{ ticket.id }}{% endblock %}
 
 {% block content %}
 <div class="min-h-screen pb-safe" style="background: var(--color-bg);">
     <header class="container-mobile py-4 border-b shrink-0 sticky top-0 z-20" style="border-color: var(--color-border-light); background: var(--color-surface);">
-        <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center justify-between">
             <a href="/mobile/equipment/tickets" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap">
                 <i data-lucide="arrow-left" class="w-5 h-5"></i>
             </a>
-            <div class="flex-1 min-w-0">
-                <h1 class="text-title-lg truncate" style="color: var(--color-text);">Chamado #{{ ticket.id }}</h1>
+            <div>
+                <h1 class="text-title-lg" style="color: var(--color-text);">Chamado #{{ ticket.id }}</h1>
                 <p class="text-caption" style="color: var(--color-text-muted);">Detalhes do chamado de manutenção</p>
             </div>
-            <a href="/mobile/equipment/tickets/new" class="touch-target-icon flex items-center justify-center rounded-lg flex-shrink-0 text-white"
-                style="background: var(--color-primary);">
+            <a href="/mobile/equipment/tickets/new" class="touch-target-icon flex items-center justify-center rounded-lg" style="background: var(--color-primary); color: white;">
                 <i data-lucide="plus" class="w-5 h-5"></i>
             </a>
         </div>
@@ -23,18 +21,24 @@
 
     <div class="container-mobile py-4 space-y-6">
         <!-- Status Card -->
-        <div class="surface p-6">
-            <div class="flex justify-between items-start gap-4 mb-4">
+        <div class="surface p-5">
+            <div class="flex justify-between items-start mb-4">
                 <div>
-                    <span class="text-caption font-semibold block mb-1" style="color: var(--color-text-muted);">Equipamento</span>
-                    <div class="text-title-lg font-bold" style="color: var(--color-text);">{{ ticket.equipment_code }}</div>
+                    <span class="text-caption font-semibold uppercase" style="color: var(--color-text-muted);">Equipamento</span>
+                    <p class="text-title-lg mt-1" style="color: var(--color-text);">{{ ticket.equipment_code }}</p>
                 </div>
-                <div class="flex flex-col items-end gap-2 shrink-0">
-                    {{ badge('ABERTO' if ticket.status == 'open' else 'FECHADO', 'warning' if ticket.status == 'open' else 'success', 'sm') }}
-                    {{ badge('ALTA' if ticket.severity == 'high' else 'BAIXA', 'danger' if ticket.severity == 'high' else 'default', 'sm') }}
+                <div class="flex flex-col items-end gap-2">
+                    <span class="text-caption font-semibold px-2.5 py-1 rounded"
+                        style="{% if ticket.status == 'open' %}background: var(--color-warning-bg); color: var(--color-warning);{% else %}background: var(--color-success-bg); color: var(--color-success);{% endif %}">
+                        {{ 'ABERTO' if ticket.status == 'open' else 'FECHADO' }}
+                    </span>
+                    <span class="text-caption font-semibold px-2.5 py-1 rounded"
+                        style="{% if ticket.severity == 'high' %}background: var(--color-danger-bg); color: var(--color-danger);{% else %}background: var(--color-border-light); color: var(--color-text-secondary);{% endif %}">
+                        {{ 'ALTA' if ticket.severity == 'high' else 'BAIXA' }}
+                    </span>
                 </div>
             </div>
-            <div class="flex items-center gap-2 text-caption pt-4 border-t flex-wrap" style="border-color: var(--color-border-light); color: var(--color-text-muted);">
+            <div class="flex items-center gap-2 pt-4 border-t text-caption" style="border-color: var(--color-border-light); color: var(--color-text-muted);">
                 <i data-lucide="calendar" class="w-4 h-4"></i>
                 <span>{{ ticket.created_at.strftime("%d/%m/%Y") }}</span>
                 <span>•</span>
@@ -43,23 +47,23 @@
             </div>
         </div>
 
-        <!-- Description -->
+        <!-- Descrição -->
         <div>
-            <h2 class="text-section font-semibold mb-3 flex items-center gap-2" style="color: var(--color-text);">
+            <h2 class="text-section font-semibold mb-2 flex items-center gap-2" style="color: var(--color-text);">
                 <div class="icon-wrap w-8 h-8" style="background: var(--color-primary-bg); color: var(--color-primary);">
                     <i data-lucide="file-text" class="w-4 h-4"></i>
                 </div>
                 Descrição
             </h2>
             <div class="surface p-4">
-                <p class="text-body leading-relaxed" style="color: var(--color-text-secondary);">{{ ticket.description }}</p>
+                <p class="text-body" style="color: var(--color-text-secondary);">{{ ticket.description }}</p>
             </div>
         </div>
 
-        <!-- Images -->
+        <!-- Imagens -->
         {% if images %}
         <div>
-            <h2 class="text-section font-semibold mb-3 flex items-center gap-2" style="color: var(--color-text);">
+            <h2 class="text-section font-semibold mb-2 flex items-center gap-2" style="color: var(--color-text);">
                 <div class="icon-wrap w-8 h-8" style="background: var(--color-primary-bg); color: var(--color-primary);">
                     <i data-lucide="image" class="w-4 h-4"></i>
                 </div>
@@ -67,8 +71,7 @@
             </h2>
             <div class="grid grid-cols-2 gap-3">
                 {% for img in images %}
-                <a href="{{ img }}" target="_blank" class="block aspect-square rounded-lg overflow-hidden border-2 interactive"
-                    style="border-color: var(--color-border);">
+                <a href="{{ img }}" target="_blank" class="block aspect-square rounded-lg overflow-hidden surface interactive">
                     <img src="{{ img }}" class="w-full h-full object-cover" alt="Evidência">
                 </a>
                 {% endfor %}
@@ -76,23 +79,19 @@
         </div>
         {% endif %}
 
-        <!-- Closure Info -->
         {% if ticket.status == 'closed' %}
-        <div class="surface p-4" style="border-color: var(--color-success); background: var(--color-success-bg);">
-            <div class="flex items-start gap-3">
-                <div class="icon-wrap w-10 h-10" style="background: var(--color-success-bg); color: var(--color-success);">
-                    <i data-lucide="check-check" class="w-5 h-5"></i>
-                </div>
-                <div>
-                    <h3 class="text-body font-semibold" style="color: var(--color-success);">Chamado Encerrado</h3>
-                    <p class="text-caption mt-0.5" style="color: var(--color-text-secondary);">
-                        Finalizado em {{ ticket.closed_at.strftime("%d/%m/%Y %H:%M") if ticket.closed_at else '-' }}
-                    </p>
-                </div>
+        <div class="surface p-4 flex items-start gap-3" style="background: var(--color-success-bg); border-color: var(--color-success);">
+            <div class="icon-wrap w-10 h-10 flex-shrink-0" style="background: var(--color-success-bg); color: var(--color-success);">
+                <i data-lucide="check-check" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <h3 class="text-section font-semibold" style="color: var(--color-success);">Chamado Encerrado</h3>
+                <p class="text-caption mt-0.5" style="color: var(--color-text-secondary);">
+                    Finalizado em {{ ticket.closed_at.strftime("%d/%m/%Y %H:%M") if ticket.closed_at else '-' }}
+                </p>
             </div>
         </div>
         {% endif %}
     </div>
 </div>
-<script>document.addEventListener('DOMContentLoaded', () => { if (typeof lucide !== 'undefined') lucide.createIcons(); });</script>
 {% endblock %}
