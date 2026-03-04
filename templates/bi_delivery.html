@@ -274,7 +274,7 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
 <script>
@@ -304,10 +304,11 @@
     }
   };
 
+  const safeStr = (v) => (v == null ? '' : String(v));
   new Chart(document.getElementById('trendChart'), {
     type: 'line',
     data: {
-      labels: chartData.trend.dates,
+      labels: (chartData.trend.dates || []).map(safeStr),
       datasets: [
         { label: 'Qtd devoluções', data: chartData.trend.qtd, borderColor: palette.warning, backgroundColor: 'transparent', tension: .25, yAxisID: 'y' },
         { label: 'Valor devolvido', data: chartData.trend.valor, borderColor: palette.danger, backgroundColor: 'transparent', tension: .25, yAxisID: 'y1' },
@@ -321,7 +322,7 @@
   new Chart(document.getElementById('motivosChart'), {
     type: 'bar',
     data: {
-      labels: chartData.motivos.map(x => `${x.motivo} (${x.pct}%)`),
+      labels: (chartData.motivos || []).map(x => `${safeStr(x.motivo)} (${safeStr(x.pct)}%)`),
       datasets: [
         { label: 'Quantidade', data: chartData.motivos.map(x => x.qtd), backgroundColor: palette.warning },
         { label: 'Valor', data: chartData.motivos.map(x => x.valor), backgroundColor: palette.danger }
@@ -333,7 +334,7 @@
   new Chart(document.getElementById('respChart'), {
     type: 'doughnut',
     data: {
-      labels: chartData.responsabilidade.map(x => x.responsabilidade),
+      labels: (chartData.responsabilidade || []).map(x => safeStr(x.responsabilidade)),
       datasets: [{ data: chartData.responsabilidade.map(x => x.qtd), backgroundColor: [palette.primary, palette.warning, palette.danger, palette.success] }]
     },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: palette.muted } } } }
@@ -342,7 +343,7 @@
   new Chart(document.getElementById('clusterChart'), {
     type: 'bar',
     data: {
-      labels: chartData.cluster.map(x => x.cluster),
+      labels: (chartData.cluster || []).map(x => safeStr(x.cluster)),
       datasets: [{ label: 'Valor devolvido', data: chartData.cluster.map(x => x.valor), backgroundColor: palette.primary }]
     },
     options: baseOpt
@@ -351,7 +352,7 @@
   new Chart(document.getElementById('driverChart'), {
     type: 'bar',
     data: {
-      labels: chartData.drivers.map(x => x.driver),
+      labels: (chartData.drivers || []).map(x => safeStr(x.driver)),
       datasets: [
         { label: 'Eficiência %', data: chartData.drivers.map(x => x.eficiencia), backgroundColor: palette.success },
         { label: 'Devolução %', data: chartData.drivers.map(x => x.devolucao_pct), backgroundColor: palette.warning }

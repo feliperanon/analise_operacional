@@ -53,16 +53,10 @@
     m.classList.add("hidden");
     m.classList.remove("flex");
     m.setAttribute("aria-hidden", "true");
-    if (id === "chartFullscreenModal" && fullscreenChart) {
-      fullscreenChart.destroy();
-      fullscreenChart = null;
+    if (id === "chartFullscreenModal") {
+      destroyFullscreenChart();
       fullscreenChartId = null;
       compareWindow = null;
-    }
-    if (id === "chartFullscreenModal") {
-      const canvas = byId("fullscreenChartCanvas");
-      const existing = canvas ? Chart.getChart(canvas) : null;
-      if (existing) existing.destroy();
     }
   }
 
@@ -137,7 +131,9 @@
   }
 
   function cloneChartData(data) {
-    return JSON.parse(JSON.stringify(data || { labels: [], datasets: [] }));
+    const out = JSON.parse(JSON.stringify(data || { labels: [], datasets: [] }));
+    if (out.labels && Array.isArray(out.labels)) out.labels = out.labels.map(v => (v == null ? "" : String(v)));
+    return out;
   }
 
   function buildFullscreenOptions(type) {
@@ -213,6 +209,20 @@
     c.update();
   }
 
+  function destroyFullscreenChart() {
+    try {
+      if (fullscreenChart) {
+        fullscreenChart.destroy();
+        fullscreenChart = null;
+      }
+      const canvas = byId("fullscreenChartCanvas");
+      if (canvas) {
+        const existing = Chart.getChart(canvas);
+        if (existing) existing.destroy();
+      }
+    } catch (e) { /* ignore */ }
+  }
+
   function openChartFullscreen(chartId) {
     const src = getChart(chartId);
     if (!src) return;
@@ -222,10 +232,7 @@
     const currentType = src.config.type;
     byId("fullChartTitle").textContent = chartTitles[chartId] || "Gráfico";
     byId("fullChartTag").textContent = "Use setas para navegar entre gráficos.";
-    if (fullscreenChart) fullscreenChart.destroy();
-    const fullscreenCanvas = byId("fullscreenChartCanvas");
-    const existingCanvasChart = fullscreenCanvas ? Chart.getChart(fullscreenCanvas) : null;
-    if (existingCanvasChart) existingCanvasChart.destroy();
+    destroyFullscreenChart();
     const clipped = cloneChartData(clipData(src.data, compareWindow));
     fullscreenChart = new Chart(byId("fullscreenChartCanvas"), {
       type: currentType,
@@ -247,7 +254,7 @@
     page.classList.toggle("executive-mode", next);
     btn.textContent = next ? "Operacional" : "Executivo";
     btn.setAttribute("aria-pressed", next ? "true" : "false");
-    localStorage.setItem("bi_exec_mode", next ? "1" : "0");
+    try { localStorage.setItem("bi_exec_mode", next ? "1" : "0"); } catch { }
   }
 
   function refreshBreadcrumb() {
@@ -273,8 +280,9 @@
     refreshBreadcrumb();
   });
 
+  const safeStorage = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { } } };
   byId("execModeToggle")?.addEventListener("click", () => toggleExecutiveMode());
-  toggleExecutiveMode(localStorage.getItem("bi_exec_mode") === "1");
+  toggleExecutiveMode(safeStorage.get("bi_exec_mode") === "1");
 
   qsa(".kpi-card").forEach((card) => {
     card.addEventListener("click", () => openKpiModal(card));
@@ -299,18 +307,16 @@
   byId("chartFullscreenModal")?.addEventListener("click", (e) => { if (e.target.id === "chartFullscreenModal") modalClose("chartFullscreenModal"); });
 
   byId("chartTypeToggleBtn")?.addEventListener("click", () => {
-    if (!fullscreenChart || !fullscreenChartId) return;
+    if (!fullscreenChartId) return;
+    const src = getChart(fullscreenChartId);
+    if (!src) return;
     const allowed = JSON.parse(byId("chartTypeToggleBtn").dataset.allowed || "[]");
     const current = byId("chartTypeToggleBtn").dataset.current;
     const idx = allowed.indexOf(current);
     const next = allowed[(idx + 1) % allowed.length] || current;
     byId("chartTypeToggleBtn").dataset.current = next;
-    const src = getChart(fullscreenChartId);
     const clipped = cloneChartData(clipData(src.data, compareWindow));
-    fullscreenChart.destroy();
-    const fullscreenCanvas = byId("fullscreenChartCanvas");
-    const existingCanvasChart = fullscreenCanvas ? Chart.getChart(fullscreenCanvas) : null;
-    if (existingCanvasChart) existingCanvasChart.destroy();
+    destroyFullscreenChart();
     fullscreenChart = new Chart(byId("fullscreenChartCanvas"), { type: next, data: clipped, options: buildFullscreenOptions(next) });
   });
 

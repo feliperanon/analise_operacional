@@ -219,17 +219,19 @@
         <div class="space-y-2">
             {% for module in modules %}
             {% if module.action == "start_separation" %}
-            <button type="button" @click="openStartEntry()"
-                class="interactive w-full surface p-4 text-left flex items-center gap-3">
-                <div class="icon-wrap flex items-center justify-center flex-shrink-0" style="background: var(--color-primary); color: white;">
-                    <i data-lucide="{{ module.icon }}" class="w-5 h-5"></i>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
-                    <p class="text-caption-lg truncate" x-text="deliveryRoutes.length > 0 ? 'Informe a placa para liberar.' : '{{ module.description }}'"></p>
-                </div>
-                <i data-lucide="chevron-right" class="w-5 h-5 flex-shrink-0" style="color: var(--color-text-muted);"></i>
-            </button>
+            <form action="/mobile/routine/start" method="POST" @submit.prevent="openStartEntry($event)" class="w-full">
+                <button type="submit"
+                    class="interactive w-full surface p-4 text-left flex items-center gap-3">
+                    <div class="icon-wrap flex items-center justify-center flex-shrink-0" style="background: var(--color-primary); color: white;">
+                        <i data-lucide="{{ module.icon }}" class="w-5 h-5"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
+                        <p class="text-caption-lg truncate" x-text="deliveryRoutes.length > 0 ? 'Informe a placa para liberar.' : '{{ module.description }}'"></p>
+                    </div>
+                    <i data-lucide="chevron-right" class="w-5 h-5 flex-shrink-0" style="color: var(--color-text-muted);"></i>
+                </button>
+            </form>
             {% elif module.action == "open_admin_start_modal" %}
             <button @click="open_admin_start_modal()" class="interactive w-full surface p-4 text-left flex items-center gap-3">
                 <div class="icon-wrap flex-shrink-0" style="background: var(--color-primary); color: white;"><i data-lucide="{{ module.icon }}" class="w-5 h-5"></i></div>
@@ -1170,7 +1172,7 @@
             },
 
             // Delivery Entry (placa primeiro)
-            openStartEntry() {
+            openStartEntry(ev) {
                 // Se houver rota de entrega planejada, pede placa/KM.
                 if ((this.deliveryRoutes || []).length > 0) {
                     this.showDeliverySetupModal = true;
@@ -1184,21 +1186,16 @@
                     return;
                 }
 
-                // Sem rotas de entrega: inicia rotina de separação.
-                if (this.isLoading) return;
-                this.isLoading = true;
-                fetch('/mobile/routine/start', { method: 'POST' })
-                    .then(() => {
-                        this.haptic('success');
-                        window.location.reload();
-                    })
-                    .catch(() => {
-                        this.haptic('error');
-                        alert('Erro ao iniciar separação.');
-                    })
-                    .finally(() => {
-                        this.isLoading = false;
-                    });
+                // Sem rotas de entrega: submit do form (POST /mobile/routine/start)
+                if (ev && ev.target && ev.target.tagName === 'FORM') {
+                    ev.target.submit();
+                } else {
+                    const f = document.createElement('form');
+                    f.method = 'POST';
+                    f.action = '/mobile/routine/start';
+                    document.body.appendChild(f);
+                    f.submit();
+                }
             },
 
             normalizePlateInput() {
