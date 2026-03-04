@@ -149,10 +149,10 @@
                         <p class="text-caption-lg mt-0.5" x-text="assignedPlate ? `Caminhão: ${assignedPlate}` : 'Sem caminhão planejado'"></p>
                     </div>
                     <div class="flex gap-2">
-                        <button x-show="!deliverySessionOpen" @click="showDeliverySetupModal = true"
-                            class="px-3 py-2 rounded-lg font-semibold text-body text-white transition-opacity" style="background: var(--color-primary);">Iniciar</button>
-                        <button x-show="deliverySessionOpen" @click="showDeliveryEndModal = true"
-                            class="px-3 py-2 rounded-lg font-semibold text-body text-white transition-opacity" style="background: var(--color-success);">Encerrar</button>
+                        <button type="button" x-show="!deliverySessionOpen" @click.stop="openDeliverySetupModal()"
+                            class="touch-target px-3 py-2 rounded-lg font-semibold text-body text-white transition-opacity interactive" style="background: var(--color-primary);">Iniciar</button>
+                        <button type="button" x-show="deliverySessionOpen" @click.stop="showDeliveryEndModal = true"
+                            class="touch-target px-3 py-2 rounded-lg font-semibold text-body text-white transition-opacity interactive" style="background: var(--color-success);">Encerrar</button>
                     </div>
                 </div>
                 <div class="space-y-2 mb-3">
@@ -1153,6 +1153,18 @@
 
             openEvaluationModal() {
                 this.showEvaluation = true;
+            },
+
+            openDeliverySetupModal() {
+                this.deliverySetupError = '';
+                if (this.deliverySetup && !this.deliverySetup.plate && this.assignedPlate) {
+                    this.deliverySetup.plate = this.assignedPlate;
+                }
+                this.showDeliverySetupModal = true;
+                this.$nextTick(() => {
+                    const el = this.$refs.deliveryPlateInput;
+                    if (el && el.focus) el.focus();
+                });
             },
 
             // Delivery Entry (placa primeiro)
