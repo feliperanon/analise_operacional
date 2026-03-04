@@ -256,6 +256,7 @@ def _build_bi_delivery_dataset(
     forecast_stops = round(statistics.mean([x["planned_stops"] for x in rec7]), 1) if rec7 else 0.0
     forecast_return = round(statistics.mean([x["return_rate"] for x in rec7]), 2) if rec7 else 0.0
     risk_label, risk_severity = ("Crítico", "danger") if forecast_return >= 12 else ("Atenção", "warning") if forecast_return >= 7 else ("Controlado", "success")
+    anomaly_flags: list[str] = []
 
     if client_returns:
         rec_client = [n for n, c in sorted(client_returns.items(), key=lambda x: x[1], reverse=True) if c >= 2][:3]

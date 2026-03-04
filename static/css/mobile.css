@@ -41,14 +41,15 @@ Apenas utilitários necessários: safe area, skeleton, scrollbar, loading.
     transform: translateY(0);
 }
 
+/* Pull-to-Refresh: minimalista, neutro, visível só durante o gesto */
 .pull-indicator {
     position: fixed;
-    top: 60px;
+    top: 56px;
     left: 50%;
     transform: translate(-50%, -100%);
-    transition: transform 0.15s ease;
+    transition: transform 0.2s ease, opacity 0.2s ease;
     z-index: 100;
-    padding: 8px 16px;
+    padding: 6px 12px;
     border-radius: var(--radius-md);
     font-size: var(--text-caption);
     font-weight: 500;
@@ -58,6 +59,10 @@ Apenas utilitários necessários: safe area, skeleton, scrollbar, loading.
     box-shadow: var(--shadow-sm);
     opacity: 0;
     pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
 }
 
 .pull-indicator.visible {

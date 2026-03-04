@@ -1054,16 +1054,20 @@
                     }
                 }, { passive: true });
 
+                const hideIndicator = () => {
+                    pulling = false;
+                    indicator.classList.remove('visible');
+                };
+
                 container.addEventListener('touchend', () => {
                     if (indicator.classList.contains('visible')) {
                         this.haptic('medium');
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 300);
+                        setTimeout(() => { window.location.reload(); }, 300);
                     }
-                    pulling = false;
-                    indicator.classList.remove('visible');
-                });
+                    hideIndicator();
+                }, { passive: true });
+
+                container.addEventListener('touchcancel', hideIndicator);
             },
 
             // Show XP popup animation
