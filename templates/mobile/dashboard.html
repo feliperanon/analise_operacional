@@ -478,27 +478,18 @@
     <!-- Modals -->
 
     <!-- Stop Modal -->
-    <div x-show="showStopModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-        x-transition.opacity x-cloak>
-        <div class="bg-white w-full max-w-sm rounded-xl surface shadow-2xl p-6"
-            @click.away="showStopModal = false">
-
-            <div class="text-center mb-6">
-                <div class="w-16 h-16 bg-green-50 rounded-xl flex items-center justify-center mx-auto mb-4 text-green-600">
-                    <i data-lucide="check-square" class="w-8 h-8"></i>
+    <div x-show="showStopModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" x-transition.opacity x-cloak>
+        <div class="w-full max-w-sm rounded-lg flex flex-col overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);" @click.away="showStopModal = false">
+            <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
+                <div class="icon-wrap w-12 h-12 flex-shrink-0"><i data-lucide="check-square" class="w-6 h-6"></i></div>
+                <div class="flex-1 min-w-0">
+                    <h3 class="text-title" style="color: var(--color-text);">Finalizar Separação</h3>
+                    <p class="text-caption-lg mt-0.5 truncate" x-text="selectedRoute?.client_name"></p>
                 </div>
-                <h3 class="text-xl font-bold text-blue-900">Finalizar Separação</h3>
-                <p class="text-slate-600 text-sm mt-1" x-text="selectedRoute?.client_name"></p>
             </div>
-
-            <div class="flex gap-3">
-                <button @click="showStopModal = false"
-                    class="flex-1 py-3 rounded-xl bg-slate-100 text-blue-900 font-semibold hover:bg-slate-200">
-                    Cancelar
-                </button>
-                <button @click="confirmStop()" :class="{'btn-loading': isLoading}"
-                    class="flex-1 py-3 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700 shadow-lg shadow-green-600/20">
+            <div class="p-4 flex gap-3">
+                <button @click="showStopModal = false" class="flex-1 py-3 rounded-lg font-semibold text-body-lg transition-opacity" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
+                <button @click="confirmStop()" :class="{'btn-loading': isLoading}" class="flex-1 py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity" style="background: var(--color-success);">
                     <span x-text="isLoading ? 'Finalizando...' : 'Confirmar'"></span>
                 </button>
             </div>
@@ -506,66 +497,53 @@
     </div>
 
     <!-- Edit Route Modal -->
-    <div x-show="showEditModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-        x-transition.opacity x-cloak>
-        <div class="bg-white w-full max-w-md rounded-xl surface shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
-            @click.away="showEditModal = false">
-
-            <div class="bg-blue-50 p-6 text-center border-b border-blue-100 shrink-0">
-                <div class="w-16 h-16 bg-blue-900 rounded-xl flex items-center justify-center mx-auto mb-3 text-white">
-                    <i data-lucide="pencil" class="w-8 h-8"></i>
+    <div x-show="showEditModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" x-transition.opacity x-cloak>
+        <div class="w-full max-w-md rounded-lg flex flex-col max-h-[90vh] overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);" @click.away="showEditModal = false">
+            <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
+                <div class="icon-wrap w-12 h-12 flex-shrink-0"><i data-lucide="pencil" class="w-6 h-6"></i></div>
+                <div class="flex-1 min-w-0">
+                    <h3 class="text-title" style="color: var(--color-text);">Editar Separação</h3>
+                    <p class="text-caption-lg mt-0.5 truncate" x-text="selectedRoute?.client_name"></p>
                 </div>
-                <h3 class="text-xl font-bold text-blue-900">Editar Separação</h3>
-                <p class="text-slate-600 text-sm" x-text="selectedRoute?.client_name"></p>
             </div>
-
-            <div class="p-6 space-y-6 overflow-y-auto custom-scrollbar">
-                <!-- Change Client Search -->
+            <div class="p-4 space-y-4 overflow-y-auto custom-scrollbar">
                 <div>
-                    <label class="text-xs text-slate-600 font-semibold uppercase tracking-wider mb-2 block">Alterar Cliente (Opcional)</label>
+                    <label class="text-section block mb-2" style="color: var(--color-text);">Alterar Cliente (Opcional)</label>
                     <div class="relative">
-                        <i data-lucide="search" class="absolute left-4 top-3.5 w-5 h-5 text-slate-400"></i>
+                        <i data-lucide="search" class="absolute left-4 top-3.5 w-5 h-5" style="color: var(--color-text-muted);"></i>
                         <input type="text" x-model="editSearch" placeholder="Buscar novo cliente..."
-                            class="w-full bg-white border-2 border-slate-200 rounded-lg pl-12 pr-4 py-3 text-blue-900 focus:border-blue-900 focus:ring-4 focus:ring-blue-100 outline-none">
+                            class="w-full rounded-lg pl-12 pr-4 py-3 border-2 text-body-lg focus:outline-none focus:ring-2 transition-colors"
+                            style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
                     </div>
-                    <!-- Results -->
-                    <div class="mt-2 max-h-40 overflow-y-auto custom-scrollbar space-y-1"
-                        x-show="editSearch.length > 0">
+                    <div class="mt-2 max-h-40 overflow-y-auto custom-scrollbar space-y-1" x-show="editSearch.length > 0">
                         <template x-for="client in filteredEditClients" :key="client.id">
                             <button @click="selectEditClient(client)"
-                                class="w-full text-left p-3 rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-between"
-                                :class="{'bg-blue-50 border-2 border-blue-900': editForm.client_id === client.id}">
-                                <span class="text-blue-900 text-sm font-medium" x-text="client.name"></span>
-                                <i data-lucide="check" class="w-4 h-4 text-blue-900"
-                                    x-show="editForm.client_id === client.id"></i>
+                                class="w-full text-left p-3 rounded-lg flex items-center justify-between transition-colors"
+                                :style="editForm.client_id === client.id ? 'background: var(--color-primary-bg); border: 2px solid var(--color-primary); color: var(--color-primary);' : 'background: transparent;'">
+                                <span class="text-body font-medium" x-text="client.name" :style="editForm.client_id === client.id ? 'color: var(--color-primary);' : 'color: var(--color-text);'"></span>
+                                <i data-lucide="check" class="w-4 h-4" x-show="editForm.client_id === client.id" style="color: var(--color-primary);"></i>
                             </button>
                         </template>
                     </div>
-                    <div x-show="editForm.client_name"
-                        class="mt-2 text-sm text-green-700 flex items-center gap-2 bg-green-50 p-2 rounded-lg border border-green-200">
+                    <div x-show="editForm.client_name" class="mt-2 text-body flex items-center gap-2 p-2 rounded-lg" style="background: var(--color-success-bg); color: var(--color-success);">
                         <i data-lucide="check-circle" class="w-4 h-4"></i>
                         <span x-text="'Novo cliente: ' + editForm.client_name"></span>
                     </div>
                 </div>
-
-                <!-- Change Weight -->
                 <div>
-                    <label class="text-xs text-slate-600 font-semibold uppercase tracking-wider mb-2 block">Peso Total (Kg)</label>
+                    <label class="text-section block mb-2" style="color: var(--color-text);">Peso Total (Kg)</label>
                     <div class="relative">
                         <input type="tel" inputmode="numeric" x-model="editForm.weightInput"
                             @input="let v = $event.target.value.replace(/\D/g,''); if(!v) v='0'; editForm.weightInput = (parseInt(v)/100).toLocaleString('pt-BR', {minimumFractionDigits: 2});"
-                            class="w-full bg-white border-2 border-slate-200 rounded-lg px-4 py-3 text-blue-900 text-lg font-mono focus:border-blue-900 focus:ring-4 focus:ring-blue-100 outline-none">
-                        <span class="absolute right-4 top-3.5 text-slate-500 font-medium">kg</span>
+                            class="w-full rounded-lg px-4 py-3 border-2 text-body-lg font-mono focus:outline-none focus:ring-2 transition-colors"
+                            style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                        <span class="absolute right-4 top-3.5 text-body font-medium" style="color: var(--color-text-muted);">kg</span>
                     </div>
                 </div>
             </div>
-
-            <div class="p-6 border-t border-slate-100 bg-slate-50 flex gap-3">
-                <button @click="showEditModal = false"
-                    class="flex-1 py-3 bg-white border-2 border-slate-200 text-blue-900 rounded-xl font-semibold hover:bg-slate-100">Cancelar</button>
-                <button @click="confirmEdit()" :class="{'btn-loading': isLoading}"
-                    class="flex-1 py-3 bg-blue-900 text-white rounded-xl font-bold shadow-lg shadow-blue-900/20">
+            <div class="p-4 border-t flex gap-3 shrink-0" style="border-color: var(--color-border);">
+                <button @click="showEditModal = false" class="flex-1 py-3 rounded-lg font-semibold text-body-lg transition-opacity" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
+                <button @click="confirmEdit()" :class="{'btn-loading': isLoading}" class="flex-1 py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity" style="background: var(--color-primary);">
                     <span x-text="isLoading ? 'Salvando...' : 'Salvar'"></span>
                 </button>
             </div>
@@ -573,137 +551,112 @@
     </div>
 
     <!-- Delete Route Modal -->
-    <div x-show="showDeleteModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-        x-transition.opacity x-cloak>
-        <div class="bg-white w-full max-w-sm rounded-xl surface shadow-2xl text-center p-6"
-            @click.away="showDeleteModal = false">
-
-            <i data-lucide="trash-2" class="w-12 h-12 text-red-600 mx-auto mb-4"></i>
-
-            <h3 class="text-xl font-bold text-blue-900 mb-2">Excluir Separação?</h3>
-            <p class="text-slate-600 text-sm mb-6">Esta ação não pode ser desfeita. Digite sua matrícula para confirmar.</p>
-
-            <div class="mb-6">
-                <input type="tel" x-model="deleteConfirmation" placeholder="Sua Matrícula"
-                    class="w-full bg-white border-2 border-slate-200 rounded-lg px-4 py-3 text-blue-900 text-center text-lg focus:border-red-600 focus:ring-4 focus:ring-red-100 outline-none">
+    <div x-show="showDeleteModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" x-transition.opacity x-cloak>
+        <div class="w-full max-w-sm rounded-lg flex flex-col overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);" @click.away="showDeleteModal = false">
+            <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
+                <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center" style="background: var(--color-danger-bg); color: var(--color-danger);">
+                    <i data-lucide="trash-2" class="w-6 h-6"></i>
+                </div>
+                <div class="flex-1 text-left">
+                    <h3 class="text-title" style="color: var(--color-text);">Excluir Separação?</h3>
+                    <p class="text-caption-lg mt-0.5">Esta ação não pode ser desfeita.</p>
+                </div>
             </div>
-
-            <div class="space-y-3">
-                <button @click="confirmDelete()" :class="{'btn-loading': isLoading}" :disabled="!deleteConfirmation"
-                    class="w-full py-3 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl font-bold shadow-lg shadow-red-600/25 transition-all">
-                    <span x-text="isLoading ? 'Excluindo...' : 'Confirmar Exclusão'"></span>
-                </button>
-                <button @click="showDeleteModal = false"
-                    class="w-full py-3 bg-slate-100 text-blue-900 rounded-xl font-semibold hover:bg-slate-200">Cancelar</button>
+            <div class="p-4 space-y-4">
+                <div>
+                    <label class="text-section block mb-2" style="color: var(--color-text);">Digite sua matrícula para confirmar</label>
+                    <input type="tel" x-model="deleteConfirmation" placeholder="Sua Matrícula"
+                        class="w-full rounded-lg px-4 py-3 border-2 text-body-lg text-center focus:outline-none focus:ring-2 transition-colors"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                </div>
+                <div class="flex gap-3">
+                    <button @click="showDeleteModal = false" class="flex-1 py-3 rounded-lg font-semibold text-body-lg transition-opacity" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
+                    <button @click="confirmDelete()" :class="{'btn-loading': isLoading}" :disabled="!deleteConfirmation"
+                        class="flex-1 py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity disabled:opacity-50"
+                        style="background: var(--color-danger);">
+                        <span x-text="isLoading ? 'Excluindo...' : 'Confirmar'"></span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Admin Start Modal -->
-    <div x-show="showAdminStartModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-        x-transition.opacity x-cloak>
-        <div class="bg-white w-full max-w-sm rounded-xl surface shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
-            @click.away="showAdminStartModal = false">
-
-            <!-- Header -->
-            <div class="bg-blue-50 p-6 text-center border-b border-blue-100 shrink-0">
-                <div class="w-16 h-16 bg-blue-900 rounded-xl flex items-center justify-center mx-auto mb-3 text-white">
-                    <i data-lucide="users" class="w-8 h-8"></i>
+    <div x-show="showAdminStartModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" x-transition.opacity x-cloak>
+        <div class="w-full max-w-sm rounded-lg flex flex-col max-h-[90vh] overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);" @click.away="showAdminStartModal = false">
+            <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
+                <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center" style="background: var(--color-primary); color: white;">
+                    <i data-lucide="users" class="w-6 h-6"></i>
                 </div>
-                <h3 class="text-xl font-bold text-blue-900">Abertura Manual (Líder)</h3>
-                <p class="text-sm text-slate-600">Iniciar rota para outro colaborador</p>
+                <div class="flex-1 min-w-0">
+                    <h3 class="text-title" style="color: var(--color-text);">Abertura Manual (Líder)</h3>
+                    <p class="text-caption-lg mt-0.5">Iniciar rota para outro colaborador</p>
+                </div>
             </div>
-
-            <!-- Body -->
-            <div class="p-6 space-y-6 overflow-y-auto custom-scrollbar">
-                <!-- Employee Search -->
+            <div class="p-4 space-y-4 overflow-y-auto custom-scrollbar">
                 <div>
-                    <label class="text-xs text-slate-600 font-semibold uppercase tracking-wider mb-2 block">
-                        Colaborador
-                    </label>
+                    <label class="text-section block mb-2" style="color: var(--color-text);">Colaborador</label>
                     <div class="relative">
-                        <i data-lucide="user" class="absolute left-4 top-3.5 w-5 h-5 text-slate-400"></i>
-                        <input type="text" x-model="adminStartForm.employeeSearch"
-                            placeholder="Buscar por Nome ou Matrícula..."
-                            class="w-full bg-white border-2 border-slate-200 rounded-lg pl-12 pr-4 py-3 text-blue-900 focus:border-blue-900 focus:ring-4 focus:ring-blue-100 outline-none">
+                        <i data-lucide="user" class="absolute left-4 top-3.5 w-5 h-5" style="color: var(--color-text-muted);"></i>
+                        <input type="text" x-model="adminStartForm.employeeSearch" placeholder="Buscar por Nome ou Matrícula..."
+                            class="w-full rounded-lg pl-12 pr-4 py-3 border-2 text-body-lg focus:outline-none focus:ring-2 transition-colors"
+                            style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
                     </div>
-                    <!-- Results -->
-                    <div class="mt-2 max-h-40 overflow-y-auto custom-scrollbar space-y-1"
-                        x-show="adminStartForm.employeeSearch.length > 0">
+                    <div class="mt-2 max-h-40 overflow-y-auto custom-scrollbar space-y-1" x-show="adminStartForm.employeeSearch.length > 0">
                         <template x-for="emp in filteredAdminStartEmployees" :key="emp.id">
                             <button @click="selectAdminStartEmployee(emp)"
-                                class="w-full text-left p-3 rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-between"
-                                :class="{'bg-blue-50 border-2 border-blue-900': adminStartForm.registrationId === emp.registration_id}">
+                                class="w-full text-left p-3 rounded-lg flex items-center justify-between transition-colors"
+                                :style="adminStartForm.registrationId === emp.registration_id ? 'background: var(--color-primary-bg); border: 2px solid var(--color-primary);' : ''">
                                 <div>
-                                    <p class="text-blue-900 text-sm font-medium" x-text="emp.name"></p>
-                                    <p class="text-xs text-slate-500" x-text="emp.registration_id"></p>
+                                    <p class="text-body font-medium" x-text="emp.name" :style="adminStartForm.registrationId === emp.registration_id ? 'color: var(--color-primary);' : 'color: var(--color-text);'"></p>
+                                    <p class="text-caption" x-text="emp.registration_id"></p>
                                 </div>
-                                <i data-lucide="check" class="w-4 h-4 text-blue-900"
-                                    x-show="adminStartForm.registrationId === emp.registration_id"></i>
+                                <i data-lucide="check" class="w-4 h-4" x-show="adminStartForm.registrationId === emp.registration_id" style="color: var(--color-primary);"></i>
                             </button>
                         </template>
                     </div>
-                    <div x-show="adminStartForm.employee_name"
-                        class="mt-2 text-sm text-green-700 flex items-center gap-2 bg-green-50 p-2 rounded-lg border border-green-200">
+                    <div x-show="adminStartForm.employee_name" class="mt-2 text-body flex items-center gap-2 p-2 rounded-lg" style="background: var(--color-success-bg); color: var(--color-success);">
                         <i data-lucide="check-circle" class="w-4 h-4"></i>
                         <span x-text="adminStartForm.employee_name + ' (' + adminStartForm.registrationId + ')'"></span>
                     </div>
                 </div>
-
-                <!-- Client Search -->
                 <div>
-                    <label class="text-xs text-slate-600 font-semibold uppercase tracking-wider mb-2 block">
-                        Cliente
-                    </label>
+                    <label class="text-section block mb-2" style="color: var(--color-text);">Cliente</label>
                     <div class="relative">
-                        <i data-lucide="search" class="absolute left-4 top-3.5 w-5 h-5 text-slate-400"></i>
+                        <i data-lucide="search" class="absolute left-4 top-3.5 w-5 h-5" style="color: var(--color-text-muted);"></i>
                         <input type="text" x-model="adminStartForm.clientSearch" placeholder="Buscar cliente..."
-                            class="w-full bg-white border-2 border-slate-200 rounded-lg pl-12 pr-4 py-3 text-blue-900 focus:border-blue-900 focus:ring-4 focus:ring-blue-100 outline-none">
+                            class="w-full rounded-lg pl-12 pr-4 py-3 border-2 text-body-lg focus:outline-none focus:ring-2 transition-colors"
+                            style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
                     </div>
-                    <!-- Results -->
-                    <div class="mt-2 max-h-40 overflow-y-auto custom-scrollbar space-y-1"
-                        x-show="adminStartForm.clientSearch.length > 0">
+                    <div class="mt-2 max-h-40 overflow-y-auto custom-scrollbar space-y-1" x-show="adminStartForm.clientSearch.length > 0">
                         <template x-for="client in filteredAdminStartClients" :key="client.id">
                             <button @click="selectAdminStartClient(client)"
-                                class="w-full text-left p-3 rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-between"
-                                :class="{'bg-blue-50 border-2 border-blue-900': adminStartForm.client_id === client.id}">
-                                <span class="text-blue-900 text-sm font-medium" x-text="client.name"></span>
-                                <i data-lucide="check" class="w-4 h-4 text-blue-900"
-                                    x-show="adminStartForm.client_id === client.id"></i>
+                                class="w-full text-left p-3 rounded-lg flex items-center justify-between transition-colors"
+                                :style="adminStartForm.client_id === client.id ? 'background: var(--color-primary-bg); border: 2px solid var(--color-primary);' : ''">
+                                <span class="text-body font-medium" x-text="client.name" :style="adminStartForm.client_id === client.id ? 'color: var(--color-primary);' : 'color: var(--color-text);'"></span>
+                                <i data-lucide="check" class="w-4 h-4" x-show="adminStartForm.client_id === client.id" style="color: var(--color-primary);"></i>
                             </button>
                         </template>
                     </div>
-                    <div x-show="adminStartForm.client_name"
-                        class="mt-2 text-sm text-green-700 flex items-center gap-2 bg-green-50 p-2 rounded-lg border border-green-200">
+                    <div x-show="adminStartForm.client_name" class="mt-2 text-body flex items-center gap-2 p-2 rounded-lg" style="background: var(--color-success-bg); color: var(--color-success);">
                         <i data-lucide="check-circle" class="w-4 h-4"></i>
                         <span x-text="adminStartForm.client_name"></span>
                     </div>
                 </div>
-
-                <!-- Weight -->
                 <div>
-                    <label class="text-xs text-slate-600 font-semibold uppercase tracking-wider mb-2 block">
-                        Peso (Kg)
-                    </label>
+                    <label class="text-section block mb-2" style="color: var(--color-text);">Peso (Kg)</label>
                     <div class="relative">
                         <input type="tel" inputmode="numeric" x-model="adminStartForm.weightInput"
                             @input="let v = $event.target.value.replace(/\D/g,''); if(!v) v='0'; adminStartForm.weightInput = (parseInt(v)/100).toLocaleString('pt-BR', {minimumFractionDigits: 2});"
-                            class="w-full bg-white border-2 border-slate-200 rounded-lg px-4 py-3 text-blue-900 text-lg font-mono focus:border-blue-900 focus:ring-4 focus:ring-blue-100 outline-none">
-                        <span class="absolute right-4 top-3.5 text-slate-500 font-medium">kg</span>
+                            class="w-full rounded-lg px-4 py-3 border-2 text-body-lg font-mono focus:outline-none focus:ring-2 transition-colors"
+                            style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                        <span class="absolute right-4 top-3.5 font-medium" style="color: var(--color-text-muted);">kg</span>
                     </div>
                 </div>
             </div>
-
-            <!-- Footer -->
-            <div class="p-6 border-t border-slate-100 bg-slate-50 flex gap-3 shrink-0">
-                <button @click="showAdminStartModal = false"
-                    class="flex-1 py-3 bg-white border-2 border-slate-200 text-blue-900 rounded-xl font-semibold hover:bg-slate-100 transition-colors">
-                    Cancelar
-                </button>
-                <button @click="confirmAdminStart()" :class="{'btn-loading': isLoading}"
-                    class="flex-1 py-3 bg-blue-900 text-white rounded-xl font-bold hover:bg-blue-800 shadow-lg shadow-blue-900/20 transition-all">
+            <div class="p-4 border-t flex gap-3 shrink-0" style="border-color: var(--color-border);">
+                <button @click="showAdminStartModal = false" class="flex-1 py-3 rounded-lg font-semibold text-body-lg transition-opacity" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
+                <button @click="confirmAdminStart()" :class="{'btn-loading': isLoading}" class="flex-1 py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity" style="background: var(--color-primary);">
                     <span x-text="isLoading ? 'Iniciando...' : 'Iniciar'"></span>
                 </button>
             </div>
@@ -711,239 +664,130 @@
     </div>
 
     <!-- End Day Modal -->
-    <div x-show="showEndDayModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-        x-transition.opacity x-cloak>
-        <div class="bg-white w-full max-w-sm rounded-xl surface shadow-2xl p-8 text-center">
-            
-            <div class="w-16 h-16 bg-red-50 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <i data-lucide="alert-triangle" class="w-8 h-8 text-red-600 animate-bounce"></i>
+    <div x-show="showEndDayModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" x-transition.opacity x-cloak>
+        <div class="w-full max-w-sm rounded-lg flex flex-col overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);" @click.away="showEndDayModal = false">
+            <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
+                <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center" style="background: var(--color-danger-bg); color: var(--color-danger);">
+                    <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                </div>
+                <div class="flex-1 text-left">
+                    <h3 class="text-title" style="color: var(--color-text);">Encerrar Expediente?</h3>
+                    <p class="text-caption-lg mt-0.5">Isso fechará todas as rotas pendentes e registrará seu horário de saída.</p>
+                </div>
             </div>
-
-            <h3 class="text-2xl font-bold text-blue-900 mb-2">Encerrar Expediente?</h3>
-            <p class="text-slate-600 text-sm mb-8">
-                Isso fechará todas as rotas pendentes e registrará seu horário de saída.
-            </p>
-
-            <div class="space-y-3">
-                <button @click="endDay()"
-                    class="w-full py-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-lg shadow-lg shadow-red-600/25 transition-all active:scale-95 flex items-center justify-center gap-2">
-                    <i data-lucide="power" class="w-5 h-5 fill-current"></i>
-                    Encerrar Agora
+            <div class="p-4 flex flex-col gap-3">
+                <button @click="endDay()" class="w-full py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity flex items-center justify-center gap-2" style="background: var(--color-danger);">
+                    <i data-lucide="power" class="w-5 h-5 fill-current"></i> Encerrar Agora
                 </button>
-
-                <button @click="showEndDayModal = false"
-                    class="w-full py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-blue-900 font-semibold transition-colors">
-                    Voltar ao Trabalho
-                </button>
+                <button @click="showEndDayModal = false" class="w-full py-3 rounded-lg font-semibold text-body-lg transition-opacity" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Voltar ao Trabalho</button>
             </div>
         </div>
     </div>
 
     <!-- Evaluation Modal (Placeholder) -->
-    <div x-show="showEvaluation"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-        x-transition.opacity x-cloak>
-        <div class="bg-white w-full max-w-sm rounded-xl surface shadow-2xl p-8 text-center"
-            @click.away="showEvaluation = false">
-
-            <div class="w-16 h-16 bg-blue-50 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <i data-lucide="construction" class="w-8 h-8 text-blue-600"></i>
+    <div x-show="showEvaluation" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" x-transition.opacity x-cloak>
+        <div class="w-full max-w-sm rounded-lg flex flex-col overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);" @click.away="showEvaluation = false">
+            <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
+                <div class="icon-wrap w-12 h-12 flex-shrink-0"><i data-lucide="construction" class="w-6 h-6"></i></div>
+                <div class="flex-1">
+                    <h3 class="text-title" style="color: var(--color-text);">Em Breve</h3>
+                    <p class="text-caption-lg mt-0.5">O módulo de avaliação estará disponível em breve.</p>
+                </div>
             </div>
-
-            <h3 class="text-xl font-bold text-blue-900 mb-2">Em Breve</h3>
-            <p class="text-slate-600 text-sm mb-6">
-                O módulo de avaliação de desempenho estará disponível na próxima atualização.
-            </p>
-
-            <button @click="showEvaluation = false"
-                class="w-full py-3 rounded-xl bg-blue-900 hover:bg-blue-800 text-white font-bold shadow-lg shadow-blue-900/20 transition-all">
-                Entendi
-            </button>
+            <div class="p-4">
+                <button @click="showEvaluation = false" class="w-full py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity" style="background: var(--color-primary);">Entendi</button>
+            </div>
         </div>
     </div>
 
 <!-- XP Explanation Modal -->
-<div x-show="showHelpModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-    x-transition.opacity x-cloak>
-    <div class="bg-white w-full max-w-sm rounded-xl surface shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
-        @click.away="showHelpModal = false">
-
-        <!-- Header -->
-        <div class="bg-yellow-50 p-6 text-center border-b border-yellow-100 shrink-0">
-            <div class="w-16 h-16 bg-gradient-to-tr from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-yellow-500/20">
-                <i data-lucide="lightbulb" class="w-8 h-8 text-white"></i>
+<div x-show="showHelpModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" x-transition.opacity x-cloak>
+    <div class="w-full max-w-sm rounded-lg flex flex-col max-h-[85vh] overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);" @click.away="showHelpModal = false">
+        <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
+            <div class="icon-wrap w-12 h-12 flex-shrink-0"><i data-lucide="lightbulb" class="w-6 h-6"></i></div>
+            <div class="flex-1">
+                <h3 class="text-title" style="color: var(--color-text);">Segredos do XP</h3>
+                <p class="text-caption-lg mt-0.5">Como subir de nível mais rápido</p>
             </div>
-            <h3 class="text-xl font-bold text-blue-900">Segredos do XP</h3>
-            <p class="text-sm text-slate-600">Entenda como subir de nível mais rápido!</p>
         </div>
-
-        <!-- Content -->
-        <div class="p-6 overflow-y-auto space-y-4 custom-scrollbar">
-
-            <!-- Cards -->
-            <div class="surface p-4 border-l-4 border-blue-600 relative overflow-hidden">
-                <div>
-                    <h4 class="text-blue-900 font-bold text-sm mb-2 flex items-center gap-2">
-                        <i data-lucide="truck" class="w-4 h-4"></i> Produção
-                    </h4>
-                    <p class="text-slate-700 text-xs leading-relaxed">
-                        <strong class="text-blue-900">Peso + Velocidade = XP</strong><br>
-                        Não adianta só pegar peso!
-                        <span class="block mt-2 pl-3 border-l-2 border-slate-200 text-slate-600 italic text-[11px]">
-                            1000kg em 30min = <span class="text-green-600 font-semibold">Muito XP 🚀</span><br>
-                            1000kg em 2h = <span class="text-red-600 font-semibold">Pouco XP 🐢</span>
-                        </span>
-                    </p>
-                </div>
+        <div class="p-4 overflow-y-auto space-y-3 custom-scrollbar">
+            <div class="surface p-4">
+                <h4 class="text-section mb-2 flex items-center gap-2" style="color: var(--color-text);"><i data-lucide="truck" class="w-4 h-4"></i> Produção</h4>
+                <p class="text-body">Peso + Velocidade = XP. 1000kg em 30min = muito XP. 1000kg em 2h = pouco XP.</p>
             </div>
-
-            <div class="surface p-4 border-l-4 border-red-600 relative overflow-hidden">
-                <div>
-                    <h4 class="text-red-600 font-bold text-sm mb-2 flex items-center gap-2">
-                        <i data-lucide="alert-triangle" class="w-4 h-4"></i> Cuidado com Faltas!
-                    </h4>
-                    <p class="text-slate-700 text-xs leading-relaxed">
-                        Faltas injustificadas tiram pontos na hora!
-                        Isso pode <strong class="text-red-600">travar seu nível</strong> e diminuir seus ganhos.
-                    </p>
-                </div>
+            <div class="surface p-4">
+                <h4 class="text-section mb-2 flex items-center gap-2" style="color: var(--color-text);"><i data-lucide="alert-triangle" class="w-4 h-4"></i> Faltas</h4>
+                <p class="text-body">Faltas injustificadas tiram pontos e podem travar seu nível.</p>
             </div>
-
-            <div class="surface p-4 border-l-4 border-purple-600 relative overflow-hidden">
-                <div>
-                    <h4 class="text-purple-600 font-bold text-sm mb-2 flex items-center gap-2">
-                        <i data-lucide="crown" class="w-4 h-4"></i> Tempo de Casa
-                    </h4>
-                    <p class="text-slate-700 text-xs leading-relaxed">
-                        Sua lealdade vale ouro. Você ganha um <strong class="text-purple-600">bônus fixo diário</strong>
-                        por cada ano completo de empresa.
-                    </p>
-                </div>
+            <div class="surface p-4">
+                <h4 class="text-section mb-2 flex items-center gap-2" style="color: var(--color-text);"><i data-lucide="crown" class="w-4 h-4"></i> Tempo de Casa</h4>
+                <p class="text-body">Bônus fixo diário por cada ano completo de empresa.</p>
             </div>
-
         </div>
-
-        <!-- Footer -->
-        <div class="p-6 border-t border-slate-100 shrink-0">
-            <button @click="showHelpModal = false"
-                class="w-full py-3 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-white font-bold shadow-lg shadow-yellow-500/20 transition-all active:scale-95">
-                Saquei! 👍
-            </button>
+        <div class="p-4 border-t shrink-0" style="border-color: var(--color-border);">
+            <button @click="showHelpModal = false" class="w-full py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity" style="background: var(--color-primary);">Saquei! 👍</button>
         </div>
     </div>
 </div>
 
 <!-- Delivery Setup Modal -->
-<div x-show="showDeliverySetupModal" 
-    class="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" 
-    x-transition.opacity x-cloak
-    @click.self="showDeliverySetupModal = false">
-    <div @click.stop 
-        class="bg-white w-full max-w-lg rounded-xl surface shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        
-        <!-- Header -->
-        <div class="bg-blue-50 p-6 text-center border-b border-blue-100 shrink-0">
-            <div class="w-16 h-16 bg-blue-900 rounded-xl flex items-center justify-center mx-auto mb-3 text-white">
-                <i data-lucide="truck" class="w-8 h-8"></i>
+<div x-show="showDeliverySetupModal" class="fixed inset-0 z-[120] flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" x-transition.opacity x-cloak @click.self="showDeliverySetupModal = false">
+    <div @click.stop class="w-full max-w-lg rounded-lg flex flex-col max-h-[90vh] overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
+        <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
+            <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center" style="background: var(--color-primary); color: white;">
+                <i data-lucide="truck" class="w-6 h-6"></i>
             </div>
-            <h3 class="text-xl font-bold text-blue-900">Iniciar Entregas</h3>
-            <p class="text-sm text-slate-600">Preencha os campos obrigatórios para começar</p>
+            <div class="flex-1">
+                <h3 class="text-title" style="color: var(--color-text);">Iniciar Entregas</h3>
+                <p class="text-caption-lg mt-0.5">Placa e KM de saída obrigatórios</p>
+            </div>
         </div>
-
-        <!-- Body -->
-        <div class="p-6 space-y-4 overflow-y-auto custom-scrollbar">
-            <div class="rounded-lg border-2 border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
-                <strong>📋</strong> Placa do caminhão + KM de saída são obrigatórios. Ajudantes é opcional.
-            </div>
-            
-            <div x-show="deliverySetupError" 
-                class="rounded-lg border-2 border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900 flex items-center gap-2" 
-                x-text="deliverySetupError">
-            </div>
-            
-            <!-- Placa -->
+        <div class="p-4 space-y-4 overflow-y-auto custom-scrollbar">
+            <div class="rounded-lg p-3 text-body" style="background: var(--color-primary-bg); border: 1px solid var(--color-primary-border); color: var(--color-text);">Placa + KM de saída obrigatórios. Ajudantes opcional.</div>
+            <div x-show="deliverySetupError" class="rounded-lg px-3 py-2 text-body flex items-center gap-2" style="background: var(--color-danger-bg); color: var(--color-danger);" x-text="deliverySetupError"></div>
             <div>
-                <label class="text-xs text-slate-600 font-semibold uppercase tracking-wider mb-2 block">
-                    Placa <span class="text-red-600">*</span>
-                </label>
-                <input type="text" 
-                    x-ref="deliveryPlateInput" 
-                    x-model="deliverySetup.plate" 
-                    @input="normalizePlateInput()"
-                    placeholder="ABC1D23" 
-                    class="w-full bg-white border-2 border-slate-200 rounded-lg px-4 py-3 text-blue-900 text-base uppercase font-mono focus:border-blue-900 focus:ring-4 focus:ring-blue-100 outline-none">
+                <label class="text-section block mb-2" style="color: var(--color-text);">Placa *</label>
+                <input type="text" x-ref="deliveryPlateInput" x-model="deliverySetup.plate" @input="normalizePlateInput()" placeholder="ABC1D23"
+                    class="w-full rounded-lg px-4 py-3 border-2 text-body-lg uppercase font-mono focus:outline-none focus:ring-2 transition-colors"
+                    style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
             </div>
-            
-            <!-- KM -->
             <div>
-                <label class="text-xs text-slate-600 font-semibold uppercase tracking-wider mb-2 block">
-                    KM de saída <span class="text-red-600">*</span>
-                </label>
-                <input type="number" 
-                    inputmode="decimal" 
-                    step="0.1" 
-                    min="0" 
-                    x-model="deliverySetup.km_departure"
-                    placeholder="Ex.: 125430,5" 
-                    class="w-full bg-white border-2 border-slate-200 rounded-lg px-4 py-3 text-blue-900 text-base font-mono focus:border-blue-900 focus:ring-4 focus:ring-blue-100 outline-none">
+                <label class="text-section block mb-2" style="color: var(--color-text);">KM de saída *</label>
+                <input type="number" inputmode="decimal" step="0.1" min="0" x-model="deliverySetup.km_departure" placeholder="Ex.: 125430,5"
+                    class="w-full rounded-lg px-4 py-3 border-2 text-body-lg font-mono focus:outline-none focus:ring-2 transition-colors"
+                    style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
             </div>
-            
-            <!-- Ajudantes -->
             <div>
-                <label class="text-xs text-slate-600 font-semibold uppercase tracking-wider mb-2 block">
-                    Ajudantes (opcional)
-                </label>
+                <label class="text-section block mb-2" style="color: var(--color-text);">Ajudantes (opcional)</label>
                 <div class="relative flex gap-2">
-                    <input type="text" 
-                        x-model="deliverySetup.helperInput" 
-                        @keydown.enter.prevent="addDeliveryHelperFromInput()"
-                        placeholder="Digite o nome e pressione Enter" 
-                        autocomplete="off"
-                        class="flex-1 bg-white border-2 border-slate-200 rounded-lg px-3 py-3 text-blue-900 text-sm focus:border-blue-900 focus:ring-4 focus:ring-blue-100 outline-none">
-                    <button type="button" 
-                        @click="addDeliveryHelperFromInput()" 
-                        class="px-4 py-3 bg-blue-900 text-white rounded-lg text-sm font-bold hover:bg-blue-800 transition-colors">
+                    <input type="text" x-model="deliverySetup.helperInput" @keydown.enter.prevent="addDeliveryHelperFromInput()" placeholder="Digite e Enter" autocomplete="off"
+                        class="flex-1 rounded-lg px-3 py-3 border-2 text-body focus:outline-none focus:ring-2 transition-colors"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                    <button type="button" @click="addDeliveryHelperFromInput()" class="px-4 py-3 rounded-lg text-body font-semibold text-white transition-opacity" style="background: var(--color-primary);">
                         <i data-lucide="plus" class="w-4 h-4"></i>
                     </button>
-                    <div x-show="filteredHelperOptions.length > 0"
-                        class="absolute left-0 right-16 top-full mt-1 max-h-44 overflow-y-auto rounded-lg border-2 border-slate-200 bg-white shadow-xl z-10">
+                    <div x-show="filteredHelperOptions.length > 0" class="absolute left-0 right-16 top-full mt-1 max-h-44 overflow-y-auto rounded-lg border-2 z-10" style="border-color: var(--color-border); background: var(--color-surface);">
                         <template x-for="emp in filteredHelperOptions" :key="`helper-suggest-${emp.id}`">
-                            <button type="button" 
-                                @click="selectDeliveryHelperName(emp.name)"
-                                class="w-full text-left px-3 py-2 text-xs text-blue-900 hover:bg-blue-50 transition-colors">
+                            <button type="button" @click="selectDeliveryHelperName(emp.name)" class="w-full text-left px-3 py-2 text-body transition-colors" style="color: var(--color-text);">
                                 <span x-text="emp.name"></span>
                             </button>
                         </template>
                     </div>
                 </div>
-                
-                <!-- Tags dos ajudantes -->
                 <div class="mt-2 flex flex-wrap gap-1.5" x-show="deliverySetup.helpers.length > 0">
                     <template x-for="(helper, idx) in deliverySetup.helpers" :key="`helper-tag-${idx}-${helper}`">
-                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border-2 border-blue-200 bg-blue-50 text-blue-900 text-xs font-semibold">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-body font-medium" style="background: var(--color-primary-bg); border: 1px solid var(--color-primary-border); color: var(--color-primary);">
                             <i data-lucide="user" class="w-3 h-3"></i>
                             <span x-text="helper"></span>
-                            <button type="button" 
-                                @click="removeDeliveryHelper(idx)" 
-                                class="ml-1 text-blue-700 hover:text-blue-900 font-bold">×</button>
+                            <button type="button" @click="removeDeliveryHelper(idx)" class="ml-1 font-bold" style="color: var(--color-primary);">×</button>
                         </span>
                     </template>
                 </div>
-                <p class="mt-2 text-[10px] text-slate-500">💡 Não adicione nomes duplicados</p>
             </div>
         </div>
-
-        <!-- Footer -->
-        <div class="p-6 border-t border-slate-100 bg-slate-50 flex gap-3 shrink-0">
-            <button @click="showDeliverySetupModal=false" 
-                class="flex-1 py-3 bg-white border-2 border-slate-200 text-blue-900 rounded-xl font-semibold hover:bg-slate-100 transition-colors">
-                Cancelar
-            </button>
-            <button @click="startDeliverySession()" 
-                class="flex-1 py-3 bg-blue-900 text-white rounded-xl font-bold hover:bg-blue-800 shadow-lg shadow-blue-900/20 transition-all">
-                Iniciar agora
-            </button>
+        <div class="p-4 border-t flex gap-3 shrink-0" style="border-color: var(--color-border);">
+            <button @click="showDeliverySetupModal=false" class="flex-1 py-3 rounded-lg font-semibold text-body-lg transition-opacity" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
+            <button @click="startDeliverySession()" class="flex-1 py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity" style="background: var(--color-primary);">Iniciar agora</button>
         </div>
     </div>
 </div>
