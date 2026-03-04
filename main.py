@@ -398,6 +398,7 @@ async def lifespan(app: FastAPI):
         ensure_checklist_odometer_schema()
         ensure_client_schema()
         ensure_route_schema()
+        ensure_devolucao_route_id()
         # Employee schema compatibility must run before auth/bootstrap queries
         ensure_column(engine, "employee", "mobile_access_admin_start", "BOOLEAN DEFAULT FALSE")
         ensure_column(engine, "employee", "seller_code", "VARCHAR(64)")
@@ -3190,6 +3191,22 @@ def ensure_route_schema():
                     conn.commit()
     except Exception as e:
         logger.error(f"ensure_route_schema: {e}")
+
+
+def ensure_devolucao_route_id():
+    """Adiciona coluna route_id à tabela devolucao para vincular devolução à parada (fechamento automático)."""
+    try:
+        inspector = inspect(engine)
+        tbl = "devolucao"
+        if tbl not in inspector.get_table_names():
+            return
+        cols = {c["name"] for c in inspector.get_columns(tbl)}
+        if "route_id" not in cols:
+            with engine.connect() as conn:
+                conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN route_id INTEGER"))
+                conn.commit()
+    except Exception as e:
+        logger.error(f"ensure_devolucao_route_id: {e}")
 
 
 @app.on_event("startup")
@@ -9137,6 +9154,91 @@ async def reopen_delivery_route(
 
     feedback_encoded = urlencode({"delivery_feedback": "Rotina reaberta com sucesso.", "delivery_feedback_level": "success"})
     return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
+
+
+@app.post("/separacao/delivery/finish-route", response_class=RedirectResponse)
+async def finish_delivery_route(
+    request: Request,
+    date: str = Form(...),
+    shift: str = Form("Manhã"),
+    employee_id: int = Form(...),
+    session: Session = Depends(get_session),
+):
+    """Finaliza rota inteira: paradas com devolução ficam devolução; demais ficam entregue (regra de ouro)."""
+    require_login(request)
+    now = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
+
+    routes = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date == date)
+        .where(models.Route.shift == shift)
+        .where(models.Route.employee_id == employee_id)
+    ).all()
+
+    delivered_count = 0
+    returned_count = 0
+    return_value_total = 0.0
+    total_planned = 0.0
+    route_ids = [r.id for r in routes]
+
+    devolucao_by_route: dict[int, list] = {}
+    if route_ids:
+        devolucoes = session.exec(
+            select(models.Devolucao).where(models.Devolucao.route_id.in_(route_ids))
+        ).all()
+        for d in devolucoes:
+            if d.route_id:
+                devolucao_by_route.setdefault(d.route_id, []).append(d)
+
+    for route in routes:
+        st = (route.delivery_status or "").lower()
+        if st in ("entregue", "devolucao"):
+            continue  # Idempotente: já fechada
+        if st in ("cancelada",):
+            continue
+
+        has_devolucao = (
+            st == "devolucao"
+            or route.valor_devolucao
+            or (route.id and route.id in devolucao_by_route)
+        )
+        total_planned += float(route.valor_financeiro or 0.0)
+
+        if has_devolucao:
+            route.delivery_status = "devolucao"
+            route.status = "completed"
+            returned_count += 1
+            val = float(route.valor_devolucao or route.valor_financeiro or 0.0)
+            if not route.valor_devolucao and route.id and route.id in devolucao_by_route:
+                val = sum(float(d.valor or 0) for d in devolucao_by_route[route.id])
+            route.valor_devolucao = val
+            return_value_total += val
+        else:
+            route.delivery_status = "entregue"
+            route.status = "completed"
+            delivered_count += 1
+
+        route.end_time = now
+        if not route.delivery_finished_at:
+            route.delivery_finished_at = now
+        if has_devolucao and not route.delivery_returned_at:
+            route.delivery_returned_at = now
+        _append_delivery_event(
+            route,
+            "finalizar" if not has_devolucao else "devolucao",
+            now,
+            note="Fechamento automático" if not has_devolucao else "Devolução (fechamento automático)",
+        )
+        session.add(route)
+
+    session.commit()
+    total = delivered_count + returned_count
+    rate = (return_value_total / total_planned * 100) if total_planned else 0.0
+    feedback = f"Rota finalizada: {delivered_count} entregues, {returned_count} devoluções (R$ {return_value_total:,.2f}, {rate:.1f}% dev.)"
+    feedback_encoded = urlencode({"delivery_feedback": feedback, "delivery_feedback_level": "success"})
+    return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
+
 
 @app.post("/separacao/update", response_class=RedirectResponse)
 async def update_separacao(

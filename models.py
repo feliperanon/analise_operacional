@@ -751,6 +751,7 @@ class DevolucaoMotivo(SQLModel, table=True):
 class Devolucao(SQLModel, table=True):
     """Registro de devolução/ocorrência de entrega."""
     id: Optional[int] = Field(default=None, primary_key=True)
+    route_id: Optional[int] = Field(default=None, foreign_key="route.id", index=True)  # Parada vinculada (opcional)
     data_romaneio: str = Field(index=True)  # YYYY-MM-DD
     data_entrega: str = Field(index=True)  # YYYY-MM-DD
     client_id: int = Field(foreign_key="client.id", index=True)
