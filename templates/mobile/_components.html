@@ -10,8 +10,8 @@ Uso: {% from 'mobile/_components.html' import btn_primary, card, list_row, ... %
     {% if id %}id="{{ id }}"{% endif %}
     {% if onclick %}onclick="{{ onclick }}"{% endif %}
     {% if disabled %}disabled{% endif %}
-    class="touch-target interactive flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity {{ classes }}"
-    style="background-color: var(--color-primary);">
+    class="touch-target interactive flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-semibold text-body-lg transition-opacity {{ classes }}"
+    style="background-color: var(--color-primary); color: var(--color-text-inverse);">
     {% if icon %}<i data-lucide="{{ icon }}" class="w-5 h-5"></i>{% endif %}
     <span>{{ text }}</span>
 </button>
@@ -187,8 +187,8 @@ Uso: {% from 'mobile/_components.html' import btn_primary, card, list_row, ... %
 {# Aliases (compatibilidade) #}
 {% macro button_primary(text, onclick='', type='button', id='', classes='', icon='', disabled=false) %}
 <button type="{{ type }}" {% if id %}id="{{ id }}"{% endif %} {% if onclick %}onclick="{{ onclick }}"{% endif %} {% if disabled %}disabled{% endif %}
-    class="touch-target interactive flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity {{ classes }}"
-    style="background-color: var(--color-primary);">
+    class="touch-target interactive flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-semibold text-body-lg transition-opacity {{ classes }}"
+    style="background-color: var(--color-primary); color: var(--color-text-inverse);">
     {% if icon %}<i data-lucide="{{ icon }}" class="w-5 h-5"></i>{% endif %}<span>{{ text }}</span>
 </button>
 {% endmacro %}

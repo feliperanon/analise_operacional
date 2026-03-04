@@ -334,6 +334,55 @@
     else { state.sortKey = key; state.sortDir = 'asc'; }
     renderDrill();
   }));
+
+  function ensureHelpModal() {
+    let modal = document.getElementById('bi-help-modal');
+    if (modal) return modal;
+    modal = document.createElement('div');
+    modal.id = 'bi-help-modal';
+    modal.className = 'hidden fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm items-center justify-center p-4';
+    modal.innerHTML = `
+      <div class="surface-shadow bi-help-card w-full max-w-xl p-5">
+        <div class="flex items-center justify-between gap-3">
+          <h3 id="bi-help-title" class="text-title-lg">Ajuda</h3>
+          <button type="button" id="bi-help-close" class="btn-secondary" style="min-height:36px;">Fechar</button>
+        </div>
+        <p id="bi-help-text" class="text-body mt-3"></p>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const close = () => {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    };
+    modal.addEventListener('click', (ev) => {
+      if (ev.target === modal) close();
+    });
+    modal.querySelector('#bi-help-close').addEventListener('click', close);
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' && !modal.classList.contains('hidden')) close();
+    });
+    return modal;
+  }
+
+  function openHelpFromCard(card) {
+    const modal = ensureHelpModal();
+    const title = card.querySelector('h3')?.textContent?.trim() || 'Ajuda';
+    const subtitle = card.querySelector('p.text-caption')?.textContent?.trim() || 'Sem descrição adicional para este painel.';
+    modal.querySelector('#bi-help-title').textContent = title;
+    modal.querySelector('#bi-help-text').textContent = subtitle;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+
+  document.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('button.icon-wrap-sm[title="Ajuda"]');
+    if (!btn) return;
+    const card = btn.closest('section');
+    if (card) openHelpFromCard(card);
+  });
+
   renderDrill();
   if (window.lucide) window.lucide.createIcons();
 </script>
@@ -368,5 +417,6 @@
   .tone-danger { color: var(--color-danger) !important; font-weight: 600; }
   .insight-row { border: 1px solid var(--color-border); border-radius: var(--radius-sm, .5rem); padding: .6rem .7rem; background: var(--color-surface); font-size: var(--text-body, .8125rem); color: var(--color-text-secondary); }
   .insight-warning { border-color: var(--color-warning); }
+  .bi-help-card { border: 1px solid var(--color-border); }
 </style>
 {% endblock %}

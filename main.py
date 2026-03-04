@@ -2311,6 +2311,135 @@ async def mobile_dashboard(
         },
     )
 
+
+@app.get("/mobile/achievements", response_class=HTMLResponse)
+async def mobile_achievements_page(request: Request, session: Session = Depends(get_session)):
+    """Página de conquistas do colaborador (mobile)."""
+    user = get_current_user(request)
+    if not isinstance(user, dict) or user.get("type") != "employee":
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    employee = session.get(models.Employee, user.get("id"))
+    if not employee:
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    total_xp = float(getattr(employee, "total_xp", 0.0) or 0.0)
+    gamification = {
+        "total_xp": total_xp,
+        "progress_percent": min(100, max(0, total_xp / 1000.0 * 100)) if total_xp else 0,
+        "level": {"level": 1, "name": "Colaborador", "badge_image": "badge_1.png", "min_xp": 0},
+        "next_level": {"name": "Próximo", "min_xp": 1000} if total_xp < 1000 else None,
+    }
+    all_achievements = session.exec(select(models.GameAchievement).order_by(models.GameAchievement.xp_reward)).all()
+    earned = {ea.achievement_id: ea for ea in session.exec(
+        select(models.EmployeeAchievement).where(models.EmployeeAchievement.employee_id == employee.id)).all()}
+    achievements_list = []
+    for ach in all_achievements:
+        ea = earned.get(ach.id)
+        achievements_list.append({
+            "name": ach.name,
+            "description": ach.description or "",
+            "icon": ach.icon if ach.icon and not ach.icon.startswith(("\U0001f")) else "award",
+            "xp_reward": ach.xp_reward or 0,
+            "unlocked": ea is not None,
+            "earned_at": ea.earned_at if ea else None,
+        })
+    xp_txs = session.exec(
+        select(models.GameXPTransaction)
+        .where(models.GameXPTransaction.employee_id == employee.id)
+        .order_by(models.GameXPTransaction.created_at.desc())
+        .limit(100)
+    ).all()
+    xp_history_full = [{"reason": tx.reason, "created_at": tx.created_at, "amount": tx.amount} for tx in xp_txs]
+    total_bonus_xp = sum(tx.amount for tx in xp_txs if tx.amount > 0)
+    unlocked_count = len(earned)
+    return templates.TemplateResponse("mobile/achievements.html", {
+        "request": request,
+        "employee": employee,
+        "gamification": gamification,
+        "achievements": achievements_list,
+        "unlocked_count": unlocked_count,
+        "total_achievements": len(all_achievements),
+        "total_bonus_xp": int(total_bonus_xp),
+        "xp_history_full": xp_history_full,
+    })
+
+
+@app.get("/mobile/api/returns-data", response_class=JSONResponse)
+async def mobile_api_returns_data(
+    request: Request,
+    days: int = 30,
+    session: Session = Depends(get_session),
+):
+    """Dados de devolução para o gráfico do dashboard mobile. Fallback seguro se sem dados."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse({"error": "Não autorizado"}, status_code=401)
+    total_value = 0.0
+    percent_valor = 0.0
+    chart_labels = []
+    chart_values = []
+    top_clients = []
+    total_entregas_value = 0.0
+    try:
+        since = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=max(1, min(365, days)))).strftime("%Y-%m-%d")
+        routes = session.exec(
+            select(models.Route)
+            .where(models.Route.employee_id == user_id)
+            .where(models.Route.type == "delivery")
+            .where(models.Route.delivery_status == "devolucao")
+            .where(models.Route.date >= since)
+        ).all()
+        total_value = sum(float(r.valor_devolucao or 0) for r in routes)
+        total_entregas = session.exec(
+            select(models.Route)
+            .where(models.Route.employee_id == user_id)
+            .where(models.Route.type == "delivery")
+            .where(models.Route.date >= since)
+        ).all()
+        total_entregas_value = sum(float(r.valor_financeiro or 0) for r in total_entregas)
+        percent_valor = (total_value / total_entregas_value * 100) if total_entregas_value else 0.0
+        by_date = {}
+        for r in routes:
+            d = r.date or ""
+            if d not in by_date:
+                by_date[d] = 0.0
+            by_date[d] += float(r.valor_devolucao or 0)
+        sorted_dates = sorted(by_date.keys(), reverse=True)[:14]
+        chart_labels = [d[-5:] if len(d) >= 5 else d for d in sorted_dates]
+        chart_values = [by_date[d] for d in sorted_dates]
+        client_ids = list({r.client_id for r in routes if r.client_id})
+        clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
+        client_map = {c.id: c for c in clients}
+        top_clients = []
+        for r in routes:
+            c = client_map.get(r.client_id)
+            name = (c.razao_social or c.name or "Cliente") if c else "Cliente"
+            val = float(r.valor_devolucao or 0)
+            vol = float(r.devolucao_volume or 0)
+            existing = next((x for x in top_clients if x.get("name") == name), None)
+            if existing:
+                existing["value"] = existing.get("value", 0) + val
+                existing["volume"] = existing.get("volume", 0) + vol
+            else:
+                top_clients.append({"name": name, "value": val, "volume": vol})
+        top_clients.sort(key=lambda x: x.get("value", 0), reverse=True)
+    except Exception as e:
+        logger.exception(f"Error building returns-data: {e}")
+        total_value = 0.0
+        percent_valor = 0.0
+        chart_labels = []
+        chart_values = []
+        top_clients = []
+        total_entregas_value = 0.0
+    return JSONResponse({
+        "total_value": total_value,
+        "percent_valor": percent_valor,
+        "chart_labels": chart_labels,
+        "chart_values": chart_values,
+        "top_clients": top_clients,
+        "total_entregas_value": total_entregas_value,
+    })
+
+
 app.include_router(init_devolucoes_router(templates=templates, require_login=require_login, logger=logger))
 app.include_router(init_game_achievements_router(templates=templates, require_leader=require_leader, require_login=require_login, logger=logger))
 app.include_router(init_game_audit_router(require_login=require_login, require_leader=require_leader))

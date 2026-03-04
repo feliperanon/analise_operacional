@@ -3,14 +3,14 @@ APP HEADER - Cabeçalho padrão mobile
 Minimalista: texto primeiro, ícones neutros, estado ativo claro.
 #}
 
-<header class="sticky top-0 z-[var(--z-sticky)] border-b bg-[var(--color-surface)]" style="border-color: var(--color-border-light);">
+<header class="relative z-[var(--z-sticky)] border-b bg-[var(--color-surface)]" style="border-color: var(--color-border-light);">
     <div class="container-mobile">
         <div class="flex items-center justify-between py-3">
             <a href="/mobile/dashboard" class="flex items-center min-h-[var(--touch-icon)]">
                 <img
                     src="{{ url_for('static', path='logo-souza-pinto.png') }}?v=20260302"
                     alt="Souza Pinto"
-                    class="h-10 w-auto object-contain">
+                    class="h-14 w-auto object-contain">
             </a>
             <button type="button"
                 onclick="document.getElementById('mobile-nav-menu').classList.toggle('hidden')"

@@ -1590,23 +1590,29 @@
 
     // Carregar dados de devolução
     function loadReturnData() {
-        const period = document.getElementById('returnPeriodFilter').value;
-        
+        const periodEl = document.getElementById('returnPeriodFilter');
+        const period = periodEl ? periodEl.value : 30;
         fetch(`/mobile/api/returns-data?days=${period}`)
-            .then(r => r.json())
+            .then(r => r.ok ? r.json() : { total_value: 0, percent_valor: 0, chart_labels: [], chart_values: [], top_clients: [], total_entregas_value: 0 })
             .then(data => {
-                // Debug: mostrar cálculo no console
-                if (data._debug) {
-                    console.log('📊 Cálculo de Devolução:', data._debug);
+                if (!data || typeof data.total_value !== 'number') {
+                    data = { total_value: 0, percent_valor: 0, chart_labels: [], chart_values: [], top_clients: [], total_entregas_value: 0 };
                 }
-                
-                // Atualizar cards
-                document.getElementById('totalReturnValue').textContent = 
-                    `R$ ${data.total_value.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                document.getElementById('totalReturnPercent').textContent = `${data.percent_valor.toFixed(1)}%`;
-                
-                // Criar/atualizar gráfico
-                const ctx = document.getElementById('performanceChart').getContext('2d');
+                if (data._debug) console.log('📊 Cálculo de Devolução:', data._debug);
+                const totalVal = Number(data.total_value) || 0;
+                const percentVal = Number(data.percent_valor) || 0;
+                const labels = Array.isArray(data.chart_labels) ? data.chart_labels : [];
+                const values = Array.isArray(data.chart_values) ? data.chart_values : [];
+                const totalEntregas = Number(data.total_entregas_value) || 0;
+
+                const totalReturnValueEl = document.getElementById('totalReturnValue');
+                const totalReturnPercentEl = document.getElementById('totalReturnPercent');
+                if (totalReturnValueEl) totalReturnValueEl.textContent = `R$ ${totalVal.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                if (totalReturnPercentEl) totalReturnPercentEl.textContent = `${percentVal.toFixed(1)}%`;
+
+                const chartEl = document.getElementById('performanceChart');
+                if (!chartEl) return;
+                const ctx = chartEl.getContext('2d');
                 
                 if (returnChart) {
                     returnChart.destroy();
@@ -1615,10 +1621,10 @@
                 returnChart = new Chart(ctx, {
                     type: 'bar',
                     data: {
-                        labels: data.chart_labels,
+                        labels: labels,
                         datasets: [{
                             label: 'Devoluções (R$)',
-                            data: data.chart_values,
+                            data: values,
                             backgroundColor: 'rgba(239, 68, 68, 0.8)',
                             borderColor: 'rgba(239, 68, 68, 1)',
                             borderWidth: 1,
@@ -1631,7 +1637,7 @@
                         maintainAspectRatio: false,
                         onClick: (e, items) => {
                             if (items.length > 0) {
-                                showReturnDetails(data.top_clients, data.total_entregas_value);
+                                showReturnDetails(Array.isArray(data.top_clients) ? data.top_clients : [], totalEntregas);
                             }
                         },
                         plugins: { 
@@ -1660,7 +1666,13 @@
                     }
                 });
             })
-            .catch(err => console.error('Erro ao carregar devoluções:', err));
+            .catch(err => {
+                console.error('Erro ao carregar devoluções:', err);
+                const totalReturnValueEl = document.getElementById('totalReturnValue');
+                const totalReturnPercentEl = document.getElementById('totalReturnPercent');
+                if (totalReturnValueEl) totalReturnValueEl.textContent = 'R$ 0,00';
+                if (totalReturnPercentEl) totalReturnPercentEl.textContent = '0,0%';
+            });
     }
 
     // Mostrar detalhes de devoluções (drill-down)
