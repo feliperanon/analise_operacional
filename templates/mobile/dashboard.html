@@ -8,14 +8,14 @@
 </div>
 
 <!-- Pull to Refresh -->
-<div id="pull-indicator" class="pull-indicator bg-blue-900 text-white px-4 py-2 rounded-full text-sm font-medium">
+<div id="pull-indicator" class="pull-indicator px-4 py-2 rounded-lg text-body font-medium z-50" style="background: var(--color-primary); color: var(--color-text-inverse);">
     <i data-lucide="refresh-cw" class="w-4 h-4 inline-block mr-1"></i>
     Atualizando...
 </div>
 
-<!-- XP Popup -->
+<!-- XP Popup (feedback funcional) -->
 <div id="xp-popup" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] pointer-events-none hidden">
-    <div class="bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-black text-4xl px-8 py-4 rounded-2xl shadow-2xl">
+    <div class="px-6 py-4 rounded-xl font-bold text-xl text-white" style="background: var(--color-primary); box-shadow: var(--shadow-modal);">
         +<span id="xp-amount">0</span> XP!
     </div>
 </div>
@@ -25,10 +25,10 @@
     <!-- Module Notice -->
     {% if module_notice %}
     <div class="container-mobile mt-4">
-        <div class="surface p-4 bg-red-50 border-red-200">
+        <div class="surface p-4" style="background: var(--color-danger-bg); border-color: var(--color-danger);">
             <div class="flex items-center gap-2">
-                <i data-lucide="alert-triangle" class="w-5 h-5 text-red-600"></i>
-                <span class="text-sm text-red-900">{{ module_notice }}</span>
+                <i data-lucide="alert-triangle" class="w-5 h-5" style="color: var(--color-danger);"></i>
+                <span class="text-body-lg font-medium" style="color: var(--color-danger);">{{ module_notice }}</span>
             </div>
         </div>
     </div>
@@ -48,165 +48,128 @@
     <!-- Main Content -->
     <div x-show="initialized">
         
-        <!-- 1. Gamification Header -->
-        <section class="bg-blue-50 border-b border-blue-100">
-            <div class="container-mobile py-5">
-                <div class="flex items-start justify-between gap-3 mb-4">
+        <!-- 1. Identidade compacta + XP -->
+        <section class="border-b py-4" style="border-color: var(--color-border-light); background: var(--color-surface);">
+            <div class="container-mobile">
+                <div class="flex items-center justify-between gap-3">
                     <div class="flex items-center gap-3 flex-1 min-w-0">
-                        <div class="flex-shrink-0">
-                            <div class="relative">
-                                <div class="w-14 h-14 rounded-xl bg-blue-900 p-0.5">
-                                    <img src="{{ url_for('static', path='badges/' + gamification.level.badge_image) }}"
-                                        onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name }}&background=1e3a8a&color=fff'"
-                                        class="w-full h-full rounded-xl object-cover bg-white" alt="Badge">
-                                </div>
-                                <span class="absolute -bottom-1 -right-1 flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white bg-blue-900 rounded-full border border-white">
-                                    {{ gamification.level.level }}
-                                </span>
+                        <div class="relative flex-shrink-0">
+                            <div class="w-12 h-12 rounded-lg overflow-hidden" style="background: var(--color-primary);">
+                                <img src="{{ url_for('static', path='badges/' + gamification.level.badge_image) }}"
+                                    onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name }}&background=1e3a8a&color=fff'"
+                                    class="w-full h-full object-cover" alt="">
                             </div>
-                            <div class="mt-1 w-24 h-3 bg-blue-200 rounded-full overflow-hidden border border-white/90">
-                                <div class="h-full bg-blue-900 transition-all duration-500"
-                                    :style="`width: ${xpProgressPercent}%`"></div>
-                            </div>
-                            <div class="text-[10px] font-semibold text-blue-800 text-center mt-0.5" x-text="`${Math.round(xpProgressPercent)}%`"></div>
+                            <span class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-semibold text-white border-2 border-white" style="background: var(--color-primary);">{{ gamification.level.level }}</span>
                         </div>
-                        
                         <div class="flex-1 min-w-0">
-                            <h1 class="text-lg font-bold text-blue-900 truncate">{{ employee.name }}</h1>
-                            <div class="flex items-center gap-1.5 flex-wrap mt-0.5">
-                                <p class="text-xs text-slate-600">{{ gamification.level.name }}</p>
-                                <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-yellow-50 border border-yellow-200">
-                                    <i data-lucide="trophy" class="w-3 h-3 text-yellow-600"></i>
-                                    <span class="text-[10px] font-bold text-yellow-700">{{ gamification.achievements_unlocked }}/{{ gamification.achievements_total }}</span>
-                                </span>
-                                {% if streak_days and streak_days >= 3 %}
-                                <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-orange-50 border border-orange-200">
-                                    <i data-lucide="flame" class="w-3 h-3 text-orange-600"></i>
-                                    <span class="text-[10px] font-bold text-orange-700">{{ streak_days }}d</span>
-                                </span>
-                                {% endif %}
-                            </div>
+                            <h1 class="text-title truncate" style="color: var(--color-text);">{{ employee.name }}</h1>
+                            <p class="text-caption-lg mt-0.5">{{ gamification.level.name }}</p>
                         </div>
                     </div>
-                    
-                    <button @click="logout()" class="touch-target-icon flex items-center justify-center w-10 h-10 rounded-lg bg-blue-100 text-blue-900 hover:bg-blue-200">
-                        <i data-lucide="log-out" class="w-5 h-5"></i>
-                    </button>
+                    <a href="/mobile/achievements" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap flex-shrink-0">
+                        <i data-lucide="award" class="w-5 h-5"></i>
+                    </a>
                 </div>
-
-                <!-- XP Progress -->
-                <div class="space-y-2">
-                    <div class="flex items-center justify-between text-xs text-slate-600">
-                        <div class="flex items-center gap-1">
-                            <span>XP: <strong class="text-blue-900" x-text="formatBrInt(totalXp)">{{ "{:,}".format(gamification.total_xp).replace(",", ".") }}</strong></span>
-                            <button @click="openHelpModal()" class="w-4 h-4 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center hover:bg-yellow-200">
-                                <i data-lucide="lightbulb" class="w-3 h-3"></i>
-                            </button>
-                        </div>
+                <div class="mt-3">
+                    <div class="flex items-center justify-between text-caption-lg mb-1">
+                        <span style="color: var(--color-text-secondary);">XP <strong style="color: var(--color-text);" x-text="formatBrInt(totalXp)">{{ "{:,}".format(gamification.total_xp).replace(",", ".") }}</strong>
+                            <button type="button" @click="openHelpModal()" class="inline-flex items-center justify-center w-5 h-5 rounded-full ml-1 icon-wrap-sm" aria-label="Dicas de XP"><i data-lucide="lightbulb" class="w-3 h-3"></i></button>
+                        </span>
                         {% if gamification.next_level %}
-                        <span class="text-[11px]">Próx: {{ gamification.next_level.name }}</span>
+                        <span style="color: var(--color-text-muted);">Próx: {{ gamification.next_level.name }}</span>
                         {% else %}
-                        <span class="text-yellow-600 font-semibold text-[11px]">Max 🏆</span>
+                        <span class="font-semibold" style="color: var(--color-text-muted);">Máx.</span>
                         {% endif %}
                     </div>
-                    
-                    <div class="h-2.5 w-full bg-blue-200 rounded-full overflow-hidden">
-                        <div class="h-full bg-blue-900 transition-all duration-500" :style="`width: ${xpProgressPercent}%`"></div>
+                    <div class="h-1.5 w-full rounded-full overflow-hidden" style="background: var(--color-border-light);">
+                        <div class="h-full transition-all duration-500 rounded-full" style="background: var(--color-primary);" :style="`width: ${xpProgressPercent}%`"></div>
                     </div>
-                    
-                    <p class="text-xs text-center text-green-600 font-medium" x-show="dailyXp > 0">
+                    <p class="text-caption mt-1 text-center font-medium" x-show="dailyXp > 0" style="color: var(--color-success);">
                         +<span x-text="dailyXp"></span> XP hoje
                     </p>
                 </div>
             </div>
         </section>
 
-        <!-- 2. Active Separation -->
+        <!-- 2. Separação ativa -->
         <section class="container-mobile mt-4" x-show="hasActiveRoutes" x-cloak>
             <template x-for="(route, idx) in activeRoutes" :key="'route-'+idx">
-                <div class="surface p-4 border-2 border-blue-900 mb-4">
-                    <div class="flex items-start justify-between mb-4">
+                <div class="surface p-4 mb-4">
+                    <div class="flex items-start justify-between mb-3">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-lg bg-blue-900 flex items-center justify-center text-white">
+                            <div class="icon-wrap flex items-center justify-center" style="background: var(--color-primary); color: white;">
                                 <i data-lucide="truck" class="w-5 h-5"></i>
                             </div>
                             <div>
-                                <h3 class="text-sm font-bold text-blue-900 flex items-center gap-2">
-                                    Separação Ativa
+                                <h3 class="text-section flex items-center gap-2" style="color: var(--color-text);">
+                                    Separação ativa
                                     <span class="w-2 h-2 rounded-full bg-green-500 animate-ping"></span>
                                 </h3>
-                                <p class="text-xs text-blue-700 font-medium" x-text="route.client_name"></p>
+                                <p class="text-caption-lg" style="color: var(--color-text-secondary);" x-text="route.client_name"></p>
                             </div>
                         </div>
-                        
                         <div class="flex gap-1">
-                            <button @click="openEditModal(route)" class="touch-target-icon w-9 h-9 rounded-lg bg-blue-50 text-blue-900 hover:bg-blue-100 flex items-center justify-center">
+                            <button @click="openEditModal(route)" class="touch-target-icon rounded-lg icon-wrap flex items-center justify-center">
                                 <i data-lucide="pencil" class="w-4 h-4"></i>
                             </button>
-                            <button @click="openDeleteModal(route)" class="touch-target-icon w-9 h-9 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 flex items-center justify-center">
+                            <button @click="openDeleteModal(route)" class="touch-target-icon rounded-lg flex items-center justify-center" style="background: var(--color-danger-bg); color: var(--color-danger);">
                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
                             </button>
                         </div>
                     </div>
-                    
                     <div class="flex items-end justify-between gap-4">
-                        <div class="flex gap-6">
+                        <div class="flex gap-4">
                             <div>
-                                <p class="text-[10px] text-slate-500 uppercase font-semibold mb-1">Tempo</p>
-                                <p class="text-2xl font-mono font-bold text-blue-900" x-text="formatTimer(route.start_time)"></p>
+                                <p class="text-caption mb-0.5">Tempo</p>
+                                <p class="text-xl font-mono font-semibold" style="color: var(--color-text);" x-text="formatTimer(route.start_time)"></p>
                             </div>
                             <div x-show="route.tonnage > 0">
-                                <p class="text-[10px] text-slate-500 uppercase font-semibold mb-1">Peso</p>
-                                <p class="text-2xl font-bold text-green-600">
-                                    <span x-text="route.tonnage"></span><span class="text-sm ml-1 text-slate-500">kg</span>
-                                </p>
+                                <p class="text-caption mb-0.5">Peso</p>
+                                <p class="text-xl font-semibold" style="color: var(--color-success);"><span x-text="route.tonnage"></span> kg</p>
                             </div>
                         </div>
-                        
-                        <button @click="openStopModal(route)" class="touch-target flex items-center justify-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-sm active:scale-95 transition-all">
+                        <button @click="openStopModal(route)" class="touch-target flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold text-body text-white transition-opacity" style="background: var(--color-danger);">
                             <i data-lucide="square" class="w-4 h-4 fill-current"></i>
-                            <span>Encerrar</span>
+                            Encerrar
                         </button>
                     </div>
-                    
-                    <div class="mt-4 h-1.5 w-full bg-blue-100 rounded-full overflow-hidden">
-                        <div class="h-full bg-blue-900 w-1/3 rounded-full animate-[loading_2s_ease-in-out_infinite]"></div>
+                    <div class="mt-3 h-1 w-full rounded-full overflow-hidden" style="background: var(--color-border-light);">
+                        <div class="h-full w-1/3 rounded-full animate-[loading_2s_ease-in-out_infinite]" style="background: var(--color-primary);"></div>
                     </div>
                 </div>
             </template>
         </section>
         
-        <!-- 2b. Delivery Routes Section -->
+        <!-- 2b. Rotas de entrega -->
         <section class="container-mobile mt-4" x-show="deliveryRoutes.length > 0">
             <div class="surface p-4">
-                <div class="flex items-start justify-between gap-3 mb-4">
+                <div class="flex items-start justify-between gap-3 mb-3">
                     <div class="flex-1 min-w-0">
-                        <h3 class="text-base font-bold text-blue-900">Minhas Rotas de Entrega</h3>
-                        <p class="text-xs text-slate-600" x-text="assignedPlate ? `Caminhão: ${assignedPlate}` : 'Sem caminhão planejado'"></p>
+                        <h3 class="text-section" style="color: var(--color-text);">Minhas rotas de entrega</h3>
+                        <p class="text-caption-lg mt-0.5" x-text="assignedPlate ? `Caminhão: ${assignedPlate}` : 'Sem caminhão planejado'"></p>
                     </div>
                     <div class="flex gap-2">
                         <button x-show="!deliverySessionOpen" @click="showDeliverySetupModal = true"
-                            class="px-3 py-2 rounded-lg bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold">Iniciar</button>
+                            class="px-3 py-2 rounded-lg font-semibold text-body text-white transition-opacity" style="background: var(--color-primary);">Iniciar</button>
                         <button x-show="deliverySessionOpen" @click="showDeliveryEndModal = true"
-                            class="px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-bold">Encerrar</button>
+                            class="px-3 py-2 rounded-lg font-semibold text-body text-white transition-opacity" style="background: var(--color-success);">Encerrar</button>
                     </div>
                 </div>
-
                 <div class="space-y-2 mb-3">
                     <template x-for="card in deliveryDayCards" :key="'day-'+card.date">
                         <button @click="selectedDeliveryDay = card.date"
-                            class="w-full text-left px-3 py-2 rounded-lg border-2 transition"
-                            :class="selectedDeliveryDay===card.date ? 'bg-blue-50 border-blue-900 text-blue-900' : 'bg-white border-slate-200 text-slate-700'">
+                            class="w-full text-left px-3 py-2 rounded-lg border-2 transition-colors"
+                            :class="selectedDeliveryDay===card.date ? 'border-[var(--color-primary)]' : ''"
+                            :style="selectedDeliveryDay===card.date ? 'background: var(--color-primary-bg); color: var(--color-primary);' : 'border-color: var(--color-border); color: var(--color-text);'">
                             <div class="flex items-center justify-between">
-                                <span class="font-bold text-sm" x-text="card.label"></span>
-                                <span class="text-xs" x-text="`${card.count} cliente(s)`"></span>
+                                <span class="font-semibold text-body" x-text="card.label"></span>
+                                <span class="text-caption-lg" x-text="`${card.count} cliente(s)`"></span>
                             </div>
                         </button>
                     </template>
                 </div>
-
-                <div x-show="!deliverySessionOpen" class="rounded-lg border-2 border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 mb-3">
-                    <strong>⚠️</strong> Informe sua placa e KM de saída para liberar os clientes da rota.
+                <div x-show="!deliverySessionOpen" class="rounded-lg p-3 text-body mb-3" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning); color: var(--color-text);">
+                    <strong>Informe</strong> placa e KM de saída para liberar os clientes.
                 </div>
 
                 <div class="space-y-2 max-h-[360px] overflow-y-auto custom-scrollbar" x-show="deliverySessionOpen">
@@ -249,63 +212,50 @@
         </section>
     </div>
 
-    <!-- 3. Modules -->
+    <!-- 3. Módulos (ação principal) -->
     {% if modules and modules|length > 0 %}
-    <section class="container-mobile mt-6" x-show="initialized">
-        <h2 class="text-lg font-bold text-blue-900 mb-3">Módulos</h2>
+    <section class="container-mobile mt-4" x-show="initialized">
+        <h2 class="text-section mb-2" style="color: var(--color-text);">Módulos</h2>
         <div class="space-y-2">
             {% for module in modules %}
             {% if module.action == "start_separation" %}
             <button type="button" @click="openStartEntry()"
-                class="interactive w-full surface p-4 text-left flex items-center gap-3 hover:border-blue-900">
-                <div class="w-10 h-10 rounded-lg bg-blue-900 text-white flex items-center justify-center">
+                class="interactive w-full surface p-4 text-left flex items-center gap-3">
+                <div class="icon-wrap flex items-center justify-center flex-shrink-0" style="background: var(--color-primary); color: white;">
                     <i data-lucide="{{ module.icon }}" class="w-5 h-5"></i>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <p class="text-sm font-semibold text-blue-900 truncate">{{ module.label }}</p>
-                    <p class="text-xs text-slate-600 truncate" x-text="deliveryRoutes.length > 0 ? 'Informe a placa para liberar.' : '{{ module.description }}'"></p>
+                    <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
+                    <p class="text-caption-lg truncate" x-text="deliveryRoutes.length > 0 ? 'Informe a placa para liberar.' : '{{ module.description }}'"></p>
                 </div>
-                <i data-lucide="chevron-right" class="w-5 h-5 text-slate-400"></i>
+                <i data-lucide="chevron-right" class="w-5 h-5 flex-shrink-0" style="color: var(--color-text-muted);"></i>
             </button>
             {% elif module.action == "open_admin_start_modal" %}
-            <button @click="open_admin_start_modal()"
-                class="interactive w-full surface p-4 text-left flex items-center gap-3 hover:border-blue-900">
-                <div class="w-10 h-10 rounded-lg bg-blue-900 text-white flex items-center justify-center">
-                    <i data-lucide="{{ module.icon }}" class="w-5 h-5"></i>
-                </div>
+            <button @click="open_admin_start_modal()" class="interactive w-full surface p-4 text-left flex items-center gap-3">
+                <div class="icon-wrap flex-shrink-0" style="background: var(--color-primary); color: white;"><i data-lucide="{{ module.icon }}" class="w-5 h-5"></i></div>
                 <div class="flex-1 min-w-0">
-                    <p class="text-sm font-semibold text-blue-900 truncate">{{ module.label }}</p>
-                    <p class="text-xs text-slate-600 truncate">{{ module.description }}</p>
+                    <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
+                    <p class="text-caption-lg truncate">{{ module.description }}</p>
                 </div>
-                <i data-lucide="chevron-right" class="w-5 h-5 text-slate-400"></i>
+                <i data-lucide="chevron-right" class="w-5 h-5" style="color: var(--color-text-muted);"></i>
             </button>
             {% elif module.action == "manage_routes" %}
-            <a href="/mobile/admin/routes"
-                class="interactive block surface p-4 text-left hover:border-blue-900">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-lg bg-blue-900 text-white flex items-center justify-center">
-                        <i data-lucide="{{ module.icon }}" class="w-5 h-5"></i>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm font-semibold text-blue-900 truncate">{{ module.label }}</p>
-                        <p class="text-xs text-slate-600 truncate">{{ module.description }}</p>
-                    </div>
-                    <i data-lucide="chevron-right" class="w-5 h-5 text-slate-400"></i>
+            <a href="/mobile/admin/routes" class="interactive block surface p-4 text-left flex items-center gap-3">
+                <div class="icon-wrap flex-shrink-0"><i data-lucide="{{ module.icon }}" class="w-5 h-5"></i></div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
+                    <p class="text-caption-lg truncate">{{ module.description }}</p>
                 </div>
+                <i data-lucide="chevron-right" class="w-5 h-5" style="color: var(--color-text-muted);"></i>
             </a>
             {% else %}
-            <a href="{{ module.href }}"
-                class="interactive block surface p-4 text-left hover:border-blue-900">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-lg bg-blue-900 text-white flex items-center justify-center">
-                        <i data-lucide="{{ module.icon }}" class="w-5 h-5"></i>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm font-semibold text-blue-900 truncate">{{ module.label }}</p>
-                        <p class="text-xs text-slate-600 truncate">{{ module.description }}</p>
-                    </div>
-                    <i data-lucide="chevron-right" class="w-5 h-5 text-slate-400"></i>
+            <a href="{{ module.href }}" class="interactive block surface p-4 text-left flex items-center gap-3">
+                <div class="icon-wrap flex-shrink-0"><i data-lucide="{{ module.icon }}" class="w-5 h-5"></i></div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
+                    <p class="text-caption-lg truncate">{{ module.description }}</p>
                 </div>
+                <i data-lucide="chevron-right" class="w-5 h-5" style="color: var(--color-text-muted);"></i>
             </a>
             {% endif %}
             {% endfor %}
@@ -313,21 +263,16 @@
     </section>
     {% endif %}
 
-    <!-- 4. Quick Actions -->
-    <section class="container-mobile mt-6" x-show="initialized">
+    <!-- 4. Acesso rápido -->
+    <section class="container-mobile mt-4" x-show="initialized">
         <div class="grid grid-cols-2 gap-3">
-            <a href="/mobile/achievements" class="interactive surface p-5 text-center hover:border-yellow-500">
-                <div class="w-12 h-12 rounded-lg bg-yellow-500 text-white flex items-center justify-center mx-auto mb-2">
-                    <i data-lucide="trophy" class="w-6 h-6"></i>
-                </div>
-                <p class="text-sm font-semibold text-blue-900">Conquistas</p>
+            <a href="/mobile/achievements" class="interactive surface p-4 text-center flex flex-col items-center gap-2">
+                <div class="icon-wrap w-12 h-12"><i data-lucide="trophy" class="w-6 h-6"></i></div>
+                <p class="text-body font-semibold" style="color: var(--color-text);">Conquistas</p>
             </a>
-            
-            <button @click="scrollToHistory()" class="interactive surface p-5 text-center hover:border-blue-900">
-                <div class="w-12 h-12 rounded-lg bg-blue-900 text-white flex items-center justify-center mx-auto mb-2">
-                    <i data-lucide="history" class="w-6 h-6"></i>
-                </div>
-                <p class="text-sm font-semibold text-blue-900">Histórico</p>
+            <button @click="scrollToHistory()" class="interactive surface p-4 text-center flex flex-col items-center gap-2 w-full">
+                <div class="icon-wrap w-12 h-12"><i data-lucide="history" class="w-6 h-6"></i></div>
+                <p class="text-body font-semibold" style="color: var(--color-text);">Histórico</p>
             </button>
         </div>
     </section>
@@ -362,40 +307,24 @@
     </section>
     {% endif %}
 
-    <!-- 4b. Special Events -->
     {% if upcoming_events %}
-    <section class="container-mobile mt-6">
-        <h2 class="text-lg font-bold text-blue-900 mb-3">Próximos Eventos</h2>
+    <section class="container-mobile mt-4">
+        <h2 class="text-section mb-2" style="color: var(--color-text);">Próximos eventos</h2>
         <div class="flex overflow-x-auto gap-3 pb-3 -mx-4 px-4 no-scrollbar">
             {% for event in upcoming_events %}
-            <div class="flex-shrink-0 w-72 surface p-4">
-                <div class="flex items-center gap-3 mb-3">
-                    <div class="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center text-2xl">
-                        {% if event.image_url %}
-                        <img src="{{ event.image_url }}" class="w-full h-full object-cover rounded-lg">
-                        {% else %}
-                        {{ event.emoji or '🎉' }}
-                        {% endif %}
+            <div class="flex-shrink-0 w-64 surface p-4">
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl overflow-hidden" style="background: var(--color-border-light);">
+                        {% if event.image_url %}<img src="{{ event.image_url }}" class="w-full h-full object-cover">{% else %}{{ event.emoji or '🎉' }}{% endif %}
                     </div>
                     <div class="flex-1 min-w-0">
-                        <h3 class="text-sm font-bold text-blue-900 truncate">{{ event.name }}</h3>
-                        <p class="text-[10px] font-semibold text-slate-600 uppercase tracking-wide">
-                            {{ event.date.split('-')[2] }}/{{ event.date.split('-')[1] }}
-                        </p>
+                        <h3 class="text-body font-semibold truncate" style="color: var(--color-text);">{{ event.name }}</h3>
+                        <p class="text-caption">{{ event.date.split('-')[2] }}/{{ event.date.split('-')[1] }}</p>
                     </div>
                 </div>
-
-                <div class="flex items-center justify-between pt-3 border-t border-slate-100">
-                    <div>
-                        <p class="text-[10px] text-slate-500 font-semibold uppercase">Bônus</p>
-                        <p class="text-sm font-bold text-green-600">+{{ event.bonus_xp }} XP</p>
-                    </div>
-                    {% if event.multiplier and event.multiplier > 1 %}
-                    <div class="text-right">
-                        <p class="text-[10px] text-slate-500 font-semibold uppercase">Multiplicador</p>
-                        <p class="text-sm font-bold text-yellow-600">{{ event.multiplier }}x</p>
-                    </div>
-                    {% endif %}
+                <div class="flex items-center justify-between pt-2 border-t" style="border-color: var(--color-border-light);">
+                    <span class="text-caption-lg font-medium" style="color: var(--color-success);">+{{ event.bonus_xp }} XP</span>
+                    {% if event.multiplier and event.multiplier > 1 %}<span class="text-caption font-semibold">{{ event.multiplier }}x</span>{% endif %}
                 </div>
             </div>
             {% endfor %}
