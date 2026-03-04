@@ -1,27 +1,12 @@
-/* 
-MOBILE CSS - Design System v6.0
-Clean, functional, operational focus
+/*
+MOBILE CSS - Design System (Operacional)
+Apenas utilitários necessários: safe area, skeleton, scrollbar, loading.
 */
-
-:root {
-    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-}
 
 * {
     box-sizing: border-box;
-    margin: 0;
-    padding: 0;
 }
 
-body {
-    font-family: var(--font-family);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    background-color: #ffffff;
-    min-height: 100vh;
-}
-
-/* Safe Area Support for iOS */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
     .pb-safe {
         padding-bottom: calc(1rem + env(safe-area-inset-bottom));
@@ -31,9 +16,8 @@ body {
     }
 }
 
-/* Skeleton Loading */
 .skeleton {
-    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background: linear-gradient(90deg, var(--color-border-light) 25%, var(--color-border) 50%, var(--color-border-light) 75%);
     background-size: 200% 100%;
     animation: skeleton-loading 1.5s infinite;
 }
@@ -43,58 +27,13 @@ body {
     100% { background-position: -200% 0; }
 }
 
-/* Fade In Animation */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.animate-fade-in {
-    animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-/* Slide Up Animation */
-@keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.animate-slide-up {
-    animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-/* Loading Animation for Progress Bars */
-@keyframes loading {
-    0%, 100% { transform: translateX(-100%); }
-    50% { transform: translateX(100%); }
-}
-
-/* Shimmer Effect */
-@keyframes shimmer {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
-}
-
-/* Offline Banner */
 .offline-banner {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     transform: translateY(-100%);
-    transition: transform 0.3s ease;
+    transition: transform 0.2s ease;
     z-index: 9999;
 }
 
@@ -102,13 +41,12 @@ body {
     transform: translateY(0);
 }
 
-/* Pull to Refresh Indicator */
 .pull-indicator {
     position: fixed;
     top: 80px;
     left: 50%;
     transform: translate(-50%, -100%);
-    transition: transform 0.3s ease;
+    transition: transform 0.2s ease;
     z-index: 100;
 }
 
@@ -116,18 +54,6 @@ body {
     transform: translate(-50%, 0);
 }
 
-/* XP Popup */
-.xp-pop {
-    animation: xpPop 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
-}
-
-@keyframes xpPop {
-    0% { transform: scale(0); opacity: 0; }
-    50% { transform: scale(1.2); }
-    100% { transform: scale(1); opacity: 1; }
-}
-
-/* Custom Scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
     width: 4px;
     height: 4px;
@@ -138,15 +64,10 @@ body {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: var(--color-border);
     border-radius: 2px;
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
-}
-
-/* No Scrollbar */
 .no-scrollbar::-webkit-scrollbar {
     display: none;
 }
@@ -156,7 +77,6 @@ body {
     scrollbar-width: none;
 }
 
-/* Button Loading State */
 .btn-loading {
     position: relative;
     pointer-events: none;

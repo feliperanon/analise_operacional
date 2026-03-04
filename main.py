@@ -1850,10 +1850,11 @@ async def root_entry(request: Request):
 @app.get("/dashboard", response_class=RedirectResponse)
 async def dashboard_entry(request: Request):
     user = get_current_user(request)
-    if not user:
-        return RedirectResponse(url="/login", status_code=303)
+    # Mobile employee sessions stay in the mobile dashboard.
     if isinstance(user, dict) and user.get("type") == "employee":
         return RedirectResponse(url="/mobile/dashboard", status_code=303)
+    # Desktop dashboard canonical entrypoint.
+    # Unauthenticated users are handled by /smart-flow -> require_login -> /login.
     return RedirectResponse(url="/smart-flow", status_code=303)
 
 

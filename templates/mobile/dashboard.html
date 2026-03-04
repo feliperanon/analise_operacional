@@ -1434,14 +1434,34 @@
 
             // Delivery Entry (placa primeiro)
             openStartEntry() {
-                this.showDeliverySetupModal = true;
-                this.deliverySetupError = '';
-                if (this.deliverySetup && !this.deliverySetup.plate && this.assignedPlate) {
-                    this.deliverySetup.plate = this.assignedPlate;
+                // Se houver rota de entrega planejada, pede placa/KM.
+                if ((this.deliveryRoutes || []).length > 0) {
+                    this.showDeliverySetupModal = true;
+                    this.deliverySetupError = '';
+                    if (this.deliverySetup && !this.deliverySetup.plate && this.assignedPlate) {
+                        this.deliverySetup.plate = this.assignedPlate;
+                    }
+                    this.$nextTick(() => {
+                        if (this.$refs.deliveryPlateInput) this.$refs.deliveryPlateInput.focus();
+                    });
+                    return;
                 }
-                this.$nextTick(() => {
-                    if (this.$refs.deliveryPlateInput) this.$refs.deliveryPlateInput.focus();
-                });
+
+                // Sem rotas de entrega: inicia rotina de separação.
+                if (this.isLoading) return;
+                this.isLoading = true;
+                fetch('/mobile/routine/start', { method: 'POST' })
+                    .then(() => {
+                        this.haptic('success');
+                        window.location.reload();
+                    })
+                    .catch(() => {
+                        this.haptic('error');
+                        alert('Erro ao iniciar separação.');
+                    })
+                    .finally(() => {
+                        this.isLoading = false;
+                    });
             },
 
             normalizePlateInput() {
