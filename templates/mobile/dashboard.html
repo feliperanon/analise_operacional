@@ -2,7 +2,7 @@
 
 {% block content %}
 <!-- Offline Banner -->
-<div id="offline-banner" class="offline-banner bg-red-600 text-white text-center py-2 text-sm font-medium z-50">
+<div id="offline-banner" class="offline-banner text-center py-2 text-body font-medium z-50 text-white" style="background: var(--color-danger);">
     <i data-lucide="wifi-off" class="w-4 h-4 inline-block mr-1"></i>
     Você está offline
 </div>
@@ -279,28 +279,17 @@
 
     <!-- 4a. Time Bonuses (Bônus por Horário) -->
     {% if time_bonuses %}
-    <section class="container-mobile mt-6">
-        <h2 class="text-lg font-bold text-blue-900 mb-3">Bônus por Horário</h2>
+    <section class="container-mobile mt-4">
+        <h2 class="text-section mb-2" style="color: var(--color-text);">Bônus por horário</h2>
         <div class="space-y-2">
             {% for bonus in time_bonuses %}
-            <div class="surface p-4 border-l-4 border-green-500">
-                <div class="flex items-center justify-between gap-3">
-                    <div class="flex items-center gap-3 flex-1 min-w-0">
-                        <div class="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
-                            <i data-lucide="timer" class="w-5 h-5 text-green-600"></i>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <h3 class="text-sm font-semibold text-blue-900 truncate">{{ bonus.name or 'Bônus por Horário' }}</h3>
-                            <p class="text-xs text-slate-600 truncate">
-                                Finalize até às <span class="font-bold text-green-600">{{ bonus.stop_time }}</span>
-                            </p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-[10px] text-slate-500 font-semibold uppercase">Bônus</p>
-                        <p class="text-lg font-bold text-green-600">+{{ bonus.bonus_percent }}%</p>
-                    </div>
+            <div class="surface p-4 flex items-center gap-3">
+                <div class="icon-wrap flex-shrink-0"><i data-lucide="timer" class="w-5 h-5"></i></div>
+                <div class="flex-1 min-w-0">
+                    <h3 class="text-body font-semibold truncate" style="color: var(--color-text);">{{ bonus.name or 'Bônus por Horário' }}</h3>
+                    <p class="text-caption-lg">Até às <strong>{{ bonus.stop_time }}</strong></p>
                 </div>
+                <span class="text-body font-semibold flex-shrink-0" style="color: var(--color-success);">+{{ bonus.bonus_percent }}%</span>
             </div>
             {% endfor %}
         </div>
