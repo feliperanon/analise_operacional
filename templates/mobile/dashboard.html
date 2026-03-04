@@ -196,13 +196,13 @@
                                 <span class="px-2 py-1 rounded-md bg-white border border-slate-200 text-blue-900 font-mono" x-show="route.status==='iniciada'" x-text="`${formatTimer(route.started_at || '00:00')}`"></span>
                             </div>
                             <div class="flex gap-1.5 overflow-x-auto custom-scrollbar pb-1">
-                                <button @click="deliveryAction(route,'iniciar')" class="btn-action btn-start px-3 py-1.5 rounded-lg bg-blue-900 text-white text-xs font-semibold hover:bg-blue-800 disabled:opacity-50"
+                                <button @click="deliveryAction(route,'iniciar')" class="px-3 py-1.5 rounded-lg text-body font-semibold text-white transition-opacity disabled:opacity-50" style="background: var(--color-primary);"
                                     :disabled="!deliverySessionOpen || (route.status!=='pendente' && route.status!=='reaberta')">Iniciar</button>
-                                <button @click="deliveryAction(route,'finalizar')" class="btn-action btn-finish px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-semibold hover:bg-green-700 disabled:opacity-50"
+                                <button @click="deliveryAction(route,'finalizar')" class="px-3 py-1.5 rounded-lg text-body font-semibold text-white transition-opacity disabled:opacity-50" style="background: var(--color-success);"
                                     :disabled="!deliverySessionOpen || route.status!=='iniciada'">Finalizar</button>
-                                <button @click="openMobileReturnModal(route)" class="btn-action btn-return px-3 py-1.5 rounded-lg bg-orange-600 text-white text-xs font-semibold hover:bg-orange-700 disabled:opacity-50"
+                                <button @click="openMobileReturnModal(route)" class="px-3 py-1.5 rounded-lg text-body font-semibold text-white transition-opacity disabled:opacity-50" style="background: var(--color-warning);"
                                     :disabled="!deliverySessionOpen || route.status!=='iniciada'">Devolução</button>
-                                <button @click="deliveryAction(route,'reabrir')" class="btn-action btn-reopen px-3 py-1.5 rounded-lg bg-slate-600 text-white text-xs font-semibold hover:bg-slate-700 disabled:opacity-50"
+                                <button @click="deliveryAction(route,'reabrir')" class="px-3 py-1.5 rounded-lg text-body font-semibold transition-opacity disabled:opacity-50" style="background: var(--color-text-secondary); color: white;"
                                     :disabled="!deliverySessionOpen || (route.status!=='entregue' && route.status!=='devolucao')">Reabrir</button>
                             </div>
                         </div>
@@ -793,45 +793,28 @@
 </div>
 
 <!-- Delivery End Modal -->
-<div x-show="showDeliveryEndModal" 
-    class="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" 
-    x-transition.opacity x-cloak
-    @click.self="showDeliveryEndModal=false">
-    <div @click.stop 
-        class="bg-white w-full max-w-md rounded-xl surface shadow-2xl p-6">
-        
-        <div class="text-center mb-6">
-            <div class="w-16 h-16 bg-green-50 rounded-xl flex items-center justify-center mx-auto mb-4 text-green-600">
-                <i data-lucide="check-circle" class="w-8 h-8"></i>
+<div x-show="showDeliveryEndModal" class="fixed inset-0 z-[120] flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" x-transition.opacity x-cloak @click.self="showDeliveryEndModal=false">
+    <div @click.stop class="w-full max-w-md rounded-lg flex flex-col overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
+        <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
+            <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center" style="background: var(--color-success-bg); color: var(--color-success);">
+                <i data-lucide="check-circle" class="w-6 h-6"></i>
             </div>
-            <h3 class="text-xl font-bold text-blue-900 mb-2">Encerrar na Empresa</h3>
-            <p class="text-sm text-slate-600">Informe o KM de chegada para concluir a rotina</p>
+            <div class="flex-1">
+                <h3 class="text-title" style="color: var(--color-text);">Encerrar na Empresa</h3>
+                <p class="text-caption-lg mt-0.5">KM de chegada para concluir</p>
+            </div>
         </div>
-
-        <div class="space-y-4">
+        <div class="p-4 space-y-4">
             <div>
-                <label class="text-xs text-slate-600 font-semibold uppercase tracking-wider mb-2 block">
-                    KM de Chegada
-                </label>
-                <input type="number" 
-                    step="0.1" 
-                    min="0" 
-                    x-model="deliveryEndKm"
-                    placeholder="Ex.: 125630,2"
-                    class="w-full bg-white border-2 border-slate-200 rounded-lg px-4 py-3 text-blue-900 text-lg font-mono focus:border-blue-900 focus:ring-4 focus:ring-blue-100 outline-none">
+                <label class="text-section block mb-2" style="color: var(--color-text);">KM de Chegada</label>
+                <input type="number" step="0.1" min="0" x-model="deliveryEndKm" placeholder="Ex.: 125630,2"
+                    class="w-full rounded-lg px-4 py-3 border-2 text-body-lg font-mono focus:outline-none focus:ring-2 transition-colors"
+                    style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
             </div>
-
-            <div class="flex gap-3 pt-2">
-                <button @click="showDeliveryEndModal=false" 
-                    class="flex-1 py-3 bg-slate-100 text-blue-900 rounded-xl font-semibold hover:bg-slate-200 transition-colors">
-                    Cancelar
-                </button>
-                <button @click="endDeliverySession()" 
-                    class="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-600/20 transition-all">
-                    <span class="flex items-center justify-center gap-2">
-                        <i data-lucide="check" class="w-4 h-4"></i>
-                        Encerrar
-                    </span>
+            <div class="flex gap-3">
+                <button @click="showDeliveryEndModal=false" class="flex-1 py-3 rounded-lg font-semibold text-body-lg transition-opacity" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
+                <button @click="endDeliverySession()" class="flex-1 py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity flex items-center justify-center gap-2" style="background: var(--color-success);">
+                    <i data-lucide="check" class="w-4 h-4"></i> Encerrar
                 </button>
             </div>
         </div>
@@ -839,81 +822,52 @@
 </div>
 
 <!-- Mobile Return Modal -->
-<div x-show="showMobileReturnModal" 
-    class="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" 
-    x-transition.opacity x-cloak
-    @click.self="showMobileReturnModal=false">
-    <div @click.stop 
-        class="bg-white w-full max-w-lg rounded-xl surface shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        
-        <!-- Header -->
-        <div class="bg-orange-50 p-6 text-center border-b border-orange-100 shrink-0">
-            <div class="w-16 h-16 bg-orange-600 rounded-xl flex items-center justify-center mx-auto mb-3 text-white">
-                <i data-lucide="package-x" class="w-8 h-8"></i>
+<div x-show="showMobileReturnModal" class="fixed inset-0 z-[120] flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" x-transition.opacity x-cloak @click.self="showMobileReturnModal=false">
+    <div @click.stop class="w-full max-w-lg rounded-lg flex flex-col max-h-[90vh] overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
+        <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
+            <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center" style="background: var(--color-warning-bg); color: var(--color-warning);">
+                <i data-lucide="package-x" class="w-6 h-6"></i>
             </div>
-            <h3 class="text-xl font-bold text-blue-900">Registrar Devolução</h3>
-            <p class="text-sm text-slate-600">Informe o motivo e detalhes da devolução</p>
+            <div class="flex-1">
+                <h3 class="text-title" style="color: var(--color-text);">Registrar Devolução</h3>
+                <p class="text-caption-lg mt-0.5">Motivo e detalhes</p>
+            </div>
         </div>
-
-        <!-- Body -->
-        <div class="p-6 space-y-4 overflow-y-auto custom-scrollbar">
-            <!-- Motivo -->
+        <div class="p-4 space-y-4 overflow-y-auto custom-scrollbar">
             <div>
-                <label class="text-xs text-slate-600 font-semibold uppercase tracking-wider mb-2 block">
-                    Motivo da Devolução
-                </label>
+                <label class="text-section block mb-2" style="color: var(--color-text);">Motivo da Devolução</label>
                 <div class="relative">
-                    <i data-lucide="alert-circle" class="absolute left-4 top-3.5 w-5 h-5 text-slate-400"></i>
-                    <select x-model="mobileReturn.reason"
-                        class="w-full bg-white border-2 border-slate-200 rounded-lg pl-12 pr-4 py-3 text-blue-900 focus:border-blue-900 focus:ring-4 focus:ring-blue-100 outline-none">
+                    <i data-lucide="alert-circle" class="absolute left-4 top-3.5 w-5 h-5" style="color: var(--color-text-muted);"></i>
+                    <select x-model="mobileReturn.reason" class="w-full rounded-lg pl-12 pr-4 py-3 border-2 text-body focus:outline-none focus:ring-2 transition-colors"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
                         <template x-for="reason in mobileReturnReasons" :key="reason">
                             <option :value="reason" x-text="reason"></option>
                         </template>
                     </select>
                 </div>
             </div>
-            
-            <!-- Checkbox Parcial -->
-            <label class="flex items-center gap-3 p-3 rounded-lg border-2 border-slate-200 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors">
-                <input type="checkbox" 
-                    x-model="mobileReturn.is_partial"
-                    class="w-5 h-5 rounded border-2 border-slate-300 text-blue-900 focus:ring-2 focus:ring-blue-900 focus:ring-offset-0">
-                <span class="text-sm font-semibold text-blue-900">Devolução parcial</span>
+            <label class="flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors" style="border-color: var(--color-border); background: var(--color-border-light);">
+                <input type="checkbox" x-model="mobileReturn.is_partial" class="w-5 h-5 rounded">
+                <span class="text-body font-semibold" style="color: var(--color-text);">Devolução parcial</span>
             </label>
-            
-            <!-- Campos Parciais -->
             <div class="grid grid-cols-2 gap-3" x-show="mobileReturn.is_partial" x-transition.opacity>
                 <div>
-                    <label class="text-xs text-slate-600 font-semibold mb-1 block">Peso Devolvido (Kg)</label>
-                    <input type="number" 
-                        step="0.01" 
-                        min="0" 
-                        x-model="mobileReturn.weight" 
-                        placeholder="0,00"
-                        class="w-full bg-white border-2 border-slate-200 rounded-lg px-3 py-2.5 text-blue-900 text-sm font-mono focus:border-blue-900 focus:ring-4 focus:ring-blue-100 outline-none">
+                    <label class="text-section block mb-1" style="color: var(--color-text);">Peso (Kg)</label>
+                    <input type="number" step="0.01" min="0" x-model="mobileReturn.weight" placeholder="0,00"
+                        class="w-full rounded-lg px-3 py-2.5 border-2 text-body font-mono focus:outline-none focus:ring-2 transition-colors"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
                 </div>
                 <div>
-                    <label class="text-xs text-slate-600 font-semibold mb-1 block">Valor Devolvido (R$)</label>
-                    <input type="number" 
-                        step="0.01" 
-                        min="0" 
-                        x-model="mobileReturn.value" 
-                        placeholder="0,00"
-                        class="w-full bg-white border-2 border-slate-200 rounded-lg px-3 py-2.5 text-blue-900 text-sm font-mono focus:border-blue-900 focus:ring-4 focus:ring-blue-100 outline-none">
+                    <label class="text-section block mb-1" style="color: var(--color-text);">Valor (R$)</label>
+                    <input type="number" step="0.01" min="0" x-model="mobileReturn.value" placeholder="0,00"
+                        class="w-full rounded-lg px-3 py-2.5 border-2 text-body font-mono focus:outline-none focus:ring-2 transition-colors"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
                 </div>
             </div>
         </div>
-
-        <!-- Footer -->
-        <div class="p-6 border-t border-slate-100 bg-slate-50 flex gap-3 shrink-0">
-            <button @click="showMobileReturnModal=false" 
-                class="flex-1 py-3 bg-white border-2 border-slate-200 text-blue-900 rounded-xl font-semibold hover:bg-slate-100 transition-colors">
-                Cancelar
-            </button>
-            <button @click="confirmMobileReturn()" 
-                class="flex-1 py-3 bg-orange-600 text-white rounded-xl font-bold hover:bg-orange-700 shadow-lg shadow-orange-600/20 transition-all">
-                Confirmar Devolução
-            </button>
+        <div class="p-4 border-t flex gap-3 shrink-0" style="border-color: var(--color-border);">
+            <button @click="showMobileReturnModal=false" class="flex-1 py-3 rounded-lg font-semibold text-body-lg transition-opacity" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
+            <button @click="confirmMobileReturn()" class="flex-1 py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity" style="background: var(--color-warning);">Confirmar</button>
         </div>
     </div>
 </div>
