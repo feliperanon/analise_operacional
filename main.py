@@ -26,6 +26,7 @@ from email.message import EmailMessage
 from starlette.middleware.sessions import SessionMiddleware
 from sqlmodel import Session, select, col, delete, text, or_, desc
 from sqlalchemy import func, inspect, not_, and_
+from sqlalchemy.exc import IntegrityError
 from typing import List
 from database import create_db_and_tables, get_session, engine
 import models
@@ -2453,9 +2454,20 @@ async def admin_user_delete(
         if len(active_admins) <= 1:
             return admin_users_redirect("Não é possível excluir o último admin ativo.", "error")
 
-    session.delete(target_user)
-    session.commit()
-    return admin_users_redirect("Usuário excluído com sucesso.")
+    # Remover execuções de tarefas vinculadas (FK impede delete do user)
+    session.exec(delete(models.OperationalTaskExecution).where(models.OperationalTaskExecution.user_id == user_id))
+
+    try:
+        session.delete(target_user)
+        session.commit()
+        return admin_users_redirect("Usuário excluído com sucesso.")
+    except Exception as e:
+        session.rollback()
+        logger.exception(f"Erro ao excluir usuário {user_id}: {e}")
+        from sqlalchemy.exc import IntegrityError
+        if isinstance(e, IntegrityError):
+            return admin_users_redirect("Não é possível excluir: existem registros vinculados a este usuário.", "error")
+        return admin_users_redirect("Erro ao excluir usuário. Tente novamente.", "error")
 
 
 @app.get("/mobile", response_class=RedirectResponse)

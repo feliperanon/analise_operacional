@@ -17,7 +17,7 @@
   };
   const chartAllowedTypes = {
     trendChart: ["line", "bar"],
-    motivosChart: ["bar", "doughnut"],
+    motivosChart: ["bubble", "bar", "doughnut"],
     respChart: ["doughnut", "bar"],
     clusterChart: ["bar", "doughnut"],
     driverChart: ["bar", "line"]
@@ -164,7 +164,7 @@
     const out = [];
     const labels = data?.labels || [];
     const ds = data?.datasets || [];
-    if (!labels.length || !ds.length) return ["Sem dados suficientes para storytelling."];
+    if (!ds.length) return ["Sem dados suficientes para storytelling."];
     if (chartId === "trendChart") {
       const values = ds[1]?.data || ds[0]?.data || [];
       const recent = values.slice(-7).reduce((a, b) => a + Number(b || 0), 0);
@@ -173,6 +173,15 @@
       out.push(`Últimos 7 dias mostram ${delta >= 0 ? "alta" : "queda"} de ${Math.abs(delta).toFixed(1)}%.`);
       const p = values.reduce((best, v, i, arr) => Number(v || 0) > Number(arr[best] || 0) ? i : best, 0);
       out.push(`Pico no período em ${labels[p]}: ${Number(values[p] || 0).toLocaleString("pt-BR")}.`);
+    } else if (chartId === "motivosChart") {
+      const points = (ds[0]?.data || []).filter((p) => p && typeof p === "object");
+      if (!points.length) return ["Sem dados suficientes para storytelling."];
+      const totalQtd = points.reduce((a, p) => a + Number(p.x || 0), 0) || 1;
+      const totalValor = points.reduce((a, p) => a + Number(p.y || 0), 0) || 1;
+      const topQtd = points.reduce((best, p, i, arr) => Number(p.x || 0) > Number(arr[best]?.x || 0) ? i : best, 0);
+      const topValor = points.reduce((best, p, i, arr) => Number(p.y || 0) > Number(arr[best]?.y || 0) ? i : best, 0);
+      out.push(`${points[topQtd]?.motivo || "Motivo"} lidera em volume com ${((Number(points[topQtd]?.x || 0) / totalQtd) * 100).toFixed(1)}% das ocorrencias.`);
+      out.push(`${points[topValor]?.motivo || "Motivo"} concentra ${((Number(points[topValor]?.y || 0) / totalValor) * 100).toFixed(1)}% do valor devolvido.`);
     } else {
       const values = (ds[0]?.data || []).map(Number);
       const sum = values.reduce((a, b) => a + b, 0) || 1;
@@ -190,11 +199,15 @@
       if (baseOnClick) baseOnClick(evt, elements, chart);
       if (!elements?.length) return;
       const idx = elements[0].index;
-      const label = chart.data.labels?.[idx];
+      const datasetIdx = elements[0].datasetIndex || 0;
+      const point = chart.data?.datasets?.[datasetIdx]?.data?.[idx];
+      const label = id === "motivosChart"
+        ? ((point && typeof point === "object" && point.motivo) ? point.motivo : chart.data.labels?.[idx])
+        : chart.data.labels?.[idx];
       if (label == null) return;
       let fn = null;
       if (id === "trendChart") fn = (r) => r.date === label;
-      if (id === "motivosChart") fn = (r) => r.motivo === String(label).split(" (")[0];
+      if (id === "motivosChart") fn = (r) => r.motivo === String(label);
       if (id === "respChart") fn = (r) => r.responsabilidade === label;
       if (id === "clusterChart") fn = (r) => r.cluster === label;
       if (id === "driverChart") fn = (r) => r.driver_name === label;

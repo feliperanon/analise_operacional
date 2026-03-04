@@ -290,6 +290,33 @@ def _build_bi_delivery_dataset(
     motivos_rows = sorted([{"motivo": v["motivo"], "qtd": int(v["qtd"]), "valor": round(v["valor"], 2), "pct": round(v["qtd"] / total_mot * 100.0, 2)} for v in motivo_agg.values()], key=lambda x: (x["qtd"], x["valor"]), reverse=True)
     resp_rows = sorted([{"responsabilidade": v["responsabilidade"], "qtd": int(v["qtd"]), "valor": round(v["valor"], 2)} for v in resp_agg.values()], key=lambda x: x["qtd"], reverse=True)
     cluster_rows = sorted([{"cluster": v["cluster"], "qtd": int(v["qtd"]), "valor": round(v["valor"], 2)} for v in cluster_agg.values()], key=lambda x: x["valor"], reverse=True)
+
+    # Motorista x Responsabilidade x Valor: valor devolvido por motorista e responsabilidade, % devolução baseada em valor real
+    driver_resp_value: dict[str, dict[str, float]] = {}
+    for r in route_rows:
+        if r.get("status") != "devolucao" or (r.get("returned_value") or 0) <= 0:
+            continue
+        drv = r.get("driver_name") or "-"
+        resp = r.get("responsabilidade") or "Nao informado"
+        val = float(r.get("returned_value") or 0.0)
+        driver_resp_value.setdefault(drv, {})
+        driver_resp_value[drv][resp] = round(driver_resp_value[drv].get(resp, 0.0) + val, 2)
+    resp_names = sorted({r for drv_data in driver_resp_value.values() for r in drv_data.keys()})
+    driver_resp_rows = []
+    for drv, data in per_driver.items():
+        resp_vals = {r: driver_resp_value.get(drv, {}).get(r, 0.0) for r in resp_names}
+        total_ret = sum(resp_vals.values())
+        valor_real = (data.get("realized_value") or 0.0) + (data.get("returned_value") or 0.0)
+        pct_devolucao_valor = round(total_ret / valor_real * 100.0, 2) if valor_real > 0 else (100.0 if total_ret > 0 else 0.0)
+        driver_resp_rows.append({
+            "driver": drv,
+            "responsabilidades": resp_vals,
+            "valor_devolvido": round(total_ret, 2),
+            "valor_real": round(valor_real, 2),
+            "pct_devolucao_valor": pct_devolucao_valor,
+        })
+    driver_resp_rows = [r for r in driver_resp_rows if r["valor_devolvido"] > 0]
+    driver_resp_rows = sorted(driver_resp_rows, key=lambda x: -x["valor_devolvido"])[:20]
     trend_dates = sorted(set(list(per_day.keys()) + list(ret_count_day.keys())))
     trend_qtd = [ret_count_day.get(k, 0) for k in trend_dates]
     trend_val = [round(ret_value_day.get(k, 0.0), 2) for k in trend_dates]
@@ -338,6 +365,12 @@ def _build_bi_delivery_dataset(
         "cluster": cluster_rows,
         "drivers": [{"driver": r["driver_name"], "eficiencia": r["efficiency"], "devolucao_pct": r["return_rate"], "valor_devolvido": r["returned_value"]} for r in tactical][:20],
         "reopen_heatmap": heat_rows,
+        "driver_resp_valor": {
+            "drivers": [r["driver"] for r in driver_resp_rows],
+            "responsabilidades": resp_names,
+            "datasets": [{"resp": r, "data": [driver_resp_value.get(drv, {}).get(r, 0.0) for drv in [x["driver"] for x in driver_resp_rows]]} for r in resp_names] if resp_names else [],
+            "pct_devolucao_valor": [r["pct_devolucao_valor"] for r in driver_resp_rows],
+        },
     }
 
     return {

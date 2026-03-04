@@ -96,13 +96,32 @@
 
     <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
       {{ chart_card("Tendência diária", "Quantidade e valor devolvido + médias móveis 7/30", "trendChart") }}
-      {{ chart_card("Motivos de devolução", "Qtd, valor e participação", "motivosChart") }}
+      {{ chart_card("Motivos de devolução", "Correlação: quantidade x valor x participação", "motivosChart") }}
     </section>
 
     <section class="grid grid-cols-1 xl:grid-cols-3 gap-4">
       {{ chart_card("Responsabilidade", "Mercado / Comercial / Logística", "respChart") }}
       {{ chart_card("Cluster x Valor", "Concentração financeira por faixa", "clusterChart") }}
       {{ chart_card("Eficiência por motorista", "Comparativo tático", "driverChart") }}
+    </section>
+
+    <section class="grid grid-cols-1 gap-4">
+      <section class="surface-shadow bi-card chart-card" data-chart-card="1" data-chart-id="driverRespChart">
+        <div class="bi-card-head bi-card-head-between">
+          <div>
+            <h3 class="text-section">Motorista x Responsabilidade x Valor</h3>
+            <p class="text-caption mt-1">Valor devolvido por motorista e responsabilidade. % devolução sobre valor real (R$).</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="icon-wrap-sm chart-expand-btn" type="button" title="Expandir gráfico" data-chart-expand="driverRespChart">
+              <i data-lucide="maximize-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+        <div class="mt-4" style="height: 360px;">
+          <canvas id="driverRespChart"></canvas>
+        </div>
+      </section>
     </section>
 
     <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -274,6 +293,21 @@
   </div>
 </div>
 
+<div id="respMotivosModal" class="bi-modal hidden" aria-hidden="true">
+  <div class="bi-modal-panel bi-modal-panel-xl">
+    <div class="bi-modal-head">
+      <div>
+        <p class="text-caption">Análise por responsabilidade</p>
+        <h3 class="text-title-lg" id="respMotivosTitle">Motivos de devolução</h3>
+      </div>
+      <button type="button" class="btn-secondary" data-close-modal="respMotivosModal">Fechar</button>
+    </div>
+    <div class="mt-4" style="height: 58vh;">
+      <canvas id="respMotivosCanvas"></canvas>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
@@ -320,15 +354,52 @@
   });
 
   new Chart(document.getElementById('motivosChart'), {
-    type: 'bar',
+    type: 'bubble',
     data: {
-      labels: (chartData.motivos || []).map(x => `${safeStr(x.motivo)} (${safeStr(x.pct)}%)`),
       datasets: [
-        { label: 'Quantidade', data: chartData.motivos.map(x => x.qtd), backgroundColor: palette.warning },
-        { label: 'Valor', data: chartData.motivos.map(x => x.valor), backgroundColor: palette.danger }
+        {
+          label: 'Correlação motivo x quantidade x valor',
+          backgroundColor: 'rgba(245, 158, 11, 0.45)',
+          borderColor: palette.warning,
+          borderWidth: 1.2,
+          data: (chartData.motivos || []).map(x => ({
+            x: Number(x.qtd || 0),
+            y: Number(x.valor || 0),
+            r: Math.max(5, Math.min(28, Number(x.pct || 0) * 0.45)),
+            motivo: safeStr(x.motivo),
+            pct: Number(x.pct || 0)
+          }))
+        }
       ]
     },
-    options: { ...baseOpt, indexAxis: 'y' }
+    options: {
+      ...baseOpt,
+      parsing: false,
+      plugins: {
+        ...baseOpt.plugins,
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const p = ctx.raw || {};
+              const qtd = Number(p.x || 0).toLocaleString('pt-BR');
+              const valor = Number(p.y || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+              const pct = Number(p.pct || 0).toFixed(1).replace('.', ',');
+              return `${p.motivo || 'Motivo'} | Qtd: ${qtd} | Valor: ${valor} | Part.: ${pct}%`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ...baseOpt.scales.x,
+          title: { display: true, text: 'Quantidade de devoluções', color: palette.muted }
+        },
+        y: {
+          ...baseOpt.scales.y,
+          title: { display: true, text: 'Valor devolvido (R$)', color: palette.muted }
+        }
+      }
+    }
   });
 
   new Chart(document.getElementById('respChart'), {
@@ -359,6 +430,43 @@
       ]
     },
     options: baseOpt
+  });
+
+  const dr = chartData.driver_resp_valor || {};
+  const respColors = [palette.primary, palette.warning, palette.danger, palette.success];
+  new Chart(document.getElementById('driverRespChart'), {
+    type: 'bar',
+    data: {
+      labels: (dr.drivers || []).map(safeStr),
+      datasets: (dr.datasets || []).map((ds, i) => ({
+        label: safeStr(ds.resp),
+        data: ds.data || [],
+        backgroundColor: respColors[i % respColors.length],
+        stack: 'stack0'
+      }))
+    },
+    options: {
+      ...baseOpt,
+      indexAxis: 'y',
+      plugins: {
+        ...baseOpt.plugins,
+        tooltip: {
+          callbacks: {
+            afterBody: (items) => {
+              const idx = items[0]?.dataIndex;
+              if (idx == null || !dr.pct_devolucao_valor) return '';
+              const pct = Number(dr.pct_devolucao_valor[idx] || 0).toFixed(1).replace('.', ',');
+              return `% Devolução (valor real): ${pct}%`;
+            }
+          }
+        }
+      },
+      scales: {
+        ...baseOpt.scales,
+        x: { ...baseOpt.scales.x, stacked: true, title: { display: true, text: 'Valor devolvido (R$)', color: palette.muted } },
+        y: { ...baseOpt.scales.y, stacked: true }
+      }
+    }
   });
 
   let state = { rows: [...detailRows], page: 1, pageSize: 30, sortKey: 'date', sortDir: 'desc', search: '', externalFilter: null, drillStack: [] };
