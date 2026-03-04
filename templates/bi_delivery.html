@@ -155,7 +155,7 @@
         <td><a class="table-link"
             href="/bi/delivery?{{ filters_query }}&detail_driver_id={{ row.driver_id }}#drilldown-section">{{
             row.driver_name }}</a></td>
-        <td>{{ row.delivered_stops }}/{{ row.planned_stops }}</td>
+        <td>{% if row.planned_stops > 0 %}{{ row.delivered_stops }}/{{ row.planned_stops }}{% else %}— ({{ row.returned_stops }} dev.){% endif %}</td>
         <td class="{{ 'tone-danger' if row.efficiency < 70 else 'tone-success' }}">{{ "%.1f"|format(row.efficiency) }}%
         </td>
         <td class="{{ 'tone-warning' if row.return_rate >= 10 else '' }}">{{ "%.1f"|format(row.return_rate) }}%</td>

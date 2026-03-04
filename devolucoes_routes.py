@@ -14,6 +14,8 @@ from pydantic import BaseModel
 from database import get_session, engine
 import models
 from devolucoes_service import (
+    _reconcile_devolucao_with_route,
+    reconcile_all_devolucoes_with_routes,
     parse_excel,
     validate_rows,
     save_batch,
@@ -168,7 +170,7 @@ def init_devolucoes_router(
         month: Optional[int] = None,
         year: Optional[int] = None,
         page: int = 1,
-        per_page: int = 100,
+        per_page: Optional[int] = None,
         session: Session = Depends(get_session),
     ):
         require_login(request)
@@ -202,8 +204,9 @@ def init_devolucoes_router(
             .where(models.Devolucao.data_romaneio <= end_date)
             .order_by(models.Devolucao.data_romaneio.desc(), models.Devolucao.created_at.desc())
         )
-        offset = max(0, (page - 1) * per_page)
-        devolucoes = session.exec(base_q.offset(offset).limit(per_page)).all()
+        per_page_effective = min(max(1, per_page or 500), 10000)
+        offset = max(0, (page - 1) * per_page_effective)
+        devolucoes = session.exec(base_q.offset(offset).limit(per_page_effective)).all()
 
         client_ids = {d.client_id for d in devolucoes}
         motorista_ids = {d.motorista_id for d in devolucoes}
@@ -227,7 +230,7 @@ def init_devolucoes_router(
                 }
             )
 
-        total_pages = (total_count + per_page - 1) // per_page if total_count > 0 else 1
+        total_pages = (total_count + per_page_effective - 1) // per_page_effective if total_count > 0 else 1
 
         return templates.TemplateResponse(
             "devolucoes.html",
@@ -247,7 +250,7 @@ def init_devolucoes_router(
                 },
                 "pagination": {
                     "page": page,
-                    "per_page": per_page,
+                    "per_page": per_page_effective,
                     "total_count": total_count,
                     "total_pages": total_pages,
                     "has_prev": page > 1,
@@ -498,7 +501,20 @@ def init_devolucoes_router(
             created_by = user.username if user else None
 
             dt = datetime.strptime(payload.data_romaneio, "%Y-%m-%d")
+            motivo = session.get(models.DevolucaoMotivo, payload.motivo_id)
+            resp = session.get(models.DevolucaoResponsabilidade, payload.responsabilidade_id)
+            motivo_nome = motivo.nome if motivo else "Importado"
+            resp_nome = resp.nome if resp else "IMPORT"
+            r_dict = {
+                "data_romaneio": payload.data_romaneio,
+                "data_entrega": payload.data_entrega,
+                "client_id": payload.client_id,
+                "motorista_id": payload.motorista_id,
+                "valor": payload.valor,
+            }
+            route_id = _reconcile_devolucao_with_route(session, r_dict, motivo_nome, resp_nome)
             dev = models.Devolucao(
+                route_id=route_id,
                 data_romaneio=payload.data_romaneio,
                 data_entrega=payload.data_entrega,
                 client_id=payload.client_id,
@@ -530,6 +546,28 @@ def init_devolucoes_router(
         except Exception as e:
             logger.exception(f"Erro ao criar devolucao manual: {e}")
             return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+    @router.post("/api/devolucoes/reconcile-routes", response_class=JSONResponse)
+    async def api_devolucoes_reconcile_routes(
+        request: Request,
+        session: Session = Depends(get_session),
+    ):
+        """Reconcilia devoluções existentes com rotas: atualiza Route para devolução quando houver match."""
+        require_login(request)
+        try:
+            body = {}
+            try:
+                body = await request.json()
+            except Exception:
+                pass
+            start_date = body.get("start_date")
+            end_date = body.get("end_date")
+            updated = reconcile_all_devolucoes_with_routes(session, start_date, end_date)
+            session.commit()
+            return JSONResponse({"ok": True, "updated_routes": updated})
+        except Exception as e:
+            logger.exception(f"Erro ao reconciliar devolucoes com rotas: {e}")
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
     @router.get("/api/devolucoes", response_class=JSONResponse)
     async def api_devolucoes_list(

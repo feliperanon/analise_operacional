@@ -26,6 +26,7 @@ from models import (
     DevolucaoImportBatch,
     DevolucaoImportRowError,
     DevolucaoStaging,
+    Route,
 )
 
 # Constantes de CLUSTER (faixas de valor)
@@ -515,13 +516,23 @@ def _load_cadastros(session: Session) -> Dict[str, Any]:
                 vendedor_by_name_exact[nn] = []
             vendedor_by_name_exact[nn].append(e)
 
+    def _is_motorista_role(emp: Employee) -> bool:
+        r = _norm_text(getattr(emp, "role", "") or "")
+        return "motorista" in r and "ajudante" not in r
+
     motorista_by_name = {}
-    for e in employees:
-        motorista_by_name[_norm_text(e.name)] = e
-        tokens = set(_norm_text(e.name).split())
+    motoristas_first = sorted(employees, key=lambda e: (0 if _is_motorista_role(e) else 1, e.name))
+    for e in motoristas_first:
+        name_norm = _norm_text(e.name)
+        motorista_by_name[name_norm] = e
+        tokens = name_norm.split()
         for t in tokens:
-            if len(t) >= 3:
-                motorista_by_name[t] = e  # primeiro nome
+            if len(t) >= 3 and t not in motorista_by_name:
+                motorista_by_name[t] = e
+        for n in range(2, min(4, len(tokens) + 1)):
+            prefix = " ".join(tokens[:n])
+            if prefix not in motorista_by_name:
+                motorista_by_name[prefix] = e
 
     motivo_by_norm = {}
     motivo_resp_map = {}
@@ -904,6 +915,87 @@ def validate_rows(
     return valid, invalid, staging, batch_id, []
 
 
+def _reconcile_devolucao_with_route(
+    session: Session,
+    r: Dict,
+    motivo_nome: str,
+    resp_nome: str,
+) -> Optional[int]:
+    """
+    Busca Route compatível (cliente, motorista, data) e atualiza para devolução.
+    Retorna route_id se atualizou, None caso contrário.
+    """
+    date_str = r.get("data_romaneio") or r.get("data_entrega")
+    if not date_str:
+        return None
+    client_id = r.get("client_id")
+    motorista_id = r.get("motorista_id")
+    if not client_id or not motorista_id:
+        return None
+    routes = session.exec(
+        select(Route)
+        .where(Route.type == "delivery")
+        .where(Route.client_id == client_id)
+        .where(Route.employee_id == motorista_id)
+        .where(Route.date == date_str)
+        .where(Route.delivery_status.in_(["entregue", "pendente", "iniciada", "reaberta"]))
+    ).all()
+    if not routes:
+        return None
+    route = routes[0]
+    now = datetime.now().strftime("%H:%M")
+    route.delivery_status = "devolucao"
+    route.status = "completed"
+    route.valor_devolucao = float(r.get("valor") or 0.0)
+    route.devolucao_volume = route.tonnage
+    route.delivery_return_category = resp_nome or "IMPORT"
+    route.delivery_return_reason = motivo_nome or "Importado"
+    if not route.delivery_returned_at:
+        route.delivery_returned_at = now
+    if not route.delivery_finished_at:
+        route.delivery_finished_at = now
+    route.end_time = route.end_time or now
+    session.add(route)
+    return route.id
+
+
+def reconcile_all_devolucoes_with_routes(
+    session: Session,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+) -> int:
+    """
+    Percorre Devoluções no período e atualiza Rotas correspondentes para status devolução.
+    Retorna quantidade de rotas atualizadas.
+    """
+    q = select(Devolucao).order_by(Devolucao.data_romaneio, Devolucao.id)
+    if start_date:
+        q = q.where(Devolucao.data_romaneio >= start_date)
+    if end_date:
+        q = q.where(Devolucao.data_romaneio <= end_date)
+    devolucoes = session.exec(q).all()
+    motivos = {m.id: m.nome for m in session.exec(select(DevolucaoMotivo)).all()}
+    resp_map = {r.id: r.nome for r in session.exec(select(DevolucaoResponsabilidade)).all()}
+    updated = 0
+    for d in devolucoes:
+        r = {
+            "data_romaneio": d.data_romaneio,
+            "data_entrega": d.data_entrega,
+            "client_id": d.client_id,
+            "motorista_id": d.motorista_id,
+            "valor": d.valor,
+        }
+        motivo_nome = motivos.get(d.motivo_id, "Importado")
+        resp_nome = resp_map.get(d.responsabilidade_id, "IMPORT")
+        rid = _reconcile_devolucao_with_route(session, r, motivo_nome, resp_nome)
+        if rid:
+            updated += 1
+            if not d.route_id:
+                d.route_id = rid
+                session.add(d)
+    return updated
+
+
 def save_batch(
     session: Session,
     valid_rows: List[Dict],
@@ -913,19 +1005,36 @@ def save_batch(
 ) -> Tuple[int, List[str]]:
     """
     Persiste devoluções válidas em transação.
+    Sobrepõe Route correspondente (cliente, motorista, data) para status devolução.
     metadata: {filename, batch_id, ...}
     Retorna (created_count, idempotency_hashes_skipped)
     """
     created = 0
     skipped = []
+    motivos = {m.id: m.nome for m in session.exec(select(DevolucaoMotivo)).all()}
+    resp_map = {r.id: r.nome for r in session.exec(select(DevolucaoResponsabilidade)).all()}
     for r in valid_rows:
+        motivo_nome = motivos.get(r.get("motivo_id"), "Importado")
+        resp_nome = resp_map.get(r.get("responsabilidade_id"), "IMPORT")
         existing = session.exec(
             select(Devolucao).where(Devolucao.idempotency_hash == r["idempotency_hash"])
         ).first()
         if existing:
+            r_existing = {
+                "data_romaneio": existing.data_romaneio,
+                "data_entrega": existing.data_entrega,
+                "client_id": existing.client_id,
+                "motorista_id": existing.motorista_id,
+                "valor": existing.valor,
+            }
+            motivo_ex = motivos.get(existing.motivo_id, "Importado")
+            resp_ex = resp_map.get(existing.responsabilidade_id, "IMPORT")
+            _reconcile_devolucao_with_route(session, r_existing, motivo_ex, resp_ex)
             skipped.append(r["idempotency_hash"])
             continue
+        route_id = _reconcile_devolucao_with_route(session, r, motivo_nome, resp_nome)
         dev = Devolucao(
+            route_id=route_id,
             data_romaneio=r["data_romaneio"],
             data_entrega=r["data_entrega"],
             client_id=r["client_id"],

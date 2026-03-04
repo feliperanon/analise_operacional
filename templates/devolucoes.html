@@ -23,6 +23,11 @@
                     <i data-lucide="download" class="w-4 h-4"></i>
                     Modelo Excel
                 </a>
+                <button type="button" id="reconcile-routes-btn" title="Atualiza rotas de entrega para status devolução quando houver devolução cadastrada"
+                    class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-sm font-medium transition-colors">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    Reconciliar rotas
+                </button>
             </div>
         </div>
 
@@ -50,8 +55,9 @@
         <div class="mb-6 flex flex-wrap items-center gap-4">
             <div class="flex items-center gap-2">
                 <label class="text-sm text-slate-400">Período:</label>
-                <form method="get" action="/devolucoes" class="flex items-center gap-2">
-                    <select name="month" onchange="this.form.submit()" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white">
+                <form method="get" action="/devolucoes" class="flex items-center gap-2" id="devolucoes-filter-form">
+                        <input type="hidden" name="per_page" value="{{ _pagination.get('per_page', 500) }}">
+                        <select name="month" onchange="this.form.submit()" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white">
                         {% for m in range(1, 13) %}
                         <option value="{{ m }}" {% if _filters.get('month') == m %}selected{% endif %}>{{ ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][m] }}</option>
                         {% endfor %}
@@ -66,6 +72,11 @@
             </div>
             {% if _pagination %}
             <span class="text-sm text-slate-500">{{ _pagination.get('total_count', 0) }} registro(s) em {{ _filters.get('start_date', '')[:7] }}</span>
+            <div class="flex items-center gap-2">
+                {% if _pagination.get('total_pages', 1) > 1 %}
+                <a href="/devolucoes?month={{ _filters.get('month') }}&year={{ _filters.get('year') }}&page=1&per_page=9999" class="text-sm text-sky-400 hover:text-sky-300 hover:underline">Ver todos na mesma página</a>
+                {% endif %}
+            </div>
             {% endif %}
         </div>
 
@@ -74,9 +85,9 @@
                 <h3 class="text-slate-300 font-medium">Registros de devolução</h3>
                 {% if _pagination and _pagination.get('total_pages', 1) > 1 %}
                 <nav class="flex items-center gap-1">
-                    <a href="/devolucoes?month={{ _filters.get('month') }}&year={{ _filters.get('year') }}&page={{ _pagination.get('prev_page', 1) }}" class="px-3 py-1 rounded text-sm {% if _pagination.get('has_prev') %}text-sky-400 hover:bg-slate-700{% else %}text-slate-600 cursor-not-allowed{% endif %}">← Anterior</a>
+                    <a href="/devolucoes?month={{ _filters.get('month') }}&year={{ _filters.get('year') }}&page={{ _pagination.get('prev_page', 1) }}&per_page={{ _pagination.get('per_page', 500) }}" class="px-3 py-1 rounded text-sm {% if _pagination.get('has_prev') %}text-sky-400 hover:bg-slate-700{% else %}text-slate-600 cursor-not-allowed{% endif %}">← Anterior</a>
                     <span class="px-2 text-slate-400 text-sm">Pág. {{ _pagination.get('page', 1) }} / {{ _pagination.get('total_pages', 1) }}</span>
-                    <a href="/devolucoes?month={{ _filters.get('month') }}&year={{ _filters.get('year') }}&page={{ _pagination.get('next_page', 1) }}" class="px-3 py-1 rounded text-sm {% if _pagination.get('has_next') %}text-sky-400 hover:bg-slate-700{% else %}text-slate-600 cursor-not-allowed{% endif %}">Próxima →</a>
+                    <a href="/devolucoes?month={{ _filters.get('month') }}&year={{ _filters.get('year') }}&page={{ _pagination.get('next_page', 1) }}&per_page={{ _pagination.get('per_page', 500) }}" class="px-3 py-1 rounded text-sm {% if _pagination.get('has_next') %}text-sky-400 hover:bg-slate-700{% else %}text-slate-600 cursor-not-allowed{% endif %}">Próxima →</a>
                 </nav>
                 {% endif %}
             </div>
@@ -278,6 +289,40 @@ document.getElementById('import-commit-btn')?.addEventListener('click', async fu
         }
     } catch (e) {
         alert('Erro: ' + e.message);
+    }
+});
+
+document.getElementById('reconcile-routes-btn')?.addEventListener('click', async function() {
+    const btn = this;
+    const origText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Reconciliando...';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const month = params.get('month') || new Date().getMonth() + 1;
+        const year = params.get('year') || new Date().getFullYear();
+        const lastDay = new Date(year, month, 0).getDate();
+        const start = year + '-' + String(month).padStart(2, '0') + '-01';
+        const end = year + '-' + String(month).padStart(2, '0') + '-' + String(lastDay).padStart(2, '0');
+        const r = await fetch('/api/devolucoes/reconcile-routes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ start_date: start, end_date: end })
+        });
+        const j = await r.json();
+        if (j.ok) {
+            alert('Reconciliação concluída: ' + j.updated_routes + ' rota(s) atualizada(s) para devolução.');
+            window.location.reload();
+        } else {
+            alert(j.error || 'Erro ao reconciliar');
+        }
+    } catch (e) {
+        alert('Erro: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = origText;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 });
 

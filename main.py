@@ -2159,6 +2159,36 @@ async def login_submit(
 
     return RedirectResponse(url="/", status_code=303)
 
+
+@app.get("/users", response_class=RedirectResponse)
+async def users_legacy_redirect():
+    return RedirectResponse(url="/admin/users", status_code=302)
+
+
+@app.get("/admin/users", response_class=HTMLResponse)
+async def admin_users_page(request: Request, session: Session = Depends(get_session)):
+    require_admin(request)
+    users = session.exec(select(models.User).order_by(models.User.username)).all()
+    employees = session.exec(
+        select(models.Employee)
+        .where(models.Employee.status != "fired")
+        .order_by(models.Employee.name)
+    ).all()
+    employee_map = {e.id: e for e in employees}
+    return templates.TemplateResponse(
+        "admin_users.html",
+        {
+            "request": request,
+            "users": users,
+            "employees": employees,
+            "employee_map": employee_map,
+            "page_options": PAGE_OPTIONS,
+            "message": request.query_params.get("message"),
+            "level": request.query_params.get("level", "success"),
+        },
+    )
+
+
 @app.get("/mobile", response_class=RedirectResponse)
 async def mobile_index(request: Request):
     user = get_current_user(request)
