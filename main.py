@@ -1799,6 +1799,27 @@ def require_mobile_module(employee, module: str):
         raise HTTPException(status_code=403, detail="Acesso nÃ£o liberado para este mÃ³dulo")
     return True
 
+def _has_mobile_flags(employee) -> bool:
+    if not employee:
+        return False
+    return bool(
+        getattr(employee, "mobile_access", False)
+        or getattr(employee, "mobile_access_separation", False)
+        or getattr(employee, "mobile_access_checklist", False)
+        or getattr(employee, "mobile_access_admin_start", False)
+    )
+
+def _is_mobile_allowed(employee) -> bool:
+    if not employee:
+        return False
+    status_value = str(getattr(employee, "status", "") or "").strip().lower()
+    if status_value != "active":
+        return False
+    if _has_mobile_flags(employee):
+        return True
+    role_value = str(getattr(employee, "role", "") or "").strip().upper()
+    return "MOTORISTA" in role_value
+
 def require_roles(request: Request, allowed_roles: set):
     user = require_login(request)
     actor_label = format_user_label(user)
@@ -2175,18 +2196,20 @@ async def mobile_auth(
     if not employee:
         return RedirectResponse(url="/mobile/login?error=invalid_registration", status_code=303)
 
-    status_value = (employee.status or "").strip().lower()
-    if status_value == "fired":
-        return RedirectResponse(url="/mobile/login?error=access_revoked", status_code=303)
-
-    has_mobile_access = bool(
-        getattr(employee, "mobile_access", False)
-        or getattr(employee, "mobile_access_separation", False)
-        or getattr(employee, "mobile_access_checklist", False)
-        or getattr(employee, "mobile_access_admin_start", False)
-    )
+    has_mobile_flags = _has_mobile_flags(employee)
+    status_value = str(getattr(employee, "status", "") or "").strip().lower()
+    role_value = str(getattr(employee, "role", "") or "").strip().upper()
+    role_mobile_fallback = (status_value == "active") and ("MOTORISTA" in role_value) and (not has_mobile_flags)
+    has_mobile_access = _is_mobile_allowed(employee)
     if not has_mobile_access:
         return RedirectResponse(url="/mobile/login?error=access_revoked", status_code=303)
+    if role_mobile_fallback:
+        logger.info(
+            "mobile_auth role fallback granted employee_id=%s registration_id=%s role=%s",
+            employee.id,
+            employee.registration_id,
+            employee.role,
+        )
 
     # Evita sessÃ£o mista entre desktop/admin e mobile.
     request.session.pop("auth_user_id", None)
@@ -2226,12 +2249,7 @@ async def mobile_dashboard(
     elif module_value in {"checklist", "separation"}:
         module_notice = f"MÃ³dulo '{module_value}' indisponÃ­vel para seu perfil."
 
-    has_any_mobile_access = bool(
-        getattr(employee, "mobile_access", False)
-        or getattr(employee, "mobile_access_separation", False)
-        or getattr(employee, "mobile_access_checklist", False)
-        or getattr(employee, "mobile_access_admin_start", False)
-    )
+    has_any_mobile_access = _is_mobile_allowed(employee)
     if not has_any_mobile_access:
         request.session.pop("user_id", None)
         return RedirectResponse(url="/mobile/login?error=access_revoked", status_code=303)
@@ -7718,15 +7736,17 @@ def _find_employee_by_driver_name(name: str, employees: List[models.Employee]) -
         logger.debug("debug log")
         return exact
 
-    target_tokens = {t for t in target.split() if t}
+    # Usar tokens canônicos para assimilação (ex.: JR <-> JUNIOR, primeiro nome + último)
+    target_tokens = _canonical_name_tokens(name)
     if not target_tokens:
         logger.debug(f"Ã¢ÂÃ…' Nenhum token vÃ¡lido em '{target}'")
         return None
 
     # Caso comum de abreviaÃ§Ã£o de 1 palavra (ex.: "FERNANDO"):
     # prioriza colaborador cujo nome COMEÃ‡A com a palavra.
-    if len(target_tokens) == 1:
-        token = next(iter(target_tokens))
+    raw_tokens = {t for t in target.split() if t}
+    if len(raw_tokens) == 1:
+        token = next(iter(raw_tokens))
         starts_with_matches = []
         for emp in employees:
             emp_norm = _norm_text(emp.name)
@@ -7751,21 +7771,27 @@ def _find_employee_by_driver_name(name: str, employees: List[models.Employee]) -
             # Prioridade 3: fallback determinÃ­stico para evitar perda de importaÃ§Ã£o
             return sorted(starts_with_matches, key=lambda e: len(_norm_text(e.name)))[0]
 
-    # Caso o nome vindo da planilha seja abreviado (ex.: "GILMAR MARQUES")
-    # e exista apenas um colaborador que contenha todos os tokens, associar.
+    # Caso o nome vindo da planilha seja abreviado (ex.: "HAMILTON JR" -> "HAMILTON ... JUNIOR")
+    # tokens canônicos: jr/junior unificados; subset se todos os tokens da planilha estão no nome cadastrado.
     token_subset_matches = []
     for emp in employees:
-        emp_tokens = {t for t in _norm_text(emp.name).split() if t}
+        emp_tokens = _canonical_name_tokens(emp.name)
+        if not emp_tokens:
+            continue
         if target_tokens.issubset(emp_tokens):
             token_subset_matches.append(emp)
     if len(token_subset_matches) == 1:
         return token_subset_matches[0]
+    if len(token_subset_matches) > 1:
+        # Vários colaboradores com esses tokens: prioriza cargo motorista e depois nome mais curto
+        driver_subset = [e for e in token_subset_matches if "motorista" in _norm_text(getattr(e, "role", "") or "")]
+        candidates = driver_subset if driver_subset else token_subset_matches
+        return sorted(candidates, key=lambda e: len(_norm_text(e.name)))[0]
 
     best_emp = None
     best_score = 0.0
     for emp in employees:
-        emp_norm = _norm_text(emp.name)
-        emp_tokens = {t for t in emp_norm.split() if t}
+        emp_tokens = _canonical_name_tokens(emp.name)
         if not emp_tokens:
             continue
         overlap = len(target_tokens.intersection(emp_tokens))
