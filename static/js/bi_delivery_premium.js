@@ -37,6 +37,7 @@
   let fullscreenChartId = null;
   let compareWindow = null;
   let kpiSparklineChart = null;
+  let respMotivosChart = null;
   let fullscreenIndex = 0;
 
   function modalOpen(id) {
@@ -57,6 +58,10 @@
       destroyFullscreenChart();
       fullscreenChartId = null;
       compareWindow = null;
+    }
+    if (id === "respMotivosModal" && respMotivosChart) {
+      respMotivosChart.destroy();
+      respMotivosChart = null;
     }
   }
 
@@ -212,6 +217,7 @@
       if (id === "clusterChart") fn = (r) => r.cluster === label;
       if (id === "driverChart") fn = (r) => r.driver_name === label;
       if (!fn) return;
+      if (id === "respChart") openResponsibilityMotivosModal(label);
       state.drillStack.push({ label: `${chartTitles[id]}: ${label}`, fn });
       state.externalFilter = fn;
       state.page = 1;
@@ -234,6 +240,87 @@
         if (existing) existing.destroy();
       }
     } catch (e) { /* ignore */ }
+  }
+
+  function toAmount(v) {
+    if (typeof v === "number") return v;
+    const n = Number(String(v ?? "").replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", "."));
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function openResponsibilityMotivosModal(responsabilidade) {
+    const canvas = byId("respMotivosCanvas");
+    if (!canvas) return;
+    const rows = (state?.rows || []).filter((r) => String(r?.responsabilidade || "").trim() === String(responsabilidade || "").trim());
+    const acc = new Map();
+    rows.forEach((r) => {
+      const motivo = String(r?.motivo || "Sem motivo").trim() || "Sem motivo";
+      const item = acc.get(motivo) || { qtd: 0, valor: 0 };
+      item.qtd += 1;
+      item.valor += toAmount(r?.returned_value);
+      acc.set(motivo, item);
+    });
+
+    const motivos = Array.from(acc.entries())
+      .map(([motivo, v]) => ({ motivo, qtd: v.qtd, valor: v.valor }))
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 12);
+
+    byId("respMotivosTitle").textContent = `Motivos de devolucao | ${responsabilidade}`;
+
+    if (respMotivosChart) {
+      respMotivosChart.destroy();
+      respMotivosChart = null;
+    }
+    respMotivosChart = new Chart(canvas, {
+      type: "bar",
+      data: {
+        labels: motivos.map((m) => m.motivo),
+        datasets: [
+          {
+            label: "Quantidade",
+            data: motivos.map((m) => m.qtd),
+            backgroundColor: "rgba(245, 158, 11, 0.65)",
+            borderColor: "#f59e0b",
+            borderWidth: 1,
+            yAxisID: "y"
+          },
+          {
+            label: "Valor devolvido (R$)",
+            data: motivos.map((m) => m.valor),
+            backgroundColor: "rgba(239, 68, 68, 0.55)",
+            borderColor: "#ef4444",
+            borderWidth: 1,
+            yAxisID: "y1"
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: "#94a3b8" } },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const label = ctx.dataset.label || "";
+                const val = Number(ctx.raw || 0);
+                if (ctx.dataset.yAxisID === "y1") {
+                  return `${label}: ${val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`;
+                }
+                return `${label}: ${val.toLocaleString("pt-BR")}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: "#94a3b8" }, grid: { color: "rgba(148,163,184,0.2)" } },
+          y: { position: "left", ticks: { color: "#94a3b8" }, grid: { color: "rgba(148,163,184,0.2)" }, title: { display: true, text: "Quantidade", color: "#94a3b8" } },
+          y1: { position: "right", ticks: { color: "#94a3b8" }, grid: { drawOnChartArea: false }, title: { display: true, text: "Valor (R$)", color: "#94a3b8" } }
+        }
+      }
+    });
+    modalOpen("respMotivosModal");
   }
 
   function openChartFullscreen(chartId) {
@@ -318,6 +405,7 @@
   qsa("[data-close-modal]").forEach((btn) => btn.addEventListener("click", () => modalClose(btn.dataset.closeModal)));
   byId("kpiDetailModal")?.addEventListener("click", (e) => { if (e.target.id === "kpiDetailModal") modalClose("kpiDetailModal"); });
   byId("chartFullscreenModal")?.addEventListener("click", (e) => { if (e.target.id === "chartFullscreenModal") modalClose("chartFullscreenModal"); });
+  byId("respMotivosModal")?.addEventListener("click", (e) => { if (e.target.id === "respMotivosModal") modalClose("respMotivosModal"); });
 
   byId("chartTypeToggleBtn")?.addEventListener("click", () => {
     if (!fullscreenChartId) return;
@@ -350,6 +438,7 @@
     if (e.key === "Escape") {
       modalClose("kpiDetailModal");
       modalClose("chartFullscreenModal");
+      modalClose("respMotivosModal");
       return;
     }
     if (!isOpen) return;
