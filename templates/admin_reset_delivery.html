@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="p-8">
+    <div class="max-w-2xl mx-auto">
+        <a href="/separacao" class="inline-flex items-center gap-2 text-slate-400 hover:text-white text-sm mb-6">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            Voltar para Separação
+        </a>
+
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6 shadow-xl">
+            <div class="flex gap-3 mb-4">
+                <div class="p-3 bg-red-500/10 rounded-lg">
+                    <i data-lucide="trash-2" class="w-6 h-6 text-red-400"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-white">Resetar Entregas e Devoluções</h1>
+                    <p class="text-sm text-slate-400 mt-1">Remove todos os dados de separação, entregas e devoluções. Cadastros são preservados.</p>
+                </div>
+            </div>
+
+            {% if request.query_params.get('message') %}
+            <div class="rounded-lg px-4 py-3 mb-4 {% if request.query_params.get('level') == 'error' %}bg-red-500/10 border border-red-500/40 text-red-300{% else %}bg-amber-500/10 border border-amber-500/40 text-amber-300{% endif %}">
+                {{ request.query_params.get('message') }}
+            </div>
+            {% endif %}
+
+            <div class="rounded-lg border border-red-500/30 bg-red-500/5 p-4 mb-6">
+                <p class="text-sm text-slate-300">
+                    Serão removidos: <strong class="text-red-300">Route</strong> (separaçao/entregas), 
+                    <strong class="text-red-300">Devolucao</strong>, 
+                    <strong class="text-red-300">DeliverySession</strong> e tabelas de import.
+                    <br>BI Delivery ficará zerado. Esta ação não pode ser desfeita.
+                </p>
+            </div>
+
+            <form action="/admin/tools/reset-delivery" method="POST"
+                onsubmit="return confirm('Tem certeza? Todos os dados de entregas e devoluções serão apagados.');"
+                class="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+                <div class="flex-1 w-full">
+                    <label class="block text-xs font-semibold text-red-200 uppercase tracking-wide mb-1">
+                        Digite exatamente para confirmar
+                    </label>
+                    <input type="text" name="confirm_phrase" required
+                        placeholder="resetar entregas e devolucoes"
+                        class="w-full rounded-lg bg-slate-900 border border-red-500/40 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-red-400 focus:outline-none focus:ring-1 focus:ring-red-400">
+                </div>
+                <button type="submit"
+                    class="w-full sm:w-auto rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold px-6 py-2.5 text-sm transition-colors">
+                    Resetar
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+<script>if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();</script>
+{% endblock %}

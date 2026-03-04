@@ -425,7 +425,8 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Erro ao seed devoluÃ§Ãµes: {e}")
     try:
-        logger.info(f"DATABASE URL DETECTADA: {engine.url}")
+        db_source = os.environ.get("ACTIVE_DATABASE_SOURCE", "unknown")
+        logger.info(f"DATABASE URL DETECTADA: {engine.url} | source={db_source}")
         sync_sectors_on_startup()
     except Exception as e:
         logger.error(f"Erro ao iniciar sync: {e}")
@@ -5515,6 +5516,55 @@ async def admin_cleanup_all_tickets(
         url="/admin/equipment/tickets?message=Todos+os+chamados+foram+apagados+com+sucesso.&level=success",
         status_code=status.HTTP_303_SEE_OTHER,
     )
+
+
+@app.get("/admin/tools/reset-delivery", response_class=HTMLResponse)
+async def admin_reset_delivery_page(request: Request, user=Depends(require_leader)):
+    """Página para resetar dados de separação, entregas e devoluções."""
+    return templates.TemplateResponse("admin_reset_delivery.html", {"request": request})
+
+
+@app.post("/admin/tools/reset-delivery", response_class=RedirectResponse)
+async def admin_reset_delivery_execute(
+    request: Request,
+    confirm_phrase: str = Form(...),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader),
+):
+    """
+    Reseta dados de separação (/separacao), devoluções (/devolucoes) e BI Delivery.
+    Cadastros (clientes, motoristas, veículos) são preservados.
+    """
+    phrase = (confirm_phrase or "").strip().lower()
+    expected = "resetar entregas e devolucoes"
+    if phrase != expected:
+        return RedirectResponse(
+            url="/admin/tools/reset-delivery?message=Frase+incorreta.+Digite+exatamente:+resetar+entregas+e+devolucoes&level=error",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    counts = {}
+    r = session.execute(delete(models.DevolucaoStaging))
+    counts["DevolucaoStaging"] = r.rowcount or 0
+    r = session.execute(delete(models.DevolucaoImportRowError))
+    counts["DevolucaoImportRowError"] = r.rowcount or 0
+    r = session.execute(delete(models.Devolucao))
+    counts["Devolucao"] = r.rowcount or 0
+    r = session.execute(delete(models.DevolucaoImportBatch))
+    counts["DevolucaoImportBatch"] = r.rowcount or 0
+    r = session.execute(delete(models.DeliverySession))
+    counts["DeliverySession"] = r.rowcount or 0
+    r = session.execute(delete(models.Route))
+    counts["Route"] = r.rowcount or 0
+
+    session.commit()
+
+    msg = "Reset concluído: " + ", ".join(f"{t}={n}" for t, n in counts.items())
+    return RedirectResponse(
+        url="/separacao?" + urlencode({"delivery_feedback": msg, "delivery_feedback_level": "success"}),
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
 
 @app.post("/admin/routine/checklists/{checklist_id}/approve", response_class=RedirectResponse)
 async def admin_checklist_approve(
