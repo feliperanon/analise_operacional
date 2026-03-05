@@ -508,6 +508,61 @@
     });
   }
 
+  function ensureHelpModal() {
+    let modal = document.getElementById('bi-help-modal');
+    if (modal) return modal;
+    modal = document.createElement('div');
+    modal.id = 'bi-help-modal';
+    modal.className = 'hidden fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm items-center justify-center p-4';
+    modal.innerHTML = `
+      <div class="surface-shadow bi-help-card w-full max-w-2xl p-5 max-h-[86vh] overflow-auto">
+        <div class="flex items-center justify-between gap-3">
+          <h3 id="bi-help-title" class="text-title-lg">Ajuda</h3>
+          <button type="button" id="bi-help-close" class="btn-secondary" style="min-height:36px;">Fechar</button>
+        </div>
+        <p id="bi-help-summary" class="text-body mt-3"></p>
+        <div id="bi-help-text" class="text-body mt-3 space-y-2"></div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const close = () => {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    };
+    modal.addEventListener('click', (ev) => {
+      if (ev.target === modal) close();
+    });
+    modal.querySelector('#bi-help-close').addEventListener('click', close);
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' && !modal.classList.contains('hidden')) close();
+    });
+    return modal;
+  }
+
+  function openHelpFromCard(card) {
+    const modal = ensureHelpModal();
+    const title = card.querySelector('h3')?.textContent?.trim() || card.dataset.chartTitle || 'Ajuda';
+    const subtitle = card.querySelector('p.text-caption')?.textContent?.trim() || card.dataset.chartSubtitle || 'Sem descrição adicional para este painel.';
+    modal.querySelector('#bi-help-title').textContent = title;
+    modal.querySelector('#bi-help-summary').textContent = subtitle;
+    modal.querySelector('#bi-help-text').innerHTML = `
+      <p><strong>Como usar:</strong> use este painel para localizar rapidamente concentração de devolução em valor (% sobre valor real).</p>
+      <p><strong>Ponto de atenção:</strong> priorize células e pares acima de 2,0% e trate imediatamente os acima de 4,0%.</p>
+      <p><strong>Ação prática:</strong> clique no item para abrir o drill-through já filtrado no par motorista-cliente.</p>
+    `;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+
+  document.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('button.icon-wrap-sm[title="Ajuda"]');
+    if (!btn) return;
+    ev.preventDefault();
+    const card = btn.closest('section, article');
+    if (card) openHelpFromCard(card);
+  });
+
   let state = { rows: [...detailRows], page: 1, pageSize: 30, sortKey: 'date', sortDir: 'desc', search: '', externalFilter: null };
   const drillBody = document.getElementById('drillBody');
   const drillSummary = document.getElementById('drillSummary');
@@ -598,6 +653,7 @@
   .tone-danger { color: var(--color-danger) !important; font-weight: 600; }
   .insight-row { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: .6rem; background: var(--color-surface); font-size: var(--text-body); }
   .insight-warning { border-color: var(--color-warning); }
+  .bi-help-card { border: 1px solid var(--color-border); }
   .status-chip { display: inline-flex; padding: .2rem .5rem; border-radius: 999px; font-size: .66rem; font-weight: 800; text-transform: uppercase; }
   .status-success { color: #d1fae5; background: rgba(16,185,129,.22); }
   .status-danger { color: #fee2e2; background: rgba(239,68,68,.24); }
