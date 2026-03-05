@@ -115,11 +115,8 @@
       {{ kpi_card("Dia + Devoluções", dia_mais_devolucoes, "Padrão temporal", "calendar", "neutral") }}
     </section>
 
-    <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+    <section class="grid grid-cols-1 xl:grid-cols-3 gap-4">
       {{ chart_card("Dia da semana × Devoluções", "Qtd e valor por dia da semana", "diaSemanaChart") }}
-    </section>
-
-    <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
       {{ chart_card("Motivos de devolução", "Valor por motivo e motorista", "motivosChart") }}
       {{ chart_card("Eficiência por motorista", "Comparativo tático com % devolução por valor", "driverChart") }}
     </section>
@@ -800,6 +797,10 @@
   .bi-card { padding: var(--space-4, 1rem); }
   .bi-card-head { display: flex; align-items: center; gap: .75rem; }
   .bi-card-head-between { justify-content: space-between; }
+  .chart-card { height: 100%; display: flex; flex-direction: column; }
+  .chart-card .bi-card-head { min-height: 58px; }
+  .chart-card > div[style*="height"] { height: 320px !important; }
+  .chart-card canvas { width: 100% !important; height: 100% !important; }
   .surface-shadow { background: var(--color-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); border: 1px solid var(--color-border); }
   .surface { background: var(--color-surface); border-radius: var(--radius-lg); border: 1px solid var(--color-border); }
   .icon-wrap, .icon-wrap-sm { background: var(--color-border-light); color: var(--color-text-secondary); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; }
