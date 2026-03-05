@@ -150,7 +150,7 @@
                     </div>
                     <div class="flex gap-2">
                         <button type="button" x-show="!deliverySessionOpen" @click.stop="openDeliverySetupModal()"
-                            class="touch-target px-3 py-2 rounded-lg font-semibold text-body text-white transition-opacity interactive" style="background: var(--color-primary);">Iniciar</button>
+                            class="touch-target px-3 py-2 rounded-lg font-semibold text-body text-white transition-opacity interactive min-h-[48px]" style="background: var(--color-primary);">Iniciar</button>
                         <button type="button" x-show="deliverySessionOpen" @click.stop="showDeliveryEndModal = true"
                             class="touch-target px-3 py-2 rounded-lg font-semibold text-body text-white transition-opacity interactive" style="background: var(--color-success);">Encerrar</button>
                     </div>
@@ -1173,22 +1173,14 @@
                 });
             },
 
-            // Delivery Entry (placa primeiro)
-            openStartEntry(ev) {
-                // Se houver rota de entrega planejada, pede placa/KM.
+            // Regra: deliveryRoutes.length > 0 → obrigatório abrir modal Placa/KM. Caso contrário → /mobile/routine/start
+            handleStartAction(ev) {
+                if (this.isSubmission) return;
                 if ((this.deliveryRoutes || []).length > 0) {
-                    this.showDeliverySetupModal = true;
-                    this.deliverySetupError = '';
-                    if (this.deliverySetup && !this.deliverySetup.plate && this.assignedPlate) {
-                        this.deliverySetup.plate = this.assignedPlate;
-                    }
-                    this.$nextTick(() => {
-                        if (this.$refs.deliveryPlateInput) this.$refs.deliveryPlateInput.focus();
-                    });
+                    this.openDeliverySetupModal();
                     return;
                 }
-
-                // Sem rotas de entrega: submit do form (POST /mobile/routine/start)
+                this.isSubmission = true;
                 if (ev && ev.target && ev.target.tagName === 'FORM') {
                     ev.target.submit();
                 } else {
@@ -1199,6 +1191,7 @@
                     f.submit();
                 }
             },
+            openStartEntry(ev) { this.handleStartAction(ev); },
 
             normalizePlateInput() {
                 const raw = (this.deliverySetup.plate || '').toUpperCase();
@@ -1376,22 +1369,26 @@
 
             confirmMobileReturn() {
                 if (!this.mobileReturnRoute) return;
-                fetch(`/api/mobile/delivery/route/${this.mobileReturnRoute.id}/action`, {
+                const route = this.mobileReturnRoute;
+                const payload = {
+                    action: 'devolucao',
+                    return_reason: this.mobileReturn.reason,
+                    return_is_partial: !!this.mobileReturn.is_partial,
+                    return_partial_weight: this.mobileReturn.is_partial ? Number(this.mobileReturn.weight || 0) : null,
+                    return_partial_value: this.mobileReturn.is_partial ? Number(this.mobileReturn.value || 0) : null,
+                    client_timestamp: new Date().toISOString()
+                };
+                fetch(`/api/mobile/delivery/route/${route.id}/action`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'devolucao',
-                        return_reason: this.mobileReturn.reason,
-                        return_is_partial: !!this.mobileReturn.is_partial,
-                        return_partial_weight: this.mobileReturn.is_partial ? Number(this.mobileReturn.weight || 0) : null,
-                        return_partial_value: this.mobileReturn.is_partial ? Number(this.mobileReturn.value || 0) : null
-                    })
+                    body: JSON.stringify(payload)
                 }).then(r => r.json()).then(data => {
                     if (data.success) {
                         this.showMobileReturnModal = false;
                         this.mobileReturnRoute = null;
                         this.loadDeliveryData();
                         this.haptic('success');
+                        if (typeof this.showXpPopup === 'function') this.showXpPopup(data.xp_earned || 5);
                     } else {
                         alert(data.error || 'Erro na devolução.');
                     }

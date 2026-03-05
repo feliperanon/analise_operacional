@@ -1,6 +1,9 @@
 {% extends "mobile/layout.html" %}
 
 {% block content %}
+<div id="xp-popup-delivery" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] pointer-events-none hidden flex items-center justify-center">
+    <div class="px-6 py-4 rounded-xl font-bold text-xl text-white" style="background: var(--color-primary); box-shadow: var(--shadow-modal);">+<span id="xp-amount-delivery">0</span> XP!</div>
+</div>
 <div x-data="deliveryPageController()" x-init="init()" class="min-h-screen pb-safe" style="background: var(--color-bg);">
     <header class="container-mobile py-4 border-b shrink-0 relative z-20" style="border-color: var(--color-border-light); background: var(--color-surface);">
         <div class="flex items-center justify-between">
@@ -19,8 +22,8 @@
                     <p class="text-section" style="color: var(--color-text);">Minhas Rotas</p>
                     <p class="text-caption-lg mt-0.5" x-text="assignedPlate ? `Caminhão: ${assignedPlate}` : 'Sem caminhão planejado'"></p>
                 </div>
-                <button x-show="!deliverySessionOpen" @click="openStartEntry()" class="px-3 py-2 rounded-lg font-semibold text-body text-white transition-opacity" style="background: var(--color-primary);">Iniciar</button>
-                <button x-show="deliverySessionOpen" @click="showDeliveryEndModal = true" class="px-3 py-2 rounded-lg font-semibold text-body text-white transition-opacity" style="background: var(--color-success);">Encerrar</button>
+                <button x-show="!deliverySessionOpen" @click="openStartEntry()" class="px-3 py-2 rounded-lg font-semibold text-body text-white transition-opacity min-h-[48px]" style="background: var(--color-primary);">Iniciar</button>
+                <button x-show="deliverySessionOpen" @click="showDeliveryEndModal = true" class="px-3 py-2 rounded-lg font-semibold text-body text-white transition-opacity min-h-[48px]" style="background: var(--color-success);">Encerrar</button>
             </div>
 
             <div class="mb-3 flex gap-2">
@@ -72,7 +75,7 @@
             </div>
 
             <div class="space-y-2 max-h-[62vh] overflow-y-auto custom-scrollbar mt-2" x-show="deliverySessionOpen && !!selectedDeliveryDay">
-                <template x-for="route in orderedDeliveryRoutes" :key="`route-${route.id}`">
+                <template x-for="route in activeDeliveryRoutes" :key="`route-${route.id}`">
                     <div class="surface p-3 rounded-lg" :class="routeStatusCardClass(route)">
                         <div class="flex items-start justify-between gap-2">
                             <div>
@@ -89,13 +92,38 @@
                             <span class="chip" x-show="routeStatus(route)==='iniciada'" x-text="`${formatTimer(route.started_at || '00:00')}`"></span>
                         </div>
                         <div class="grid grid-cols-2 gap-1.5 mt-2">
-                            <button @click="deliveryAction(route,'iniciar')" class="btn-delivery" :disabled="!deliverySessionOpen || (routeStatus(route)!=='pendente' && routeStatus(route)!=='reaberta')" style="background: var(--color-primary);">Iniciar</button>
-                            <button @click="deliveryAction(route,'finalizar')" class="btn-delivery" :disabled="!deliverySessionOpen || routeStatus(route)!=='iniciada'" style="background: var(--color-success);">Finalizar</button>
-                            <button @click="openMobileReturnModal(route)" class="btn-delivery" :disabled="!deliverySessionOpen || routeStatus(route)!=='iniciada'" style="background: var(--color-warning);">Devolução</button>
-                            <button @click="deliveryAction(route,'reabrir')" class="btn-delivery" :disabled="!deliverySessionOpen || (routeStatus(route)!=='entregue' && routeStatus(route)!=='devolucao')" style="background: var(--color-text-secondary); color: white;">Reabrir</button>
+                            <button @click="deliveryAction(route,'iniciar')" class="btn-delivery min-h-[48px]" :disabled="!deliverySessionOpen || (routeStatus(route)!=='pendente' && routeStatus(route)!=='reaberta')" style="background: var(--color-primary);">Iniciar</button>
+                            <button @click="deliveryAction(route,'finalizar')" class="btn-delivery min-h-[48px]" :disabled="!deliverySessionOpen || routeStatus(route)!=='iniciada'" style="background: var(--color-success);">Finalizar</button>
+                            <button @click="openMobileReturnModal(route)" class="btn-delivery min-h-[48px]" :disabled="!deliverySessionOpen || routeStatus(route)!=='iniciada'" style="background: var(--color-warning);">Devolução</button>
+                            <button @click="deliveryAction(route,'reabrir')" class="btn-delivery min-h-[48px]" :disabled="!deliverySessionOpen || (routeStatus(route)!=='entregue' && routeStatus(route)!=='devolucao')" style="background: var(--color-text-secondary); color: white;">Reabrir</button>
                         </div>
                     </div>
                 </template>
+                <div x-show="completedDeliveryRoutes.length > 0" class="mt-4 border-t pt-3" style="border-color: var(--color-border);">
+                    <button @click="completedAccordionOpen = !completedAccordionOpen" class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-left" style="background: var(--color-border-light); color: var(--color-text-secondary);">
+                        <span class="font-semibold text-body">Concluídos (<span x-text="completedDeliveryRoutes.length"></span>)</span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 transition-transform" :class="completedAccordionOpen && 'rotate-180'"></i>
+                    </button>
+                    <div x-show="completedAccordionOpen" x-transition class="space-y-2 mt-2">
+                        <template x-for="route in completedDeliveryRoutes" :key="`completed-${route.id}`">
+                            <div class="surface p-3 rounded-lg opacity-90" :class="routeStatusCardClass(route)">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div>
+                                        <p class="text-body font-semibold truncate" style="color: var(--color-text);" x-text="route.client_name"></p>
+                                        <p class="text-caption" x-text="`Cod ${route.client_code || '-'} • Pedido ${route.order_number || '-'}`"></p>
+                                    </div>
+                                    <span class="chip" x-text="statusLabel(routeStatus(route))"></span>
+                                </div>
+                                <p class="text-caption mt-1 truncate" x-text="`${route.address} - ${route.city}/${route.state}`"></p>
+                                <div class="flex gap-2 mt-2">
+                                    <span class="chip" x-text="`${formatNumberBR(route.weight)} Kg`"></span>
+                                    <span class="chip" x-text="formatCurrencyBR(route.value)"></span>
+                                </div>
+                                <button @click="deliveryAction(route,'reabrir')" class="mt-2 btn-delivery min-h-[48px] w-full" style="background: var(--color-text-secondary); color: white;">Reabrir</button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -256,6 +284,9 @@
                     return sa !== sb ? sa - sb : (a.id || 0) - (b.id || 0);
                 });
             },
+            get activeDeliveryRoutes() { return this.orderedDeliveryRoutes.filter(r => !['entregue', 'devolucao'].includes(this.routeStatus(r))); },
+            get completedDeliveryRoutes() { return this.orderedDeliveryRoutes.filter(r => ['entregue', 'devolucao'].includes(this.routeStatus(r))); },
+            completedAccordionOpen: false,
             get dayStats() {
                 const rows = (this.deliveryRoutes || []).filter(r => r.date === this.selectedDeliveryDay);
                 const totalStops = rows.length;
@@ -283,7 +314,7 @@
             },
 
             init() { this.loadDeliveryData(); lucide.createIcons(); },
-            haptic() { if ('vibrate' in navigator) navigator.vibrate([10]); },
+            haptic(type) { if ('vibrate' in navigator) { const p = { success: [10,50,30], light: [10] }; navigator.vibrate(p[type] || p.light); } },
             routeStatus(route) { return ((route && route.status) || 'pendente').toString().toLowerCase().trim(); },
             routeStatusCardClass(route) {
                 const s = this.routeStatus(route);
@@ -372,19 +403,32 @@
             openMobileReturnModal(route) { this.mobileReturnRoute = route; this.mobileReturn = { reason: this.mobileReturnReasons[0] || '', is_partial: false, weight: '', value: '' }; this.showMobileReturnModal = true; },
             confirmMobileReturn() {
                 if (!this.mobileReturnRoute) return;
-                fetch(`/api/mobile/delivery/route/${this.mobileReturnRoute.id}/action`, {
+                const route = this.mobileReturnRoute;
+                const payload = {
+                    action: 'devolucao',
+                    return_reason: this.mobileReturn.reason,
+                    return_is_partial: !!this.mobileReturn.is_partial,
+                    return_partial_weight: this.mobileReturn.is_partial ? Number(this.mobileReturn.weight || 0) : null,
+                    return_partial_value: this.mobileReturn.is_partial ? Number(this.mobileReturn.value || 0) : null
+                };
+                fetch(`/api/mobile/delivery/route/${route.id}/action`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'devolucao',
-                        return_reason: this.mobileReturn.reason,
-                        return_is_partial: !!this.mobileReturn.is_partial,
-                        return_partial_weight: this.mobileReturn.is_partial ? Number(this.mobileReturn.weight || 0) : null,
-                        return_partial_value: this.mobileReturn.is_partial ? Number(this.mobileReturn.value || 0) : null
-                    })
+                    body: JSON.stringify(payload)
                 }).then(r => r.json()).then(data => {
                     if (!data.success) return alert(data.error || 'Erro.');
-                    this.showMobileReturnModal = false; this.mobileReturnRoute = null; this.loadDeliveryData(); this.haptic();
+                    this.showMobileReturnModal = false; this.mobileReturnRoute = null;
+                    this.loadDeliveryData(); this.haptic('success');
+                    if (typeof this.showXpPopup === 'function') this.showXpPopup(data.xp_earned || 5);
+                    this.$nextTick(() => lucide.createIcons());
                 });
+            },
+            showXpPopup(amount) {
+                const el = document.getElementById('xp-popup-delivery');
+                if (!el) return;
+                const span = document.getElementById('xp-amount-delivery');
+                if (span) span.textContent = Number(amount) || 0;
+                el.classList.remove('hidden');
+                setTimeout(() => el.classList.add('hidden'), 1800);
             },
         };
     }
