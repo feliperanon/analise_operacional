@@ -246,6 +246,15 @@
       const topValor = md.reduce((best, m, i, arr) => (m.valor || 0) > (arr[best]?.valor || 0) ? i : best, 0);
       out.push(`${md[topQtd]?.motivo || "Motivo"} lidera em volume com ${(((md[topQtd]?.qtd || 0) / totalQtd) * 100).toFixed(1)}% das ocorrencias.`);
       out.push(`${md[topValor]?.motivo || "Motivo"} concentra ${(((md[topValor]?.valor || 0) / totalValor) * 100).toFixed(1)}% do valor devolvido.`);
+    } else if (chartId === "driverClientCorrChart") {
+      const points = (ds[0]?.data || []).filter((p) => p && typeof p === "object");
+      if (!points.length) return ["Sem dados suficientes para storytelling."];
+      const topValor = points.reduce((best, p, i, arr) => Number(p.valor || 0) > Number(arr[best]?.valor || 0) ? i : best, 0);
+      const topPct = points.reduce((best, p, i, arr) => Number(p.pct_valor_real || 0) > Number(arr[best]?.pct_valor_real || 0) ? i : best, 0);
+      const a = points[topValor];
+      const b = points[topPct];
+      out.push(`Maior impacto financeiro: ${a.driver || "-"} x ${a.client || "-"} com ${Number(a.valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}.`);
+      out.push(`Maior % sobre valor real: ${b.driver || "-"} x ${b.client || "-"} em ${Number(b.pct_valor_real || 0).toFixed(1).replace(".", ",")}%.`);
     } else {
       const values = (ds[0]?.data || []).map(Number);
       const sum = values.reduce((a, b) => a + b, 0) || 1;
