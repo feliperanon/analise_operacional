@@ -320,15 +320,21 @@
   window.__biChartData = chartData;
   window.__biDetailRows = detailRows;
 
-  const token = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+  const token = (name, fallback) => {
+    try {
+      const v = getComputedStyle(document.documentElement).getPropertyValue(name);
+      return (v && typeof v === 'string') ? v.trim() || fallback : fallback;
+    } catch (e) { return fallback; }
+  };
+  const fallbackColors = { primary: '#3b82f6', success: '#10b981', warning: '#f59e0b', danger: '#ef4444', text: '#f1f5f9', muted: '#94a3b8', border: 'rgba(148,163,184,0.3)' };
   const palette = {
-    primary: token('--color-primary', ''),
-    success: token('--color-success', ''),
-    warning: token('--color-warning', ''),
-    danger: token('--color-danger', ''),
-    text: token('--color-text', ''),
-    muted: token('--color-text-secondary', ''),
-    border: token('--color-border', '')
+    primary: String(token('--color-primary', fallbackColors.primary) || fallbackColors.primary),
+    success: String(token('--color-success', fallbackColors.success) || fallbackColors.success),
+    warning: String(token('--color-warning', fallbackColors.warning) || fallbackColors.warning),
+    danger: String(token('--color-danger', fallbackColors.danger) || fallbackColors.danger),
+    text: String(token('--color-text', fallbackColors.text) || fallbackColors.text),
+    muted: String(token('--color-text-secondary', fallbackColors.muted) || fallbackColors.muted),
+    border: String(token('--color-border', fallbackColors.border) || fallbackColors.border)
   };
 
   const baseOpt = {

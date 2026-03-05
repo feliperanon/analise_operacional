@@ -156,19 +156,15 @@
     const options = {
       responsive: true,
       maintainAspectRatio: false,
-      animation: { duration: 420, easing: "easeOutQuart" },
+      animation: { duration: 420 },
       plugins: {
         legend: { labels: { color: "#94a3b8" } },
-        tooltip: { enabled: true },
-        zoom: {
-          pan: { enabled: true, mode: "xy" },
-          zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: "xy" }
-        }
+        tooltip: { enabled: true }
       }
     };
     if (isCartesian) {
       options.scales = {
-        x: { ticks: { color: "#94a3b8" }, grid: { color: "rgba(148,163,184,0.2)" } },
+        x: { ticks: { color: "#94a3b8", maxRotation: 45 }, grid: { color: "rgba(148,163,184,0.2)" } },
         y: { ticks: { color: "#94a3b8" }, grid: { color: "rgba(148,163,184,0.2)" } }
       };
     }
@@ -187,7 +183,8 @@
       const delta = ((recent - prev) / Math.abs(prev)) * 100;
       out.push(`Últimos 7 dias mostram ${delta >= 0 ? "alta" : "queda"} de ${Math.abs(delta).toFixed(1)}%.`);
       const p = values.reduce((best, v, i, arr) => Number(v || 0) > Number(arr[best] || 0) ? i : best, 0);
-      out.push(`Pico no período em ${labels[p]}: ${Number(values[p] || 0).toLocaleString("pt-BR")}.`);
+      const labelP = labels[p] != null ? String(labels[p]) : '';
+      out.push(`Pico no período em ${labelP}: ${Number(values[p] || 0).toLocaleString("pt-BR")}.`);
     } else if (chartId === "motivosChart") {
       const md = (window.__biChartData?.motivos_detailed || []);
       if (!md.length) return ["Sem dados suficientes para storytelling."];
@@ -201,7 +198,8 @@
       const values = (ds[0]?.data || []).map(Number);
       const sum = values.reduce((a, b) => a + b, 0) || 1;
       const top = values.reduce((best, v, i, arr) => v > arr[best] ? i : best, 0);
-      out.push(`${labels[top]} concentra ${((values[top] / sum) * 100).toFixed(1)}% do total.`);
+      const labelStr = labels[top] != null ? String(labels[top]) : '';
+      out.push(`${labelStr} concentra ${((values[top] / sum) * 100).toFixed(1)}% do total.`);
     }
     return out;
   }
@@ -400,15 +398,28 @@
     byId("fullChartTag").textContent = "Use setas para navegar entre gráficos.";
     destroyFullscreenChart();
     const clipped = cloneChartData(clipData(src.data, compareWindow));
-    fullscreenChart = new Chart(byId("fullscreenChartCanvas"), {
-      type: currentType,
-      data: clipped,
-      options: buildFullscreenOptions(currentType)
-    });
+    const opts = buildFullscreenOptions(currentType);
+    if (src.options && src.options.indexAxis) {
+      opts.indexAxis = src.options.indexAxis;
+    }
+    if (src.options && src.options.scales && opts.scales) {
+      if (src.options.scales.x && src.options.scales.x.stacked) { opts.scales.x = opts.scales.x || {}; opts.scales.x.stacked = true; }
+      if (src.options.scales.y && src.options.scales.y.stacked) { opts.scales.y = opts.scales.y || {}; opts.scales.y.stacked = true; }
+    }
+    try {
+      fullscreenChart = new Chart(byId("fullscreenChartCanvas"), {
+        type: currentType,
+        data: clipped,
+        options: opts
+      });
+    } catch (err) {
+      console.warn("BI fullscreen chart error:", err);
+      byId("fullscreenInsights").innerHTML = "<div class=\"insight-row insight-warning\">Não foi possível exibir o gráfico expandido. Tente outro gráfico.</div>";
+    }
     byId("chartTypeToggleBtn").dataset.allowed = JSON.stringify(allowed);
     byId("chartTypeToggleBtn").dataset.current = currentType;
     const insights = generateInsightsFromDataset(chartId, clipped);
-    byId("fullscreenInsights").innerHTML = insights.map((x) => `<div class="insight-row">${x}</div>`).join("");
+    if (fullscreenChart) byId("fullscreenInsights").innerHTML = insights.map((x) => `<div class="insight-row">${x}</div>`).join("");
     modalOpen("chartFullscreenModal");
   }
 
