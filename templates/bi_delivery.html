@@ -81,19 +81,19 @@
       {{ kpi_card("Paradas Planejadas", kpis.planned_stops, "Base do período", "route", "neutral") }}
       {{ kpi_card("Paradas Entregues", kpis.delivered_stops, "SLA " ~ (kpis.sla_finish|fmt_br_1) ~ "%",
       "check-circle-2", "success" if kpis.sla_finish >= 90 else "warning") }}
-      {{ kpi_card("Taxa Devolução", (kpis.return_rate_qtd|fmt_br_1) ~ "%", kpis.total_devolucoes ~ " ocorrências",
-      "undo-2", "danger" if kpis.return_rate_qtd >= 10 else "warning") }}
+      {{ kpi_card("Taxa Devolucao", (kpis.return_rate_qtd|fmt_br_1) ~ "%", kpis.total_devolucoes ~ " ocorrencias (controle operacional)",
+      "undo-2", "warning" if kpis.return_rate_qtd >= 7 else "success") }}
       {{ kpi_card("Devolução % Valor", (kpis.return_rate_value|fmt_br_1) ~ "%", "Meta financeira ≤ 2,0%",
       "percent", "danger" if kpis.return_rate_value >= 4 else "warning" if kpis.return_rate_value >= 2 else "success") }}
-      {{ kpi_card("Valor Devolvido", kpis.valor_total_devolvido|fmt_br_moeda, "Total acumulado", "wallet", "danger" if
-      kpis.valor_total_devolvido > 0 else "neutral") }}
+      {{ kpi_card("Valor Devolvido", kpis.valor_total_devolvido|fmt_br_moeda, "Impacto financeiro do periodo", "wallet", "danger" if
+      kpis.return_rate_value >= 2 else "warning" if kpis.valor_total_devolvido > 0 else "neutral") }}
       {{ kpi_card("% Acima de R$300", (kpis.devolucoes_acima_300_pct|fmt_br_1) ~ "%",
       kpis.devolucoes_acima_300_count ~ " linhas", "alert-triangle", "warning" if kpis.devolucoes_acima_300_pct >= 35
       else "success") }}
       {{ kpi_card("Tempo Médio", (kpis.avg_duration_m|fmt_br_int) ~ " min", "Rotas finalizadas", "timer", "warning" if
       kpis.avg_duration_m >= 120 else "success") }}
-      {{ kpi_card("Risco Próx. Turno", kpis.risk_label, "Prev. devolução " ~
-      (kpis.forecast_next_return_rate|fmt_br_1) ~ "%", "shield-alert", kpis.risk_severity) }}
+      {{ kpi_card("Risco Prox. Turno", kpis.risk_label, "Prev. devolucao em valor " ~
+      (kpis.forecast_next_return_rate_value|fmt_br_1) ~ "%", "shield-alert", kpis.risk_severity) }}
     </section>
 
     <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">

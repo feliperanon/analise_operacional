@@ -324,34 +324,69 @@ def _build_bi_delivery_dataset(
         daily_rows.append(row)
     rec7 = daily_rows[-7:] if len(daily_rows) >= 7 else daily_rows
     forecast_stops = round(statistics.mean([x["planned_stops"] for x in rec7]), 1) if rec7 else 0.0
-    forecast_return = round(statistics.mean([x["return_rate"] for x in rec7]), 2) if rec7 else 0.0
-    risk_label, risk_severity = ("Crítico", "danger") if forecast_return >= 12 else ("Atenção", "warning") if forecast_return >= 7 else ("Controlado", "success")
+    forecast_return_qtd = round(statistics.mean([x["return_rate"] for x in rec7]), 2) if rec7 else 0.0
+    forecast_return_value = round(
+        statistics.mean([
+            ((x.get("returned_value", 0.0) or 0.0) / max(0.01, (x.get("planned_value", 0.0) or 0.0))) * 100.0
+            if (x.get("planned_value", 0.0) or 0.0) > 0 else 0.0
+            for x in rec7
+        ]),
+        2
+    ) if rec7 else 0.0
+    risk_label, risk_severity = ("Critico", "danger") if forecast_return_value >= 4 else ("Atencao", "warning") if forecast_return_value >= 2 else ("Controlado", "success")
     anomaly_flags: list[str] = []
+    global_return_rate_value = (returned_value / max(0.01, planned_value) * 100.0) if planned_value else 0.0
 
+    if global_return_rate_value >= 2:
+        anomaly_flags.append(f"Ponto de atencao financeiro: devolucao em valor em {_fmt_br_1(global_return_rate_value)}% (meta <= 2,0%).")
     if client_returns:
         rec_client = [n for n, c in sorted(client_returns.items(), key=lambda x: x[1], reverse=True) if c >= 2][:3]
         if rec_client:
-            anomaly_flags.append(f"Clientes com devolução recorrente: {', '.join(rec_client)}.")
+            anomaly_flags.append(f"Clientes com devolucao recorrente: {', '.join(rec_client)}.")
     if cluster_agg:
         cl = max(cluster_agg.values(), key=lambda x: x["valor"])
-        anomaly_flags.append(f"Cluster crítico por valor: {cl['cluster']} (R$ {_fmt_br_2(cl['valor'])}).")
+        anomaly_flags.append(f"Cluster critico por valor: {cl['cluster']} (R$ {_fmt_br_2(cl['valor'])}).")
     if ret_value_day:
         dpk, vpk = max(ret_value_day.items(), key=lambda x: x[1])
-        anomaly_flags.append(f"Pico de devolução em {_fmt_br_data(dpk)}: R$ {_fmt_br_2(vpk)}.")
+        anomaly_flags.append(f"Pico de devolucao em {_fmt_br_data(dpk)}: R$ {_fmt_br_2(vpk)}.")
+    high_value_drivers = sorted(
+        [x for x in tactical if (x.get("returned_value_pct") or 0) >= 2 and (x.get("planned_stops") or 0) >= 5],
+        key=lambda x: (x.get("returned_value_pct") or 0),
+        reverse=True
+    )[:3]
+    if high_value_drivers:
+        anomaly_flags.append(
+            "Motoristas acima da meta financeira: " +
+            ", ".join([f"{x['driver_name']} ({_fmt_br_1(x.get('returned_value_pct') or 0)}%)" for x in high_value_drivers]) +
+            "."
+        )
+    dias_acima_meta = [
+        d for d, v in per_day.items()
+        if (v.get("planned_value", 0.0) or 0.0) > 0 and ((v.get("returned_value", 0.0) or 0.0) / max(0.01, (v.get("planned_value", 0.0) or 0.0)) * 100.0) >= 2
+    ]
+    if len(dias_acima_meta) >= 3:
+        anomaly_flags.append(f"Serie de risco: {len(dias_acima_meta)} dia(s) com devolucao em valor acima de 2,0%.")
 
     recommendations = []
-    if global_return_rate >= 10:
-        recommendations.append("Priorizar auditoria de devolução em rotas com maior peso financeiro.")
+    if global_return_rate_value >= 2:
+        recommendations.append("Priorizar plano de contencao financeira: devolver no maximo 2,0% do valor real.")
     if tactical:
-        wr = max(tactical, key=lambda x: x["return_rate"])
-        if wr["return_rate"] >= 15 and wr["planned_stops"] >= 5:
-            recommendations.append(f"Rebalancear carga de {wr['driver_name']} para reduzir devolução.")
+        wr = max(tactical, key=lambda x: x["returned_value_pct"])
+        if wr["returned_value_pct"] >= 2 and wr["planned_stops"] >= 5:
+            recommendations.append(f"Rebalancear carteira de {wr['driver_name']} (devolucao em valor: {_fmt_br_1(wr['returned_value_pct'])}%).")
     if started_stops < planned_stops:
         recommendations.append("Atuar na fila de pendentes com prioridade por maior impacto.")
     if avg_duration >= 120:
-        recommendations.append("Tempo médio elevado: revisar sequência e janela de entrega.")
+        recommendations.append("Tempo medio elevado: revisar sequencia e janela de entrega.")
+    if motivo_agg:
+        top_motivo_val = max(motivo_agg.values(), key=lambda x: x["valor"])
+        recommendations.append(f"Estudo 80/20: atacar primeiro o motivo '{top_motivo_val['motivo']}' (R$ {_fmt_br_2(top_motivo_val['valor'])}).")
+    if client_returns:
+        top_cliente, top_qtd = max(client_returns.items(), key=lambda x: x[1])
+        if top_qtd >= 2:
+            recommendations.append(f"Estudo de causa raiz com cliente {top_cliente}: {top_qtd} devolucoes no periodo.")
     if not recommendations:
-        recommendations.append("Operação estável no período; manter monitoramento diário.")
+        recommendations.append("Operacao estavel no periodo; manter monitoramento diario.")
 
     total_mot = sum(v["qtd"] for v in motivo_agg.values()) or 1
     motivos_rows = sorted([{"motivo": v["motivo"], "qtd": int(v["qtd"]), "valor": round(v["valor"], 2), "pct": round(v["qtd"] / total_mot * 100.0, 2)} for v in motivo_agg.values()], key=lambda x: (x["qtd"], x["valor"]), reverse=True)
@@ -499,7 +534,9 @@ def _build_bi_delivery_dataset(
         "reopen_index": round(reopen_routes / max(1, planned_stops) * 100.0, 2) if planned_stops else 0.0,
         "avg_duration_m": round(avg_duration, 1),
         "forecast_next_stops": forecast_stops,
-        "forecast_next_return_rate": forecast_return,
+        "forecast_next_return_rate": forecast_return_value,
+        "forecast_next_return_rate_qtd": forecast_return_qtd,
+        "forecast_next_return_rate_value": forecast_return_value,
         "total_devolucoes": returned_stops,
         "valor_total_devolvido": round(returned_value, 2),
         "devolucoes_acima_300_count": len([r for r in route_rows if r.get("acima_300") == "SIM"]),
