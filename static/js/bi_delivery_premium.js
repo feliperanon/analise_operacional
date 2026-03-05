@@ -144,7 +144,9 @@
       out.datasets = out.datasets.map(ds => {
         const d = { ...ds };
         if (d.label != null) d.label = String(d.label);
-        if (Array.isArray(d.data)) d.data = d.data.map(v => (typeof v === 'number' ? v : Number(v) || 0));
+        if (Array.isArray(d.data)) d.data = d.data.map(v => (v == null ? null : typeof v === 'number' ? v : (Number(v) || 0)));
+        if (d.borderColor) d.borderColor = String(d.borderColor);
+        if (d.backgroundColor && typeof d.backgroundColor === 'string') d.backgroundColor = String(d.backgroundColor);
         return d;
       });
     }
@@ -343,7 +345,7 @@
     respMotivosChart = new Chart(canvas, {
       type: "bar",
       data: {
-        labels: motivos.map((m) => m.motivo),
+        labels: motivos.map((m) => String(m.motivo ?? "")),
         datasets: [
           {
             label: "Quantidade",
