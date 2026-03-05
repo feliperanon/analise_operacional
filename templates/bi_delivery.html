@@ -77,12 +77,14 @@
       </form>
     </header>
 
-    <section class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2">
+    <section class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2">
       {{ kpi_card("Paradas Planejadas", kpis.planned_stops, "Base do período", "route", "neutral") }}
       {{ kpi_card("Paradas Entregues", kpis.delivered_stops, "SLA " ~ (kpis.sla_finish|fmt_br_1) ~ "%",
       "check-circle-2", "success" if kpis.sla_finish >= 90 else "warning") }}
       {{ kpi_card("Taxa Devolução", (kpis.return_rate_qtd|fmt_br_1) ~ "%", kpis.total_devolucoes ~ " ocorrências",
       "undo-2", "danger" if kpis.return_rate_qtd >= 10 else "warning") }}
+      {{ kpi_card("Devolução % Valor", (kpis.return_rate_value|fmt_br_1) ~ "%", "Meta financeira ≤ 2,0%",
+      "percent", "danger" if kpis.return_rate_value >= 4 else "warning" if kpis.return_rate_value >= 2 else "success") }}
       {{ kpi_card("Valor Devolvido", kpis.valor_total_devolvido|fmt_br_moeda, "Total acumulado", "wallet", "danger" if
       kpis.valor_total_devolvido > 0 else "neutral") }}
       {{ kpi_card("% Acima de R$300", (kpis.devolucoes_acima_300_pct|fmt_br_1) ~ "%",
@@ -104,6 +106,10 @@
       {{ chart_card("Responsabilidade", "Mercado / Comercial / Logística", "respChart") }}
       {{ chart_card("Cluster x Valor", "Concentração financeira por faixa", "clusterChart") }}
       {{ chart_card("Eficiência por motorista", "Comparativo tático", "driverChart") }}
+    </section>
+
+    <section class="grid grid-cols-1 gap-4">
+      {{ chart_card("Correlação motorista x cliente x devoluções", "Bolhas por cliente/motorista. Tamanho = valor devolvido; tooltip com % valor real.", "driverClientCorrChart") }}
     </section>
 
     <section class="grid grid-cols-1 gap-4">
@@ -359,7 +365,7 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script src="/static/js/chart.js"></script>
 <script>
   const chartData = {{ chart_payload_json| safe }} || {};
   const detailRows = {{ detail_rows_json| safe }} || [];
@@ -527,7 +533,7 @@
     type: 'doughnut',
     data: {
       labels: respData.map(x => String(safeStr(x.responsabilidade))),
-      datasets: [{ data: respData.map(x => { const v = toChartNum(x.qtd); return v !== null ? v : 0; }), backgroundColor: [String(cPrimary), String(cWarn), String(cDanger), String(cSuccess)] }]
+      datasets: [{ data: respData.map(x => { const v = toChartNum(x.valor); return v !== null ? v : 0; }), backgroundColor: [String(cPrimary), String(cWarn), String(cDanger), String(cSuccess)] }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
@@ -535,6 +541,15 @@
         legend: { labels: { color: cMuted } },
         tooltip: {
           callbacks: {
+            label: (ctx) => {
+              const idx = ctx?.dataIndex;
+              if (idx == null) return '';
+              const total = respData.reduce((s, x) => s + Number(x?.valor || 0), 0) || 1;
+              const item = respData[idx] || {};
+              const valor = Number(item.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+              const pct = ((Number(item.valor || 0) / total) * 100).toFixed(1).replace('.', ',');
+              return `${String(item.responsabilidade || '')}: ${valor} (${pct}% do valor)`;
+            },
             afterBody: (items) => {
               const idx = items?.[0]?.dataIndex;
               if (idx == null) return '';
@@ -567,7 +582,8 @@
       labels: driversData.map(x => String(safeStr(x.driver))),
       datasets: [
         { label: 'Eficiência %', data: driversData.map(x => { const v = toChartNum(x.eficiencia); return v !== null ? v : 0; }), backgroundColor: String(cSuccess) },
-        { label: 'Devolução %', data: driversData.map(x => { const v = toChartNum(x.devolucao_pct); return v !== null ? v : 0; }), backgroundColor: String(cWarn) }
+        { label: 'Devolução % (qtd)', data: driversData.map(x => { const v = toChartNum(x.devolucao_pct); return v !== null ? v : 0; }), backgroundColor: String(cWarn) },
+        { label: 'Devolução % (valor)', data: driversData.map(x => { const v = toChartNum(x.devolucao_valor_pct); return v !== null ? v : 0; }), backgroundColor: String(cDanger) }
       ]
     },
     options: chartBaseOpt()
@@ -605,6 +621,60 @@
       scales: {
         x: { ticks: { color: cMuted }, grid: { color: cBorder }, stacked: true, title: { display: true, text: 'Valor devolvido (R$)', color: cMuted } },
         y: { ticks: { color: cMuted }, grid: { color: cBorder }, stacked: true }
+      }
+    }
+  });
+
+  const corr = (chartData && chartData.driver_client_corr) ? chartData.driver_client_corr : {};
+  const corrDrivers = Array.isArray(corr.drivers) ? corr.drivers : [];
+  const corrClients = Array.isArray(corr.clients) ? corr.clients : [];
+  const corrPoints = Array.isArray(corr.points) ? corr.points : [];
+  safeChart('driverClientCorrChart', {
+    type: 'bubble',
+    data: {
+      datasets: [{
+        label: 'Correlação devoluções',
+        data: corrPoints.map(p => ({
+          x: Number(p.x || 0),
+          y: Number(p.y || 0),
+          r: Number(p.r || 6),
+          driver: String(safeStr(p.driver)),
+          client: String(safeStr(p.client)),
+          qtd: Number(p.qtd || 0),
+          valor: Number(p.valor || 0),
+          pct_valor_real: Number(p.pct_valor_real || 0)
+        })),
+        backgroundColor: 'rgba(239, 68, 68, 0.42)',
+        borderColor: String(cDanger)
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: cMuted } },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const p = ctx.raw || {};
+              const valor = Number(p.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+              const pct = Number(p.pct_valor_real || 0).toFixed(1).replace('.', ',');
+              return `${p.driver} | ${p.client} | Qtd: ${Number(p.qtd || 0).toLocaleString('pt-BR')} | Valor: ${valor} | % valor real: ${pct}%`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: cMuted, callback: (v) => corrDrivers[Number(v)] || '' },
+          grid: { color: cBorder },
+          title: { display: true, text: 'Motorista', color: cMuted }
+        },
+        y: {
+          ticks: { color: cMuted, callback: (v) => corrClients[Number(v)] || '' },
+          grid: { color: cBorder },
+          title: { display: true, text: 'Cliente', color: cMuted }
+        }
       }
     }
   });
@@ -736,6 +806,19 @@
       relatedKpis: ["Taxa Devolução", "% Acima de R$300", "Cluster x Valor"],
       quickTip: "Quando houver empate entre causas, priorize a que gera maior valor perdido."
     },
+    "devolucao % valor": {
+      summary: "Mostra o percentual financeiro devolvido sobre o valor planejado.",
+      whatIs: "É a taxa de devolução por valor em reais no período.",
+      howCalculated: "Divide o valor devolvido total pelo valor planejado total e converte para percentual.",
+      formulaText: "Valor devolvido sobre valor planejado, em porcentagem.",
+      acronyms: [],
+      practicalMeaning: "É o indicador mais direto de impacto em receita e margem.",
+      interpretation: { good: "Abaixo da meta de 2%.", attention: "Entre 2% e 4% com oscilação.", critical: "Acima de 4% com impacto financeiro recorrente." },
+      operationalUse: "Priorizar ações nas rotas/clientes com maior perda em reais.",
+      executiveUse: "Controlar erosão de margem e definir metas financeiras por área.",
+      relatedKpis: ["Valor Devolvido", "Taxa Devolução", "Cluster x Valor"],
+      quickTip: "Quando volume e valor divergirem, priorize sempre o valor."
+    },
     "% acima de r$300": {
       summary: "Mostra a fatia de devoluções com alto impacto financeiro.",
       whatIs: "É o percentual de devoluções cujo valor unitário está acima de R$300.",
@@ -855,6 +938,19 @@
       executiveUse: "Definir plano conjunto entre Operação e áreas responsáveis.",
       relatedKpis: ["Responsabilidade", "Valor Devolvido", "Eficiência por motorista"],
       quickTip: "Priorize os três maiores impactos para ganhar resultado rápido."
+    },
+    "correlacao motorista x cliente x devolucoes": {
+      summary: "Relaciona motorista e cliente com intensidade de devolução.",
+      whatIs: "Cada bolha representa um par motorista-cliente com devoluções no período.",
+      howCalculated: "Eixo X: motorista, eixo Y: cliente, tamanho da bolha: valor devolvido do par.",
+      formulaText: "Bolha por motorista/cliente com quantidade, valor e % sobre valor real do motorista.",
+      acronyms: [],
+      practicalMeaning: "Facilita encontrar combinações críticas e não apenas indivíduos isolados.",
+      interpretation: { good: "Bolhas pequenas e distribuídas.", attention: "Algumas bolhas médias concentradas.", critical: "Poucas bolhas grandes dominando o valor." },
+      operationalUse: "Atacar os pares com maior valor devolvido e revisar causa raiz.",
+      executiveUse: "Redirecionar carteira e governança para pares de alto risco.",
+      relatedKpis: ["Motivos de devolução", "Devolução % Valor", "Eficiência por motorista"],
+      quickTip: "Comece pelos 10 pares com maior valor para ganho rápido."
     }
   };
 
@@ -864,7 +960,8 @@
     respChart: "responsabilidade",
     clusterChart: "cluster x valor",
     driverChart: "eficiencia por motorista",
-    driverRespChart: "motorista x responsabilidade x valor"
+    driverRespChart: "motorista x responsabilidade x valor",
+    driverClientCorrChart: "correlacao motorista x cliente x devolucoes"
   };
 
   const normalizeHelpKey = (v) => String(v || '')

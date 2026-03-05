@@ -1,4 +1,4 @@
-(() => {
+﻿(() => {
   const byId = (id) => document.getElementById(id);
   const qs = (s) => document.querySelector(s);
   const qsa = (s) => Array.from(document.querySelectorAll(s));
@@ -7,27 +7,32 @@
 
   if (!state || !renderDrill || typeof Chart === 'undefined') return;
 
-  const chartIds = ["trendChart", "motivosChart", "respChart", "clusterChart", "driverChart"];
+  const chartIds = ["trendChart", "motivosChart", "respChart", "clusterChart", "driverChart", "driverRespChart", "driverClientCorrChart"];
   const chartTitles = {
     trendChart: "Tendência diária",
     motivosChart: "Motivos de devolução",
     respChart: "Responsabilidade",
     clusterChart: "Cluster x Valor",
-    driverChart: "Eficiência por motorista"
+    driverChart: "Eficiência por motorista",
+    driverRespChart: "Motorista x Responsabilidade x Valor",
+    driverClientCorrChart: "Correlação motorista x cliente x devoluções"
   };
   const chartAllowedTypes = {
     trendChart: ["line", "bar"],
     motivosChart: ["bar", "doughnut"],
     respChart: ["doughnut", "bar"],
     clusterChart: ["bar", "doughnut"],
-    driverChart: ["bar", "line"]
+    driverChart: ["bar", "line"],
+    driverRespChart: ["bar", "line"],
+    driverClientCorrChart: ["bubble", "scatter"]
   };
 
   const kpiDefs = {
     "Paradas Planejadas": ["Volume previsto de paradas no período.", "Σ rotas planejadas", ">=95% realização"],
-    "Paradas Realizadas": ["Paradas concluídas no período.", "Σ concluídas ÷ Σ planejadas", "SLA >= 90%"],
+    "Paradas Entregues": ["Paradas concluídas no período.", "Σ concluídas ÷ Σ planejadas", "SLA >= 90%"],
     "Taxa Devolução": ["Incidência de devoluções na operação.", "(devoluções ÷ planejadas) x 100", "< 7%"],
     "Valor Devolvido": ["Impacto financeiro das devoluções.", "Σ valor devolvido", "Tendência de queda"],
+    "Devolução % Valor": ["Percentual financeiro devolvido sobre o valor planejado.", "(valor devolvido ÷ valor planejado) x 100", "< 2%"],
     "% Acima de R$300": ["Risco financeiro por ticket alto.", "(devoluções>=300 ÷ total) x 100", "< 35%"],
     "Tempo Médio": ["Agilidade de conclusão de rotas.", "Média de duração das rotas", "< 120 min"],
     "Risco Próx. Turno": ["Risco preditivo operacional.", "Sinal derivado de tendência + anomalias", "Controlado"]
@@ -81,6 +86,7 @@
     const trend = window.__biChartData?.trend || { valor: [], qtd: [] };
     if (title === "Valor Devolvido") return trend.valor || [];
     if (title === "Taxa Devolução") return trend.qtd || [];
+    if (title === "Devolução % Valor") return trend.valor || [];
     return trend.valor || trend.qtd || [];
   }
 
@@ -96,19 +102,19 @@
   }
 
   function buildKpiTrend(series) {
-    if (!series || series.length < 2) return "Sem histórico suficiente.";
+    if (!series || series.length < 2) return "Sem histÃ³rico suficiente.";
     const a = Number(series.at(-1) || 0);
     const b = Number(series.at(-2) || 0);
-    if (!b) return a ? "Sinal inicial de tendência de alta." : "Sem oscilação relevante.";
+    if (!b) return a ? "Sinal inicial de tendÃªncia de alta." : "Sem oscilaÃ§Ã£o relevante.";
     const d = ((a - b) / Math.abs(b)) * 100;
     const s = d >= 0 ? "alta" : "queda";
-    return `Último período indica ${s} de ${Math.abs(d).toFixed(1)}%.`;
+    return `Ãšltimo perÃ­odo indica ${s} de ${Math.abs(d).toFixed(1)}%.`;
   }
 
   function openKpiModal(card) {
     const title = card.dataset.kpiTitle || "KPI";
     const value = card.dataset.kpiValue || "-";
-    const [meaning, formula, benchmark] = kpiDefs[title] || ["Indicador estratégico.", "Cálculo interno", "Meta interna"];
+    const [meaning, formula, benchmark] = kpiDefs[title] || ["Indicador estratÃ©gico.", "CÃ¡lculo interno", "Meta interna"];
     byId("kpiModalTitle").textContent = title;
     byId("kpiModalTag").textContent = `Valor atual: ${value}`;
     byId("kpiMeaning").textContent = meaning;
@@ -120,6 +126,7 @@
 
     const alerts = [];
     if (title === "Taxa Devolução" && toNum(value) >= 10) alerts.push("Taxa de devolução acima do limite recomendado.");
+    if (title === "Devolução % Valor" && toNum(value) >= 2) alerts.push("Percentual de devolução em valor acima da meta de 2%.");
     if (title === "Tempo Médio" && toNum(value) >= 120) alerts.push("Tempo médio acima da janela executiva.");
     if (!alerts.length) alerts.push("Sem alertas críticos para este indicador.");
     byId("kpiAlerts").innerHTML = alerts.map((x) => `<div class="insight-row insight-warning">${x}</div>`).join("");
@@ -144,7 +151,14 @@
       out.datasets = out.datasets.map(ds => {
         const d = { ...ds };
         if (d.label != null) d.label = String(d.label);
-        if (Array.isArray(d.data)) d.data = d.data.map(v => (v == null ? null : typeof v === 'number' ? v : (Number(v) || 0)));
+        if (Array.isArray(d.data)) {
+          d.data = d.data.map((v) => {
+            if (v == null) return null;
+            if (typeof v === "number") return v;
+            if (typeof v === "object") return { ...v };
+            return Number(v) || 0;
+          });
+        }
         if (d.borderColor) d.borderColor = String(d.borderColor);
         if (d.backgroundColor && typeof d.backgroundColor === 'string') d.backgroundColor = String(d.backgroundColor);
         return d;
@@ -165,7 +179,19 @@
         delete d.stack;
       }
       if (Array.isArray(d.data)) {
-        d.data = d.data.map((v) => (v == null ? null : Number(v) || 0));
+        if (type === "bubble" || type === "scatter") {
+          d.data = d.data.map((v) => {
+            if (!v || typeof v !== "object") return { x: 0, y: 0, r: 4 };
+            return {
+              ...v,
+              x: Number(v.x || 0),
+              y: Number(v.y || 0),
+              r: Number(v.r || 4)
+            };
+          });
+        } else {
+          d.data = d.data.map((v) => (v == null ? null : Number(v) || 0));
+        }
       }
       return d;
     });
@@ -207,10 +233,10 @@
       const recent = values.slice(-7).reduce((a, b) => a + Number(b || 0), 0);
       const prev = values.slice(-14, -7).reduce((a, b) => a + Number(b || 0), 0) || 1;
       const delta = ((recent - prev) / Math.abs(prev)) * 100;
-      out.push(`Últimos 7 dias mostram ${delta >= 0 ? "alta" : "queda"} de ${Math.abs(delta).toFixed(1)}%.`);
+      out.push(`Ãšltimos 7 dias mostram ${delta >= 0 ? "alta" : "queda"} de ${Math.abs(delta).toFixed(1)}%.`);
       const p = values.reduce((best, v, i, arr) => Number(v || 0) > Number(arr[best] || 0) ? i : best, 0);
       const labelP = labels[p] != null ? String(labels[p]) : '';
-      out.push(`Pico no período em ${labelP}: ${Number(values[p] || 0).toLocaleString("pt-BR")}.`);
+      out.push(`Pico no perÃ­odo em ${labelP}: ${Number(values[p] || 0).toLocaleString("pt-BR")}.`);
     } else if (chartId === "motivosChart") {
       const md = (window.__biChartData?.motivos_detailed || []);
       if (!md.length) return ["Sem dados suficientes para storytelling."];
@@ -400,8 +426,8 @@
     fullscreenIndex = Math.max(0, chartIds.indexOf(chartId));
     const allowed = chartAllowedTypes[chartId] || [src.config.type];
     const currentType = src.config.type;
-    byId("fullChartTitle").textContent = chartTitles[chartId] || "Gráfico";
-    byId("fullChartTag").textContent = "Use setas para navegar entre gráficos.";
+    byId("fullChartTitle").textContent = chartTitles[chartId] || "GrÃ¡fico";
+    byId("fullChartTag").textContent = "Use setas para navegar entre grÃ¡ficos.";
     destroyFullscreenChart();
     const clipped = normalizeDataForType(currentType, clipData(src.data, compareWindow));
     const opts = buildFullscreenOptions(currentType, clipped);
@@ -413,7 +439,7 @@
       });
     } catch (err) {
       console.warn("BI fullscreen chart error:", err);
-      byId("fullscreenInsights").innerHTML = "<div class=\"insight-row insight-warning\">Não foi possível exibir o gráfico expandido. Tente outro gráfico.</div>";
+      byId("fullscreenInsights").innerHTML = "<div class=\"insight-row insight-warning\">NÃ£o foi possÃ­vel exibir o grÃ¡fico expandido. Tente outro grÃ¡fico.</div>";
     }
     byId("chartTypeToggleBtn").dataset.allowed = JSON.stringify(allowed);
     byId("chartTypeToggleBtn").dataset.current = currentType;
@@ -445,7 +471,7 @@
     }
     wrap.classList.remove("hidden");
     back.classList.remove("hidden");
-    wrap.innerHTML = state.drillStack.map((x, i) => `<span class="crumb">${i + 1}. ${x.label}</span>`).join('<span class="crumb-sep">›</span>');
+    wrap.innerHTML = state.drillStack.map((x, i) => `<span class="crumb">${i + 1}. ${x.label}</span>`).join('<span class="crumb-sep">â€º</span>');
   }
 
   byId("drillBackBtn")?.addEventListener("click", () => {
@@ -535,3 +561,4 @@
   window.generateInsightsFromDataset = generateInsightsFromDataset;
   window.toggleExecutiveMode = toggleExecutiveMode;
 })();
+

@@ -411,6 +411,40 @@ def _build_bi_delivery_dataset(
         })
     driver_resp_rows = [r for r in driver_resp_rows if r["valor_devolvido"] > 0]
     driver_resp_rows = sorted(driver_resp_rows, key=lambda x: -x["valor_devolvido"])[:20]
+
+    # Correlacao Motorista x Cliente x Devolucoes (bubble/scatter)
+    pair_agg: dict[tuple[str, str], dict] = {}
+    for r in route_rows:
+        if r.get("status") != "devolucao":
+            continue
+        drv = r.get("driver_name") or "-"
+        cli = r.get("client_name") or "Sem cliente"
+        val = float(r.get("returned_value") or 0.0)
+        key = (drv, cli)
+        pair_agg.setdefault(key, {"driver": drv, "client": cli, "qtd": 0, "valor": 0.0})
+        pair_agg[key]["qtd"] += 1
+        pair_agg[key]["valor"] = round(pair_agg[key]["valor"] + val, 2)
+
+    pair_rows = sorted(pair_agg.values(), key=lambda x: (x["valor"], x["qtd"]), reverse=True)[:120]
+    corr_drivers = sorted({x["driver"] for x in pair_rows})
+    corr_clients = sorted({x["client"] for x in pair_rows})
+    corr_driver_idx = {d: i for i, d in enumerate(corr_drivers)}
+    corr_client_idx = {c: i for i, c in enumerate(corr_clients)}
+    corr_points = []
+    for p in pair_rows:
+        d_data = per_driver.get(p["driver"], {})
+        valor_real_drv = (d_data.get("realized_value") or 0.0) + (d_data.get("returned_value") or 0.0)
+        pct_val = round((p["valor"] / valor_real_drv) * 100.0, 2) if valor_real_drv > 0 else (100.0 if p["valor"] > 0 else 0.0)
+        corr_points.append({
+            "x": corr_driver_idx.get(p["driver"], 0),
+            "y": corr_client_idx.get(p["client"], 0),
+            "r": max(4, min(20, 4 + (p["valor"] ** 0.5) * 0.12)),
+            "driver": p["driver"],
+            "client": p["client"],
+            "qtd": p["qtd"],
+            "valor": round(p["valor"], 2),
+            "pct_valor_real": pct_val,
+        })
     def _prev_month_key(date_key: str) -> Optional[str]:
         try:
             dref = datetime.strptime(str(date_key), "%Y-%m-%d").date()
@@ -489,13 +523,18 @@ def _build_bi_delivery_dataset(
         "motivos_drivers": driver_names_mot,
         "responsabilidade": resp_rows,
         "cluster": cluster_rows,
-        "drivers": [{"driver": r["driver_name"], "eficiencia": r["efficiency"], "devolucao_pct": r["return_rate"], "valor_devolvido": r["returned_value"]} for r in tactical][:20],
+        "drivers": [{"driver": r["driver_name"], "eficiencia": r["efficiency"], "devolucao_pct": r["return_rate"], "devolucao_valor_pct": r["returned_value_pct"], "valor_devolvido": r["returned_value"]} for r in tactical][:20],
         "reopen_heatmap": heat_rows,
         "driver_resp_valor": {
             "drivers": [r["driver"] for r in driver_resp_rows],
             "responsabilidades": resp_names,
             "datasets": [{"resp": r, "data": [driver_resp_value.get(drv, {}).get(r, 0.0) for drv in [x["driver"] for x in driver_resp_rows]]} for r in resp_names] if resp_names else [],
             "pct_devolucao_valor": [r["pct_devolucao_valor"] for r in driver_resp_rows],
+        },
+        "driver_client_corr": {
+            "drivers": corr_drivers,
+            "clients": corr_clients,
+            "points": corr_points,
         },
     }
 
