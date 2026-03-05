@@ -321,10 +321,6 @@
   window.__biChartData = chartData;
   window.__biDetailRows = detailRows;
 
-  // #region agent log
-  (function _log(){const d=(chartData&&chartData.trend)||{};const ds=d.dates||[];const m7=d.ma7||[];const m30=d.ma30||[];const s0=ds[0];const m70=m7[0];const m300=m30[0];fetch('http://127.0.0.1:7290/ingest/9264efac-f1bb-4076-9990-fae6be28d139',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d57d37'},body:JSON.stringify({sessionId:'d57d37',location:'bi_delivery.html:init',message:'chartData structure',data:{trendDatesLen:ds.length,trendDates0Type:typeof s0,trendDates0Val:s0,ma7Len:m7.length,ma70Type:typeof m70,ma70Val:m70,ma300Val:m300,chartVersion:typeof Chart!=='undefined'?Chart.version:null},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});})();
-  // #endregion
-
   const token = (name, fallback) => {
     try {
       const v = getComputedStyle(document.documentElement).getPropertyValue(name);
@@ -360,16 +356,10 @@
     };
   }
   function safeChart(id, config) {
-    // #region agent log
-    fetch('http://127.0.0.1:7290/ingest/9264efac-f1bb-4076-9990-fae6be28d139',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d57d37'},body:JSON.stringify({sessionId:'d57d37',location:'bi_delivery.html:safeChart',message:'before chart create',data:{chartId:id,labelsLen:(config.data&&config.data.labels)&&config.data.labels.length,firstLabelType:(config.data&&config.data.labels&&config.data.labels[0])!=null?typeof config.data.labels[0]:null},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
-    // #endregion
     try {
       const el = document.getElementById(id);
       if (el && typeof Chart !== 'undefined') return new Chart(el, config);
     } catch (e) {
-      // #region agent log
-      fetch('http://127.0.0.1:7290/ingest/9264efac-f1bb-4076-9990-fae6be28d139',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d57d37'},body:JSON.stringify({sessionId:'d57d37',location:'bi_delivery.html:safeChart:catch',message:'chart error',data:{chartId:id,errName:e&&e.name,errMsg:e&&e.message},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
       console.warn('Chart ' + id + ':', e);
     }
     return null;
@@ -470,6 +460,19 @@
     }
   });
 
+  function aggregateClientsByResp(resp, rows) {
+    const r = (rows || []).filter(x => String(x?.responsabilidade || '').trim() === String(resp || '').trim());
+    const acc = new Map();
+    r.forEach(x => {
+      const client = String(x?.client_name || 'Sem cliente').trim() || 'Sem cliente';
+      const item = acc.get(client) || { qtd: 0, valor: 0 };
+      item.qtd += 1;
+      item.valor += Number(x?.returned_value) || 0;
+      acc.set(client, item);
+    });
+    const total = Array.from(acc.values()).reduce((s, x) => s + x.valor, 0) || 1;
+    return Array.from(acc.entries()).map(([client, x]) => ({ client, qtd: x.qtd, pctValor: (x.valor / total) * 100 })).sort((a, b) => b.pctValor - a.pctValor).slice(0, 5);
+  }
   const respData = chartData.responsabilidade || [];
   safeChart('respChart', {
     type: 'doughnut',
@@ -477,7 +480,25 @@
       labels: respData.map(x => String(safeStr(x.responsabilidade))),
       datasets: [{ data: respData.map(x => { const v = toChartNum(x.qtd); return v !== null ? v : 0; }), backgroundColor: [String(cPrimary), String(cWarn), String(cDanger), String(cSuccess)] }]
     },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: cMuted } } } }
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: cMuted } },
+        tooltip: {
+          callbacks: {
+            afterBody: (items) => {
+              const idx = items?.[0]?.dataIndex;
+              if (idx == null) return '';
+              const label = (respData[idx] && respData[idx].responsabilidade) != null ? String(respData[idx].responsabilidade) : '';
+              if (!label) return '';
+              const ranked = aggregateClientsByResp(label, detailRows);
+              if (!ranked.length) return 'Sem clientes para esta responsabilidade.';
+              return ranked.map(rr => `${rr.qtd} - ${rr.client} - ${Number(rr.pctValor || 0).toFixed(1).replace('.', ',')}% do valor`).join('\n');
+            }
+          }
+        }
+      }
+    }
   });
 
   const clusterData = chartData.cluster || [];

@@ -212,38 +212,19 @@
   }
 
   function bindChartClickDrill(id) {
+    const canvas = byId(id);
+    if (!canvas) return;
     const c = getChart(id);
     if (!c) return;
-    if (id === "respChart") {
-      c.options.plugins = c.options.plugins || {};
-      c.options.plugins.tooltip = c.options.plugins.tooltip || {};
-      const currentCallbacks = c.options.plugins.tooltip.callbacks || {};
-      c.options.plugins.tooltip.callbacks = {
-        ...currentCallbacks,
-        afterBody: (items) => {
-          const idx = items?.[0]?.dataIndex;
-          if (idx == null) return "";
-          const label = c.data?.labels?.[idx];
-          if (!label) return "";
-          const ranked = aggregateClientsByResponsibility(label).slice(0, 5);
-          if (!ranked.length) return "Sem clientes para esta responsabilidade.";
-          return ranked.map((r) => {
-            const pct = Number(r.pctValor || 0).toFixed(1).replace(".", ",");
-            return `${r.qtd} - ${r.client} - ${pct}% do valor`;
-          });
-        }
-      };
-    }
-    const baseOnClick = c.options.onClick;
-    c.options.onClick = (evt, elements, chart) => {
-      if (baseOnClick) baseOnClick(evt, elements, chart);
+    canvas.addEventListener("click", (evt) => {
+      const elements = c.getElementsAtEventForMode(evt, "nearest", { intersect: true }, false);
       if (!elements?.length) return;
       const idx = elements[0].index;
       const datasetIdx = elements[0].datasetIndex || 0;
-      const point = chart.data?.datasets?.[datasetIdx]?.data?.[idx];
+      const point = c.data?.datasets?.[datasetIdx]?.data?.[idx];
       const label = id === "motivosChart"
-        ? ((point && typeof point === "object" && point.motivo) ? point.motivo : chart.data.labels?.[idx])
-        : chart.data.labels?.[idx];
+        ? ((point && typeof point === "object" && point.motivo) ? point.motivo : c.data.labels?.[idx])
+        : c.data.labels?.[idx];
       if (label == null) return;
       let fn = null;
       if (id === "trendChart") fn = (r) => r.date === label;
@@ -259,8 +240,7 @@
       renderDrill();
       refreshBreadcrumb();
       byId("drilldown-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    };
-    c.update();
+    });
   }
 
   function destroyFullscreenChart() {
