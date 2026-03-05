@@ -9344,6 +9344,7 @@ async def reassign_delivery_stop(
 async def reassign_delivery_group(
     request: Request,
     source_employee_id: int = Form(...),
+    source_vehicle_plate: str = Form(""),
     new_employee_id: int = Form(...),
     new_vehicle_plate: str = Form(...),
     helper_ids: Optional[List[int]] = Form(None),
@@ -9372,12 +9373,15 @@ async def reassign_delivery_group(
     
     logger.info(f"Ã°Å¸Ã¢â‚¬ÂÃ¢â‚¬Å¾ Tentativa de troca de motorista: {source_name} â†’ {new_name}, CaminhÃ£o: {new_vehicle_plate}, Data: {date}")
     
+    source_plate_norm = _norm_plate(source_vehicle_plate)
     rows = session.exec(
         select(models.Route)
         .where(models.Route.type == "delivery")
         .where(models.Route.date == date)
         .where(models.Route.employee_id == source_employee_id)
     ).all()
+    if source_plate_norm:
+        rows = [r for r in rows if _norm_plate(r.delivery_vehicle_plate) == source_plate_norm]
     if not rows:
         logger.warning(f"Ã¢ÂÃ…' Nenhuma entrega encontrada para {source_name} na data {date}")
         feedback_encoded = urlencode({"delivery_feedback": "Nenhuma entrega encontrada para o motorista.", "delivery_feedback_level": "error"})
@@ -9427,14 +9431,19 @@ async def reopen_delivery_route(
         feedback_encoded = urlencode({"delivery_feedback": "Somente rotinas concluÃ­das podem ser reabertas.", "delivery_feedback_level": "error"})
         return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
 
-    already_started = session.exec(
+    started_rows = session.exec(
         select(models.Route)
         .where(models.Route.type == "delivery")
         .where(models.Route.date == route.date)
         .where(models.Route.employee_id == route.employee_id)
         .where(models.Route.delivery_status == "iniciada")
         .where(models.Route.id != route.id)
-    ).first()
+    ).all()
+    route_plate_norm = _norm_plate(route.delivery_vehicle_plate)
+    already_started = next(
+        (r for r in started_rows if _norm_plate(r.delivery_vehicle_plate) == route_plate_norm),
+        None,
+    )
     if already_started:
         feedback_encoded = urlencode({
             "delivery_feedback": "Motorista jÃ¡ possui rotina iniciada. Finalize antes de reabrir outra.",

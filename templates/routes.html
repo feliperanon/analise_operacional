@@ -512,7 +512,7 @@
                                         <p class="text-[10px] text-slate-300">Ajudantes: {{ group.helper_names|join(", ") }}</p>
                                         {% endif %}
                                         {% if group.has_plate_conflict %}
-                                        <p class="text-[10px] text-red-300">Conflito: mais de uma placa para este motorista neste dia.</p>
+                                        <p class="text-[10px] text-amber-300">Atenção: motorista com mais de uma placa no dia (rotinas separadas por caminhão).</p>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -522,6 +522,7 @@
                             <div class="px-4 py-4 border-t border-slate-700 bg-slate-900/40">
                                 <form action="/separacao/delivery/reassign-group" method="post" class="grid grid-cols-1 xl:grid-cols-12 gap-3 xl:gap-4">
                                     <input type="hidden" name="source_employee_id" value="{{ group.employee_id }}">
+                                    <input type="hidden" name="source_vehicle_plate" value="{{ group.vehicle_plate }}">
                                     <input type="hidden" name="date" value="{{ selected_date }}">
                                     <input type="hidden" name="shift" value="{{ selected_shift }}">
                                     <div class="xl:col-span-4">
@@ -696,7 +697,7 @@
                                                         <input type="hidden" name="date" value="{{ selected_date }}">
                                                         <input type="hidden" name="shift" value="{{ selected_shift }}">
                                                         <input type="hidden" name="action" value="iniciar">
-                                                        <button {% if not row.can_start %}disabled title="Finalize a rotina iniciada antes de abrir outra."{% endif %} class="btn-action btn-start disabled:opacity-40 disabled:cursor-not-allowed">Iniciar</button>
+                                                        <button {% if not row.can_start %}disabled title="Finalize a rotina iniciada deste caminhão antes de abrir outra."{% endif %} class="btn-action btn-start disabled:opacity-40 disabled:cursor-not-allowed">Iniciar</button>
                                                     </form>
                                                     <form action="/separacao/delivery/status" method="post">
                                                         <input type="hidden" name="route_id" value="{{ row.id }}">
