@@ -109,39 +109,6 @@
     </section>
 
     <section class="grid grid-cols-1 gap-4">
-      <section class="surface-shadow bi-card chart-card" data-chart-card="1" data-chart-id="driverClientCorrChart" data-chart-title="Correlacao motorista x cliente x devolucoes" data-chart-subtitle="Mapa de risco por par motorista-cliente com foco financeiro.">
-        <div class="bi-card-head bi-card-head-between">
-          <div>
-            <h3 class="text-section">Painel de Correlacao Motorista x Cliente</h3>
-            <p class="text-caption mt-1">Semaforo por % do valor real. Clique em um par para abrir no drill-through.</p>
-          </div>
-          <div class="flex items-center gap-2">
-            <button class="icon-wrap-sm" type="button" title="Ajuda">
-              <i data-lucide="info" class="w-4 h-4"></i>
-            </button>
-          </div>
-        </div>
-        <div class="mt-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
-          <section class="surface p-3">
-            <h4 class="text-section">Top Pares Criticos</h4>
-            <p class="text-caption mt-1">Ranking por valor devolvido e % valor real</p>
-            <div id="corrTopPairs" class="mt-3 space-y-2"></div>
-          </section>
-          <section class="surface p-3 xl:col-span-2">
-            <h4 class="text-section">Matriz de Correlacao</h4>
-            <p class="text-caption mt-1">Linhas: clientes | Colunas: motoristas</p>
-            <div id="corrMatrix" class="mt-3 overflow-auto"></div>
-            <div class="corr-legend mt-3">
-              <span class="corr-tag corr-ok">&lt; 2,0%</span>
-              <span class="corr-tag corr-warn">2,0% a 4,0%</span>
-              <span class="corr-tag corr-danger">&gt;= 4,0%</span>
-            </div>
-          </section>
-        </div>
-      </section>
-    </section>
-
-    <section class="grid grid-cols-1 gap-4">
       <section class="surface-shadow bi-card chart-card" data-chart-card="1" data-chart-id="driverRespChart">
         <div class="bi-card-head bi-card-head-between">
           <div>
