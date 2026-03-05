@@ -139,6 +139,12 @@
             </button>
           </div>
         </div>
+        <section class="surface p-3 mt-4">
+          <h4 class="text-section">Resumo Executivo (60s)</h4>
+          <p class="text-caption mt-1">Leitura direta para reunião: exposição, foco de ataque e risco concentrado.</p>
+          <div id="corrExecSummary" class="mt-3 corr-exec-grid"></div>
+          <div id="corrActionList" class="mt-3 space-y-2"></div>
+        </section>
         <div class="mt-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
           <section class="surface p-3">
             <h4 class="text-section">Top Pares Criticos</h4>
@@ -428,14 +434,74 @@
   function renderCorrInsights(appState) {
     const topEl = document.getElementById('corrTopPairs');
     const matrixEl = document.getElementById('corrMatrix');
-    if (!topEl || !matrixEl) return;
+    const execEl = document.getElementById('corrExecSummary');
+    const actionEl = document.getElementById('corrActionList');
+    if (!topEl || !matrixEl || !execEl || !actionEl) return;
 
     const points = [...corrPoints].sort((a, b) => (Number(b.valor || 0) - Number(a.valor || 0)) || (Number(b.qtd || 0) - Number(a.qtd || 0)));
     if (!points.length) {
+      execEl.innerHTML = '<div class="insight-row">Sem dados para resumo executivo no período.</div>';
+      actionEl.innerHTML = '';
       topEl.innerHTML = '<div class="insight-row">Sem pares com devolucao no periodo.</div>';
       matrixEl.innerHTML = '<div class="insight-row">Sem dados para matriz de correlacao.</div>';
       return;
     }
+
+    const totalValor = points.reduce((acc, p) => acc + Number(p.valor || 0), 0);
+    const criticos = points.filter((p) => Number(p.pct_valor_real || 0) >= 4);
+    const alertas = points.filter((p) => Number(p.pct_valor_real || 0) >= 2 && Number(p.pct_valor_real || 0) < 4);
+    const riscoDrivers = new Set(points.filter((p) => Number(p.pct_valor_real || 0) >= 2).map((p) => String(p.driver || '').trim()).filter(Boolean));
+    const topRisco = [...points].sort((a, b) => {
+      const sa = Number(a.valor || 0) * Number(a.pct_valor_real || 0);
+      const sb = Number(b.valor || 0) * Number(b.pct_valor_real || 0);
+      return sb - sa;
+    })[0];
+    const concentracaoTop5 = points.slice(0, 5).reduce((acc, p) => acc + Number(p.valor || 0), 0);
+    const concentracaoTop5Pct = totalValor > 0 ? (concentracaoTop5 / totalValor) * 100 : 0;
+
+    execEl.innerHTML = `
+      <article class="corr-kpi-card">
+        <p class="corr-kpi-label">Valor em Pares</p>
+        <p class="corr-kpi-value">${moedaBR(totalValor)}</p>
+      </article>
+      <article class="corr-kpi-card ${criticos.length ? 'is-danger' : ''}">
+        <p class="corr-kpi-label">Pares Críticos (>=4%)</p>
+        <p class="corr-kpi-value">${numeroBR(criticos.length, 0)}</p>
+      </article>
+      <article class="corr-kpi-card ${alertas.length ? 'is-warn' : ''}">
+        <p class="corr-kpi-label">Pares em Alerta (2%-4%)</p>
+        <p class="corr-kpi-value">${numeroBR(alertas.length, 0)}</p>
+      </article>
+      <article class="corr-kpi-card">
+        <p class="corr-kpi-label">Motoristas em Risco</p>
+        <p class="corr-kpi-value">${numeroBR(riscoDrivers.size, 0)}</p>
+      </article>
+      <article class="corr-kpi-card">
+        <p class="corr-kpi-label">Concentração Top 5</p>
+        <p class="corr-kpi-value">${numeroBR(concentracaoTop5Pct, 1)}%</p>
+      </article>
+      <article class="corr-kpi-card is-focus">
+        <p class="corr-kpi-label">Par Prioritário</p>
+        <p class="corr-kpi-value">${safeStr(topRisco?.driver)} x ${safeStr(topRisco?.client)}</p>
+        <p class="corr-kpi-sub">${moedaBR(topRisco?.valor || 0)} | ${numeroBR(topRisco?.pct_valor_real || 0, 1)}%</p>
+      </article>
+    `;
+
+    const recs = [];
+    if (criticos.length > 0) {
+      recs.push(`Ataque imediato: ${criticos.length} par(es) crítico(s) acima de 4%. Priorize os 3 primeiros do ranking.`);
+    } else {
+      recs.push('Sem pares críticos acima de 4% no período. Mantenha monitoramento diário.');
+    }
+    if (concentracaoTop5Pct >= 60) {
+      recs.push(`Risco concentrado: Top 5 pares representam ${numeroBR(concentracaoTop5Pct, 1)}% do valor. Foco nesses clientes/motoristas.`);
+    } else {
+      recs.push(`Risco distribuído: Top 5 pares em ${numeroBR(concentracaoTop5Pct, 1)}% do valor. Plano de ação mais amplo.`);
+    }
+    if (topRisco) {
+      recs.push(`Ação de reunião: abrir drill-through no par ${safeStr(topRisco.driver)} x ${safeStr(topRisco.client)} e validar motivo raiz agora.`);
+    }
+    actionEl.innerHTML = recs.map((txt, i) => `<div class="insight-row ${i === 0 && criticos.length ? 'insight-warning' : ''}">${i + 1}. ${txt}</div>`).join('');
 
     const topPairs = points.slice(0, 12);
     topEl.innerHTML = topPairs.map((p, idx) => {
@@ -662,6 +728,15 @@
   .status-muted { color: #f8fafc; background: #334155; border-color: #94a3b8; }
 
   .corr-legend { display: flex; gap: .45rem; flex-wrap: wrap; }
+  .corr-exec-grid { display: grid; grid-template-columns: repeat(1, minmax(0, 1fr)); gap: .55rem; }
+  @media (min-width: 860px) { .corr-exec-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .corr-kpi-card { border: 1px solid var(--color-border); border-radius: .6rem; padding: .58rem .62rem; background: color-mix(in srgb, var(--color-surface) 92%, #0f172a 8%); }
+  .corr-kpi-card.is-danger { border-color: rgba(239, 68, 68, .7); background: rgba(127, 29, 29, .22); }
+  .corr-kpi-card.is-warn { border-color: rgba(245, 158, 11, .7); background: rgba(120, 53, 15, .22); }
+  .corr-kpi-card.is-focus { border-color: rgba(59, 130, 246, .7); background: rgba(30, 58, 138, .22); }
+  .corr-kpi-label { font-size: .66rem; text-transform: uppercase; letter-spacing: .05em; color: var(--color-text-muted); }
+  .corr-kpi-value { margin-top: .18rem; font-size: .92rem; font-weight: 700; color: #f8fafc; line-height: 1.22; }
+  .corr-kpi-sub { margin-top: .18rem; font-size: .72rem; color: #cbd5e1; }
   .corr-tag { font-size: .68rem; padding: .2rem .45rem; border-radius: 999px; border: 1px solid var(--color-border); color: var(--color-text-secondary); }
   .corr-ok { background: rgba(16,185,129,.18); border-color: rgba(16,185,129,.45); color: #d1fae5; }
   .corr-warn { background: rgba(245,158,11,.2); border-color: rgba(245,158,11,.5); color: #fef3c7; }

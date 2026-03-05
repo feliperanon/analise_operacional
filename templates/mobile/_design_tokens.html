@@ -1,67 +1,69 @@
 <!--
-DESIGN TOKENS - PWA Elite | Sistema Souza Pinto
-Glassmorfismo, sombras dinâmicas, gradientes operacionais.
+DESIGN TOKENS - Tech-Steel Operational v3.0 | Souza Pinto
+Dark Mode Futurista, alto contraste, legibilidade sob luz solar.
 -->
 
 <style>
     :root {
-        /* === CORES === */
-        --color-bg: #f1f5f9;
-        --color-surface: #ffffff;
-        --color-border: #e2e8f0;
-        --color-border-light: #f1f5f9;
+        /* === PALETA TECH-STEEL (Dark Mode Futurista) === */
+        --color-bg: #020617;
+        --color-surface: rgba(15, 23, 42, 0.6);
+        --color-surface-solid: #0f172a;
+        --color-border: #1e293b;
+        --color-border-light: #334155;
 
-        --color-text: #0f172a;
-        --color-text-secondary: #475569;
-        --color-text-muted: #94a3b8;
-        --color-text-inverse: #ffffff;
+        --color-text: #ffffff;
+        --color-text-body: #cbd5e1;
+        --color-text-secondary: #94a3b8;
+        --color-text-muted: #64748b;
 
-        --color-icon: #64748b;
+        --color-icon: #94a3b8;
 
-        --color-action: #2563eb;
-        --color-primary: #1e3a8a;
-        --color-primary-bg: #eff6ff;
-        --color-primary-border: #dbeafe;
+        --color-primary: #3b82f6;
+        --color-primary-bg: rgba(59, 130, 246, 0.15);
+        --color-primary-border: rgba(59, 130, 246, 0.4);
 
-        --color-success: #16a34a;
-        --color-success-bg: #dcfce7;
-        --color-danger: #dc2626;
-        --color-danger-bg: #fee2e2;
-        --color-warning: #ca8a04;
-        --color-warning-bg: #fef9c3;
+        --color-success: #10b981;
+        --color-success-neon: 0 0 12px rgba(16, 185, 129, 0.5);
+        --color-success-bg: rgba(16, 185, 129, 0.12);
+        --color-danger: #ef4444;
+        --color-danger-pulse: 0 0 12px rgba(239, 68, 68, 0.5);
+        --color-danger-bg: rgba(239, 68, 68, 0.12);
+        --color-warning: #f59e0b;
+        --color-warning-bg: rgba(245, 158, 11, 0.15);
 
-        /* === FUTURISTA (Dark/Tech Mode) === */
-        --color-bg-futuristic: #030712;
-        --color-surface-futuristic: rgba(17, 24, 39, 0.85);
-        --color-primary-neon: #3b82f6;
-        --color-accent-cyan: #06b6d4;
-        --glass-border: rgba(255, 255, 255, 0.1);
-        --neon-glow: 0 0 15px rgba(59, 130, 246, 0.5);
-        --shadow-futuristic: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
-        --radius-futuristic: 12px;
+        /* === GLOW BORDERS (Status) === */
+        --glow-ok: 0 0 0 1px #10b981, 0 0 12px rgba(16, 185, 129, 0.3);
+        --glow-fail: 0 0 0 1px #ef4444, 0 0 12px rgba(239, 68, 68, 0.3);
+        --glow-pending: 0 0 0 1px #f59e0b, 0 0 12px rgba(245, 158, 11, 0.3);
 
-        /* === SOMBRAS DINÂMICAS === */
-        --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
-        --shadow-card: 0 2px 8px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
-        --shadow-elevated: 0 8px 24px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04);
-        --shadow-xl: 0 20px 40px rgba(15, 23, 42, 0.12);
-        --shadow-modal: 0 24px 48px rgba(15, 23, 42, 0.16);
+        /* === CARDS (vidro fosco, sem overlay sobre texto) === */
+        --card-bg: rgba(15, 23, 42, 0.6);
+        --card-border: 1px solid #1e293b;
 
-        /* === GRADIENTES OPERACIONAIS === */
-        --gradient-header: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #1d4ed8 100%);
+        /* === SOMBRAS === */
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+        --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.4);
+        --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.5);
+        --shadow-modal: 0 24px 48px rgba(0, 0, 0, 0.6);
+
+        /* === GRADIENTES === */
+        --gradient-header: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        --gradient-fade-bottom: linear-gradient(to top, rgba(2, 6, 23, 1) 0%, rgba(2, 6, 23, 0.6) 40%, transparent 100%);
+        --gradient-btn-neon: linear-gradient(135deg, #10b981 0%, #059669 100%);
 
         /* === TIPOGRAFIA === */
         --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+        --font-mono: 'JetBrains Mono', 'Roboto Mono', ui-monospace, monospace;
 
-        --text-caption: 0.6875rem;   /* 11px */
-        --text-caption-lg: 0.75rem;  /* 12px */
-        --text-body: 0.8125rem;      /* 13px */
-        --text-body-lg: 0.875rem;    /* 14px */
-        --text-section: 0.875rem;    /* 14px - títulos de seção */
-        --text-section-lg: 1rem;     /* 16px */
-        --text-title: 1rem;          /* 16px */
-        --text-title-lg: 1.125rem;   /* 18px */
+        --text-caption: 0.6875rem;
+        --text-caption-lg: 0.75rem;
+        --text-body: 0.8125rem;
+        --text-body-lg: 0.875rem;
+        --text-section: 0.875rem;
+        --text-section-lg: 1rem;
+        --text-title: 1rem;
+        --text-title-lg: 1.125rem;
 
         --font-normal: 400;
         --font-medium: 500;
@@ -70,7 +72,7 @@ Glassmorfismo, sombras dinâmicas, gradientes operacionais.
         --leading-tight: 1.25;
         --leading-normal: 1.5;
 
-        /* === ESPAÇAMENTO (4px grid) === */
+        /* === ESPAÇAMENTO === */
         --space-1: 0.25rem;
         --space-2: 0.5rem;
         --space-3: 0.75rem;
@@ -84,28 +86,17 @@ Glassmorfismo, sombras dinâmicas, gradientes operacionais.
         --radius-md: 0.75rem;
         --radius-lg: 1rem;
         --radius-xl: 1.25rem;
-        --border: 1px solid var(--color-border);
-        --border-2: 2px solid var(--color-border);
 
-        /* === INTERAÇÃO === */
-        --color-input-bg: #ffffff;
-        --color-hover: #f1f5f9;
-
-        /* === TOUCH (Mobile-First: 48px para acessibilidade) === */
+        /* === TOUCH === */
         --touch-min: 48px;
         --touch-icon: 44px;
-
-        /* === TRANSIÇÃO === */
-        --ease: 200ms cubic-bezier(0.4, 0, 0.2, 1);
 
         /* === Z === */
         --z-dropdown: 10;
         --z-sticky: 20;
-        --z-modal-bg: 40;
-        --z-modal: 50;
+        --z-modal: 9999;
     }
 
-    /* Containers */
     .container-mobile {
         width: 100%;
         max-width: 640px;
@@ -114,40 +105,40 @@ Glassmorfismo, sombras dinâmicas, gradientes operacionais.
         padding-right: var(--space-4);
     }
 
-    /* Cards: elevação com sombras dinâmicas */
+    /* Cards Tech-Steel */
     .surface {
-        background: var(--color-surface);
-        border: 1px solid var(--color-border);
+        background: var(--card-bg);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: var(--card-border);
         border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-card);
     }
 
     .surface-shadow {
-        background: var(--color-surface);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-elevated);
-    }
-
-    /* Header com gradiente operacional */
-    .header-gradient {
-        background: var(--gradient-header);
-        box-shadow: var(--shadow-elevated);
-    }
-
-    /* Superfície sólida (alternativa a glass - sem transparência) */
-    .surface-glass {
-        background: var(--color-surface);
-        border: 1px solid var(--color-border);
+        background: var(--card-bg);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: var(--card-border);
         border-radius: var(--radius-lg);
         box-shadow: var(--shadow-card);
     }
 
-    /* Container de ícone: neutro */
+    /* Action Tile (checklist) */
+    .action-tile {
+        background: rgba(15, 23, 42, 0.5);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        transition: box-shadow 0.2s, border-color 0.2s;
+    }
+    .action-tile.status-ok { border-color: #10b981; box-shadow: var(--glow-ok); }
+    .action-tile.status-fail { border-color: #ef4444; box-shadow: var(--glow-fail); }
+    .action-tile.status-pending { border-color: var(--color-border); }
+
     .icon-wrap {
         width: 40px;
         height: 40px;
         border-radius: var(--radius-md);
-        background: var(--color-border-light);
+        background: rgba(30, 41, 59, 0.8);
         color: var(--color-icon);
         display: flex;
         align-items: center;
@@ -158,107 +149,43 @@ Glassmorfismo, sombras dinâmicas, gradientes operacionais.
         width: 36px;
         height: 36px;
         border-radius: var(--radius-sm);
-        background: var(--color-border-light);
-        color: var(--color-icon);
-        display: flex;
-        align-items: center;
-        justify-content: center;
     }
 
     /* Tipografia */
-    .text-title {
-        font-size: var(--text-title);
-        font-weight: var(--font-semibold);
-        color: var(--color-text);
-        line-height: var(--leading-tight);
-    }
+    .text-title { font-size: var(--text-title); font-weight: var(--font-semibold); color: var(--color-text); }
+    .text-title-lg { font-size: var(--text-title-lg); font-weight: var(--font-semibold); color: var(--color-text); }
+    .text-section { font-size: var(--text-section); font-weight: var(--font-semibold); color: var(--color-text); }
+    .text-body { font-size: var(--text-body); color: var(--color-text-body); line-height: var(--leading-normal); }
+    .text-body-lg { font-size: var(--text-body-lg); color: var(--color-text-body); }
+    .text-caption { font-size: var(--text-caption); color: var(--color-text-muted); }
+    .text-caption-lg { font-size: var(--text-caption-lg); color: var(--color-text-muted); }
+    .font-mono { font-family: var(--font-mono); }
 
-    .text-title-lg {
-        font-size: var(--text-title-lg);
-        font-weight: var(--font-semibold);
-        color: var(--color-text);
-        line-height: var(--leading-tight);
-    }
+    .touch-target { min-width: var(--touch-min); min-height: var(--touch-min); }
+    .touch-target-icon { min-width: var(--touch-icon); min-height: var(--touch-icon); }
 
-    .text-section {
-        font-size: var(--text-section);
-        font-weight: var(--font-semibold);
-        color: var(--color-text);
-    }
-
-    .text-body {
-        font-size: var(--text-body);
-        font-weight: var(--font-normal);
-        color: var(--color-text-secondary);
-        line-height: var(--leading-normal);
-    }
-
-    .text-body-lg {
-        font-size: var(--text-body-lg);
-        color: var(--color-text-secondary);
-    }
-
-    .text-caption {
-        font-size: var(--text-caption);
-        color: var(--color-text-muted);
-    }
-
-    .text-caption-lg {
-        font-size: var(--text-caption-lg);
-        color: var(--color-text-muted);
-    }
-
-    /* Touch targets */
-    .touch-target {
-        min-width: var(--touch-min);
-        min-height: var(--touch-min);
-    }
-
-    .touch-target-icon {
-        min-width: var(--touch-icon);
-        min-height: var(--touch-icon);
-    }
-
-    /* Interação - feedback tátil scale 0.95 */
     .interactive {
-        transition: transform 0.15s ease, background-color var(--ease);
+        transition: transform 0.15s ease;
         cursor: pointer;
         -webkit-tap-highlight-color: transparent;
     }
+    .interactive:active { transform: scale(0.97); }
 
-    .interactive:active {
-        transform: scale(0.95);
+    /* Botão Concluir Flutuante */
+    .btn-float-conclude {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: var(--space-4);
+        padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0));
+        background: var(--gradient-fade-bottom);
+        z-index: 50;
+        display: flex;
+        justify-content: center;
+        align-items: center;
     }
 
-    .disabled {
-        opacity: 0.5;
-        pointer-events: none;
-    }
-
-    /* === ANIMAÇÕES PWA === */
-    @keyframes pulse-slow {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.6; }
-    }
-    @keyframes bounce-short {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-    }
-    @keyframes xp-shine {
-        0% { transform: translateX(-100%); }
-        100% { transform: translateX(100%); }
-    }
-    .animate-pulse-slow { animation: pulse-slow 2s ease-in-out infinite; }
-    .animate-bounce-short { animation: bounce-short 0.4s ease-out; }
-    .animate-xp-shine { animation: xp-shine 1.5s ease-in-out; }
-
-    /* Surface Futurista (Glassmorphism) */
-    .surface-futuristic {
-        background: var(--color-surface-futuristic);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid var(--glass-border);
-        border-radius: var(--radius-futuristic);
-        box-shadow: var(--shadow-futuristic);
-    }
+    /* Lucide stroke mais visível (2.5px) */
+    .lucide-thick, .lucide-thick svg, [class*="lucide"].lucide-thick { stroke-width: 2.5; }
 </style>

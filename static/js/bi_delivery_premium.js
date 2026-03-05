@@ -46,6 +46,7 @@
   let kpiSparklineChart = null;
   let respMotivosChart = null;
   let fullscreenIndex = 0;
+  let execModeMemory = false;
 
   function modalOpen(id) {
     const m = byId(id);
@@ -551,7 +552,7 @@
     page.classList.toggle("executive-mode", next);
     btn.textContent = next ? "Operacional" : "Executivo";
     btn.setAttribute("aria-pressed", next ? "true" : "false");
-    try { localStorage.setItem("bi_exec_mode", next ? "1" : "0"); } catch { }
+    execModeMemory = !!next;
   }
 
   function refreshBreadcrumb() {
@@ -577,9 +578,8 @@
     refreshBreadcrumb();
   });
 
-  const safeStorage = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { } } };
   byId("execModeToggle")?.addEventListener("click", () => toggleExecutiveMode());
-  toggleExecutiveMode(safeStorage.get("bi_exec_mode") === "1");
+  toggleExecutiveMode(execModeMemory);
 
   qsa(".kpi-card").forEach((card) => {
     card.addEventListener("click", (e) => {

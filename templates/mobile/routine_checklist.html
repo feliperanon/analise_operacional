@@ -4,36 +4,29 @@
 
 {% block content %}
 <script type="application/json" id="checklist-initial-data">{"totalItems":{{ items|length }},"keys":[{% for item in items %}{{ item.key|tojson }}{% if not loop.last %},{% endif %}{% endfor %}],"equipmentLastKm":{{ equipment_last_km|tojson }}}</script>
-<div x-data="checklistController()" class="min-h-screen pb-safe pb-24" style="background: var(--color-bg);">
+<div x-data="checklistController()" class="min-h-screen pb-32" style="background: var(--color-bg);">
 
-    <!-- Header -->
-    <header class="container-mobile py-4 border-b shrink-0 relative z-20" style="border-color: var(--color-border-light); background: var(--color-surface);">
+    <!-- Header HUD (minimal) -->
+    <header class="container-mobile py-3 border-b shrink-0" style="border-color: var(--color-border); background: rgba(15,23,42,0.8); backdrop-filter: blur(8px);">
         <div class="flex items-center justify-between gap-3">
-            <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap">
-                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg" style="background: rgba(30,41,59,0.8); color: var(--color-text-body);">
+                <i data-lucide="arrow-left" class="w-5 h-5 lucide-thick"></i>
             </a>
             <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 mb-0.5">
-                    <span class="text-caption font-semibold px-2 py-0.5 rounded-full" style="background: var(--color-primary-bg); color: var(--color-primary);">Checklist Diário</span>
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-bold uppercase tracking-widest" style="color: var(--color-success);">Checklist</span>
+                    <span class="text-[10px] font-mono" style="color: var(--color-text-muted);" x-text="checkedCount + '/' + totalItems"></span>
                 </div>
-                <h1 class="text-title-lg truncate" style="color: var(--color-text);">Caminhão</h1>
-                <p class="text-caption" style="color: var(--color-text-muted);">Garanta sua segurança e ganhe XP</p>
+                <h1 class="text-sm font-semibold truncate" style="color: var(--color-text);">Caminhão</h1>
             </div>
-            <div class="flex flex-col items-end flex-shrink-0">
-                <div class="icon-wrap w-12 h-12 flex items-center justify-center" style="background: var(--color-warning-bg); color: var(--color-warning);">
-                    <span class="text-body font-bold leading-tight">+50<br>XP</span>
-                </div>
-                <span class="text-caption mt-1">{{ employee.work_shift }}</span>
+            <div class="flex items-center gap-2">
+                <span class="text-[10px] font-bold font-mono" style="color: var(--color-success);">+50 XP</span>
+                <span class="text-[10px]" style="color: var(--color-text-muted);">{{ employee.work_shift }}</span>
             </div>
         </div>
-        <!-- Progress Bar -->
-        <div class="mt-3">
-            <div class="w-full rounded-full h-1.5 overflow-hidden" style="background: var(--color-border-light);">
-                <div class="h-full transition-all duration-300" style="background: var(--color-success); width: 0%;" :style="`width: ${completionPercentage}%`"></div>
-            </div>
-            <div class="flex justify-between items-center text-caption mt-1">
-                <span style="color: var(--color-success);" x-text="completionPercentage + '% Concluído'"></span>
-                <span style="color: var(--color-text-muted);" x-text="checkedCount + '/' + totalItems + ' Itens'"></span>
+        <div class="mt-2">
+            <div class="w-full rounded-full h-1 overflow-hidden" style="background: var(--color-border);">
+                <div class="h-full transition-all duration-300 rounded-full" style="background: var(--color-success);" :style="`width: ${completionPercentage}%`"></div>
             </div>
         </div>
     </header>
@@ -43,17 +36,17 @@
         <!-- Equipamento -->
         <div class="surface p-3">
             <div class="flex items-center gap-3">
-                <div class="icon-wrap w-10 h-10 flex-shrink-0">
-                    <i data-lucide="package-search" class="w-5 h-5"></i>
+                <div class="icon-wrap flex-shrink-0">
+                    <i data-lucide="package-search" class="w-5 h-5 lucide-thick"></i>
                 </div>
                 <select x-model="equipmentCode"
                     @change="odometerKm = (equipmentLastKm[equipmentCode] != null && equipmentLastKm[equipmentCode] !== '') ? equipmentLastKm[equipmentCode] : ''"
-                    class="flex-1 min-w-0 bg-transparent border-none text-body font-semibold focus:ring-0 p-2 appearance-none"
-                    style="color: var(--color-text);">
+                    class="flex-1 min-w-0 bg-transparent border-none text-body font-semibold focus:ring-0 p-2"
+                    style="color: var(--color-text-body);">
                     <option value="" disabled selected style="color: var(--color-text-muted);">Selecione o caminhão</option>
                     {% if equipment_list %}
                     {% for eq in equipment_list %}
-                    <option value="{{ eq.code }}" style="color: var(--color-text);">{{ eq.label|default(eq.code) }}</option>
+                    <option value="{{ eq.code }}" style="color: var(--color-text-body);">{{ eq.label|default(eq.code) }}</option>
                     {% endfor %}
                     {% else %}
                     <option value="" disabled>Sem cadastro</option>
@@ -66,59 +59,61 @@
         <div x-show="equipmentCode" x-transition class="surface p-4">
             <label class="text-section block mb-2" style="color: var(--color-text);">KM do hodômetro *</label>
             <input type="number" x-model.number="odometerKm" min="0" step="1" placeholder="Ex: 150000"
-                class="w-full px-4 py-3 rounded-lg border-2 text-body font-mono focus:outline-none focus:ring-2"
-                style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
-            <p x-show="equipmentCode && equipmentLastKm[equipmentCode]" class="text-caption mt-2" style="color: var(--color-text-muted);">
-                KM anterior: <span x-text="equipmentLastKm[equipmentCode] || '-'"></span> — Máx hoje: <span x-text="(equipmentLastKm[equipmentCode] || 0) + 1000"></span>
+                class="w-full px-4 py-3 rounded-lg font-mono text-body"
+                style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);">
+            <p x-show="equipmentCode && equipmentLastKm[equipmentCode]" class="text-caption mt-2 font-mono" style="color: var(--color-text-muted);">
+                KM anterior: <span x-text="equipmentLastKm[equipmentCode] || '-'"></span> — Máx: <span x-text="(Number(equipmentLastKm[equipmentCode]) || 0) + 1000"></span>
             </p>
         </div>
 
-        <!-- Action Bar -->
         <div class="flex items-center justify-between gap-3 flex-wrap">
-            <div class="flex items-center gap-2 flex-wrap">
-                <h2 class="text-title" style="color: var(--color-text);">Itens de Verificação</h2>
-                <a href="/mobile/equipment/tickets/new"
-                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-caption font-semibold interactive"
-                    style="background: var(--color-primary-bg); color: var(--color-primary); border: 1px solid var(--color-primary-border);">
-                    <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i>
-                    Abrir chamado
-                </a>
-            </div>
-            <button @click="markAllGood()"
+            <h2 class="text-section" style="color: var(--color-text);">Itens de Verificação</h2>
+            <a href="/mobile/equipment/tickets/new"
+                class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-caption font-semibold interactive"
+                style="border: 1px solid var(--color-danger); color: var(--color-danger);">
+                <i data-lucide="alert-circle" class="w-3.5 h-3.5 lucide-thick"></i>
+                Abrir chamado
+            </a>
+            <button @click="markAllGood(); haptic('light');"
                 class="touch-target flex items-center gap-2 px-3 py-2 rounded-lg text-caption font-semibold interactive"
-                style="background: var(--color-success-bg); color: var(--color-success); border: 1px solid var(--color-success);">
-                <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                style="border: 1px solid var(--color-success); color: var(--color-success);">
+                <i data-lucide="check-circle-2" class="w-4 h-4 lucide-thick"></i>
                 Marcar Tudo OK
             </button>
         </div>
 
-        <!-- Checklist Items (Power On/Off - seleção binária) -->
+        <!-- Action Tiles (Checklist) -->
         <div class="space-y-2">
             {% for item in items %}
-            <div class="surface p-4 transition-all rounded-xl"
-                :class="{'ring-2 ring-green-500/50': items['{{ item.key }}'] === true, 'ring-2 ring-red-500/50': items['{{ item.key }}'] === false}"
-                :style="items['{{ item.key }}'] === false ? 'border-color: var(--color-danger); background: var(--color-danger-bg);' : ''">
+            <div class="surface p-4 rounded-xl transition-all"
+                :class="{
+                    'action-tile status-ok': items['{{ item.key }}'] === true,
+                    'action-tile status-fail': items['{{ item.key }}'] === false,
+                    'action-tile status-pending': items['{{ item.key }}'] !== true && items['{{ item.key }}'] !== false
+                }"
+                :style="items['{{ item.key }}'] === false ? 'background: rgba(239,68,68,0.08);' : (items['{{ item.key }}'] === true ? 'background: rgba(16,185,129,0.08);' : '')">
 
                 <div class="flex items-center justify-between gap-3">
                     <div class="flex items-center gap-3 flex-1 min-w-0">
-                        <div class="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg transition-all"
-                            :class="{'shadow-[0_0_12px_rgba(22,163,74,0.5)]': items['{{ item.key }}'] === true, 'shadow-[0_0_12px_rgba(220,38,38,0.5)]': items['{{ item.key }}'] === false}"
-                            :style="items['{{ item.key }}'] === true ? 'background: var(--color-success); color: white;' : (items['{{ item.key }}'] === false ? 'background: var(--color-danger); color: white;' : 'background: var(--color-border-light); color: var(--color-text-muted);')">
-                            <i :data-lucide="items['{{ item.key }}'] === false ? 'alert-triangle' : 'check'" class="w-5 h-5"></i>
+                        <div class="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg"
+                            :style="items['{{ item.key }}'] === true ? 'background: var(--color-success); color: white; box-shadow: var(--color-success-neon);' : (items['{{ item.key }}'] === false ? 'background: var(--color-danger); color: white; box-shadow: var(--color-danger-pulse);' : 'background: var(--color-border); color: var(--color-text-muted);')">
+                            <i :data-lucide="items['{{ item.key }}'] === false ? 'alert-triangle' : 'check'" class="w-5 h-5 lucide-thick"></i>
                         </div>
-                        <span class="text-body font-medium" style="color: var(--color-text);">{{ item.label }}</span>
+                        <span class="text-body font-medium" style="color: var(--color-text-body);">{{ item.label }}</span>
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
                         <button @click="setItem('{{ item.key }}', false)"
-                            class="min-h-[48px] min-w-[48px] px-4 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 font-semibold text-body"
-                            :class="items['{{ item.key }}'] === false ? 'bg-red-500 text-white shadow-[0_0_10px_rgba(220,38,38,0.4)]' : 'bg-slate-100 text-slate-500'">
-                            <i data-lucide="x" class="w-5 h-5"></i>
+                            class="min-h-[48px] min-w-[48px] px-3 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 font-semibold text-body interactive"
+                            :class="items['{{ item.key }}'] === false ? 'bg-red-500/90 text-white' : 'border border-slate-600 text-slate-400'"
+                            style="border-color: var(--color-border);">
+                            <i data-lucide="x" class="w-5 h-5 lucide-thick"></i>
                             <span>Falha</span>
                         </button>
                         <button @click="setItem('{{ item.key }}', true)"
-                            class="min-h-[48px] min-w-[48px] px-4 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 font-semibold text-body"
-                            :class="items['{{ item.key }}'] === true ? 'bg-green-500 text-white shadow-[0_0_10px_rgba(22,163,74,0.4)]' : 'bg-slate-100 text-slate-500'">
-                            <i data-lucide="check" class="w-5 h-5"></i>
+                            class="min-h-[48px] min-w-[48px] px-3 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 font-semibold text-body interactive"
+                            :class="items['{{ item.key }}'] === true ? 'bg-emerald-500/90 text-white' : 'border border-slate-600 text-slate-400'"
+                            style="border-color: var(--color-border);">
+                            <i data-lucide="check" class="w-5 h-5 lucide-thick"></i>
                             <span>OK</span>
                         </button>
                     </div>
@@ -127,92 +122,87 @@
             {% endfor %}
         </div>
 
-        <!-- Issue Report (quando tem problemas) -->
-        <div x-show="hasIssues" x-transition
-            class="surface p-4" style="border: 2px solid var(--color-danger); background: var(--color-danger-bg);">
+        <!-- Issue Report -->
+        <div x-show="hasIssues" x-transition class="surface p-4 rounded-xl" style="border: 1px solid var(--color-danger); background: rgba(239,68,68,0.08);">
             <div class="flex items-start gap-3 mb-3">
-                <div class="w-10 h-10 flex-shrink-0 rounded-lg flex items-center justify-center" style="background: var(--color-danger-bg); color: var(--color-danger); border: 1px solid var(--color-danger);">
-                    <i data-lucide="alert-octagon" class="w-5 h-5"></i>
+                <div class="w-10 h-10 flex-shrink-0 rounded-lg flex items-center justify-center" style="border: 1px solid var(--color-danger); color: var(--color-danger);">
+                    <i data-lucide="alert-octagon" class="w-5 h-5 lucide-thick"></i>
                 </div>
                 <div>
-                    <h3 class="text-section font-semibold" style="color: var(--color-text);">Problemas Identificados</h3>
-                    <p class="text-caption mt-0.5" style="color: var(--color-danger);">Descreva o problema e anexe uma foto obrigatoriamente.</p>
+                    <h3 class="text-section" style="color: var(--color-text);">Problemas Identificados</h3>
+                    <p class="text-caption mt-0.5" style="color: var(--color-danger);">Descreva o problema e anexe uma foto.</p>
                 </div>
             </div>
             <textarea x-model="observations" rows="3" placeholder="Ex: Roda travando, garfo empenado..."
-                class="w-full rounded-lg px-4 py-3 border-2 text-body resize-none focus:outline-none focus:ring-2 mb-3"
-                style="background: var(--color-surface); border-color: var(--color-danger); color: var(--color-text);"></textarea>
+                class="w-full rounded-lg px-4 py-3 text-body resize-none mb-3"
+                style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);"></textarea>
             <input type="file" id="files" multiple accept="image/*" capture="environment" @change="handleFileSelect" class="hidden">
             <label for="files"
                 class="flex flex-col items-center justify-center w-full min-h-[7rem] rounded-lg border-2 border-dashed cursor-pointer interactive"
-                style="border-color: var(--color-danger); background: var(--color-surface); color: var(--color-danger);">
+                style="border-color: var(--color-danger); background: rgba(15,23,42,0.5); color: var(--color-danger);">
                 <div x-show="fileCount === 0" class="flex flex-col items-center gap-2">
-                    <i data-lucide="camera" class="w-6 h-6" style="color: var(--color-danger);"></i>
-                    <span class="text-caption font-semibold" style="color: var(--color-danger);">Tirar Foto</span>
+                    <i data-lucide="camera" class="w-6 h-6 lucide-thick"></i>
+                    <span class="text-caption font-semibold">Tirar Foto</span>
                 </div>
                 <div x-show="fileCount > 0" class="flex flex-col items-center gap-2" style="color: var(--color-success);">
-                    <i data-lucide="image-plus" class="w-6 h-6"></i>
-                    <span class="text-caption font-semibold" x-text="fileCount + ' foto(s) selecionada(s)'"></span>
+                    <i data-lucide="image-plus" class="w-6 h-6 lucide-thick"></i>
+                    <span class="text-caption font-semibold" x-text="fileCount + ' foto(s)'"></span>
                 </div>
             </label>
         </div>
 
-        <!-- Submit Button -->
-        <div class="sticky bottom-4 z-10 pt-2">
-            <button @click="submitChecklist" :disabled="isSubmitting || !canSubmit"
-                class="w-full py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity disabled:opacity-50 disabled:cursor-not-allowed touch-target interactive"
-                :style="hasIssues ? 'background: var(--color-danger);' : 'background: var(--color-primary);'">
-                <span x-show="isSubmitting" class="inline-flex items-center gap-2">
-                    <i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>
-                    Enviando...
-                </span>
-                <span x-show="!isSubmitting" class="inline-flex items-center gap-2">
+        <!-- Quick Access -->
+        <div class="grid grid-cols-2 gap-3">
+            <a href="/mobile/equipment/tickets" class="surface p-4 flex flex-col items-center justify-center gap-2 interactive rounded-xl">
+                <div class="icon-wrap w-12 h-12" style="background: rgba(59,130,246,0.2); color: var(--color-primary);">
+                    <i data-lucide="list" class="w-6 h-6 lucide-thick"></i>
+                </div>
+                <span class="text-body font-semibold" style="color: var(--color-text-body);">Ver chamados</span>
+            </a>
+            <a href="/mobile/routine/history" class="surface p-4 flex flex-col items-center justify-center gap-2 interactive rounded-xl">
+                <div class="icon-wrap w-12 h-12" style="background: rgba(16,185,129,0.2); color: var(--color-success);">
+                    <i data-lucide="history" class="w-6 h-6 lucide-thick"></i>
+                </div>
+                <span class="text-body font-semibold" style="color: var(--color-text-body);">Histórico</span>
+            </a>
+        </div>
+
+        {% if missing_days %}
+        <div class="surface p-4 rounded-xl" style="border: 1px solid var(--color-warning);">
+            <div class="flex items-center gap-3 mb-3">
+                <i data-lucide="calendar-off" class="w-5 h-5 lucide-thick" style="color: var(--color-warning);"></i>
+                <h3 class="text-section" style="color: var(--color-text);">Dias Pendentes</h3>
+            </div>
+            <div class="space-y-2">
+                {% for day in missing_days|default([]) %}
+                <div class="flex items-center justify-between surface p-3 rounded-lg">
+                    <div>
+                        <p class="text-body font-semibold" style="color: var(--color-text-body);">{{ day.date_fmt }}</p>
+                        <p class="text-caption capitalize" style="color: var(--color-text-muted);">{{ day.weekday_pt }}</p>
+                    </div>
+                    <span class="text-caption font-semibold px-2 py-0.5 rounded" style="color: var(--color-warning);">Não Feito</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Botão Flutuante Concluir (safe-area + fade gradient) -->
+    <div class="btn-float-conclude">
+        <div class="w-full max-w-[640px] mx-auto px-4">
+            <button @click="submitChecklist()" :disabled="isSubmitting || !canSubmit"
+                class="w-full min-h-[48px] py-3 rounded-xl font-bold text-body-lg text-white transition-all active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                style="background: var(--gradient-btn-neon); box-shadow: 0 0 20px rgba(16,185,129,0.4); border: 1px solid rgba(255,255,255,0.2);">
+                <span x-show="isSubmitting"><i data-lucide="loader-2" class="w-5 h-5 animate-spin lucide-thick"></i> Enviando...</span>
+                <span x-show="!isSubmitting" class="flex items-center gap-2">
                     <span x-text="hasIssues ? 'Reportar Problema' : 'Concluir Checklist'"></span>
-                    <i :data-lucide="hasIssues ? 'alert-octagon' : 'arrow-right'" class="w-5 h-5"></i>
+                    <i :data-lucide="hasIssues ? 'alert-octagon' : 'check-circle'" class="w-5 h-5 lucide-thick"></i>
                 </span>
             </button>
             <p x-text="statusMessage" class="text-center text-caption mt-2 h-4"
                 :style="statusType === 'error' ? 'color: var(--color-danger);' : 'color: var(--color-success);'"></p>
         </div>
-
-        <!-- Quick Access -->
-        <div class="grid grid-cols-2 gap-3 pt-4">
-            <a href="/mobile/equipment/tickets" class="surface p-4 flex flex-col items-center justify-center gap-2 interactive">
-                <div class="icon-wrap w-12 h-12" style="background: var(--color-primary-bg); color: var(--color-primary);">
-                    <i data-lucide="list" class="w-6 h-6"></i>
-                </div>
-                <span class="text-body font-semibold" style="color: var(--color-text);">Ver chamados</span>
-            </a>
-            <a href="/mobile/routine/history" class="surface p-4 flex flex-col items-center justify-center gap-2 interactive">
-                <div class="icon-wrap w-12 h-12" style="background: var(--color-success-bg); color: var(--color-success);">
-                    <i data-lucide="history" class="w-6 h-6"></i>
-                </div>
-                <span class="text-body font-semibold" style="color: var(--color-text);">Histórico</span>
-            </a>
-        </div>
-
-        {% if missing_days %}
-        <div class="surface p-4" style="border-color: var(--color-warning); background: var(--color-warning-bg);">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="icon-wrap w-8 h-8" style="background: var(--color-warning-bg); color: var(--color-warning);">
-                    <i data-lucide="calendar-off" class="w-4 h-4"></i>
-                </div>
-                <h3 class="text-section font-semibold" style="color: var(--color-text);">Dias Pendentes</h3>
-            </div>
-            <div class="space-y-2">
-                {% for day in missing_days|default([]) %}
-                <div class="flex items-center justify-between surface p-3">
-                    <div>
-                        <p class="text-body font-semibold" style="color: var(--color-text);">{{ day.date_fmt }}</p>
-                        <p class="text-caption capitalize">{{ day.weekday_pt }}</p>
-                    </div>
-                    <span class="text-caption font-semibold px-2 py-0.5 rounded" style="background: var(--color-warning-bg); color: var(--color-warning);">Não Feito</span>
-                </div>
-                {% endfor %}
-            </div>
-            <p class="text-caption text-center mt-3" style="color: var(--color-text-muted);">Justifique ausências com seu líder.</p>
-        </div>
-        {% endif %}
     </div>
 </div>
 {% endblock %}
@@ -237,22 +227,31 @@
             totalItems: initialData.totalItems || 0,
             itemKeys: initialData.keys || [],
 
+            haptic(type) {
+                if (!('vibrate' in navigator)) return;
+                if (type === 'success' || type === 'light') navigator.vibrate([10]);
+                else if (type === 'error') navigator.vibrate([30, 10, 30]);
+            },
+
             init() { this.markAllGood(); this.$nextTick(() => lucide.createIcons()); },
 
-            setItem(key, value) { this.items[key] = value; },
+            setItem(key, value) {
+                this.items[key] = value;
+                this.haptic(value ? 'success' : 'error');
+            },
 
-            markAllGood() { this.itemKeys.forEach(k => this.items[k] = true); this.observations = ''; },
+            markAllGood() {
+                this.itemKeys.forEach(k => this.items[k] = true);
+                this.observations = '';
+            },
 
             get checkedCount() { return Object.values(this.items).filter(v => v === true).length; },
-
             get completionPercentage() {
                 const answered = Object.keys(this.items).length;
                 if (this.totalItems === 0) return 100;
                 return Math.round((answered / this.totalItems) * 100);
             },
-
             get hasIssues() { return Object.values(this.items).some(v => v === false); },
-
             get canSubmit() {
                 if (!this.equipmentCode) return false;
                 const kmRaw = (this.odometerKm ?? '').toString().trim();
@@ -274,6 +273,7 @@
                 this.isSubmitting = true;
                 this.statusMessage = 'Enviando...';
                 this.statusType = 'info';
+                this.haptic('light');
                 const formData = new FormData();
                 formData.append('equipment_code', this.equipmentCode);
                 formData.append('date', '{{ today }}');
@@ -282,22 +282,23 @@
                 formData.append('observations', this.observations);
                 if (this.odometerKm) formData.append('odometer_km', this.odometerKm);
                 const fileInput = document.getElementById('files');
-                if (fileInput && fileInput.files) {
+                if (fileInput?.files) {
                     for (let i = 0; i < fileInput.files.length; i++) formData.append('files', fileInput.files[i]);
                 }
                 try {
                     const res = await fetch('/api/routine/checklists', { method: 'POST', body: formData });
                     const result = await res.json();
                     if (!res.ok || !result.success) throw new Error(result.error || result.detail || 'Erro no envio');
-                    const xp = result.xp_earned || 50;
-                    this.statusMessage = `Equipamento Seguro! Você ganhou +${xp} XP`;
+                    this.statusMessage = `Equipamento Seguro! +${result.xp_earned || 50} XP`;
                     this.statusType = 'success';
+                    this.haptic('success');
                     if (typeof confetti === 'function') confetti({ particleCount: 50, spread: 60, origin: { y: 0.5 } });
                     setTimeout(() => { window.location.href = '/mobile/dashboard?success=checklist+concluido'; }, 1500);
                 } catch (e) {
                     this.statusMessage = e.message;
                     this.statusType = 'error';
                     this.isSubmitting = false;
+                    this.haptic('error');
                 }
             }
         };

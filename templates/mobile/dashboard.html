@@ -745,30 +745,33 @@
 <template x-if="showDeliverySetupModal">
 <div class="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0;" @click.self="showDeliverySetupModal = false"
     x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
-    <div @click.stop class="w-full max-w-lg rounded-lg flex flex-col max-h-[90vh] overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
+    <div @click.stop class="w-full max-w-lg rounded-xl flex flex-col max-h-[90vh] overflow-hidden" style="background: var(--color-surface-solid, #0f172a); border: 1px solid var(--color-border); box-shadow: var(--shadow-modal);">
         <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
             <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center" style="background: var(--color-primary); color: white;">
                 <i data-lucide="truck" class="w-6 h-6"></i>
             </div>
             <div class="flex-1">
                 <h3 class="text-title" style="color: var(--color-text);">Iniciar Entregas</h3>
-                <p class="text-caption-lg mt-0.5">Placa e KM de saída obrigatórios</p>
+                <p class="text-caption-lg mt-0.5" style="color: var(--color-text-body);">Placa e KM de saída obrigatórios</p>
             </div>
+            <button type="button" @click="showDeliverySetupModal=false" class="touch-target flex items-center justify-center min-w-[48px] min-h-[48px] rounded-lg interactive" style="background: rgba(239,68,68,0.15); color: var(--color-danger); border: 1px solid var(--color-danger);">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
         </div>
         <div class="p-4 space-y-4 overflow-y-auto custom-scrollbar">
-            <div class="rounded-lg p-3 text-body" style="background: var(--color-primary-bg); border: 1px solid var(--color-primary-border); color: var(--color-text);">Placa + KM de saída obrigatórios. Ajudantes opcional.</div>
+            <div class="rounded-lg p-3 text-body" style="background: var(--color-primary-bg); border: 1px solid var(--color-primary-border); color: var(--color-text-body);">Placa + KM de saída obrigatórios. Ajudantes opcional.</div>
             <div x-show="deliverySetupError" class="rounded-lg px-3 py-2 text-body flex items-center gap-2" style="background: var(--color-danger-bg); color: var(--color-danger);" x-text="deliverySetupError"></div>
             <div>
                 <label class="text-section block mb-2" style="color: var(--color-text);">Placa *</label>
                 <input type="text" x-ref="deliveryPlateInput" x-model="deliverySetup.plate" @input="normalizePlateInput()" placeholder="ABC1D23"
-                    class="w-full rounded-lg px-4 py-3 border-2 text-body-lg uppercase font-mono focus:outline-none focus:ring-2 transition-colors"
-                    style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                    class="w-full rounded-lg px-4 py-3 text-body-lg uppercase font-mono focus:outline-none focus:ring-2 transition-colors"
+                    style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);">
             </div>
             <div>
                 <label class="text-section block mb-2" style="color: var(--color-text);">KM de saída *</label>
                 <input type="number" inputmode="decimal" step="0.1" min="0" x-model="deliverySetup.km_departure" placeholder="Ex.: 125430,5"
-                    class="w-full rounded-lg px-4 py-3 border-2 text-body-lg font-mono focus:outline-none focus:ring-2 transition-colors"
-                    style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                    class="w-full rounded-lg px-4 py-3 text-body-lg font-mono focus:outline-none focus:ring-2 transition-colors"
+                    style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);">
             </div>
             <div>
                 <label class="text-xs uppercase tracking-wider block mb-2" style="color: var(--color-text-muted);">Equipe de Apoio</label>
@@ -786,15 +789,15 @@
                 <div class="relative">
                     <input type="text" x-model="deliverySetup.helperInput" @keydown.enter.prevent="addDeliveryHelperFromInput()"
                         placeholder="Adicionar ajudante..." autocomplete="off"
-                        class="w-full py-2.5 px-0 text-body border-b-2 focus:outline-none transition-colors focus:border-blue-500"
-                        style="background: transparent; border-color: var(--color-border); color: var(--color-text);">
+                        class="w-full py-2.5 px-0 text-body border-b-2 focus:outline-none transition-colors"
+                        style="background: transparent; border-color: var(--color-border); color: var(--color-text-body);">
                     <button type="button" @click="addDeliveryHelperFromInput()" class="absolute right-0 top-1/2 -translate-y-1/2 touch-target-icon flex items-center justify-center" style="color: var(--color-primary);">
                         <i data-lucide="plus-circle" class="w-5 h-5"></i>
                     </button>
                 </div>
-                <div x-show="filteredHelperOptions.length > 0" class="mt-2 max-h-36 overflow-y-auto rounded-lg border-2 z-10" style="border-color: var(--color-border); background: var(--color-surface);">
+                <div x-show="filteredHelperOptions.length > 0" class="mt-2 max-h-36 overflow-y-auto rounded-lg z-10" style="border: 1px solid var(--color-border); background: var(--color-surface-solid);">
                     <template x-for="emp in filteredHelperOptions" :key="`helper-suggest-${emp.id}`">
-                        <button type="button" @click="selectDeliveryHelperName(emp.name)" class="w-full text-left px-3 py-2.5 text-body min-h-[48px] transition-colors hover:bg-blue-50" style="color: var(--color-text);">
+                        <button type="button" @click="selectDeliveryHelperName(emp.name)" class="w-full text-left px-3 py-2.5 text-body min-h-[48px] transition-colors" style="color: var(--color-text-body);">
                             <span x-text="emp.name"></span>
                         </button>
                     </template>
@@ -802,8 +805,8 @@
             </div>
         </div>
         <div class="p-4 border-t flex gap-3 shrink-0" style="border-color: var(--color-border);">
-                <button @click="showDeliverySetupModal=false" class="flex-1 py-3 rounded-lg font-semibold text-body-lg transition-all active:scale-95 min-h-[48px]" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
-            <button @click="startDeliverySession()" class="flex-1 py-3 rounded-lg font-semibold text-body-lg text-white transition-all active:scale-95 min-h-[48px]" style="background: var(--color-primary);">Iniciar agora</button>
+                <button @click="showDeliverySetupModal=false" class="flex-1 py-3 rounded-lg font-semibold text-body-lg transition-all active:scale-95 min-h-[48px]" style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);">Cancelar</button>
+            <button @click="startDeliverySession()" class="flex-1 py-3 rounded-lg font-semibold text-body-lg text-white transition-all active:scale-95 min-h-[48px]" style="background: var(--color-primary); border: 1px solid rgba(59,130,246,0.5);">Iniciar agora</button>
         </div>
     </div>
 </div>
@@ -1022,16 +1025,10 @@
                 this.loadDeliveryData();
             },
 
-            // Haptic feedback helper
+            // Haptic feedback (success [10], error [30,10,30])
             haptic(type = 'light') {
                 if ('vibrate' in navigator) {
-                    const patterns = {
-                        light: [10],
-                        medium: [20],
-                        heavy: [30, 10, 30],
-                        success: [10, 50, 30],
-                        error: [50, 30, 50]
-                    };
+                    const patterns = { light: [10], medium: [20], success: [10], error: [30, 10, 30] };
                     navigator.vibrate(patterns[type] || patterns.light);
                 }
             },

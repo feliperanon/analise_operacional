@@ -48,10 +48,10 @@ Skeletons, pull-to-refresh premium, empty states, feedback tátil.
     transform: translateY(0);
 }
 
-/* Menu de navegação - fundo branco sólido, texto escuro */
-.mobile-nav-card .nav-item { color: #0f172a !important; }
-.mobile-nav-card .nav-item span { color: inherit; }
-.mobile-nav-card .text-caption-lg { color: #475569 !important; }
+/* Menu de navegação - tech-steel dark */
+.mobile-nav-card .nav-item { color: var(--color-text-body) !important; }
+.mobile-nav-card .nav-item .text-body-lg { color: var(--color-text) !important; }
+.mobile-nav-card .text-caption-lg { color: var(--color-text-muted) !important; }
 
 /* Pull-to-Refresh - fundo sólido (sem glass/blur) */
 .pull-indicator {
@@ -65,8 +65,8 @@ Skeletons, pull-to-refresh premium, empty states, feedback tátil.
     border-radius: var(--radius-xl);
     font-size: var(--text-body);
     font-weight: 600;
-    background: #ffffff;
-    color: #0f172a;
+    background: var(--color-surface-solid, #0f172a);
+    color: var(--color-text-body);
     border: 1px solid var(--color-border);
     box-shadow: var(--shadow-elevated);
     opacity: 0;
