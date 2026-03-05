@@ -314,12 +314,16 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
 <script>
   const chartData = {{ chart_payload_json| safe }} || {};
   const detailRows = {{ detail_rows_json| safe }} || [];
   window.__biChartData = chartData;
   window.__biDetailRows = detailRows;
+
+  // #region agent log
+  (function _log(){const d=(chartData&&chartData.trend)||{};const ds=d.dates||[];const m7=d.ma7||[];const m30=d.ma30||[];const s0=ds[0];const m70=m7[0];const m300=m30[0];fetch('http://127.0.0.1:7290/ingest/9264efac-f1bb-4076-9990-fae6be28d139',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d57d37'},body:JSON.stringify({sessionId:'d57d37',location:'bi_delivery.html:init',message:'chartData structure',data:{trendDatesLen:ds.length,trendDates0Type:typeof s0,trendDates0Val:s0,ma7Len:m7.length,ma70Type:typeof m70,ma70Val:m70,ma300Val:m300,chartVersion:typeof Chart!=='undefined'?Chart.version:null},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});})();
+  // #endregion
 
   const token = (name, fallback) => {
     try {
@@ -356,14 +360,27 @@
     };
   }
   function safeChart(id, config) {
+    // #region agent log
+    fetch('http://127.0.0.1:7290/ingest/9264efac-f1bb-4076-9990-fae6be28d139',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d57d37'},body:JSON.stringify({sessionId:'d57d37',location:'bi_delivery.html:safeChart',message:'before chart create',data:{chartId:id,labelsLen:(config.data&&config.data.labels)&&config.data.labels.length,firstLabelType:(config.data&&config.data.labels&&config.data.labels[0])!=null?typeof config.data.labels[0]:null},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
     try {
       const el = document.getElementById(id);
       if (el && typeof Chart !== 'undefined') return new Chart(el, config);
-    } catch (e) { console.warn('Chart ' + id + ':', e); }
+    } catch (e) {
+      // #region agent log
+      fetch('http://127.0.0.1:7290/ingest/9264efac-f1bb-4076-9990-fae6be28d139',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d57d37'},body:JSON.stringify({sessionId:'d57d37',location:'bi_delivery.html:safeChart:catch',message:'chart error',data:{chartId:id,errName:e&&e.name,errMsg:e&&e.message},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
+      console.warn('Chart ' + id + ':', e);
+    }
     return null;
   }
 
   const safeStr = (v) => (v == null ? '' : String(v));
+  function toChartNum(v) {
+    if (v == null || v === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
   function dataBR(s) {
     if (s == null || s === '') return '-';
     const str = String(s).trim();
@@ -380,15 +397,22 @@
     if (n == null || isNaN(Number(n))) return 'R$ 0,00';
     return Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
+  const trend = (chartData.trend && chartData.trend) || {};
+  const trendDates = trend.dates || [];
+  const trendLabels = trendDates.map(d => String(dataBR(d) !== '-' ? dataBR(d) : (d != null ? String(d) : '')));
+  const trendQtd = (trend.qtd || []).map(toChartNum).map(v => v !== null ? v : 0);
+  const trendValor = (trend.valor || []).map(toChartNum).map(v => v !== null ? v : 0);
+  const trendMa7 = (trend.ma7 || []).map(toChartNum);
+  const trendMa30 = (trend.ma30 || []).map(toChartNum);
   safeChart('trendChart', {
     type: 'line',
     data: {
-      labels: (chartData.trend && chartData.trend.dates ? chartData.trend.dates : []).map(d => String(dataBR(d) !== '-' ? dataBR(d) : (d != null ? d : ''))),
+      labels: trendLabels,
       datasets: [
-        { label: 'Qtd devoluções', data: (chartData.trend && chartData.trend.qtd) ? chartData.trend.qtd : [], borderColor: cWarn, backgroundColor: 'transparent', tension: .25, yAxisID: 'y' },
-        { label: 'Valor devolvido', data: (chartData.trend && chartData.trend.valor) ? chartData.trend.valor : [], borderColor: cDanger, backgroundColor: 'transparent', tension: .25, yAxisID: 'y1' },
-        { label: 'Média 7', data: (chartData.trend && chartData.trend.ma7) ? chartData.trend.ma7 : [], borderColor: cPrimary, borderDash: [5, 5], tension: .25, yAxisID: 'y1' },
-        { label: 'Média 30', data: (chartData.trend && chartData.trend.ma30) ? chartData.trend.ma30 : [], borderColor: cSuccess, borderDash: [3, 3], tension: .25, yAxisID: 'y1' }
+        { label: 'Qtd devoluções', data: trendQtd, borderColor: String(cWarn), backgroundColor: 'transparent', tension: .25, yAxisID: 'y' },
+        { label: 'Valor devolvido', data: trendValor, borderColor: String(cDanger), backgroundColor: 'transparent', tension: .25, yAxisID: 'y1' },
+        { label: 'Média 7', data: trendMa7, borderColor: String(cPrimary), borderDash: [5, 5], tension: .25, yAxisID: 'y1' },
+        { label: 'Média 30', data: trendMa30, borderColor: String(cSuccess), borderDash: [3, 3], tension: .25, yAxisID: 'y1' }
       ]
     },
     options: {
@@ -412,7 +436,7 @@
       datasets: motDrivers.map((drv, i) => ({
         label: String(safeStr(drv)),
         data: md.map(m => (m.por_motorista && m.por_motorista[drv]) ? Number(m.por_motorista[drv].valor) : 0),
-        backgroundColor: driverColors[i % driverColors.length],
+        backgroundColor: String(driverColors[i % driverColors.length] || cPrimary),
         stack: 'stack0'
       }))
     },
@@ -446,31 +470,34 @@
     }
   });
 
+  const respData = chartData.responsabilidade || [];
   safeChart('respChart', {
     type: 'doughnut',
     data: {
-      labels: (chartData.responsabilidade || []).map(x => String(safeStr(x.responsabilidade))),
-      datasets: [{ data: (chartData.responsabilidade || []).map(x => x.qtd), backgroundColor: [cPrimary, cWarn, cDanger, cSuccess] }]
+      labels: respData.map(x => String(safeStr(x.responsabilidade))),
+      datasets: [{ data: respData.map(x => { const v = toChartNum(x.qtd); return v !== null ? v : 0; }), backgroundColor: [String(cPrimary), String(cWarn), String(cDanger), String(cSuccess)] }]
     },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: cMuted } } } }
   });
 
+  const clusterData = chartData.cluster || [];
   safeChart('clusterChart', {
     type: 'bar',
     data: {
-      labels: (chartData.cluster || []).map(x => String(safeStr(x.cluster))),
-      datasets: [{ label: 'Valor devolvido', data: (chartData.cluster || []).map(x => x.valor), backgroundColor: cPrimary }]
+      labels: clusterData.map(x => String(safeStr(x.cluster))),
+      datasets: [{ label: 'Valor devolvido', data: clusterData.map(x => { const v = toChartNum(x.valor); return v !== null ? v : 0; }), backgroundColor: String(cPrimary) }]
     },
     options: chartBaseOpt()
   });
 
+  const driversData = chartData.drivers || [];
   safeChart('driverChart', {
     type: 'bar',
     data: {
-      labels: (chartData.drivers || []).map(x => String(safeStr(x.driver))),
+      labels: driversData.map(x => String(safeStr(x.driver))),
       datasets: [
-        { label: 'Eficiência %', data: (chartData.drivers || []).map(x => x.eficiencia), backgroundColor: cSuccess },
-        { label: 'Devolução %', data: (chartData.drivers || []).map(x => x.devolucao_pct), backgroundColor: cWarn }
+        { label: 'Eficiência %', data: driversData.map(x => { const v = toChartNum(x.eficiencia); return v !== null ? v : 0; }), backgroundColor: String(cSuccess) },
+        { label: 'Devolução %', data: driversData.map(x => { const v = toChartNum(x.devolucao_pct); return v !== null ? v : 0; }), backgroundColor: String(cWarn) }
       ]
     },
     options: chartBaseOpt()
@@ -484,8 +511,8 @@
       labels: (dr.drivers || []).map(d => String(safeStr(d))),
       datasets: (dr.datasets || []).map((ds, i) => ({
         label: String(safeStr(ds.resp)),
-        data: Array.isArray(ds.data) ? ds.data.map(v => Number(v)) : [],
-        backgroundColor: respColors[i % respColors.length],
+        data: Array.isArray(ds.data) ? ds.data.map(v => { const n = toChartNum(v); return n !== null ? n : 0; }) : [],
+        backgroundColor: String(respColors[i % respColors.length] || cPrimary),
         stack: 'stack0'
       }))
     },
