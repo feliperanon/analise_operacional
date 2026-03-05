@@ -79,7 +79,7 @@
 
     <section class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2">
       {{ kpi_card("Paradas Planejadas", kpis.planned_stops, "Base do período", "route", "neutral") }}
-      {{ kpi_card("Paradas Realizadas", kpis.realized_stops, "SLA " ~ (kpis.sla_finish|fmt_br_1) ~ "%",
+      {{ kpi_card("Paradas Realizadas", kpis.delivered_stops, "SLA " ~ (kpis.sla_finish|fmt_br_1) ~ "%",
       "check-circle-2", "success" if kpis.sla_finish >= 90 else "warning") }}
       {{ kpi_card("Taxa Devolução", (kpis.return_rate_qtd|fmt_br_1) ~ "%", kpis.total_devolucoes ~ " ocorrências",
       "undo-2", "danger" if kpis.return_rate_qtd >= 10 else "warning") }}
