@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% from "bi/_components.html" import kpi_card, chart_card, table_section %}
 
 {% block content %}
@@ -116,14 +116,12 @@
     </section>
 
     <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-      {{ chart_card("Tendência diária", "Valor devolvido, médias móveis e meta financeira", "trendChart") }}
       {{ chart_card("Dia da semana × Devoluções", "Qtd e valor por dia da semana", "diaSemanaChart") }}
     </section>
 
-    <section class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+    <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
       {{ chart_card("Motivos de devolução", "Valor por motivo e motorista", "motivosChart") }}
       {{ chart_card("Eficiência por motorista", "Comparativo tático com % devolução por valor", "driverChart") }}
-      {{ chart_card("Motorista x Responsabilidade x Valor", "Breakdown por responsabilidade", "driverRespChart") }}
     </section>
 
     <section class="grid grid-cols-1 gap-4">
@@ -145,7 +143,7 @@
           <div id="corrExecSummary" class="mt-3 corr-exec-grid"></div>
           <div id="corrActionList" class="mt-3 space-y-2"></div>
         </section>
-        <div class="mt-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <div class="mt-4 grid grid-cols-1 xl:grid-cols-2 gap-4">
           <section class="surface p-3">
             <h4 class="text-section">Top Pares Criticos</h4>
             <p class="text-caption mt-1">Ranking por valor devolvido e % valor real</p>
@@ -334,29 +332,6 @@
     return null;
   }
 
-  const trend = chartData.trend || {};
-  const trendDates = trend.dates || [];
-  const trendLabels = trendDates.map(d => dataBR(d) || d);
-  const trendValor = (trend.valor || []).map(toChartNum).map(v => v ?? 0);
-  const trendMa7 = (trend.ma7 || []).map(toChartNum);
-  const trendMa30 = (trend.ma30 || []).map(toChartNum);
-  const trendMeta2Pct = (trend.meta_2pct || []).map(toChartNum);
-  const trendLastMonth = (trend.last_month_valor || []).map(toChartNum);
-  safeChart('trendChart', {
-    type: 'line',
-    data: {
-      labels: trendLabels,
-      datasets: [
-        { label: 'Valor devolvido', data: trendValor, borderColor: cDanger, backgroundColor: 'transparent', tension: .25 },
-        { label: 'Média 7', data: trendMa7, borderColor: cPrimary, borderDash: [5, 5], tension: .25 },
-        { label: 'Média 30', data: trendMa30, borderColor: cSuccess, borderDash: [3, 3], tension: .25 },
-        { label: 'Meta 2% (R$)', data: trendMeta2Pct, borderColor: '#22c55e', borderDash: [10, 4], tension: .1 },
-        { label: 'Mês passado (R$)', data: trendLastMonth, borderColor: '#a78bfa', borderDash: [2, 4], tension: .2 }
-      ]
-    },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: cMuted } } }, scales: { x: { ticks: { color: cMuted }, grid: { color: cBorder } }, y: { ticks: { color: cMuted }, grid: { color: cBorder } } } }
-  });
-
   const diaSemana = chartData.dia_semana || {};
   safeChart('diaSemanaChart', {
     type: 'bar',
@@ -394,33 +369,6 @@
       ]
     },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: cMuted } } }, scales: { x: { ticks: { color: cMuted } }, y: { ticks: { color: cMuted } } } }
-  });
-
-  const dr = chartData.driver_resp_valor || {};
-  const respColors = [cPrimary, cWarn, cDanger, cSuccess];
-  safeChart('driverRespChart', {
-    type: 'bar',
-    data: {
-      labels: (dr.drivers || []).map(d => safeStr(d)),
-      datasets: (dr.datasets || []).map((ds, i) => ({ label: safeStr(ds.resp), data: (ds.data || []).map(v => toChartNum(v) ?? 0), backgroundColor: respColors[i % respColors.length], stack: 'stack0' }))
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
-      plugins: {
-        legend: { labels: { color: cMuted } },
-        tooltip: {
-          callbacks: {
-            afterBody: (items) => {
-              const idx = items?.[0]?.dataIndex;
-              if (idx == null || !dr.pct_devolucao_valor) return '';
-              const pct = Number(dr.pct_devolucao_valor[idx] || 0).toFixed(1).replace('.', ',');
-              return `% Devolução (valor real): ${pct}%`;
-            }
-          }
-        }
-      },
-      scales: { x: { ticks: { color: cMuted }, stacked: true }, y: { ticks: { color: cMuted }, stacked: true } }
-    }
   });
 
   const corr = (chartData && chartData.driver_client_corr) ? chartData.driver_client_corr : {};
@@ -754,4 +702,5 @@
   .corr-cell.corr-empty { display: inline-flex; align-items: center; justify-content: center; }
 </style>
 {% endblock %}
+
 

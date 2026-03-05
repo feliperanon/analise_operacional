@@ -514,6 +514,54 @@ def _build_bi_delivery_dataset(
         detail_rows = [r for r in detail_rows if r["status"] == detail_status_norm]
 
     delivered_stops = max(0, realized_stops - returned_stops)
+
+    # Devolução mês anterior (query dedicada)
+    def _prev_month_range(d: date) -> tuple[date, date]:
+        y, m = d.year, d.month - 1
+        if m == 0:
+            m, y = 12, y - 1
+        first = date(y, m, 1)
+        last = date(y, m, [31, 29 if (y % 4 == 0 and (y % 100 != 0 or y % 400 == 0)) else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1])
+        return first, last
+    prev_first, prev_last = _prev_month_range(date_i)
+    prev_str_first = prev_first.strftime("%Y-%m-%d")
+    prev_str_last = prev_last.strftime("%Y-%m-%d")
+    q_prev = (
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date >= prev_str_first)
+        .where(models.Route.date <= prev_str_last)
+    )
+    if shift and shift != "Todos":
+        q_prev = q_prev.where(models.Route.shift == shift)
+    if driver_id:
+        q_prev = q_prev.where(models.Route.employee_id == driver_id)
+    if pl and pl != "TODOS":
+        q_prev = q_prev.where(models.Route.delivery_vehicle_plate == pl)
+    prev_routes = session.exec(q_prev).all()
+    prev_month_planned_val = 0.0
+    prev_month_qtd = 0
+    prev_month_valor = 0.0
+    for r in prev_routes:
+        status_raw = (r.delivery_status or "pendente").strip().lower()
+        planned_v = float(r.valor_financeiro or 0.0)
+        prev_month_planned_val += planned_v
+        if status_raw == "devolucao":
+            prev_month_qtd += 1
+            prev_month_valor += float(r.valor_devolucao if r.valor_devolucao is not None else planned_v)
+    if st in ("todos", "devolucao") and pl == "TODOS":
+        qm_prev = (
+            select(models.Devolucao)
+            .where(models.Devolucao.data_romaneio >= prev_str_first)
+            .where(models.Devolucao.data_romaneio <= prev_str_last)
+        )
+        if driver_id:
+            qm_prev = qm_prev.where(models.Devolucao.motorista_id == driver_id)
+        for d in session.exec(qm_prev).all():
+            prev_month_qtd += 1
+            prev_month_valor += float(d.valor or 0.0)
+    prev_month_pct = round(prev_month_valor / max(0.01, prev_month_planned_val) * 100.0, 2) if prev_month_planned_val else 0.0
+
     kpis = {
         "planned_stops": planned_stops,
         "realized_stops": realized_stops,
@@ -543,6 +591,10 @@ def _build_bi_delivery_dataset(
         "devolucoes_acima_300_pct": round((len([r for r in route_rows if r.get("acima_300") == "SIM"]) / max(1, returned_stops)) * 100.0, 2) if returned_stops else 0.0,
         "risk_label": risk_label,
         "risk_severity": risk_severity,
+        "meta_devolucao_pct": 2.0,
+        "devolucao_mes_anterior_qtd": prev_month_qtd,
+        "devolucao_mes_anterior_valor": round(prev_month_valor, 2),
+        "devolucao_mes_anterior_pct": prev_month_pct,
     }
 
     chart_payload = {
