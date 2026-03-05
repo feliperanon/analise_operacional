@@ -511,6 +511,12 @@
   }
 
   function renderDrill() {
+    const fitTextClass = (value) => {
+      const len = String(value || '').trim().length;
+      if (len >= 36) return 'fit-xs';
+      if (len >= 24) return 'fit-sm';
+      return '';
+    };
     const statusMeta = (raw) => {
       const v = String(raw || '').trim().toLowerCase();
       if (v === 'devolucao') return { cls: 'status-danger', label: 'Devolução' };
@@ -535,9 +541,11 @@
 
     drillBody.innerHTML = slice.map(r => {
       const st = statusMeta(r.status);
+      const driverClass = fitTextClass(r.driver_name);
+      const clientClass = fitTextClass(r.client_name);
       return `
       <tr>
-        <td>${dataBR(r.date)}</td><td class="operational-col">${r.shift || '-'}</td><td>${r.driver_name || '-'}</td><td>${r.client_name || '-'}</td>
+        <td>${dataBR(r.date)}</td><td class="operational-col">${r.shift || '-'}</td><td class="cell-autofit ${driverClass}" title="${safeStr(r.driver_name || '-')}">${r.driver_name || '-'}</td><td class="cell-autofit ${clientClass}" title="${safeStr(r.client_name || '-')}">${r.client_name || '-'}</td>
         <td><span class="status-chip ${st.cls}">${st.label}</span></td><td class="operational-col">${r.order_number || '-'}</td><td>${numeroBR(r.planned_kg, 1)}</td>
         <td>${numeroBR(r.returned_kg, 1)}</td><td>${moedaBR(r.planned_value)}</td>
         <td>${moedaBR(r.returned_value)}</td><td class="operational-col">${r.reopen_count || 0}</td>
@@ -760,13 +768,18 @@
   }
 
   .bi-table tbody td {
-    border-bottom: 1px solid var(--color-border-light);
-    padding: .6rem .5rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-border-light) 78%, transparent);
+    padding: .58rem .5rem;
     color: var(--color-text-secondary);
+    vertical-align: middle;
+  }
+
+  .bi-table tbody tr:nth-child(even) {
+    background: color-mix(in srgb, var(--color-surface) 94%, var(--color-text) 6%);
   }
 
   .bi-table tbody tr:hover {
-    background: var(--color-hover);
+    background: color-mix(in srgb, var(--color-hover) 70%, transparent);
   }
 
   .table-link {
@@ -811,45 +824,60 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: .18rem .45rem;
+    padding: .2rem .5rem;
     border-radius: 999px;
-    font-size: .68rem;
-    font-weight: 700;
+    font-size: .66rem;
+    font-weight: 800;
     line-height: 1;
     text-transform: uppercase;
-    letter-spacing: .03em;
+    letter-spacing: .045em;
     border: 1px solid transparent;
     white-space: nowrap;
+    text-shadow: 0 0 0 transparent;
   }
 
   .status-success {
-    color: #86efac;
-    background: rgba(16, 185, 129, .18);
-    border-color: rgba(16, 185, 129, .35);
+    color: #d1fae5;
+    background: rgba(16, 185, 129, .22);
+    border-color: rgba(16, 185, 129, .55);
   }
 
   .status-danger {
-    color: #fca5a5;
-    background: rgba(239, 68, 68, .18);
-    border-color: rgba(239, 68, 68, .35);
+    color: #fee2e2;
+    background: rgba(239, 68, 68, .24);
+    border-color: rgba(239, 68, 68, .58);
   }
 
   .status-info {
-    color: #93c5fd;
-    background: rgba(59, 130, 246, .18);
-    border-color: rgba(59, 130, 246, .35);
+    color: #dbeafe;
+    background: rgba(59, 130, 246, .22);
+    border-color: rgba(59, 130, 246, .55);
   }
 
   .status-warning {
-    color: #fcd34d;
-    background: rgba(245, 158, 11, .18);
-    border-color: rgba(245, 158, 11, .35);
+    color: #fef3c7;
+    background: rgba(245, 158, 11, .24);
+    border-color: rgba(245, 158, 11, .58);
   }
 
   .status-muted {
-    color: #cbd5e1;
-    background: rgba(148, 163, 184, .14);
-    border-color: rgba(148, 163, 184, .28);
+    color: #e2e8f0;
+    background: rgba(100, 116, 139, .22);
+    border-color: rgba(148, 163, 184, .48);
+  }
+
+  .cell-autofit {
+    transition: font-size .12s ease;
+  }
+
+  .cell-autofit.fit-sm {
+    font-size: .74rem;
+    line-height: 1.2;
+  }
+
+  .cell-autofit.fit-xs {
+    font-size: .68rem;
+    line-height: 1.15;
   }
 
   .kpi-card {
