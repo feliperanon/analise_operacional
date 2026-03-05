@@ -176,7 +176,29 @@
         </tr>
       </thead>
       <tbody>
+        {% set ns = namespace(
+          planned_stops=0,
+          delivered_stops=0,
+          returned_stops=0,
+          planned_kg=0.0,
+          realized_kg=0.0,
+          planned_value=0.0,
+          returned_value=0.0,
+          reopen_count=0,
+          realized_stops=0,
+          duration_weight_sum=0.0
+        ) %}
         {% for row in tactical_rows %}
+        {% set ns.planned_stops = ns.planned_stops + (row.planned_stops or 0) %}
+        {% set ns.delivered_stops = ns.delivered_stops + (row.delivered_stops or 0) %}
+        {% set ns.returned_stops = ns.returned_stops + (row.returned_stops or 0) %}
+        {% set ns.planned_kg = ns.planned_kg + (row.planned_kg or 0) %}
+        {% set ns.realized_kg = ns.realized_kg + (row.realized_kg or 0) %}
+        {% set ns.planned_value = ns.planned_value + (row.planned_value or 0) %}
+        {% set ns.returned_value = ns.returned_value + (row.returned_value or 0) %}
+        {% set ns.reopen_count = ns.reopen_count + (row.reopen_count or 0) %}
+        {% set ns.realized_stops = ns.realized_stops + (row.realized_stops or 0) %}
+        {% set ns.duration_weight_sum = ns.duration_weight_sum + ((row.avg_duration or 0) * (row.realized_stops or 0)) %}
         <tr>
           <td><a class="table-link"
               href="/bi/delivery?{{ filters_query }}&detail_driver_id={{ row.driver_id }}#drilldown-section">{{
@@ -194,6 +216,22 @@
           <td>{{ row.avg_duration|fmt_br_int }} min</td>
         </tr>
         {% endfor %}
+        {% set total_efficiency = ((ns.delivered_stops / ns.planned_stops) * 100) if ns.planned_stops > 0 else 0 %}
+        {% set total_return_rate = ((ns.returned_stops / ns.planned_stops) * 100) if ns.planned_stops > 0 else (100 if ns.returned_stops > 0 else 0) %}
+        {% set total_returned_value_pct = ((ns.returned_value / ns.planned_value) * 100) if ns.planned_value > 0 else 0 %}
+        {% set total_avg_duration = (ns.duration_weight_sum / ns.realized_stops) if ns.realized_stops > 0 else 0 %}
+        <tr class="table-total-row">
+          <td>Total</td>
+          <td>{{ ns.delivered_stops }}/{{ ns.planned_stops }}</td>
+          <td class="{{ 'tone-danger' if total_efficiency < 70 else 'tone-success' }}">{{ total_efficiency|fmt_br_1 }}%</td>
+          <td class="{{ 'tone-warning' if total_return_rate >= 10 else '' }}">{{ total_return_rate|fmt_br_1 }}%</td>
+          <td>{{ ns.planned_kg|fmt_br_2 }}</td>
+          <td>{{ ns.realized_kg|fmt_br_2 }}</td>
+          <td>{{ ns.returned_value|fmt_br_moeda }}</td>
+          <td>{{ total_returned_value_pct|fmt_br_1 }}%</td>
+          <td>{{ ns.reopen_count }}</td>
+          <td>{{ total_avg_duration|fmt_br_int }} min</td>
+        </tr>
       </tbody>
       {% endcall %}
     </div>
@@ -1106,6 +1144,12 @@
 
   .bi-table tbody tr:hover {
     background: color-mix(in srgb, var(--color-hover) 70%, transparent);
+  }
+
+  .table-total-row td {
+    font-weight: 700;
+    background: color-mix(in srgb, var(--color-surface) 86%, var(--color-primary) 14%);
+    border-top: 2px solid var(--color-border);
   }
 
   .table-link {
