@@ -506,6 +506,16 @@
   }
 
   function renderDrill() {
+    const statusMeta = (raw) => {
+      const v = String(raw || '').trim().toLowerCase();
+      if (v === 'devolucao') return { cls: 'status-danger', label: 'Devolução' };
+      if (v === 'entregue') return { cls: 'status-success', label: 'Entregue' };
+      if (v === 'iniciada') return { cls: 'status-info', label: 'Iniciada' };
+      if (v === 'pendente') return { cls: 'status-warning', label: 'Pendente' };
+      if (v === 'cancelada') return { cls: 'status-muted', label: 'Cancelada' };
+      return { cls: 'status-muted', label: v ? (v.charAt(0).toUpperCase() + v.slice(1)) : '-' };
+    };
+
     const filtered = state.rows.filter(r => {
       if (typeof state.externalFilter === 'function' && !state.externalFilter(r)) return false;
       if (!state.search) return true;
@@ -518,15 +528,18 @@
     state.page = Math.min(state.page, pages);
     const slice = filtered.slice((state.page - 1) * state.pageSize, state.page * state.pageSize);
 
-    drillBody.innerHTML = slice.map(r => `
+    drillBody.innerHTML = slice.map(r => {
+      const st = statusMeta(r.status);
+      return `
       <tr>
         <td>${dataBR(r.date)}</td><td class="operational-col">${r.shift || '-'}</td><td>${r.driver_name || '-'}</td><td>${r.client_name || '-'}</td>
-        <td>${r.status || '-'}</td><td class="operational-col">${r.order_number || '-'}</td><td>${numeroBR(r.planned_kg, 1)}</td>
+        <td><span class="status-chip ${st.cls}">${st.label}</span></td><td class="operational-col">${r.order_number || '-'}</td><td>${numeroBR(r.planned_kg, 1)}</td>
         <td>${numeroBR(r.returned_kg, 1)}</td><td>${moedaBR(r.planned_value)}</td>
         <td>${moedaBR(r.returned_value)}</td><td class="operational-col">${r.reopen_count || 0}</td>
         <td class="operational-col">${r.duration_m ? numeroBR(r.duration_m, 0) + ' min' : '-'}</td><td class="operational-col">${r.plate || '-'}</td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
 
     drillSummary.textContent = `${total} registros | página ${state.page}/${pages}`;
   }
@@ -787,6 +800,51 @@
 
   .bi-help-card {
     border: 1px solid var(--color-border);
+  }
+
+  .status-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: .18rem .45rem;
+    border-radius: 999px;
+    font-size: .68rem;
+    font-weight: 700;
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+
+  .status-success {
+    color: #86efac;
+    background: rgba(16, 185, 129, .18);
+    border-color: rgba(16, 185, 129, .35);
+  }
+
+  .status-danger {
+    color: #fca5a5;
+    background: rgba(239, 68, 68, .18);
+    border-color: rgba(239, 68, 68, .35);
+  }
+
+  .status-info {
+    color: #93c5fd;
+    background: rgba(59, 130, 246, .18);
+    border-color: rgba(59, 130, 246, .35);
+  }
+
+  .status-warning {
+    color: #fcd34d;
+    background: rgba(245, 158, 11, .18);
+    border-color: rgba(245, 158, 11, .35);
+  }
+
+  .status-muted {
+    color: #cbd5e1;
+    background: rgba(148, 163, 184, .14);
+    border-color: rgba(148, 163, 184, .28);
   }
 
   .kpi-card {
