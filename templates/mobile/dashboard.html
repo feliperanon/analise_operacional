@@ -219,9 +219,10 @@
         <div class="space-y-2">
             {% for module in modules %}
             {% if module.action == "start_separation" %}
-            <form action="/mobile/routine/start" method="POST" @submit.prevent="openStartEntry($event)" class="w-full">
-                <button type="submit"
-                    class="interactive w-full surface p-4 text-left flex items-center gap-3">
+            <form action="/mobile/routine/start" method="POST" @submit.prevent="handleStartAction($event)" class="w-full">
+                <button type="submit" :disabled="isSubmission"
+                    class="interactive w-full surface p-4 text-left flex items-center gap-3 min-h-[48px]"
+                    style="min-height: var(--touch-min, 48px);">
                     <div class="icon-wrap flex items-center justify-center flex-shrink-0" style="background: var(--color-primary); color: white;">
                         <i data-lucide="{{ module.icon }}" class="w-5 h-5"></i>
                     </div>
@@ -433,9 +434,9 @@
     </section>
 
 
-    <!-- 7. Recent History (Completed Routes) -->
-    <section id="history-section" class="container-mobile mt-8 mb-24">
-        <h2 class="text-lg font-bold text-blue-900 mb-3">Concluídos Hoje</h2>
+    <!-- 7. Recent History (oculto quando rota ativa ou sessão entrega aberta) -->
+    <section id="history-section" class="container-mobile mt-8 mb-24" x-show="!hasActiveRoutes && !deliverySessionOpen" x-cloak>
+        <h2 class="text-lg font-bold mb-3" style="color: var(--color-text);">Concluídos Hoje</h2>
 
         <div class="space-y-2">
             <template x-if="completedRoutes.length === 0">
@@ -919,6 +920,7 @@
             showEvaluation: false,
             showHelpModal: false,
             isLoading: false,
+            isSubmission: false,
 
             // Data from Global Initial Data
             clients: Array.isArray(window.INITIAL_DATA.clients) ? window.INITIAL_DATA.clients : [],
