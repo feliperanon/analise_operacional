@@ -635,6 +635,97 @@
   }));
 
   const helpContent = {
+    "paradas planejadas": {
+      summary: "Mostra o volume esperado de entregas no período.",
+      whatIs: "É a meta base de paradas que a operação precisa cumprir no período filtrado.",
+      howCalculated: "Soma todas as paradas previstas nas rotas planejadas.",
+      formulaText: "Total de paradas programadas para o período.",
+      acronyms: [],
+      practicalMeaning: "Funciona como a régua da operação. Sem essa base, não dá para medir eficiência real.",
+      interpretation: { good: "Planejamento coerente com capacidade da frota.", attention: "Oscilação forte de volume entre dias.", critical: "Planejamento acima da capacidade operacional." },
+      operationalUse: "Ajustar distribuição de carga e roteirização antes da saída.",
+      executiveUse: "Validar capacidade, escala e necessidade de reforço de frota.",
+      relatedKpis: ["Paradas Realizadas", "Eficiência por motorista", "Tempo Médio"],
+      quickTip: "Compare planejado por dia e por turno para evitar gargalo no fim da rota."
+    },
+    "paradas realizadas": {
+      summary: "Mostra quanto do planejado foi realmente entregue.",
+      whatIs: "É o total de paradas concluídas dentro do período.",
+      howCalculated: "Conta todas as paradas com status concluído e compara com o planejado.",
+      formulaText: "Paradas concluídas sobre paradas planejadas no período.",
+      acronyms: [{ sigla: "SLA", significado: "Nível de serviço esperado da operação." }],
+      practicalMeaning: "Mostra execução. Se cai, indica atraso, rota ruim, falta de recurso ou falha operacional.",
+      interpretation: { good: "Acima da meta de SLA e estável.", attention: "Queda pontual em alguns dias/turnos.", critical: "Fica abaixo da meta por vários períodos." },
+      operationalUse: "Atuar no turno com baixa entrega e corrigir causa no mesmo dia.",
+      executiveUse: "Revisar produtividade por base, equipe e capacidade.",
+      relatedKpis: ["Paradas Planejadas", "Tempo Médio", "Taxa Devolução"],
+      quickTip: "Se realizadas caem e tempo médio sobe, o problema costuma ser rota/processo."
+    },
+    "taxa devolucao": {
+      summary: "Mostra o percentual de entregas que voltaram como devolução.",
+      whatIs: "É o percentual de devoluções em relação ao total planejado.",
+      howCalculated: "Divide o total de devoluções pelo total de paradas planejadas e converte para percentual.",
+      formulaText: "Devoluções sobre paradas planejadas, convertido em porcentagem.",
+      acronyms: [],
+      practicalMeaning: "Quanto maior a taxa, maior perda operacional e retrabalho logístico.",
+      interpretation: { good: "Baixa e estável.", attention: "Subindo em alguns dias ou motoristas.", critical: "Alta recorrente com impacto diário." },
+      operationalUse: "Atacar causa raiz de devolução por motivo, cliente e motorista.",
+      executiveUse: "Definir plano de redução com metas por área responsável.",
+      relatedKpis: ["Valor Devolvido", "Motivos de devolução", "Risco Próx. Turno"],
+      quickTip: "Priorize reduzir a causa com maior frequência antes de abrir novas frentes."
+    },
+    "valor devolvido": {
+      summary: "Mostra o impacto financeiro total das devoluções.",
+      whatIs: "É o total em reais que retornou por devoluções no período.",
+      howCalculated: "Soma todos os valores de pedidos devolvidos.",
+      formulaText: "Soma do valor financeiro de todas as devoluções no período.",
+      acronyms: [],
+      practicalMeaning: "Nem sempre a maior quantidade gera maior perda. Aqui está o prejuízo real em dinheiro.",
+      interpretation: { good: "Valor baixo e em queda.", attention: "Oscilações com picos em dias específicos.", critical: "Valor alto e tendência de alta." },
+      operationalUse: "Tratar primeiro ocorrências de alto valor.",
+      executiveUse: "Proteger margem com foco em clientes/rotas de maior impacto.",
+      relatedKpis: ["Taxa Devolução", "% Acima de R$300", "Cluster x Valor"],
+      quickTip: "Quando houver empate entre causas, priorize a que gera maior valor perdido."
+    },
+    "% acima de r$300": {
+      summary: "Mostra a fatia de devoluções com alto impacto financeiro.",
+      whatIs: "É o percentual de devoluções cujo valor unitário está acima de R$300.",
+      howCalculated: "Divide a quantidade de devoluções acima de R$300 pelo total de devoluções e converte para percentual.",
+      formulaText: "Devoluções acima de trezentos reais sobre total de devoluções, em porcentagem.",
+      acronyms: [],
+      practicalMeaning: "Indica risco de perdas mais pesadas. Poucos casos podem gerar grande prejuízo.",
+      interpretation: { good: "Baixa participação de tickets altos.", attention: "Crescimento gradual dessa faixa.", critical: "Concentração alta de devoluções acima de R$300." },
+      operationalUse: "Aplicar checagem reforçada em pedidos de maior valor.",
+      executiveUse: "Criar política de prevenção para pedidos de risco financeiro alto.",
+      relatedKpis: ["Valor Devolvido", "Cluster x Valor", "Motivos de devolução"],
+      quickTip: "Mapeie os top clientes dessa faixa para ação preventiva dedicada."
+    },
+    "tempo medio": {
+      summary: "Mostra a duração média para concluir as rotas.",
+      whatIs: "É o tempo médio gasto nas rotas finalizadas no período.",
+      howCalculated: "Soma o tempo de duração das rotas concluídas e divide pela quantidade de rotas.",
+      formulaText: "Tempo total das rotas concluídas dividido pelo número de rotas concluídas.",
+      acronyms: [],
+      practicalMeaning: "Quando o tempo sobe, a operação perde fluidez e aumenta risco de atraso e devolução.",
+      interpretation: { good: "Tempo estável e abaixo da meta.", attention: "Aumento moderado em dias específicos.", critical: "Tempo alto de forma recorrente." },
+      operationalUse: "Revisar sequência de rota, janela de entrega e pontos de espera.",
+      executiveUse: "Ajustar desenho operacional e capacidade por turno.",
+      relatedKpis: ["Paradas Realizadas", "Eficiência por motorista", "Taxa Devolução"],
+      quickTip: "Compare tempo médio por turno para achar onde está o gargalo real."
+    },
+    "risco prox. turno": {
+      summary: "Mostra a chance prevista de piora no próximo turno.",
+      whatIs: "É um sinal preditivo que aponta risco operacional para o próximo turno.",
+      howCalculated: "Combina tendência recente de devolução com sinais de anomalia e padrão histórico.",
+      formulaText: "Leitura combinada de tendência, anomalias e histórico para estimar risco do próximo turno.",
+      acronyms: [],
+      practicalMeaning: "Ajuda a agir antes do problema acontecer, não só depois do resultado ruim.",
+      interpretation: { good: "Risco baixo e estável.", attention: "Sinais de piora pontual.", critical: "Alta probabilidade de aumento de devolução." },
+      operationalUse: "Reforçar conferência e acompanhamento no turno seguinte.",
+      executiveUse: "Redirecionar recursos preventivos para o turno/área mais sensível.",
+      relatedKpis: ["Taxa Devolução", "Tendência diária", "Anomalias detectadas"],
+      quickTip: "Use esse card como alerta antecipado para prevenção, não como diagnóstico final."
+    },
     "tendencia diaria": {
       summary: "Mostra se as devoluções estão subindo ou caindo no tempo.",
       whatIs: "É o termômetro diário da operação. Compara quantidade e valor devolvido ao longo dos dias.",
