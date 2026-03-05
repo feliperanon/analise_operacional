@@ -335,15 +335,23 @@
     border: String(token('--color-border', fallbackColors.border) || fallbackColors.border)
   };
 
-  const baseOpt = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { labels: { color: palette.muted } } },
-    scales: {
-      x: { ticks: { color: palette.muted }, grid: { color: palette.border } },
-      y: { ticks: { color: palette.muted }, grid: { color: palette.border } }
-    }
-  };
+  const cMuted = '#94a3b8';
+  const cBorder = 'rgba(148,163,184,0.3)';
+  const cWarn = '#f59e0b';
+  const cDanger = '#ef4444';
+  const cPrimary = '#3b82f6';
+  const cSuccess = '#10b981';
+  function chartBaseOpt() {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: cMuted } } },
+      scales: {
+        x: { ticks: { color: cMuted }, grid: { color: cBorder } },
+        y: { ticks: { color: cMuted }, grid: { color: cBorder } }
+      }
+    };
+  }
   function safeChart(id, config) {
     try {
       const el = document.getElementById(id);
@@ -374,13 +382,21 @@
     data: {
       labels: (chartData.trend && chartData.trend.dates ? chartData.trend.dates : []).map(d => String(dataBR(d) !== '-' ? dataBR(d) : (d != null ? d : ''))),
       datasets: [
-        { label: 'Qtd devoluções', data: (chartData.trend && chartData.trend.qtd) ? chartData.trend.qtd : [], borderColor: palette.warning, backgroundColor: 'transparent', tension: .25, yAxisID: 'y' },
-        { label: 'Valor devolvido', data: (chartData.trend && chartData.trend.valor) ? chartData.trend.valor : [], borderColor: palette.danger, backgroundColor: 'transparent', tension: .25, yAxisID: 'y1' },
-        { label: 'Média 7', data: (chartData.trend && chartData.trend.ma7) ? chartData.trend.ma7 : [], borderColor: palette.primary, borderDash: [5, 5], tension: .25, yAxisID: 'y1' },
-        { label: 'Média 30', data: (chartData.trend && chartData.trend.ma30) ? chartData.trend.ma30 : [], borderColor: palette.success, borderDash: [3, 3], tension: .25, yAxisID: 'y1' }
+        { label: 'Qtd devoluções', data: (chartData.trend && chartData.trend.qtd) ? chartData.trend.qtd : [], borderColor: cWarn, backgroundColor: 'transparent', tension: .25, yAxisID: 'y' },
+        { label: 'Valor devolvido', data: (chartData.trend && chartData.trend.valor) ? chartData.trend.valor : [], borderColor: cDanger, backgroundColor: 'transparent', tension: .25, yAxisID: 'y1' },
+        { label: 'Média 7', data: (chartData.trend && chartData.trend.ma7) ? chartData.trend.ma7 : [], borderColor: cPrimary, borderDash: [5, 5], tension: .25, yAxisID: 'y1' },
+        { label: 'Média 30', data: (chartData.trend && chartData.trend.ma30) ? chartData.trend.ma30 : [], borderColor: cSuccess, borderDash: [3, 3], tension: .25, yAxisID: 'y1' }
       ]
     },
-    options: { ...baseOpt, scales: { ...baseOpt.scales, y: { ...baseOpt.scales.y, position: 'left' }, y1: { ...baseOpt.scales.y, position: 'right' } } }
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: cMuted } } },
+      scales: {
+        x: { ticks: { color: cMuted }, grid: { color: cBorder } },
+        y: { ticks: { color: cMuted }, grid: { color: cBorder }, position: 'left' },
+        y1: { ticks: { color: cMuted }, grid: { color: cBorder }, position: 'right' }
+      }
+    }
   });
 
   const md = (chartData && chartData.motivos_detailed) ? chartData.motivos_detailed : [];
@@ -398,10 +414,10 @@
       }))
     },
     options: {
-      ...baseOpt,
+      responsive: true, maintainAspectRatio: false,
       indexAxis: 'y',
       plugins: {
-        ...baseOpt.plugins,
+        legend: { labels: { color: cMuted } },
         tooltip: {
           callbacks: {
             label: (ctx) => {
@@ -421,8 +437,8 @@
         }
       },
       scales: {
-        x: { ...baseOpt.scales.x, stacked: true, title: { display: true, text: 'Valor devolvido (R$)', color: palette.muted } },
-        y: { ...baseOpt.scales.y, stacked: true }
+        x: { ticks: { color: cMuted }, grid: { color: cBorder }, stacked: true, title: { display: true, text: 'Valor devolvido (R$)', color: cMuted } },
+        y: { ticks: { color: cMuted }, grid: { color: cBorder }, stacked: true }
       }
     }
   });
@@ -431,18 +447,18 @@
     type: 'doughnut',
     data: {
       labels: (chartData.responsabilidade || []).map(x => String(safeStr(x.responsabilidade))),
-      datasets: [{ data: (chartData.responsabilidade || []).map(x => x.qtd), backgroundColor: [palette.primary, palette.warning, palette.danger, palette.success] }]
+      datasets: [{ data: (chartData.responsabilidade || []).map(x => x.qtd), backgroundColor: [cPrimary, cWarn, cDanger, cSuccess] }]
     },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: palette.muted } } } }
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: cMuted } } } }
   });
 
   safeChart('clusterChart', {
     type: 'bar',
     data: {
       labels: (chartData.cluster || []).map(x => String(safeStr(x.cluster))),
-      datasets: [{ label: 'Valor devolvido', data: (chartData.cluster || []).map(x => x.valor), backgroundColor: palette.primary }]
+      datasets: [{ label: 'Valor devolvido', data: (chartData.cluster || []).map(x => x.valor), backgroundColor: cPrimary }]
     },
-    options: baseOpt
+    options: chartBaseOpt()
   });
 
   safeChart('driverChart', {
@@ -450,15 +466,15 @@
     data: {
       labels: (chartData.drivers || []).map(x => String(safeStr(x.driver))),
       datasets: [
-        { label: 'Eficiência %', data: (chartData.drivers || []).map(x => x.eficiencia), backgroundColor: palette.success },
-        { label: 'Devolução %', data: (chartData.drivers || []).map(x => x.devolucao_pct), backgroundColor: palette.warning }
+        { label: 'Eficiência %', data: (chartData.drivers || []).map(x => x.eficiencia), backgroundColor: cSuccess },
+        { label: 'Devolução %', data: (chartData.drivers || []).map(x => x.devolucao_pct), backgroundColor: cWarn }
       ]
     },
-    options: baseOpt
+    options: chartBaseOpt()
   });
 
   const dr = (chartData && chartData.driver_resp_valor) ? chartData.driver_resp_valor : {};
-  const respColors = [palette.primary, palette.warning, palette.danger, palette.success].map(c => (typeof c === 'string' ? c : '#94a3b8'));
+  const respColors = [cPrimary, cWarn, cDanger, cSuccess];
   safeChart('driverRespChart', {
     type: 'bar',
     data: {
@@ -471,10 +487,10 @@
       }))
     },
     options: {
-      ...baseOpt,
+      responsive: true, maintainAspectRatio: false,
       indexAxis: 'y',
       plugins: {
-        ...baseOpt.plugins,
+        legend: { labels: { color: cMuted } },
         tooltip: {
           callbacks: {
             afterBody: (items) => {
@@ -487,9 +503,8 @@
         }
       },
       scales: {
-        ...baseOpt.scales,
-        x: { ...baseOpt.scales.x, stacked: true, title: { display: true, text: 'Valor devolvido (R$)', color: palette.muted } },
-        y: { ...baseOpt.scales.y, stacked: true }
+        x: { ticks: { color: cMuted }, grid: { color: cBorder }, stacked: true, title: { display: true, text: 'Valor devolvido (R$)', color: cMuted } },
+        y: { ticks: { color: cMuted }, grid: { color: cBorder }, stacked: true }
       }
     }
   });
