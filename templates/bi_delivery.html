@@ -344,6 +344,13 @@
       y: { ticks: { color: palette.muted }, grid: { color: palette.border } }
     }
   };
+  function safeChart(id, config) {
+    try {
+      const el = document.getElementById(id);
+      if (el && typeof Chart !== 'undefined') return new Chart(el, config);
+    } catch (e) { console.warn('Chart ' + id + ':', e); }
+    return null;
+  }
 
   const safeStr = (v) => (v == null ? '' : String(v));
   function dataBR(s) {
@@ -362,7 +369,7 @@
     if (n == null || isNaN(Number(n))) return 'R$ 0,00';
     return Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
-  new Chart(document.getElementById('trendChart'), {
+  safeChart('trendChart', {
     type: 'line',
     data: {
       labels: (chartData.trend && chartData.trend.dates ? chartData.trend.dates : []).map(d => String(dataBR(d) !== '-' ? dataBR(d) : (d != null ? d : ''))),
@@ -376,10 +383,10 @@
     options: { ...baseOpt, scales: { ...baseOpt.scales, y: { ...baseOpt.scales.y, position: 'left' }, y1: { ...baseOpt.scales.y, position: 'right' } } }
   });
 
-  const md = chartData.motivos_detailed || [];
-  const motDrivers = chartData.motivos_drivers || [];
+  const md = (chartData && chartData.motivos_detailed) ? chartData.motivos_detailed : [];
+  const motDrivers = (chartData && chartData.motivos_drivers) ? chartData.motivos_drivers : [];
   const driverColors = ['#3b82f6','#f59e0b','#ef4444','#10b981','#8b5cf6','#ec4899','#06b6d4','#84cc16'];
-  new Chart(document.getElementById('motivosChart'), {
+  safeChart('motivosChart', {
     type: 'bar',
     data: {
       labels: md.map(x => String(safeStr(x.motivo))),
@@ -420,7 +427,7 @@
     }
   });
 
-  new Chart(document.getElementById('respChart'), {
+  safeChart('respChart', {
     type: 'doughnut',
     data: {
       labels: (chartData.responsabilidade || []).map(x => String(safeStr(x.responsabilidade))),
@@ -429,7 +436,7 @@
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: palette.muted } } } }
   });
 
-  new Chart(document.getElementById('clusterChart'), {
+  safeChart('clusterChart', {
     type: 'bar',
     data: {
       labels: (chartData.cluster || []).map(x => String(safeStr(x.cluster))),
@@ -438,7 +445,7 @@
     options: baseOpt
   });
 
-  new Chart(document.getElementById('driverChart'), {
+  safeChart('driverChart', {
     type: 'bar',
     data: {
       labels: (chartData.drivers || []).map(x => String(safeStr(x.driver))),
@@ -452,7 +459,7 @@
 
   const dr = chartData.driver_resp_valor || {};
   const respColors = [palette.primary, palette.warning, palette.danger, palette.success].map(c => (typeof c === 'string' ? c : '#94a3b8'));
-  new Chart(document.getElementById('driverRespChart'), {
+  safeChart('driverRespChart', {
     type: 'bar',
     data: {
       labels: (dr.drivers || []).map(d => String(safeStr(d))),

@@ -151,7 +151,7 @@
     return out;
   }
 
-  function buildFullscreenOptions(type) {
+  function buildFullscreenOptions(type, data) {
     const isCartesian = type !== "doughnut" && type !== "pie" && type !== "polarArea";
     const options = {
       responsive: true,
@@ -163,10 +163,15 @@
       }
     };
     if (isCartesian) {
+      const ds = (data && data.datasets) || [];
+      const needsY1 = ds.some(function (d) { return d.yAxisID === "y1"; });
       options.scales = {
         x: { display: true, ticks: { color: "#94a3b8", maxRotation: 45 }, grid: { color: "rgba(148,163,184,0.2)" } },
-        y: { display: true, ticks: { color: "#94a3b8" }, grid: { color: "rgba(148,163,184,0.2)" } }
+        y: { display: true, position: "left", ticks: { color: "#94a3b8" }, grid: { color: "rgba(148,163,184,0.2)" } }
       };
+      if (needsY1) {
+        options.scales.y1 = { display: true, position: "right", ticks: { color: "#94a3b8" }, grid: { display: false } };
+      }
     }
     return options;
   }
@@ -398,7 +403,7 @@
     byId("fullChartTag").textContent = "Use setas para navegar entre gráficos.";
     destroyFullscreenChart();
     const clipped = cloneChartData(clipData(src.data, compareWindow));
-    const opts = buildFullscreenOptions(currentType);
+    const opts = buildFullscreenOptions(currentType, clipped);
     try {
       fullscreenChart = new Chart(byId("fullscreenChartCanvas"), {
         type: currentType,
@@ -488,7 +493,7 @@
     byId("chartTypeToggleBtn").dataset.current = next;
     const clipped = cloneChartData(clipData(src.data, compareWindow));
     destroyFullscreenChart();
-    fullscreenChart = new Chart(byId("fullscreenChartCanvas"), { type: next, data: clipped, options: buildFullscreenOptions(next).options ? buildFullscreenOptions(next) : {} });
+    fullscreenChart = new Chart(byId("fullscreenChartCanvas"), { type: next, data: clipped, options: buildFullscreenOptions(next, clipped) });
   });
 
   byId("chartCompare7Btn")?.addEventListener("click", () => { compareWindow = 7; if (fullscreenChartId) openChartFullscreen(fullscreenChartId); });
