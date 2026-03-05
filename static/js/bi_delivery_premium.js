@@ -169,6 +169,49 @@
     return out;
   }
 
+  function buildTrendPercentSeries(data) {
+    const labels = Array.isArray(data?.labels) ? data.labels : [];
+    const ds = Array.isArray(data?.datasets) ? data.datasets : [];
+    if (!labels.length || !ds.length) return [];
+
+    const valorDs = ds.find((d) => String(d?.label || "").toLowerCase().includes("valor devolvido")) || ds[1] || ds[0];
+    const metaDs = ds.find((d) => String(d?.label || "").toLowerCase().includes("meta 2%"));
+    const valor = Array.isArray(valorDs?.data) ? valorDs.data.map((v) => Number(v) || 0) : [];
+    const meta2pct = Array.isArray(metaDs?.data) ? metaDs.data.map((v) => Number(v) || 0) : [];
+    if (!valor.length || !meta2pct.length || valor.length !== labels.length || meta2pct.length !== labels.length) return [];
+
+    const pctSeries = valor.map((v, i) => {
+      const m2 = Number(meta2pct[i] || 0);
+      if (m2 <= 0) return null;
+      // meta_2pct = 2% do valor planejado => pct_real = (valor_devolvido / valor_planejado) * 100
+      return Number(((v * 2) / m2).toFixed(3));
+    });
+    return [{
+      type: "line",
+      label: "% Devolução (valor)",
+      data: pctSeries,
+      borderColor: "#a855f7",
+      backgroundColor: "transparent",
+      borderDash: [8, 4],
+      borderWidth: 2,
+      tension: 0.2,
+      yAxisID: "y2",
+      pointRadius: 0,
+      spanGaps: true
+    }];
+  }
+
+  function enrichFullscreenData(chartId, data) {
+    const out = cloneChartData(data || { labels: [], datasets: [] });
+    if (chartId !== "trendChart") return out;
+    const pctDataset = buildTrendPercentSeries(out);
+    if (pctDataset.length) {
+      out.datasets = (out.datasets || []).filter((d) => !String(d?.label || "").toLowerCase().includes("% devolucao (valor)"));
+      out.datasets.push(...pctDataset);
+    }
+    return out;
+  }
+
   function normalizeDataForType(type, data) {
     const out = cloneChartData(data || { labels: [], datasets: [] });
     const isCartesian = type !== "doughnut" && type !== "pie" && type !== "polarArea";
@@ -214,6 +257,7 @@
     if (isCartesian) {
       const ds = (data && data.datasets) || [];
       const needsY1 = ds.some(function (d) { return d.yAxisID === "y1"; });
+      const needsY2 = ds.some(function (d) { return d.yAxisID === "y2"; });
       options.scales = {
         x: { display: true, ticks: { color: "#94a3b8", maxRotation: 45 }, grid: { color: "rgba(148,163,184,0.2)" } },
         y: { display: true, position: "left", ticks: { color: "#94a3b8" }, grid: { color: "rgba(148,163,184,0.2)" } }
@@ -221,6 +265,32 @@
       if (needsY1) {
         options.scales.y1 = { display: true, position: "right", ticks: { color: "#94a3b8" }, grid: { display: false } };
       }
+      if (needsY2) {
+        options.scales.y2 = {
+          display: true,
+          position: "right",
+          offset: true,
+          ticks: {
+            color: "#a855f7",
+            callback: function (value) { return `${Number(value || 0).toFixed(1).replace(".", ",")}%`; }
+          },
+          grid: { display: false },
+          title: { display: true, text: "% Devolução", color: "#a855f7" }
+        };
+      }
+      options.plugins.tooltip.callbacks = {
+        label: function (ctx) {
+          const label = ctx?.dataset?.label || "";
+          const raw = Number(ctx?.raw || 0);
+          if (ctx?.dataset?.yAxisID === "y2") {
+            return `${label}: ${raw.toFixed(2).replace(".", ",")}%`;
+          }
+          if (String(label).toLowerCase().includes("valor") || ctx?.dataset?.yAxisID === "y1") {
+            return `${label}: ${raw.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`;
+          }
+          return `${label}: ${raw.toLocaleString("pt-BR")}`;
+        }
+      };
     }
     return options;
   }
@@ -233,9 +303,13 @@
     if (chartId === "trendChart") {
       const values = ds[1]?.data || ds[0]?.data || [];
       const recent = values.slice(-7).reduce((a, b) => a + Number(b || 0), 0);
-      const prev = values.slice(-14, -7).reduce((a, b) => a + Number(b || 0), 0) || 1;
-      const delta = ((recent - prev) / Math.abs(prev)) * 100;
-      out.push(`Últimos 7 dias mostram ${delta >= 0 ? "alta" : "queda"} de ${Math.abs(delta).toFixed(1)}%.`);
+      const prev = values.slice(-14, -7).reduce((a, b) => a + Number(b || 0), 0);
+      if (Math.abs(prev) < 0.0001) {
+        out.push("Últimos 7 dias sem base anterior consistente para comparação percentual.");
+      } else {
+        const delta = ((recent - prev) / Math.abs(prev)) * 100;
+        out.push(`Últimos 7 dias mostram ${delta >= 0 ? "alta" : "queda"} de ${Math.abs(delta).toFixed(1)}%.`);
+      }
       const p = values.reduce((best, v, i, arr) => Number(v || 0) > Number(arr[best] || 0) ? i : best, 0);
       const labelP = labels[p] != null ? String(labels[p]) : '';
       out.push(`Pico no período em ${labelP}: ${Number(values[p] || 0).toLocaleString("pt-BR")}.`);
@@ -450,7 +524,7 @@
     byId("fullChartTitle").textContent = chartTitles[chartId] || "Gráfico";
     byId("fullChartTag").textContent = "Use setas para navegar entre gráficos.";
     destroyFullscreenChart();
-    const clipped = normalizeDataForType(currentType, clipData(src.data, compareWindow));
+    const clipped = normalizeDataForType(currentType, enrichFullscreenData(chartId, clipData(src.data, compareWindow)));
     const opts = buildFullscreenOptions(currentType, clipped);
     try {
       fullscreenChart = new Chart(byId("fullscreenChartCanvas"), {
@@ -543,8 +617,9 @@
     const next = allowed[(idx + 1) % allowed.length] || current;
     byId("chartTypeToggleBtn").dataset.current = next;
     const clipped = normalizeDataForType(next, clipData(src.data, compareWindow));
+    const enriched = enrichFullscreenData(fullscreenChartId, clipped);
     destroyFullscreenChart();
-    fullscreenChart = new Chart(byId("fullscreenChartCanvas"), { type: next, data: clipped, options: buildFullscreenOptions(next, clipped) });
+    fullscreenChart = new Chart(byId("fullscreenChartCanvas"), { type: next, data: enriched, options: buildFullscreenOptions(next, enriched) });
   });
 
   byId("chartCompare7Btn")?.addEventListener("click", () => { compareWindow = 7; if (fullscreenChartId) openChartFullscreen(fullscreenChartId); });
