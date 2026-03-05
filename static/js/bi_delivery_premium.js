@@ -193,11 +193,16 @@
       data: pctSeries,
       borderColor: "#a855f7",
       backgroundColor: "transparent",
-      borderDash: [8, 4],
-      borderWidth: 2,
-      tension: 0.2,
+      borderDash: [6, 4],
+      borderWidth: 2.5,
+      tension: 0.35,
       yAxisID: "y2",
-      pointRadius: 0,
+      pointRadius: 5,
+      pointHoverRadius: 8,
+      pointBackgroundColor: "#a855f7",
+      pointBorderColor: "#c4b5fd",
+      pointBorderWidth: 1.5,
+      pointStyle: "circle",
       spanGaps: true
     }];
   }
@@ -249,10 +254,27 @@
     const options = {
       responsive: true,
       maintainAspectRatio: false,
-      animation: { duration: 420 },
+      animation: { duration: 400 },
       plugins: {
-        legend: { labels: { color: "#94a3b8" } },
-        tooltip: { enabled: true }
+        legend: {
+          labels: {
+            color: "#94a3b8",
+            font: { size: 12 },
+            padding: 16,
+            usePointStyle: true
+          }
+        },
+        tooltip: {
+          enabled: true,
+          backgroundColor: "rgba(15, 23, 42, 0.95)",
+          titleColor: "#f1f5f9",
+          bodyColor: "#cbd5e1",
+          borderColor: "rgba(148, 163, 184, 0.3)",
+          borderWidth: 1,
+          padding: 12,
+          displayColors: true,
+          boxPadding: 6
+        }
       }
     };
     if (isCartesian) {

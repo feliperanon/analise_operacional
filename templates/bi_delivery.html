@@ -469,12 +469,12 @@
     data: {
       labels: trendLabels,
       datasets: [
-        { label: 'Qtd devoluções', data: trendQtd, borderColor: String(cWarn), backgroundColor: 'transparent', tension: .25, yAxisID: 'y' },
-        { label: 'Valor devolvido', data: trendValor, borderColor: String(cDanger), backgroundColor: 'transparent', tension: .25, yAxisID: 'y1' },
-        { label: 'Média 7', data: trendMa7, borderColor: String(cPrimary), borderDash: [5, 5], tension: .25, yAxisID: 'y1' },
-        { label: 'Média 30', data: trendMa30, borderColor: String(cSuccess), borderDash: [3, 3], tension: .25, yAxisID: 'y1' },
-        { label: 'Meta 2% (R$)', data: trendMeta2Pct, borderColor: '#22c55e', backgroundColor: 'transparent', borderDash: [10, 4], tension: .1, yAxisID: 'y1' },
-        { label: 'Mês passado (R$)', data: trendLastMonth, borderColor: '#a78bfa', backgroundColor: 'transparent', borderDash: [2, 4], tension: .2, yAxisID: 'y1' }
+        { label: 'Qtd devoluções', data: trendQtd, borderColor: String(cWarn), backgroundColor: 'transparent', tension: .3, yAxisID: 'y', pointRadius: 4, pointHoverRadius: 6 },
+        { label: 'Valor devolvido', data: trendValor, borderColor: String(cDanger), backgroundColor: 'transparent', tension: .3, yAxisID: 'y1', pointRadius: 4, pointHoverRadius: 6 },
+        { label: 'Média 7', data: trendMa7, borderColor: String(cPrimary), borderDash: [5, 5], tension: .3, yAxisID: 'y1', pointRadius: 3, pointHoverRadius: 5 },
+        { label: 'Média 30', data: trendMa30, borderColor: String(cSuccess), borderDash: [3, 3], tension: .3, yAxisID: 'y1', pointRadius: 3, pointHoverRadius: 5 },
+        { label: 'Meta 2% (R$)', data: trendMeta2Pct, borderColor: '#22c55e', backgroundColor: 'transparent', borderDash: [10, 4], tension: .2, yAxisID: 'y1', pointRadius: 2, pointHoverRadius: 4 },
+        { label: 'Mês passado (R$)', data: trendLastMonth, borderColor: '#a78bfa', backgroundColor: 'transparent', borderDash: [2, 4], tension: .25, yAxisID: 'y1', pointRadius: 3, pointHoverRadius: 5 }
       ]
     },
     options: {
