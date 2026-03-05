@@ -89,10 +89,10 @@
                         <span class="font-semibold text-amber-300">Máx.</span>
                         {% endif %}
                     </div>
-                    <div class="h-2 w-full rounded-full overflow-hidden bg-white/20 relative">
-                        <div class="h-full transition-all duration-700 ease-out rounded-full absolute inset-y-0 left-0 bg-gradient-to-r from-blue-400 to-blue-300" :style="`width: ${xpProgressPercent}%`"></div>
+                    <div class="h-2 w-full rounded-full overflow-hidden relative" style="background-color: #1e3a8a;">
+                        <div class="h-full transition-all duration-700 ease-out rounded-full absolute inset-y-0 left-0" style="background-color: #ffffff;" :style="`width: ${xpProgressPercent}%`"></div>
                         <div class="xp-shine absolute inset-0 rounded-full overflow-hidden pointer-events-none" x-show="dailyXp > 0">
-                            <div class="absolute inset-0 w-1/2 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-xp-shine"></div>
+                            <div class="absolute inset-0 w-1/2 bg-gradient-to-r from-transparent via-blue-100 to-transparent animate-xp-shine"></div>
                         </div>
                     </div>
                     <p class="text-caption mt-1 text-center font-semibold text-amber-300" x-show="dailyXp > 0">
@@ -161,7 +161,7 @@
                     </div>
                     <div class="flex gap-2">
                         <button type="button" x-show="!deliverySessionOpen" @click.stop="openDeliverySetupModal()"
-                            class="touch-target px-3 py-2 rounded-lg font-semibold text-body text-white transition-opacity interactive min-h-[48px]" style="background: var(--color-primary);">Iniciar</button>
+                            class="btn-iniciar-route touch-target px-3 py-2 rounded-lg font-semibold text-body transition-opacity interactive min-h-[48px]" style="background-color: #1e3a8a !important; color: #ffffff !important;">Iniciar</button>
                         <button type="button" x-show="deliverySessionOpen" @click.stop="showDeliveryEndModal = true"
                             class="touch-target px-3 py-2 rounded-lg font-semibold text-body text-white transition-opacity interactive" style="background: var(--color-success);">Encerrar</button>
                     </div>
@@ -494,7 +494,7 @@
     <!-- Modals -->
 
     <!-- Stop Modal -->
-    <div x-show="showStopModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" x-transition.opacity x-cloak>
+    <div x-show="showStopModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40" x-transition.opacity x-cloak>
         <div class="w-full max-w-sm rounded-lg flex flex-col overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);" @click.away="showStopModal = false">
             <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
                 <div class="icon-wrap w-12 h-12 flex-shrink-0"><i data-lucide="check-square" class="w-6 h-6"></i></div>
@@ -513,7 +513,7 @@
     </div>
 
     <!-- Edit Route Modal -->
-    <div x-show="showEditModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" x-transition.opacity x-cloak>
+    <div x-show="showEditModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40" x-transition.opacity x-cloak>
         <div class="w-full max-w-md rounded-lg flex flex-col max-h-[90vh] overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);" @click.away="showEditModal = false">
             <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
                 <div class="icon-wrap w-12 h-12 flex-shrink-0"><i data-lucide="pencil" class="w-6 h-6"></i></div>
@@ -567,7 +567,7 @@
     </div>
 
     <!-- Delete Route Modal -->
-    <div x-show="showDeleteModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" x-transition.opacity x-cloak>
+    <div x-show="showDeleteModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40" x-transition.opacity x-cloak>
         <div class="w-full max-w-sm rounded-lg flex flex-col overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);" @click.away="showDeleteModal = false">
             <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
                 <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center" style="background: var(--color-danger-bg); color: var(--color-danger);">
@@ -598,7 +598,7 @@
     </div>
 
     <!-- Admin Start Modal -->
-    <div x-show="showAdminStartModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" x-transition.opacity x-cloak>
+    <div x-show="showAdminStartModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40" x-transition.opacity x-cloak>
         <div class="w-full max-w-sm rounded-lg flex flex-col max-h-[90vh] overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);" @click.away="showAdminStartModal = false">
             <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
                 <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center" style="background: var(--color-primary); color: white;">
@@ -680,7 +680,7 @@
     </div>
 
     <!-- End Day Modal -->
-    <div x-show="showEndDayModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" x-transition.opacity x-cloak>
+    <div x-show="showEndDayModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40" x-transition.opacity x-cloak>
         <div class="w-full max-w-sm rounded-lg flex flex-col overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);" @click.away="showEndDayModal = false">
             <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
                 <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center" style="background: var(--color-danger-bg); color: var(--color-danger);">
@@ -748,7 +748,7 @@
 
 <!-- Delivery Setup Modal (teleport to body so it is never clipped by parent overflow/z-index) -->
 <div x-teleport="body">
-    <div x-show="showDeliverySetupModal" class="fixed inset-0 z-[120] flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" x-transition.opacity x-cloak @click.self="showDeliverySetupModal = false">
+    <div x-show="showDeliverySetupModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40" x-transition.opacity x-cloak @click.self="showDeliverySetupModal = false">
     <div @click.stop class="w-full max-w-lg rounded-lg flex flex-col max-h-[90vh] overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
         <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
             <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center" style="background: var(--color-primary); color: white;">
@@ -811,7 +811,7 @@
 </div>
 
 <!-- Delivery End Modal -->
-<div x-show="showDeliveryEndModal" class="fixed inset-0 z-[120] flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" x-transition.opacity x-cloak @click.self="showDeliveryEndModal=false">
+<div x-show="showDeliveryEndModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40" x-transition.opacity x-cloak @click.self="showDeliveryEndModal=false">
     <div @click.stop class="w-full max-w-md rounded-lg flex flex-col overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
         <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
             <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center" style="background: var(--color-success-bg); color: var(--color-success);">
@@ -840,7 +840,7 @@
 </div>
 
 <!-- Mobile Return Modal -->
-<div x-show="showMobileReturnModal" class="fixed inset-0 z-[120] flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" x-transition.opacity x-cloak @click.self="showMobileReturnModal=false">
+<div x-show="showMobileReturnModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40" x-transition.opacity x-cloak @click.self="showMobileReturnModal=false">
     <div @click.stop class="w-full max-w-lg rounded-lg flex flex-col max-h-[90vh] overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
         <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
             <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center" style="background: var(--color-warning-bg); color: var(--color-warning);">
@@ -1194,6 +1194,7 @@
             },
 
             openDeliverySetupModal() {
+                console.log('[Dashboard] openDeliverySetupModal chamado');
                 this.deliverySetupError = '';
                 if (this.deliverySetup && !this.deliverySetup.plate && this.assignedPlate) {
                     this.deliverySetup.plate = this.assignedPlate;

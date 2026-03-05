@@ -48,23 +48,26 @@ Skeletons, pull-to-refresh premium, empty states, feedback tátil.
     transform: translateY(0);
 }
 
-/* Pull-to-Refresh premium: rotação fluida + texto dinâmico */
+/* Menu de navegação - fundo branco sólido, texto escuro */
+.mobile-nav-card .nav-item { color: #0f172a !important; }
+.mobile-nav-card .nav-item span { color: inherit; }
+.mobile-nav-card .text-caption-lg { color: #475569 !important; }
+
+/* Pull-to-Refresh - fundo sólido (sem glass/blur) */
 .pull-indicator {
     position: fixed;
     top: 56px;
     left: 50%;
     transform: translate(-50%, -100%);
     transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
-    z-index: 100;
+    z-index: 99;
     padding: 10px 16px;
     border-radius: var(--radius-xl);
     font-size: var(--text-body);
     font-weight: 600;
-    background: var(--glass-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    color: var(--color-text);
-    border: 1px solid var(--glass-border);
+    background: #ffffff;
+    color: #0f172a;
+    border: 1px solid var(--color-border);
     box-shadow: var(--shadow-elevated);
     opacity: 0;
     pointer-events: none;
@@ -166,10 +169,17 @@ Skeletons, pull-to-refresh premium, empty states, feedback tátil.
     margin-top: 0.5rem;
 }
 
-/* Feedback tátil visual (active scale) */
-.touch-scale {
+/* Feedback tátil visual (active scale 0.95) */
+.touch-scale, .btn-tactile {
     transition: transform 0.15s ease;
 }
-.touch-scale:active {
-    transform: scale(0.97);
+.touch-scale:active, .btn-tactile:active {
+    transform: scale(0.95);
+}
+
+/* Botão Iniciar Rota - alto contraste, sólido */
+.btn-iniciar-route {
+    background-color: #1e3a8a !important;
+    color: #ffffff !important;
+    min-height: 48px;
 }
