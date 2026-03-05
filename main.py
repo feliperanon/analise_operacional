@@ -32,6 +32,7 @@ from database import create_db_and_tables, get_session, engine
 import models
 from bi_delivery_routes import router as bi_delivery_router
 from devolucoes_routes import init_devolucoes_router
+from devolucoes_service import sync_route_to_devolucao
 from game_achievements_routes import init_game_achievements_router
 from game_audit_routes import init_game_audit_router, parse_reason
 from client_import_utils import normalize_address, normalize_phone_br, normalize_key, find_col_map as find_client_col_map
@@ -9265,6 +9266,10 @@ async def update_delivery_status(
         if is_partial:
             note += f" | parcial | peso={route.devolucao_volume:.2f} | valor={route.valor_devolucao:.2f}"
         _append_delivery_event(route, "devolucao", now, note=note)
+        try:
+            sync_route_to_devolucao(session, route, source="WEB")
+        except Exception as e:
+            logger.warning(f"sync_route_to_devolucao: {e}")
         feedback = "Entrega marcada como devoluÃ§Ã£o."
     elif action_norm in ["entregue", "finalizar"]:
         route.delivery_status = "entregue"

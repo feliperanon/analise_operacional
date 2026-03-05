@@ -996,6 +996,75 @@ def reconcile_all_devolucoes_with_routes(
     return updated
 
 
+def sync_route_to_devolucao(
+    session: Session,
+    route: "Route",
+    source: str = "WEB",
+) -> Optional["Devolucao"]:
+    """
+    Sincroniza Route (devolucao) com Devolucao. Chamado quando devolução é
+    marcada em /separacao ou mobile, para que apareça em /devolucoes.
+    Retorna o Devolucao criado/atualizado ou None.
+    """
+    if (route.delivery_status or "").lower() != "devolucao":
+        return None
+    if not route.id or not route.client_id or not route.employee_id:
+        return None
+    valor = float(route.valor_devolucao or route.valor_financeiro or 0.0)
+    motivo_nome = (route.delivery_return_reason or "").strip() or "Nao informado"
+    resp_nome = (route.delivery_return_category or "").strip() or "IMPORT"
+    if resp_nome.upper() == "MOBILE":
+        resp_nome = "COMERCIAL"
+    motivos = {m.nome: m for m in session.exec(select(DevolucaoMotivo).where(DevolucaoMotivo.is_active == True)).all()}
+    motivos_norm = {_norm_text(k): m for k, m in motivos.items()}
+    resp_list = list(session.exec(select(DevolucaoResponsabilidade).where(DevolucaoResponsabilidade.is_active == True)).all())
+    resp_by_name = {r.nome: r for r in resp_list}
+    resp_by_norm = {_norm_text(r.nome): r for r in resp_list}
+    motivo = motivos.get(motivo_nome) or motivos_norm.get(_norm_text(motivo_nome))
+    if not motivo and motivos:
+        motivo = next(iter(motivos.values()), None)
+    resp = resp_by_name.get(resp_nome) or resp_by_norm.get(_norm_text(resp_nome))
+    if not resp and resp_list:
+        resp = resp_list[0]
+    if not motivo or not resp:
+        return None
+    existing = session.exec(select(Devolucao).where(Devolucao.route_id == route.id)).first()
+    if existing:
+        existing.valor = valor
+        existing.motivo_id = motivo.id
+        existing.responsabilidade_id = resp.id
+        existing.source = source
+        session.add(existing)
+        return existing
+    try:
+        dt = datetime.strptime(route.date, "%Y-%m-%d") if isinstance(route.date, str) else datetime.now()
+    except (ValueError, TypeError):
+        dt = datetime.now()
+    motorista_id = route.employee_id
+    h = make_idempotency_hash(route.date, route.client_id, motorista_id, motorista_id, valor, motivo.id)
+    if session.exec(select(Devolucao).where(Devolucao.idempotency_hash == h)).first():
+        return None
+    dev = Devolucao(
+        route_id=route.id,
+        data_romaneio=route.date,
+        data_entrega=route.date,
+        client_id=route.client_id,
+        vendedor_id=motorista_id,
+        motorista_id=motorista_id,
+        valor=valor,
+        motivo_id=motivo.id,
+        responsabilidade_id=resp.id,
+        dia=compute_dia(dt),
+        semana=compute_semana(dt),
+        acima_300=compute_acima_300(valor),
+        cluster=compute_cluster(valor),
+        source=source,
+        idempotency_hash=h,
+    )
+    session.add(dev)
+    return dev
+
+
 def rematch_motoristas_from_ajudantes(
     session: Session,
     start_date: Optional[str] = None,
