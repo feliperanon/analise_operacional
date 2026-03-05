@@ -2723,15 +2723,53 @@ async def mobile_api_returns_data(
     top_clients = []
     total_entregas_value = 0.0
     try:
-        since = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=max(1, min(365, days)))).strftime("%Y-%m-%d")
-        routes = session.exec(
+        window_days = max(1, min(365, days))
+        since = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=window_days)).strftime("%Y-%m-%d")
+
+        route_returns = session.exec(
             select(models.Route)
             .where(models.Route.employee_id == user_id)
             .where(models.Route.type == "delivery")
             .where(models.Route.delivery_status == "devolucao")
             .where(models.Route.date >= since)
         ).all()
-        total_value = sum(float(r.valor_devolucao or 0) for r in routes)
+
+        devolucao_rows = session.exec(
+            select(models.Devolucao)
+            .where(models.Devolucao.motorista_id == user_id)
+            .where(models.Devolucao.data_romaneio >= since)
+        ).all()
+
+        devolucao_route_ids = {int(d.route_id) for d in devolucao_rows if d.route_id}
+        linked_route_map = {}
+        if devolucao_route_ids:
+            linked_routes = session.exec(
+                select(models.Route).where(models.Route.id.in_(devolucao_route_ids))
+            ).all()
+            linked_route_map = {int(r.id): r for r in linked_routes if r and r.id}
+
+        combined = []
+        for r in route_returns:
+            if r.id and int(r.id) in devolucao_route_ids:
+                continue
+            combined.append({
+                "date": r.date or "",
+                "client_id": r.client_id,
+                "value": float(r.valor_devolucao or 0.0),
+                "volume": float(r.devolucao_volume or 0.0),
+            })
+
+        for d in devolucao_rows:
+            linked = linked_route_map.get(int(d.route_id)) if d.route_id else None
+            combined.append({
+                "date": d.data_romaneio or d.data_entrega or "",
+                "client_id": d.client_id,
+                "value": float(d.valor or 0.0),
+                "volume": float((linked.tonnage if linked else 0.0) or 0.0),
+            })
+
+        total_value = sum(float(x.get("value") or 0.0) for x in combined)
+
         total_entregas = session.exec(
             select(models.Route)
             .where(models.Route.employee_id == user_id)
@@ -2741,29 +2779,30 @@ async def mobile_api_returns_data(
         total_entregas_value = sum(float(r.valor_financeiro or 0) for r in total_entregas)
         percent_valor = (total_value / total_entregas_value * 100) if total_entregas_value else 0.0
         by_date = {}
-        for r in routes:
-            d = r.date or ""
+        for item in combined:
+            d = item.get("date") or ""
             if d not in by_date:
                 by_date[d] = 0.0
-            by_date[d] += float(r.valor_devolucao or 0)
+            by_date[d] += float(item.get("value") or 0.0)
         sorted_dates = sorted(by_date.keys(), reverse=True)[:14]
         chart_labels = [d[-5:] if len(d) >= 5 else d for d in sorted_dates]
         chart_values = [by_date[d] for d in sorted_dates]
-        client_ids = list({r.client_id for r in routes if r.client_id})
+        client_ids = list({x.get("client_id") for x in combined if x.get("client_id")})
         clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
         client_map = {c.id: c for c in clients}
         top_clients = []
-        for r in routes:
-            c = client_map.get(r.client_id)
+        for item in combined:
+            c = client_map.get(item.get("client_id"))
             name = (c.razao_social or c.name or "Cliente") if c else "Cliente"
-            val = float(r.valor_devolucao or 0)
-            vol = float(r.devolucao_volume or 0)
+            val = float(item.get("value") or 0.0)
+            vol = float(item.get("volume") or 0.0)
             existing = next((x for x in top_clients if x.get("name") == name), None)
             if existing:
                 existing["value"] = existing.get("value", 0) + val
                 existing["volume"] = existing.get("volume", 0) + vol
+                existing["count"] = existing.get("count", 0) + 1
             else:
-                top_clients.append({"name": name, "value": val, "volume": vol})
+                top_clients.append({"name": name, "value": val, "volume": vol, "count": 1})
         top_clients.sort(key=lambda x: x.get("value", 0), reverse=True)
     except Exception as e:
         logger.exception(f"Error building returns-data: {e}")
@@ -2780,6 +2819,14 @@ async def mobile_api_returns_data(
         "chart_values": chart_values,
         "top_clients": top_clients,
         "total_entregas_value": total_entregas_value,
+        "_debug": {
+            "days": int(days),
+            "since": since if "since" in locals() else None,
+            "route_returns_count": len(route_returns) if "route_returns" in locals() else 0,
+            "devolucao_rows_count": len(devolucao_rows) if "devolucao_rows" in locals() else 0,
+            "dedup_linked_route_ids": len(devolucao_route_ids) if "devolucao_route_ids" in locals() else 0,
+            "combined_count": len(combined) if "combined" in locals() else 0,
+        },
     })
 
 
