@@ -96,7 +96,7 @@
 
     <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
       {{ chart_card("Tendência diária", "Quantidade e valor devolvido + médias móveis 7/30", "trendChart") }}
-      {{ chart_card("Motivos de devolução", "Correlação: quantidade x valor x participação", "motivosChart") }}
+      {{ chart_card("Motivos de devolução", "Valor por motivo e motorista. Passe o mouse para ver qtd, valor e % sobre valor real.", "motivosChart") }}
     </section>
 
     <section class="grid grid-cols-1 xl:grid-cols-3 gap-4">
@@ -305,6 +305,10 @@
     <div class="mt-4" style="height: 58vh;">
       <canvas id="respMotivosCanvas"></canvas>
     </div>
+    <section class="surface p-4 mt-4">
+      <h4 class="text-section mb-2">Clientes por responsabilidade</h4>
+      <div id="respClientsList" class="space-y-2"></div>
+    </section>
   </div>
 </div>
 
@@ -353,51 +357,46 @@
     options: { ...baseOpt, scales: { ...baseOpt.scales, y: { ...baseOpt.scales.y, position: 'left' }, y1: { ...baseOpt.scales.y, position: 'right' } } }
   });
 
+  const md = chartData.motivos_detailed || [];
+  const motDrivers = chartData.motivos_drivers || [];
+  const driverColors = ['#3b82f6','#f59e0b','#ef4444','#10b981','#8b5cf6','#ec4899','#06b6d4','#84cc16'];
   new Chart(document.getElementById('motivosChart'), {
-    type: 'bubble',
+    type: 'bar',
     data: {
-      datasets: [
-        {
-          label: 'Correlação motivo x quantidade x valor',
-          backgroundColor: 'rgba(245, 158, 11, 0.45)',
-          borderColor: palette.warning,
-          borderWidth: 1.2,
-          data: (chartData.motivos || []).map(x => ({
-            x: Number(x.qtd || 0),
-            y: Number(x.valor || 0),
-            r: Math.max(5, Math.min(28, Number(x.pct || 0) * 0.45)),
-            motivo: safeStr(x.motivo),
-            pct: Number(x.pct || 0)
-          }))
-        }
-      ]
+      labels: md.map(x => safeStr(x.motivo)),
+      datasets: motDrivers.map((drv, i) => ({
+        label: safeStr(drv),
+        data: md.map(m => (m.por_motorista && m.por_motorista[drv]) ? m.por_motorista[drv].valor : 0),
+        backgroundColor: driverColors[i % driverColors.length],
+        stack: 'stack0'
+      }))
     },
     options: {
       ...baseOpt,
-      parsing: false,
+      indexAxis: 'y',
       plugins: {
         ...baseOpt.plugins,
         tooltip: {
           callbacks: {
             label: (ctx) => {
-              const p = ctx.raw || {};
-              const qtd = Number(p.x || 0).toLocaleString('pt-BR');
-              const valor = Number(p.y || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-              const pct = Number(p.pct || 0).toFixed(1).replace('.', ',');
-              return `${p.motivo || 'Motivo'} | Qtd: ${qtd} | Valor: ${valor} | Part.: ${pct}%`;
+              const motivoIdx = ctx.dataIndex;
+              const driverIdx = ctx.datasetIndex;
+              const m = md[motivoIdx];
+              const drv = motDrivers[driverIdx];
+              if (!m || !m.por_motorista || !drv) return '';
+              const d = m.por_motorista[drv];
+              if (!d) return '';
+              const qtd = Number(d.qtd || 0).toLocaleString('pt-BR');
+              const valor = Number(d.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+              const pct = Number(d.pct_valor_real || 0).toFixed(1).replace('.', ',');
+              return `${drv} | Qtd: ${qtd} | Valor: ${valor} | % valor real: ${pct}%`;
             }
           }
         }
       },
       scales: {
-        x: {
-          ...baseOpt.scales.x,
-          title: { display: true, text: 'Quantidade de devoluções', color: palette.muted }
-        },
-        y: {
-          ...baseOpt.scales.y,
-          title: { display: true, text: 'Valor devolvido (R$)', color: palette.muted }
-        }
+        x: { ...baseOpt.scales.x, stacked: true, title: { display: true, text: 'Valor devolvido (R$)', color: palette.muted } },
+        y: { ...baseOpt.scales.y, stacked: true }
       }
     }
   });

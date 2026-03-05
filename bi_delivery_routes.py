@@ -288,6 +288,33 @@ def _build_bi_delivery_dataset(
 
     total_mot = sum(v["qtd"] for v in motivo_agg.values()) or 1
     motivos_rows = sorted([{"motivo": v["motivo"], "qtd": int(v["qtd"]), "valor": round(v["valor"], 2), "pct": round(v["qtd"] / total_mot * 100.0, 2)} for v in motivo_agg.values()], key=lambda x: (x["qtd"], x["valor"]), reverse=True)
+
+    # Motivo x Motorista x Qtd x Valor x % valor real (para gráfico detalhado)
+    motivo_motorista: dict[str, dict[str, dict]] = {}
+    for r in route_rows:
+        if r.get("status") != "devolucao" or (r.get("returned_value") or 0) <= 0:
+            continue
+        motivo = r.get("motivo") or "Nao informado"
+        driver = r.get("driver_name") or "-"
+        val = float(r.get("returned_value") or 0.0)
+        motivo_motorista.setdefault(motivo, {})
+        motivo_motorista[motivo].setdefault(driver, {"qtd": 0, "valor": 0.0})
+        motivo_motorista[motivo][driver]["qtd"] += 1
+        motivo_motorista[motivo][driver]["valor"] = round(motivo_motorista[motivo][driver]["valor"] + val, 2)
+    motivo_names = sorted(motivo_motorista.keys(), key=lambda m: -sum(d["valor"] for d in motivo_motorista[m].values()))[:15]
+    driver_names_mot = sorted({d for m_data in motivo_motorista.values() for d in m_data.keys()})
+    motivos_detailed = []
+    for motivo in motivo_names:
+        row = {"motivo": motivo, "qtd": 0, "valor": 0.0, "pct": 0.0, "por_motorista": {}}
+        for driver, data in motivo_motorista[motivo].items():
+            row["qtd"] += data["qtd"]
+            row["valor"] += data["valor"]
+            valor_real_drv = (per_driver.get(driver, {}).get("realized_value") or 0.0) + (per_driver.get(driver, {}).get("returned_value") or 0.0)
+            pct_val = round(data["valor"] / valor_real_drv * 100.0, 2) if valor_real_drv > 0 else (100.0 if data["valor"] > 0 else 0.0)
+            row["por_motorista"][driver] = {"qtd": data["qtd"], "valor": data["valor"], "pct_valor_real": pct_val}
+        row["valor"] = round(row["valor"], 2)
+        row["pct"] = round(row["qtd"] / total_mot * 100.0, 2) if total_mot else 0.0
+        motivos_detailed.append(row)
     resp_rows = sorted([{"responsabilidade": v["responsabilidade"], "qtd": int(v["qtd"]), "valor": round(v["valor"], 2)} for v in resp_agg.values()], key=lambda x: x["qtd"], reverse=True)
     cluster_rows = sorted([{"cluster": v["cluster"], "qtd": int(v["qtd"]), "valor": round(v["valor"], 2)} for v in cluster_agg.values()], key=lambda x: x["valor"], reverse=True)
 
@@ -361,6 +388,8 @@ def _build_bi_delivery_dataset(
     chart_payload = {
         "trend": {"dates": trend_dates, "qtd": trend_qtd, "valor": trend_val, "ma7": _ma(trend_val, 7), "ma30": _ma(trend_val, 30)},
         "motivos": motivos_rows,
+        "motivos_detailed": motivos_detailed,
+        "motivos_drivers": driver_names_mot,
         "responsabilidade": resp_rows,
         "cluster": cluster_rows,
         "drivers": [{"driver": r["driver_name"], "eficiencia": r["efficiency"], "devolucao_pct": r["return_rate"], "valor_devolvido": r["returned_value"]} for r in tactical][:20],

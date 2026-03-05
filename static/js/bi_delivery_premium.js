@@ -17,7 +17,7 @@
   };
   const chartAllowedTypes = {
     trendChart: ["line", "bar"],
-    motivosChart: ["bubble", "bar", "doughnut"],
+    motivosChart: ["bar", "doughnut"],
     respChart: ["doughnut", "bar"],
     clusterChart: ["bar", "doughnut"],
     driverChart: ["bar", "line"]
@@ -179,14 +179,14 @@
       const p = values.reduce((best, v, i, arr) => Number(v || 0) > Number(arr[best] || 0) ? i : best, 0);
       out.push(`Pico no período em ${labels[p]}: ${Number(values[p] || 0).toLocaleString("pt-BR")}.`);
     } else if (chartId === "motivosChart") {
-      const points = (ds[0]?.data || []).filter((p) => p && typeof p === "object");
-      if (!points.length) return ["Sem dados suficientes para storytelling."];
-      const totalQtd = points.reduce((a, p) => a + Number(p.x || 0), 0) || 1;
-      const totalValor = points.reduce((a, p) => a + Number(p.y || 0), 0) || 1;
-      const topQtd = points.reduce((best, p, i, arr) => Number(p.x || 0) > Number(arr[best]?.x || 0) ? i : best, 0);
-      const topValor = points.reduce((best, p, i, arr) => Number(p.y || 0) > Number(arr[best]?.y || 0) ? i : best, 0);
-      out.push(`${points[topQtd]?.motivo || "Motivo"} lidera em volume com ${((Number(points[topQtd]?.x || 0) / totalQtd) * 100).toFixed(1)}% das ocorrencias.`);
-      out.push(`${points[topValor]?.motivo || "Motivo"} concentra ${((Number(points[topValor]?.y || 0) / totalValor) * 100).toFixed(1)}% do valor devolvido.`);
+      const md = (window.__biChartData?.motivos_detailed || []);
+      if (!md.length) return ["Sem dados suficientes para storytelling."];
+      const totalQtd = md.reduce((a, m) => a + (m.qtd || 0), 0) || 1;
+      const totalValor = md.reduce((a, m) => a + (m.valor || 0), 0) || 1;
+      const topQtd = md.reduce((best, m, i, arr) => (m.qtd || 0) > (arr[best]?.qtd || 0) ? i : best, 0);
+      const topValor = md.reduce((best, m, i, arr) => (m.valor || 0) > (arr[best]?.valor || 0) ? i : best, 0);
+      out.push(`${md[topQtd]?.motivo || "Motivo"} lidera em volume com ${(((md[topQtd]?.qtd || 0) / totalQtd) * 100).toFixed(1)}% das ocorrencias.`);
+      out.push(`${md[topValor]?.motivo || "Motivo"} concentra ${(((md[topValor]?.valor || 0) / totalValor) * 100).toFixed(1)}% do valor devolvido.`);
     } else {
       const values = (ds[0]?.data || []).map(Number);
       const sum = values.reduce((a, b) => a + b, 0) || 1;
@@ -199,6 +199,26 @@
   function bindChartClickDrill(id) {
     const c = getChart(id);
     if (!c) return;
+    if (id === "respChart") {
+      c.options.plugins = c.options.plugins || {};
+      c.options.plugins.tooltip = c.options.plugins.tooltip || {};
+      const currentCallbacks = c.options.plugins.tooltip.callbacks || {};
+      c.options.plugins.tooltip.callbacks = {
+        ...currentCallbacks,
+        afterBody: (items) => {
+          const idx = items?.[0]?.dataIndex;
+          if (idx == null) return "";
+          const label = c.data?.labels?.[idx];
+          if (!label) return "";
+          const ranked = aggregateClientsByResponsibility(label).slice(0, 5);
+          if (!ranked.length) return "Sem clientes para esta responsabilidade.";
+          return ranked.map((r) => {
+            const pct = Number(r.pctValor || 0).toFixed(1).replace(".", ",");
+            return `${r.qtd} - ${r.client} - ${pct}% do valor`;
+          });
+        }
+      };
+    }
     const baseOnClick = c.options.onClick;
     c.options.onClick = (evt, elements, chart) => {
       if (baseOnClick) baseOnClick(evt, elements, chart);
@@ -246,6 +266,41 @@
     if (typeof v === "number") return v;
     const n = Number(String(v ?? "").replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", "."));
     return Number.isFinite(n) ? n : 0;
+  }
+
+  function aggregateClientsByResponsibility(responsabilidade) {
+    const rows = (state?.rows || []).filter((r) => String(r?.responsabilidade || "").trim() === String(responsabilidade || "").trim());
+    const acc = new Map();
+    rows.forEach((r) => {
+      const client = String(r?.client_name || "Sem cliente").trim() || "Sem cliente";
+      const item = acc.get(client) || { qtd: 0, valor: 0 };
+      item.qtd += 1;
+      item.valor += toAmount(r?.returned_value);
+      acc.set(client, item);
+    });
+    const totalValor = Array.from(acc.values()).reduce((sum, x) => sum + x.valor, 0) || 1;
+    return Array.from(acc.entries())
+      .map(([client, x]) => ({
+        client,
+        qtd: x.qtd,
+        valor: x.valor,
+        pctValor: (x.valor / totalValor) * 100
+      }))
+      .sort((a, b) => b.valor - a.valor);
+  }
+
+  function renderResponsibilityClientsList(responsabilidade) {
+    const wrap = byId("respClientsList");
+    if (!wrap) return;
+    const ranked = aggregateClientsByResponsibility(responsabilidade).slice(0, 12);
+    if (!ranked.length) {
+      wrap.innerHTML = `<div class="insight-row">Sem clientes para ${responsabilidade}.</div>`;
+      return;
+    }
+    wrap.innerHTML = ranked.map((r) => {
+      const pct = Number(r.pctValor || 0).toFixed(1).replace(".", ",");
+      return `<div class="insight-row">${r.qtd} - ${r.client} - ${pct}% do valor</div>`;
+    }).join("");
   }
 
   function openResponsibilityMotivosModal(responsabilidade) {
@@ -320,6 +375,7 @@
         }
       }
     });
+    renderResponsibilityClientsList(responsabilidade);
     modalOpen("respMotivosModal");
   }
 
