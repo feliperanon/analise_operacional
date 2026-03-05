@@ -149,17 +149,21 @@
             <p class="text-caption mt-1">Ranking por valor devolvido e % valor real</p>
             <div id="corrTopPairs" class="mt-3 space-y-2"></div>
           </section>
-          <section class="surface p-3 xl:col-span-2">
-            <h4 class="text-section">Matriz de Correlacao</h4>
-            <p class="text-caption mt-1">Linhas: clientes | Colunas: motoristas</p>
-            <div id="corrMatrix" class="mt-3 overflow-auto"></div>
-            <div class="corr-legend mt-3">
+        </div>
+        <section class="surface p-4 mt-4 w-full">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <div>
+              <h4 class="text-section">Matriz de Correlacao</h4>
+              <p class="text-caption mt-1">Linhas: clientes | Colunas: motoristas</p>
+            </div>
+            <div class="corr-legend flex flex-wrap gap-2">
               <span class="corr-tag corr-ok">&lt; 2,0%</span>
               <span class="corr-tag corr-warn">2,0% a 4,0%</span>
               <span class="corr-tag corr-danger">&gt;= 4,0%</span>
             </div>
-          </section>
-        </div>
+          </div>
+          <div id="corrMatrix" class="corr-matrix-container"></div>
+        </section>
       </section>
     </section>
 
@@ -554,27 +558,113 @@
     return modal;
   }
 
-  function openHelpFromCard(card) {
+    function openHelpFromCard(card) {
     const modal = ensureHelpModal();
     const title = card.querySelector('h3')?.textContent?.trim() || card.dataset.chartTitle || 'Ajuda';
     const subtitle = card.querySelector('p.text-caption')?.textContent?.trim() || card.dataset.chartSubtitle || 'Sem descrição adicional para este painel.';
+    const isKpi = card.classList.contains('kpi-card');
+    const guides = {
+      'Eficiência por motorista': {
+        what: 'Mostra lado a lado a eficiência e a taxa de devolução por motorista.',
+        calc: 'Compara percentual de entregas concluídas e percentual de devoluções, por motorista.',
+        formula: 'Entregas concluídas / paradas planejadas e devoluções / paradas planejadas, por motorista.',
+        practical: 'Ajuda a identificar quem precisa de apoio imediato e quem pode virar referência.',
+        interpret: 'Bom: eficiência alta e devolução baixa. Atenção: eficiência oscilando ou devolução subindo. Crítico: eficiência baixa com devolução alta.',
+        operational: 'Fazer acompanhamento diário com foco nos casos críticos.',
+        executive: 'Planejar treinamento, rota e balanceamento de carteira por motorista.',
+        related: 'Tempo Médio, Taxa Devolução, Paradas Entregues.',
+        tip: 'Olhe tendência de 2 semanas, não um dia isolado.'
+      },
+      'Motivos de devolução': {
+        what: 'Mostra quais motivos puxam mais valor devolvido e quais motoristas concentram o impacto.',
+        calc: 'Soma valor devolvido por motivo e por motorista.',
+        formula: 'Σ valor devolvido por motivo + participação por motorista.',
+        practical: 'Define a causa raiz que mais pesa no resultado.',
+        interpret: 'Bom: distribuição pulverizada e baixa concentração. Atenção: 1-2 motivos subindo. Crítico: concentração alta em um motivo recorrente.',
+        operational: 'Atacar primeiro o motivo de maior valor (Pareto 80/20).',
+        executive: 'Priorizar ações estruturais no processo que gera mais perdas.',
+        related: 'Devolução % Valor, Responsabilidade, Correlação Motorista x Cliente.',
+        tip: 'Sempre compare valor e quantidade juntos.'
+      },
+      'Dia da semana × Devoluções': {
+        what: 'Mostra padrão temporal de devoluções ao longo da semana.',
+        calc: 'Agrupa quantidade e valor devolvido por dia da semana.',
+        formula: 'Σ devoluções (qtd e valor) por dia.',
+        practical: 'Ajuda a ajustar escala, carregamento e supervisão por dia crítico.',
+        interpret: 'Bom: curva estável. Atenção: pico pontual. Crítico: picos recorrentes no mesmo dia.',
+        operational: 'Reforçar conferência nos dias com maior pico.',
+        executive: 'Redistribuir capacidade e roteirização por janela de risco.',
+        related: 'Eficiência por motorista, Tempo Médio, Taxa Devolução.',
+        tip: 'Compare pelo menos as últimas 2 semanas.'
+      },
+      'Painel de Correlacao Motorista x Cliente': {
+        what: 'Mostra pares motorista-cliente com maior risco financeiro de devolução.',
+        calc: 'Classifica pares por valor devolvido e % sobre valor real.',
+        formula: 'Risco do par = valor devolvido + percentual sobre valor real.',
+        practical: 'Direciona reunião para os pares que mais afetam resultado.',
+        interpret: 'Bom: maioria <2%. Atenção: 2%-4%. Crítico: >=4%.',
+        operational: 'Abrir drill-through dos pares críticos e validar causa raiz.',
+        executive: 'Rebalancear carteira e definir plano de contingência por par crítico.',
+        related: 'Motivos de devolução, Devolução % Valor, Eficiência por motorista.',
+        tip: 'Concentração de Top 5 acima de 60% exige ação imediata.'
+      }
+    };
+    const fallback = {
+      what: isKpi ? 'Mostra o desempenho atual do indicador e seu impacto no resultado.' : 'Mostra a leitura visual do desempenho operacional.',
+      calc: isKpi ? 'Calculado a partir dos dados de rota, devolução e execução no período filtrado.' : 'Consolida os dados filtrados para comparação rápida.',
+      formula: 'Use a relação entre resultado atual, meta e tendência.',
+      practical: 'Ajuda a decidir prioridade de ação com rapidez.',
+      interpret: 'Bom: dentro da meta. Atenção: oscilação ou piora. Crítico: fora da meta com tendência de alta no risco.',
+      operational: 'Acompanhar diariamente e agir nos desvios.',
+      executive: 'Definir ação de estrutura, treinamento e gestão de carteira.',
+      related: 'Taxa Devolução, Tempo Médio, Paradas Entregues.',
+      tip: 'Não decida por um dia isolado; observe tendência.'
+    };
+    const g = guides[title] || fallback;
     modal.querySelector('#bi-help-title').textContent = title;
     modal.querySelector('#bi-help-summary').textContent = subtitle;
     modal.querySelector('#bi-help-text').innerHTML = `
-      <p><strong>Como usar:</strong> use este painel para localizar rapidamente concentração de devolução em valor (% sobre valor real).</p>
-      <p><strong>Ponto de atenção:</strong> priorize células e pares acima de 2,0% e trate imediatamente os acima de 4,0%.</p>
-      <p><strong>Ação prática:</strong> clique no item para abrir o drill-through já filtrado no par motorista-cliente.</p>
+      <p class="text-body"><strong>O que é:</strong> ${g.what}</p>
+      <p class="text-body"><strong>Como é calculado:</strong> ${g.calc}</p>
+      <p class="text-body"><strong>Fórmula simples:</strong> ${g.formula}</p>
+      <p class="text-body"><strong>Na prática:</strong> ${g.practical}</p>
+      <p class="text-body"><strong>Como interpretar:</strong> ${g.interpret}</p>
+      <p class="text-body"><strong>Operacional:</strong> ${g.operational}</p>
+      <p class="text-body"><strong>Executivo:</strong> ${g.executive}</p>
+      <p class="text-body mt-2"><strong>KPIs relacionados:</strong> ${g.related}</p>
+      <p class="text-body"><strong>Dica rápida:</strong> ${g.tip}</p>
+      <div class="mt-3 pt-3 border-t" style="border-color: var(--color-border);">
+        <p class="text-caption">Metodologia de explicação</p>
+        <p class="text-body mt-1"><strong>Pareto 80/20:</strong> foco no fator que gera maior impacto no resultado.</p>
+        <p class="text-body"><strong>Feynman:</strong> explicação em linguagem simples, sem jargão desnecessário.</p>
+        <p class="text-body"><strong>Intercalação:</strong> conecta indicador atual, KPI relacionado e decisão prática.</p>
+      </div>
     `;
     modal.classList.remove('hidden');
     modal.classList.add('flex');
   }
-
   document.addEventListener('click', (ev) => {
     const btn = ev.target.closest('button.icon-wrap-sm[title="Ajuda"]');
     if (!btn) return;
     ev.preventDefault();
     const card = btn.closest('section, article');
     if (card) openHelpFromCard(card);
+  });
+  // Fallback local para expandir gráfico caso o script premium não consiga registrar os eventos.
+  document.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('button.chart-expand-btn[data-chart-expand]');
+    if (!btn) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    const id = btn.dataset.chartExpand;
+    if (typeof window.openChartFullscreen === 'function') {
+      window.openChartFullscreen(id);
+      return;
+    }
+    const localChart = (window.Chart && id) ? Chart.getChart(document.getElementById(id)) : null;
+    if (!localChart) {
+      console.warn(`Expand não disponível para ${id}.`);
+    }
   });
 
   let state = { rows: [...detailRows], page: 1, pageSize: 30, sortKey: 'date', sortDir: 'desc', search: '', externalFilter: null };
@@ -630,6 +720,8 @@
     drillSummary.textContent = `${total} registros | página ${state.page}/${pages}`;
   }
   renderDrill();
+  window.__biState = state;
+  window.__biRenderDrill = renderDrill;
 
   document.getElementById('execModeToggle')?.addEventListener('click', () => {
     const el = document.querySelector('.exec-hidden');
@@ -695,6 +787,7 @@
   .corr-title { display: block; color: var(--color-text); font-size: .76rem; font-weight: 600; line-height: 1.2; }
   .corr-sub { display: block; color: var(--color-text-secondary); font-size: .68rem; line-height: 1.15; margin-top: .1rem; }
   .corr-pct { font-size: .74rem; font-weight: 700; }
+  .corr-matrix-container { overflow: visible; overscroll-behavior: none; }
   .corr-matrix-table { width: 100%; border-collapse: separate; border-spacing: .28rem; min-width: 760px; }
   .corr-matrix-table th { color: var(--color-text-muted); font-size: .64rem; text-transform: uppercase; letter-spacing: .05em; text-align: left; white-space: nowrap; }
   .corr-matrix-table td, .corr-matrix-table th { padding: 0; }
@@ -702,5 +795,7 @@
   .corr-cell.corr-empty { display: inline-flex; align-items: center; justify-content: center; }
 </style>
 {% endblock %}
+
+
 
 
