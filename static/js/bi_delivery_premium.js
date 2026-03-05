@@ -102,19 +102,19 @@
   }
 
   function buildKpiTrend(series) {
-    if (!series || series.length < 2) return "Sem histÃ³rico suficiente.";
+    if (!series || series.length < 2) return "Sem histórico suficiente.";
     const a = Number(series.at(-1) || 0);
     const b = Number(series.at(-2) || 0);
-    if (!b) return a ? "Sinal inicial de tendÃªncia de alta." : "Sem oscilaÃ§Ã£o relevante.";
+    if (!b) return a ? "Sinal inicial de tendência de alta." : "Sem oscilação relevante.";
     const d = ((a - b) / Math.abs(b)) * 100;
     const s = d >= 0 ? "alta" : "queda";
-    return `Ãšltimo perÃ­odo indica ${s} de ${Math.abs(d).toFixed(1)}%.`;
+    return `Último período indica ${s} de ${Math.abs(d).toFixed(1)}%.`;
   }
 
   function openKpiModal(card) {
     const title = card.dataset.kpiTitle || "KPI";
     const value = card.dataset.kpiValue || "-";
-    const [meaning, formula, benchmark] = kpiDefs[title] || ["Indicador estratÃ©gico.", "CÃ¡lculo interno", "Meta interna"];
+    const [meaning, formula, benchmark] = kpiDefs[title] || ["Indicador estratégico.", "Cálculo interno", "Meta interna"];
     byId("kpiModalTitle").textContent = title;
     byId("kpiModalTag").textContent = `Valor atual: ${value}`;
     byId("kpiMeaning").textContent = meaning;
@@ -233,10 +233,10 @@
       const recent = values.slice(-7).reduce((a, b) => a + Number(b || 0), 0);
       const prev = values.slice(-14, -7).reduce((a, b) => a + Number(b || 0), 0) || 1;
       const delta = ((recent - prev) / Math.abs(prev)) * 100;
-      out.push(`Ãšltimos 7 dias mostram ${delta >= 0 ? "alta" : "queda"} de ${Math.abs(delta).toFixed(1)}%.`);
+      out.push(`Últimos 7 dias mostram ${delta >= 0 ? "alta" : "queda"} de ${Math.abs(delta).toFixed(1)}%.`);
       const p = values.reduce((best, v, i, arr) => Number(v || 0) > Number(arr[best] || 0) ? i : best, 0);
       const labelP = labels[p] != null ? String(labels[p]) : '';
-      out.push(`Pico no perÃ­odo em ${labelP}: ${Number(values[p] || 0).toLocaleString("pt-BR")}.`);
+      out.push(`Pico no período em ${labelP}: ${Number(values[p] || 0).toLocaleString("pt-BR")}.`);
     } else if (chartId === "motivosChart") {
       const md = (window.__biChartData?.motivos_detailed || []);
       if (!md.length) return ["Sem dados suficientes para storytelling."];
@@ -279,16 +279,26 @@
       const label = id === "motivosChart"
         ? ((point && typeof point === "object" && point.motivo) ? point.motivo : c.data.labels?.[idx])
         : c.data.labels?.[idx];
-      if (label == null) return;
       let fn = null;
+      let crumbLabel = label;
+      if (id !== "driverClientCorrChart" && label == null) return;
       if (id === "trendChart") fn = (r) => r.date === label;
       if (id === "motivosChart") fn = (r) => r.motivo === String(label);
       if (id === "respChart") fn = (r) => r.responsabilidade === label;
       if (id === "clusterChart") fn = (r) => r.cluster === label;
       if (id === "driverChart") fn = (r) => r.driver_name === label;
+      if (id === "driverRespChart") fn = (r) => r.driver_name === label;
+      if (id === "driverClientCorrChart" && point && typeof point === "object") {
+        const driver = String(point.driver || "").trim();
+        const client = String(point.client || "").trim();
+        fn = (r) =>
+          String(r.driver_name || "").trim() === driver &&
+          String(r.client_name || "").trim() === client;
+        crumbLabel = `${driver} x ${client}`;
+      }
       if (!fn) return;
       if (id === "respChart") openResponsibilityMotivosModal(label);
-      state.drillStack.push({ label: `${chartTitles[id]}: ${label}`, fn });
+      state.drillStack.push({ label: `${chartTitles[id]}: ${crumbLabel}`, fn });
       state.externalFilter = fn;
       state.page = 1;
       renderDrill();
@@ -435,8 +445,8 @@
     fullscreenIndex = Math.max(0, chartIds.indexOf(chartId));
     const allowed = chartAllowedTypes[chartId] || [src.config.type];
     const currentType = src.config.type;
-    byId("fullChartTitle").textContent = chartTitles[chartId] || "GrÃ¡fico";
-    byId("fullChartTag").textContent = "Use setas para navegar entre grÃ¡ficos.";
+    byId("fullChartTitle").textContent = chartTitles[chartId] || "Gráfico";
+    byId("fullChartTag").textContent = "Use setas para navegar entre gráficos.";
     destroyFullscreenChart();
     const clipped = normalizeDataForType(currentType, clipData(src.data, compareWindow));
     const opts = buildFullscreenOptions(currentType, clipped);
@@ -448,7 +458,7 @@
       });
     } catch (err) {
       console.warn("BI fullscreen chart error:", err);
-      byId("fullscreenInsights").innerHTML = "<div class=\"insight-row insight-warning\">NÃ£o foi possÃ­vel exibir o grÃ¡fico expandido. Tente outro grÃ¡fico.</div>";
+      byId("fullscreenInsights").innerHTML = "<div class=\"insight-row insight-warning\">Não foi possível exibir o gráfico expandido. Tente outro gráfico.</div>";
     }
     byId("chartTypeToggleBtn").dataset.allowed = JSON.stringify(allowed);
     byId("chartTypeToggleBtn").dataset.current = currentType;
@@ -480,7 +490,7 @@
     }
     wrap.classList.remove("hidden");
     back.classList.remove("hidden");
-    wrap.innerHTML = state.drillStack.map((x, i) => `<span class="crumb">${i + 1}. ${x.label}</span>`).join('<span class="crumb-sep">â€º</span>');
+    wrap.innerHTML = state.drillStack.map((x, i) => `<span class="crumb">${i + 1}. ${x.label}</span>`).join('<span class="crumb-sep">›</span>');
   }
 
   byId("drillBackBtn")?.addEventListener("click", () => {
