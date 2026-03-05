@@ -79,7 +79,7 @@
 
     <section class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2">
       {{ kpi_card("Paradas Planejadas", kpis.planned_stops, "Base do período", "route", "neutral") }}
-      {{ kpi_card("Paradas Realizadas", kpis.delivered_stops, "SLA " ~ (kpis.sla_finish|fmt_br_1) ~ "%",
+      {{ kpi_card("Paradas Entregues", kpis.delivered_stops, "SLA " ~ (kpis.sla_finish|fmt_br_1) ~ "%",
       "check-circle-2", "success" if kpis.sla_finish >= 90 else "warning") }}
       {{ kpi_card("Taxa Devolução", (kpis.return_rate_qtd|fmt_br_1) ~ "%", kpis.total_devolucoes ~ " ocorrências",
       "undo-2", "danger" if kpis.return_rate_qtd >= 10 else "warning") }}
@@ -649,10 +649,10 @@
       interpretation: { good: "Planejamento coerente com capacidade da frota.", attention: "Oscilação forte de volume entre dias.", critical: "Planejamento acima da capacidade operacional." },
       operationalUse: "Ajustar distribuição de carga e roteirização antes da saída.",
       executiveUse: "Validar capacidade, escala e necessidade de reforço de frota.",
-      relatedKpis: ["Paradas Realizadas", "Eficiência por motorista", "Tempo Médio"],
+      relatedKpis: ["Paradas Entregues", "Eficiência por motorista", "Tempo Médio"],
       quickTip: "Compare planejado por dia e por turno para evitar gargalo no fim da rota."
     },
-    "paradas realizadas": {
+    "paradas entregues": {
       summary: "Mostra quanto do planejado foi realmente entregue.",
       whatIs: "É o total de paradas concluídas dentro do período.",
       howCalculated: "Conta todas as paradas com status concluído e compara com o planejado.",
@@ -663,7 +663,7 @@
       operationalUse: "Atuar no turno com baixa entrega e corrigir causa no mesmo dia.",
       executiveUse: "Revisar produtividade por base, equipe e capacidade.",
       relatedKpis: ["Paradas Planejadas", "Tempo Médio", "Taxa Devolução"],
-      quickTip: "Se realizadas caem e tempo médio sobe, o problema costuma ser rota/processo."
+      quickTip: "Se entregas caem e tempo médio sobe, o problema costuma ser rota/processo."
     },
     "taxa devolucao": {
       summary: "Mostra o percentual de entregas que voltaram como devolução.",
@@ -795,7 +795,7 @@
       interpretation: { good: "Eficiência alta e devolução baixa.", attention: "Eficiência oscilando ou devolução subindo.", critical: "Eficiência baixa com devolução alta." },
       operationalUse: "Fazer acompanhamento diário com foco nos casos críticos.",
       executiveUse: "Planejar treinamento, rota e balanceamento de carteira por motorista.",
-      relatedKpis: ["Tempo Médio", "Taxa Devolução", "Paradas Realizadas"],
+      relatedKpis: ["Tempo Médio", "Taxa Devolução", "Paradas Entregues"],
       quickTip: "Olhe tendência de 2 semanas, não um dia isolado."
     },
     "motorista x responsabilidade x valor": {
