@@ -404,9 +404,29 @@ def _build_bi_delivery_dataset(
         })
     driver_resp_rows = [r for r in driver_resp_rows if r["valor_devolvido"] > 0]
     driver_resp_rows = sorted(driver_resp_rows, key=lambda x: -x["valor_devolvido"])[:20]
+    def _prev_month_key(date_key: str) -> Optional[str]:
+        try:
+            dref = datetime.strptime(str(date_key), "%Y-%m-%d").date()
+            y = dref.year
+            m = dref.month - 1
+            if m == 0:
+                m = 12
+                y -= 1
+            # Ajusta para o ultimo dia valido do mes anterior (ex.: 31 -> 30/28/29)
+            max_day = [31, 29 if (y % 4 == 0 and (y % 100 != 0 or y % 400 == 0)) else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1]
+            d = min(dref.day, max_day)
+            return date(y, m, d).strftime("%Y-%m-%d")
+        except Exception:
+            return None
+
     trend_dates = sorted(set(list(per_day.keys()) + list(ret_count_day.keys())))
     trend_qtd = [ret_count_day.get(k, 0) for k in trend_dates]
     trend_val = [round(ret_value_day.get(k, 0.0), 2) for k in trend_dates]
+    trend_meta_2pct = [round((per_day.get(k, {}).get("planned_value", 0.0) or 0.0) * 0.02, 2) for k in trend_dates]
+    trend_last_month_val: list[Optional[float]] = []
+    for k in trend_dates:
+        pm = _prev_month_key(k)
+        trend_last_month_val.append(round(ret_value_day.get(pm, 0.0), 2) if pm else None)
     heat_rows = [{"date": dt, "driver": drv, "value": v} for dt, d in reopen_heat.items() for drv, v in d.items()]
 
     filters_payload = {"date_from": date_i.strftime("%Y-%m-%d"), "date_to": date_f.strftime("%Y-%m-%d"), "shift": shift, "driver_id": driver_id, "plate": plate, "status": status, "detail_driver_id": detail_driver_id, "detail_status": detail_status}
@@ -448,7 +468,15 @@ def _build_bi_delivery_dataset(
     }
 
     chart_payload = {
-        "trend": {"dates": trend_dates, "qtd": trend_qtd, "valor": trend_val, "ma7": _ma(trend_val, 7), "ma30": _ma(trend_val, 30)},
+        "trend": {
+            "dates": trend_dates,
+            "qtd": trend_qtd,
+            "valor": trend_val,
+            "ma7": _ma(trend_val, 7),
+            "ma30": _ma(trend_val, 30),
+            "meta_2pct": trend_meta_2pct,
+            "last_month_valor": trend_last_month_val,
+        },
         "motivos": motivos_rows,
         "motivos_detailed": motivos_detailed,
         "motivos_drivers": driver_names_mot,

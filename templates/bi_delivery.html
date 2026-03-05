@@ -394,6 +394,8 @@
   const trendValor = (trend.valor || []).map(toChartNum).map(v => v !== null ? v : 0);
   const trendMa7 = (trend.ma7 || []).map(toChartNum);
   const trendMa30 = (trend.ma30 || []).map(toChartNum);
+  const trendMeta2Pct = (trend.meta_2pct || []).map(toChartNum);
+  const trendLastMonth = (trend.last_month_valor || []).map(toChartNum);
   safeChart('trendChart', {
     type: 'line',
     data: {
@@ -402,7 +404,9 @@
         { label: 'Qtd devoluções', data: trendQtd, borderColor: String(cWarn), backgroundColor: 'transparent', tension: .25, yAxisID: 'y' },
         { label: 'Valor devolvido', data: trendValor, borderColor: String(cDanger), backgroundColor: 'transparent', tension: .25, yAxisID: 'y1' },
         { label: 'Média 7', data: trendMa7, borderColor: String(cPrimary), borderDash: [5, 5], tension: .25, yAxisID: 'y1' },
-        { label: 'Média 30', data: trendMa30, borderColor: String(cSuccess), borderDash: [3, 3], tension: .25, yAxisID: 'y1' }
+        { label: 'Média 30', data: trendMa30, borderColor: String(cSuccess), borderDash: [3, 3], tension: .25, yAxisID: 'y1' },
+        { label: 'Meta 2% (R$)', data: trendMeta2Pct, borderColor: '#22c55e', backgroundColor: 'transparent', borderDash: [10, 4], tension: .1, yAxisID: 'y1' },
+        { label: 'Mês passado (R$)', data: trendLastMonth, borderColor: '#a78bfa', backgroundColor: 'transparent', borderDash: [2, 4], tension: .2, yAxisID: 'y1' }
       ]
     },
     options: {
@@ -728,10 +732,13 @@
     },
     "tendencia diaria": {
       summary: "Mostra se as devoluções estão subindo ou caindo no tempo.",
-      whatIs: "É o termômetro diário da operação. Compara quantidade e valor devolvido ao longo dos dias.",
-      howCalculated: "Conta as devoluções por dia e soma o valor devolvido por dia. As médias móveis suavizam oscilações curtas.",
-      formulaText: "Quantidade devolvida por dia e valor devolvido por dia, com média dos últimos sete e trinta dias.",
-      acronyms: [{ sigla: "Média 7/30", significado: "Média móvel dos últimos 7 e 30 dias para mostrar tendência." }],
+      whatIs: "É o termômetro diário da operação. Compara quantidade e valor devolvido ao longo dos dias, incluindo meta e referência do mês passado.",
+      howCalculated: "Conta as devoluções por dia e soma o valor devolvido por dia. As médias móveis suavizam oscilações. A meta 2% é calculada sobre o valor planejado diário.",
+      formulaText: "Quantidade e valor devolvido por dia, média 7/30, meta de dois por cento e linha de comparação com o mesmo dia do mês passado.",
+      acronyms: [
+        { sigla: "Média 7/30", significado: "Média móvel dos últimos 7 e 30 dias para mostrar tendência." },
+        { sigla: "Meta 2%", significado: "Limite alvo de devolução financeira diária sobre o valor planejado." }
+      ],
       practicalMeaning: "Se a linha diária sobe e fica acima da média de 7 dias, o problema está acelerando.",
       interpretation: { good: "Linha estável ou em queda.", attention: "Oscilação frequente e picos curtos.", critical: "Alta contínua por vários dias." },
       operationalUse: "Atuar no mesmo dia nos motivos que geraram pico e corrigir rota/processo.",
