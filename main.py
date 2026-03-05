@@ -31,6 +31,7 @@ from typing import List
 from database import create_db_and_tables, get_session, engine
 import models
 from bi_delivery_routes import router as bi_delivery_router
+from bi_motorista_routes import router as bi_motorista_router
 from devolucoes_routes import init_devolucoes_router
 from devolucoes_service import sync_route_to_devolucao
 from game_achievements_routes import init_game_achievements_router
@@ -438,6 +439,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="AnÃ¡lise Operacional", version="2.0.0", lifespan=lifespan)
 
 app.include_router(bi_delivery_router)
+app.include_router(bi_motorista_router)
 
 # Determine if running in Production (Render sets RENDER=true)
 IS_PROD = os.environ.get("RENDER", "false").lower() == "true"

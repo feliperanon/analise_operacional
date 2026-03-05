@@ -1,0 +1,454 @@
+{% extends "base.html" %}
+{% from "bi/_components.html" import kpi_card, chart_card, table_section %}
+
+{% block content %}
+{% include "mobile/_design_tokens.html" %}
+<link rel="stylesheet" href="/static/css/bi_delivery_premium.css">
+<div class="bi-page p-4 lg:p-8">
+  <div class="max-w-[1800px] mx-auto space-y-5">
+    <header class="surface-shadow bi-card">
+      <div class="bi-card-head bi-card-head-between">
+        <div class="flex items-center gap-3">
+          <div class="icon-wrap"><i data-lucide="users" class="w-5 h-5"></i></div>
+          <div>
+            <h1 class="text-title-lg">BI Motorista - Avaliação de Motoristas</h1>
+            <p class="text-caption mt-1">Dashboard de performance, elegibilidade à premiação e relativização por motorista e caminhão.</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" id="execModeToggle" class="btn-secondary" aria-pressed="false">Executivo</button>
+          <a href="/bi/delivery" class="btn-secondary">BI Entregas</a>
+        </div>
+      </div>
+
+      <form method="get" action="/bi/motorista" class="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+        <div class="form-field">
+          <label>Data inicial</label>
+          <input type="date" name="date_from" value="{{ filters.date_from }}">
+        </div>
+        <div class="form-field">
+          <label>Data final</label>
+          <input type="date" name="date_to" value="{{ filters.date_to }}">
+        </div>
+        <div class="form-field">
+          <label>Turno</label>
+          <select name="shift">
+            {% for sh in ["Todos", "Manhã", "Tarde", "Noite"] %}
+            <option value="{{ sh }}" {% if filters.shift==sh %}selected{% endif %}>{{ sh }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Motorista</label>
+          <select name="driver_id">
+            <option value="">Todos</option>
+            {% for d in drivers_filter %}
+            <option value="{{ d.id }}" {% if filters.driver_id==d.id %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Placa</label>
+          <select name="plate">
+            <option value="Todos">Todas</option>
+            {% for p in plates_filter %}
+            <option value="{{ p }}" {% if filters.plate==p %}selected{% endif %}>{{ p }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Status</label>
+          <select name="status">
+            {% for s in statuses_filter %}
+            <option value="{{ s }}" {% if filters.status==s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="xl:col-span-6 flex flex-wrap gap-2 pt-1">
+          <button class="btn-primary" type="submit">Aplicar filtros</button>
+          <a href="/bi/motorista" class="btn-secondary">Limpar</a>
+          <a href="/bi/delivery/export?format=csv&{{ filters_query }}" class="btn-secondary">CSV</a>
+          <a href="/bi/delivery/export?format=xlsx&{{ filters_query }}" class="btn-secondary">XLSX</a>
+          <a href="/bi/delivery/export?format=pdf&{{ filters_query }}" class="btn-secondary">PDF</a>
+        </div>
+      </form>
+    </header>
+
+    <!-- Bloco elegibilidade premiação -->
+    <section class="surface-shadow bi-card">
+      <div class="bi-card-head">
+        <div class="icon-wrap"><i data-lucide="award" class="w-4 h-4"></i></div>
+        <h3 class="text-section">Elegibilidade à Premiação (meta &lt; {{ meta_premiacao|fmt_br_1 }}% devolução)</h3>
+      </div>
+      <div class="mt-4 grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div class="surface p-4 rounded-lg border border-green-500/30 bg-green-500/5">
+          <p class="text-caption text-green-400">Elegíveis ({{ elegiveis|length }})</p>
+          <ul class="mt-2 space-y-1">
+            {% for r in elegiveis %}
+            <li class="flex justify-between text-body"><span>{{ r.driver_name }}</span><span class="tone-success">{{ r.return_rate|fmt_br_1 }}%</span></li>
+            {% else %}
+            <li class="text-body text-slate-500">Nenhum motorista elegível no período.</li>
+            {% endfor %}
+          </ul>
+        </div>
+        <div class="surface p-4 rounded-lg border border-amber-500/30 bg-amber-500/5">
+          <p class="text-caption text-amber-400">Fora da meta ({{ nao_elegiveis|length }})</p>
+          <ul class="mt-2 space-y-1">
+            {% for r in nao_elegiveis %}
+            <li class="flex justify-between text-body"><span>{{ r.driver_name }}</span><span class="tone-warning">{{ r.return_rate|fmt_br_1 }}%</span></li>
+            {% else %}
+            <li class="text-body text-slate-500">Todos dentro da meta.</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2">
+      {{ kpi_card("Paradas Planejadas", kpis.planned_stops, "Base do período", "route", "neutral") }}
+      {{ kpi_card("Taxa Devolução", (kpis.return_rate_qtd|fmt_br_1) ~ "%", kpis.total_devolucoes ~ " ocorrências", "undo-2", "success" if kpis.return_rate_qtd < 2 else "warning") }}
+      {{ kpi_card("Valor Devolvido", kpis.valor_total_devolvido|fmt_br_moeda, "Total acumulado", "wallet", "neutral") }}
+      {{ kpi_card("Tempo Médio", (kpis.avg_duration_m|fmt_br_int) ~ " min", "Rotas finalizadas", "timer", "success") }}
+      {{ kpi_card("Mais Rápido", (mais_rapido.avg_duration|fmt_br_int) ~ " min" if mais_rapido else "-", mais_rapido.driver_name if mais_rapido else "-", "zap", "success") }}
+      {{ kpi_card("Mais Lento", (mais_lento.avg_duration|fmt_br_int) ~ " min" if mais_lento else "-", mais_lento.driver_name if mais_lento else "-", "clock", "warning") }}
+      {{ kpi_card("Dia + Devoluções", dia_mais_devolucoes, "Padrão temporal", "calendar", "neutral") }}
+    </section>
+
+    <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      {{ chart_card("Tendência diária", "Valor devolvido e médias móveis", "trendChart") }}
+      {{ chart_card("Dia da semana × Devoluções", "Qtd e valor por dia da semana", "diaSemanaChart") }}
+    </section>
+
+    <section class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+      {{ chart_card("Motivos de devolução", "Valor por motivo e motorista", "motivosChart") }}
+      {{ chart_card("Eficiência por motorista", "Comparativo tático", "driverChart") }}
+      {{ chart_card("Motorista x Responsabilidade x Valor", "Breakdown por responsabilidade", "driverRespChart") }}
+    </section>
+
+    <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      {% call table_section("Performance por caminhão (placa)", "Relativização: paradas, devoluções e tempo médio por veículo.", "plateTable") %}
+      <thead>
+        <tr>
+          <th>Placa</th>
+          <th>Paradas</th>
+          <th>Devoluções</th>
+          <th>Taxa %</th>
+          <th>R$ devolvido</th>
+          <th>Tempo médio</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in plate_rows %}
+        <tr>
+          <td class="font-medium">{{ row.placa }}</td>
+          <td>{{ row.paradas }}</td>
+          <td class="{{ 'tone-warning' if row.taxa_devolucao >= 5 else '' }}">{{ row.devolucoes }}</td>
+          <td class="{{ 'tone-danger' if row.taxa_devolucao >= 10 else 'tone-warning' if row.taxa_devolucao >= 5 else '' }}">{{ row.taxa_devolucao|fmt_br_1 }}%</td>
+          <td>{{ row.valor_devolvido|fmt_br_moeda }}</td>
+          <td>{{ row.tempo_medio|fmt_br_int }} min</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-body text-slate-500">Sem dados por placa no período.</td></tr>
+        {% endfor %}
+      </tbody>
+      {% endcall %}
+
+      <section class="surface-shadow bi-card">
+        <div class="bi-card-head">
+          <div class="icon-wrap"><i data-lucide="activity" class="w-4 h-4"></i></div>
+          <h3 class="text-section">Inteligência — Oscilação (σ)</h3>
+        </div>
+        <p class="text-caption mt-1">Estabilidade da taxa de devolução. Menor σ = mais estável.</p>
+        <div class="mt-4 space-y-2 max-h-64 overflow-y-auto">
+          {% for r in oscilacao_rows %}
+          <div class="insight-row {{ 'insight-warning' if not r.estavel and r.return_rate >= 5 else '' }}">
+            <span class="font-medium">{{ r.driver_name }}</span> — σ {{ r.sigma|fmt_br_1 }}% | Taxa {{ r.return_rate|fmt_br_1 }}%
+          </div>
+          {% else %}
+          <div class="insight-row">Dados insuficientes para calcular oscilação.</div>
+          {% endfor %}
+        </div>
+      </section>
+    </section>
+
+    <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      <section class="surface-shadow bi-card">
+        <div class="bi-card-head">
+          <div class="icon-wrap"><i data-lucide="siren" class="w-4 h-4"></i></div>
+          <h3 class="text-section">Anomalias detectadas</h3>
+        </div>
+        <div class="mt-4 space-y-2">
+          {% for item in anomaly_flags %}
+          <div class="insight-row insight-warning">{{ item }}</div>
+          {% else %}
+          <div class="insight-row">Nenhuma anomalia relevante no período.</div>
+          {% endfor %}
+        </div>
+      </section>
+      <section class="surface-shadow bi-card">
+        <div class="bi-card-head">
+          <div class="icon-wrap"><i data-lucide="bot" class="w-4 h-4"></i></div>
+          <h3 class="text-section">Recomendações</h3>
+        </div>
+        <div class="mt-4 space-y-2">
+          {% for rec in recommendations %}
+          <div class="insight-row">{{ loop.index }}. {{ rec }}</div>
+          {% endfor %}
+        </div>
+      </section>
+    </section>
+
+    <div class="exec-hidden hidden">
+      {% call table_section("Painel tático por motorista", "Clique no motorista para drill-down. Meta premiação &lt; 2%.", "tacticalTable") %}
+      <thead>
+        <tr>
+          <th>Motorista</th>
+          <th>Paradas</th>
+          <th>Eficiência</th>
+          <th>Devolução %</th>
+          <th>KG pl.</th>
+          <th>R$ devolvido</th>
+          <th>Reaberturas</th>
+          <th>Tempo médio</th>
+          <th>Elegível</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in tactical_rows %}
+        <tr>
+          <td><a class="table-link" href="/bi/motorista?{{ filters_query }}&detail_driver_id={{ row.driver_id }}#drilldown-section">{{ row.driver_name }}</a></td>
+          <td>{% if row.planned_stops > 0 %}{{ row.delivered_stops }}/{{ row.planned_stops }}{% else %}—{% endif %}</td>
+          <td class="{{ 'tone-danger' if row.efficiency < 70 else 'tone-success' }}">{{ row.efficiency|fmt_br_1 }}%</td>
+          <td class="{{ 'tone-warning' if row.return_rate >= 5 else '' }}">{{ row.return_rate|fmt_br_1 }}%</td>
+          <td>{{ row.planned_kg|fmt_br_2 }}</td>
+          <td>{{ row.returned_value|fmt_br_moeda }}</td>
+          <td>{{ row.reopen_count }}</td>
+          <td>{{ row.avg_duration|fmt_br_int }} min</td>
+          <td>{% if row.return_rate < 2 and row.planned_stops >= 5 %}<span class="tone-success">Sim</span>{% else %}<span class="tone-warning">Não</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      {% endcall %}
+    </div>
+
+    <section id="drilldown-section" class="surface-shadow bi-card exec-hidden hidden">
+      <div class="bi-card-head bi-card-head-between">
+        <div>
+          <h3 class="text-section">Drill-through operacional</h3>
+          <p class="text-caption mt-1">{{ detail_title }} | {{ detail_total }} registros</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <input id="drillSearch" class="input-mini" placeholder="Filtrar cliente/motorista/status...">
+          <select id="drillPageSize" class="input-mini">
+            <option value="15">15</option>
+            <option value="30" selected>30</option>
+            <option value="60">60</option>
+          </select>
+        </div>
+      </div>
+      <div class="mt-4 overflow-auto">
+        <table class="bi-table min-w-[1300px]">
+          <thead>
+            <tr>
+              <th data-sort="date">Data</th>
+              <th data-sort="shift">Turno</th>
+              <th data-sort="driver_name">Motorista</th>
+              <th data-sort="client_name">Cliente</th>
+              <th data-sort="status">Status</th>
+              <th data-sort="planned_value">R$ pl.</th>
+              <th data-sort="returned_value">R$ dev.</th>
+              <th data-sort="duration_m">Duração</th>
+              <th data-sort="plate">Placa</th>
+            </tr>
+          </thead>
+          <tbody id="drillBody"></tbody>
+        </table>
+      </div>
+      <footer class="mt-4 flex items-center justify-between gap-2">
+        <p class="text-caption" id="drillSummary">0 registros</p>
+        <div class="flex items-center gap-2">
+          <button id="prevPage" class="btn-secondary">Anterior</button>
+          <button id="nextPage" class="btn-secondary">Próxima</button>
+        </div>
+      </footer>
+    </section>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+  const chartData = {{ chart_payload_json|safe }} || {};
+  const detailRows = {{ detail_rows_json|safe }} || [];
+  window.__biChartData = chartData;
+  window.__biDetailRows = detailRows;
+
+  const cMuted = '#94a3b8', cBorder = 'rgba(148,163,184,0.3)', cWarn = '#f59e0b', cDanger = '#ef4444', cPrimary = '#3b82f6', cSuccess = '#10b981';
+  function toChartNum(v) { if (v == null || v === '') return null; const n = Number(v); return Number.isFinite(n) ? n : null; }
+  function dataBR(s) { if (!s) return '-'; const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}/${m[2]}/${m[1]}` : s; }
+  function numeroBR(n, dec) { const x = Number(n); return isNaN(x) ? '0,00' : x.toLocaleString('pt-BR', { minimumFractionDigits: dec ?? 2, maximumFractionDigits: dec ?? 2 }); }
+  function moedaBR(n) { return isNaN(Number(n)) ? 'R$ 0,00' : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+  const safeStr = (v) => (v == null ? '' : String(v));
+
+  function safeChart(id, config) {
+    try { const el = document.getElementById(id); if (el && typeof Chart !== 'undefined') return new Chart(el, config); } catch (e) { console.warn(id, e); }
+    return null;
+  }
+
+  const trend = chartData.trend || {};
+  const trendDates = trend.dates || [];
+  const trendLabels = trendDates.map(d => dataBR(d) || d);
+  const trendValor = (trend.valor || []).map(toChartNum).map(v => v ?? 0);
+  const trendMa7 = (trend.ma7 || []).map(toChartNum);
+  safeChart('trendChart', {
+    type: 'line',
+    data: {
+      labels: trendLabels,
+      datasets: [
+        { label: 'Valor devolvido', data: trendValor, borderColor: cDanger, backgroundColor: 'transparent', tension: .25 },
+        { label: 'Média 7', data: trendMa7, borderColor: cPrimary, borderDash: [5, 5], tension: .25 }
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: cMuted } } }, scales: { x: { ticks: { color: cMuted }, grid: { color: cBorder } }, y: { ticks: { color: cMuted }, grid: { color: cBorder } } } }
+  });
+
+  const diaSemana = chartData.dia_semana || {};
+  safeChart('diaSemanaChart', {
+    type: 'bar',
+    data: {
+      labels: diaSemana.labels || [],
+      datasets: [
+        { label: 'Qtd devoluções', data: (diaSemana.qtd || []).map(toChartNum).map(v => v ?? 0), backgroundColor: cWarn },
+        { label: 'Valor (R$)', data: (diaSemana.valor || []).map(toChartNum).map(v => v ?? 0), backgroundColor: cDanger }
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: cMuted } } }, scales: { x: { ticks: { color: cMuted }, grid: { color: cBorder } }, y: { ticks: { color: cMuted }, grid: { color: cBorder } } } }
+  });
+
+  const md = chartData.motivos_detailed || [];
+  const motDrivers = chartData.motivos_drivers || [];
+  const driverColors = ['#3b82f6', '#f59e0b', '#ef4444', '#10b981', '#8b5cf6'];
+  safeChart('motivosChart', {
+    type: 'bar',
+    data: {
+      labels: md.map(x => safeStr(x.motivo)),
+      datasets: motDrivers.map((drv, i) => ({ label: safeStr(drv), data: md.map(m => (m.por_motorista && m.por_motorista[drv]) ? Number(m.por_motorista[drv].valor) : 0), backgroundColor: driverColors[i % driverColors.length], stack: 'stack0' }))
+    },
+    options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { labels: { color: cMuted } } }, scales: { x: { ticks: { color: cMuted }, stacked: true }, y: { ticks: { color: cMuted }, stacked: true } } }
+  });
+
+  const driversData = chartData.drivers || [];
+  safeChart('driverChart', {
+    type: 'bar',
+    data: {
+      labels: driversData.map(x => safeStr(x.driver)),
+      datasets: [
+        { label: 'Eficiência %', data: driversData.map(x => toChartNum(x.eficiencia) ?? 0), backgroundColor: cSuccess },
+        { label: 'Devolução %', data: driversData.map(x => toChartNum(x.devolucao_pct) ?? 0), backgroundColor: cWarn }
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: cMuted } } }, scales: { x: { ticks: { color: cMuted } }, y: { ticks: { color: cMuted } } } }
+  });
+
+  const dr = chartData.driver_resp_valor || {};
+  const respColors = [cPrimary, cWarn, cDanger, cSuccess];
+  safeChart('driverRespChart', {
+    type: 'bar',
+    data: {
+      labels: (dr.drivers || []).map(d => safeStr(d)),
+      datasets: (dr.datasets || []).map((ds, i) => ({ label: safeStr(ds.resp), data: (ds.data || []).map(v => toChartNum(v) ?? 0), backgroundColor: respColors[i % respColors.length], stack: 'stack0' }))
+    },
+    options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { labels: { color: cMuted } } }, scales: { x: { ticks: { color: cMuted }, stacked: true }, y: { ticks: { color: cMuted }, stacked: true } } }
+  });
+
+  let state = { rows: [...detailRows], page: 1, pageSize: 30, sortKey: 'date', sortDir: 'desc', search: '' };
+  const drillBody = document.getElementById('drillBody');
+  const drillSummary = document.getElementById('drillSummary');
+  document.getElementById('drillSearch')?.addEventListener('input', e => { state.search = e.target.value.toLowerCase(); state.page = 1; renderDrill(); });
+  document.getElementById('drillPageSize')?.addEventListener('change', e => { state.pageSize = Number(e.target.value); state.page = 1; renderDrill(); });
+  document.getElementById('prevPage')?.addEventListener('click', () => { state.page = Math.max(1, state.page - 1); renderDrill(); });
+  document.getElementById('nextPage')?.addEventListener('click', () => { state.page++; renderDrill(); });
+  document.querySelectorAll('#drilldown-section th[data-sort]').forEach(th => th.addEventListener('click', () => {
+    const key = th.dataset.sort;
+    state.sortDir = state.sortKey === key && state.sortDir === 'asc' ? 'desc' : 'asc';
+    state.sortKey = key;
+    renderDrill();
+  }));
+
+  function cmp(a, b) {
+    const av = a[state.sortKey], bv = b[state.sortKey];
+    if (av == null && bv == null) return 0;
+    if (av == null) return -1;
+    if (bv == null) return 1;
+    return (typeof av === 'number' && typeof bv === 'number') ? av - bv : String(av).localeCompare(String(bv), 'pt-BR');
+  }
+
+  const statusMeta = (raw) => {
+    const v = String(raw || '').toLowerCase();
+    if (v === 'devolucao') return { cls: 'status-danger', label: 'Devolução' };
+    if (v === 'entregue') return { cls: 'status-success', label: 'Entregue' };
+    if (v === 'iniciada') return { cls: 'status-info', label: 'Iniciada' };
+    return { cls: 'status-muted', label: v ? v.charAt(0).toUpperCase() + v.slice(1) : '-' };
+  };
+
+  function renderDrill() {
+    const filtered = state.rows.filter(r => !state.search || `${r.driver_name} ${r.client_name} ${r.status}`.toLowerCase().includes(state.search))
+      .sort((a, b) => state.sortDir === 'asc' ? cmp(a, b) : cmp(b, a));
+    const total = filtered.length;
+    const pages = Math.max(1, Math.ceil(total / state.pageSize));
+    state.page = Math.min(state.page, pages);
+    const slice = filtered.slice((state.page - 1) * state.pageSize, state.page * state.pageSize);
+    drillBody.innerHTML = slice.map(r => {
+      const st = statusMeta(r.status);
+      return `<tr>
+        <td>${dataBR(r.date)}</td><td>${r.shift || '-'}</td><td>${safeStr(r.driver_name)}</td><td>${safeStr(r.client_name)}</td>
+        <td><span class="status-chip ${st.cls}">${st.label}</span></td><td>${moedaBR(r.planned_value)}</td>
+        <td>${moedaBR(r.returned_value)}</td><td>${r.duration_m ? numeroBR(r.duration_m, 0) + ' min' : '-'}</td><td>${safeStr(r.plate)}</td>
+      </tr>`;
+    }).join('');
+    drillSummary.textContent = `${total} registros | página ${state.page}/${pages}`;
+  }
+  renderDrill();
+
+  document.getElementById('execModeToggle')?.addEventListener('click', () => {
+    const el = document.querySelector('.exec-hidden');
+    if (el) el.classList.toggle('hidden');
+  });
+  if (window.lucide) window.lucide.createIcons();
+</script>
+<script src="/static/js/bi_delivery_premium.js"></script>
+
+<style>
+  .bi-page { background: var(--color-bg); color: var(--color-text); }
+  .bi-card { padding: var(--space-4, 1rem); }
+  .bi-card-head { display: flex; align-items: center; gap: .75rem; }
+  .bi-card-head-between { justify-content: space-between; }
+  .surface-shadow { background: var(--color-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); border: 1px solid var(--color-border); }
+  .surface { background: var(--color-surface); border-radius: var(--radius-lg); border: 1px solid var(--color-border); }
+  .icon-wrap, .icon-wrap-sm { background: var(--color-border-light); color: var(--color-text-secondary); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; }
+  .icon-wrap { width: 2.25rem; height: 2.25rem; }
+  .icon-wrap-sm { width: 2rem; height: 2rem; }
+  .text-title-lg { font-size: var(--text-title-lg); color: var(--color-text); font-weight: 600; }
+  .text-section { font-size: var(--text-section); font-weight: 600; }
+  .text-body { font-size: var(--text-body); color: var(--color-text-secondary); }
+  .text-caption { font-size: var(--text-caption); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .06em; }
+  .form-field label { display: block; margin-bottom: .35rem; font-size: var(--text-caption); text-transform: uppercase; color: var(--color-text-muted); }
+  .form-field input, .form-field select, .input-mini { width: 100%; min-height: 42px; border-radius: var(--radius-md); border: 2px solid var(--color-border); background: var(--color-input-bg); color: var(--color-text); padding: 0 .75rem; }
+  .btn-primary, .btn-secondary { min-height: 42px; border-radius: var(--radius-md); padding: 0 1rem; display: inline-flex; align-items: center; justify-content: center; font-size: var(--text-body); font-weight: 600; }
+  .btn-primary { background: var(--color-primary); color: var(--color-text-inverse); }
+  .btn-secondary { background: var(--color-surface); color: var(--color-text); border: 2px solid var(--color-border); }
+  .bi-table { width: 100%; border-collapse: collapse; }
+  .bi-table thead th { position: sticky; top: 0; background: var(--color-surface); border-bottom: 1px solid var(--color-border); text-align: left; font-size: var(--text-caption); color: var(--color-text-muted); padding: .65rem; cursor: pointer; }
+  .bi-table tbody td { border-bottom: 1px solid color-mix(in srgb, var(--color-border-light) 78%, transparent); padding: .58rem; }
+  .table-link { color: var(--color-primary); text-decoration: underline dotted; font-weight: 600; }
+  .tone-success { color: var(--color-success) !important; font-weight: 600; }
+  .tone-warning { color: var(--color-warning) !important; font-weight: 600; }
+  .tone-danger { color: var(--color-danger) !important; font-weight: 600; }
+  .insight-row { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: .6rem; background: var(--color-surface); font-size: var(--text-body); }
+  .insight-warning { border-color: var(--color-warning); }
+  .status-chip { display: inline-flex; padding: .2rem .5rem; border-radius: 999px; font-size: .66rem; font-weight: 800; text-transform: uppercase; }
+  .status-success { color: #d1fae5; background: rgba(16,185,129,.22); }
+  .status-danger { color: #fee2e2; background: rgba(239,68,68,.24); }
+  .status-info { color: #dbeafe; background: rgba(59,130,246,.22); }
+  .status-muted { color: #e2e8f0; background: rgba(100,116,139,.22); }
+</style>
+{% endblock %}
