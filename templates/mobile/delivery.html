@@ -22,7 +22,7 @@
                     <p class="text-section" style="color: var(--color-text);">Minhas Rotas</p>
                     <p class="text-caption-lg mt-0.5" x-text="assignedPlate ? `Caminhão: ${assignedPlate}` : 'Sem caminhão planejado'"></p>
                 </div>
-                <button x-show="!deliverySessionOpen" @click="openStartEntry()" class="px-3 py-2 rounded-lg font-semibold text-body text-white transition-opacity min-h-[48px]" style="background: var(--color-primary);">Iniciar</button>
+                <button x-show="!deliverySessionOpen" @click="openStartEntry()" class="btn-iniciar-route px-3 py-2 rounded-lg font-semibold text-body transition-opacity min-h-[48px] interactive" style="background-color: #1e3a8a !important; color: #ffffff !important;">Iniciar</button>
                 <button x-show="deliverySessionOpen" @click="showDeliveryEndModal = true" class="px-3 py-2 rounded-lg font-semibold text-body text-white transition-opacity min-h-[48px]" style="background: var(--color-success);">Encerrar</button>
             </div>
 
@@ -136,7 +136,7 @@
     </div>
 
     <!-- Modal: Iniciar Entregas -->
-    <div x-show="showDeliverySetupModal" class="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" @click.self="showDeliverySetupModal = false">
+    <div x-show="showDeliverySetupModal" class="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4 bg-black/40" x-cloak @click.self="showDeliverySetupModal = false">
         <div @click.stop class="w-full max-w-lg rounded-lg flex flex-col max-h-[90vh] overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
             <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
                 <div class="icon-wrap w-12 h-12 flex-shrink-0" style="background: var(--color-primary); color: white;"><i data-lucide="truck" class="w-6 h-6"></i></div>
@@ -185,7 +185,7 @@
     </div>
 
     <!-- Modal: Encerrar -->
-    <div x-show="showDeliveryEndModal" class="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" @click.self="showDeliveryEndModal=false">
+    <div x-show="showDeliveryEndModal" class="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4 bg-black/40" x-cloak @click.self="showDeliveryEndModal=false">
         <div @click.stop class="w-full max-w-md rounded-lg p-4" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
             <div class="mb-4">
                 <h3 class="text-title" style="color: var(--color-text);">Encerrar na Empresa</h3>
@@ -202,7 +202,7 @@
     </div>
 
     <!-- Modal: Devolução -->
-    <div x-show="showMobileReturnModal" class="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" @click.self="showMobileReturnModal=false">
+    <div x-show="showMobileReturnModal" class="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4 bg-black/40" x-cloak @click.self="showMobileReturnModal=false">
         <div @click.stop class="w-full max-w-lg rounded-lg p-4 space-y-4" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
             <h3 class="text-title" style="color: var(--color-text);">Registrar Devolução</h3>
             <div>

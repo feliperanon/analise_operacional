@@ -673,8 +673,8 @@
 
     const points = [...corrPoints].sort((a, b) => (Number(b.valor || 0) - Number(a.valor || 0)) || (Number(b.qtd || 0) - Number(a.qtd || 0)));
     if (!points.length) {
-      topEl.innerHTML = '<div class="insight-row">Sem pares com devolu??o no per?odo.</div>';
-      matrixEl.innerHTML = '<div class="insight-row">Sem dados para matriz de correla??o.</div>';
+      topEl.innerHTML = '<div class="insight-row">Sem pares com devolucao no periodo.</div>';
+      matrixEl.innerHTML = '<div class="insight-row">Sem dados para matriz de correlacao.</div>';
       return;
     }
 
@@ -708,7 +708,7 @@
       pairMap.set(`${p.driver}|||${p.client}`, p);
     });
 
-    const head = `<thead><tr><th>Cliente \ Motorista</th>${topDrivers.map(d => `<th>${safeStr(d)}</th>`).join('')}</tr></thead>`;
+    const head = `<thead><tr><th>Cliente x Motorista</th>${topDrivers.map(d => `<th>${safeStr(d)}</th>`).join('')}</tr></thead>`;
     const bodyRows = topClients.map((c) => {
       const cells = topDrivers.map((d) => {
         const p = pairMap.get(`${d}|||${c}`);
