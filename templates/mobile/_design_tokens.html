@@ -1,30 +1,28 @@
 <!--
-DESIGN TOKENS - Mobile Design System (Operacional)
-Regras: cor só com significado operacional; hierarquia clara; mínima carga cognitiva.
+DESIGN TOKENS - PWA Elite | Sistema Souza Pinto
+Glassmorfismo, sombras dinâmicas, gradientes operacionais.
 -->
 
 <style>
     :root {
-        /* === CORES (RÍGIDO) === */
-        --color-bg: #f8fafc;                    /* slate-50 - background padrão */
-        --color-surface: #ffffff;               /* superfície principal */
-        --color-border: #e2e8f0;                /* slate-200 */
-        --color-border-light: #f1f5f9;           /* slate-100 */
+        /* === CORES === */
+        --color-bg: #f1f5f9;
+        --color-surface: #ffffff;
+        --color-border: #e2e8f0;
+        --color-border-light: #f1f5f9;
 
-        --color-text: #0f172a;                   /* slate-900 - primário */
-        --color-text-secondary: #475569;         /* slate-600 */
-        --color-text-muted: #94a3b8;             /* slate-400 */
+        --color-text: #0f172a;
+        --color-text-secondary: #475569;
+        --color-text-muted: #94a3b8;
         --color-text-inverse: #ffffff;
 
-        --color-icon: #64748b;                   /* slate-500 - ícones padrão */
+        --color-icon: #64748b;
 
-        /* Azul: SOMENTE ações primárias, estados ativos, logomarca */
-        --color-action: #2563eb;                 /* blue-600 - ações */
-        --color-primary: #1e3a8a;                /* blue-900 - botão primário, ativo, logo */
-        --color-primary-bg: #eff6ff;              /* blue-50 - bg ativo leve */
-        --color-primary-border: #dbeafe;        /* blue-100 */
+        --color-action: #2563eb;
+        --color-primary: #1e3a8a;
+        --color-primary-bg: #eff6ff;
+        --color-primary-border: #dbeafe;
 
-        /* Estados funcionais (só quando necessário) */
         --color-success: #16a34a;
         --color-success-bg: #dcfce7;
         --color-danger: #dc2626;
@@ -32,7 +30,22 @@ Regras: cor só com significado operacional; hierarquia clara; mínima carga cog
         --color-warning: #ca8a04;
         --color-warning-bg: #fef9c3;
 
-        /* === TIPOGRAFIA (MOBILE-FIRST) === */
+        /* === GLASSMORFISMO === */
+        --glass-bg: rgba(255, 255, 255, 0.72);
+        --glass-border: rgba(255, 255, 255, 0.4);
+        --glass-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+
+        /* === SOMBRAS DINÂMICAS === */
+        --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+        --shadow-card: 0 2px 8px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+        --shadow-elevated: 0 8px 24px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04);
+        --shadow-xl: 0 20px 40px rgba(15, 23, 42, 0.12);
+        --shadow-modal: 0 24px 48px rgba(15, 23, 42, 0.16);
+
+        /* === GRADIENTES OPERACIONAIS === */
+        --gradient-header: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #1d4ed8 100%);
+
+        /* === TIPOGRAFIA === */
         --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         --font-mono: ui-monospace, monospace;
 
@@ -69,11 +82,6 @@ Regras: cor só com significado operacional; hierarquia clara; mínima carga cog
         --border: 1px solid var(--color-border);
         --border-2: 2px solid var(--color-border);
 
-        /* === SOMBRAS (leve, não decorativa) === */
-        --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
-        --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.06);
-        --shadow-modal: 0 4px 12px rgba(15, 23, 42, 0.1);
-
         /* === INTERAÇÃO === */
         --color-input-bg: #ffffff;
         --color-hover: #f1f5f9;
@@ -101,17 +109,34 @@ Regras: cor só com significado operacional; hierarquia clara; mínima carga cog
         padding-right: var(--space-4);
     }
 
-    /* Card: branco, borda suave OU sombra leve (não ambos) */
+    /* Cards: elevação com sombras dinâmicas */
     .surface {
         background: var(--color-surface);
-        border: var(--border);
+        border: 1px solid var(--color-border);
         border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-card);
     }
 
     .surface-shadow {
         background: var(--color-surface);
         border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-card);
+        box-shadow: var(--shadow-elevated);
+    }
+
+    /* Header com gradiente operacional */
+    .header-gradient {
+        background: var(--gradient-header);
+        box-shadow: var(--shadow-elevated);
+    }
+
+    /* Glassmorfismo (elevação) */
+    .surface-glass {
+        background: var(--glass-bg);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--glass-border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--glass-shadow);
     }
 
     /* Container de ícone: neutro */
@@ -202,8 +227,29 @@ Regras: cor só com significado operacional; hierarquia clara; mínima carga cog
         opacity: 0.9;
     }
 
+    .interactive-scale:active {
+        transform: scale(0.97);
+    }
+
     .disabled {
         opacity: 0.5;
         pointer-events: none;
     }
+
+    /* === ANIMAÇÕES PWA === */
+    @keyframes pulse-slow {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.6; }
+    }
+    @keyframes bounce-short {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+    @keyframes xp-shine {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+    .animate-pulse-slow { animation: pulse-slow 2s ease-in-out infinite; }
+    .animate-bounce-short { animation: bounce-short 0.4s ease-out; }
+    .animate-xp-shine { animation: xp-shine 1.5s ease-in-out; }
 </style>

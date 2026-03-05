@@ -20,7 +20,32 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', path='css/mobile.css') }}?v=10.0">
 
-    <!-- Alpine.js 3.14.7+ (corrige bugs de x-teleport em modais) -->
+    <!-- canvas-confetti para celebrações -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+
+    <!-- Alpine.js + Alpine.store antes do init -->
+    <script defer>
+        document.addEventListener('alpine:init', () => {
+            Alpine.store('ui', {
+                xpPopupQueue: [],
+                notificationQueue: [],
+                showXpPopup(amount, callback) {
+                    this.xpPopupQueue.push({ amount, callback });
+                    if (this.xpPopupQueue.length === 1) this._processXpQueue();
+                },
+                _processXpQueue() {
+                    const next = this.xpPopupQueue[0];
+                    if (!next) return;
+                    if (typeof window.showXpPopupGlobal === 'function') window.showXpPopupGlobal(next.amount);
+                    setTimeout(() => {
+                        this.xpPopupQueue.shift();
+                        if (typeof next.callback === 'function') next.callback();
+                        if (this.xpPopupQueue.length > 0) setTimeout(() => this._processXpQueue(), 400);
+                    }, 1800);
+                }
+            });
+        });
+    </script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.7/dist/cdn.min.js"></script>
 
     <!-- Icons -->

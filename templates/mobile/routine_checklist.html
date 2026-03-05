@@ -285,9 +285,11 @@
                     const res = await fetch('/api/routine/checklists', { method: 'POST', body: formData });
                     const result = await res.json();
                     if (!res.ok || !result.success) throw new Error(result.error || result.detail || 'Erro no envio');
-                    this.statusMessage = 'Checklist salvo! +XP computado.';
+                    const xp = result.xp_earned || 50;
+                    this.statusMessage = `Equipamento Seguro! Você ganhou +${xp} XP`;
                     this.statusType = 'success';
-                    setTimeout(() => { window.location.href = '/mobile/dashboard?success=checklist+concluido'; }, 1000);
+                    if (typeof confetti === 'function') confetti({ particleCount: 50, spread: 60, origin: { y: 0.5 } });
+                    setTimeout(() => { window.location.href = '/mobile/dashboard?success=checklist+concluido'; }, 1500);
                 } catch (e) {
                     this.statusMessage = e.message;
                     this.statusType = 'error';

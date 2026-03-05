@@ -5,18 +5,18 @@
     <div class="px-6 py-4 rounded-xl font-bold text-xl text-white" style="background: var(--color-primary); box-shadow: var(--shadow-modal);">+<span id="xp-amount-delivery">0</span> XP!</div>
 </div>
 <div x-data="deliveryPageController()" x-init="init()" class="min-h-screen pb-safe" style="background: var(--color-bg);">
-    <header class="container-mobile py-4 border-b shrink-0 relative z-20" style="border-color: var(--color-border-light); background: var(--color-surface);">
+    <header class="container-mobile py-4 shrink-0 relative z-20 header-gradient">
         <div class="flex items-center justify-between">
-            <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap">
+            <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap" style="background: rgba(255,255,255,0.2); color: white;">
                 <i data-lucide="arrow-left" class="w-5 h-5"></i>
             </a>
-            <h1 class="text-title-lg" style="color: var(--color-text);">Rota de Entregas</h1>
+            <h1 class="text-title-lg text-white font-bold">Rota de Entregas</h1>
             <div class="w-10"></div>
         </div>
     </header>
 
     <div class="container-mobile mt-4">
-        <div class="surface p-4">
+        <div class="surface-shadow p-4">
             <div class="flex items-start justify-between gap-2 mb-3">
                 <div>
                     <p class="text-section" style="color: var(--color-text);">Minhas Rotas</p>
@@ -75,8 +75,15 @@
             </div>
 
             <div class="space-y-2 max-h-[62vh] overflow-y-auto custom-scrollbar mt-2" x-show="deliverySessionOpen && !!selectedDeliveryDay">
+                <template x-if="activeDeliveryRoutes.length === 0 && completedDeliveryRoutes.length === 0">
+                    <div class="empty-state surface mt-4">
+                        <i data-lucide="package" class="empty-icon"></i>
+                        <p class="empty-title">Nenhuma parada nesta rota</p>
+                        <p class="text-caption" style="color: var(--color-text-muted);">Selecione outro dia ou confira com o planejamento.</p>
+                    </div>
+                </template>
                 <template x-for="route in activeDeliveryRoutes" :key="`route-${route.id}`">
-                    <div class="surface p-3 rounded-lg" :class="routeStatusCardClass(route)">
+                    <div class="surface-shadow touch-scale p-3 rounded-lg" :class="routeStatusCardClass(route)">
                         <div class="flex items-start justify-between gap-2">
                             <div>
                                 <p class="text-body font-semibold truncate" style="color: var(--color-text);" x-text="route.client_name"></p>
@@ -106,7 +113,7 @@
                     </button>
                     <div x-show="completedAccordionOpen" x-transition class="space-y-2 mt-2">
                         <template x-for="route in completedDeliveryRoutes" :key="`completed-${route.id}`">
-                            <div class="surface p-3 rounded-lg opacity-90" :class="routeStatusCardClass(route)">
+                            <div class="surface-shadow p-3 rounded-lg opacity-90" :class="routeStatusCardClass(route)">
                                 <div class="flex items-start justify-between gap-2">
                                     <div>
                                         <p class="text-body font-semibold truncate" style="color: var(--color-text);" x-text="route.client_name"></p>
@@ -397,7 +404,8 @@
                 fetch(`/api/mobile/delivery/route/${route.id}/action`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) })
                     .then(r => r.json()).then(data => {
                         if (!data.success) return alert(data.error || 'Erro.');
-                        this.loadDeliveryData(); this.haptic();
+                        this.loadDeliveryData(); this.haptic(action === 'finalizar' ? 'success' : 'medium');
+                        if (data.xp_earned && typeof this.showXpPopup === 'function') this.showXpPopup(data.xp_earned);
                     });
             },
             openMobileReturnModal(route) { this.mobileReturnRoute = route; this.mobileReturn = { reason: this.mobileReturnReasons[0] || '', is_partial: false, weight: '', value: '' }; this.showMobileReturnModal = true; },
@@ -422,12 +430,26 @@
                     this.$nextTick(() => lucide.createIcons());
                 });
             },
+            playSuccessSound() {
+                try {
+                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.frequency.value = 800; osc.type = 'sine';
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+                    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.08);
+                } catch (_) {}
+            },
             showXpPopup(amount) {
                 const el = document.getElementById('xp-popup-delivery');
                 if (!el) return;
                 const span = document.getElementById('xp-amount-delivery');
                 if (span) span.textContent = Number(amount) || 0;
                 el.classList.remove('hidden');
+                this.playSuccessSound();
+                if (typeof confetti === 'function') confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
                 setTimeout(() => el.classList.add('hidden'), 1800);
             },
         };

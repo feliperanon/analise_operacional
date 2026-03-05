@@ -7,15 +7,15 @@
     Você está offline
 </div>
 
-<!-- Pull to Refresh -->
-<div id="pull-indicator" class="pull-indicator flex items-center justify-center gap-2">
-    <i data-lucide="refresh-cw" class="w-4 h-4 animate-spin"></i>
-    <span>Atualizando...</span>
+<!-- Pull to Refresh premium -->
+<div id="pull-indicator" class="pull-indicator">
+    <i data-lucide="refresh-cw" class="w-5 h-5 pull-icon"></i>
+    <span id="pull-text">Puxe para atualizar</span>
 </div>
 
-<!-- XP Popup (feedback funcional) -->
-<div id="xp-popup" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] pointer-events-none hidden">
-    <div class="px-6 py-4 rounded-xl font-bold text-xl text-white" style="background: var(--color-primary); box-shadow: var(--shadow-modal);">
+<!-- XP Popup -->
+<div id="xp-popup" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] pointer-events-none hidden flex items-center justify-center">
+    <div class="px-8 py-5 rounded-2xl font-bold text-2xl text-white animate-bounce-short" style="background: var(--gradient-header); box-shadow: var(--shadow-xl);">
         +<span id="xp-amount">0</span> XP!
     </div>
 </div>
@@ -34,36 +34,44 @@
     </div>
     {% endif %}
 
-    <!-- Loading Skeleton -->
+    <!-- Loading Skeleton (formato dos cards) -->
     <template x-if="!initialized">
-        <div class="container-mobile mt-8 animate-pulse">
-            <div class="h-32 skeleton rounded-xl mb-4"></div>
+        <div class="container-mobile mt-8">
+            <div class="skeleton skeleton-card mb-4"></div>
             <div class="grid grid-cols-2 gap-3">
-                <div class="h-24 skeleton rounded-xl"></div>
-                <div class="h-24 skeleton rounded-xl"></div>
+                <div class="skeleton h-24 rounded-xl"></div>
+                <div class="skeleton h-24 rounded-xl"></div>
             </div>
+            <div class="skeleton skeleton-card mt-4"></div>
         </div>
     </template>
 
     <!-- Main Content -->
     <div x-show="initialized">
         
-        <!-- 1. Identidade compacta + XP -->
-        <section class="border-b py-4" style="border-color: var(--color-border-light); background: var(--color-surface);">
+        <!-- 1. Identidade + XP (gradiente operacional) -->
+        <section class="py-5" style="background: var(--gradient-header); box-shadow: var(--shadow-elevated);">
             <div class="container-mobile">
                 <div class="flex items-center justify-between gap-3">
                     <div class="flex items-center gap-3 flex-1 min-w-0">
                         <div class="relative flex-shrink-0">
-                            <div class="w-12 h-12 rounded-lg overflow-hidden" style="background: var(--color-primary);">
+                            <div class="w-12 h-12 rounded-xl overflow-hidden ring-2 ring-white/30 shadow-lg" style="background: var(--color-primary);">
                                 <img src="{{ url_for('static', path='badges/' + gamification.level.badge_image) }}"
                                     onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name }}&background=1e3a8a&color=fff'"
                                     class="w-full h-full object-cover" alt="">
                             </div>
-                            <span class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-semibold text-white border-2 border-white" style="background: var(--color-primary);">{{ gamification.level.level }}</span>
+                            <span class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-semibold text-white border-2 border-white shadow" style="background: var(--color-primary);">{{ gamification.level.level }}</span>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <h1 class="text-title truncate" style="color: var(--color-text);">{{ employee.name }}</h1>
-                            <p class="text-caption-lg mt-0.5">{{ gamification.level.name }}</p>
+                            <div class="flex items-center gap-2">
+                                <h1 class="text-title truncate text-white">{{ employee.name }}</h1>
+                                {% if streak_days and streak_days > 0 %}
+                                <span class="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/90 text-amber-900" title="{{ streak_days }} dias seguidos">
+                                    <i data-lucide="flame" class="w-3 h-3"></i>{{ streak_days }}
+                                </span>
+                                {% endif %}
+                            </div>
+                            <p class="text-caption-lg mt-0.5 text-blue-100">{{ gamification.level.name }}</p>
                         </div>
                     </div>
                     <a href="/mobile/achievements" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap flex-shrink-0">
@@ -72,20 +80,23 @@
                 </div>
                 <div class="mt-3">
                     <div class="flex items-center justify-between text-caption-lg mb-1">
-                        <span style="color: var(--color-text-secondary);">XP <strong style="color: var(--color-text);" x-text="formatBrInt(totalXp)">{{ "{:,}".format(gamification.total_xp).replace(",", ".") }}</strong>
-                            <button type="button" @click="openHelpModal()" class="inline-flex items-center justify-center w-5 h-5 rounded-full ml-1 icon-wrap-sm" aria-label="Dicas de XP"><i data-lucide="lightbulb" class="w-3 h-3"></i></button>
+                        <span class="text-blue-100">XP <strong class="text-white" x-text="formatBrInt(totalXp)">{{ "{:,}".format(gamification.total_xp).replace(",", ".") }}</strong>
+                            <button type="button" @click="openHelpModal()" class="inline-flex items-center justify-center w-5 h-5 rounded-full ml-1 bg-white/20 text-white" aria-label="Dicas"><i data-lucide="lightbulb" class="w-3 h-3"></i></button>
                         </span>
                         {% if gamification.next_level %}
-                        <span style="color: var(--color-text-muted);">Próx: {{ gamification.next_level.name }}</span>
+                        <span class="text-blue-200">Próx: {{ gamification.next_level.name }}</span>
                         {% else %}
-                        <span class="font-semibold" style="color: var(--color-text-muted);">Máx.</span>
+                        <span class="font-semibold text-amber-300">Máx.</span>
                         {% endif %}
                     </div>
-                    <div class="h-1.5 w-full rounded-full overflow-hidden" style="background: var(--color-border-light);">
-                        <div class="h-full transition-all duration-500 rounded-full" style="background: var(--color-primary);" :style="`width: ${xpProgressPercent}%`"></div>
+                    <div class="h-2 w-full rounded-full overflow-hidden bg-white/20 relative">
+                        <div class="h-full transition-all duration-700 ease-out rounded-full absolute inset-y-0 left-0 bg-gradient-to-r from-blue-400 to-blue-300" :style="`width: ${xpProgressPercent}%`"></div>
+                        <div class="xp-shine absolute inset-0 rounded-full overflow-hidden pointer-events-none" x-show="dailyXp > 0">
+                            <div class="absolute inset-0 w-1/2 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-xp-shine"></div>
+                        </div>
                     </div>
-                    <p class="text-caption mt-1 text-center font-medium" x-show="dailyXp > 0" style="color: var(--color-success);">
-                        +<span x-text="dailyXp"></span> XP hoje
+                    <p class="text-caption mt-1 text-center font-semibold text-amber-300" x-show="dailyXp > 0">
+                        +<span x-text="dailyXp"></span> XP hoje! Continue assim!
                     </p>
                 </div>
             </div>
@@ -94,7 +105,7 @@
         <!-- 2. Separação ativa -->
         <section class="container-mobile mt-4" x-show="hasActiveRoutes" x-cloak>
             <template x-for="(route, idx) in activeRoutes" :key="'route-'+idx">
-                <div class="surface p-4 mb-4">
+                <div class="surface-shadow touch-scale p-4 mb-4">
                     <div class="flex items-start justify-between mb-3">
                         <div class="flex items-center gap-3">
                             <div class="icon-wrap flex items-center justify-center" style="background: var(--color-primary); color: white;">
@@ -142,7 +153,7 @@
         
         <!-- 2b. Rotas de entrega -->
         <section class="container-mobile mt-4" x-show="deliveryRoutes.length > 0">
-            <div class="surface p-4">
+            <div class="surface-shadow p-4">
                 <div class="flex items-start justify-between gap-3 mb-3">
                     <div class="flex-1 min-w-0">
                         <h3 class="text-section" style="color: var(--color-text);">Minhas rotas de entrega</h3>
@@ -214,7 +225,7 @@
 
     <!-- 3. Módulos (ação principal) -->
     {% if modules and modules|length > 0 %}
-    <section class="container-mobile mt-4" x-show="initialized">
+    <section id="modules" class="container-mobile mt-4" x-show="initialized">
         <h2 class="text-section mb-2" style="color: var(--color-text);">Módulos</h2>
         <div class="space-y-2">
             {% for module in modules %}
@@ -440,9 +451,11 @@
 
         <div class="space-y-2">
             <template x-if="completedRoutes.length === 0">
-                <div class="text-center py-12 surface border-dashed">
-                    <i data-lucide="check-circle" class="w-12 h-12 text-slate-300 mx-auto mb-2"></i>
-                    <p class="text-slate-500 text-sm">Nenhuma separação concluída hoje.</p>
+                <div class="empty-state surface">
+                    <i data-lucide="check-circle" class="empty-icon"></i>
+                    <p class="empty-title">Nenhuma conclusão hoje</p>
+                    <p class="text-caption">Inicie uma separação e finalize para ver aqui.</p>
+                    <a href="#modules" class="empty-cta">Começar agora →</a>
                 </div>
             </template>
 
@@ -1038,40 +1051,44 @@
                 updateStatus();
             },
 
-            // Pull to refresh
+            // Pull to refresh premium
             setupPullToRefresh() {
                 let startY = 0;
                 let pulling = false;
                 const indicator = document.getElementById('pull-indicator');
+                const pullText = document.getElementById('pull-text');
                 const container = this.$refs.mainContainer;
 
-                if (!container) return;
+                if (!container || !indicator) return;
+
+                const setText = (t) => { if (pullText) pullText.textContent = t; };
 
                 container.addEventListener('touchstart', (e) => {
-                    if (window.scrollY === 0) {
-                        startY = e.touches[0].pageY;
-                        pulling = true;
-                    }
+                    if (window.scrollY === 0) { startY = e.touches[0].pageY; pulling = true; }
                 }, { passive: true });
 
                 container.addEventListener('touchmove', (e) => {
                     if (!pulling) return;
                     const y = e.touches[0].pageY;
                     const diff = y - startY;
-                    if (diff > 80 && window.scrollY === 0) {
+                    if (diff > 60 && window.scrollY === 0) {
                         indicator.classList.add('visible');
+                        if (diff > 80) { indicator.classList.add('ready'); setText('Solte para atualizar'); }
+                        else { indicator.classList.remove('ready'); setText('Puxe para atualizar'); }
                     }
                 }, { passive: true });
 
                 const hideIndicator = () => {
                     pulling = false;
-                    indicator.classList.remove('visible');
+                    indicator.classList.remove('visible', 'ready');
+                    setText('Puxe para atualizar');
                 };
 
                 container.addEventListener('touchend', () => {
-                    if (indicator.classList.contains('visible')) {
+                    if (indicator.classList.contains('visible') && indicator.classList.contains('ready')) {
+                        setText('Atualizando...');
                         this.haptic('medium');
-                        setTimeout(() => { window.location.reload(); }, 300);
+                        setTimeout(() => window.location.reload(), 400);
                     }
                     hideIndicator();
                 }, { passive: true });
@@ -1079,17 +1096,32 @@
                 container.addEventListener('touchcancel', hideIndicator);
             },
 
-            // Show XP popup animation
+            playSuccessSound() {
+                try {
+                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.frequency.value = 800; osc.type = 'sine';
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+                    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.08);
+                } catch (_) {}
+            },
+
             showXpPopup(amount) {
                 const popup = document.getElementById('xp-popup');
                 const amountEl = document.getElementById('xp-amount');
+                if (!amountEl) return;
                 amountEl.textContent = amount;
                 this.applyEarnedXp(amount);
                 popup.classList.remove('hidden');
                 this.haptic('success');
-                setTimeout(() => {
-                    popup.classList.add('hidden');
-                }, 2000);
+                this.playSuccessSound();
+                if (typeof confetti === 'function') {
+                    confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 }, colors: ['#1e3a8a', '#3b82f6', '#60a5fa'] });
+                }
+                setTimeout(() => popup.classList.add('hidden'), 2000);
             },
 
             applyEarnedXp(amount) {
