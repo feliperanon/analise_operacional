@@ -1,4 +1,4 @@
-﻿(() => {
+(() => {
   const byId = (id) => document.getElementById(id);
   const qs = (s) => document.querySelector(s);
   const qsa = (s) => Array.from(document.querySelectorAll(s));
@@ -515,6 +515,20 @@
     modalOpen("respMotivosModal");
   }
 
+  function populateFullscreenDevolucaoStrip() {
+    const k = window.__biChartData?.kpis;
+    if (!k) return;
+    const fmtMoeda = (v) => (v != null && Number.isFinite(Number(v))) ? Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—";
+    const fmtPct = (v) => (v != null && Number.isFinite(Number(v))) ? `${Number(v).toFixed(2)}%` : "—";
+    byId("fullscreenPctValor").textContent = fmtPct(k.return_rate_value);
+    byId("fullscreenValorDevolvido").textContent = fmtMoeda(k.valor_total_devolvido);
+    byId("fullscreenQtdDevolucoes").textContent = (k.total_devolucoes != null && Number.isInteger(Number(k.total_devolucoes))) ? String(k.total_devolucoes) : "—";
+    const mesAnt = [];
+    if (k.devolucao_mes_anterior_qtd != null && Number.isInteger(Number(k.devolucao_mes_anterior_qtd))) mesAnt.push(`${k.devolucao_mes_anterior_qtd} un`);
+    if (k.devolucao_mes_anterior_valor != null && Number.isFinite(Number(k.devolucao_mes_anterior_valor))) mesAnt.push(fmtMoeda(k.devolucao_mes_anterior_valor));
+    byId("fullscreenDevolucaoMesAnt").textContent = mesAnt.length ? mesAnt.join(" · ") : "—";
+  }
+
   function openChartFullscreen(chartId) {
     const src = getChart(chartId);
     if (!src) return;
@@ -541,6 +555,7 @@
     byId("chartTypeToggleBtn").dataset.current = currentType;
     const insights = generateInsightsFromDataset(chartId, clipped);
     if (fullscreenChart) byId("fullscreenInsights").innerHTML = insights.map((x) => `<div class="insight-row">${x}</div>`).join("");
+    populateFullscreenDevolucaoStrip();
     modalOpen("chartFullscreenModal");
   }
 
