@@ -92,30 +92,34 @@
             </button>
         </div>
 
-        <!-- Checklist Items -->
+        <!-- Checklist Items (Power On/Off - seleção binária) -->
         <div class="space-y-2">
             {% for item in items %}
-            <div class="surface p-4 transition-colors"
+            <div class="surface p-4 transition-all rounded-xl"
+                :class="{'ring-2 ring-green-500/50': items['{{ item.key }}'] === true, 'ring-2 ring-red-500/50': items['{{ item.key }}'] === false}"
                 :style="items['{{ item.key }}'] === false ? 'border-color: var(--color-danger); background: var(--color-danger-bg);' : ''">
 
                 <div class="flex items-center justify-between gap-3">
                     <div class="flex items-center gap-3 flex-1 min-w-0">
-                        <div class="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg"
-                            :style="items['{{ item.key }}'] === true ? 'background: var(--color-success-bg); color: var(--color-success);' : (items['{{ item.key }}'] === false ? 'background: var(--color-danger-bg); color: var(--color-danger);' : 'background: var(--color-border-light); color: var(--color-text-muted);')">
+                        <div class="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg transition-all"
+                            :class="{'shadow-[0_0_12px_rgba(22,163,74,0.5)]': items['{{ item.key }}'] === true, 'shadow-[0_0_12px_rgba(220,38,38,0.5)]': items['{{ item.key }}'] === false}"
+                            :style="items['{{ item.key }}'] === true ? 'background: var(--color-success); color: white;' : (items['{{ item.key }}'] === false ? 'background: var(--color-danger); color: white;' : 'background: var(--color-border-light); color: var(--color-text-muted);')">
                             <i :data-lucide="items['{{ item.key }}'] === false ? 'alert-triangle' : 'check'" class="w-5 h-5"></i>
                         </div>
                         <span class="text-body font-medium" style="color: var(--color-text);">{{ item.label }}</span>
                     </div>
-                    <div class="flex items-center rounded-lg p-0.5 shrink-0" style="background: var(--color-border-light);">
+                    <div class="flex items-center gap-2 shrink-0">
                         <button @click="setItem('{{ item.key }}', false)"
-                            class="w-10 h-8 rounded flex items-center justify-center transition-colors"
-                            :style="items['{{ item.key }}'] === false ? 'background: var(--color-danger); color: white;' : 'color: var(--color-text-muted);'">
-                            <i data-lucide="x" class="w-4 h-4"></i>
+                            class="min-h-[48px] min-w-[48px] px-4 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 font-semibold text-body"
+                            :class="items['{{ item.key }}'] === false ? 'bg-red-500 text-white shadow-[0_0_10px_rgba(220,38,38,0.4)]' : 'bg-slate-100 text-slate-500'">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                            <span>Falha</span>
                         </button>
                         <button @click="setItem('{{ item.key }}', true)"
-                            class="w-10 h-8 rounded flex items-center justify-center transition-colors"
-                            :style="items['{{ item.key }}'] === true ? 'background: var(--color-success); color: white;' : 'color: var(--color-text-muted);'">
-                            <i data-lucide="check" class="w-4 h-4"></i>
+                            class="min-h-[48px] min-w-[48px] px-4 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 font-semibold text-body"
+                            :class="items['{{ item.key }}'] === true ? 'bg-green-500 text-white shadow-[0_0_10px_rgba(22,163,74,0.4)]' : 'bg-slate-100 text-slate-500'">
+                            <i data-lucide="check" class="w-5 h-5"></i>
+                            <span>OK</span>
                         </button>
                     </div>
                 </div>

@@ -1,0 +1,1565 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operação Inteligente</title>
+    <link rel="icon" type="image/png" href="/static/logo-souza-pinto.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons (jsDelivr - evita Tracking Prevention) -->
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.563.0/dist/umd/lucide.min.js"></script>
+    <!-- Alpine JS + Collapse Plugin -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+    
+    <!-- Print Styles - Base -->
+    <style>
+        @media print {
+            /* Esconder navegação */
+            .print-hidden,
+            #modal-alertas,
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-slate-900 text-white">
+    <div class="flex h-screen overflow-hidden" x-data="{ 
+        sidebarOpen: false,
+        openMenus: { lider: false, gerente: false, dados: false, processos: false, checklists: false, gestao: false, acesso: false }
+    }">
+        
+        <!-- Menu Button (Fixed) - Hidden on print -->
+        <button @click="sidebarOpen = true" 
+                class="fixed top-2 left-2 z-50 p-1.5 rounded-lg bg-slate-800/80 border border-slate-700/50 text-white shadow-md hover:bg-slate-700 transition-colors print-hidden"
+                :class="sidebarOpen ? 'hidden' : ''">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+        </button>
+
+        <!-- Overlay - Hidden on print -->
+        <div x-show="sidebarOpen" 
+             x-transition:enter="transition-opacity ease-out duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition-opacity ease-in duration-150"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             @click="sidebarOpen = false"
+             class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 print-hidden"
+             style="display: none;"></div>
+
+        <!-- Sidebar (aparece ao clicar no hamburger) - Hidden on print -->
+        <aside x-show="sidebarOpen"
+               x-transition:enter="transition ease-out duration-300"
+               x-transition:enter-start="-translate-x-full"
+               x-transition:enter-end="translate-x-0"
+               x-transition:leave="transition ease-in duration-200"
+               x-transition:leave-start="translate-x-0"
+               x-transition:leave-end="-translate-x-full"
+               class="fixed inset-y-0 left-0 z-50 w-80 bg-slate-900 border-r border-slate-800 flex flex-col print-hidden"
+               style="display: none;">
+            
+            <!-- Header -->
+            <div class="p-5 flex items-center justify-between border-b border-slate-800">
+                <h1 class="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+                    Op. Inteligente</h1>
+                <button @click="sidebarOpen = false" class="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Clock & Shift Indicator -->
+            <div class="px-4 py-3 border-b border-slate-800 bg-slate-800/30">
+                <div class="flex items-center gap-3">
+                    <!-- Clock -->
+                    <div class="flex-1">
+                        <div id="sidebar-time" class="text-2xl font-bold text-white font-mono">--:--</div>
+                        <div id="sidebar-date" class="text-[10px] text-slate-500 uppercase tracking-wider">Carregando...</div>
+                    </div>
+                    <!-- Shift Indicator -->
+                    <div id="sidebar-shift-card" class="bg-blue-500/10 border border-blue-500/30 rounded-xl px-3 py-2 text-center min-w-[80px]">
+                        <div id="sidebar-shift-icon" class="w-6 h-6 mx-auto mb-1 text-blue-400">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                            </svg>
+                        </div>
+                        <p id="sidebar-shift-name" class="text-[10px] font-bold text-blue-400 uppercase">Manhã</p>
+                    </div>
+                </div>
+                <!-- Shift Progress -->
+                <div class="mt-2">
+                    <div class="flex justify-between items-center text-[9px] mb-0.5">
+                        <span id="sidebar-shift-start" class="text-[11px] font-bold text-white">05:00</span>
+                        <span id="sidebar-shift-progress-text" class="text-slate-500">--% do turno</span>
+                        <span id="sidebar-shift-end" class="text-slate-600">13:20</span>
+                    </div>
+                    <div class="w-full h-1 bg-slate-700 rounded-full overflow-hidden">
+                        <div id="sidebar-shift-bar" class="h-full bg-blue-500 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navegação com Categorias Colapsáveis -->
+            <nav class="flex-1 px-3 py-4 overflow-y-auto custom-scrollbar space-y-1" @click="if($event.target.closest('a:not(.menu-toggle)')) sidebarOpen = false">
+                
+                
+                
+                <!-- Painel - Sempre visível -->
+                <a href="/dashboard" class="flex items-center gap-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-white/5 rounded-xl transition-colors">
+                    <div class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                        </svg>
+                    </div>
+                    <span class="font-medium">Painel</span>
+                </a>
+
+                
+
+                <!-- ========== ACESSO LIBERADO (usuários não-admin) ========== -->
+                
+            </nav>
+
+            <!-- Footer com Usuário e Logout -->
+            <div class="p-4 border-t border-slate-800">
+                <div class="flex items-center gap-3 px-2 py-2">
+                    
+                    
+                    
+                        
+                        
+                    
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                        US
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-white truncate">Usuário</p>
+                        <p class="text-xs text-slate-500">Admin</p>
+                    </div>
+                    <a href="/logout" class="p-2 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors" title="Sair">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto bg-slate-900 relative pt-12">
+            <!-- Background Effects -->
+            <div class="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none -z-10">
+                <div
+                    class="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600 rounded-full mix-blend-multiply filter blur-[128px] opacity-10">
+                </div>
+            </div>
+            
+<!--
+DESIGN TOKENS - PWA Elite | Sistema Souza Pinto
+Glassmorfismo, sombras dinâmicas, gradientes operacionais.
+-->
+
+<style>
+    :root {
+        /* === CORES === */
+        --color-bg: #f1f5f9;
+        --color-surface: #ffffff;
+        --color-border: #e2e8f0;
+        --color-border-light: #f1f5f9;
+
+        --color-text: #0f172a;
+        --color-text-secondary: #475569;
+        --color-text-muted: #94a3b8;
+        --color-text-inverse: #ffffff;
+
+        --color-icon: #64748b;
+
+        --color-action: #2563eb;
+        --color-primary: #1e3a8a;
+        --color-primary-bg: #eff6ff;
+        --color-primary-border: #dbeafe;
+
+        --color-success: #16a34a;
+        --color-success-bg: #dcfce7;
+        --color-danger: #dc2626;
+        --color-danger-bg: #fee2e2;
+        --color-warning: #ca8a04;
+        --color-warning-bg: #fef9c3;
+
+        /* (Glass removido - fundos 100% sólidos para legibilidade ao sol) */
+
+        /* === SOMBRAS DINÂMICAS === */
+        --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+        --shadow-card: 0 2px 8px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+        --shadow-elevated: 0 8px 24px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04);
+        --shadow-xl: 0 20px 40px rgba(15, 23, 42, 0.12);
+        --shadow-modal: 0 24px 48px rgba(15, 23, 42, 0.16);
+
+        /* === GRADIENTES OPERACIONAIS === */
+        --gradient-header: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #1d4ed8 100%);
+
+        /* === TIPOGRAFIA === */
+        --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        --font-mono: ui-monospace, monospace;
+
+        --text-caption: 0.6875rem;   /* 11px */
+        --text-caption-lg: 0.75rem;  /* 12px */
+        --text-body: 0.8125rem;      /* 13px */
+        --text-body-lg: 0.875rem;    /* 14px */
+        --text-section: 0.875rem;    /* 14px - títulos de seção */
+        --text-section-lg: 1rem;     /* 16px */
+        --text-title: 1rem;          /* 16px */
+        --text-title-lg: 1.125rem;   /* 18px */
+
+        --font-normal: 400;
+        --font-medium: 500;
+        --font-semibold: 600;
+
+        --leading-tight: 1.25;
+        --leading-normal: 1.5;
+
+        /* === ESPAÇAMENTO (4px grid) === */
+        --space-1: 0.25rem;
+        --space-2: 0.5rem;
+        --space-3: 0.75rem;
+        --space-4: 1rem;
+        --space-5: 1.25rem;
+        --space-6: 1.5rem;
+        --space-8: 2rem;
+
+        /* === BORDAS === */
+        --radius-sm: 0.5rem;
+        --radius-md: 0.75rem;
+        --radius-lg: 1rem;
+        --radius-xl: 1.25rem;
+        --border: 1px solid var(--color-border);
+        --border-2: 2px solid var(--color-border);
+
+        /* === INTERAÇÃO === */
+        --color-input-bg: #ffffff;
+        --color-hover: #f1f5f9;
+
+        /* === TOUCH (Mobile-First: 48px para acessibilidade) === */
+        --touch-min: 48px;
+        --touch-icon: 44px;
+
+        /* === TRANSIÇÃO === */
+        --ease: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+
+        /* === Z === */
+        --z-dropdown: 10;
+        --z-sticky: 20;
+        --z-modal-bg: 40;
+        --z-modal: 50;
+    }
+
+    /* Containers */
+    .container-mobile {
+        width: 100%;
+        max-width: 640px;
+        margin: 0 auto;
+        padding-left: var(--space-4);
+        padding-right: var(--space-4);
+    }
+
+    /* Cards: elevação com sombras dinâmicas */
+    .surface {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-card);
+    }
+
+    .surface-shadow {
+        background: var(--color-surface);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-elevated);
+    }
+
+    /* Header com gradiente operacional */
+    .header-gradient {
+        background: var(--gradient-header);
+        box-shadow: var(--shadow-elevated);
+    }
+
+    /* Superfície sólida (alternativa a glass - sem transparência) */
+    .surface-glass {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-card);
+    }
+
+    /* Container de ícone: neutro */
+    .icon-wrap {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-md);
+        background: var(--color-border-light);
+        color: var(--color-icon);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .icon-wrap-sm {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-sm);
+        background: var(--color-border-light);
+        color: var(--color-icon);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Tipografia */
+    .text-title {
+        font-size: var(--text-title);
+        font-weight: var(--font-semibold);
+        color: var(--color-text);
+        line-height: var(--leading-tight);
+    }
+
+    .text-title-lg {
+        font-size: var(--text-title-lg);
+        font-weight: var(--font-semibold);
+        color: var(--color-text);
+        line-height: var(--leading-tight);
+    }
+
+    .text-section {
+        font-size: var(--text-section);
+        font-weight: var(--font-semibold);
+        color: var(--color-text);
+    }
+
+    .text-body {
+        font-size: var(--text-body);
+        font-weight: var(--font-normal);
+        color: var(--color-text-secondary);
+        line-height: var(--leading-normal);
+    }
+
+    .text-body-lg {
+        font-size: var(--text-body-lg);
+        color: var(--color-text-secondary);
+    }
+
+    .text-caption {
+        font-size: var(--text-caption);
+        color: var(--color-text-muted);
+    }
+
+    .text-caption-lg {
+        font-size: var(--text-caption-lg);
+        color: var(--color-text-muted);
+    }
+
+    /* Touch targets */
+    .touch-target {
+        min-width: var(--touch-min);
+        min-height: var(--touch-min);
+    }
+
+    .touch-target-icon {
+        min-width: var(--touch-icon);
+        min-height: var(--touch-icon);
+    }
+
+    /* Interação - feedback tátil scale 0.95 */
+    .interactive {
+        transition: transform 0.15s ease, background-color var(--ease);
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .interactive:active {
+        transform: scale(0.95);
+    }
+
+    .disabled {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+
+    /* === ANIMAÇÕES PWA === */
+    @keyframes pulse-slow {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.6; }
+    }
+    @keyframes bounce-short {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+    @keyframes xp-shine {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+    .animate-pulse-slow { animation: pulse-slow 2s ease-in-out infinite; }
+    .animate-bounce-short { animation: bounce-short 0.4s ease-out; }
+    .animate-xp-shine { animation: xp-shine 1.5s ease-in-out; }
+</style>
+<link rel="stylesheet" href="/static/css/bi_delivery_premium.css">
+<div class="bi-page p-4 lg:p-8">
+  <div class="max-w-[1800px] mx-auto space-y-5">
+    <header class="surface-shadow bi-card">
+      <div class="bi-card-head bi-card-head-between">
+        <div class="flex items-center gap-3">
+          <div class="icon-wrap"><i data-lucide="users" class="w-5 h-5"></i></div>
+          <div>
+            <h1 class="text-title-lg">BI Motorista - Avaliação de Motoristas</h1>
+            <p class="text-caption mt-1">Dashboard de performance, elegibilidade à premiação e relativização por motorista e caminhão.</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" id="execModeToggle" class="btn-secondary" aria-pressed="false">Executivo</button>
+          <a href="/bi/delivery" class="btn-secondary">BI Entregas</a>
+        </div>
+      </div>
+
+      <form method="get" action="/bi/motorista" class="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+        <div class="form-field">
+          <label>Data inicial</label>
+          <input type="date" name="date_from" value="2026-03-01">
+        </div>
+        <div class="form-field">
+          <label>Data final</label>
+          <input type="date" name="date_to" value="2026-03-05">
+        </div>
+        <div class="form-field">
+          <label>Turno</label>
+          <select name="shift">
+            
+            <option value="Todos" selected>Todos</option>
+            
+            <option value="Manhã" >Manhã</option>
+            
+            <option value="Tarde" >Tarde</option>
+            
+            <option value="Noite" >Noite</option>
+            
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Motorista</label>
+          <select name="driver_id">
+            <option value="">Todos</option>
+            
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Placa</label>
+          <select name="plate">
+            <option value="Todos">Todas</option>
+            
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Status</label>
+          <select name="status">
+            
+            <option value="Todos" selected>Todos</option>
+            
+            <option value="Pendente" >Pendente</option>
+            
+            <option value="Iniciada" >Iniciada</option>
+            
+            <option value="Entregue" >Entregue</option>
+            
+            <option value="Devolucao" >Devolucao</option>
+            
+            <option value="Reaberta" >Reaberta</option>
+            
+            <option value="Cancelada" >Cancelada</option>
+            
+          </select>
+        </div>
+        <div class="xl:col-span-6 flex flex-wrap gap-2 pt-1">
+          <button class="btn-primary" type="submit">Aplicar filtros</button>
+          <a href="/bi/motorista" class="btn-secondary">Limpar</a>
+          <a href="/bi/delivery/export?format=csv&date_from=2026-03-01&amp;date_to=2026-03-05&amp;shift=Todos&amp;driver_id=&amp;plate=Todos&amp;status=Todos" class="btn-secondary">CSV</a>
+          <a href="/bi/delivery/export?format=xlsx&date_from=2026-03-01&amp;date_to=2026-03-05&amp;shift=Todos&amp;driver_id=&amp;plate=Todos&amp;status=Todos" class="btn-secondary">XLSX</a>
+          <a href="/bi/delivery/export?format=pdf&date_from=2026-03-01&amp;date_to=2026-03-05&amp;shift=Todos&amp;driver_id=&amp;plate=Todos&amp;status=Todos" class="btn-secondary">PDF</a>
+        </div>
+      </form>
+    </header>
+
+    <!-- Bloco elegibilidade premiação -->
+    <section class="surface-shadow bi-card">
+      <div class="bi-card-head">
+        <div class="icon-wrap"><i data-lucide="award" class="w-4 h-4"></i></div>
+          <h3 class="text-section">Elegibilidade à Premiação (meta &lt; 2,0% devolução em valor)</h3>
+      </div>
+      <div class="mt-4 grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div class="surface p-4 rounded-lg border border-green-500/30 bg-green-500/5">
+          <p class="text-caption text-green-400">Elegíveis (0)</p>
+          <ul class="mt-2 space-y-1">
+            
+            <li class="text-body text-slate-500">Nenhum motorista elegível no período.</li>
+            
+          </ul>
+        </div>
+        <div class="surface p-4 rounded-lg border border-amber-500/30 bg-amber-500/5">
+          <p class="text-caption text-amber-400">Fora da meta (0)</p>
+          <ul class="mt-2 space-y-1">
+            
+            <li class="text-body text-slate-500">Todos dentro da meta.</li>
+            
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2">
+      
+<article
+  class="surface-shadow bi-card kpi-card"
+  data-kpi-title="Paradas Planejadas"
+  data-kpi-value="0"
+  data-kpi-subtitle="Base do período"
+  data-kpi-state="neutral"
+  tabindex="0"
+  role="button"
+  aria-label="Detalhes do KPI Paradas Planejadas"
+>
+  <div class="bi-card-head bi-card-head-between">
+    <div class="flex items-center gap-2">
+      <div class="icon-wrap" style="color: var(--color-primary);">
+        <i data-lucide="route" class="w-4 h-4"></i>
+      </div>
+      <p class="text-caption">Paradas Planejadas</p>
+    </div>
+    <button class="icon-wrap-sm" type="button" title="Ajuda" aria-label="Ajuda do KPI Paradas Planejadas">
+      <i data-lucide="info" class="w-4 h-4"></i>
+    </button>
+  </div>
+  <p class="text-title-lg mt-2">0</p>
+  
+  <p class="text-caption mt-1">Base do período</p>
+  
+</article>
+      
+<article
+  class="surface-shadow bi-card kpi-card"
+  data-kpi-title="Taxa Devolução"
+  data-kpi-value="0,0%"
+  data-kpi-subtitle="0 ocorrências"
+  data-kpi-state="success"
+  tabindex="0"
+  role="button"
+  aria-label="Detalhes do KPI Taxa Devolução"
+>
+  <div class="bi-card-head bi-card-head-between">
+    <div class="flex items-center gap-2">
+      <div class="icon-wrap" style="color: var(--color-success);">
+        <i data-lucide="undo-2" class="w-4 h-4"></i>
+      </div>
+      <p class="text-caption">Taxa Devolução</p>
+    </div>
+    <button class="icon-wrap-sm" type="button" title="Ajuda" aria-label="Ajuda do KPI Taxa Devolução">
+      <i data-lucide="info" class="w-4 h-4"></i>
+    </button>
+  </div>
+  <p class="text-title-lg mt-2">0,0%</p>
+  
+  <p class="text-caption mt-1">0 ocorrências</p>
+  
+</article>
+      
+<article
+  class="surface-shadow bi-card kpi-card"
+  data-kpi-title="Devolução % Valor"
+  data-kpi-value="0,0%"
+  data-kpi-subtitle="Meta financeira ≤ 2,0%"
+  data-kpi-state="success"
+  tabindex="0"
+  role="button"
+  aria-label="Detalhes do KPI Devolução % Valor"
+>
+  <div class="bi-card-head bi-card-head-between">
+    <div class="flex items-center gap-2">
+      <div class="icon-wrap" style="color: var(--color-success);">
+        <i data-lucide="percent" class="w-4 h-4"></i>
+      </div>
+      <p class="text-caption">Devolução % Valor</p>
+    </div>
+    <button class="icon-wrap-sm" type="button" title="Ajuda" aria-label="Ajuda do KPI Devolução % Valor">
+      <i data-lucide="info" class="w-4 h-4"></i>
+    </button>
+  </div>
+  <p class="text-title-lg mt-2">0,0%</p>
+  
+  <p class="text-caption mt-1">Meta financeira ≤ 2,0%</p>
+  
+</article>
+      
+<article
+  class="surface-shadow bi-card kpi-card"
+  data-kpi-title="Valor Devolvido"
+  data-kpi-value="R$ 0,00"
+  data-kpi-subtitle="Total acumulado"
+  data-kpi-state="neutral"
+  tabindex="0"
+  role="button"
+  aria-label="Detalhes do KPI Valor Devolvido"
+>
+  <div class="bi-card-head bi-card-head-between">
+    <div class="flex items-center gap-2">
+      <div class="icon-wrap" style="color: var(--color-primary);">
+        <i data-lucide="wallet" class="w-4 h-4"></i>
+      </div>
+      <p class="text-caption">Valor Devolvido</p>
+    </div>
+    <button class="icon-wrap-sm" type="button" title="Ajuda" aria-label="Ajuda do KPI Valor Devolvido">
+      <i data-lucide="info" class="w-4 h-4"></i>
+    </button>
+  </div>
+  <p class="text-title-lg mt-2">R$ 0,00</p>
+  
+  <p class="text-caption mt-1">Total acumulado</p>
+  
+</article>
+      
+<article
+  class="surface-shadow bi-card kpi-card"
+  data-kpi-title="Tempo Médio"
+  data-kpi-value="0 min"
+  data-kpi-subtitle="Rotas finalizadas"
+  data-kpi-state="success"
+  tabindex="0"
+  role="button"
+  aria-label="Detalhes do KPI Tempo Médio"
+>
+  <div class="bi-card-head bi-card-head-between">
+    <div class="flex items-center gap-2">
+      <div class="icon-wrap" style="color: var(--color-success);">
+        <i data-lucide="timer" class="w-4 h-4"></i>
+      </div>
+      <p class="text-caption">Tempo Médio</p>
+    </div>
+    <button class="icon-wrap-sm" type="button" title="Ajuda" aria-label="Ajuda do KPI Tempo Médio">
+      <i data-lucide="info" class="w-4 h-4"></i>
+    </button>
+  </div>
+  <p class="text-title-lg mt-2">0 min</p>
+  
+  <p class="text-caption mt-1">Rotas finalizadas</p>
+  
+</article>
+      
+<article
+  class="surface-shadow bi-card kpi-card"
+  data-kpi-title="Mais Rápido"
+  data-kpi-value="-"
+  data-kpi-subtitle="-"
+  data-kpi-state="success"
+  tabindex="0"
+  role="button"
+  aria-label="Detalhes do KPI Mais Rápido"
+>
+  <div class="bi-card-head bi-card-head-between">
+    <div class="flex items-center gap-2">
+      <div class="icon-wrap" style="color: var(--color-success);">
+        <i data-lucide="zap" class="w-4 h-4"></i>
+      </div>
+      <p class="text-caption">Mais Rápido</p>
+    </div>
+    <button class="icon-wrap-sm" type="button" title="Ajuda" aria-label="Ajuda do KPI Mais Rápido">
+      <i data-lucide="info" class="w-4 h-4"></i>
+    </button>
+  </div>
+  <p class="text-title-lg mt-2">-</p>
+  
+  <p class="text-caption mt-1">-</p>
+  
+</article>
+      
+<article
+  class="surface-shadow bi-card kpi-card"
+  data-kpi-title="Mais Lento"
+  data-kpi-value="-"
+  data-kpi-subtitle="-"
+  data-kpi-state="warning"
+  tabindex="0"
+  role="button"
+  aria-label="Detalhes do KPI Mais Lento"
+>
+  <div class="bi-card-head bi-card-head-between">
+    <div class="flex items-center gap-2">
+      <div class="icon-wrap" style="color: var(--color-warning);">
+        <i data-lucide="clock" class="w-4 h-4"></i>
+      </div>
+      <p class="text-caption">Mais Lento</p>
+    </div>
+    <button class="icon-wrap-sm" type="button" title="Ajuda" aria-label="Ajuda do KPI Mais Lento">
+      <i data-lucide="info" class="w-4 h-4"></i>
+    </button>
+  </div>
+  <p class="text-title-lg mt-2">-</p>
+  
+  <p class="text-caption mt-1">-</p>
+  
+</article>
+      
+<article
+  class="surface-shadow bi-card kpi-card"
+  data-kpi-title="Dia + Devoluções"
+  data-kpi-value="-"
+  data-kpi-subtitle="Padrão temporal"
+  data-kpi-state="neutral"
+  tabindex="0"
+  role="button"
+  aria-label="Detalhes do KPI Dia + Devoluções"
+>
+  <div class="bi-card-head bi-card-head-between">
+    <div class="flex items-center gap-2">
+      <div class="icon-wrap" style="color: var(--color-primary);">
+        <i data-lucide="calendar" class="w-4 h-4"></i>
+      </div>
+      <p class="text-caption">Dia + Devoluções</p>
+    </div>
+    <button class="icon-wrap-sm" type="button" title="Ajuda" aria-label="Ajuda do KPI Dia + Devoluções">
+      <i data-lucide="info" class="w-4 h-4"></i>
+    </button>
+  </div>
+  <p class="text-title-lg mt-2">-</p>
+  
+  <p class="text-caption mt-1">Padrão temporal</p>
+  
+</article>
+    </section>
+
+    <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      <section
+  class="surface-shadow bi-card chart-card"
+  data-chart-card="1"
+  data-chart-id="trendChart"
+  data-chart-title="Tendência diária"
+  data-chart-subtitle="Valor devolvido, médias móveis e meta financeira"
+>
+  <div class="bi-card-head bi-card-head-between">
+    <div>
+      <h3 class="text-section">Tendência diária</h3>
+      <p class="text-caption mt-1">Valor devolvido, médias móveis e meta financeira</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button class="icon-wrap-sm" type="button" title="Ajuda">
+        <i data-lucide="info" class="w-4 h-4"></i>
+      </button>
+      <button class="icon-wrap-sm chart-expand-btn" type="button" title="Expandir gráfico" data-chart-expand="trendChart">
+        <i data-lucide="maximize-2" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </div>
+  <div class="mt-4" style="height: 280px;">
+    <canvas id="trendChart"></canvas>
+  </div>
+</section>
+      <section
+  class="surface-shadow bi-card chart-card"
+  data-chart-card="1"
+  data-chart-id="diaSemanaChart"
+  data-chart-title="Dia da semana × Devoluções"
+  data-chart-subtitle="Qtd e valor por dia da semana"
+>
+  <div class="bi-card-head bi-card-head-between">
+    <div>
+      <h3 class="text-section">Dia da semana × Devoluções</h3>
+      <p class="text-caption mt-1">Qtd e valor por dia da semana</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button class="icon-wrap-sm" type="button" title="Ajuda">
+        <i data-lucide="info" class="w-4 h-4"></i>
+      </button>
+      <button class="icon-wrap-sm chart-expand-btn" type="button" title="Expandir gráfico" data-chart-expand="diaSemanaChart">
+        <i data-lucide="maximize-2" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </div>
+  <div class="mt-4" style="height: 280px;">
+    <canvas id="diaSemanaChart"></canvas>
+  </div>
+</section>
+    </section>
+
+    <section class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+      <section
+  class="surface-shadow bi-card chart-card"
+  data-chart-card="1"
+  data-chart-id="motivosChart"
+  data-chart-title="Motivos de devolução"
+  data-chart-subtitle="Valor por motivo e motorista"
+>
+  <div class="bi-card-head bi-card-head-between">
+    <div>
+      <h3 class="text-section">Motivos de devolução</h3>
+      <p class="text-caption mt-1">Valor por motivo e motorista</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button class="icon-wrap-sm" type="button" title="Ajuda">
+        <i data-lucide="info" class="w-4 h-4"></i>
+      </button>
+      <button class="icon-wrap-sm chart-expand-btn" type="button" title="Expandir gráfico" data-chart-expand="motivosChart">
+        <i data-lucide="maximize-2" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </div>
+  <div class="mt-4" style="height: 280px;">
+    <canvas id="motivosChart"></canvas>
+  </div>
+</section>
+      <section
+  class="surface-shadow bi-card chart-card"
+  data-chart-card="1"
+  data-chart-id="driverChart"
+  data-chart-title="Eficiência por motorista"
+  data-chart-subtitle="Comparativo tático com % devolução por valor"
+>
+  <div class="bi-card-head bi-card-head-between">
+    <div>
+      <h3 class="text-section">Eficiência por motorista</h3>
+      <p class="text-caption mt-1">Comparativo tático com % devolução por valor</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button class="icon-wrap-sm" type="button" title="Ajuda">
+        <i data-lucide="info" class="w-4 h-4"></i>
+      </button>
+      <button class="icon-wrap-sm chart-expand-btn" type="button" title="Expandir gráfico" data-chart-expand="driverChart">
+        <i data-lucide="maximize-2" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </div>
+  <div class="mt-4" style="height: 280px;">
+    <canvas id="driverChart"></canvas>
+  </div>
+</section>
+      <section
+  class="surface-shadow bi-card chart-card"
+  data-chart-card="1"
+  data-chart-id="driverRespChart"
+  data-chart-title="Motorista x Responsabilidade x Valor"
+  data-chart-subtitle="Breakdown por responsabilidade"
+>
+  <div class="bi-card-head bi-card-head-between">
+    <div>
+      <h3 class="text-section">Motorista x Responsabilidade x Valor</h3>
+      <p class="text-caption mt-1">Breakdown por responsabilidade</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button class="icon-wrap-sm" type="button" title="Ajuda">
+        <i data-lucide="info" class="w-4 h-4"></i>
+      </button>
+      <button class="icon-wrap-sm chart-expand-btn" type="button" title="Expandir gráfico" data-chart-expand="driverRespChart">
+        <i data-lucide="maximize-2" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </div>
+  <div class="mt-4" style="height: 280px;">
+    <canvas id="driverRespChart"></canvas>
+  </div>
+</section>
+    </section>
+
+    <section class="grid grid-cols-1 gap-4">
+      <section
+  class="surface-shadow bi-card chart-card"
+  data-chart-card="1"
+  data-chart-id="driverClientCorrChart"
+  data-chart-title="Correlação motorista x cliente x devoluções"
+  data-chart-subtitle="Bolhas por cliente/motorista. Tamanho = valor devolvido; tooltip com % valor real."
+>
+  <div class="bi-card-head bi-card-head-between">
+    <div>
+      <h3 class="text-section">Correlação motorista x cliente x devoluções</h3>
+      <p class="text-caption mt-1">Bolhas por cliente/motorista. Tamanho = valor devolvido; tooltip com % valor real.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button class="icon-wrap-sm" type="button" title="Ajuda">
+        <i data-lucide="info" class="w-4 h-4"></i>
+      </button>
+      <button class="icon-wrap-sm chart-expand-btn" type="button" title="Expandir gráfico" data-chart-expand="driverClientCorrChart">
+        <i data-lucide="maximize-2" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </div>
+  <div class="mt-4" style="height: 280px;">
+    <canvas id="driverClientCorrChart"></canvas>
+  </div>
+</section>
+    </section>
+
+    <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      <section class="surface-shadow bi-card">
+  <div class="bi-card-head bi-card-head-between">
+    <div>
+      <h3 class="text-section">Performance por caminhão (placa)</h3>
+      <p class="text-caption mt-1">Relativização: paradas, devoluções e tempo médio por veículo.</p>
+    </div>
+  </div>
+  <div class="mt-4 overflow-auto">
+    <table id="plateTable" class="bi-table min-w-full text-body">
+      
+      <thead>
+        <tr>
+          <th>Placa</th>
+          <th>Paradas</th>
+          <th>Devoluções</th>
+          <th>Taxa %</th>
+          <th>R$ devolvido</th>
+          <th>Tempo médio</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr><td colspan="6" class="text-body text-slate-500">Sem dados por placa no período.</td></tr>
+        
+      </tbody>
+      
+    </table>
+  </div>
+</section>
+
+      <section class="surface-shadow bi-card">
+        <div class="bi-card-head">
+          <div class="icon-wrap"><i data-lucide="activity" class="w-4 h-4"></i></div>
+          <h3 class="text-section">Inteligência — Oscilação (σ)</h3>
+        </div>
+        <p class="text-caption mt-1">Estabilidade da taxa de devolução. Menor σ = mais estável.</p>
+        <div class="mt-4 space-y-2 max-h-64 overflow-y-auto">
+          
+          <div class="insight-row">Dados insuficientes para calcular oscilação.</div>
+          
+        </div>
+      </section>
+    </section>
+
+    <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      <section class="surface-shadow bi-card">
+        <div class="bi-card-head">
+          <div class="icon-wrap"><i data-lucide="siren" class="w-4 h-4"></i></div>
+          <h3 class="text-section">Anomalias detectadas</h3>
+        </div>
+        <div class="mt-4 space-y-2">
+          
+          <div class="insight-row">Nenhuma anomalia relevante no período.</div>
+          
+        </div>
+      </section>
+      <section class="surface-shadow bi-card">
+        <div class="bi-card-head">
+          <div class="icon-wrap"><i data-lucide="bot" class="w-4 h-4"></i></div>
+          <h3 class="text-section">Recomendações</h3>
+        </div>
+        <div class="mt-4 space-y-2">
+          
+          <div class="insight-row">1. Operacao estavel no periodo; manter monitoramento diario.</div>
+          
+        </div>
+      </section>
+    </section>
+
+    <div class="exec-hidden hidden">
+      <section class="surface-shadow bi-card">
+  <div class="bi-card-head bi-card-head-between">
+    <div>
+      <h3 class="text-section">Painel tático por motorista</h3>
+      <p class="text-caption mt-1">Clique no motorista para drill-down. Meta premiação &amp;lt; 2% (valor).</p>
+    </div>
+  </div>
+  <div class="mt-4 overflow-auto">
+    <table id="tacticalTable" class="bi-table min-w-full text-body">
+      
+      <thead>
+        <tr>
+          <th>Motorista</th>
+          <th>Paradas</th>
+          <th>Eficiência</th>
+          <th>Devolução %</th>
+          <th>KG pl.</th>
+          <th>R$ devolvido</th>
+          <th>Reaberturas</th>
+          <th>Tempo médio</th>
+          <th>Elegível</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+      </tbody>
+      
+    </table>
+  </div>
+</section>
+    </div>
+
+    <section id="drilldown-section" class="surface-shadow bi-card exec-hidden hidden">
+      <div class="bi-card-head bi-card-head-between">
+        <div>
+          <h3 class="text-section">Drill-through operacional</h3>
+          <p class="text-caption mt-1">Drill-through operacional | 0 registros</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <input id="drillSearch" class="input-mini" placeholder="Filtrar cliente/motorista/status...">
+          <select id="drillPageSize" class="input-mini">
+            <option value="15">15</option>
+            <option value="30" selected>30</option>
+            <option value="60">60</option>
+          </select>
+        </div>
+      </div>
+      <div class="mt-4 overflow-auto">
+        <table class="bi-table min-w-[1300px]">
+          <thead>
+            <tr>
+              <th data-sort="date">Data</th>
+              <th data-sort="shift">Turno</th>
+              <th data-sort="driver_name">Motorista</th>
+              <th data-sort="client_name">Cliente</th>
+              <th data-sort="status">Status</th>
+              <th data-sort="planned_value">R$ pl.</th>
+              <th data-sort="returned_value">R$ dev.</th>
+              <th data-sort="duration_m">Duração</th>
+              <th data-sort="plate">Placa</th>
+            </tr>
+          </thead>
+          <tbody id="drillBody"></tbody>
+        </table>
+      </div>
+      <footer class="mt-4 flex items-center justify-between gap-2">
+        <p class="text-caption" id="drillSummary">0 registros</p>
+        <div class="flex items-center gap-2">
+          <button id="prevPage" class="btn-secondary">Anterior</button>
+          <button id="nextPage" class="btn-secondary">Próxima</button>
+        </div>
+      </footer>
+    </section>
+  </div>
+</div>
+
+<script src="/static/js/chart.js"></script>
+<script>
+  const chartData = {"trend": {"dates": [], "qtd": [], "valor": [], "ma7": [], "ma30": [], "meta_2pct": [], "last_month_valor": []}, "motivos": [], "motivos_detailed": [], "motivos_drivers": [], "responsabilidade": [], "cluster": [], "drivers": [], "reopen_heatmap": [], "driver_resp_valor": {"drivers": [], "responsabilidades": [], "datasets": [], "pct_devolucao_valor": []}, "driver_client_corr": {"drivers": [], "clients": [], "points": []}, "dia_semana": {"labels": ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"], "qtd": [0, 0, 0, 0, 0, 0, 0], "valor": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}} || {};
+  const detailRows = [] || [];
+  window.__biChartData = chartData;
+  window.__biDetailRows = detailRows;
+
+  const cMuted = '#94a3b8', cBorder = 'rgba(148,163,184,0.3)', cWarn = '#f59e0b', cDanger = '#ef4444', cPrimary = '#3b82f6', cSuccess = '#10b981';
+  function toChartNum(v) { if (v == null || v === '') return null; const n = Number(v); return Number.isFinite(n) ? n : null; }
+  function dataBR(s) { if (!s) return '-'; const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}/${m[2]}/${m[1]}` : s; }
+  function numeroBR(n, dec) { const x = Number(n); return isNaN(x) ? '0,00' : x.toLocaleString('pt-BR', { minimumFractionDigits: dec ?? 2, maximumFractionDigits: dec ?? 2 }); }
+  function moedaBR(n) { return isNaN(Number(n)) ? 'R$ 0,00' : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+  const safeStr = (v) => (v == null ? '' : String(v));
+
+  function safeChart(id, config) {
+    try { const el = document.getElementById(id); if (el && typeof Chart !== 'undefined') return new Chart(el, config); } catch (e) { console.warn(id, e); }
+    return null;
+  }
+
+  const trend = chartData.trend || {};
+  const trendDates = trend.dates || [];
+  const trendLabels = trendDates.map(d => dataBR(d) || d);
+  const trendValor = (trend.valor || []).map(toChartNum).map(v => v ?? 0);
+  const trendMa7 = (trend.ma7 || []).map(toChartNum);
+  const trendMa30 = (trend.ma30 || []).map(toChartNum);
+  const trendMeta2Pct = (trend.meta_2pct || []).map(toChartNum);
+  const trendLastMonth = (trend.last_month_valor || []).map(toChartNum);
+  safeChart('trendChart', {
+    type: 'line',
+    data: {
+      labels: trendLabels,
+      datasets: [
+        { label: 'Valor devolvido', data: trendValor, borderColor: cDanger, backgroundColor: 'transparent', tension: .25 },
+        { label: 'Média 7', data: trendMa7, borderColor: cPrimary, borderDash: [5, 5], tension: .25 },
+        { label: 'Média 30', data: trendMa30, borderColor: cSuccess, borderDash: [3, 3], tension: .25 },
+        { label: 'Meta 2% (R$)', data: trendMeta2Pct, borderColor: '#22c55e', borderDash: [10, 4], tension: .1 },
+        { label: 'Mês passado (R$)', data: trendLastMonth, borderColor: '#a78bfa', borderDash: [2, 4], tension: .2 }
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: cMuted } } }, scales: { x: { ticks: { color: cMuted }, grid: { color: cBorder } }, y: { ticks: { color: cMuted }, grid: { color: cBorder } } } }
+  });
+
+  const diaSemana = chartData.dia_semana || {};
+  safeChart('diaSemanaChart', {
+    type: 'bar',
+    data: {
+      labels: diaSemana.labels || [],
+      datasets: [
+        { label: 'Qtd devoluções', data: (diaSemana.qtd || []).map(toChartNum).map(v => v ?? 0), backgroundColor: cWarn },
+        { label: 'Valor (R$)', data: (diaSemana.valor || []).map(toChartNum).map(v => v ?? 0), backgroundColor: cDanger }
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: cMuted } } }, scales: { x: { ticks: { color: cMuted }, grid: { color: cBorder } }, y: { ticks: { color: cMuted }, grid: { color: cBorder } } } }
+  });
+
+  const md = chartData.motivos_detailed || [];
+  const motDrivers = chartData.motivos_drivers || [];
+  const driverColors = ['#3b82f6', '#f59e0b', '#ef4444', '#10b981', '#8b5cf6'];
+  safeChart('motivosChart', {
+    type: 'bar',
+    data: {
+      labels: md.map(x => safeStr(x.motivo)),
+      datasets: motDrivers.map((drv, i) => ({ label: safeStr(drv), data: md.map(m => (m.por_motorista && m.por_motorista[drv]) ? Number(m.por_motorista[drv].valor) : 0), backgroundColor: driverColors[i % driverColors.length], stack: 'stack0' }))
+    },
+    options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { labels: { color: cMuted } } }, scales: { x: { ticks: { color: cMuted }, stacked: true }, y: { ticks: { color: cMuted }, stacked: true } } }
+  });
+
+  const driversData = chartData.drivers || [];
+  safeChart('driverChart', {
+    type: 'bar',
+    data: {
+      labels: driversData.map(x => safeStr(x.driver)),
+      datasets: [
+        { label: 'Eficiência %', data: driversData.map(x => toChartNum(x.eficiencia) ?? 0), backgroundColor: cSuccess },
+        { label: 'Devolução % (qtd)', data: driversData.map(x => toChartNum(x.devolucao_pct) ?? 0), backgroundColor: cWarn },
+        { label: 'Devolução % (valor)', data: driversData.map(x => toChartNum(x.devolucao_valor_pct) ?? 0), backgroundColor: cDanger }
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: cMuted } } }, scales: { x: { ticks: { color: cMuted } }, y: { ticks: { color: cMuted } } } }
+  });
+
+  const dr = chartData.driver_resp_valor || {};
+  const respColors = [cPrimary, cWarn, cDanger, cSuccess];
+  safeChart('driverRespChart', {
+    type: 'bar',
+    data: {
+      labels: (dr.drivers || []).map(d => safeStr(d)),
+      datasets: (dr.datasets || []).map((ds, i) => ({ label: safeStr(ds.resp), data: (ds.data || []).map(v => toChartNum(v) ?? 0), backgroundColor: respColors[i % respColors.length], stack: 'stack0' }))
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: {
+        legend: { labels: { color: cMuted } },
+        tooltip: {
+          callbacks: {
+            afterBody: (items) => {
+              const idx = items?.[0]?.dataIndex;
+              if (idx == null || !dr.pct_devolucao_valor) return '';
+              const pct = Number(dr.pct_devolucao_valor[idx] || 0).toFixed(1).replace('.', ',');
+              return `% Devolução (valor real): ${pct}%`;
+            }
+          }
+        }
+      },
+      scales: { x: { ticks: { color: cMuted }, stacked: true }, y: { ticks: { color: cMuted }, stacked: true } }
+    }
+  });
+
+  const corr = (chartData && chartData.driver_client_corr) ? chartData.driver_client_corr : {};
+  const corrDrivers = Array.isArray(corr.drivers) ? corr.drivers : [];
+  const corrClients = Array.isArray(corr.clients) ? corr.clients : [];
+  const corrPoints = Array.isArray(corr.points) ? corr.points : [];
+  safeChart('driverClientCorrChart', {
+    type: 'bubble',
+    data: {
+      datasets: [{
+        label: 'Correlação devoluções',
+        data: corrPoints.map(p => ({
+          x: Number(p.x || 0),
+          y: Number(p.y || 0),
+          r: Number(p.r || 6),
+          driver: safeStr(p.driver),
+          client: safeStr(p.client),
+          qtd: Number(p.qtd || 0),
+          valor: Number(p.valor || 0),
+          pct_valor_real: Number(p.pct_valor_real || 0)
+        })),
+        backgroundColor: 'rgba(239, 68, 68, 0.42)',
+        borderColor: cDanger
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: cMuted } },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const p = ctx.raw || {};
+              const valor = Number(p.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+              const pct = Number(p.pct_valor_real || 0).toFixed(1).replace('.', ',');
+              return `${p.driver} | ${p.client} | Qtd: ${Number(p.qtd || 0).toLocaleString('pt-BR')} | Valor: ${valor} | % valor real: ${pct}%`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: cMuted, callback: (v) => corrDrivers[Number(v)] || '' },
+          grid: { color: cBorder },
+          title: { display: true, text: 'Motorista', color: cMuted }
+        },
+        y: {
+          ticks: { color: cMuted, callback: (v) => corrClients[Number(v)] || '' },
+          grid: { color: cBorder },
+          title: { display: true, text: 'Cliente', color: cMuted }
+        }
+      }
+    }
+  });
+
+  let state = { rows: [...detailRows], page: 1, pageSize: 30, sortKey: 'date', sortDir: 'desc', search: '' };
+  const drillBody = document.getElementById('drillBody');
+  const drillSummary = document.getElementById('drillSummary');
+  document.getElementById('drillSearch')?.addEventListener('input', e => { state.search = e.target.value.toLowerCase(); state.page = 1; renderDrill(); });
+  document.getElementById('drillPageSize')?.addEventListener('change', e => { state.pageSize = Number(e.target.value); state.page = 1; renderDrill(); });
+  document.getElementById('prevPage')?.addEventListener('click', () => { state.page = Math.max(1, state.page - 1); renderDrill(); });
+  document.getElementById('nextPage')?.addEventListener('click', () => { state.page++; renderDrill(); });
+  document.querySelectorAll('#drilldown-section th[data-sort]').forEach(th => th.addEventListener('click', () => {
+    const key = th.dataset.sort;
+    state.sortDir = state.sortKey === key && state.sortDir === 'asc' ? 'desc' : 'asc';
+    state.sortKey = key;
+    renderDrill();
+  }));
+
+  function cmp(a, b) {
+    const av = a[state.sortKey], bv = b[state.sortKey];
+    if (av == null && bv == null) return 0;
+    if (av == null) return -1;
+    if (bv == null) return 1;
+    return (typeof av === 'number' && typeof bv === 'number') ? av - bv : String(av).localeCompare(String(bv), 'pt-BR');
+  }
+
+  const statusMeta = (raw) => {
+    const v = String(raw || '').toLowerCase();
+    if (v === 'devolucao') return { cls: 'status-danger', label: 'Devolução' };
+    if (v === 'entregue') return { cls: 'status-success', label: 'Entregue' };
+    if (v === 'iniciada') return { cls: 'status-info', label: 'Iniciada' };
+    return { cls: 'status-muted', label: v ? v.charAt(0).toUpperCase() + v.slice(1) : '-' };
+  };
+
+  function renderDrill() {
+    const filtered = state.rows.filter(r => !state.search || `${r.driver_name} ${r.client_name} ${r.status}`.toLowerCase().includes(state.search))
+      .sort((a, b) => state.sortDir === 'asc' ? cmp(a, b) : cmp(b, a));
+    const total = filtered.length;
+    const pages = Math.max(1, Math.ceil(total / state.pageSize));
+    state.page = Math.min(state.page, pages);
+    const slice = filtered.slice((state.page - 1) * state.pageSize, state.page * state.pageSize);
+    drillBody.innerHTML = slice.map(r => {
+      const st = statusMeta(r.status);
+      return `<tr>
+        <td>${dataBR(r.date)}</td><td>${r.shift || '-'}</td><td>${safeStr(r.driver_name)}</td><td>${safeStr(r.client_name)}</td>
+        <td><span class="status-chip ${st.cls}">${st.label}</span></td><td>${moedaBR(r.planned_value)}</td>
+        <td>${moedaBR(r.returned_value)}</td><td>${r.duration_m ? numeroBR(r.duration_m, 0) + ' min' : '-'}</td><td>${safeStr(r.plate)}</td>
+      </tr>`;
+    }).join('');
+    drillSummary.textContent = `${total} registros | página ${state.page}/${pages}`;
+  }
+  renderDrill();
+
+  document.getElementById('execModeToggle')?.addEventListener('click', () => {
+    const el = document.querySelector('.exec-hidden');
+    if (el) el.classList.toggle('hidden');
+  });
+  if (window.lucide) window.lucide.createIcons();
+</script>
+<script src="/static/js/bi_delivery_premium.js"></script>
+
+<style>
+  .bi-page { background: var(--color-bg); color: var(--color-text); }
+  .bi-card { padding: var(--space-4, 1rem); }
+  .bi-card-head { display: flex; align-items: center; gap: .75rem; }
+  .bi-card-head-between { justify-content: space-between; }
+  .surface-shadow { background: var(--color-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); border: 1px solid var(--color-border); }
+  .surface { background: var(--color-surface); border-radius: var(--radius-lg); border: 1px solid var(--color-border); }
+  .icon-wrap, .icon-wrap-sm { background: var(--color-border-light); color: var(--color-text-secondary); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; }
+  .icon-wrap { width: 2.25rem; height: 2.25rem; }
+  .icon-wrap-sm { width: 2rem; height: 2rem; }
+  .text-title-lg { font-size: var(--text-title-lg); color: var(--color-text); font-weight: 600; }
+  .text-section { font-size: var(--text-section); font-weight: 600; }
+  .text-body { font-size: var(--text-body); color: var(--color-text-secondary); }
+  .text-caption { font-size: var(--text-caption); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .06em; }
+  .form-field label { display: block; margin-bottom: .35rem; font-size: var(--text-caption); text-transform: uppercase; color: var(--color-text-muted); }
+  .form-field input, .form-field select, .input-mini { width: 100%; min-height: 42px; border-radius: var(--radius-md); border: 2px solid var(--color-border); background: var(--color-input-bg); color: var(--color-text); padding: 0 .75rem; }
+  .btn-primary, .btn-secondary { min-height: 42px; border-radius: var(--radius-md); padding: 0 1rem; display: inline-flex; align-items: center; justify-content: center; font-size: var(--text-body); font-weight: 600; }
+  .btn-primary { background: var(--color-primary); color: var(--color-text-inverse); }
+  .btn-secondary { background: var(--color-surface); color: var(--color-text); border: 2px solid var(--color-border); }
+  .bi-table { width: 100%; border-collapse: collapse; }
+  .bi-table thead th { position: sticky; top: 0; background: var(--color-surface); border-bottom: 1px solid var(--color-border); text-align: left; font-size: var(--text-caption); color: var(--color-text-muted); padding: .65rem; cursor: pointer; }
+  .bi-table tbody td { border-bottom: 1px solid color-mix(in srgb, var(--color-border-light) 78%, transparent); padding: .58rem; }
+  .table-link { color: var(--color-primary); text-decoration: underline dotted; font-weight: 600; }
+  .tone-success { color: var(--color-success) !important; font-weight: 600; }
+  .tone-warning { color: var(--color-warning) !important; font-weight: 600; }
+  .tone-danger { color: var(--color-danger) !important; font-weight: 600; }
+  .insight-row { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: .6rem; background: var(--color-surface); font-size: var(--text-body); }
+  .insight-warning { border-color: var(--color-warning); }
+  .status-chip { display: inline-flex; padding: .2rem .5rem; border-radius: 999px; font-size: .66rem; font-weight: 800; text-transform: uppercase; }
+  .status-success { color: #d1fae5; background: rgba(16,185,129,.22); }
+  .status-danger { color: #fee2e2; background: rgba(239,68,68,.24); }
+  .status-info { color: #dbeafe; background: rgba(59,130,246,.22); }
+  .status-muted { color: #e2e8f0; background: rgba(100,116,139,.22); }
+</style>
+
+        </main>
+    </div>
+
+    <!-- Modal de Alertas do Líder -->
+    
+    <div id="modal-alertas" class="hidden fixed inset-0 z-[100] overflow-y-auto bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-hidden animate-fade-in">
+            <div class="bg-gradient-to-r from-amber-600 to-orange-600 p-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-white">Alertas do Dia</h3>
+                            <p class="text-xs text-white/70" id="alertas-subtitle">Carregando...</p>
+                        </div>
+                    </div>
+                    <button onclick="fecharModalAlertas()" class="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="p-4 overflow-y-auto max-h-[60vh]" id="alertas-content">
+                <div class="flex items-center justify-center py-8">
+                    <svg class="w-8 h-8 text-slate-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+            </div>
+            
+            <div class="p-4 border-t border-slate-700 flex gap-2">
+                <a href="/lider/minhas-ordens" class="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg text-center transition-colors">
+                    Ver Minhas Ordens
+                </a>
+                <button onclick="fecharModalAlertas()" class="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium rounded-lg transition-colors">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+
+    <script>
+    // ========== SIDEBAR CLOCK & SHIFT INDICATOR ==========
+    // Horarios dos turnos: Manha 05:00-13:20, Tarde 12:00-20:20, Noite 18:00-06:00
+    function isWithinShift(hour, minute, startH, startM, endH, endM) {
+        var current = hour * 60 + minute;
+        var start = startH * 60 + startM;
+        var end = endH * 60 + endM;
+        if (start < end) {
+            return current >= start && current < end;
+        }
+        return current >= start || current < end;
+    }
+
+    function getCurrentShiftInfo(hour, minute) {
+        if (isWithinShift(hour, minute, 18, 0, 6, 0)) {
+            return { name: 'Noite', color: 'purple', startH: 18, startM: 0, endH: 6, endM: 0 };
+        }
+        if (isWithinShift(hour, minute, 5, 0, 13, 20)) {
+            return { name: 'Manha', color: 'blue', startH: 5, startM: 0, endH: 13, endM: 20 };
+        }
+        return { name: 'Tarde', color: 'orange', startH: 12, startM: 0, endH: 20, endM: 20 };
+    }
+    
+    function formatShiftTime(h, m) {
+        return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+    }
+
+    function getShiftProgressPercent(hour, minute) {
+        var shift = getCurrentShiftInfo(hour, minute);
+        var currentMinutes = hour * 60 + minute;
+        var startMinutes = shift.startH * 60 + shift.startM;
+        var endMinutes = shift.endH * 60 + shift.endM;
+        
+        // Turno noite cruza meia-noite (18:00 - 06:00 = 12 horas)
+        if (shift.name === 'Noite') {
+            if (hour >= 18) {
+                currentMinutes = (hour - 18) * 60 + minute;
+            } else {
+                currentMinutes = (hour + 6) * 60 + minute;
+            }
+            startMinutes = 0;
+            endMinutes = 12 * 60; // 12 horas de turno
+        }
+        
+        var total = endMinutes - startMinutes;
+        var elapsed = currentMinutes - startMinutes;
+        if (elapsed < 0) elapsed = 0;
+        
+        return Math.min(100, Math.max(0, Math.round((elapsed / total) * 100)));
+    }
+
+    function updateSidebarClock() {
+        var now = new Date();
+        var hours = now.getHours();
+        var minutes = now.getMinutes();
+        
+        var timeStr = String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0');
+        
+        var timeEl = document.getElementById('sidebar-time');
+        if (timeEl) timeEl.textContent = timeStr;
+        
+        var days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
+        var months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        var dateStr = days[now.getDay()] + ', ' + now.getDate() + ' ' + months[now.getMonth()];
+        
+        var dateEl = document.getElementById('sidebar-date');
+        if (dateEl) dateEl.textContent = dateStr;
+        
+        var shift = getCurrentShiftInfo(hours, minutes);
+        var progress = getShiftProgressPercent(hours, minutes);
+        
+        var shiftNameEl = document.getElementById('sidebar-shift-name');
+        var shiftStartEl = document.getElementById('sidebar-shift-start');
+        var shiftEndEl = document.getElementById('sidebar-shift-end');
+        var shiftBarEl = document.getElementById('sidebar-shift-bar');
+        var shiftCardEl = document.getElementById('sidebar-shift-card');
+        var shiftProgressTextEl = document.getElementById('sidebar-shift-progress-text');
+        
+        if (shiftNameEl) shiftNameEl.textContent = shift.name;
+        if (shiftStartEl) shiftStartEl.textContent = formatShiftTime(shift.startH, shift.startM);
+        if (shiftEndEl) shiftEndEl.textContent = formatShiftTime(shift.endH, shift.endM);
+        if (shiftProgressTextEl) shiftProgressTextEl.textContent = progress + '% do turno';
+        
+        // Update colors
+        var colorConfig = {
+            blue: { bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-400', bar: 'bg-blue-500' },
+            orange: { bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-400', bar: 'bg-orange-500' },
+            purple: { bg: 'bg-purple-500/10', border: 'border-purple-500/30', text: 'text-purple-400', bar: 'bg-purple-500' }
+        };
+        var colors = colorConfig[shift.color];
+        
+        if (shiftCardEl) {
+            shiftCardEl.className = colors.bg + ' ' + colors.border + ' border rounded-xl px-3 py-2 text-center min-w-[80px]';
+        }
+        if (shiftNameEl) {
+            shiftNameEl.className = 'text-[10px] font-bold ' + colors.text + ' uppercase';
+        }
+        if (shiftBarEl) {
+            shiftBarEl.className = 'h-full ' + colors.bar + ' rounded-full transition-all duration-1000';
+            shiftBarEl.style.width = progress + '%';
+        }
+        
+        var shiftIconEl = document.getElementById('sidebar-shift-icon');
+        if (shiftIconEl) {
+            shiftIconEl.className = 'w-6 h-6 mx-auto mb-1 ' + colors.text;
+        }
+    }
+
+    // Initialize Lucide icons and sidebar clock
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+        updateSidebarClock();
+        setInterval(updateSidebarClock, 1000);
+    });
+
+    // ========== ALERTAS MODAL ==========
+    var alertasJaMostrados = sessionStorage.getItem('alertas_mostrados_hoje');
+    var hoje = new Date().toISOString().split('T')[0];
+
+    function fecharModalAlertas() {
+        document.getElementById('modal-alertas').classList.add('hidden');
+        sessionStorage.setItem('alertas_mostrados_hoje', hoje);
+    }
+
+    function mostrarModalAlertas() {
+        document.getElementById('modal-alertas').classList.remove('hidden');
+        carregarAlertas();
+    }
+
+    function carregarAlertas() {
+        fetch('/api/lider/alertas')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                renderizarAlertas(data);
+            })
+            .catch(function(err) {
+                document.getElementById('alertas-content').innerHTML = '<p class="text-center text-slate-400 py-4">Erro ao carregar alertas.</p>';
+            });
+    }
+
+    function renderizarAlertas(data) {
+        var html = '';
+        var total = data.total_alertas || 0;
+        
+        document.getElementById('alertas-subtitle').textContent = total + ' alerta(s) pendente(s)';
+        
+        if (total === 0) {
+            html = '<div class="text-center py-8"><svg class="w-16 h-16 mx-auto text-emerald-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><p class="text-emerald-400 font-medium">Tudo certo!</p><p class="text-slate-400 text-sm mt-1">Nenhum alerta pendente.</p></div>';
+            document.getElementById('alertas-content').innerHTML = html;
+            return;
+        }
+        
+        // Ordens atrasadas (mais urgente)
+        if (data.ordens_atrasadas && data.ordens_atrasadas.length > 0) {
+            html += '<div class="mb-4"><h4 class="text-xs font-bold text-rose-400 uppercase tracking-wider mb-2 flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Ordens Atrasadas (' + data.ordens_atrasadas.length + ')</h4><div class="space-y-2">';
+            data.ordens_atrasadas.forEach(function(o) {
+                html += '<div class="bg-rose-500/10 border border-rose-500/30 rounded-lg p-3"><p class="text-white font-medium text-sm">' + o.title + '</p><p class="text-xs text-rose-400">Horário: ' + (o.scheduled_time || 'Não definido') + '</p></div>';
+            });
+            html += '</div></div>';
+        }
+        
+        // Ordens pendentes
+        if (data.ordens_pendentes && data.ordens_pendentes.length > 0) {
+            html += '<div class="mb-4"><h4 class="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Ordens Pendentes (' + data.ordens_pendentes.length + ')</h4><div class="space-y-2">';
+            data.ordens_pendentes.forEach(function(o) {
+                html += '<div class="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3"><p class="text-white font-medium text-sm">' + o.title + '</p><p class="text-xs text-amber-400">Horário: ' + (o.scheduled_time || 'Sem horário definido') + '</p></div>';
+            });
+            html += '</div></div>';
+        }
+        
+        // Colaboradores sem checklist
+        if (data.colaboradores_sem_checklist && data.colaboradores_sem_checklist.length > 0) {
+            html += '<div class="mb-4"><h4 class="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2 flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>Sem Checklist (' + data.colaboradores_sem_checklist.length + ')</h4><div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3"><ul class="text-sm text-slate-300 space-y-1">';
+            data.colaboradores_sem_checklist.slice(0, 5).forEach(function(c) {
+                html += '<li class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-blue-400 rounded-full"></span>' + c.name + '</li>';
+            });
+            if (data.colaboradores_sem_checklist.length > 5) {
+                html += '<li class="text-xs text-slate-500">... e mais ' + (data.colaboradores_sem_checklist.length - 5) + '</li>';
+            }
+            html += '</ul></div></div>';
+        }
+        
+        // Colaboradores sem rota
+        if (data.colaboradores_sem_rota && data.colaboradores_sem_rota.length > 0) {
+            html += '<div class="mb-4"><h4 class="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2 flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>Sem Rota Aberta (' + data.colaboradores_sem_rota.length + ')</h4><div class="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3"><ul class="text-sm text-slate-300 space-y-1">';
+            data.colaboradores_sem_rota.slice(0, 5).forEach(function(c) {
+                html += '<li class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-purple-400 rounded-full"></span>' + c.name + '</li>';
+            });
+            if (data.colaboradores_sem_rota.length > 5) {
+                html += '<li class="text-xs text-slate-500">... e mais ' + (data.colaboradores_sem_rota.length - 5) + '</li>';
+            }
+            html += '</ul></div></div>';
+        }
+        
+        document.getElementById('alertas-content').innerHTML = html;
+    }
+
+    // Mostrar alertas ao carregar a página (apenas uma vez por sessão)
+    document.addEventListener('DOMContentLoaded', function() {
+        if (alertasJaMostrados !== hoje) {
+            setTimeout(function() {
+                mostrarModalAlertas();
+            }, 500);
+        }
+    });
+    </script>
+    
+</body>
+
+</html>

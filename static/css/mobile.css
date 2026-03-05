@@ -183,3 +183,40 @@ Skeletons, pull-to-refresh premium, empty states, feedback tátil.
     color: #ffffff !important;
     min-height: 48px;
 }
+
+/* Botão Futurista - gradiente neon, glow, scale */
+.btn-futuristic-primary {
+    position: relative;
+    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border: 1px solid rgba(255,255,255,0.2);
+    overflow: hidden;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 48px;
+}
+
+.btn-futuristic-primary::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+    transform: rotate(45deg);
+    transition: 0.5s;
+}
+
+.btn-futuristic-primary:active {
+    transform: scale(0.95);
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
+}

@@ -102,25 +102,18 @@
             </div>
         </section>
 
-        <!-- 2. Separação ativa -->
+        <!-- 2. Separação ativa (Cockpit de Navegação) -->
         <section class="container-mobile mt-4" x-show="hasActiveRoutes" x-cloak>
             <template x-for="(route, idx) in activeRoutes" :key="'route-'+idx">
-                <div class="surface-shadow touch-scale p-4 mb-4">
-                    <div class="flex items-start justify-between mb-3">
-                        <div class="flex items-center gap-3">
-                            <div class="icon-wrap flex items-center justify-center" style="background: var(--color-primary); color: white;">
-                                <i data-lucide="truck" class="w-5 h-5"></i>
-                            </div>
-                            <div>
-                                <h3 class="text-section flex items-center gap-2" style="color: var(--color-text);">
-                                    Separação ativa
-                                    <span class="w-2 h-2 rounded-full bg-green-500 animate-ping"></span>
-                                </h3>
-                                <p class="text-caption-lg" style="color: var(--color-text-secondary);" x-text="route.client_name"></p>
-                            </div>
+                <div class="surface-futuristic p-5 mb-4 border-l-4 border-blue-500 relative overflow-hidden touch-scale">
+                    <div class="absolute -right-10 -top-10 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                    <div class="flex justify-between items-start relative z-10 mb-3">
+                        <div>
+                            <span class="text-[10px] uppercase tracking-widest text-blue-400 font-bold">Operação em curso</span>
+                            <h3 class="text-lg font-bold mt-1" style="color: var(--color-text);" x-text="route.client_name"></h3>
                         </div>
                         <div class="flex gap-1">
-                            <button @click="openEditModal(route)" class="touch-target-icon rounded-lg icon-wrap flex items-center justify-center">
+                            <button @click="openEditModal(route)" class="touch-target-icon rounded-lg icon-wrap flex items-center justify-center haptic-light">
                                 <i data-lucide="pencil" class="w-4 h-4"></i>
                             </button>
                             <button @click="openDeleteModal(route)" class="touch-target-icon rounded-lg flex items-center justify-center" style="background: var(--color-danger-bg); color: var(--color-danger);">
@@ -128,24 +121,22 @@
                             </button>
                         </div>
                     </div>
-                    <div class="flex items-end justify-between gap-4">
-                        <div class="flex gap-4">
-                            <div>
-                                <p class="text-caption mb-0.5">Tempo</p>
-                                <p class="text-xl font-mono font-semibold" style="color: var(--color-text);" x-text="formatTimer(route.start_time)"></p>
-                            </div>
-                            <div x-show="route.tonnage > 0">
-                                <p class="text-caption mb-0.5">Peso</p>
-                                <p class="text-xl font-semibold" style="color: var(--color-success);"><span x-text="route.tonnage"></span> kg</p>
-                            </div>
-                        </div>
-                        <button @click="openStopModal(route)" class="touch-target flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold text-body text-white transition-opacity" style="background: var(--color-danger);">
-                            <i data-lucide="square" class="w-4 h-4 fill-current"></i>
-                            Encerrar
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-mono text-blue-600 bg-blue-500/20 px-2 py-1 rounded" x-text="formatTimer(route.start_time)"></span>
+                        <button @click="openStopModal(route)" class="p-3 rounded-lg text-white transition-all active:scale-95 min-h-[48px] min-w-[48px] flex items-center justify-center" style="background: var(--color-danger);">
+                            <i data-lucide="square" class="w-5 h-5 fill-current"></i>
                         </button>
                     </div>
-                    <div class="mt-3 h-1 w-full rounded-full overflow-hidden" style="background: var(--color-border-light);">
-                        <div class="h-full w-1/3 rounded-full animate-[loading_2s_ease-in-out_infinite]" style="background: var(--color-primary);"></div>
+                    <div class="mt-4 flex items-center gap-4">
+                        <div class="flex-1">
+                            <div class="flex justify-between text-[10px] mb-1">
+                                <span class="uppercase" style="color: var(--color-text-muted);">CARGA</span>
+                                <span class="text-blue-600 font-mono font-semibold" x-text="(route.tonnage || 0) + ' KG'"></span>
+                            </div>
+                            <div class="h-1.5 rounded-full overflow-hidden" style="background: var(--color-border-light);">
+                                <div class="h-full bg-gradient-to-r from-blue-600 to-cyan-400 animate-pulse-slow rounded-full" :style="`width: ${(route.tonnage || 0) > 0 ? Math.min(100, (route.tonnage/500)*100) : 33}%`"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </template>
@@ -160,8 +151,11 @@
                         <p class="text-caption-lg mt-0.5" x-text="assignedPlate ? `Caminhão: ${assignedPlate}` : 'Sem caminhão planejado'"></p>
                     </div>
                     <div class="flex gap-2">
-                        <button type="button" x-show="!deliverySessionOpen" @click.stop="openDeliverySetupModal()"
-                            class="btn-iniciar-route touch-target px-3 py-2 rounded-lg font-semibold text-body transition-opacity interactive min-h-[48px]" style="background-color: #1e3a8a !important; color: #ffffff !important;">Iniciar</button>
+                        <button type="button" x-show="!deliverySessionOpen" @click="openDeliverySetupModal()"
+                            class="btn-futuristic-primary touch-target min-h-[48px] flex items-center justify-center gap-2">
+                            <i data-lucide="play" class="w-4 h-4"></i>
+                            Iniciar Rota
+                        </button>
                         <button type="button" x-show="deliverySessionOpen" @click.stop="showDeliveryEndModal = true"
                             class="touch-target px-3 py-2 rounded-lg font-semibold text-body text-white transition-opacity interactive" style="background: var(--color-success);">Encerrar</button>
                     </div>
@@ -748,7 +742,7 @@
 
 <!-- Delivery Setup Modal (teleport to body so it is never clipped by parent overflow/z-index) -->
 <div x-teleport="body">
-    <div x-show="showDeliverySetupModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40" x-transition.opacity x-cloak @click.self="showDeliverySetupModal = false">
+    <div x-show="showDeliverySetupModal" class="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60" x-transition.opacity x-cloak @click.self="showDeliverySetupModal = false">
     <div @click.stop class="w-full max-w-lg rounded-lg flex flex-col max-h-[90vh] overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
         <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
             <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center" style="background: var(--color-primary); color: white;">
@@ -775,36 +769,39 @@
                     style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
             </div>
             <div>
-                <label class="text-section block mb-2" style="color: var(--color-text);">Ajudantes (opcional)</label>
-                <div class="relative flex gap-2">
-                    <input type="text" x-model="deliverySetup.helperInput" @keydown.enter.prevent="addDeliveryHelperFromInput()" placeholder="Digite e Enter" autocomplete="off"
-                        class="flex-1 rounded-lg px-3 py-3 border-2 text-body focus:outline-none focus:ring-2 transition-colors"
-                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
-                    <button type="button" @click="addDeliveryHelperFromInput()" class="px-4 py-3 rounded-lg text-body font-semibold text-white transition-opacity" style="background: var(--color-primary);">
-                        <i data-lucide="plus" class="w-4 h-4"></i>
-                    </button>
-                    <div x-show="filteredHelperOptions.length > 0" class="absolute left-0 right-16 top-full mt-1 max-h-44 overflow-y-auto rounded-lg border-2 z-10" style="border-color: var(--color-border); background: var(--color-surface);">
-                        <template x-for="emp in filteredHelperOptions" :key="`helper-suggest-${emp.id}`">
-                            <button type="button" @click="selectDeliveryHelperName(emp.name)" class="w-full text-left px-3 py-2 text-body transition-colors" style="color: var(--color-text);">
-                                <span x-text="emp.name"></span>
-                            </button>
-                        </template>
-                    </div>
-                </div>
-                <div class="mt-2 flex flex-wrap gap-1.5" x-show="deliverySetup.helpers.length > 0">
-                    <template x-for="(helper, idx) in deliverySetup.helpers" :key="`helper-tag-${idx}-${helper}`">
-                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-body font-medium" style="background: var(--color-primary-bg); border: 1px solid var(--color-primary-border); color: var(--color-primary);">
-                            <i data-lucide="user" class="w-3 h-3"></i>
+                <label class="text-xs uppercase tracking-wider block mb-2" style="color: var(--color-text-muted);">Equipe de Apoio</label>
+                <div class="flex flex-wrap gap-2 mb-3" x-show="deliverySetup.helpers.length > 0">
+                    <template x-for="(helper, idx) in deliverySetup.helpers" :key="`helper-${idx}-${helper}`">
+                        <div class="flex items-center gap-2 px-3 py-2 rounded-full text-body font-medium animate-bounce-short"
+                            style="background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.3); color: var(--color-primary);">
                             <span x-text="helper"></span>
-                            <button type="button" @click="removeDeliveryHelper(idx)" class="ml-1 font-bold" style="color: var(--color-primary);">×</button>
-                        </span>
+                            <button type="button" @click="removeDeliveryHelper(idx)" class="touch-target-icon flex items-center justify-center w-6 h-6 rounded-full hover:bg-blue-500/30 transition-colors">
+                                <i data-lucide="x" class="w-3 h-3"></i>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+                <div class="relative">
+                    <input type="text" x-model="deliverySetup.helperInput" @keydown.enter.prevent="addDeliveryHelperFromInput()"
+                        placeholder="Adicionar ajudante..." autocomplete="off"
+                        class="w-full py-2.5 px-0 text-body border-b-2 focus:outline-none transition-colors focus:border-blue-500"
+                        style="background: transparent; border-color: var(--color-border); color: var(--color-text);">
+                    <button type="button" @click="addDeliveryHelperFromInput()" class="absolute right-0 top-1/2 -translate-y-1/2 touch-target-icon flex items-center justify-center" style="color: var(--color-primary);">
+                        <i data-lucide="plus-circle" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <div x-show="filteredHelperOptions.length > 0" class="mt-2 max-h-36 overflow-y-auto rounded-lg border-2 z-10" style="border-color: var(--color-border); background: var(--color-surface);">
+                    <template x-for="emp in filteredHelperOptions" :key="`helper-suggest-${emp.id}`">
+                        <button type="button" @click="selectDeliveryHelperName(emp.name)" class="w-full text-left px-3 py-2.5 text-body min-h-[48px] transition-colors hover:bg-blue-50" style="color: var(--color-text);">
+                            <span x-text="emp.name"></span>
+                        </button>
                     </template>
                 </div>
             </div>
         </div>
         <div class="p-4 border-t flex gap-3 shrink-0" style="border-color: var(--color-border);">
-            <button @click="showDeliverySetupModal=false" class="flex-1 py-3 rounded-lg font-semibold text-body-lg transition-opacity" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
-            <button @click="startDeliverySession()" class="flex-1 py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity" style="background: var(--color-primary);">Iniciar agora</button>
+                <button @click="showDeliverySetupModal=false" class="flex-1 py-3 rounded-lg font-semibold text-body-lg transition-all active:scale-95 min-h-[48px]" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
+            <button @click="startDeliverySession()" class="flex-1 py-3 rounded-lg font-semibold text-body-lg text-white transition-all active:scale-95 min-h-[48px]" style="background: var(--color-primary);">Iniciar agora</button>
         </div>
     </div>
     </div>
@@ -1194,16 +1191,20 @@
             },
 
             openDeliverySetupModal() {
-                console.log('[Dashboard] openDeliverySetupModal chamado');
+                console.log('[Debug] Abrindo Modal de Entrega');
+                this.haptic('light');
                 this.deliverySetupError = '';
-                if (this.deliverySetup && !this.deliverySetup.plate && this.assignedPlate) {
-                    this.deliverySetup.plate = this.assignedPlate;
-                }
+                this.deliverySetup = {
+                    plate: this.assignedPlate || '',
+                    km_departure: '',
+                    helpers: [],
+                    helperInput: ''
+                };
                 this.showDeliverySetupModal = true;
-                this.$nextTick(() => {
-                    const el = this.$refs.deliveryPlateInput;
-                    if (el && el.focus) el.focus();
-                });
+                setTimeout(() => {
+                    const input = document.querySelector('[x-ref="deliveryPlateInput"]') || this.$refs?.deliveryPlateInput;
+                    if (input && typeof input.focus === 'function') input.focus();
+                }, 100);
             },
 
             // Regra: deliveryRoutes.length > 0 → obrigatório abrir modal Placa/KM. Caso contrário → /mobile/routine/start
@@ -1257,6 +1258,7 @@
             },
 
             openStopModal(route) {
+                this.haptic('light');
                 this.selectedRoute = route;
                 this.showStopModal = true;
             },
@@ -1331,6 +1333,7 @@
             },
 
             startDeliverySession() {
+                this.haptic('light');
                 this.deliverySetupError = '';
                 if (!this.deliverySetup.plate || this.deliverySetup.plate.length < 7) {
                     this.deliverySetupError = 'Informe a placa completa.';
@@ -1362,6 +1365,7 @@
             },
 
             endDeliverySession() {
+                this.haptic('light');
                 if (!this.deliveryEndKm || Number(this.deliveryEndKm) <= 0) { alert('Informe KM de chegada válido.'); return; }
                 fetch('/api/mobile/delivery/session/end', {
                     method: 'POST',
