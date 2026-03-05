@@ -79,19 +79,18 @@
 
     <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-7 gap-3">
       {{ kpi_card("Paradas Planejadas", kpis.planned_stops, "Base do período", "route", "neutral") }}
-      {{ kpi_card("Paradas Realizadas", kpis.realized_stops, "SLA " ~ "%.1f"|format(kpis.sla_finish) ~ "%",
+      {{ kpi_card("Paradas Realizadas", kpis.realized_stops, "SLA " ~ (kpis.sla_finish|fmt_br_1) ~ "%",
       "check-circle-2", "success" if kpis.sla_finish >= 90 else "warning") }}
-      {{ kpi_card("Taxa Devolução", "%.1f"|format(kpis.return_rate_qtd) ~ "%", kpis.total_devolucoes ~ " ocorrências",
+      {{ kpi_card("Taxa Devolução", (kpis.return_rate_qtd|fmt_br_1) ~ "%", kpis.total_devolucoes ~ " ocorrências",
       "undo-2", "danger" if kpis.return_rate_qtd >= 10 else "warning") }}
-      {{ kpi_card("Valor Devolvido", "R$ " ~ "{:,.2f}".format(kpis.valor_total_devolvido).replace(",", "X").replace(".",
-      ",").replace("X", "."), "Total acumulado", "wallet", "danger" if kpis.valor_total_devolvido > 0 else "neutral") }}
-      {{ kpi_card("% Acima de R$300", "%.1f"|format(kpis.devolucoes_acima_300_pct) ~ "%",
+      {{ kpi_card("Valor Devolvido", kpis.valor_total_devolvido|fmt_br_moeda, "Total acumulado", "wallet", "danger" if kpis.valor_total_devolvido > 0 else "neutral") }}
+      {{ kpi_card("% Acima de R$300", (kpis.devolucoes_acima_300_pct|fmt_br_1) ~ "%",
       kpis.devolucoes_acima_300_count ~ " linhas", "alert-triangle", "warning" if kpis.devolucoes_acima_300_pct >= 35
       else "success") }}
-      {{ kpi_card("Tempo Médio", "%.0f"|format(kpis.avg_duration_m) ~ " min", "Rotas finalizadas", "timer", "warning" if
+      {{ kpi_card("Tempo Médio", (kpis.avg_duration_m|fmt_br_int) ~ " min", "Rotas finalizadas", "timer", "warning" if
       kpis.avg_duration_m >= 120 else "success") }}
       {{ kpi_card("Risco Próx. Turno", kpis.risk_label, "Prev. devolução " ~
-      "%.1f"|format(kpis.forecast_next_return_rate) ~ "%", "shield-alert", kpis.risk_severity) }}
+      (kpis.forecast_next_return_rate|fmt_br_1) ~ "%", "shield-alert", kpis.risk_severity) }}
     </section>
 
     <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -175,14 +174,14 @@
             href="/bi/delivery?{{ filters_query }}&detail_driver_id={{ row.driver_id }}#drilldown-section">{{
             row.driver_name }}</a></td>
         <td>{% if row.planned_stops > 0 %}{{ row.delivered_stops }}/{{ row.planned_stops }}{% else %}— ({{ row.returned_stops }} dev.){% endif %}</td>
-        <td class="{{ 'tone-danger' if row.efficiency < 70 else 'tone-success' }}">{{ "%.1f"|format(row.efficiency) }}%
+        <td class="{{ 'tone-danger' if row.efficiency < 70 else 'tone-success' }}">{{ row.efficiency|fmt_br_1 }}%
         </td>
-        <td class="{{ 'tone-warning' if row.return_rate >= 10 else '' }}">{{ "%.1f"|format(row.return_rate) }}%</td>
-        <td>{{ "{:,.0f}".format(row.planned_kg).replace(",", ".") }}</td>
-        <td>{{ "{:,.0f}".format(row.realized_kg).replace(",", ".") }}</td>
-        <td>{{ "{:,.0f}".format(row.returned_value).replace(",", ".") }}</td>
+        <td class="{{ 'tone-warning' if row.return_rate >= 10 else '' }}">{{ row.return_rate|fmt_br_1 }}%</td>
+        <td>{{ row.planned_kg|fmt_br_2 }}</td>
+        <td>{{ row.realized_kg|fmt_br_2 }}</td>
+        <td>{{ row.returned_value|fmt_br_moeda }}</td>
         <td>{{ row.reopen_count }}</td>
-        <td>{{ "%.0f"|format(row.avg_duration) }} min</td>
+        <td>{{ row.avg_duration|fmt_br_int }} min</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -343,10 +342,26 @@
   };
 
   const safeStr = (v) => (v == null ? '' : String(v));
+  function dataBR(s) {
+    if (s == null || s === '') return '-';
+    const str = String(s).trim();
+    const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : str;
+  }
+  function numeroBR(n, dec) {
+    if (n == null || isNaN(Number(n))) return '0,00';
+    const x = Number(n);
+    const d = dec != null ? dec : 2;
+    return x.toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+  }
+  function moedaBR(n) {
+    if (n == null || isNaN(Number(n))) return 'R$ 0,00';
+    return Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
   new Chart(document.getElementById('trendChart'), {
     type: 'line',
     data: {
-      labels: (chartData.trend.dates || []).map(safeStr),
+      labels: (chartData.trend.dates || []).map(d => dataBR(d) !== '-' ? dataBR(d) : safeStr(d)),
       datasets: [
         { label: 'Qtd devoluções', data: chartData.trend.qtd, borderColor: palette.warning, backgroundColor: 'transparent', tension: .25, yAxisID: 'y' },
         { label: 'Valor devolvido', data: chartData.trend.valor, borderColor: palette.danger, backgroundColor: 'transparent', tension: .25, yAxisID: 'y1' },
@@ -499,11 +514,11 @@
 
     drillBody.innerHTML = slice.map(r => `
       <tr>
-        <td>${r.date || '-'}</td><td class="operational-col">${r.shift || '-'}</td><td>${r.driver_name || '-'}</td><td>${r.client_name || '-'}</td>
-        <td>${r.status || '-'}</td><td class="operational-col">${r.order_number || '-'}</td><td>${Number(r.planned_kg || 0).toFixed(1)}</td>
-        <td>${Number(r.returned_kg || 0).toFixed(1)}</td><td>${Number(r.planned_value || 0).toFixed(2)}</td>
-        <td>${Number(r.returned_value || 0).toFixed(2)}</td><td class="operational-col">${r.reopen_count || 0}</td>
-        <td class="operational-col">${r.duration_m ? `${r.duration_m} min` : '-'}</td><td class="operational-col">${r.plate || '-'}</td>
+        <td>${dataBR(r.date)}</td><td class="operational-col">${r.shift || '-'}</td><td>${r.driver_name || '-'}</td><td>${r.client_name || '-'}</td>
+        <td>${r.status || '-'}</td><td class="operational-col">${r.order_number || '-'}</td><td>${numeroBR(r.planned_kg, 1)}</td>
+        <td>${numeroBR(r.returned_kg, 1)}</td><td>${moedaBR(r.planned_value)}</td>
+        <td>${moedaBR(r.returned_value)}</td><td class="operational-col">${r.reopen_count || 0}</td>
+        <td class="operational-col">${r.duration_m ? numeroBR(r.duration_m, 0) + ' min' : '-'}</td><td class="operational-col">${r.plate || '-'}</td>
       </tr>
     `).join('');
 

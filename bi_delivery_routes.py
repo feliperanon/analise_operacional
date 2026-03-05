@@ -23,6 +23,66 @@ router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
 
+def _fmt_br_1(val):
+    """Um decimal: 1.234,5"""
+    if val is None:
+        return "0,0"
+    try:
+        return f"{float(val):,.1f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except Exception:
+        return str(val)
+
+
+def _fmt_br_2(val):
+    """Dois decimais: 1.234,56"""
+    if val is None:
+        return "0,00"
+    try:
+        return f"{float(val):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except Exception:
+        return str(val)
+
+
+def _fmt_br_int(val):
+    """Inteiro com ponto milhar: 1.234"""
+    if val is None:
+        return "0"
+    try:
+        return f"{int(float(val)):,}".replace(",", ".")
+    except Exception:
+        return str(val)
+
+
+def _fmt_br_data(s):
+    """YYYY-MM-DD -> DD/MM/YYYY"""
+    if not s or not str(s).strip():
+        return "-"
+    try:
+        parts = str(s).strip().split("-")
+        if len(parts) == 3:
+            return f"{parts[2]}/{parts[1]}/{parts[0]}"
+    except Exception:
+        pass
+    return str(s)
+
+
+def _fmt_br_moeda(val):
+    """R$ 1.234,56"""
+    if val is None:
+        return "R$ 0,00"
+    try:
+        return "R$ " + _fmt_br_2(val)
+    except Exception:
+        return "R$ —"
+
+
+templates.env.filters["fmt_br_1"] = _fmt_br_1
+templates.env.filters["fmt_br_2"] = _fmt_br_2
+templates.env.filters["fmt_br_int"] = _fmt_br_int
+templates.env.filters["fmt_br_data"] = _fmt_br_data
+templates.env.filters["fmt_br_moeda"] = _fmt_br_moeda
+
+
 def _ma(vals: list[float], w: int) -> list[Optional[float]]:
     out: list[Optional[float]] = []
     for i in range(len(vals)):
@@ -267,10 +327,10 @@ def _build_bi_delivery_dataset(
             anomaly_flags.append(f"Clientes com devolução recorrente: {', '.join(rec_client)}.")
     if cluster_agg:
         cl = max(cluster_agg.values(), key=lambda x: x["valor"])
-        anomaly_flags.append(f"Cluster crítico por valor: {cl['cluster']} (R$ {cl['valor']:.2f}).")
+        anomaly_flags.append(f"Cluster crítico por valor: {cl['cluster']} (R$ {_fmt_br_2(cl['valor'])}).")
     if ret_value_day:
         dpk, vpk = max(ret_value_day.items(), key=lambda x: x[1])
-        anomaly_flags.append(f"Pico de devolução em {dpk}: R$ {vpk:.2f}.")
+        anomaly_flags.append(f"Pico de devolução em {_fmt_br_data(dpk)}: R$ {_fmt_br_2(vpk)}.")
 
     recommendations = []
     if global_return_rate >= 10:
@@ -357,9 +417,11 @@ def _build_bi_delivery_dataset(
     if detail_status_norm != "todos":
         detail_rows = [r for r in detail_rows if r["status"] == detail_status_norm]
 
+    delivered_stops = max(0, realized_stops - returned_stops)
     kpis = {
         "planned_stops": planned_stops,
         "realized_stops": realized_stops,
+        "delivered_stops": delivered_stops,
         "started_stops": started_stops,
         "pending_stops": max(0, planned_stops - started_stops),
         "planned_kg": round(planned_kg, 2),
@@ -372,7 +434,7 @@ def _build_bi_delivery_dataset(
         "return_rate_kg": round(returned_kg / max(1, planned_kg) * 100.0, 2) if planned_kg else 0.0,
         "return_rate_value": round(returned_value / max(1, planned_value) * 100.0, 2) if planned_value else 0.0,
         "sla_start": round(started_stops / max(1, planned_stops) * 100.0, 2) if planned_stops else 0.0,
-        "sla_finish": round(realized_stops / max(1, planned_stops) * 100.0, 2) if planned_stops else 0.0,
+        "sla_finish": round(delivered_stops / max(1, planned_stops) * 100.0, 2) if planned_stops else 0.0,
         "reopen_index": round(reopen_routes / max(1, planned_stops) * 100.0, 2) if planned_stops else 0.0,
         "avg_duration_m": round(avg_duration, 1),
         "forecast_next_stops": forecast_stops,
@@ -472,12 +534,22 @@ async def bi_delivery_export(
     stamp = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y%m%d_%H%M")
     fmt = (format or "csv").strip().lower()
 
+    def _row_data_br(r):
+        data_br = _fmt_br_data(r["date"])
+        kg_p = _fmt_br_2(r.get("planned_kg", 0))
+        kg_d = _fmt_br_2(r.get("delivered_kg", 0))
+        kg_ret = _fmt_br_2(r.get("returned_kg", 0))
+        v_p = _fmt_br_2(r.get("planned_value", 0))
+        v_d = _fmt_br_2(r.get("delivered_value", 0))
+        v_ret = _fmt_br_2(r.get("returned_value", 0))
+        return [r["route_id"], data_br, r["shift"], r["driver_name"], r["client_name"], r["status"], kg_p, kg_d, kg_ret, v_p, v_d, v_ret, r["reopen_count"], r["duration_m"] or "", r["plate"], r["order_number"], r.get("motivo", ""), r.get("responsabilidade", ""), r.get("cluster", ""), r.get("acima_300", ""), r.get("source", "")]
+
     if fmt == "csv":
         out = io.StringIO()
         w = csv.writer(out, delimiter=";")
         w.writerow(["rota_id", "data", "turno", "motorista", "cliente", "status", "kg_planejado", "kg_entregue", "kg_devolvido", "valor_planejado", "valor_entregue", "valor_devolvido", "reaberturas", "duracao_min", "placa", "pedido", "motivo", "responsabilidade", "cluster", "acima_300", "origem"])
         for r in rows:
-            w.writerow([r["route_id"], r["date"], r["shift"], r["driver_name"], r["client_name"], r["status"], f"{r['planned_kg']:.2f}", f"{r['delivered_kg']:.2f}", f"{r['returned_kg']:.2f}", f"{r['planned_value']:.2f}", f"{r['delivered_value']:.2f}", f"{r['returned_value']:.2f}", r["reopen_count"], r["duration_m"] or "", r["plate"], r["order_number"], r.get("motivo", ""), r.get("responsabilidade", ""), r.get("cluster", ""), r.get("acima_300", ""), r.get("source", "")])
+            w.writerow(_row_data_br(r))
         buf = io.BytesIO(out.getvalue().encode("utf-8-sig"))
         return StreamingResponse(buf, media_type="text/csv; charset=utf-8", headers={"Content-Disposition": f"attachment; filename=bi_entregas_{stamp}.csv"})
 
@@ -488,7 +560,7 @@ async def bi_delivery_export(
         ws.title = "BI Entregas"
         ws.append(["Rota ID", "Data", "Turno", "Motorista", "Cliente", "Status", "Kg Planejado", "Kg Entregue", "Kg Devolvido", "Valor Planejado", "Valor Entregue", "Valor Devolvido", "Reaberturas", "Duracao (min)", "Placa", "Pedido", "Motivo", "Responsabilidade", "Cluster", "Acima 300", "Origem"])
         for r in rows:
-            ws.append([r["route_id"], r["date"], r["shift"], r["driver_name"], r["client_name"], r["status"], r["planned_kg"], r["delivered_kg"], r["returned_kg"], r["planned_value"], r["delivered_value"], r["returned_value"], r["reopen_count"], r["duration_m"] or 0, r["plate"], r["order_number"], r.get("motivo", ""), r.get("responsabilidade", ""), r.get("cluster", ""), r.get("acima_300", ""), r.get("source", "")])
+            ws.append(_row_data_br(r))
         xbuf = io.BytesIO()
         wb.save(xbuf)
         xbuf.seek(0)
@@ -505,9 +577,11 @@ async def bi_delivery_export(
         c.drawString(30, y, "BI Entregas - Relatorio Executivo")
         y -= 16
         c.setFont("Helvetica", 9)
-        c.drawString(30, y, f"Periodo: {dataset['filters']['date_from']} ate {dataset['filters']['date_to']}")
+        period_from = _fmt_br_data(dataset["filters"]["date_from"])
+        period_to = _fmt_br_data(dataset["filters"]["date_to"])
+        c.drawString(30, y, f"Periodo: {period_from} ate {period_to}")
         y -= 14
-        c.drawString(30, y, f"Planejadas: {dataset['kpis']['planned_stops']} | Realizadas: {dataset['kpis']['realized_stops']} | Devolucao: {dataset['kpis']['return_rate_qtd']:.1f}%")
+        c.drawString(30, y, f"Planejadas: {dataset['kpis']['planned_stops']} | Realizadas: {dataset['kpis']['realized_stops']} | Devolucao: {_fmt_br_1(dataset['kpis']['return_rate_qtd'])}%")
         y -= 20
         c.setFont("Helvetica", 8)
         for r in rows[:180]:
@@ -515,11 +589,11 @@ async def bi_delivery_export(
                 c.showPage()
                 y = h - 30
                 c.setFont("Helvetica", 8)
-            c.drawString(30, y, str(r["date"]))
+            c.drawString(30, y, _fmt_br_data(r["date"]))
             c.drawString(95, y, str(r["driver_name"])[:28])
             c.drawString(265, y, str(r["client_name"])[:32])
             c.drawString(450, y, str(r["status"])[:10])
-            c.drawRightString(590, y, f"{r['planned_value']:.0f}")
+            c.drawRightString(590, y, _fmt_br_2(r.get("planned_value", 0)))
             y -= 10
         c.save()
         pbuf.seek(0)
