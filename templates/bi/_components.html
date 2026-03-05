@@ -15,11 +15,16 @@
   role="button"
   aria-label="Detalhes do KPI {{ title }}"
 >
-  <div class="bi-card-head">
-    <div class="icon-wrap" style="color: {{ tone }};">
-      <i data-lucide="{{ icon }}" class="w-4 h-4"></i>
+  <div class="bi-card-head bi-card-head-between">
+    <div class="flex items-center gap-2">
+      <div class="icon-wrap" style="color: {{ tone }};">
+        <i data-lucide="{{ icon }}" class="w-4 h-4"></i>
+      </div>
+      <p class="text-caption">{{ title }}</p>
     </div>
-    <p class="text-caption">{{ title }}</p>
+    <button class="icon-wrap-sm" type="button" title="Ajuda" aria-label="Ajuda do KPI {{ title }}">
+      <i data-lucide="info" class="w-4 h-4"></i>
+    </button>
   </div>
   <p class="text-title-lg mt-2">{{ value }}</p>
   {% if subtitle %}

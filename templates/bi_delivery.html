@@ -747,6 +747,15 @@
     return `<p class="text-body mt-2"><strong>KPIs relacionados:</strong> ${items.join(', ')}.</p>`;
   };
 
+  const renderMethodology = () => `
+    <div class="mt-3 pt-3 border-t" style="border-color: var(--color-border);">
+      <p class="text-caption">Metodologia de explicacao</p>
+      <p class="text-body mt-1"><strong>Pareto 80/20:</strong> foco no fator que gera maior impacto no resultado.</p>
+      <p class="text-body"><strong>Feynman:</strong> explicacao em linguagem simples, sem jargao desnecessario.</p>
+      <p class="text-body"><strong>Intercalacao:</strong> conecta indicador atual, KPI relacionado e decisao pratica.</p>
+    </div>
+  `;
+
   function ensureHelpModal() {
     let modal = document.getElementById('bi-help-modal');
     if (modal) return modal;
@@ -795,7 +804,10 @@
     modal.querySelector('#bi-help-title').textContent = title;
     if (!help) {
       modal.querySelector('#bi-help-summary').textContent = subtitle;
-      modal.querySelector('#bi-help-text').innerHTML = `<p class="text-body">Este painel ainda não tem ajuda detalhada.</p>`;
+      modal.querySelector('#bi-help-text').innerHTML = `
+        <p class="text-body">Este painel ainda não tem ajuda detalhada.</p>
+        ${renderMethodology()}
+      `;
     } else {
       modal.querySelector('#bi-help-summary').textContent = help.summary || subtitle;
       modal.querySelector('#bi-help-text').innerHTML = `
@@ -809,6 +821,7 @@
         <p class="text-body"><strong>Executivo:</strong> ${help.executiveUse}</p>
         ${renderRelated(help.relatedKpis)}
         <p class="text-body"><strong>Dica rápida:</strong> ${help.quickTip}</p>
+        ${renderMethodology()}
       `;
     }
     modal.classList.remove('hidden');
@@ -818,7 +831,9 @@
   document.addEventListener('click', (ev) => {
     const btn = ev.target.closest('button.icon-wrap-sm[title="Ajuda"]');
     if (!btn) return;
-    const card = btn.closest('section');
+    ev.preventDefault();
+    ev.stopPropagation();
+    const card = btn.closest('section, article');
     if (card) openHelpFromCard(card);
   });
 

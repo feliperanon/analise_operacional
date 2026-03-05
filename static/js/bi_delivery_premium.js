@@ -461,7 +461,10 @@
   toggleExecutiveMode(safeStorage.get("bi_exec_mode") === "1");
 
   qsa(".kpi-card").forEach((card) => {
-    card.addEventListener("click", () => openKpiModal(card));
+    card.addEventListener("click", (e) => {
+      if (e?.target?.closest('button[title="Ajuda"]')) return;
+      openKpiModal(card);
+    });
     card.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
