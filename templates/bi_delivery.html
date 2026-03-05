@@ -313,8 +313,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <script>
-  const chartData = {{ chart_payload_json| safe }};
-  const detailRows = {{ detail_rows_json| safe }};
+  const chartData = {{ chart_payload_json| safe }} || {};
+  const detailRows = {{ detail_rows_json| safe }} || [];
   window.__biChartData = chartData;
   window.__biDetailRows = detailRows;
 
@@ -457,7 +457,7 @@
     options: baseOpt
   });
 
-  const dr = chartData.driver_resp_valor || {};
+  const dr = (chartData && chartData.driver_resp_valor) ? chartData.driver_resp_valor : {};
   const respColors = [palette.primary, palette.warning, palette.danger, palette.success].map(c => (typeof c === 'string' ? c : '#94a3b8'));
   safeChart('driverRespChart', {
     type: 'bar',
