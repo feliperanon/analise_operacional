@@ -311,6 +311,98 @@
         </div>
       </footer>
     </section>
+</div>
+</div>
+
+<div id="kpiDetailModal" class="bi-modal hidden" aria-hidden="true">
+  <div class="bi-modal-panel">
+    <div class="bi-modal-head">
+      <div>
+        <p class="text-caption" id="kpiModalTag">KPI</p>
+        <h3 class="text-title-lg" id="kpiModalTitle">Detalhes do KPI</h3>
+      </div>
+      <button type="button" class="btn-secondary" data-close-modal="kpiDetailModal">Fechar</button>
+    </div>
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-4">
+      <section class="surface p-4 space-y-2">
+        <p class="text-body"><strong>Significado:</strong> <span id="kpiMeaning"></span></p>
+        <p class="text-body"><strong>Fórmula:</strong> <span id="kpiFormula"></span></p>
+        <p class="text-body"><strong>Benchmark:</strong> <span id="kpiBenchmark"></span></p>
+        <p class="text-body"><strong>Tendência:</strong> <span id="kpiTrend"></span></p>
+        <div id="kpiAlerts" class="space-y-2 mt-3"></div>
+      </section>
+      <section class="surface p-4">
+        <h4 class="text-section mb-3">Sparkline</h4>
+        <div style="height:160px"><canvas id="kpiSparkline"></canvas></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div id="chartFullscreenModal" class="bi-modal hidden" aria-hidden="true">
+  <div class="bi-modal-panel bi-modal-panel-xl">
+    <div class="bi-modal-head">
+      <div>
+        <p class="text-caption" id="fullChartTag">Análise expandida</p>
+        <h3 class="text-title-lg" id="fullChartTitle">Gráfico</h3>
+      </div>
+      <div class="flex items-center gap-2">
+        <button type="button" id="chartTypeToggleBtn" class="btn-secondary">Alternar tipo</button>
+        <button type="button" id="chartCompare7Btn" class="btn-secondary">D-7</button>
+        <button type="button" id="chartCompare30Btn" class="btn-secondary">D-30</button>
+        <button type="button" id="chartCompareAllBtn" class="btn-secondary">Completo</button>
+        <button type="button" id="chartResetZoomBtn" class="btn-secondary">Reset zoom</button>
+        <button type="button" id="chartExportPngBtn" class="btn-secondary">Exportar PNG</button>
+        <button type="button" class="btn-secondary" data-close-modal="chartFullscreenModal">Fechar</button>
+      </div>
+    </div>
+    <section id="fullscreenDevolucaoStrip" class="surface p-3 mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-sm">
+      <div class="col-span-2 sm:col-span-3 lg:col-span-6 border-b border-slate-600/50 pb-2 mb-1">
+        <span class="text-amber-400 font-medium">Meta: 2% de devolução máx. por dia</span>
+      </div>
+      <div class="bg-slate-800/50 border border-slate-600/50 p-2 rounded-lg">
+        <span class="text-slate-400 block text-xs">% Valor devolvido</span>
+        <span id="fullscreenPctValor" class="text-lg font-semibold">—</span>
+      </div>
+      <div class="bg-slate-800/50 border border-slate-600/50 p-2 rounded-lg">
+        <span class="text-slate-400 block text-xs">Valor devolvido (R$)</span>
+        <span id="fullscreenValorDevolvido" class="text-lg font-semibold">—</span>
+      </div>
+      <div class="bg-slate-800/50 border border-slate-600/50 p-2 rounded-lg">
+        <span class="text-slate-400 block text-xs">Qtd. devoluções</span>
+        <span id="fullscreenQtdDevolucoes" class="text-lg font-semibold">—</span>
+      </div>
+      <div class="bg-slate-800/50 border border-slate-600/50 p-2 rounded-lg sm:col-span-2 lg:col-span-1">
+        <span class="text-slate-400 block text-xs">Devolução mês ant.</span>
+        <span id="fullscreenDevolucaoMesAnt" class="text-lg font-semibold">—</span>
+      </div>
+    </section>
+    <div class="mt-3" style="height: 54vh;">
+      <canvas id="fullscreenChartCanvas"></canvas>
+    </div>
+    <section class="surface p-4 mt-4">
+      <h4 class="text-section mb-2">Storytelling automático</h4>
+      <div id="fullscreenInsights" class="space-y-2"></div>
+    </section>
+  </div>
+</div>
+
+<div id="respMotivosModal" class="bi-modal hidden" aria-hidden="true">
+  <div class="bi-modal-panel bi-modal-panel-xl">
+    <div class="bi-modal-head">
+      <div>
+        <p class="text-caption">Análise por responsabilidade</p>
+        <h3 class="text-title-lg" id="respMotivosTitle">Motivos de devolução</h3>
+      </div>
+      <button type="button" class="btn-secondary" data-close-modal="respMotivosModal">Fechar</button>
+    </div>
+    <div class="mt-4" style="height: 58vh;">
+      <canvas id="respMotivosCanvas"></canvas>
+    </div>
+    <section class="surface p-4 mt-4">
+      <h4 class="text-section mb-2">Clientes por responsabilidade</h4>
+      <div id="respClientsList" class="space-y-2"></div>
+    </section>
   </div>
 </div>
 

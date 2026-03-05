@@ -740,14 +740,12 @@
     </div>
 </div>
 
-<!-- Delivery Setup Modal: x-show + x-teleport para garantir exibição (x-if pode perder escopo) -->
-<template x-teleport="body">
+<!-- Delivery Setup Modal: mesmos padrões do Help/EndDay (sem teleport para preservar escopo Alpine) -->
 <div x-show="showDeliverySetupModal" x-cloak
-    class="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60"
-    style="position: fixed; top: 0; left: 0; right: 0; bottom: 0;"
+    class="fixed inset-0 flex items-center justify-center p-4 bg-black/60"
+    style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 99999;"
     @click.self="showDeliverySetupModal = false"
-    x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-    x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+    x-transition.opacity>
     <div @click.stop class="w-full max-w-lg rounded-xl flex flex-col max-h-[90vh] overflow-hidden" style="background: var(--color-surface-solid, #0f172a); border: 1px solid var(--color-border); box-shadow: var(--shadow-modal);">
         <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
             <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center" style="background: var(--color-primary); color: white;">
@@ -813,7 +811,6 @@
         </div>
     </div>
 </div>
-</template>
 
 <!-- Delivery End Modal -->
 <div x-show="showDeliveryEndModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40" x-transition.opacity x-cloak @click.self="showDeliveryEndModal=false">
@@ -1193,7 +1190,6 @@
             },
 
             openDeliverySetupModal() {
-                console.log('[Debug] Abrindo Modal de Entrega');
                 this.haptic('light');
                 this.deliverySetupError = '';
                 this.deliverySetup = {
