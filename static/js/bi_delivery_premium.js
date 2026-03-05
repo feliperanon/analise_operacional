@@ -153,6 +153,25 @@
     return out;
   }
 
+  function normalizeDataForType(type, data) {
+    const out = cloneChartData(data || { labels: [], datasets: [] });
+    const isCartesian = type !== "doughnut" && type !== "pie" && type !== "polarArea";
+    if (!Array.isArray(out.datasets)) return out;
+    out.datasets = out.datasets.map((ds) => {
+      const d = { ...ds };
+      if (!isCartesian) {
+        delete d.yAxisID;
+        delete d.xAxisID;
+        delete d.stack;
+      }
+      if (Array.isArray(d.data)) {
+        d.data = d.data.map((v) => (v == null ? null : Number(v) || 0));
+      }
+      return d;
+    });
+    return out;
+  }
+
   function buildFullscreenOptions(type, data) {
     const isCartesian = type !== "doughnut" && type !== "pie" && type !== "polarArea";
     const options = {
@@ -384,7 +403,7 @@
     byId("fullChartTitle").textContent = chartTitles[chartId] || "Gráfico";
     byId("fullChartTag").textContent = "Use setas para navegar entre gráficos.";
     destroyFullscreenChart();
-    const clipped = cloneChartData(clipData(src.data, compareWindow));
+    const clipped = normalizeDataForType(currentType, clipData(src.data, compareWindow));
     const opts = buildFullscreenOptions(currentType, clipped);
     try {
       fullscreenChart = new Chart(byId("fullscreenChartCanvas"), {
@@ -473,7 +492,7 @@
     const idx = allowed.indexOf(current);
     const next = allowed[(idx + 1) % allowed.length] || current;
     byId("chartTypeToggleBtn").dataset.current = next;
-    const clipped = cloneChartData(clipData(src.data, compareWindow));
+    const clipped = normalizeDataForType(next, clipData(src.data, compareWindow));
     destroyFullscreenChart();
     fullscreenChart = new Chart(byId("fullscreenChartCanvas"), { type: next, data: clipped, options: buildFullscreenOptions(next, clipped) });
   });
