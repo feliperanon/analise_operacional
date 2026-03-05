@@ -8244,6 +8244,52 @@ def _find_client(client_code_raw: Optional[str], client_name_raw: Optional[str],
     return None
 
 
+def _create_pre_client(
+    session: Session,
+    clients: List[models.Client],
+    client_name_raw: Optional[str],
+    client_code_raw: Optional[str],
+    address: Optional[str] = None,
+    bairro: Optional[str] = None,
+    city: Optional[str] = None,
+    row_num: Optional[int] = None,
+) -> models.Client:
+    base_name = (client_name_raw or "").strip() or f"CLIENTE PRE-CADASTRO {client_code_raw or row_num or ''}".strip()
+    norm_taken = {_norm_text(c.name) for c in clients if c.name}
+
+    unique_name = base_name
+    if _norm_text(unique_name) in norm_taken:
+        suffix_seed = (client_code_raw or f"ROW-{row_num}" if row_num else "PRE-CAD").strip()
+        candidate = f"{base_name} ({suffix_seed})"
+        if _norm_text(candidate) not in norm_taken:
+            unique_name = candidate
+        else:
+            idx = 2
+            while True:
+                candidate = f"{base_name} ({suffix_seed}-{idx})"
+                if _norm_text(candidate) not in norm_taken:
+                    unique_name = candidate
+                    break
+                idx += 1
+
+    client = models.Client(
+        name=unique_name,
+        nb=(client_code_raw or None),
+        nome_fantasia=(client_name_raw or unique_name),
+        razao_social=(client_name_raw or unique_name),
+        municipio=(city or None),
+        bairro=(bairro or None),
+        endereco=(address or None),
+        status_cliente="PRE-CADASTRO",
+        status_operacional="EM_VALIDACAO",
+    )
+    with session.begin_nested():
+        session.add(client)
+        session.flush()
+    clients.append(client)
+    return client
+
+
 @app.get("/separacao", response_class=HTMLResponse)
 async def separacao_page(
     request: Request,
@@ -8824,6 +8870,7 @@ async def import_entregas_separacao(
         "created": 0,
         "issues": [],
         "warnings": [],
+        "pre_registered_clients": 0,
     }
 
     logger.info(f"ðŸšš Iniciando importaÃ§Ã£o de entregas: {file.filename} para data {date}, turno {shift}")
@@ -8920,13 +8967,38 @@ async def import_entregas_separacao(
                 continue
 
             client = _find_client(client_code_raw, client_name_raw, clients)
-
             if not client:
-                import_result["issues"].append({
-                    "row": row_num,
-                    "reason": f"Cliente não cadastrado: {client_name_raw} (código {client_code_raw or '-'})",
-                })
-                continue
+                try:
+                    client = _create_pre_client(
+                        session=session,
+                        clients=clients,
+                        client_name_raw=client_name_raw,
+                        client_code_raw=client_code_raw,
+                        address=address,
+                        bairro=bairro,
+                        city=city,
+                        row_num=row_num,
+                    )
+                    import_result["pre_registered_clients"] += 1
+                    import_result["warnings"].append({
+                        "route": route_code or f"linha {row_num}",
+                        "reason": f"Pré-cadastro criado para cliente '{client.name}' (código {client_code_raw or '-'})",
+                    })
+                except IntegrityError:
+                    clients = session.exec(select(models.Client)).all()
+                    client = _find_client(client_code_raw, client_name_raw, clients)
+                    if not client:
+                        import_result["issues"].append({
+                            "row": row_num,
+                            "reason": f"Falha ao criar pré-cadastro para cliente: {client_name_raw} (código {client_code_raw or '-'})",
+                        })
+                        continue
+                except Exception:
+                    import_result["issues"].append({
+                        "row": row_num,
+                        "reason": f"Erro ao criar pré-cadastro do cliente: {client_name_raw} (código {client_code_raw or '-'})",
+                    })
+                    continue
 
             parsed_rows.append({
                 "employee_id": emp.id,
@@ -9020,6 +9092,10 @@ async def import_entregas_separacao(
             )
         else:
             import_result["message"] = f"Importação concluída com sucesso. {len(parsed_rows)} entregas criadas para {date_br}."
+        if import_result["pre_registered_clients"] > 0:
+            import_result["message"] += (
+                f" {import_result['pre_registered_clients']} cliente(s) foram pré-cadastrados automaticamente."
+            )
     except Exception as exc:
         import_result["message"] = f"Erro ao importar planilha: {str(exc)}"
         logger.exception(f"Ã¢ÂÃ…' Falha na importaÃ§Ã£o de entregas: {exc}")

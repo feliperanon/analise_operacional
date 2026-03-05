@@ -36310,3 +36310,6 @@ FROM gameachievement ORDER BY gameachievement.xp_reward]
 2026-03-05 09:34:11,859 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db | source=local_fallback
 2026-03-05 09:34:21,413 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db | source=local_fallback
 2026-03-05 09:37:38,384 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db | source=local_fallback
+2026-03-05 09:41:51,617 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db | source=local_fallback
+2026-03-05 09:42:02,060 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db | source=local_fallback
+2026-03-05 09:42:15,170 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db | source=local_fallback
