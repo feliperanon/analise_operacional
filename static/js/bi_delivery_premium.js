@@ -164,8 +164,8 @@
     };
     if (isCartesian) {
       options.scales = {
-        x: { ticks: { color: "#94a3b8", maxRotation: 45 }, grid: { color: "rgba(148,163,184,0.2)" } },
-        y: { ticks: { color: "#94a3b8" }, grid: { color: "rgba(148,163,184,0.2)" } }
+        x: { display: true, ticks: { color: "#94a3b8", maxRotation: 45 }, grid: { color: "rgba(148,163,184,0.2)" } },
+        y: { display: true, ticks: { color: "#94a3b8" }, grid: { color: "rgba(148,163,184,0.2)" } }
       };
     }
     return options;
@@ -399,13 +399,6 @@
     destroyFullscreenChart();
     const clipped = cloneChartData(clipData(src.data, compareWindow));
     const opts = buildFullscreenOptions(currentType);
-    if (src.options && src.options.indexAxis) {
-      opts.indexAxis = src.options.indexAxis;
-    }
-    if (src.options && src.options.scales && opts.scales) {
-      if (src.options.scales.x && src.options.scales.x.stacked) { opts.scales.x = opts.scales.x || {}; opts.scales.x.stacked = true; }
-      if (src.options.scales.y && src.options.scales.y.stacked) { opts.scales.y = opts.scales.y || {}; opts.scales.y.stacked = true; }
-    }
     try {
       fullscreenChart = new Chart(byId("fullscreenChartCanvas"), {
         type: currentType,
@@ -495,7 +488,7 @@
     byId("chartTypeToggleBtn").dataset.current = next;
     const clipped = cloneChartData(clipData(src.data, compareWindow));
     destroyFullscreenChart();
-    fullscreenChart = new Chart(byId("fullscreenChartCanvas"), { type: next, data: clipped, options: buildFullscreenOptions(next) });
+    fullscreenChart = new Chart(byId("fullscreenChartCanvas"), { type: next, data: clipped, options: buildFullscreenOptions(next).options ? buildFullscreenOptions(next) : {} });
   });
 
   byId("chartCompare7Btn")?.addEventListener("click", () => { compareWindow = 7; if (fullscreenChartId) openChartFullscreen(fullscreenChartId); });
