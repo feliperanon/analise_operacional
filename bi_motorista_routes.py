@@ -42,9 +42,24 @@ def _build_bi_motorista_dataset(delivery_dataset: dict) -> dict:
     route_rows = delivery_dataset.get("all_route_rows", delivery_dataset.get("detail_rows", []))
     all_rows = route_rows if route_rows else detail_rows
 
-    # 1. Elegibilidade à premiação (meta < 2%)
-    elegiveis = [r for r in tactical if (r.get("return_rate") or 0) < META_PREMIACAO_PCT and (r.get("planned_stops") or 0) >= 5]
-    nao_elegiveis = [r for r in tactical if (r.get("return_rate") or 0) >= META_PREMIACAO_PCT or ((r.get("planned_stops") or 0) < 5 and (r.get("returned_stops") or 0) > 0)]
+    # 1. Elegibilidade à premiação (meta financeira: % devolução em valor < 2%)
+    def _pct_valor(row: dict) -> float:
+        v = row.get("returned_value_pct")
+        if v is None:
+            v = row.get("return_rate")
+        try:
+            return float(v or 0)
+        except Exception:
+            return 0.0
+
+    elegiveis = [
+        r for r in tactical
+        if _pct_valor(r) < META_PREMIACAO_PCT and (r.get("planned_stops") or 0) >= 5
+    ]
+    nao_elegiveis = [
+        r for r in tactical
+        if _pct_valor(r) >= META_PREMIACAO_PCT or ((r.get("planned_stops") or 0) < 5 and float(r.get("returned_value") or 0) > 0)
+    ]
 
     # 2. Ranking mais lento / mais rápido (por tempo médio)
     com_tempo = [r for r in tactical if (r.get("avg_duration") or 0) > 0]

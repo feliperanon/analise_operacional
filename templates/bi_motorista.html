@@ -78,14 +78,14 @@
     <section class="surface-shadow bi-card">
       <div class="bi-card-head">
         <div class="icon-wrap"><i data-lucide="award" class="w-4 h-4"></i></div>
-        <h3 class="text-section">Elegibilidade à Premiação (meta &lt; {{ meta_premiacao|fmt_br_1 }}% devolução)</h3>
+          <h3 class="text-section">Elegibilidade à Premiação (meta &lt; {{ meta_premiacao|fmt_br_1 }}% devolução em valor)</h3>
       </div>
       <div class="mt-4 grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div class="surface p-4 rounded-lg border border-green-500/30 bg-green-500/5">
           <p class="text-caption text-green-400">Elegíveis ({{ elegiveis|length }})</p>
           <ul class="mt-2 space-y-1">
             {% for r in elegiveis %}
-            <li class="flex justify-between text-body"><span>{{ r.driver_name }}</span><span class="tone-success">{{ r.return_rate|fmt_br_1 }}%</span></li>
+            <li class="flex justify-between text-body"><span>{{ r.driver_name }}</span><span class="tone-success">{{ (r.returned_value_pct if r.returned_value_pct is not none else r.return_rate)|fmt_br_1 }}%</span></li>
             {% else %}
             <li class="text-body text-slate-500">Nenhum motorista elegível no período.</li>
             {% endfor %}
@@ -95,7 +95,7 @@
           <p class="text-caption text-amber-400">Fora da meta ({{ nao_elegiveis|length }})</p>
           <ul class="mt-2 space-y-1">
             {% for r in nao_elegiveis %}
-            <li class="flex justify-between text-body"><span>{{ r.driver_name }}</span><span class="tone-warning">{{ r.return_rate|fmt_br_1 }}%</span></li>
+            <li class="flex justify-between text-body"><span>{{ r.driver_name }}</span><span class="tone-warning">{{ (r.returned_value_pct if r.returned_value_pct is not none else r.return_rate)|fmt_br_1 }}%</span></li>
             {% else %}
             <li class="text-body text-slate-500">Todos dentro da meta.</li>
             {% endfor %}
@@ -104,9 +104,10 @@
       </div>
     </section>
 
-    <section class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2">
+    <section class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2">
       {{ kpi_card("Paradas Planejadas", kpis.planned_stops, "Base do período", "route", "neutral") }}
       {{ kpi_card("Taxa Devolução", (kpis.return_rate_qtd|fmt_br_1) ~ "%", kpis.total_devolucoes ~ " ocorrências", "undo-2", "success" if kpis.return_rate_qtd < 2 else "warning") }}
+      {{ kpi_card("Devolução % Valor", (kpis.return_rate_value|fmt_br_1) ~ "%", "Meta financeira ≤ 2,0%", "percent", "danger" if kpis.return_rate_value >= 4 else "warning" if kpis.return_rate_value >= 2 else "success") }}
       {{ kpi_card("Valor Devolvido", kpis.valor_total_devolvido|fmt_br_moeda, "Total acumulado", "wallet", "neutral") }}
       {{ kpi_card("Tempo Médio", (kpis.avg_duration_m|fmt_br_int) ~ " min", "Rotas finalizadas", "timer", "success") }}
       {{ kpi_card("Mais Rápido", (mais_rapido.avg_duration|fmt_br_int) ~ " min" if mais_rapido else "-", mais_rapido.driver_name if mais_rapido else "-", "zap", "success") }}
@@ -115,14 +116,18 @@
     </section>
 
     <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-      {{ chart_card("Tendência diária", "Valor devolvido e médias móveis", "trendChart") }}
+      {{ chart_card("Tendência diária", "Valor devolvido, médias móveis e meta financeira", "trendChart") }}
       {{ chart_card("Dia da semana × Devoluções", "Qtd e valor por dia da semana", "diaSemanaChart") }}
     </section>
 
     <section class="grid grid-cols-1 xl:grid-cols-3 gap-4">
       {{ chart_card("Motivos de devolução", "Valor por motivo e motorista", "motivosChart") }}
-      {{ chart_card("Eficiência por motorista", "Comparativo tático", "driverChart") }}
+      {{ chart_card("Eficiência por motorista", "Comparativo tático com % devolução por valor", "driverChart") }}
       {{ chart_card("Motorista x Responsabilidade x Valor", "Breakdown por responsabilidade", "driverRespChart") }}
+    </section>
+
+    <section class="grid grid-cols-1 gap-4">
+      {{ chart_card("Correlação motorista x cliente x devoluções", "Bolhas por cliente/motorista. Tamanho = valor devolvido; tooltip com % valor real.", "driverClientCorrChart") }}
     </section>
 
     <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -199,7 +204,7 @@
     </section>
 
     <div class="exec-hidden hidden">
-      {% call table_section("Painel tático por motorista", "Clique no motorista para drill-down. Meta premiação &lt; 2%.", "tacticalTable") %}
+      {% call table_section("Painel tático por motorista", "Clique no motorista para drill-down. Meta premiação &lt; 2% (valor).", "tacticalTable") %}
       <thead>
         <tr>
           <th>Motorista</th>
@@ -224,7 +229,7 @@
           <td>{{ row.returned_value|fmt_br_moeda }}</td>
           <td>{{ row.reopen_count }}</td>
           <td>{{ row.avg_duration|fmt_br_int }} min</td>
-          <td>{% if row.return_rate < 2 and row.planned_stops >= 5 %}<span class="tone-success">Sim</span>{% else %}<span class="tone-warning">Não</span>{% endif %}</td>
+          <td>{% if (row.returned_value_pct if row.returned_value_pct is not none else row.return_rate) < 2 and row.planned_stops >= 5 %}<span class="tone-success">Sim</span>{% else %}<span class="tone-warning">Não</span>{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -275,7 +280,7 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script src="/static/js/chart.js"></script>
 <script>
   const chartData = {{ chart_payload_json|safe }} || {};
   const detailRows = {{ detail_rows_json|safe }} || [];
@@ -299,13 +304,19 @@
   const trendLabels = trendDates.map(d => dataBR(d) || d);
   const trendValor = (trend.valor || []).map(toChartNum).map(v => v ?? 0);
   const trendMa7 = (trend.ma7 || []).map(toChartNum);
+  const trendMa30 = (trend.ma30 || []).map(toChartNum);
+  const trendMeta2Pct = (trend.meta_2pct || []).map(toChartNum);
+  const trendLastMonth = (trend.last_month_valor || []).map(toChartNum);
   safeChart('trendChart', {
     type: 'line',
     data: {
       labels: trendLabels,
       datasets: [
         { label: 'Valor devolvido', data: trendValor, borderColor: cDanger, backgroundColor: 'transparent', tension: .25 },
-        { label: 'Média 7', data: trendMa7, borderColor: cPrimary, borderDash: [5, 5], tension: .25 }
+        { label: 'Média 7', data: trendMa7, borderColor: cPrimary, borderDash: [5, 5], tension: .25 },
+        { label: 'Média 30', data: trendMa30, borderColor: cSuccess, borderDash: [3, 3], tension: .25 },
+        { label: 'Meta 2% (R$)', data: trendMeta2Pct, borderColor: '#22c55e', borderDash: [10, 4], tension: .1 },
+        { label: 'Mês passado (R$)', data: trendLastMonth, borderColor: '#a78bfa', borderDash: [2, 4], tension: .2 }
       ]
     },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: cMuted } } }, scales: { x: { ticks: { color: cMuted }, grid: { color: cBorder } }, y: { ticks: { color: cMuted }, grid: { color: cBorder } } } }
@@ -343,7 +354,8 @@
       labels: driversData.map(x => safeStr(x.driver)),
       datasets: [
         { label: 'Eficiência %', data: driversData.map(x => toChartNum(x.eficiencia) ?? 0), backgroundColor: cSuccess },
-        { label: 'Devolução %', data: driversData.map(x => toChartNum(x.devolucao_pct) ?? 0), backgroundColor: cWarn }
+        { label: 'Devolução % (qtd)', data: driversData.map(x => toChartNum(x.devolucao_pct) ?? 0), backgroundColor: cWarn },
+        { label: 'Devolução % (valor)', data: driversData.map(x => toChartNum(x.devolucao_valor_pct) ?? 0), backgroundColor: cDanger }
       ]
     },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: cMuted } } }, scales: { x: { ticks: { color: cMuted } }, y: { ticks: { color: cMuted } } } }
@@ -357,7 +369,76 @@
       labels: (dr.drivers || []).map(d => safeStr(d)),
       datasets: (dr.datasets || []).map((ds, i) => ({ label: safeStr(ds.resp), data: (ds.data || []).map(v => toChartNum(v) ?? 0), backgroundColor: respColors[i % respColors.length], stack: 'stack0' }))
     },
-    options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { labels: { color: cMuted } } }, scales: { x: { ticks: { color: cMuted }, stacked: true }, y: { ticks: { color: cMuted }, stacked: true } } }
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: {
+        legend: { labels: { color: cMuted } },
+        tooltip: {
+          callbacks: {
+            afterBody: (items) => {
+              const idx = items?.[0]?.dataIndex;
+              if (idx == null || !dr.pct_devolucao_valor) return '';
+              const pct = Number(dr.pct_devolucao_valor[idx] || 0).toFixed(1).replace('.', ',');
+              return `% Devolução (valor real): ${pct}%`;
+            }
+          }
+        }
+      },
+      scales: { x: { ticks: { color: cMuted }, stacked: true }, y: { ticks: { color: cMuted }, stacked: true } }
+    }
+  });
+
+  const corr = (chartData && chartData.driver_client_corr) ? chartData.driver_client_corr : {};
+  const corrDrivers = Array.isArray(corr.drivers) ? corr.drivers : [];
+  const corrClients = Array.isArray(corr.clients) ? corr.clients : [];
+  const corrPoints = Array.isArray(corr.points) ? corr.points : [];
+  safeChart('driverClientCorrChart', {
+    type: 'bubble',
+    data: {
+      datasets: [{
+        label: 'Correlação devoluções',
+        data: corrPoints.map(p => ({
+          x: Number(p.x || 0),
+          y: Number(p.y || 0),
+          r: Number(p.r || 6),
+          driver: safeStr(p.driver),
+          client: safeStr(p.client),
+          qtd: Number(p.qtd || 0),
+          valor: Number(p.valor || 0),
+          pct_valor_real: Number(p.pct_valor_real || 0)
+        })),
+        backgroundColor: 'rgba(239, 68, 68, 0.42)',
+        borderColor: cDanger
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: cMuted } },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const p = ctx.raw || {};
+              const valor = Number(p.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+              const pct = Number(p.pct_valor_real || 0).toFixed(1).replace('.', ',');
+              return `${p.driver} | ${p.client} | Qtd: ${Number(p.qtd || 0).toLocaleString('pt-BR')} | Valor: ${valor} | % valor real: ${pct}%`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: cMuted, callback: (v) => corrDrivers[Number(v)] || '' },
+          grid: { color: cBorder },
+          title: { display: true, text: 'Motorista', color: cMuted }
+        },
+        y: {
+          ticks: { color: cMuted, callback: (v) => corrClients[Number(v)] || '' },
+          grid: { color: cBorder },
+          title: { display: true, text: 'Cliente', color: cMuted }
+        }
+      }
+    }
   });
 
   let state = { rows: [...detailRows], page: 1, pageSize: 30, sortKey: 'date', sortDir: 'desc', search: '' };
