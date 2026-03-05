@@ -8004,22 +8004,6 @@ def _validate_delivery_assignment(
     logger.info(f"Ã°Å¸Ã¢â‚¬ÂÃ‚Â Validando troca: motorista_id={employee_id}, placa={plate_norm}, data={date}, total_entregas={len(rows)}")
     logger.info(f"Ã°Å¸Ã¢â‚¬ÂÃ‚Â ParÃ¢metros: exclude_route_id={exclude_route_id}, ignore_employee_id={ignore_employee_id}")
 
-    # Regra 1: motorista nÃ£o pode ter mais de um caminhÃ£o no mesmo dia
-    driver_plates = set()
-    for r in rows:
-        if exclude_route_id and r.id == exclude_route_id:
-            continue
-        if r.employee_id == employee_id and r.delivery_vehicle_plate:
-            driver_plates.add(_norm_plate(r.delivery_vehicle_plate))
-    
-    logger.info("info log")
-    
-    if driver_plates and (len(driver_plates) > 1 or plate_norm not in driver_plates):
-        existing = next(iter(driver_plates))
-        error_msg = f"Motorista jÃ¡ vinculado a outro caminhÃ£o no dia ({existing})."
-        logger.warning(f"ðŸš« Regra 1 violada: {error_msg}")
-        return error_msg
-
     # Regra 2: caminhÃ£o nÃ£o pode estar em dois motoristas
     plate_drivers = set()
     for r in rows:
@@ -8477,7 +8461,8 @@ async def separacao_page(
     for route in delivery_rows:
         emp = emp_map_id.get(route.employee_id)
         driver_name = emp.name if emp else "Motorista nÃ£o cadastrado"
-        key = route.employee_id or 0
+        plate_norm = _norm_plate(route.delivery_vehicle_plate) or "-"
+        key = (route.employee_id or 0, plate_norm)
         if key not in delivery_by_employee:
             delivery_by_employee[key] = {
                 "employee_id": route.employee_id,
@@ -8501,11 +8486,6 @@ async def separacao_page(
                 "helper_ids": [],
                 "helper_names": [],
             }
-        else:
-            current_plate = _norm_plate(delivery_by_employee[key]["vehicle_plate"])
-            route_plate = _norm_plate(route.delivery_vehicle_plate)
-            if current_plate and route_plate and current_plate != route_plate:
-                delivery_by_employee[key]["has_plate_conflict"] = True
 
         helper_ids: List[int] = []
         helper_names: List[str] = []
@@ -8634,7 +8614,10 @@ async def separacao_page(
             delivery_by_employee[key]["pending"] += 1
             delivery_summary["pending"] += 1
 
-    delivery_groups = sorted(delivery_by_employee.values(), key=lambda x: x["driver_name"])
+    delivery_groups = sorted(
+        delivery_by_employee.values(),
+        key=lambda x: (x["driver_name"], _norm_plate(x.get("vehicle_plate"))),
+    )
     for group in delivery_groups:
         stops = len(group["rows"])
         group["opened_routines"] = group["started"] + group["delivered"] + group["returned"]
@@ -9111,14 +9094,19 @@ async def update_delivery_status(
                 url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}",
                 status_code=status.HTTP_303_SEE_OTHER,
             )
-        already_started = session.exec(
+        started_rows = session.exec(
             select(models.Route)
             .where(models.Route.type == "delivery")
             .where(models.Route.date == route.date)
             .where(models.Route.employee_id == route.employee_id)
             .where(models.Route.delivery_status == "iniciada")
             .where(models.Route.id != route.id)
-        ).first()
+        ).all()
+        route_plate_norm = _norm_plate(route.delivery_vehicle_plate)
+        already_started = next(
+            (r for r in started_rows if _norm_plate(r.delivery_vehicle_plate) == route_plate_norm),
+            None,
+        )
         if already_started:
             feedback_encoded = urlencode({
                 "delivery_feedback": "Motorista jÃ¡ possui uma rotina iniciada. Finalize antes de iniciar outra.",
