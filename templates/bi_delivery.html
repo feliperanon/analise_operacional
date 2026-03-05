@@ -621,108 +621,11 @@
     }
   });
 
-  const corr = (chartData && chartData.driver_client_corr) ? chartData.driver_client_corr : {};
-  const corrDrivers = Array.isArray(corr.drivers) ? corr.drivers : [];
-  const corrClients = Array.isArray(corr.clients) ? corr.clients : [];
-  const corrPoints = Array.isArray(corr.points) ? corr.points : [];
-
-  function corrSeverity(pct) {
-    const n = Number(pct || 0);
-    if (n >= 4) return 'danger';
-    if (n >= 2) return 'warn';
-    return 'ok';
-  }
-
-  function renderCorrInsights(appState) {
-    const topEl = document.getElementById('corrTopPairs');
-    const matrixEl = document.getElementById('corrMatrix');
-    if (!topEl || !matrixEl) return;
-
-    const points = [...corrPoints].sort((a, b) => (Number(b.valor || 0) - Number(a.valor || 0)) || (Number(b.qtd || 0) - Number(a.qtd || 0)));
-    if (!points.length) {
-      topEl.innerHTML = '<div class="insight-row">Sem pares com devolucao no periodo.</div>';
-      matrixEl.innerHTML = '<div class="insight-row">Sem dados para matriz de correlacao.</div>';
-      return;
-    }
-
-    const topPairs = points.slice(0, 12);
-    topEl.innerHTML = topPairs.map((p, idx) => {
-      const sev = corrSeverity(p.pct_valor_real);
-      const pct = Number(p.pct_valor_real || 0).toFixed(1).replace('.', ',');
-      const valor = moedaBR(p.valor || 0);
-      return `
-        <button type="button" class="corr-pair-row corr-${sev}" data-driver="${safeStr(p.driver)}" data-client="${safeStr(p.client)}" title="Abrir no drill-through">
-          <span class="corr-rank">${idx + 1}</span>
-          <span class="corr-main">
-            <span class="corr-title">${safeStr(p.driver)} x ${safeStr(p.client)}</span>
-            <span class="corr-sub">Qtd: ${numeroBR(p.qtd || 0, 0)} | ${valor}</span>
-          </span>
-          <span class="corr-pct">${pct}%</span>
-        </button>`;
-    }).join('');
-
-    const driverAgg = new Map();
-    const clientAgg = new Map();
-    points.forEach((p) => {
-      driverAgg.set(p.driver, (driverAgg.get(p.driver) || 0) + Number(p.valor || 0));
-      clientAgg.set(p.client, (clientAgg.get(p.client) || 0) + Number(p.valor || 0));
-    });
-    const topDrivers = Array.from(driverAgg.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8).map(x => x[0]);
-    const topClients = Array.from(clientAgg.entries()).sort((a, b) => b[1] - a[1]).slice(0, 10).map(x => x[0]);
-
-    const pairMap = new Map();
-    points.forEach((p) => {
-      pairMap.set(`${p.driver}|||${p.client}`, p);
-    });
-
-    const head = `<thead><tr><th>Cliente x Motorista</th>${topDrivers.map(d => `<th>${safeStr(d)}</th>`).join('')}</tr></thead>`;
-    const bodyRows = topClients.map((c) => {
-      const cells = topDrivers.map((d) => {
-        const p = pairMap.get(`${d}|||${c}`);
-        if (!p) return '<td><span class="corr-cell corr-empty">-</span></td>';
-        const sev = corrSeverity(p.pct_valor_real);
-        const pct = Number(p.pct_valor_real || 0).toFixed(1).replace('.', ',');
-        const ttl = `${d} x ${c} | Qtd: ${Number(p.qtd || 0).toLocaleString('pt-BR')} | Valor: ${moedaBR(p.valor || 0)} | %: ${pct}%`;
-        return `<td><button type="button" class="corr-cell corr-${sev}" data-driver="${safeStr(d)}" data-client="${safeStr(c)}" title="${ttl}">${pct}%</button></td>`;
-      }).join('');
-      return `<tr><th>${safeStr(c)}</th>${cells}</tr>`;
-    }).join('');
-
-    matrixEl.innerHTML = `<table class="corr-matrix-table">${head}<tbody>${bodyRows}</tbody></table>`;
-
-    const openPair = (driver, client) => {
-      if (!appState) return;
-      const d = String(driver || '').trim();
-      const c = String(client || '').trim();
-      if (!d || !c) return;
-      appState.externalFilter = (r) => String(r.driver_name || '').trim() === d && String(r.client_name || '').trim() === c;
-      appState.page = 1;
-      appState.search = '';
-      const s = document.getElementById('drillSearch');
-      if (s) s.value = '';
-      renderDrill();
-      document.getElementById('drilldown-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    };
-
-    topEl.addEventListener('click', (ev) => {
-      const btn = ev.target.closest('[data-driver][data-client]');
-      if (!btn) return;
-      openPair(btn.dataset.driver, btn.dataset.client);
-    });
-
-    matrixEl.addEventListener('click', (ev) => {
-      const btn = ev.target.closest('[data-driver][data-client]');
-      if (!btn) return;
-      openPair(btn.dataset.driver, btn.dataset.client);
-    });
-  }
-
-  let state = { rows: [...detailRows], page: 1, pageSize: 30, sortKey: 'date', sortDir: 'desc', search: '', externalFilter: null, drillStack: [] };
+  let state = { rows: [...detailRows], page: 1, pageSize: 30, sortKey: 'date', sortDir: 'desc', search: '', drillStack: [] };
   const drillBody = document.getElementById('drillBody');
   const drillSummary = document.getElementById('drillSummary');
   const searchInput = document.getElementById('drillSearch');
   const pageSize = document.getElementById('drillPageSize');
-  renderCorrInsights(state);
 
   function cmp(a, b) {
     const av = a[state.sortKey], bv = b[state.sortKey];
@@ -752,7 +655,6 @@
     };
 
     const filtered = state.rows.filter(r => {
-      if (typeof state.externalFilter === 'function' && !state.externalFilter(r)) return false;
       if (!state.search) return true;
       const k = `${r.driver_name} ${r.client_name} ${r.status} ${r.order_number} ${r.plate}`.toLowerCase();
       return k.includes(state.search);
@@ -977,19 +879,6 @@
       executiveUse: "Definir plano conjunto entre Operação e áreas responsáveis.",
       relatedKpis: ["Responsabilidade", "Valor Devolvido", "Eficiência por motorista"],
       quickTip: "Priorize os três maiores impactos para ganhar resultado rápido."
-    },
-    "correlacao motorista x cliente x devolucoes": {
-      summary: "Relaciona motorista e cliente com intensidade de devolução.",
-      whatIs: "Cada bolha representa um par motorista-cliente com devoluções no período.",
-      howCalculated: "Eixo X: motorista, eixo Y: cliente, tamanho da bolha: valor devolvido do par.",
-      formulaText: "Bolha por motorista/cliente com quantidade, valor e % sobre valor real do motorista.",
-      acronyms: [],
-      practicalMeaning: "Facilita encontrar combinações críticas e não apenas indivíduos isolados.",
-      interpretation: { good: "Bolhas pequenas e distribuídas.", attention: "Algumas bolhas médias concentradas.", critical: "Poucas bolhas grandes dominando o valor." },
-      operationalUse: "Atacar os pares com maior valor devolvido e revisar causa raiz.",
-      executiveUse: "Redirecionar carteira e governança para pares de alto risco.",
-      relatedKpis: ["Motivos de devolução", "Devolução % Valor", "Eficiência por motorista"],
-      quickTip: "Comece pelos 10 pares com maior valor para ganho rápido."
     }
   };
 
@@ -999,8 +888,7 @@
     respChart: "responsabilidade",
     clusterChart: "cluster x valor",
     driverChart: "eficiencia por motorista",
-    driverRespChart: "motorista x responsabilidade x valor",
-    driverClientCorrChart: "correlacao motorista x cliente x devolucoes"
+    driverRespChart: "motorista x responsabilidade x valor"
   };
 
   const normalizeHelpKey = (v) => String(v || '')
@@ -1412,126 +1300,5 @@
     line-height: 1.2;
   }
 
-  .corr-legend {
-    display: flex;
-    gap: .45rem;
-    flex-wrap: wrap;
-  }
-
-  .corr-tag {
-    font-size: .68rem;
-    padding: .2rem .45rem;
-    border-radius: 999px;
-    border: 1px solid var(--color-border);
-    color: var(--color-text-secondary);
-  }
-
-  .corr-ok {
-    background: rgba(16, 185, 129, .18);
-    border-color: rgba(16, 185, 129, .45);
-    color: #d1fae5;
-  }
-
-  .corr-warn {
-    background: rgba(245, 158, 11, .2);
-    border-color: rgba(245, 158, 11, .5);
-    color: #fef3c7;
-  }
-
-  .corr-danger {
-    background: rgba(239, 68, 68, .2);
-    border-color: rgba(239, 68, 68, .55);
-    color: #fee2e2;
-  }
-
-  .corr-pair-row {
-    width: 100%;
-    display: grid;
-    grid-template-columns: 2rem 1fr auto;
-    gap: .5rem;
-    align-items: center;
-    border: 1px solid var(--color-border);
-    background: var(--color-surface);
-    border-radius: .6rem;
-    padding: .5rem .55rem;
-    text-align: left;
-  }
-
-  .corr-pair-row:hover {
-    border-color: var(--color-primary);
-  }
-
-  .corr-rank {
-    width: 1.55rem;
-    height: 1.55rem;
-    border-radius: 999px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: .68rem;
-    font-weight: 700;
-    background: var(--color-border-light);
-    color: var(--color-text-secondary);
-  }
-
-  .corr-title {
-    display: block;
-    color: var(--color-text);
-    font-size: .76rem;
-    font-weight: 600;
-    line-height: 1.2;
-  }
-
-  .corr-sub {
-    display: block;
-    color: var(--color-text-secondary);
-    font-size: .68rem;
-    line-height: 1.15;
-    margin-top: .1rem;
-  }
-
-  .corr-pct {
-    font-size: .74rem;
-    font-weight: 700;
-  }
-
-  .corr-matrix-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: .28rem;
-    min-width: 760px;
-  }
-
-  .corr-matrix-table th {
-    color: var(--color-text-muted);
-    font-size: .64rem;
-    text-transform: uppercase;
-    letter-spacing: .05em;
-    text-align: left;
-    white-space: nowrap;
-  }
-
-  .corr-matrix-table td,
-  .corr-matrix-table th {
-    padding: 0;
-  }
-
-  .corr-cell {
-    min-width: 58px;
-    min-height: 32px;
-    width: 100%;
-    border-radius: .5rem;
-    border: 1px solid var(--color-border);
-    font-size: .68rem;
-    font-weight: 700;
-    color: var(--color-text-secondary);
-    background: color-mix(in srgb, var(--color-surface) 90%, var(--color-text) 10%);
-  }
-
-  .corr-cell.corr-empty {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
 </style>
 {% endblock %}
