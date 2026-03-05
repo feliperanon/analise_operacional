@@ -112,6 +112,9 @@
             <p class="text-caption mt-1">Valor devolvido por motorista e responsabilidade. % devolução sobre valor real (R$).</p>
           </div>
           <div class="flex items-center gap-2">
+            <button class="icon-wrap-sm" type="button" title="Ajuda">
+              <i data-lucide="info" class="w-4 h-4"></i>
+            </button>
             <button class="icon-wrap-sm chart-expand-btn" type="button" title="Expandir gráfico" data-chart-expand="driverRespChart">
               <i data-lucide="maximize-2" class="w-4 h-4"></i>
             </button>
@@ -583,6 +586,119 @@
     renderDrill();
   }));
 
+  const helpContent = {
+    "tendencia diaria": {
+      summary: "Mostra se as devoluções estão subindo ou caindo no tempo.",
+      whatIs: "É o termômetro diário da operação. Compara quantidade e valor devolvido ao longo dos dias.",
+      howCalculated: "Conta as devoluções por dia e soma o valor devolvido por dia. As médias móveis suavizam oscilações curtas.",
+      formulaText: "Quantidade devolvida por dia e valor devolvido por dia, com média dos últimos sete e trinta dias.",
+      acronyms: [{ sigla: "Média 7/30", significado: "Média móvel dos últimos 7 e 30 dias para mostrar tendência." }],
+      practicalMeaning: "Se a linha diária sobe e fica acima da média de 7 dias, o problema está acelerando.",
+      interpretation: { good: "Linha estável ou em queda.", attention: "Oscilação frequente e picos curtos.", critical: "Alta contínua por vários dias." },
+      operationalUse: "Atuar no mesmo dia nos motivos que geraram pico e corrigir rota/processo.",
+      executiveUse: "Priorizar recursos no turno, cliente ou motorista que mais impacta o valor.",
+      relatedKpis: ["Taxa Devolução", "Valor Devolvido", "Risco Próx. Turno"],
+      quickTip: "Compare hoje com os últimos 7 dias antes de abrir ação corretiva."
+    },
+    "motivos de devolucao": {
+      summary: "Mostra o que mais causa devolução e onde está o maior impacto financeiro.",
+      whatIs: "Agrupa devoluções por motivo e distribui por motorista para revelar causa e impacto.",
+      howCalculated: "Soma o valor devolvido por motivo e por motorista, e exibe a quantidade de ocorrências.",
+      formulaText: "Valor devolvido total de cada motivo e motorista, junto com quantidade de devoluções.",
+      acronyms: [{ sigla: "% valor real", significado: "Percentual devolvido sobre o valor realmente entregue." }],
+      practicalMeaning: "Você vê se o problema é de volume ou de dinheiro. Nem sempre quem devolve mais, devolve mais valor.",
+      interpretation: { good: "Motivos dispersos sem concentração alta.", attention: "Um motivo concentra boa parte do valor.", critical: "Um motivo domina e cresce semana a semana." },
+      operationalUse: "Atacar o motivo líder com checklist simples antes da saída do veículo.",
+      executiveUse: "Definir plano de redução por causa raiz com dono e prazo.",
+      relatedKpis: ["Taxa Devolução", "Valor Devolvido", "Eficiência por motorista"],
+      quickTip: "Comece pelo motivo que representa mais valor, não só mais quantidade."
+    },
+    "responsabilidade": {
+      summary: "Mostra de qual área vem a origem da devolução.",
+      whatIs: "Divide as devoluções por responsabilidade: Mercado, Comercial e Logística.",
+      howCalculated: "Classifica cada devolução por área responsável e soma as ocorrências no período.",
+      formulaText: "Quantidade de devoluções por área responsável.",
+      acronyms: [],
+      practicalMeaning: "Ajuda a evitar discussão de culpa. Mostra onde agir primeiro para reduzir perdas.",
+      interpretation: { good: "Distribuição equilibrada e baixa.", attention: "Uma área começa a concentrar os casos.", critical: "Uma área domina o total por vários períodos." },
+      operationalUse: "Direcionar tratativa para a área correta no mesmo dia.",
+      executiveUse: "Revisar processo da área dominante e cobrar plano com metas.",
+      relatedKpis: ["Motivos de devolução", "Taxa Devolução"],
+      quickTip: "Cruze com o gráfico de motivos para achar a causa real da área líder."
+    },
+    "cluster x valor": {
+      summary: "Mostra em qual faixa está concentrado o maior prejuízo.",
+      whatIs: "Agrupa devoluções por faixas de valor para indicar onde está a maior perda financeira.",
+      howCalculated: "Separa cada devolução por faixa e soma o valor devolvido de cada grupo.",
+      formulaText: "Soma do valor devolvido em cada faixa de valor.",
+      acronyms: [],
+      practicalMeaning: "Você sabe se o risco está em muitas perdas pequenas ou poucas perdas grandes.",
+      interpretation: { good: "Baixa concentração nas faixas altas.", attention: "Faixas médias em crescimento.", critical: "Concentração alta em faixas de maior valor." },
+      operationalUse: "Aplicar dupla checagem nos pedidos com valor alto.",
+      executiveUse: "Ajustar política de conferência para pedidos de maior risco financeiro.",
+      relatedKpis: ["% Acima de R$300", "Valor Devolvido"],
+      quickTip: "Se faixa alta subir, priorize prevenção antes da expedição."
+    },
+    "eficiencia por motorista": {
+      summary: "Compara desempenho e devolução entre motoristas.",
+      whatIs: "Mostra lado a lado a eficiência e a taxa de devolução por motorista.",
+      howCalculated: "Calcula percentual de entregas concluídas e percentual de devoluções para cada motorista.",
+      formulaText: "Entregas concluídas sobre paradas planejadas e devoluções sobre paradas planejadas, por motorista.",
+      acronyms: [],
+      practicalMeaning: "Ajuda a identificar quem precisa de apoio imediato e quem pode virar referência.",
+      interpretation: { good: "Eficiência alta e devolução baixa.", attention: "Eficiência oscilando ou devolução subindo.", critical: "Eficiência baixa com devolução alta." },
+      operationalUse: "Fazer acompanhamento diário com foco nos casos críticos.",
+      executiveUse: "Planejar treinamento, rota e balanceamento de carteira por motorista.",
+      relatedKpis: ["Tempo Médio", "Taxa Devolução", "Paradas Realizadas"],
+      quickTip: "Olhe tendência de 2 semanas, não um dia isolado."
+    },
+    "motorista x responsabilidade x valor": {
+      summary: "Mostra quanto cada motorista perde por tipo de responsabilidade.",
+      whatIs: "Exibe o valor devolvido por motorista, separado por área de responsabilidade.",
+      howCalculated: "Para cada motorista, soma o valor devolvido em Mercado, Comercial e Logística.",
+      formulaText: "Valor devolvido total de cada motorista por área responsável.",
+      acronyms: [],
+      practicalMeaning: "Mostra onde está o maior impacto por pessoa e qual área está puxando o problema.",
+      interpretation: { good: "Valores baixos e distribuídos.", attention: "Concentração moderada em poucos motoristas.", critical: "Concentração alta e recorrente em um motorista/área." },
+      operationalUse: "Atuar no motorista e na causa principal no próximo turno.",
+      executiveUse: "Definir plano conjunto entre Operação e áreas responsáveis.",
+      relatedKpis: ["Responsabilidade", "Valor Devolvido", "Eficiência por motorista"],
+      quickTip: "Priorize os três maiores impactos para ganhar resultado rápido."
+    }
+  };
+
+  const helpByChartId = {
+    trendChart: "tendencia diaria",
+    motivosChart: "motivos de devolucao",
+    respChart: "responsabilidade",
+    clusterChart: "cluster x valor",
+    driverChart: "eficiencia por motorista",
+    driverRespChart: "motorista x responsabilidade x valor"
+  };
+
+  const normalizeHelpKey = (v) => String(v || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
+  const renderAcronyms = (items) => {
+    if (!Array.isArray(items) || !items.length) return '';
+    return `
+      <div class="mt-2">
+        <p class="text-caption">Siglas</p>
+        <ul class="mt-1 space-y-1">
+          ${items.map(x => `<li class="text-body"><strong>${x.sigla}:</strong> ${x.significado}</li>`).join('')}
+        </ul>
+      </div>
+    `;
+  };
+
+  const renderRelated = (items) => {
+    if (!Array.isArray(items) || !items.length) return '';
+    return `<p class="text-body mt-2"><strong>KPIs relacionados:</strong> ${items.join(', ')}.</p>`;
+  };
+
   function ensureHelpModal() {
     let modal = document.getElementById('bi-help-modal');
     if (modal) return modal;
@@ -590,12 +706,13 @@
     modal.id = 'bi-help-modal';
     modal.className = 'hidden fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm items-center justify-center p-4';
     modal.innerHTML = `
-      <div class="surface-shadow bi-help-card w-full max-w-xl p-5">
+      <div class="surface-shadow bi-help-card w-full max-w-2xl p-5 max-h-[86vh] overflow-auto">
         <div class="flex items-center justify-between gap-3">
           <h3 id="bi-help-title" class="text-title-lg">Ajuda</h3>
           <button type="button" id="bi-help-close" class="btn-secondary" style="min-height:36px;">Fechar</button>
         </div>
-        <p id="bi-help-text" class="text-body mt-3"></p>
+        <p id="bi-help-summary" class="text-body mt-3"></p>
+        <div id="bi-help-text" class="text-body mt-3 space-y-2"></div>
       </div>
     `;
     document.body.appendChild(modal);
@@ -616,10 +733,36 @@
 
   function openHelpFromCard(card) {
     const modal = ensureHelpModal();
-    const title = card.querySelector('h3')?.textContent?.trim() || 'Ajuda';
-    const subtitle = card.querySelector('p.text-caption')?.textContent?.trim() || 'Sem descrição adicional para este painel.';
+    const title = card.querySelector('h3')?.textContent?.trim()
+      || card.dataset.chartTitle
+      || card.dataset.kpiTitle
+      || 'Ajuda';
+    const subtitle = card.querySelector('p.text-caption')?.textContent?.trim()
+      || card.dataset.chartSubtitle
+      || card.dataset.kpiSubtitle
+      || 'Sem descrição adicional para este painel.';
+    const key = helpByChartId[card.dataset.chartId] || normalizeHelpKey(title);
+    const help = helpContent[key];
+
     modal.querySelector('#bi-help-title').textContent = title;
-    modal.querySelector('#bi-help-text').textContent = subtitle;
+    if (!help) {
+      modal.querySelector('#bi-help-summary').textContent = subtitle;
+      modal.querySelector('#bi-help-text').innerHTML = `<p class="text-body">Este painel ainda não tem ajuda detalhada.</p>`;
+    } else {
+      modal.querySelector('#bi-help-summary').textContent = help.summary || subtitle;
+      modal.querySelector('#bi-help-text').innerHTML = `
+        <p class="text-body"><strong>O que é:</strong> ${help.whatIs}</p>
+        <p class="text-body"><strong>Como é calculado:</strong> ${help.howCalculated}</p>
+        <p class="text-body"><strong>Fórmula simples:</strong> ${help.formulaText}</p>
+        ${renderAcronyms(help.acronyms)}
+        <p class="text-body"><strong>Na prática:</strong> ${help.practicalMeaning}</p>
+        <p class="text-body"><strong>Como interpretar:</strong> Bom: ${help.interpretation.good} | Atencao: ${help.interpretation.attention} | Critico: ${help.interpretation.critical}</p>
+        <p class="text-body"><strong>Operacional:</strong> ${help.operationalUse}</p>
+        <p class="text-body"><strong>Executivo:</strong> ${help.executiveUse}</p>
+        ${renderRelated(help.relatedKpis)}
+        <p class="text-body"><strong>Dica rápida:</strong> ${help.quickTip}</p>
+      `;
+    }
     modal.classList.remove('hidden');
     modal.classList.add('flex');
   }
