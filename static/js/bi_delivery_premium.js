@@ -137,7 +137,17 @@
 
   function cloneChartData(data) {
     const out = JSON.parse(JSON.stringify(data || { labels: [], datasets: [] }));
-    if (out.labels && Array.isArray(out.labels)) out.labels = out.labels.map(v => (v == null ? "" : String(v)));
+    if (out.labels && Array.isArray(out.labels)) {
+      out.labels = out.labels.map(v => (v == null || typeof v === 'object' ? "" : String(v)));
+    }
+    if (out.datasets && Array.isArray(out.datasets)) {
+      out.datasets = out.datasets.map(ds => {
+        const d = { ...ds };
+        if (d.label != null) d.label = String(d.label);
+        if (Array.isArray(d.data)) d.data = d.data.map(v => (typeof v === 'number' ? v : Number(v) || 0));
+        return d;
+      });
+    }
     return out;
   }
 

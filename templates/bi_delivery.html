@@ -77,7 +77,7 @@
       </form>
     </header>
 
-    <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-7 gap-3">
+    <section class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2">
       {{ kpi_card("Paradas Planejadas", kpis.planned_stops, "Base do período", "route", "neutral") }}
       {{ kpi_card("Paradas Realizadas", kpis.realized_stops, "SLA " ~ (kpis.sla_finish|fmt_br_1) ~ "%",
       "check-circle-2", "success" if kpis.sla_finish >= 90 else "warning") }}
@@ -361,12 +361,12 @@
   new Chart(document.getElementById('trendChart'), {
     type: 'line',
     data: {
-      labels: (chartData.trend.dates || []).map(d => dataBR(d) !== '-' ? dataBR(d) : safeStr(d)),
+      labels: (chartData.trend && chartData.trend.dates ? chartData.trend.dates : []).map(d => String(dataBR(d) !== '-' ? dataBR(d) : (d != null ? d : ''))),
       datasets: [
-        { label: 'Qtd devoluções', data: chartData.trend.qtd, borderColor: palette.warning, backgroundColor: 'transparent', tension: .25, yAxisID: 'y' },
-        { label: 'Valor devolvido', data: chartData.trend.valor, borderColor: palette.danger, backgroundColor: 'transparent', tension: .25, yAxisID: 'y1' },
-        { label: 'Média 7', data: chartData.trend.ma7, borderColor: palette.primary, borderDash: [5, 5], tension: .25, yAxisID: 'y1' },
-        { label: 'Média 30', data: chartData.trend.ma30, borderColor: palette.success, borderDash: [3, 3], tension: .25, yAxisID: 'y1' }
+        { label: 'Qtd devoluções', data: (chartData.trend && chartData.trend.qtd) ? chartData.trend.qtd : [], borderColor: palette.warning, backgroundColor: 'transparent', tension: .25, yAxisID: 'y' },
+        { label: 'Valor devolvido', data: (chartData.trend && chartData.trend.valor) ? chartData.trend.valor : [], borderColor: palette.danger, backgroundColor: 'transparent', tension: .25, yAxisID: 'y1' },
+        { label: 'Média 7', data: (chartData.trend && chartData.trend.ma7) ? chartData.trend.ma7 : [], borderColor: palette.primary, borderDash: [5, 5], tension: .25, yAxisID: 'y1' },
+        { label: 'Média 30', data: (chartData.trend && chartData.trend.ma30) ? chartData.trend.ma30 : [], borderColor: palette.success, borderDash: [3, 3], tension: .25, yAxisID: 'y1' }
       ]
     },
     options: { ...baseOpt, scales: { ...baseOpt.scales, y: { ...baseOpt.scales.y, position: 'left' }, y1: { ...baseOpt.scales.y, position: 'right' } } }
@@ -378,10 +378,10 @@
   new Chart(document.getElementById('motivosChart'), {
     type: 'bar',
     data: {
-      labels: md.map(x => safeStr(x.motivo)),
+      labels: md.map(x => String(safeStr(x.motivo))),
       datasets: motDrivers.map((drv, i) => ({
-        label: safeStr(drv),
-        data: md.map(m => (m.por_motorista && m.por_motorista[drv]) ? m.por_motorista[drv].valor : 0),
+        label: String(safeStr(drv)),
+        data: md.map(m => (m.por_motorista && m.por_motorista[drv]) ? Number(m.por_motorista[drv].valor) : 0),
         backgroundColor: driverColors[i % driverColors.length],
         stack: 'stack0'
       }))
@@ -419,8 +419,8 @@
   new Chart(document.getElementById('respChart'), {
     type: 'doughnut',
     data: {
-      labels: (chartData.responsabilidade || []).map(x => safeStr(x.responsabilidade)),
-      datasets: [{ data: chartData.responsabilidade.map(x => x.qtd), backgroundColor: [palette.primary, palette.warning, palette.danger, palette.success] }]
+      labels: (chartData.responsabilidade || []).map(x => String(safeStr(x.responsabilidade))),
+      datasets: [{ data: (chartData.responsabilidade || []).map(x => x.qtd), backgroundColor: [palette.primary, palette.warning, palette.danger, palette.success] }]
     },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: palette.muted } } } }
   });
@@ -428,8 +428,8 @@
   new Chart(document.getElementById('clusterChart'), {
     type: 'bar',
     data: {
-      labels: (chartData.cluster || []).map(x => safeStr(x.cluster)),
-      datasets: [{ label: 'Valor devolvido', data: chartData.cluster.map(x => x.valor), backgroundColor: palette.primary }]
+      labels: (chartData.cluster || []).map(x => String(safeStr(x.cluster))),
+      datasets: [{ label: 'Valor devolvido', data: (chartData.cluster || []).map(x => x.valor), backgroundColor: palette.primary }]
     },
     options: baseOpt
   });
@@ -437,24 +437,24 @@
   new Chart(document.getElementById('driverChart'), {
     type: 'bar',
     data: {
-      labels: (chartData.drivers || []).map(x => safeStr(x.driver)),
+      labels: (chartData.drivers || []).map(x => String(safeStr(x.driver))),
       datasets: [
-        { label: 'Eficiência %', data: chartData.drivers.map(x => x.eficiencia), backgroundColor: palette.success },
-        { label: 'Devolução %', data: chartData.drivers.map(x => x.devolucao_pct), backgroundColor: palette.warning }
+        { label: 'Eficiência %', data: (chartData.drivers || []).map(x => x.eficiencia), backgroundColor: palette.success },
+        { label: 'Devolução %', data: (chartData.drivers || []).map(x => x.devolucao_pct), backgroundColor: palette.warning }
       ]
     },
     options: baseOpt
   });
 
   const dr = chartData.driver_resp_valor || {};
-  const respColors = [palette.primary, palette.warning, palette.danger, palette.success];
+  const respColors = [palette.primary, palette.warning, palette.danger, palette.success].map(c => (typeof c === 'string' ? c : '#94a3b8'));
   new Chart(document.getElementById('driverRespChart'), {
     type: 'bar',
     data: {
-      labels: (dr.drivers || []).map(safeStr),
+      labels: (dr.drivers || []).map(d => String(safeStr(d))),
       datasets: (dr.datasets || []).map((ds, i) => ({
-        label: safeStr(ds.resp),
-        data: ds.data || [],
+        label: String(safeStr(ds.resp)),
+        data: Array.isArray(ds.data) ? ds.data.map(v => Number(v)) : [],
         backgroundColor: respColors[i % respColors.length],
         stack: 'stack0'
       }))
@@ -781,6 +781,32 @@
 
   .bi-help-card {
     border: 1px solid var(--color-border);
+  }
+
+  .kpi-card {
+    padding: .7rem .75rem;
+    min-height: 106px;
+  }
+
+  .kpi-card .bi-card-head {
+    gap: .5rem;
+  }
+
+  .kpi-card .icon-wrap {
+    width: 1.8rem;
+    height: 1.8rem;
+  }
+
+  .kpi-card .text-title-lg {
+    font-size: .98rem;
+    line-height: 1.15;
+    margin-top: .35rem;
+  }
+
+  .kpi-card .text-caption {
+    font-size: .62rem;
+    letter-spacing: .04em;
+    line-height: 1.2;
   }
 </style>
 {% endblock %}
