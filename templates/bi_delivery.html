@@ -83,7 +83,8 @@
       "check-circle-2", "success" if kpis.sla_finish >= 90 else "warning") }}
       {{ kpi_card("Taxa Devolução", (kpis.return_rate_qtd|fmt_br_1) ~ "%", kpis.total_devolucoes ~ " ocorrências",
       "undo-2", "danger" if kpis.return_rate_qtd >= 10 else "warning") }}
-      {{ kpi_card("Valor Devolvido", kpis.valor_total_devolvido|fmt_br_moeda, "Total acumulado", "wallet", "danger" if kpis.valor_total_devolvido > 0 else "neutral") }}
+      {{ kpi_card("Valor Devolvido", kpis.valor_total_devolvido|fmt_br_moeda, "Total acumulado", "wallet", "danger" if
+      kpis.valor_total_devolvido > 0 else "neutral") }}
       {{ kpi_card("% Acima de R$300", (kpis.devolucoes_acima_300_pct|fmt_br_1) ~ "%",
       kpis.devolucoes_acima_300_count ~ " linhas", "alert-triangle", "warning" if kpis.devolucoes_acima_300_pct >= 35
       else "success") }}
@@ -95,7 +96,8 @@
 
     <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
       {{ chart_card("Tendência diária", "Quantidade e valor devolvido + médias móveis 7/30", "trendChart") }}
-      {{ chart_card("Motivos de devolução", "Valor por motivo e motorista. Passe o mouse para ver qtd, valor e % sobre valor real.", "motivosChart") }}
+      {{ chart_card("Motivos de devolução", "Valor por motivo e motorista. Passe o mouse para ver qtd, valor e % sobre
+      valor real.", "motivosChart") }}
     </section>
 
     <section class="grid grid-cols-1 xl:grid-cols-3 gap-4">
@@ -109,13 +111,15 @@
         <div class="bi-card-head bi-card-head-between">
           <div>
             <h3 class="text-section">Motorista x Responsabilidade x Valor</h3>
-            <p class="text-caption mt-1">Valor devolvido por motorista e responsabilidade. % devolução sobre valor real (R$).</p>
+            <p class="text-caption mt-1">Valor devolvido por motorista e responsabilidade. % devolução sobre valor real
+              (R$).</p>
           </div>
           <div class="flex items-center gap-2">
             <button class="icon-wrap-sm" type="button" title="Ajuda">
               <i data-lucide="info" class="w-4 h-4"></i>
             </button>
-            <button class="icon-wrap-sm chart-expand-btn" type="button" title="Expandir gráfico" data-chart-expand="driverRespChart">
+            <button class="icon-wrap-sm chart-expand-btn" type="button" title="Expandir gráfico"
+              data-chart-expand="driverRespChart">
               <i data-lucide="maximize-2" class="w-4 h-4"></i>
             </button>
           </div>
@@ -155,40 +159,43 @@
     </section>
 
     <div class="exec-hidden">
-    {% call table_section("Painel tático por motorista", "Clique no motorista para drill-down no período.",
-    "tacticalTable") %}
-    <thead>
-      <tr>
-        <th>Motorista</th>
-        <th>Paradas</th>
-        <th>Eficiência</th>
-        <th>Devolução %</th>
-        <th>KG pl.</th>
-        <th>KG real.</th>
-        <th>R$ devolvido</th>
-        <th>Reaberturas</th>
-        <th>Tempo médio</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in tactical_rows %}
-      <tr>
-        <td><a class="table-link"
-            href="/bi/delivery?{{ filters_query }}&detail_driver_id={{ row.driver_id }}#drilldown-section">{{
-            row.driver_name }}</a></td>
-        <td>{% if row.planned_stops > 0 %}{{ row.delivered_stops }}/{{ row.planned_stops }}{% else %}— ({{ row.returned_stops }} dev.){% endif %}</td>
-        <td class="{{ 'tone-danger' if row.efficiency < 70 else 'tone-success' }}">{{ row.efficiency|fmt_br_1 }}%
-        </td>
-        <td class="{{ 'tone-warning' if row.return_rate >= 10 else '' }}">{{ row.return_rate|fmt_br_1 }}%</td>
-        <td>{{ row.planned_kg|fmt_br_2 }}</td>
-        <td>{{ row.realized_kg|fmt_br_2 }}</td>
-        <td>{{ row.returned_value|fmt_br_moeda }}</td>
-        <td>{{ row.reopen_count }}</td>
-        <td>{{ row.avg_duration|fmt_br_int }} min</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-    {% endcall %}
+      {% call table_section("Painel tático por motorista", "Clique no motorista para drill-down no período.",
+      "tacticalTable") %}
+      <thead>
+        <tr>
+          <th>Motorista</th>
+          <th>Paradas</th>
+          <th>Eficiência</th>
+          <th>Devolução %</th>
+          <th>KG pl.</th>
+          <th>KG real.</th>
+          <th>R$ devolvido</th>
+          <th>R$ % do valor</th>
+          <th>Reaberturas</th>
+          <th>Tempo médio</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in tactical_rows %}
+        <tr>
+          <td><a class="table-link"
+              href="/bi/delivery?{{ filters_query }}&detail_driver_id={{ row.driver_id }}#drilldown-section">{{
+              row.driver_name }}</a></td>
+          <td>{% if row.planned_stops > 0 %}{{ row.delivered_stops }}/{{ row.planned_stops }}{% else %}— ({{
+            row.returned_stops }} dev.){% endif %}</td>
+          <td class="{{ 'tone-danger' if row.efficiency < 70 else 'tone-success' }}">{{ row.efficiency|fmt_br_1 }}%
+          </td>
+          <td class="{{ 'tone-warning' if row.return_rate >= 10 else '' }}">{{ row.return_rate|fmt_br_1 }}%</td>
+          <td>{{ row.planned_kg|fmt_br_2 }}</td>
+          <td>{{ row.realized_kg|fmt_br_2 }}</td>
+          <td>{{ row.returned_value|fmt_br_moeda }}</td>
+          <td>{{ row.returned_value_pct|fmt_br_1 }}%</td>
+          <td>{{ row.reopen_count }}</td>
+          <td>{{ row.avg_duration|fmt_br_int }} min</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      {% endcall %}
     </div>
 
     <section id="drilldown-section" class="surface-shadow bi-card exec-hidden">
@@ -422,7 +429,7 @@
 
   const md = (chartData && chartData.motivos_detailed) ? chartData.motivos_detailed : [];
   const motDrivers = (chartData && chartData.motivos_drivers) ? chartData.motivos_drivers : [];
-  const driverColors = ['#3b82f6','#f59e0b','#ef4444','#10b981','#8b5cf6','#ec4899','#06b6d4','#84cc16'];
+  const driverColors = ['#3b82f6', '#f59e0b', '#ef4444', '#10b981', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
   safeChart('motivosChart', {
     type: 'bar',
     data: {
