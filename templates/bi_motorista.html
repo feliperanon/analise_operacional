@@ -153,8 +153,8 @@
         <section class="surface p-4 mt-4 w-full">
           <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
             <div>
-              <h4 class="text-section">Matriz de Correlacao</h4>
-              <p class="text-caption mt-1">Linhas: clientes | Colunas: motoristas</p>
+              <h4 class="text-section">Matriz Compacta de Correlacao</h4>
+              <p class="text-caption mt-1">Cliente + top motoristas de risco (leitura rápida para reunião)</p>
             </div>
             <div class="corr-legend flex flex-wrap gap-2">
               <span class="corr-tag corr-ok">&lt; 2,0%</span>
@@ -485,20 +485,32 @@
       pairMap.set(`${p.driver}|||${p.client}`, p);
     });
 
-    const head = `<thead><tr><th>Cliente x Motorista</th>${topDrivers.map(d => `<th>${safeStr(d)}</th>`).join('')}</tr></thead>`;
-    const bodyRows = topClients.map((c) => {
-      const cells = topDrivers.map((d) => {
-        const p = pairMap.get(`${d}|||${c}`);
-        if (!p) return '<td><span class="corr-cell corr-empty">-</span></td>';
-        const sev = corrSeverity(p.pct_valor_real);
-        const pct = Number(p.pct_valor_real || 0).toFixed(1).replace('.', ',');
-        const ttl = `${d} x ${c} | Qtd: ${Number(p.qtd || 0).toLocaleString('pt-BR')} | Valor: ${moedaBR(p.valor || 0)} | %: ${pct}%`;
-        return `<td><button type="button" class="corr-cell corr-${sev}" data-driver="${safeStr(d)}" data-client="${safeStr(c)}" title="${ttl}">${pct}%</button></td>`;
-      }).join('');
-      return `<tr><th>${safeStr(c)}</th>${cells}</tr>`;
+    const compactRows = topClients.map((c) => {
+      const localPairs = points
+        .filter((p) => String(p.client || '').trim() === String(c || '').trim())
+        .sort((a, b) => Number(b.pct_valor_real || 0) - Number(a.pct_valor_real || 0))
+        .slice(0, 4);
+      const chips = localPairs.length
+        ? localPairs.map((p) => {
+          const sev = corrSeverity(p.pct_valor_real);
+          const pct = Number(p.pct_valor_real || 0).toFixed(1).replace('.', ',');
+          const ttl = `${safeStr(p.driver)} x ${safeStr(c)} | Qtd: ${Number(p.qtd || 0).toLocaleString('pt-BR')} | Valor: ${moedaBR(p.valor || 0)} | %: ${pct}%`;
+          return `
+            <button type="button" class="corr-chip corr-${sev}" data-driver="${safeStr(p.driver)}" data-client="${safeStr(c)}" title="${ttl}">
+              <span class="corr-chip-driver">${safeStr(p.driver)}</span>
+              <span class="corr-chip-metric">${pct}% · ${moedaBR(p.valor || 0)}</span>
+            </button>
+          `;
+        }).join('')
+        : '<span class="corr-cell corr-empty">Sem pares de risco</span>';
+      return `
+        <article class="corr-compact-row">
+          <header class="corr-compact-client">${safeStr(c)}</header>
+          <div class="corr-compact-pairs">${chips}</div>
+        </article>
+      `;
     }).join('');
-
-    matrixEl.innerHTML = `<table class="corr-matrix-table">${head}<tbody>${bodyRows}</tbody></table>`;
+    matrixEl.innerHTML = `<div class="corr-compact-grid">${compactRows}</div>`;
 
     const openPair = (driver, client) => {
       if (!appState) return;
@@ -607,6 +619,28 @@
         executive: 'Rebalancear carteira e definir plano de contingência por par crítico.',
         related: 'Motivos de devolução, Devolução % Valor, Eficiência por motorista.',
         tip: 'Concentração de Top 5 acima de 60% exige ação imediata.'
+      },
+      'Performance por caminhão (placa)': {
+        what: 'Compara desempenho e risco por veículo, para separar problema de motorista x problema de caminhão.',
+        calc: 'Consolida paradas, devoluções, taxa percentual, valor devolvido e tempo médio por placa.',
+        formula: 'Taxa por placa = devoluções / paradas do veículo no período.',
+        practical: 'Mostra quais placas concentram ineficiência e custo de devolução.',
+        interpret: 'Bom: taxa baixa com tempo estável. Atenção: taxa subindo com tempo alto. Crítico: taxa alta recorrente em mesma placa.',
+        operational: 'Checar condição do caminhão e sequência de carga nas placas críticas.',
+        executive: 'Decidir manutenção, redistribuição de frota e balanceamento de rotas por veículo.',
+        related: 'Eficiência por motorista, Tempo Médio, Devolução % Valor.',
+        tip: 'Cruze placa crítica com motorista e cliente para achar causa real.'
+      },
+      'Inteligência — Oscilação (σ)': {
+        what: 'Mede estabilidade da taxa de devolução por motorista.',
+        calc: 'Calcula o desvio da taxa ao longo do período (sigma).',
+        formula: 'Sigma menor = comportamento mais previsível; sigma maior = maior oscilação.',
+        practical: 'Ajuda a separar desvio pontual de padrão crônico.',
+        interpret: 'Bom: sigma baixo e taxa baixa. Atenção: sigma alto com taxa média. Crítico: sigma alto com taxa alta.',
+        operational: 'Acompanhar diariamente os motoristas instáveis e atuar rápido no início da piora.',
+        executive: 'Priorizar treinamento e gestão de carteira para reduzir volatilidade de performance.',
+        related: 'Taxa Devolução, Eficiência por motorista, Anomalias detectadas.',
+        tip: 'Olhe tendência e estabilidade juntas, não apenas média isolada.'
       }
     };
     const fallback = {
@@ -666,6 +700,36 @@
       console.warn(`Expand não disponível para ${id}.`);
     }
   });
+
+  function ensureHelpButtons() {
+    const cards = Array.from(document.querySelectorAll('.surface-shadow.bi-card, .kpi-card, .chart-card'));
+    cards.forEach((card) => {
+      if (card.querySelector('button[title="Ajuda"]')) return;
+      const btnWrap = document.createElement('div');
+      btnWrap.className = 'flex items-center gap-2';
+      btnWrap.innerHTML = '<button class="icon-wrap-sm" type="button" title="Ajuda"><i data-lucide="info" class="w-4 h-4"></i></button>';
+
+      const head = card.querySelector('.bi-card-head');
+      if (head) {
+        const right = head.querySelector('.flex.items-center.gap-2');
+        if (right) {
+          right.prepend(btnWrap.firstElementChild);
+        } else {
+          head.appendChild(btnWrap);
+        }
+      } else {
+        card.style.position = card.style.position || 'relative';
+        const btn = btnWrap.firstElementChild;
+        btn.style.position = 'absolute';
+        btn.style.top = '8px';
+        btn.style.right = '8px';
+        card.appendChild(btn);
+      }
+    });
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  ensureHelpButtons();
 
   let state = { rows: [...detailRows], page: 1, pageSize: 30, sortKey: 'date', sortDir: 'desc', search: '', externalFilter: null };
   const drillBody = document.getElementById('drillBody');
@@ -788,9 +852,14 @@
   .corr-sub { display: block; color: var(--color-text-secondary); font-size: .68rem; line-height: 1.15; margin-top: .1rem; }
   .corr-pct { font-size: .74rem; font-weight: 700; }
   .corr-matrix-container { overflow: visible; overscroll-behavior: none; }
-  .corr-matrix-table { width: 100%; border-collapse: separate; border-spacing: .28rem; min-width: 760px; }
-  .corr-matrix-table th { color: var(--color-text-muted); font-size: .64rem; text-transform: uppercase; letter-spacing: .05em; text-align: left; white-space: nowrap; }
-  .corr-matrix-table td, .corr-matrix-table th { padding: 0; }
+  .corr-compact-grid { display: grid; grid-template-columns: 1fr; gap: .6rem; }
+  .corr-compact-row { border: 1px solid var(--color-border); border-radius: .62rem; padding: .58rem; background: color-mix(in srgb, var(--color-surface) 92%, #0f172a 8%); }
+  .corr-compact-client { font-size: .72rem; font-weight: 700; color: var(--color-text); margin-bottom: .45rem; }
+  .corr-compact-pairs { display: grid; grid-template-columns: 1fr; gap: .42rem; }
+  .corr-chip { width: 100%; text-align: left; border: 1px solid var(--color-border); border-radius: .5rem; padding: .45rem .5rem; background: var(--color-surface); }
+  .corr-chip:hover { border-color: var(--color-primary); }
+  .corr-chip-driver { display: block; font-size: .68rem; font-weight: 700; color: var(--color-text); line-height: 1.18; }
+  .corr-chip-metric { display: block; margin-top: .15rem; font-size: .64rem; color: var(--color-text-secondary); }
   .corr-cell { min-width: 58px; min-height: 32px; width: 100%; border-radius: .5rem; border: 1px solid var(--color-border); font-size: .68rem; font-weight: 700; color: var(--color-text-secondary); background: color-mix(in srgb, var(--color-surface) 90%, var(--color-text) 10%); }
   .corr-cell.corr-empty { display: inline-flex; align-items: center; justify-content: center; }
 </style>
