@@ -174,8 +174,60 @@
                         </button>
                     </template>
                 </div>
-                <div x-show="!deliverySessionOpen" class="rounded-lg p-3 text-body mb-3" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning); color: var(--color-text);">
-                    <strong>Informe</strong> placa e KM de saída para liberar os clientes.
+                <div x-show="!deliverySessionOpen" class="space-y-3 mb-3">
+                    <div class="rounded-lg p-3 text-body" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning); color: var(--color-text);">
+                        <strong>Informe</strong> placa e KM de saída para liberar os clientes.
+                    </div>
+                    <!-- Formulário inline: placa, KM e ajudantes (mesmo estado do modal) -->
+                    <div class="surface rounded-xl p-4 space-y-4" style="border: 1px solid var(--color-border);">
+                        <div x-show="deliverySetupError" class="rounded-lg px-3 py-2 text-body flex items-center gap-2" style="background: var(--color-danger-bg); color: var(--color-danger);" x-text="deliverySetupError"></div>
+                        <div>
+                            <label for="delivery-plate-inline" class="text-section block mb-2" style="color: var(--color-text);">Placa *</label>
+                            <input id="delivery-plate-inline" type="text" x-model="deliverySetup.plate" @input="normalizePlateInput()" placeholder="ABC1D23"
+                                class="w-full rounded-lg px-4 py-3 text-body-lg uppercase font-mono focus:outline-none focus:ring-2 transition-colors"
+                                style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);">
+                        </div>
+                        <div>
+                            <label for="delivery-km-inline" class="text-section block mb-2" style="color: var(--color-text);">KM de saída *</label>
+                            <input id="delivery-km-inline" type="number" inputmode="decimal" step="0.1" min="0" x-model="deliverySetup.km_departure" placeholder="Ex.: 125430,5"
+                                class="w-full rounded-lg px-4 py-3 text-body-lg font-mono focus:outline-none focus:ring-2 transition-colors"
+                                style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);">
+                        </div>
+                        <div>
+                            <label class="text-section block mb-2" style="color: var(--color-text);">Ajudantes (opcional)</label>
+                            <div class="flex flex-wrap gap-2 mb-2" x-show="deliverySetup.helpers.length > 0">
+                                <template x-for="(helper, idx) in deliverySetup.helpers" :key="'inline-helper-'+idx">
+                                    <div class="flex items-center gap-2 px-3 py-2 rounded-full text-body font-medium"
+                                        style="background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.3); color: var(--color-primary);">
+                                        <span x-text="helper"></span>
+                                        <button type="button" @click="removeDeliveryHelper(idx)" class="touch-target-icon flex items-center justify-center w-6 h-6 rounded-full hover:bg-blue-500/30">×</button>
+                                    </div>
+                                </template>
+                            </div>
+                            <div class="relative">
+                                <input type="text" x-model="deliverySetup.helperInput" @keydown.enter.prevent="addDeliveryHelperFromInput()"
+                                    placeholder="Nome do ajudante e Enter" autocomplete="off"
+                                    class="w-full rounded-lg px-4 py-3 text-body focus:outline-none transition-colors"
+                                    style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);">
+                                <button type="button" @click="addDeliveryHelperFromInput()" class="absolute right-2 top-1/2 -translate-y-1/2 touch-target-icon flex items-center justify-center" style="color: var(--color-primary);">
+                                    <i data-lucide="plus-circle" class="w-5 h-5"></i>
+                                </button>
+                            </div>
+                            <div x-show="filteredHelperOptions.length > 0" class="mt-2 max-h-32 overflow-y-auto rounded-lg border space-y-0.5" style="border-color: var(--color-border); background: var(--color-surface-solid);">
+                                <template x-for="emp in filteredHelperOptions" :key="'inline-helper-opt-'+emp.id">
+                                    <button type="button" @click="selectDeliveryHelperName(emp.name)" class="w-full text-left px-3 py-2.5 text-body min-h-[44px] transition-colors" style="color: var(--color-text-body);">
+                                        <span x-text="emp.name"></span>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                        <button type="button" @click="startDeliverySession()"
+                            class="w-full py-3 rounded-lg font-semibold text-body-lg text-white transition-all active:scale-95 min-h-[48px] flex items-center justify-center gap-2"
+                            style="background: var(--color-primary);">
+                            <i data-lucide="play" class="w-5 h-5"></i>
+                            Iniciar agora
+                        </button>
+                    </div>
                 </div>
 
                 <div class="space-y-2 max-h-[360px] overflow-y-auto custom-scrollbar" x-show="deliverySessionOpen">
