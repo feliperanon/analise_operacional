@@ -1398,21 +1398,23 @@
 
             endDeliverySession() {
                 this.haptic('light');
-                if (!this.deliveryEndKm || Number(this.deliveryEndKm) <= 0) { alert('Informe KM de chegada válido.'); return; }
+                const kmRaw = String(this.deliveryEndKm || '').replace(',', '.').trim();
+                const km = parseFloat(kmRaw);
+                if (!kmRaw || isNaN(km) || km <= 0) { alert('Informe o KM de chegada (número maior que zero).'); return; }
                 fetch('/api/mobile/delivery/session/end', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ km_return: Number(this.deliveryEndKm) })
-                }).then(r => r.json()).then(data => {
-                    if (data.success) {
+                    body: JSON.stringify({ km_return: km })
+                }).then(r => r.json().then(data => ({ ok: r.ok, data }))).then(({ ok, data }) => {
+                    if (ok && data.success) {
                         this.showDeliveryEndModal = false;
                         this.deliveryEndKm = '';
                         this.loadDeliveryData();
                         this.haptic('success');
                     } else {
-                        alert(data.error || 'Erro ao encerrar rotina.');
+                        alert(data?.error || 'Erro ao encerrar rota. Tente novamente.');
                     }
-                });
+                }).catch(() => alert('Erro de conexão. Tente novamente.'));
             },
 
             deliveryAction(route, action) {

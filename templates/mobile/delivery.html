@@ -9,10 +9,8 @@
     <!-- Header -->
     <header class="container-mobile py-4 shrink-0 relative z-20 header-gradient">
         <div class="flex items-center justify-between">
-            <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap interactive" style="background: rgba(255,255,255,0.2); color: white;">
-                <i data-lucide="arrow-left" class="w-5 h-5"></i>
-            </a>
-            <div class="text-center">
+            <div class="w-11 flex-shrink-0"></div>
+            <div class="text-center flex-1">
                 <h1 class="text-title-lg text-white font-bold">Rota de Entregas</h1>
                 <p class="text-caption text-blue-200" x-show="assignedPlate" x-text="`Caminhão: ${assignedPlate}`"></p>
             </div>
@@ -527,18 +525,23 @@
                 });
             },
             endDeliverySession() {
-                if (!this.deliveryEndKm || Number(this.deliveryEndKm) <= 0) { alert('Informe KM de chegada.'); return; }
+                const kmRaw = String(this.deliveryEndKm || '').replace(',', '.').trim();
+                const km = parseFloat(kmRaw);
+                if (!kmRaw || isNaN(km) || km <= 0) { alert('Informe o KM de chegada (número maior que zero).'); return; }
                 this.actionLoading = true;
                 fetch('/api/mobile/delivery/session/end', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ km_return: Number(this.deliveryEndKm) })
-                }).then(r => r.json()).then(data => {
+                    body: JSON.stringify({ km_return: km })
+                }).then(r => r.json().then(data => ({ ok: r.ok, data }))).then(({ ok, data }) => {
                     this.actionLoading = false;
-                    if (!data.success) return alert(data.error || 'Erro.');
+                    if (!ok || !data.success) {
+                        alert(data?.error || 'Erro ao encerrar rota. Tente novamente.');
+                        return;
+                    }
                     this.showDeliveryEndModal = false; this.deliveryEndKm = '';
                     this.haptic('success');
-                    window.location.href = '/mobile/dashboard';
-                }).catch(() => { this.actionLoading = false; });
+                    window.location.href = '/mobile/delivery';
+                }).catch((e) => { this.actionLoading = false; alert('Erro de conexão. Verifique o KM e tente novamente.'); });
             },
             deliveryAction(route, action) {
                 if (this.actionLoading) return;
