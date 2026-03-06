@@ -105,8 +105,15 @@ class GeocodingService:
                 )
 
             result = results[0]
-            lat = float(result.get("lat", 0))
-            lon = float(result.get("lon", 0))
+            lat_raw = result.get("lat")
+            lon_raw = result.get("lon")
+            if lat_raw is None or lon_raw is None:
+                return GeocodingResult(
+                    success=False,
+                    error=f"Resposta sem coordenadas para: {query}",
+                )
+            lat = float(lat_raw)
+            lon = float(lon_raw)
 
             if not validate_coordinates(lat, lon):
                 return GeocodingResult(

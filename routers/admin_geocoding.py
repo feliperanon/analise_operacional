@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from sqlmodel import Session, select
 
 import models
-from database import get_session
+from database import get_session, engine
 from services.geocoding_service import geocoding_service
 from datetime import datetime
 
@@ -42,15 +42,12 @@ def _geocode_and_update(client: models.Client, session: Session) -> dict:
 
 def _run_geocode_batch(client_ids: list, limit: int) -> dict:
     """Executa geocodificação em lote em background (sem session compartilhada)."""
-    from database import engine
-    from sqlmodel import Session as SyncSession
-
     processed = 0
     success = 0
     failed = 0
     errors = []
 
-    with SyncSession(engine) as session:
+    with Session(engine) as session:
         for cid in client_ids[:limit]:
             client = session.get(models.Client, cid)
             if not client:

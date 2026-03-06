@@ -103,7 +103,7 @@ def geocode_batch(limit: int = 100, reprocessar_falhas: bool = False) -> None:
         print(f"   Total processados : {total}")
         print(f"   ✅ Sucesso         : {success_count}")
         print(f"   ❌ Falhas          : {failed_count}")
-        print(f"   Taxa de sucesso   : {success_count/total*100:.1f}%" if total > 0 else "")
+        print(f"   Taxa de sucesso   : {success_count/total*100:.1f}%" if total > 0 else "   Taxa de sucesso   : N/A")
 
 
 def print_stats() -> None:

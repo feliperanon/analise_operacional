@@ -473,7 +473,11 @@
                 }));
                 // Se GPS ativo: clientes com coordenadas primeiro (por distância), sem coordenadas no final
                 if (this.currentLatitude !== null && this.currentLongitude !== null) {
-                    const comCoord = withDist.filter(r => r.tem_coordenadas).sort((a, b) => (a.distancia_metros || 0) - (b.distancia_metros || 0));
+                    const comCoord = withDist.filter(r => r.tem_coordenadas).sort((a, b) => {
+                        const da = a.distancia_metros !== null && a.distancia_metros !== undefined ? a.distancia_metros : Infinity;
+                        const db = b.distancia_metros !== null && b.distancia_metros !== undefined ? b.distancia_metros : Infinity;
+                        return da - db;
+                    });
                     const semCoord = withDist.filter(r => !r.tem_coordenadas);
                     return [...comCoord, ...semCoord];
                 }

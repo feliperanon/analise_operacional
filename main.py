@@ -37,6 +37,7 @@ from devolucoes_service import sync_route_to_devolucao
 from game_achievements_routes import init_game_achievements_router
 from game_audit_routes import init_game_audit_router, parse_reason
 from routers.admin_geocoding import init_admin_geocoding_router
+from services.geocoding_service import geocoding_service
 from client_import_utils import normalize_address, normalize_phone_br, normalize_key, find_col_map as find_client_col_map
 import logging
 import pydantic
@@ -6792,10 +6793,8 @@ def _try_geocode_client(client: models.Client, session: Session) -> None:
     Atualiza o cliente no banco com as coordenadas ou status de erro.
     """
     try:
-        from services.geocoding_service import geocoding_service
-        from datetime import datetime as _dt
         result = geocoding_service.geocode_cliente(client)
-        now = _dt.now()
+        now = datetime.now()
         if result.success:
             client.latitude = result.latitude
             client.longitude = result.longitude
