@@ -2646,6 +2646,29 @@ async def mobile_dashboard(
     )
 
 
+@app.get("/mobile/delivery", response_class=HTMLResponse)
+async def mobile_delivery_page(request: Request, session: Session = Depends(get_session)):
+    """Página de rotas de entregas do colaborador (mobile)."""
+    user = get_current_user(request)
+    if not isinstance(user, dict) or user.get("type") != "employee":
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    employee = session.get(models.Employee, user.get("id"))
+    if not employee:
+        request.session.pop("user_id", None)
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    employees = session.exec(
+        select(models.Employee).where(models.Employee.status == "active")
+    ).all()
+    employees_json = json.dumps(
+        [{"id": e.id, "name": e.name} for e in employees],
+        ensure_ascii=False
+    )
+    return templates.TemplateResponse(
+        "mobile/delivery.html",
+        {"request": request, "employee": employee, "employees_json": employees_json},
+    )
+
+
 @app.get("/mobile/achievements", response_class=HTMLResponse)
 async def mobile_achievements_page(request: Request, session: Session = Depends(get_session)):
     """Página de conquistas do colaborador (mobile)."""
