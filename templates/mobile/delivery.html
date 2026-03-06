@@ -4,7 +4,7 @@
 <div id="xp-popup-delivery" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] pointer-events-none hidden flex items-center justify-center">
     <div class="px-6 py-4 rounded-xl font-bold text-xl text-white" style="background: var(--color-primary); box-shadow: var(--shadow-modal);">+<span id="xp-amount-delivery">0</span> XP!</div>
 </div>
-<div x-data="deliveryPageController()" x-init="init()" class="min-h-screen" style="background: var(--color-bg);">
+<div x-data="deliveryPageController()" x-init="init()" class="min-h-screen pb-safe" style="background: var(--color-bg);">
 
     <!-- Header -->
     <header class="container-mobile py-4 shrink-0 relative z-20 header-gradient">
@@ -81,10 +81,10 @@
 
     <!-- BLOCO B: Entrega em Andamento (glow azul isolado no topo) -->
     <div class="container-mobile mt-4" x-show="deliverySessionOpen && !!inProgressRoute" x-cloak>
-        <div class="rounded-xl p-4" style="border: 2px solid #3b82f6; box-shadow: 0 0 0 1px #3b82f6, 0 0 16px rgba(59,130,246,0.35); background: var(--color-surface);">
+        <div class="rounded-xl p-4 route-glow-blue" style="background: var(--color-surface);">
             <div class="flex items-center gap-2 mb-3">
-                <div class="w-2 h-2 rounded-full animate-pulse" style="background: #60a5fa;"></div>
-                <span class="text-caption font-bold uppercase tracking-wider" style="color: #60a5fa;">Em Andamento</span>
+                <div class="w-2 h-2 rounded-full animate-pulse" style="background: var(--color-primary);"></div>
+                <span class="text-caption font-bold uppercase tracking-wider" style="color: var(--color-primary);">Em Andamento</span>
                 <span class="ml-auto font-mono text-caption" style="color: var(--color-primary);" x-text="inProgressRoute ? formatTimer(inProgressRoute.started_at || '00:00') : ''"></span>
             </div>
             <template x-if="inProgressRoute">
@@ -192,7 +192,7 @@
 
     <!-- BLOCO E: Devoluções (accordion, fechado por padrão, separado dos entregues) -->
     <div class="container-mobile mt-4" x-show="deliverySessionOpen && returnedRoutes.length > 0" x-cloak>
-        <button @click="returnedAccordionOpen = !returnedAccordionOpen" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg interactive" style="background: rgba(249,115,22,0.15); color: #f97316;">
+        <button @click="returnedAccordionOpen = !returnedAccordionOpen" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg interactive" style="background: var(--color-warning-bg); color: var(--color-warning);">
             <span class="font-semibold text-body flex items-center gap-2">
                 <i data-lucide="package-x" class="w-4 h-4"></i>
                 Devoluções (<span x-text="returnedRoutes.length"></span>)
@@ -207,7 +207,7 @@
                             <p class="text-body font-semibold truncate" style="color: var(--color-text);" x-text="route.client_name"></p>
                             <p class="text-caption" x-text="`Cod ${route.client_code || '-'}`"></p>
                         </div>
-                        <span class="chip" style="background: rgba(249,115,22,0.2); color: #f97316;">Devolução</span>
+                        <span class="chip" style="background: var(--color-warning-bg); color: var(--color-warning);">Devolução</span>
                     </div>
                     <div class="flex gap-2 mt-2">
                         <span class="chip" x-text="`${formatNumberBR(route.weight)} Kg`"></span>
