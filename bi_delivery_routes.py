@@ -7,6 +7,7 @@ import io
 import csv
 import statistics
 import json
+import logging
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
@@ -19,6 +20,7 @@ from sqlalchemy import func
 import models
 from database import get_session
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
@@ -217,6 +219,9 @@ def _build_bi_delivery_dataset(
         cli = cli_map.get(r.client_id)
         driver = emp.name if emp else f"Motorista #{r.employee_id}"
         client = cli.name if cli else f"Cliente #{r.client_id}"
+        if r.date is None:
+            logger.warning(f"Route id={r.id} has no date; skipping date-based aggregations")
+        route_date = r.date or "UNKNOWN"
         planned_w = float(r.tonnage or 0.0)
         planned_v = float(r.valor_financeiro or 0.0)
         ret_w = float(r.devolucao_volume if r.devolucao_volume is not None else (planned_w if status_raw == "devolucao" else 0.0))
@@ -237,14 +242,14 @@ def _build_bi_delivery_dataset(
                 dur_list.append(dur)
         if status_raw == "devolucao":
             returned_kg += ret_w
-            _acc_devol(r.date, driver, client, (r.delivery_return_reason or "Nao informado"), (r.delivery_return_category or "Nao informado"), "Sem Cluster", ret_v)
+            _acc_devol(route_date, driver, client, (r.delivery_return_reason or "Nao informado"), (r.delivery_return_category or "Nao informado"), "Sem Cluster", ret_v)
         if (r.delivery_reopen_count or 0) > 0:
             reopen_routes += 1
-            reopen_heat.setdefault(r.date, {})
-            reopen_heat[r.date][driver] = reopen_heat[r.date].get(driver, 0) + int(r.delivery_reopen_count or 0)
+            reopen_heat.setdefault(route_date, {})
+            reopen_heat[route_date][driver] = reopen_heat[route_date].get(driver, 0) + int(r.delivery_reopen_count or 0)
 
-        per_day.setdefault(r.date, {"date": r.date, "planned_stops": 0, "started_stops": 0, "realized_stops": 0, "returned_stops": 0, "planned_kg": 0.0, "returned_kg": 0.0, "planned_value": 0.0, "returned_value": 0.0})
-        d = per_day[r.date]
+        per_day.setdefault(route_date, {"date": route_date, "planned_stops": 0, "started_stops": 0, "realized_stops": 0, "returned_stops": 0, "planned_kg": 0.0, "returned_kg": 0.0, "planned_value": 0.0, "returned_value": 0.0})
+        d = per_day[route_date]
         d["planned_stops"] += 1
         d["planned_kg"] += planned_w
         d["planned_value"] += planned_v
