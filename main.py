@@ -7951,6 +7951,17 @@ def _norm_plate(v: Any) -> str:
     return "".join(ch for ch in str(v).upper().strip() if ch.isalnum())
 
 
+def _safe_float(v: Any) -> float:
+    """Converte para float; None e NaN viram 0.0."""
+    if v is None:
+        return 0.0
+    try:
+        f = float(v)
+        return 0.0 if math.isnan(f) else f
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def _fmt_br_date(date_str: str) -> str:
     """Converte YYYY-MM-DD para dd/mm/yyyy."""
     if not date_str or len(date_str) < 10:
@@ -8651,8 +8662,8 @@ async def separacao_page(
             "city": route.delivery_city or "-",
             "state": route.delivery_state or "-",
             "cep": route.delivery_cep or "-",
-            "weight": route.tonnage or 0.0,
-            "value": route.valor_financeiro or 0.0,
+            "weight": _safe_float(route.tonnage),
+            "value": _safe_float(route.valor_financeiro),
             "status_raw": status_raw,
             "status_label": status_map.get(status_raw, status_raw.title()),
             "return_category": route.delivery_return_category or "",
@@ -8668,8 +8679,8 @@ async def separacao_page(
             "last_reopened_at": reopened_times[-1] if reopened_times else "",
             "reopen_count": route.delivery_reopen_count or 0,
             "is_partial_return": bool(route.devolucao_volume or route.valor_devolucao),
-            "return_weight": route.devolucao_volume if route.devolucao_volume is not None else (route.tonnage or 0.0),
-            "return_value": route.valor_devolucao if route.valor_devolucao is not None else (route.valor_financeiro or 0.0),
+            "return_weight": _safe_float(route.devolucao_volume if route.devolucao_volume is not None else route.tonnage),
+            "return_value": _safe_float(route.valor_devolucao if route.valor_devolucao is not None else route.valor_financeiro),
             "can_start": True,
             "maps_url": _maps_link(
                 route.delivery_address,
@@ -8682,10 +8693,10 @@ async def separacao_page(
             "helper_names": helper_names,
         })
 
-        delivery_by_employee[key]["total_weight"] += route.tonnage or 0.0
-        delivery_by_employee[key]["total_value"] += route.valor_financeiro or 0.0
-        delivery_summary["total_weight"] += route.tonnage or 0.0
-        delivery_summary["total_value"] += route.valor_financeiro or 0.0
+        delivery_by_employee[key]["total_weight"] += _safe_float(route.tonnage)
+        delivery_by_employee[key]["total_value"] += _safe_float(route.valor_financeiro)
+        delivery_summary["total_weight"] += _safe_float(route.tonnage)
+        delivery_summary["total_value"] += _safe_float(route.valor_financeiro)
         if status_raw == "iniciada":
             delivery_by_employee[key]["started"] += 1
             delivery_summary["started"] += 1
@@ -8693,8 +8704,8 @@ async def separacao_page(
             delivery_by_employee[key]["pending"] += 1
             delivery_summary["pending"] += 1
         elif status_raw == "devolucao":
-            returned_weight = route.devolucao_volume if route.devolucao_volume is not None else (route.tonnage or 0.0)
-            returned_value = route.valor_devolucao if route.valor_devolucao is not None else (route.valor_financeiro or 0.0)
+            returned_weight = _safe_float(route.devolucao_volume if route.devolucao_volume is not None else route.tonnage)
+            returned_value = _safe_float(route.valor_devolucao if route.valor_devolucao is not None else route.valor_financeiro)
             delivery_by_employee[key]["returned"] += 1
             delivery_by_employee[key]["returned_weight"] += returned_weight
             delivery_by_employee[key]["returned_value"] += returned_value
