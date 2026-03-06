@@ -1215,8 +1215,10 @@
                     return;
                 }
                 this.isSubmission = true;
-                if (ev && ev.target && ev.target.tagName === 'FORM') {
-                    ev.target.submit();
+                // currentTarget = form (element that has @submit); target = button (who triggered it)
+                const form = ev && ev.currentTarget && ev.currentTarget.tagName === 'FORM' ? ev.currentTarget : null;
+                if (form) {
+                    form.submit();
                 } else {
                     const f = document.createElement('form');
                     f.method = 'POST';
