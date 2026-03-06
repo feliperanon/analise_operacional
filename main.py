@@ -6329,20 +6329,20 @@ async def api_create_checklist(
             session.commit()
 
         shift_ok = normalize_shift(shift_val) == normalize_shift(employee.work_shift)
-    if shift_ok:
-        tx = models.GameXPTransaction(
-            employee_id=employee_id,
-            amount=CHECKLIST_XP,
-            source_type="checklist",
-            status="provisional",
-            reason=f"Checklist Transpaleteira {equipment_code} | {date_val}",
-            created_at=now_br
-        )
-        session.add(tx)
-        session.commit()
-        checklist.xp_transaction_id = tx.id
-        session.add(checklist)
-        session.commit()
+        if shift_ok:
+            tx = models.GameXPTransaction(
+                employee_id=employee_id,
+                amount=CHECKLIST_XP,
+                source_type="checklist",
+                status="provisional",
+                reason=f"Checklist Transpaleteira {equipment_code} | {date_val}",
+                created_at=now_br
+            )
+            session.add(tx)
+            session.commit()
+            checklist.xp_transaction_id = tx.id
+            session.add(checklist)
+            session.commit()
 
         return {"success": True, "id": checklist.id}
     except HTTPException:
