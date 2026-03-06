@@ -3698,18 +3698,20 @@ async def api_mobile_delivery_my_routes(
     request: Request,
     session: Session = Depends(get_session)
 ):
-    user_id = request.session.get("user_id")
-    if not user_id:
-        return JSONResponse({"error": "NÃ£o autorizado"}, status_code=401)
+    try:
+        user_id = request.session.get("user_id")
+        if not user_id:
+            return JSONResponse({"error": "NÃ£o autorizado"}, status_code=401)
+        user_id = int(user_id)
 
-    today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
-    routes = session.exec(
-        select(models.Route)
-        .where(models.Route.type == "delivery")
-        .where(models.Route.employee_id == user_id)
-        .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta", "entregue", "devolucao"]))
-        .order_by(models.Route.date, models.Route.id)
-    ).all()
+        today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+        routes = session.exec(
+            select(models.Route)
+            .where(models.Route.type == "delivery")
+            .where(models.Route.employee_id == user_id)
+            .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta", "entregue", "devolucao"]))
+            .order_by(models.Route.date, models.Route.id)
+        ).all()
     client_ids = list({r.client_id for r in routes})
     clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
     client_map = {c.id: c for c in clients}
@@ -3726,19 +3728,21 @@ async def api_mobile_delivery_my_routes(
     grouped = {}
     for r in routes:
         c = client_map.get(r.client_id)
+        client_name = (getattr(c, "razao_social", None) or getattr(c, "name", None) or "Cliente") if c else "Cliente"
+        client_secondary = (getattr(c, "nome_fantasia", None) or getattr(c, "name", None) or "") if c else ""
         item = {
             "id": r.id,
             "date": r.date,
-            "client_name": (c.razao_social if c and c.razao_social else (c.name if c else "Cliente")),
-            "client_secondary": (c.nome_fantasia if c and c.nome_fantasia else (c.name if c else "")),
+            "client_name": str(client_name),
+            "client_secondary": str(client_secondary or ""),
             "address": r.delivery_address or "",
             "city": r.delivery_city or "",
             "bairro": r.delivery_neighborhood or "",
             "state": r.delivery_state or "",
             "cep": r.delivery_cep or "",
             "maps_url": _maps_link(r.delivery_address, r.delivery_neighborhood, r.delivery_city, r.delivery_state, r.delivery_cep),
-            "weight": r.tonnage or 0.0,
-            "value": r.valor_financeiro or 0.0,
+            "weight": _safe_float(r.tonnage),
+            "value": _safe_float(r.valor_financeiro),
             "status": (r.delivery_status or "pendente"),
             "started_at": r.delivery_started_at,
             "finished_at": r.delivery_finished_at,
@@ -3785,6 +3789,9 @@ async def api_mobile_delivery_my_routes(
         "day_cards": day_cards,
         "return_reasons": DELIVERY_RETURN_REASONS_FLAT,
     })
+    except Exception as e:
+        logger.exception("api_mobile_delivery_my_routes error: %s", e)
+        raise
 
 
 @app.post("/api/mobile/delivery/session/start", response_class=JSONResponse)
