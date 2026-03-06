@@ -2532,7 +2532,7 @@ async def mobile_auth(
     request.session.pop("auth_user_role", None)
     request.session.pop("auth_user_email", None)
     request.session["user_id"] = employee.id
-    return RedirectResponse(url="/mobile/dashboard", status_code=303)
+    return RedirectResponse(url="/mobile/delivery", status_code=303)
 
 
 @app.get("/mobile/logout", response_class=RedirectResponse)
