@@ -187,7 +187,7 @@
 
     <!-- BLOCO D: Entregues (accordion, fechado por padrão) -->
     <div class="container-mobile mt-4" x-show="deliverySessionOpen && deliveredRoutes.length > 0" x-cloak>
-        <button @click="deliveredAccordionOpen = !deliveredAccordionOpen" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg interactive" style="background: var(--color-success-bg); color: var(--color-success);">
+        <button @click="$data.deliveredAccordionOpen = !$data.deliveredAccordionOpen" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg interactive" style="background: var(--color-success-bg); color: var(--color-success);">
             <span class="font-semibold text-body flex items-center gap-2">
                 <i data-lucide="check-circle" class="w-4 h-4"></i>
                 Entregues (<span x-text="deliveredRoutes.length"></span>)
@@ -196,9 +196,9 @@
                     · <span x-text="formatCurrencyBR(deliveredTotalValue)"></span>
                 </span>
             </span>
-            <i data-lucide="chevron-down" class="w-4 h-4 transition-transform" :class="deliveredAccordionOpen && 'rotate-180'"></i>
+            <i data-lucide="chevron-down" class="w-4 h-4 transition-transform" :class="$data.deliveredAccordionOpen && 'rotate-180'"></i>
         </button>
-        <div x-show="deliveredAccordionOpen" x-transition class="space-y-2 mt-2">
+        <div x-show="$data.deliveredAccordionOpen" x-transition class="space-y-2 mt-2">
             <template x-for="route in deliveredRoutes" :key="`delivered-${route.id}`">
                 <div class="surface-shadow p-3 rounded-lg" :class="routeStatusCardClass(route)">
                     <div class="flex items-start justify-between gap-2">
@@ -222,7 +222,7 @@
 
     <!-- BLOCO E: Devoluções (accordion, fechado por padrão, separado dos entregues) -->
     <div class="container-mobile mt-4" x-show="deliverySessionOpen && returnedRoutes.length > 0" x-cloak>
-        <button @click="returnedAccordionOpen = !returnedAccordionOpen" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg interactive" style="background: var(--color-warning-bg); color: var(--color-warning);">
+        <button @click="$data.returnedAccordionOpen = !$data.returnedAccordionOpen" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg interactive" style="background: var(--color-warning-bg); color: var(--color-warning);">
             <span class="font-semibold text-body flex items-center gap-2">
                 <i data-lucide="package-x" class="w-4 h-4"></i>
                 Devoluções (<span x-text="returnedRoutes.length"></span>)
@@ -230,9 +230,9 @@
                     · <span x-text="formatCurrencyBR(returnedTotalValue)"></span>
                 </span>
             </span>
-            <i data-lucide="chevron-down" class="w-4 h-4 transition-transform" :class="returnedAccordionOpen && 'rotate-180'"></i>
+            <i data-lucide="chevron-down" class="w-4 h-4 transition-transform" :class="$data.returnedAccordionOpen && 'rotate-180'"></i>
         </button>
-        <div x-show="returnedAccordionOpen" x-transition class="space-y-2 mt-2">
+        <div x-show="$data.returnedAccordionOpen" x-transition class="space-y-2 mt-2">
             <template x-for="route in returnedRoutes" :key="`returned-${route.id}`">
                 <div class="surface-shadow p-3 rounded-lg" :class="routeStatusCardClass(route)">
                     <div class="flex items-start justify-between gap-2">
@@ -363,6 +363,9 @@
             actionLoading: false,
             timerDisplay: '--:--:--',
             timerInterval: null,
+            completedAccordionOpen: false,
+            deliveredAccordionOpen: false,
+            returnedAccordionOpen: false,
 
             get helperOptions() { return (this.employees || []).filter(e => e.id !== {{ employee.id }}); },
             get filteredDeliveryRoutes() {
@@ -398,9 +401,6 @@
                 const today = new Date().toISOString().split('T')[0];
                 return (this.deliveryDayCards || []).filter(c => c.date >= today);
             },
-            completedAccordionOpen: false,
-            deliveredAccordionOpen: false,
-            returnedAccordionOpen: false,
             get dayStats() {
                 const rows = (this.deliveryRoutes || []).filter(r => r.date === this.selectedDeliveryDay);
                 const totalStops = rows.length;

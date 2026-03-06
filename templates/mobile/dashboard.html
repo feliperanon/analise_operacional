@@ -102,6 +102,37 @@
             </div>
         </section>
 
+        <!-- 1b. Mês atual + filtro de data -->
+        <section class="container-mobile mt-4">
+            <div class="surface p-4">
+                <div class="flex items-center justify-between gap-3 mb-3">
+                    <h3 class="text-body-lg font-semibold" style="color: var(--color-text);" x-text="currentMonthLabel">Março 2025</h3>
+                    <span class="text-caption" style="color: var(--color-text-muted);" x-text="dateFilterLabel"></span>
+                </div>
+                <div class="flex flex-wrap gap-2 items-end">
+                    <div class="flex-1 min-w-[120px]">
+                        <label class="block text-caption mb-1" style="color: var(--color-text-muted);">De</label>
+                        <input type="date" x-model="dateFilterFrom"
+                            class="w-full px-3 py-2 rounded-lg text-body"
+                            style="background: var(--color-surface-solid); border: 1px solid var(--color-border-light); color: var(--color-text);"
+                            @change="applyDateFilter()">
+                    </div>
+                    <div class="flex-1 min-w-[120px]">
+                        <label class="block text-caption mb-1" style="color: var(--color-text-muted);">Até</label>
+                        <input type="date" x-model="dateFilterTo"
+                            class="w-full px-3 py-2 rounded-lg text-body"
+                            style="background: var(--color-surface-solid); border: 1px solid var(--color-border-light); color: var(--color-text);"
+                            @change="applyDateFilter()">
+                    </div>
+                    <button type="button" @click="resetDateFilter()"
+                        class="touch-target px-3 py-2 rounded-lg text-body font-medium"
+                        style="background: var(--color-border-light); color: var(--color-text);">
+                        Limpar
+                    </button>
+                </div>
+            </div>
+        </section>
+
         <!-- 2. Separação ativa (Cockpit de Navegação) -->
         <section class="container-mobile mt-4" x-show="hasActiveRoutes" x-cloak>
             <template x-for="(route, idx) in activeRoutes" :key="'route-'+idx">
@@ -938,6 +969,30 @@
             mobileReturnReasons: [],
             mobileReturn: { reason: '', is_partial: false, weight: '', value: '' },
 
+            dateFilterFrom: '',
+            dateFilterTo: '',
+
+            get currentMonthLabel() {
+                const d = new Date();
+                const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+                return meses[d.getMonth()] + ' ' + d.getFullYear();
+            },
+            get dateFilterLabel() {
+                if (!this.dateFilterFrom && !this.dateFilterTo) return 'Todas as datas';
+                if (this.dateFilterFrom && this.dateFilterTo) return this.dateFilterFrom + ' a ' + this.dateFilterTo;
+                if (this.dateFilterFrom) return 'A partir de ' + this.dateFilterFrom;
+                return 'Até ' + this.dateFilterTo;
+            },
+
+            applyDateFilter() {
+                this.loadDeliveryData();
+            },
+            resetDateFilter() {
+                this.dateFilterFrom = '';
+                this.dateFilterTo = '';
+                this.loadDeliveryData();
+            },
+
             get filteredDeliveryRoutes() {
                 if (!this.selectedDeliveryDay) return this.deliveryRoutes || [];
                 return (this.deliveryRoutes || []).filter(r => r.date === this.selectedDeliveryDay);
@@ -1280,7 +1335,12 @@
             },
 
             loadDeliveryData() {
-                fetch('/api/mobile/delivery/my-routes')
+                let url = '/api/mobile/delivery/my-routes';
+                const params = new URLSearchParams();
+                if (this.dateFilterFrom) params.set('date_from', this.dateFilterFrom);
+                if (this.dateFilterTo) params.set('date_to', this.dateFilterTo);
+                if (params.toString()) url += '?' + params.toString();
+                fetch(url)
                     .then(r => r.json())
                     .then(data => {
                         if (!data.success) return;
