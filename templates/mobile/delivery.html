@@ -5,183 +5,230 @@
     <div class="px-6 py-4 rounded-xl font-bold text-xl text-white" style="background: var(--color-primary); box-shadow: var(--shadow-modal);">+<span id="xp-amount-delivery">0</span> XP!</div>
 </div>
 <div x-data="deliveryPageController()" x-init="init()" class="min-h-screen pb-safe" style="background: var(--color-bg);">
+
+    <!-- Header -->
     <header class="container-mobile py-4 shrink-0 relative z-20 header-gradient">
         <div class="flex items-center justify-between">
-            <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap" style="background: rgba(255,255,255,0.2); color: white;">
+            <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap interactive" style="background: rgba(255,255,255,0.2); color: white;">
                 <i data-lucide="arrow-left" class="w-5 h-5"></i>
             </a>
-            <h1 class="text-title-lg text-white font-bold">Rota de Entregas</h1>
+            <div class="text-center">
+                <h1 class="text-title-lg text-white font-bold">Rota de Entregas</h1>
+                <p class="text-caption text-blue-200" x-show="assignedPlate" x-text="`Caminhão: ${assignedPlate}`"></p>
+            </div>
             <div class="w-10"></div>
         </div>
     </header>
 
-    <div class="container-mobile mt-4">
-        <div class="surface-shadow p-4">
-            <div class="flex items-start justify-between gap-2 mb-3">
-                <div>
-                    <p class="text-section" style="color: var(--color-text);">Minhas Rotas</p>
-                    <p class="text-caption-lg mt-0.5" x-text="assignedPlate ? `Caminhão: ${assignedPlate}` : 'Sem caminhão planejado'"></p>
-                </div>
-                <button x-show="!deliverySessionOpen" @click="openStartEntry()" class="btn-iniciar-route px-3 py-2 rounded-lg font-semibold text-body transition-opacity min-h-[48px] interactive" style="background-color: #1e3a8a !important; color: #ffffff !important;">Iniciar</button>
-                <button x-show="deliverySessionOpen" @click="showDeliveryEndModal = true" class="px-3 py-2 rounded-lg font-semibold text-body text-white transition-opacity min-h-[48px]" style="background: var(--color-success);">Encerrar</button>
+    <!-- BLOCO A: Resumo da Rota (cockpit header) -->
+    <div class="container-mobile mt-4" x-show="deliverySessionOpen && !!selectedDeliveryDay" x-cloak>
+        <div class="surface p-3 rounded-xl">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-caption font-bold uppercase tracking-wider" style="color: var(--color-text-muted);">Cockpit — Rota em Andamento</span>
+                <span class="text-caption px-2 py-0.5 rounded" style="background: var(--color-border-light); color: var(--color-text-secondary);" x-text="formatDateBR(selectedDeliveryDay)"></span>
             </div>
-
-            <div class="mb-3 flex gap-2">
-                <input type="text" x-model="deliverySearch" placeholder="Pesquisar cliente, código, pedido..."
-                    class="flex-1 rounded-lg px-3 py-2.5 border-2 text-body focus:outline-none focus:ring-2 transition-colors"
-                    style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
-                <button type="button" @click="deliverySearch=''" x-show="deliverySearch"
-                    class="px-4 py-2.5 rounded-lg border-2 font-semibold text-body transition-opacity flex items-center justify-center gap-1.5"
-                    style="border-color: var(--color-border); color: var(--color-text);">
-                    <i data-lucide="x-circle" class="w-4 h-4"></i> Limpar
-                </button>
+            <div class="grid grid-cols-3 gap-1.5 mb-1.5">
+                <span class="summary-chip text-center" style="background: var(--color-border-light); color: var(--color-text-secondary);" x-text="`Total ${dayStats.totalStops}`"></span>
+                <span class="summary-chip text-center" style="background: var(--color-warning-bg); color: var(--color-warning);" x-text="`Pend. ${dayStats.pending}`"></span>
+                <span class="summary-chip text-center" style="background: var(--color-primary-bg); color: var(--color-primary);" x-text="`Aberta ${dayStats.opened}`"></span>
             </div>
-
-            <div class="space-y-2 mb-3">
-                <template x-for="card in deliveryDayCards" :key="`day-${card.date}`">
-                    <button @click="toggleDeliveryDay(card.date)" class="w-full text-left px-3 py-2 rounded-lg border-2 transition-colors interactive"
-                        :style="selectedDeliveryDay===card.date ? 'background: var(--color-primary-bg); border-color: var(--color-primary); color: var(--color-primary);' : 'background: var(--color-surface-solid); border-color: var(--color-border-light); color: var(--color-text);'">
-                        <div class="flex items-center justify-between">
-                            <span class="font-semibold text-body" x-text="card.label"></span>
-                            <span class="text-caption-lg" x-text="`${card.count} cliente(s)`"></span>
-                        </div>
-                    </button>
-                </template>
-            </div>
-
-            <div x-show="deliverySessionOpen && !!selectedDeliveryDay" class="mb-3">
-                <div class="surface p-3">
-                    <div class="flex items-center justify-between mb-2">
-                        <p class="text-caption font-semibold" style="color: var(--color-text-muted);">Resumo da Rota</p>
-                        <span class="text-caption px-2 py-1 rounded" style="background: var(--color-border-light); color: var(--color-text-secondary);" x-text="formatDateBR(selectedDeliveryDay)"></span>
-                    </div>
-                    <div class="grid grid-cols-3 gap-1.5 mb-2">
-                        <span class="summary-chip" style="background: var(--color-border-light); color: var(--color-text-secondary);" x-text="`Paradas ${dayStats.totalStops}`"></span>
-                        <span class="summary-chip" style="background: var(--color-border-light); color: var(--color-text-secondary);" x-text="`${formatNumberBR(dayStats.totalWeight)} Kg`"></span>
-                        <span class="summary-chip" style="background: var(--color-border-light); color: var(--color-text-secondary);" x-text="formatCurrencyBR(dayStats.totalValue)"></span>
-                    </div>
-                    <div class="grid grid-cols-2 gap-1.5">
-                        <span class="summary-chip" style="background: var(--color-warning-bg); color: var(--color-warning);" x-text="`Pendentes ${dayStats.pending}`"></span>
-                        <span class="summary-chip" style="background: var(--color-primary-bg); color: var(--color-primary);" x-text="`Abertas ${dayStats.opened}`"></span>
-                        <span class="summary-chip" style="background: var(--color-border-light); color: var(--color-text-secondary);" x-text="`Concluídas ${dayStats.completed}`"></span>
-                        <span class="summary-chip" style="background: var(--color-success-bg); color: var(--color-success);" x-text="`Entregues ${dayStats.delivered}`"></span>
-                        <span class="summary-chip col-span-2" style="background: var(--color-danger-bg); color: var(--color-danger);" x-text="`Dev. R$ ${formatCurrencyBR(dayStats.returnValue)} (${formatPercent(dayStats.returnValuePct)})`"></span>
-                    </div>
-                </div>
-            </div>
-
-            <div x-show="!deliverySessionOpen" class="rounded-lg p-3 text-body" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning); color: var(--color-text);">
-                Inicie a rotina para liberar os clientes.
-            </div>
-
-            <div class="space-y-2 max-h-[62vh] overflow-y-auto custom-scrollbar mt-2" x-show="deliverySessionOpen && !!selectedDeliveryDay">
-                <template x-if="activeDeliveryRoutes.length === 0 && completedDeliveryRoutes.length === 0">
-                    <div class="empty-state surface mt-4">
-                        <i data-lucide="package" class="empty-icon"></i>
-                        <p class="empty-title">Nenhuma parada nesta rota</p>
-                        <p class="text-caption" style="color: var(--color-text-muted);">Selecione outro dia ou confira com o planejamento.</p>
-                    </div>
-                </template>
-                <template x-for="route in activeDeliveryRoutes" :key="`route-${route.id}`">
-                    <div class="surface-shadow touch-scale p-3 rounded-lg" :class="routeStatusCardClass(route)">
-                        <div class="flex items-start justify-between gap-2">
-                            <div>
-                                <p class="text-body font-semibold truncate" style="color: var(--color-text);" x-text="route.client_name"></p>
-                                <p class="text-caption" x-text="`Cod ${route.client_code || '-'} • Pedido ${route.order_number || '-'}`"></p>
-                            </div>
-                            <a :href="route.maps_url" target="_blank" class="text-caption font-semibold" style="color: var(--color-primary);">Mapa</a>
-                        </div>
-                        <p class="text-caption mt-1 truncate" x-text="`${route.address} - ${route.city}/${route.state}`"></p>
-                        <div class="flex items-center gap-2 mt-2 flex-wrap">
-                            <span class="chip" x-text="`${formatNumberBR(route.weight)} Kg`"></span>
-                            <span class="chip" x-text="formatCurrencyBR(route.value)"></span>
-                            <span class="chip" x-text="statusLabel(routeStatus(route))"></span>
-                            <span class="chip" x-show="routeStatus(route)==='iniciada'" x-text="`${formatTimer(route.started_at || '00:00')}`"></span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-1.5 mt-2">
-                            <button @click="deliveryAction(route,'iniciar')" class="btn-delivery min-h-[48px]" :disabled="!deliverySessionOpen || (routeStatus(route)!=='pendente' && routeStatus(route)!=='reaberta')" style="background: var(--color-primary);">Iniciar</button>
-                            <button @click="deliveryAction(route,'finalizar')" class="btn-delivery min-h-[48px]" :disabled="!deliverySessionOpen || routeStatus(route)!=='iniciada'" style="background: var(--color-success);">Finalizar</button>
-                            <button @click="openMobileReturnModal(route)" class="btn-delivery min-h-[48px]" :disabled="!deliverySessionOpen || routeStatus(route)!=='iniciada'" style="background: var(--color-warning);">Devolução</button>
-                            <button @click="deliveryAction(route,'reabrir')" class="btn-delivery min-h-[48px]" :disabled="!deliverySessionOpen || (routeStatus(route)!=='entregue' && routeStatus(route)!=='devolucao')" style="background: var(--color-text-secondary); color: white;">Reabrir</button>
-                        </div>
-                    </div>
-                </template>
-                <div x-show="completedDeliveryRoutes.length > 0" class="mt-4 border-t pt-3" style="border-color: var(--color-border);">
-                    <button @click="completedAccordionOpen = !completedAccordionOpen" class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-left" style="background: var(--color-border-light); color: var(--color-text-secondary);">
-                        <span class="font-semibold text-body">Concluídos (<span x-text="completedDeliveryRoutes.length"></span>)</span>
-                        <i data-lucide="chevron-down" class="w-4 h-4 transition-transform" :class="completedAccordionOpen && 'rotate-180'"></i>
-                    </button>
-                    <div x-show="completedAccordionOpen" x-transition class="space-y-2 mt-2">
-                        <template x-for="route in completedDeliveryRoutes" :key="`completed-${route.id}`">
-                            <div class="surface-shadow p-3 rounded-lg opacity-90" :class="routeStatusCardClass(route)">
-                                <div class="flex items-start justify-between gap-2">
-                                    <div>
-                                        <p class="text-body font-semibold truncate" style="color: var(--color-text);" x-text="route.client_name"></p>
-                                        <p class="text-caption" x-text="`Cod ${route.client_code || '-'} • Pedido ${route.order_number || '-'}`"></p>
-                                    </div>
-                                    <span class="chip" x-text="statusLabel(routeStatus(route))"></span>
-                                </div>
-                                <p class="text-caption mt-1 truncate" x-text="`${route.address} - ${route.city}/${route.state}`"></p>
-                                <div class="flex gap-2 mt-2">
-                                    <span class="chip" x-text="`${formatNumberBR(route.weight)} Kg`"></span>
-                                    <span class="chip" x-text="formatCurrencyBR(route.value)"></span>
-                                </div>
-                                <button @click="deliveryAction(route,'reabrir')" class="mt-2 btn-delivery min-h-[48px] w-full" style="background: var(--color-text-secondary); color: white;">Reabrir</button>
-                            </div>
-                        </template>
-                    </div>
-                </div>
+            <div class="grid grid-cols-2 gap-1.5">
+                <span class="summary-chip text-center" style="background: var(--color-success-bg); color: var(--color-success);" x-text="`Entregues ${dayStats.delivered}`"></span>
+                <span class="summary-chip text-center" style="background: var(--color-danger-bg); color: var(--color-danger);" x-text="`Devol. ${dayStats.returned}`"></span>
             </div>
         </div>
     </div>
 
-    <!-- Modal: Iniciar Entregas -->
-    <div x-show="showDeliverySetupModal" class="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4 bg-black/40" x-cloak @click.self="showDeliverySetupModal = false">
-        <div @click.stop class="w-full max-w-lg rounded-lg flex flex-col max-h-[90vh] overflow-hidden" style="background: var(--color-surface-solid); box-shadow: var(--shadow-modal);">
-            <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
-                <div class="icon-wrap w-12 h-12 flex-shrink-0" style="background: var(--color-primary); color: white;"><i data-lucide="truck" class="w-6 h-6"></i></div>
-                <div class="flex-1">
-                    <h3 class="text-title" style="color: var(--color-text);">Iniciar Entregas</h3>
-                    <p class="text-caption-lg">Placa e KM de saída obrigatórios</p>
-                </div>
-            </div>
-            <div class="p-4 space-y-4 overflow-y-auto">
-                <div x-show="deliverySetupError" class="rounded-lg p-3 text-body" style="background: var(--color-danger-bg); color: var(--color-danger);" x-text="deliverySetupError"></div>
-                <div>
-                    <label class="text-section block mb-2" style="color: var(--color-text);">Placa *</label>
-                    <input type="text" x-ref="deliveryPlateInput" x-model="deliverySetup.plate" @input="normalizePlateInput()" placeholder="ABC1D23"
-                        class="w-full rounded-lg px-4 py-3 border-2 text-body uppercase font-mono focus:outline-none focus:ring-2"
-                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
-                </div>
-                <div>
-                    <label class="text-section block mb-2" style="color: var(--color-text);">KM de saída *</label>
-                    <input type="number" step="0.1" min="0" x-model="deliverySetup.km_departure" placeholder="Ex.: 125430,5"
-                        class="w-full rounded-lg px-4 py-3 border-2 text-body font-mono focus:outline-none focus:ring-2"
-                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
-                </div>
-                <div>
-                    <label class="text-section block mb-2" style="color: var(--color-text);">Ajudantes (opcional)</label>
-                    <div class="flex gap-2">
-                        <input type="text" x-model="deliverySetup.helperInput" @keydown.enter.prevent="addDeliveryHelperFromInput()" placeholder="Nome + Enter"
-                            class="flex-1 rounded-lg px-3 py-3 border-2 text-body focus:outline-none focus:ring-2"
-                            style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);" autocomplete="off">
-                        <button type="button" @click="addDeliveryHelperFromInput()" class="px-4 py-3 rounded-lg font-semibold text-body text-white" style="background: var(--color-primary);">Adicionar</button>
-                    </div>
-                    <div class="mt-2 flex flex-wrap gap-1.5" x-show="deliverySetup.helpers.length > 0">
-                        <template x-for="(helper, idx) in deliverySetup.helpers" :key="`h-${idx}`">
-                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded text-body font-medium" style="background: var(--color-primary-bg); color: var(--color-primary);">
-                                <span x-text="helper"></span>
-                                <button type="button" @click="removeDeliveryHelper(idx)" class="font-bold">×</button>
-                            </span>
-                        </template>
-                    </div>
-                </div>
-            </div>
-            <div class="p-4 border-t flex gap-3 shrink-0" style="border-color: var(--color-border);">
-                <button @click="showDeliverySetupModal=false" class="flex-1 py-3 rounded-lg font-semibold text-body" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
-                <button @click="startDeliverySession()" class="flex-1 py-3 rounded-lg font-semibold text-body text-white" style="background: var(--color-primary);">Iniciar agora</button>
-            </div>
+    <!-- Day selector (compact, today+ only) -->
+    <div class="container-mobile mt-2" x-show="visibleDayCards.length > 1" x-cloak>
+        <div class="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+            <template x-for="card in visibleDayCards" :key="`day-${card.date}`">
+                <button @click="toggleDeliveryDay(card.date)" class="flex-shrink-0 px-3 py-1.5 rounded-lg border-2 text-body font-semibold transition-colors interactive"
+                    :style="selectedDeliveryDay===card.date ? 'background: var(--color-primary-bg); border-color: var(--color-primary); color: var(--color-primary);' : 'background: var(--color-surface-solid); border-color: var(--color-border-light); color: var(--color-text);'">
+                    <span x-text="card.label"></span>
+                    <span class="ml-1 text-caption" x-text="`(${card.count})`"></span>
+                </button>
+            </template>
         </div>
+    </div>
+
+    <!-- Search bar (session only) -->
+    <div class="container-mobile mt-2" x-show="deliverySessionOpen" x-cloak>
+        <div class="flex gap-2">
+            <input type="text" x-model="deliverySearch" placeholder="Buscar cliente, código, pedido..."
+                class="flex-1 rounded-lg px-3 py-2 border text-body focus:outline-none transition-colors"
+                style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+            <button type="button" @click="deliverySearch=''" x-show="deliverySearch"
+                class="px-3 py-2 rounded-lg border font-semibold text-body interactive"
+                style="border-color: var(--color-border); color: var(--color-text);">
+                <i data-lucide="x-circle" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- No session: redirect to dashboard -->
+    <div class="container-mobile mt-6" x-show="!deliverySessionOpen" x-cloak>
+        <div class="surface-shadow p-6 rounded-xl text-center">
+            <i data-lucide="truck" class="w-12 h-12 mx-auto mb-3" style="color: var(--color-text-muted);"></i>
+            <p class="text-body-lg font-semibold mb-1" style="color: var(--color-text);">Nenhuma Rota Ativa</p>
+            <p class="text-caption-lg mb-4" style="color: var(--color-text-muted);">Inicie uma rota pelo Dashboard para liberar as entregas.</p>
+            <a href="/mobile/dashboard" class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-white min-h-[56px] interactive" style="background: var(--color-primary);">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                Ir ao Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- BLOCO B: Entrega em Andamento (glow azul isolado no topo) -->
+    <div class="container-mobile mt-4" x-show="deliverySessionOpen && !!inProgressRoute" x-cloak>
+        <div class="rounded-xl p-4 route-glow-blue" style="background: var(--color-surface);">
+            <div class="flex items-center gap-2 mb-3">
+                <div class="w-2 h-2 rounded-full animate-pulse" style="background: var(--color-primary);"></div>
+                <span class="text-caption font-bold uppercase tracking-wider" style="color: var(--color-primary);">Em Andamento</span>
+                <span class="ml-auto font-mono text-caption" style="color: var(--color-primary);" x-text="inProgressRoute ? formatTimer(inProgressRoute.started_at || '00:00') : ''"></span>
+            </div>
+            <template x-if="inProgressRoute">
+                <div>
+                    <div class="flex items-start justify-between gap-2 mb-1">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-body-lg font-bold" style="color: var(--color-text);" x-text="inProgressRoute.client_name"></p>
+                            <p class="text-caption mt-0.5" x-text="`Cod ${inProgressRoute.client_code || '-'} • Pedido ${inProgressRoute.order_number || '-'}`"></p>
+                        </div>
+                        <a :href="inProgressRoute.maps_url" target="_blank" class="touch-target-icon flex items-center justify-center rounded-lg interactive" style="background: var(--color-primary-bg); color: var(--color-primary);">
+                            <i data-lucide="map-pin" class="w-4 h-4"></i>
+                        </a>
+                    </div>
+                    <p class="text-caption mb-2 truncate" style="color: var(--color-text-body);" x-text="`${inProgressRoute.address} - ${inProgressRoute.city}/${inProgressRoute.state}`"></p>
+                    <div class="flex items-center gap-2 mb-3 flex-wrap">
+                        <span class="chip" x-text="`${formatNumberBR(inProgressRoute.weight)} Kg`"></span>
+                        <span class="chip" x-text="formatCurrencyBR(inProgressRoute.value)"></span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button @click="deliveryAction(inProgressRoute,'finalizar')" class="btn-delivery min-h-[56px] flex items-center justify-center gap-1.5 w-full interactive" style="background: var(--color-success);">
+                            <i data-lucide="check" class="w-4 h-4"></i> Finalizar
+                        </button>
+                        <button @click="openMobileReturnModal(inProgressRoute)" class="btn-delivery min-h-[56px] flex items-center justify-center gap-1.5 w-full interactive" style="background: var(--color-warning);">
+                            <i data-lucide="package-x" class="w-4 h-4"></i> Devolução
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- BLOCO C: Próximas Entregas -->
+    <div class="container-mobile mt-4" x-show="deliverySessionOpen && nextDeliveryRoutes.length > 0" x-cloak>
+        <div class="flex items-center justify-between mb-2">
+            <h2 class="text-section font-bold" style="color: var(--color-text);">Próximas Entregas</h2>
+            <span class="text-caption px-2 py-1 rounded" style="background: var(--color-border-light); color: var(--color-text-secondary);" x-text="nextDeliveryRoutes.length + ' paradas'"></span>
+        </div>
+        <div class="space-y-2">
+            <template x-for="route in nextDeliveryRoutes" :key="`route-${route.id}`">
+                <div class="surface-shadow p-3 rounded-lg" :class="routeStatusCardClass(route)">
+                    <div class="flex items-start justify-between gap-2 mb-1">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-body font-semibold truncate" style="color: var(--color-text);" x-text="route.client_name"></p>
+                            <p class="text-caption" x-text="`Cod ${route.client_code || '-'} • Pedido ${route.order_number || '-'}`"></p>
+                        </div>
+                        <a :href="route.maps_url" target="_blank" class="touch-target-icon flex items-center justify-center rounded-lg interactive" style="color: var(--color-primary);">
+                            <i data-lucide="map-pin" class="w-4 h-4"></i>
+                        </a>
+                    </div>
+                    <p class="text-caption truncate mb-2" style="color: var(--color-text-body);" x-text="`${route.address} - ${route.city}/${route.state}`"></p>
+                    <div class="flex items-center gap-2 mb-2 flex-wrap">
+                        <span class="chip" x-text="`${formatNumberBR(route.weight)} Kg`"></span>
+                        <span class="chip" x-text="formatCurrencyBR(route.value)"></span>
+                        <span class="chip" x-text="statusLabel(routeStatus(route))"></span>
+                    </div>
+                    <button @click="deliveryAction(route,'iniciar')"
+                        class="btn-delivery min-h-[56px] w-full flex items-center justify-center gap-1.5 interactive"
+                        :disabled="!!inProgressRoute"
+                        style="background: var(--color-primary);">
+                        <i data-lucide="play" class="w-4 h-4"></i> Iniciar
+                    </button>
+                    <p x-show="!!inProgressRoute" class="text-center text-caption mt-1" style="color: var(--color-text-muted);">Finalize a entrega em andamento primeiro</p>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Empty state (session open, no routes) -->
+    <div class="container-mobile mt-6" x-show="deliverySessionOpen && !!selectedDeliveryDay && nextDeliveryRoutes.length === 0 && !inProgressRoute && deliveredRoutes.length === 0 && returnedRoutes.length === 0" x-cloak>
+        <div class="surface p-6 text-center rounded-xl">
+            <i data-lucide="package-check" class="w-10 h-10 mx-auto mb-3" style="color: var(--color-success);"></i>
+            <p class="text-body-lg font-semibold" style="color: var(--color-text);">Rota Concluída!</p>
+            <p class="text-caption-lg mt-1" style="color: var(--color-text-muted);">Todas as paradas foram realizadas.</p>
+        </div>
+    </div>
+
+    <!-- BLOCO D: Entregues (accordion, fechado por padrão) -->
+    <div class="container-mobile mt-4" x-show="deliverySessionOpen && deliveredRoutes.length > 0" x-cloak>
+        <button @click="deliveredAccordionOpen = !deliveredAccordionOpen" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg interactive" style="background: var(--color-success-bg); color: var(--color-success);">
+            <span class="font-semibold text-body flex items-center gap-2">
+                <i data-lucide="check-circle" class="w-4 h-4"></i>
+                Entregues (<span x-text="deliveredRoutes.length"></span>)
+            </span>
+            <i data-lucide="chevron-down" class="w-4 h-4 transition-transform" :class="deliveredAccordionOpen && 'rotate-180'"></i>
+        </button>
+        <div x-show="deliveredAccordionOpen" x-transition class="space-y-2 mt-2">
+            <template x-for="route in deliveredRoutes" :key="`delivered-${route.id}`">
+                <div class="surface-shadow p-3 rounded-lg" :class="routeStatusCardClass(route)">
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-body font-semibold truncate" style="color: var(--color-text);" x-text="route.client_name"></p>
+                            <p class="text-caption" x-text="`Cod ${route.client_code || '-'}`"></p>
+                        </div>
+                        <span class="chip" style="background: var(--color-success-bg); color: var(--color-success);">Entregue</span>
+                    </div>
+                    <div class="flex gap-2 mt-2">
+                        <span class="chip" x-text="`${formatNumberBR(route.weight)} Kg`"></span>
+                        <span class="chip" x-text="formatCurrencyBR(route.value)"></span>
+                    </div>
+                    <button @click="deliveryAction(route,'reabrir')" class="mt-2 btn-delivery min-h-[48px] w-full interactive" style="background: var(--color-text-secondary); color: white; opacity: 0.8;">Reabrir</button>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- BLOCO E: Devoluções (accordion, fechado por padrão, separado dos entregues) -->
+    <div class="container-mobile mt-4" x-show="deliverySessionOpen && returnedRoutes.length > 0" x-cloak>
+        <button @click="returnedAccordionOpen = !returnedAccordionOpen" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg interactive" style="background: var(--color-warning-bg); color: var(--color-warning);">
+            <span class="font-semibold text-body flex items-center gap-2">
+                <i data-lucide="package-x" class="w-4 h-4"></i>
+                Devoluções (<span x-text="returnedRoutes.length"></span>)
+            </span>
+            <i data-lucide="chevron-down" class="w-4 h-4 transition-transform" :class="returnedAccordionOpen && 'rotate-180'"></i>
+        </button>
+        <div x-show="returnedAccordionOpen" x-transition class="space-y-2 mt-2">
+            <template x-for="route in returnedRoutes" :key="`returned-${route.id}`">
+                <div class="surface-shadow p-3 rounded-lg" :class="routeStatusCardClass(route)">
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-body font-semibold truncate" style="color: var(--color-text);" x-text="route.client_name"></p>
+                            <p class="text-caption" x-text="`Cod ${route.client_code || '-'}`"></p>
+                        </div>
+                        <span class="chip" style="background: var(--color-warning-bg); color: var(--color-warning);">Devolução</span>
+                    </div>
+                    <div class="flex gap-2 mt-2">
+                        <span class="chip" x-text="`${formatNumberBR(route.weight)} Kg`"></span>
+                        <span class="chip" x-text="formatCurrencyBR(route.value)"></span>
+                    </div>
+                    <button @click="deliveryAction(route,'reabrir')" class="mt-2 btn-delivery min-h-[48px] w-full interactive" style="background: var(--color-text-secondary); color: white; opacity: 0.8;">Reabrir</button>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Spacer for fixed bottom button -->
+    <div class="h-28" x-show="deliverySessionOpen" x-cloak></div>
+
+    <!-- Fixed bottom "Encerrar Rota" button -->
+    <div class="fixed bottom-0 left-0 right-0 z-30 px-4 pb-4 pt-3" x-show="deliverySessionOpen" x-cloak
+        style="background: linear-gradient(to top, var(--color-surface-solid) 60%, transparent);">
+        <button @click="showDeliveryEndModal = true" class="w-full min-h-[56px] rounded-xl font-bold text-white flex items-center justify-center gap-2 interactive" style="background: var(--color-success);">
+            <i data-lucide="flag" class="w-5 h-5"></i>
+            Encerrar Rota
+        </button>
     </div>
 
     <!-- Modal: Encerrar -->
@@ -189,14 +236,14 @@
         <div @click.stop class="w-full max-w-md rounded-lg p-4" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
             <div class="mb-4">
                 <h3 class="text-title" style="color: var(--color-text);">Encerrar na Empresa</h3>
-                <p class="text-caption-lg mt-0.5">KM de chegada</p>
+                <p class="text-caption-lg mt-0.5">KM de chegada obrigatório</p>
             </div>
             <input type="number" step="0.1" min="0" x-model="deliveryEndKm" placeholder="Ex.: 125630,2"
                 class="w-full rounded-lg px-4 py-3 border-2 text-body mb-4 focus:outline-none focus:ring-2"
                 style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
             <div class="flex gap-3">
-                <button @click="showDeliveryEndModal=false" class="flex-1 py-3 rounded-lg font-semibold text-body" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
-                <button @click="endDeliverySession()" class="flex-1 py-3 rounded-lg font-semibold text-body text-white" style="background: var(--color-success);">Encerrar</button>
+                <button @click="showDeliveryEndModal=false" class="flex-1 py-3 rounded-lg font-semibold text-body min-h-[56px]" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
+                <button @click="endDeliverySession()" class="flex-1 py-3 rounded-lg font-semibold text-body text-white min-h-[56px] interactive" style="background: var(--color-success);">Encerrar</button>
             </div>
         </div>
     </div>
@@ -232,8 +279,8 @@
                 </div>
             </div>
             <div class="flex gap-3">
-                <button @click="showMobileReturnModal=false" class="flex-1 py-3 rounded-lg font-semibold text-body" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
-                <button @click="confirmMobileReturn()" class="flex-1 py-3 rounded-lg font-semibold text-body text-white" style="background: var(--color-warning);">Confirmar</button>
+                <button @click="showMobileReturnModal=false" class="flex-1 py-3 rounded-lg font-semibold text-body min-h-[56px]" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
+                <button @click="confirmMobileReturn()" class="flex-1 py-3 rounded-lg font-semibold text-body text-white min-h-[56px] interactive" style="background: var(--color-warning);">Confirmar</button>
             </div>
         </div>
     </div>
@@ -246,6 +293,10 @@
     .chip { padding: 0.25rem 0.5rem; border-radius: 0.375rem; font-size: 11px; font-weight: 600; background: var(--color-border-light); color: var(--color-text-secondary); }
     .btn-delivery { padding: 0.5rem 0.75rem; border-radius: 0.5rem; font-size: 12px; font-weight: 600; color: white; transition: opacity 0.2s; }
     .btn-delivery:disabled { opacity: 0.4; cursor: not-allowed; }
+    .route-glow-blue  { border: 2px solid #3b82f6 !important; box-shadow: 0 0 0 1px #3b82f6, 0 0 12px rgba(59,130,246,0.3); }
+    .route-glow-green { border: 2px solid #10b981 !important; box-shadow: 0 0 0 1px #10b981, 0 0 12px rgba(16,185,129,0.3); }
+    .route-glow-red   { border: 2px solid #ef4444 !important; box-shadow: 0 0 0 1px #ef4444, 0 0 12px rgba(239,68,68,0.3); }
+    .route-glow-amber { border: 2px solid #f59e0b !important; box-shadow: 0 0 0 1px #f59e0b, 0 0 12px rgba(245,158,11,0.3); }
 </style>
 <script id="delivery-page-data" type="application/json">
 {"employees": {{ employees_json | safe }}}
@@ -273,7 +324,8 @@
 
             get helperOptions() { return (this.employees || []).filter(e => e.id !== {{ employee.id }}); },
             get filteredDeliveryRoutes() {
-                let list = this.deliveryRoutes || [];
+                const today = new Date().toISOString().split('T')[0];
+                let list = (this.deliveryRoutes || []).filter(r => !r.date || r.date >= today);
                 if (this.selectedDeliveryDay) list = list.filter(r => r.date === this.selectedDeliveryDay);
                 const q = (this.deliverySearch || '').trim().toLowerCase();
                 if (!q) return list;
@@ -291,9 +343,19 @@
                     return sa !== sb ? sa - sb : (a.id || 0) - (b.id || 0);
                 });
             },
+            get inProgressRoute() { return this.orderedDeliveryRoutes.find(r => this.routeStatus(r) === 'iniciada') || null; },
+            get nextDeliveryRoutes() { return this.orderedDeliveryRoutes.filter(r => ['pendente', 'reaberta'].includes(this.routeStatus(r))); },
+            get deliveredRoutes() { return this.orderedDeliveryRoutes.filter(r => this.routeStatus(r) === 'entregue'); },
+            get returnedRoutes() { return this.orderedDeliveryRoutes.filter(r => this.routeStatus(r) === 'devolucao'); },
             get activeDeliveryRoutes() { return this.orderedDeliveryRoutes.filter(r => !['entregue', 'devolucao'].includes(this.routeStatus(r))); },
             get completedDeliveryRoutes() { return this.orderedDeliveryRoutes.filter(r => ['entregue', 'devolucao'].includes(this.routeStatus(r))); },
+            get visibleDayCards() {
+                const today = new Date().toISOString().split('T')[0];
+                return (this.deliveryDayCards || []).filter(c => c.date >= today);
+            },
             completedAccordionOpen: false,
+            deliveredAccordionOpen: false,
+            returnedAccordionOpen: false,
             get dayStats() {
                 const rows = (this.deliveryRoutes || []).filter(r => r.date === this.selectedDeliveryDay);
                 const totalStops = rows.length;
@@ -325,9 +387,10 @@
             routeStatus(route) { return ((route && route.status) || 'pendente').toString().toLowerCase().trim(); },
             routeStatusCardClass(route) {
                 const s = this.routeStatus(route);
-                if (s === 'iniciada') return '';
-                if (s === 'entregue') return '';
-                if (s === 'devolucao') return '';
+                if (s === 'iniciada') return 'route-glow-blue';
+                if (s === 'entregue') return 'route-glow-green';
+                if (s === 'devolucao') return 'route-glow-red';
+                if (s === 'pendente' || s === 'reaberta') return 'route-glow-amber';
                 return '';
             },
             statusLabel(s) { const m = { pendente: 'Pendente', iniciada: 'Iniciada', reaberta: 'Reaberta', entregue: 'Entregue', devolucao: 'Devolução' }; return m[s] || s; },
@@ -365,10 +428,18 @@
             loadDeliveryData() {
                 fetch('/api/mobile/delivery/my-routes').then(r => r.json()).then(data => {
                     if (!data.success) return;
-                    const prev = this.selectedDeliveryDay;
                     this.deliveryRoutes = data.routes || [];
                     this.deliveryDayCards = data.day_cards || [];
-                    this.selectedDeliveryDay = prev && this.deliveryDayCards.some(c => c.date === prev) ? prev : (this.deliveryDayCards[0]?.date || '');
+                    const today = new Date().toISOString().split('T')[0];
+                    const prev = this.selectedDeliveryDay;
+                    const todayCard = this.deliveryDayCards.find(c => c.date === today);
+                    if (todayCard) {
+                        this.selectedDeliveryDay = today;
+                    } else if (prev && this.deliveryDayCards.some(c => c.date === prev)) {
+                        this.selectedDeliveryDay = prev;
+                    } else {
+                        this.selectedDeliveryDay = this.deliveryDayCards[0]?.date || '';
+                    }
                     this.deliverySessionOpen = !!data.session_open;
                     this.assignedPlate = data.assigned_plate || '';
                     this.mobileReturnReasons = data.return_reasons || [];
@@ -404,7 +475,9 @@
                 fetch(`/api/mobile/delivery/route/${route.id}/action`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) })
                     .then(r => r.json()).then(data => {
                         if (!data.success) return alert(data.error || 'Erro.');
-                        this.loadDeliveryData(); this.haptic(action === 'finalizar' ? 'success' : 'medium');
+                        this.loadDeliveryData();
+                        this.haptic(action === 'finalizar' ? 'success' : 'medium');
+                        if (action === 'iniciar') window.scrollTo({ top: 0, behavior: 'smooth' });
                         if (data.xp_earned && typeof this.showXpPopup === 'function') this.showXpPopup(data.xp_earned);
                     });
             },

@@ -175,92 +175,8 @@
                         </button>
                     </template>
                 </div>
-                <div x-show="!deliverySessionOpen" class="space-y-3 mb-3">
-                    <div class="rounded-lg p-3 text-body" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning); color: var(--color-text);">
-                        <strong>Informe</strong> placa e KM de saída para liberar os clientes.
-                    </div>
-                    <!-- Formulário inline: placa, KM e ajudantes (mesmo estado do modal) -->
-                    <div class="surface rounded-xl p-4 space-y-4" style="border: 1px solid var(--color-border);">
-                        <div x-show="deliverySetupError" class="rounded-lg px-3 py-2 text-body flex items-center gap-2" style="background: var(--color-danger-bg); color: var(--color-danger);" x-text="deliverySetupError"></div>
-                        <div>
-                            <label for="delivery-plate-inline" class="text-section block mb-2" style="color: var(--color-text);">Placa *</label>
-                            <input id="delivery-plate-inline" type="text" x-model="deliverySetup.plate" @input="normalizePlateInput()" placeholder="ABC1D23"
-                                class="w-full rounded-lg px-4 py-3 text-body-lg uppercase font-mono focus:outline-none focus:ring-2 transition-colors"
-                                style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);">
-                        </div>
-                        <div>
-                            <label for="delivery-km-inline" class="text-section block mb-2" style="color: var(--color-text);">KM de saída *</label>
-                            <input id="delivery-km-inline" type="number" inputmode="decimal" step="0.1" min="0" x-model="deliverySetup.km_departure" placeholder="Ex.: 125430,5"
-                                class="w-full rounded-lg px-4 py-3 text-body-lg font-mono focus:outline-none focus:ring-2 transition-colors"
-                                style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);">
-                        </div>
-                        <div>
-                            <label class="text-section block mb-2" style="color: var(--color-text);">Ajudantes (opcional)</label>
-                            <div class="flex flex-wrap gap-2 mb-2" x-show="deliverySetup.helpers.length > 0">
-                                <template x-for="(helper, idx) in deliverySetup.helpers" :key="'inline-helper-'+idx">
-                                    <div class="flex items-center gap-2 px-3 py-2 rounded-full text-body font-medium"
-                                        style="background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.3); color: var(--color-primary);">
-                                        <span x-text="helper"></span>
-                                        <button type="button" @click="removeDeliveryHelper(idx)" class="touch-target-icon flex items-center justify-center w-6 h-6 rounded-full hover:bg-blue-500/30">×</button>
-                                    </div>
-                                </template>
-                            </div>
-                            <div class="relative">
-                                <input type="text" x-model="deliverySetup.helperInput" @keydown.enter.prevent="addDeliveryHelperFromInput()"
-                                    placeholder="Nome do ajudante e Enter" autocomplete="off"
-                                    class="w-full rounded-lg px-4 py-3 text-body focus:outline-none transition-colors"
-                                    style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);">
-                                <button type="button" @click="addDeliveryHelperFromInput()" class="absolute right-2 top-1/2 -translate-y-1/2 touch-target-icon flex items-center justify-center" style="color: var(--color-primary);">
-                                    <i data-lucide="plus-circle" class="w-5 h-5"></i>
-                                </button>
-                            </div>
-                            <div x-show="filteredHelperOptions.length > 0" class="mt-2 max-h-32 overflow-y-auto rounded-lg border space-y-0.5" style="border-color: var(--color-border); background: var(--color-surface-solid);">
-                                <template x-for="emp in filteredHelperOptions" :key="'inline-helper-opt-'+emp.id">
-                                    <button type="button" @click="selectDeliveryHelperName(emp.name)" class="w-full text-left px-3 py-2.5 text-body min-h-[44px] transition-colors" style="color: var(--color-text-body);">
-                                        <span x-text="emp.name"></span>
-                                    </button>
-                                </template>
-                            </div>
-                        </div>
-                        <button type="button" @click="startDeliverySession()"
-                            class="w-full py-3 rounded-lg font-semibold text-body-lg text-white transition-all active:scale-95 min-h-[48px] flex items-center justify-center gap-2"
-                            style="background: var(--color-primary);">
-                            <i data-lucide="play" class="w-5 h-5"></i>
-                            Iniciar agora
-                        </button>
-                    </div>
-                </div>
-
-                <div class="space-y-2 max-h-[360px] overflow-y-auto custom-scrollbar" x-show="deliverySessionOpen">
-                    <template x-for="route in filteredDeliveryRoutes" :key="'droute-'+route.id">
-                        <div class="rounded-lg border-2 p-3"
-                            :style="({'pendente':'background:rgba(245,158,11,0.12);border-color:rgba(245,158,11,0.5)','reaberta':'background:rgba(245,158,11,0.12);border-color:rgba(245,158,11,0.5)','iniciada':'background:rgba(59,130,246,0.12);border-color:rgba(59,130,246,0.5)','entregue':'background:rgba(16,185,129,0.12);border-color:rgba(16,185,129,0.5)','devolucao':'background:rgba(249,115,22,0.12);border-color:rgba(249,115,22,0.5)'})[route.status] || 'background:var(--color-surface-solid);border-color:var(--color-border-light)'">
-                            <div class="flex items-start justify-between gap-2 mb-2">
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-bold truncate" style="color: var(--color-text);" x-text="route.client_name"></p>
-                                    <p class="text-[11px] truncate" style="color: var(--color-text-secondary);" x-text="`Cod ${route.client_code || '-'} • Pedido ${route.order_number || '-'}`"></p>
-                                </div>
-                                <a :href="route.maps_url" target="_blank" class="text-[11px] font-semibold underline" style="color: var(--color-primary);">Mapa</a>
-                            </div>
-                            <p class="text-[11px] mb-2 truncate" style="color: var(--color-text-body);" x-text="`${route.address} - ${route.city}/${route.state}`"></p>
-                            <div class="flex items-center gap-1.5 mb-2 text-[10px] flex-wrap">
-                                <span class="px-2 py-1 rounded-md font-semibold" style="background: var(--color-surface-solid); border: 1px solid var(--color-border-light); color: var(--color-text-body);" x-text="`${route.weight.toFixed(2)} Kg`"></span>
-                                <span class="px-2 py-1 rounded-md font-semibold" style="background: var(--color-surface-solid); border: 1px solid var(--color-border-light); color: var(--color-text-body);" x-text="`R$ ${route.value.toFixed(2)}`"></span>
-                                <span class="px-2 py-1 rounded-md font-semibold uppercase" style="background: var(--color-surface-solid); border: 1px solid var(--color-border-light); color: var(--color-text-body);" x-text="route.status"></span>
-                                <span class="px-2 py-1 rounded-md font-mono" style="background: var(--color-surface-solid); border: 1px solid var(--color-border-light); color: var(--color-text-secondary);" x-show="route.status==='iniciada'" x-text="`${formatTimer(route.started_at || '00:00')}`"></span>
-                            </div>
-                            <div class="flex gap-1.5 overflow-x-auto custom-scrollbar pb-1">
-                                <button @click="deliveryAction(route,'iniciar')" class="px-3 py-1.5 rounded-lg text-body font-semibold text-white transition-opacity disabled:opacity-50 interactive" style="background: var(--color-primary);"
-                                    :disabled="!deliverySessionOpen || (route.status!=='pendente' && route.status!=='reaberta')">Iniciar</button>
-                                <button @click="deliveryAction(route,'finalizar')" class="px-3 py-1.5 rounded-lg text-body font-semibold text-white transition-opacity disabled:opacity-50 interactive" style="background: var(--color-success);"
-                                    :disabled="!deliverySessionOpen || route.status!=='iniciada'">Finalizar</button>
-                                <button @click="openMobileReturnModal(route)" class="px-3 py-1.5 rounded-lg text-body font-semibold text-white transition-opacity disabled:opacity-50 interactive" style="background: var(--color-warning);"
-                                    :disabled="!deliverySessionOpen || route.status!=='iniciada'">Devolução</button>
-                                <button @click="deliveryAction(route,'reabrir')" class="px-3 py-1.5 rounded-lg text-body font-semibold transition-opacity disabled:opacity-50 interactive" style="background: var(--color-text-secondary); color: white;"
-                                    :disabled="!deliverySessionOpen || (route.status!=='entregue' && route.status!=='devolucao')">Reabrir</button>
-                            </div>
-                        </div>
-                    </template>
+                <div x-show="!deliverySessionOpen" class="rounded-lg p-3 text-body" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning); color: var(--color-text);">
+                    <strong>Informe</strong> placa e KM de saída para liberar os clientes.
                 </div>
             </div>
         </section>
@@ -288,49 +204,6 @@
                         <i data-lucide="chevron-right" class="w-5 h-5 flex-shrink-0" style="color: var(--color-text-muted);"></i>
                     </button>
                 </form>
-                <!-- Formulário placa / KM / ajudantes: sempre visível quando sessão está fechada -->
-                <div x-show="!deliverySessionOpen" class="mt-3 surface rounded-xl p-4 space-y-4" style="border: 1px solid var(--color-border);">
-                    <p class="text-body font-medium" style="color: var(--color-text);">Placa e KM de saída <span x-show="deliveryRoutes.length > 0">para liberar os clientes</span><span x-show="deliveryRoutes.length === 0">(obrigatório para iniciar entregas)</span>:</p>
-                    <div x-show="deliverySetupError" class="rounded-lg px-3 py-2 text-body" style="background: var(--color-danger-bg); color: var(--color-danger);" x-text="deliverySetupError"></div>
-                    <div>
-                        <label for="mod-plate" class="block text-sm font-semibold mb-1.5" style="color: var(--color-text);">Placa *</label>
-                        <input id="mod-plate" type="text" x-model="deliverySetup.plate" @input="normalizePlateInput()" placeholder="Ex.: ABC1D23"
-                            class="w-full rounded-lg px-4 py-3 text-body-lg uppercase font-mono border-2 focus:outline-none focus:ring-2"
-                            style="background: var(--color-surface-solid); border-color: var(--color-border); color: var(--color-text-body);">
-                    </div>
-                    <div>
-                        <label for="mod-km" class="block text-sm font-semibold mb-1.5" style="color: var(--color-text);">KM de saída *</label>
-                        <input id="mod-km" type="number" inputmode="decimal" step="0.1" min="0" x-model="deliverySetup.km_departure" placeholder="Ex.: 125430,5"
-                            class="w-full rounded-lg px-4 py-3 text-body-lg font-mono border-2 focus:outline-none focus:ring-2"
-                            style="background: var(--color-surface-solid); border-color: var(--color-border); color: var(--color-text-body);">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold mb-1.5" style="color: var(--color-text);">Ajudantes (opcional)</label>
-                        <div class="flex flex-wrap gap-2 mb-2" x-show="deliverySetup.helpers.length > 0">
-                            <template x-for="(helper, idx) in deliverySetup.helpers" :key="'mod-helper-'+idx">
-                                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-body font-medium" style="background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.3); color: var(--color-primary);">
-                                    <span x-text="helper"></span>
-                                    <button type="button" @click="removeDeliveryHelper(idx)" class="touch-target-icon w-6 h-6 rounded-full hover:bg-blue-500/30 flex items-center justify-center leading-none">×</button>
-                                </span>
-                            </template>
-                        </div>
-                        <input type="text" x-model="deliverySetup.helperInput" @keydown.enter.prevent="addDeliveryHelperFromInput()"
-                            placeholder="Nome do ajudante e Enter" autocomplete="off"
-                            class="w-full rounded-lg px-4 py-3 text-body border-2 focus:outline-none"
-                            style="background: var(--color-surface-solid); border-color: var(--color-border); color: var(--color-text-body);">
-                        <div x-show="filteredHelperOptions.length > 0" class="mt-2 max-h-28 overflow-y-auto rounded-lg border divide-y" style="border-color: var(--color-border); background: var(--color-surface-solid);">
-                            <template x-for="emp in filteredHelperOptions" :key="'mod-opt-'+emp.id">
-                                <button type="button" @click="selectDeliveryHelperName(emp.name)" class="w-full text-left px-3 py-2 text-body block" style="color: var(--color-text-body);"><span x-text="emp.name"></span></button>
-                            </template>
-                        </div>
-                    </div>
-                    <button type="button" @click="startDeliverySession()"
-                        class="w-full py-3 rounded-lg font-semibold text-body-lg text-white min-h-[48px] flex items-center justify-center gap-2"
-                        style="background: var(--color-primary);">
-                        <i data-lucide="play" class="w-5 h-5"></i>
-                        Iniciar agora
-                    </button>
-                </div>
             </div>
             {% elif module.action == "open_admin_start_modal" %}
             <button @click="open_admin_start_modal()" class="interactive w-full surface p-4 text-left flex items-center gap-3">
@@ -1419,6 +1292,10 @@
                             this.selectedDeliveryDay = this.deliveryDayCards.length ? this.deliveryDayCards[0].date : '';
                         }
                         this.deliverySessionOpen = !!data.session_open;
+                        if (this.deliverySessionOpen) {
+                            window.location.href = '/mobile/delivery';
+                            return;
+                        }
                         this.assignedPlate = data.assigned_plate || '';
                         this.mobileReturnReasons = data.return_reasons || [];
                         if (this.mobileReturnReasons.length && !this.mobileReturn.reason) {
@@ -1451,8 +1328,8 @@
                         this.showDeliverySetupModal = false;
                         this.deliverySetupError = '';
                         this.deliverySetup = { plate: '', km_departure: '', helpers: [], helperInput: '' };
-                        this.loadDeliveryData();
                         this.haptic('success');
+                        window.location.href = '/mobile/delivery';
                     } else {
                         this.deliverySetupError = data.error || 'Erro ao iniciar rotina.';
                     }
