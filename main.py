@@ -22061,7 +22061,7 @@ async def api_list_admin_routes(
     
     try:
         user_id = int(str(user_id))
-    except:
+    except Exception:
         return JSONResponse({"error": "ID invÃ¡lido"}, status_code=400)
     
     current_emp = session.get(models.Employee, user_id)
@@ -22070,90 +22070,108 @@ async def api_list_admin_routes(
     
     today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
     
-    # Rotas ativas (pendentes) de hoje
-    active_routes = session.exec(
-        select(models.Route)
-        .where(
-            models.Route.date == today,
-            models.Route.status == "pending"
-        )
-        .order_by(models.Route.start_time)
-    ).all()
-    
-    routes_data = []
-    for route in active_routes:
-        emp = session.get(models.Employee, route.employee_id)
-        client = session.get(models.Client, route.client_id)
+    try:
+        # Rotas ativas (pendentes) de hoje
+        active_routes = session.exec(
+            select(models.Route)
+            .where(
+                models.Route.date == today,
+                models.Route.status == "pending"
+            )
+            .order_by(models.Route.start_time)
+        ).all()
         
-        routes_data.append({
-            "id": route.id,
-            "employee_id": route.employee_id,
-            "employee_name": emp.name if emp else "Desconhecido",
-            "employee_registration": emp.registration_id if emp else "N/A",
-            "client_id": route.client_id,
-            "client_name": client.name if client else "Desconhecido",
-            "tonnage": route.tonnage,
-            "start_time": route.start_time,
-            "shift": route.shift
-        })
-    
-    # Colaboradores ativos sem rota hoje
-    all_active_employees = session.exec(
-        select(models.Employee)
-        .where(
-            models.Employee.status == "active",
-            models.Employee.mobile_access == True
-        )
-    ).all()
-    
-    employees_with_route = {route.employee_id for route in active_routes}
-    
-    # Filtrar colaboradores que tiveram rota nos Ãºltimos 4 dias
-    four_days_ago = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=4)).strftime("%Y-%m-%d")
-    
-    recent_route_employees = session.exec(
-        select(models.Route.employee_id)
-        .where(
-            models.Route.date >= four_days_ago,
-            models.Route.date <= today
-        )
-        .distinct()
-    ).all()
-    
-    recent_employee_ids = set(recent_route_employees)
-    
-    employees_without_route = []
-    for emp in all_active_employees:
-        # Mostrar apenas se: nÃ£o tem rota hoje E teve rota nos Ãºltimos 4 dias
-        if emp.id not in employees_with_route and emp.id in recent_employee_ids:
-            employees_without_route.append({
-                "id": emp.id,
-                "name": emp.name,
-                "registration_id": emp.registration_id,
-                "shift": emp.work_shift or "ManhÃ£"
+        routes_data = []
+        for route in active_routes:
+            emp = session.get(models.Employee, route.employee_id)
+            client = session.get(models.Client, route.client_id)
+            tonnage = getattr(route, "tonnage", None)
+            if tonnage is not None and not isinstance(tonnage, (int, float)):
+                try:
+                    tonnage = float(tonnage)
+                except (TypeError, ValueError):
+                    tonnage = 0.0
+            elif tonnage is None:
+                tonnage = 0.0
+            routes_data.append({
+                "id": route.id,
+                "employee_id": route.employee_id,
+                "employee_name": (emp.name if emp else "Desconhecido") or "Desconhecido",
+                "employee_registration": str(emp.registration_id) if emp and getattr(emp, "registration_id", None) is not None else "N/A",
+                "client_id": route.client_id,
+                "client_name": (client.name if client else "Desconhecido") or "Desconhecido",
+                "tonnage": float(tonnage),
+                "start_time": str(getattr(route, "start_time", "") or ""),
+                "shift": str(getattr(route, "shift", "ManhÃ£") or "ManhÃ£")
             })
-    
-    # Buscar todos os clientes para os selects
-    all_clients = session.exec(select(models.Client).order_by(models.Client.name)).all()
-    clients_data = [{"id": c.id, "name": c.name} for c in all_clients]
-    
-    # Buscar todos os colaboradores ativos para os selects
-    all_employees_data = [
-        {
-            "id": e.id,
-            "name": e.name,
-            "registration_id": e.registration_id
-        }
-        for e in all_active_employees
-    ]
-    
-    return JSONResponse({
-        "success": True,
-        "active_routes": routes_data,
-        "employees_without_route": employees_without_route,
-        "all_clients": clients_data,
-        "all_employees": all_employees_data
-    })
+        
+        # Colaboradores ativos sem rota hoje
+        all_active_employees = session.exec(
+            select(models.Employee)
+            .where(
+                models.Employee.status == "active",
+                models.Employee.mobile_access == True
+            )
+        ).all()
+        
+        employees_with_route = {route.employee_id for route in active_routes}
+        
+        # Filtrar colaboradores que tiveram rota nos Ãºltimos 4 dias
+        four_days_ago = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=4)).strftime("%Y-%m-%d")
+        
+        recent_route_employees = session.exec(
+            select(models.Route.employee_id)
+            .where(
+                models.Route.date >= four_days_ago,
+                models.Route.date <= today
+            )
+            .distinct()
+        ).all()
+        
+        # Garantir set de IDs (pode vir como escalar ou Row)
+        recent_employee_ids = set()
+        for r in recent_route_employees:
+            if isinstance(r, (int, float)):
+                recent_employee_ids.add(int(r))
+            elif hasattr(r, "employee_id"):
+                recent_employee_ids.add(int(r.employee_id))
+            elif isinstance(r, (list, tuple)) and len(r) > 0:
+                recent_employee_ids.add(int(r[0]))
+        
+        employees_without_route = []
+        for emp in all_active_employees:
+            if emp.id not in employees_with_route and emp.id in recent_employee_ids:
+                employees_without_route.append({
+                    "id": emp.id,
+                    "name": str(emp.name or ""),
+                    "registration_id": str(getattr(emp, "registration_id", "") or ""),
+                    "shift": str(getattr(emp, "work_shift", "ManhÃ£") or "ManhÃ£")
+                })
+        
+        # Buscar todos os clientes para os selects
+        all_clients = session.exec(select(models.Client).order_by(models.Client.name)).all()
+        clients_data = [{"id": c.id, "name": str(c.name or "")} for c in all_clients]
+        
+        # Buscar todos os colaboradores ativos para os selects
+        all_employees_data = [
+            {
+                "id": e.id,
+                "name": str(e.name or ""),
+                "registration_id": str(getattr(e, "registration_id", "") or "")
+            }
+            for e in all_active_employees
+        ]
+        
+        return JSONResponse({
+            "success": True,
+            "active_routes": routes_data,
+            "employees_without_route": employees_without_route,
+            "all_clients": clients_data,
+            "all_employees": all_employees_data
+        })
+    except Exception as e:
+        logger.exception("api_list_admin_routes error: %s", e)
+        raise
 
 
 @app.post("/api/mobile/admin/routes/{route_id}/edit")
