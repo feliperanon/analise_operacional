@@ -3712,83 +3712,83 @@ async def api_mobile_delivery_my_routes(
             .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta", "entregue", "devolucao"]))
             .order_by(models.Route.date, models.Route.id)
         ).all()
-    client_ids = list({r.client_id for r in routes})
-    clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
-    client_map = {c.id: c for c in clients}
+        client_ids = list({r.client_id for r in routes})
+        clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
+        client_map = {c.id: c for c in clients}
 
-    session_open = session.exec(
-        select(models.DeliverySession)
-        .where(models.DeliverySession.employee_id == user_id)
-        .where(models.DeliverySession.date == today_str)
-        .where(models.DeliverySession.status == "open")
-        .order_by(models.DeliverySession.id.desc())
-    ).first()
+        session_open = session.exec(
+            select(models.DeliverySession)
+            .where(models.DeliverySession.employee_id == user_id)
+            .where(models.DeliverySession.date == today_str)
+            .where(models.DeliverySession.status == "open")
+            .order_by(models.DeliverySession.id.desc())
+        ).first()
 
-    payload = []
-    grouped = {}
-    for r in routes:
-        c = client_map.get(r.client_id)
-        client_name = (getattr(c, "razao_social", None) or getattr(c, "name", None) or "Cliente") if c else "Cliente"
-        client_secondary = (getattr(c, "nome_fantasia", None) or getattr(c, "name", None) or "") if c else ""
-        item = {
-            "id": r.id,
-            "date": r.date,
-            "client_name": str(client_name),
-            "client_secondary": str(client_secondary or ""),
-            "address": r.delivery_address or "",
-            "city": r.delivery_city or "",
-            "bairro": r.delivery_neighborhood or "",
-            "state": r.delivery_state or "",
-            "cep": r.delivery_cep or "",
-            "maps_url": _maps_link(r.delivery_address, r.delivery_neighborhood, r.delivery_city, r.delivery_state, r.delivery_cep),
-            "weight": _safe_float(r.tonnage),
-            "value": _safe_float(r.valor_financeiro),
-            "status": (r.delivery_status or "pendente"),
-            "started_at": r.delivery_started_at,
-            "finished_at": r.delivery_finished_at,
-            "returned_at": r.delivery_returned_at,
-            "reopen_count": r.delivery_reopen_count or 0,
-            "vehicle_plate": r.delivery_vehicle_plate or "",
-            "order_number": r.delivery_order_number or "",
-            "client_code": r.delivery_client_code or "",
-        }
-        payload.append(item)
-        grouped.setdefault(r.date, []).append(item)
+        payload = []
+        grouped = {}
+        for r in routes:
+            c = client_map.get(r.client_id)
+            client_name = (getattr(c, "razao_social", None) or getattr(c, "name", None) or "Cliente") if c else "Cliente"
+            client_secondary = (getattr(c, "nome_fantasia", None) or getattr(c, "name", None) or "") if c else ""
+            item = {
+                "id": r.id,
+                "date": r.date,
+                "client_name": str(client_name),
+                "client_secondary": str(client_secondary or ""),
+                "address": r.delivery_address or "",
+                "city": r.delivery_city or "",
+                "bairro": r.delivery_neighborhood or "",
+                "state": r.delivery_state or "",
+                "cep": r.delivery_cep or "",
+                "maps_url": _maps_link(r.delivery_address, r.delivery_neighborhood, r.delivery_city, r.delivery_state, r.delivery_cep),
+                "weight": _safe_float(r.tonnage),
+                "value": _safe_float(r.valor_financeiro),
+                "status": (r.delivery_status or "pendente"),
+                "started_at": r.delivery_started_at,
+                "finished_at": r.delivery_finished_at,
+                "returned_at": r.delivery_returned_at,
+                "reopen_count": r.delivery_reopen_count or 0,
+                "vehicle_plate": r.delivery_vehicle_plate or "",
+                "order_number": r.delivery_order_number or "",
+                "client_code": r.delivery_client_code or "",
+            }
+            payload.append(item)
+            grouped.setdefault(r.date, []).append(item)
 
-    assigned_plates = []
-    for r in routes:
-        if r.delivery_vehicle_plate and r.delivery_vehicle_plate not in assigned_plates:
-            assigned_plates.append(r.delivery_vehicle_plate)
+        assigned_plates = []
+        for r in routes:
+            if r.delivery_vehicle_plate and r.delivery_vehicle_plate not in assigned_plates:
+                assigned_plates.append(r.delivery_vehicle_plate)
 
-    day_cards = []
-    for d, items in grouped.items():
-        try:
-            d_fmt = datetime.strptime(d, "%Y-%m-%d").strftime("%d/%m")
-        except Exception:
-            d_fmt = d
-        day_cards.append({
-            "date": d,
-            "label": f"Entregas do Dia {d_fmt}",
-            "count": len(items),
-            "routes": items,
+        day_cards = []
+        for d, items in grouped.items():
+            try:
+                d_fmt = datetime.strptime(d, "%Y-%m-%d").strftime("%d/%m")
+            except Exception:
+                d_fmt = d
+            day_cards.append({
+                "date": d,
+                "label": f"Entregas do Dia {d_fmt}",
+                "count": len(items),
+                "routes": items,
+            })
+        day_cards.sort(key=lambda x: x["date"])
+
+        return JSONResponse({
+            "success": True,
+            "date": today_str,
+            "assigned_plate": assigned_plates[0] if assigned_plates else "",
+            "assigned_plates": assigned_plates,
+            "session_open": bool(session_open),
+            "session": {
+                "id": session_open.id if session_open else None,
+                "km_departure": session_open.km_departure if session_open else None,
+                "vehicle_plate": session_open.vehicle_plate if session_open else None,
+            } if session_open else None,
+            "routes": payload,
+            "day_cards": day_cards,
+            "return_reasons": DELIVERY_RETURN_REASONS_FLAT,
         })
-    day_cards.sort(key=lambda x: x["date"])
-
-    return JSONResponse({
-        "success": True,
-        "date": today_str,
-        "assigned_plate": assigned_plates[0] if assigned_plates else "",
-        "assigned_plates": assigned_plates,
-        "session_open": bool(session_open),
-        "session": {
-            "id": session_open.id if session_open else None,
-            "km_departure": session_open.km_departure if session_open else None,
-            "vehicle_plate": session_open.vehicle_plate if session_open else None,
-        } if session_open else None,
-        "routes": payload,
-        "day_cards": day_cards,
-        "return_reasons": DELIVERY_RETURN_REASONS_FLAT,
-    })
     except Exception as e:
         logger.exception("api_mobile_delivery_my_routes error: %s", e)
         raise
