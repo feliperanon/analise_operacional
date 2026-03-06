@@ -2485,7 +2485,7 @@ async def mobile_index(request: Request):
 async def mobile_login_page(request: Request, error: Optional[str] = None):
     user = get_current_user(request)
     if isinstance(user, dict) and user.get("type") == "employee":
-        return RedirectResponse(url="/mobile/dashboard", status_code=303)
+        return RedirectResponse(url="/mobile/delivery", status_code=303)
 
     error_map = {
         "missing_registration": "Informe a matrÃ­cula para continuar.",
@@ -3411,7 +3411,7 @@ class MobileDeliverySessionStartPayload(BaseModel):
 
 
 class MobileDeliverySessionEndPayload(BaseModel):
-    km_return: float
+    km_return: Optional[float] = None
 
 
 class MobileDeliveryActionPayload(BaseModel):
@@ -3869,8 +3869,15 @@ async def api_mobile_delivery_session_end(
 ):
     user_id = request.session.get("user_id")
     if not user_id:
-        return JSONResponse({"error": "NÃ£o autorizado"}, status_code=401)
+        return JSONResponse({"success": False, "error": "Não autorizado"}, status_code=401)
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        return JSONResponse({"success": False, "error": "Sessão inválida"}, status_code=401)
     today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    km = getattr(payload, "km_return", None)
+    if km is None or (isinstance(km, (int, float)) and (km != km or km <= 0)):  # NaN or <=0
+        return JSONResponse({"success": False, "error": "KM de chegada obrigatório e deve ser maior que zero."}, status_code=400)
     ds = session.exec(
         select(models.DeliverySession)
         .where(models.DeliverySession.employee_id == user_id)
@@ -3879,9 +3886,9 @@ async def api_mobile_delivery_session_end(
         .order_by(models.DeliverySession.id.desc())
     ).first()
     if not ds:
-        return JSONResponse({"error": "Nenhuma rotina aberta."}, status_code=400)
-    if payload.km_return <= 0:
-        return JSONResponse({"error": "KM de chegada invÃ¡lido."}, status_code=400)
+        return JSONResponse({"success": False, "error": "Nenhuma rota aberta para encerrar hoje."}, status_code=400)
+    if km <= 0:
+        return JSONResponse({"success": False, "error": "KM de chegada inválido."}, status_code=400)
 
     pending = session.exec(
         select(models.Route)
@@ -3891,9 +3898,9 @@ async def api_mobile_delivery_session_end(
         .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta"]))
     ).all()
     if pending:
-        return JSONResponse({"error": "Ainda existem entregas em aberto. Finalize/devolva antes de encerrar."}, status_code=400)
+        return JSONResponse({"success": False, "error": "Ainda existem entregas em aberto. Finalize ou registre devolução antes de encerrar."}, status_code=400)
 
-    ds.km_return = payload.km_return
+    ds.km_return = km
     ds.status = "closed"
     ds.ended_at = datetime.now(ZoneInfo("America/Sao_Paulo"))
     session.add(ds)
