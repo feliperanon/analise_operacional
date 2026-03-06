@@ -39,7 +39,8 @@
                 <div class="icon-wrap flex-shrink-0">
                     <i data-lucide="package-search" class="w-5 h-5 lucide-thick"></i>
                 </div>
-                <select x-model="equipmentCode"
+                <label for="equipment-code" class="sr-only">Selecione o caminhão</label>
+                <select id="equipment-code" name="equipment_code" x-model="equipmentCode"
                     @change="odometerKm = (equipmentLastKm[equipmentCode] != null && equipmentLastKm[equipmentCode] !== '') ? equipmentLastKm[equipmentCode] : ''"
                     class="flex-1 min-w-0 bg-transparent border-none text-body font-semibold focus:ring-0 p-2"
                     style="color: var(--color-text-body);">
@@ -57,8 +58,8 @@
 
         <!-- KM hodômetro -->
         <div x-show="equipmentCode" x-transition class="surface p-4">
-            <label class="text-section block mb-2" style="color: var(--color-text);">KM do hodômetro *</label>
-            <input type="number" x-model.number="odometerKm" min="0" step="1" placeholder="Ex: 150000"
+            <label for="odometer-km" class="text-section block mb-2" style="color: var(--color-text);">KM do hodômetro *</label>
+            <input id="odometer-km" name="odometer_km" type="number" x-model.number="odometerKm" min="0" step="1" placeholder="Ex: 150000"
                 class="w-full px-4 py-3 rounded-lg font-mono text-body"
                 style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);">
             <p x-show="equipmentCode && equipmentLastKm[equipmentCode]" class="text-caption mt-2 font-mono" style="color: var(--color-text-muted);">
@@ -133,7 +134,8 @@
                     <p class="text-caption mt-0.5" style="color: var(--color-danger);">Descreva o problema e anexe uma foto.</p>
                 </div>
             </div>
-            <textarea x-model="observations" rows="3" placeholder="Ex: Roda travando, garfo empenado..."
+            <label for="checklist-observations" class="sr-only">Descrição do problema</label>
+            <textarea id="checklist-observations" name="observations" x-model="observations" rows="3" placeholder="Ex: Roda travando, garfo empenado..."
                 class="w-full rounded-lg px-4 py-3 text-body resize-none mb-3"
                 style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);"></textarea>
             <input type="file" id="files" multiple accept="image/*" capture="environment" @change="handleFileSelect" class="hidden">
@@ -193,7 +195,7 @@
         <div class="w-full max-w-[640px] mx-auto px-4">
             <button @click="submitChecklist()" :disabled="isSubmitting || !canSubmit"
                 class="w-full min-h-[48px] py-3 rounded-xl font-bold text-body-lg text-white transition-all active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                style="background: var(--gradient-btn-neon); box-shadow: 0 0 20px rgba(16,185,129,0.4); border: 1px solid rgba(255,255,255,0.2);">
+                style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); box-shadow: 0 0 18px rgba(37,99,235,0.35); border: 1px solid rgba(255,255,255,0.2);">
                 <span x-show="isSubmitting"><i data-lucide="loader-2" class="w-5 h-5 animate-spin lucide-thick"></i> Enviando...</span>
                 <span x-show="!isSubmitting" class="flex items-center gap-2">
                     <span x-text="hasIssues ? 'Reportar Problema' : 'Concluir Checklist'"></span>
@@ -287,7 +289,12 @@
                 }
                 try {
                     const res = await fetch('/api/routine/checklists', { method: 'POST', body: formData });
-                    const result = await res.json();
+                    let result = {};
+                    try {
+                        result = await res.json();
+                    } catch (_) {
+                        result = {};
+                    }
                     if (!res.ok || !result.success) throw new Error(result.error || result.detail || 'Erro no envio');
                     this.statusMessage = `Equipamento Seguro! +${result.xp_earned || 50} XP`;
                     this.statusType = 'success';
