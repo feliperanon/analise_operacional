@@ -3696,6 +3696,8 @@ async def mobile_route_update(
 @app.get("/api/mobile/delivery/my-routes", response_class=JSONResponse)
 async def api_mobile_delivery_my_routes(
     request: Request,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
     session: Session = Depends(get_session)
 ):
     try:
@@ -3705,13 +3707,17 @@ async def api_mobile_delivery_my_routes(
         user_id = int(user_id)
 
         today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
-        routes = session.exec(
+        q = (
             select(models.Route)
             .where(models.Route.type == "delivery")
             .where(models.Route.employee_id == user_id)
             .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta", "entregue", "devolucao"]))
-            .order_by(models.Route.date, models.Route.id)
-        ).all()
+        )
+        if date_from:
+            q = q.where(models.Route.date >= date_from)
+        if date_to:
+            q = q.where(models.Route.date <= date_to)
+        routes = session.exec(q.order_by(models.Route.date, models.Route.id)).all()
         client_ids = list({r.client_id for r in routes})
         clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
         client_map = {c.id: c for c in clients}
