@@ -6137,42 +6137,43 @@ async def api_create_checklist(
     files: List[UploadFile] = File([]),
     session: Session = Depends(get_session)
 ):
-    user = require_login(request)
-    if not isinstance(user, dict) or user.get("type") != "employee":
-        return JSONResponse({"error": "NÃ£o autorizado"}, status_code=401)
-
-    employee_id = user.get("id")
-    employee = session.get(models.Employee, employee_id)
-    if not employee:
-        return JSONResponse({"error": "Colaborador nÃ£o encontrado."}, status_code=404)
-    require_mobile_module(employee, "checklist")
-
-    equipment_code = (equipment_code or "").strip().upper()
-    if not equipment_code:
-        return JSONResponse({"error": "Equipamento obrigatÃ³rio."}, status_code=400)
-    # Aceita TranspalletEquipment OU Vehicle (caminhÃ£o por placa)
-    equipment = session.exec(
-        select(models.TranspalletEquipment).where(models.TranspalletEquipment.code == equipment_code)
-    ).first()
-    is_truck = False
-    if not equipment:
-        truck = session.exec(
-            select(models.Vehicle)
-            .where(models.Vehicle.placa == equipment_code)
-            .where(models.Vehicle.vehicle_type == "caminhao")
-            .where(models.Vehicle.is_active == True)
-        ).first()
-        if not truck:
-            return JSONResponse({"error": "Equipamento nÃ£o cadastrado."}, status_code=400)
-        is_truck = True
-
-    # ValidaÃ§Ã£o KM (obrigatÃ³rio apenas para caminhÃ£o)
     try:
-        km_val = float((odometer_km or "").strip().replace(",", ".")) if odometer_km else None
-    except (ValueError, TypeError):
-        km_val = None
-    if is_truck and (km_val is None or km_val < 0):
-        return JSONResponse({"error": "Informe o KM do hodÃ´metro para caminhÃ£o."}, status_code=400)
+        user = require_login(request)
+        if not isinstance(user, dict) or user.get("type") != "employee":
+            return JSONResponse({"error": "NÃ£o autorizado"}, status_code=401)
+
+        employee_id = user.get("id")
+        employee = session.get(models.Employee, employee_id)
+        if not employee:
+            return JSONResponse({"error": "Colaborador nÃ£o encontrado."}, status_code=404)
+        require_mobile_module(employee, "checklist")
+
+        equipment_code = (equipment_code or "").strip().upper()
+        if not equipment_code:
+            return JSONResponse({"error": "Equipamento obrigatÃ³rio."}, status_code=400)
+        # Aceita TranspalletEquipment OU Vehicle (caminhÃ£o por placa)
+        equipment = session.exec(
+            select(models.TranspalletEquipment).where(models.TranspalletEquipment.code == equipment_code)
+        ).first()
+        is_truck = False
+        if not equipment:
+            truck = session.exec(
+                select(models.Vehicle)
+                .where(models.Vehicle.placa == equipment_code)
+                .where(models.Vehicle.vehicle_type == "caminhao")
+                .where(models.Vehicle.is_active == True)
+            ).first()
+            if not truck:
+                return JSONResponse({"error": "Equipamento nÃ£o cadastrado."}, status_code=400)
+            is_truck = True
+
+        # ValidaÃ§Ã£o KM (obrigatÃ³rio apenas para caminhÃ£o)
+        try:
+            km_val = float((odometer_km or "").strip().replace(",", ".")) if odometer_km else None
+        except (ValueError, TypeError):
+            km_val = None
+        if is_truck and (km_val is None or km_val < 0):
+            return JSONResponse({"error": "Informe o KM do hodÃ´metro para caminhÃ£o."}, status_code=400)
     last_check = session.exec(
         select(models.TranspalletChecklist)
         .where(models.TranspalletChecklist.equipment_code == equipment_code)
@@ -6343,7 +6344,15 @@ async def api_create_checklist(
         session.add(checklist)
         session.commit()
 
-    return {"success": True, "id": checklist.id}
+        return {"success": True, "id": checklist.id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("api_create_checklist error: %s", e)
+        return JSONResponse(
+            {"error": str(e) if LOG_LEVEL == logging.DEBUG else "Erro ao salvar checklist. Verifique os logs."},
+            status_code=500
+        )
 
 @app.post("/api/equipment/tickets")
 async def api_create_ticket(
