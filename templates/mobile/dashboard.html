@@ -20,7 +20,7 @@
     </div>
 </div>
 
-<div x-data="dashboardController()" class="flex flex-col" x-ref="mainContainer" x-cloak>
+<div x-data="dashboardController()" class="flex flex-col" x-ref="mainContainer" x-cloak @open-delivery-setup-modal="openDeliverySetupModal()">
     
     <!-- Module Notice -->
     {% if module_notice %}
@@ -151,8 +151,8 @@
                         <p class="text-caption-lg mt-0.5" x-text="assignedPlate ? `Caminhão: ${assignedPlate}` : 'Sem caminhão planejado'"></p>
                     </div>
                     <div class="flex gap-2">
-                        <button type="button" x-show="!deliverySessionOpen" @click.prevent="openDeliverySetupModal()"
-                            onclick="window.__openDeliverySetupModal && window.__openDeliverySetupModal()"
+                        <button type="button" x-show="!deliverySessionOpen"
+                            @click.prevent="$dispatch('open-delivery-setup-modal'); (window.__openDeliverySetupModal && window.__openDeliverySetupModal())"
                             class="btn-futuristic-primary touch-target min-h-[48px] flex items-center justify-center gap-2">
                             <i data-lucide="play" class="w-4 h-4"></i>
                             Iniciar Rota
