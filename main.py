@@ -2621,6 +2621,7 @@ async def mobile_dashboard(
         "next_level": None,
     }
 
+    has_delivery_module = bool(getattr(employee, "mobile_access_separation", False)) or bool(getattr(employee, "mobile_access_admin_start", False))
     return templates.TemplateResponse(
         "mobile/dashboard.html",
         {
@@ -2628,6 +2629,7 @@ async def mobile_dashboard(
             "employee": employee,
             "module_notice": module_notice,
             "modules": modules,
+            "has_delivery_module": has_delivery_module,
             "gamification": gamification,
             "streak_days": 0,
             "time_bonuses": [],
@@ -2665,7 +2667,7 @@ async def mobile_delivery_page(request: Request, session: Session = Depends(get_
     )
     return templates.TemplateResponse(
         "mobile/delivery.html",
-        {"request": request, "employee": employee, "employees_json": employees_json},
+        {"request": request, "employee": employee, "employees_json": employees_json, "hide_header": True},
     )
 
 
