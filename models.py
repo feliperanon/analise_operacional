@@ -165,6 +165,38 @@ class Client(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: Optional[datetime] = None
 
+    # Geolocalização
+    latitude: Optional[float] = Field(default=None)
+    longitude: Optional[float] = Field(default=None)
+    geocoding_status: Optional[str] = Field(default="pending", index=True)  # pending, success, failed
+    geocoded_at: Optional[datetime] = Field(default=None)
+    geocoding_source: Optional[str] = Field(default=None)
+    geocoding_error: Optional[str] = Field(default=None)
+    address_normalized: Optional[str] = Field(default=None)
+
+    def get_full_address(self) -> str:
+        """Retorna endereço completo formatado para geocodificação."""
+        parts = []
+        logradouro = self.logradouro or self.endereco
+        if logradouro:
+            parts.append(logradouro)
+        if self.numero:
+            parts.append(self.numero)
+        if self.bairro:
+            parts.append(self.bairro)
+        if self.municipio:
+            parts.append(self.municipio)
+        return ", ".join(p for p in parts if p)
+
+    def has_valid_coordinates(self) -> bool:
+        """Verifica se o cliente possui coordenadas geográficas válidas."""
+        return (
+            self.latitude is not None
+            and self.longitude is not None
+            and -90.0 <= self.latitude <= 90.0
+            and -180.0 <= self.longitude <= 180.0
+        )
+
 
 class ClientAuditLog(SQLModel, table=True):
     """Histórico de alterações do cadastro de cliente."""
