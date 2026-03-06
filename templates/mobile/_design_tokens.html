@@ -7,7 +7,7 @@ Dark Mode Futurista, alto contraste, legibilidade sob luz solar.
     :root {
         /* === PALETA TECH-STEEL (Dark Mode Futurista) === */
         --color-bg: #020617;
-        --color-surface: rgba(15, 23, 42, 0.6);
+        --color-surface: #131e2e;
         --color-surface-solid: #0f172a;
         --color-border: #1e293b;
         --color-border-light: #334155;
@@ -37,8 +37,8 @@ Dark Mode Futurista, alto contraste, legibilidade sob luz solar.
         --glow-fail: 0 0 0 1px #ef4444, 0 0 12px rgba(239, 68, 68, 0.3);
         --glow-pending: 0 0 0 1px #f59e0b, 0 0 12px rgba(245, 158, 11, 0.3);
 
-        /* === CARDS (vidro fosco, sem overlay sobre texto) === */
-        --card-bg: rgba(15, 23, 42, 0.6);
+        /* === CARDS (sólido, sem transparência) === */
+        --card-bg: #0f172a;
         --card-border: 1px solid #1e293b;
 
         /* === SOMBRAS === */
@@ -107,17 +107,13 @@ Dark Mode Futurista, alto contraste, legibilidade sob luz solar.
 
     /* Cards Tech-Steel */
     .surface {
-        background: var(--card-bg);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
+        background: var(--color-surface-solid);
         border: var(--card-border);
         border-radius: var(--radius-lg);
     }
 
     .surface-shadow {
-        background: var(--card-bg);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
+        background: var(--color-surface-solid);
         border: var(--card-border);
         border-radius: var(--radius-lg);
         box-shadow: var(--shadow-card);

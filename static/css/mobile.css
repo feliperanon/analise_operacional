@@ -195,6 +195,7 @@ Skeletons, pull-to-refresh premium, empty states, feedback tátil.
     text-transform: uppercase;
     letter-spacing: 1px;
     border: 1px solid rgba(255,255,255,0.2);
+    outline: none;
     overflow: hidden;
     transition: all 0.3s ease;
     display: flex;
@@ -202,6 +203,13 @@ Skeletons, pull-to-refresh premium, empty states, feedback tátil.
     justify-content: center;
     gap: 8px;
     min-height: 48px;
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+}
+
+.btn-futuristic-primary:focus,
+.btn-futuristic-primary:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
 }
 
 .btn-futuristic-primary::after {

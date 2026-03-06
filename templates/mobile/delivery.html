@@ -39,8 +39,8 @@
 
             <div class="space-y-2 mb-3">
                 <template x-for="card in deliveryDayCards" :key="`day-${card.date}`">
-                    <button @click="toggleDeliveryDay(card.date)" class="w-full text-left px-3 py-2 rounded-lg border-2 transition-colors"
-                        :style="selectedDeliveryDay===card.date ? 'background: var(--color-primary-bg); border-color: var(--color-primary); color: var(--color-primary);' : 'border-color: var(--color-border); color: var(--color-text);'">
+                    <button @click="toggleDeliveryDay(card.date)" class="w-full text-left px-3 py-2 rounded-lg border-2 transition-colors interactive"
+                        :style="selectedDeliveryDay===card.date ? 'background: var(--color-primary-bg); border-color: var(--color-primary); color: var(--color-primary);' : 'background: var(--color-surface-solid); border-color: var(--color-border-light); color: var(--color-text);'">
                         <div class="flex items-center justify-between">
                             <span class="font-semibold text-body" x-text="card.label"></span>
                             <span class="text-caption-lg" x-text="`${card.count} cliente(s)`"></span>
@@ -137,7 +137,7 @@
 
     <!-- Modal: Iniciar Entregas -->
     <div x-show="showDeliverySetupModal" class="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4 bg-black/40" x-cloak @click.self="showDeliverySetupModal = false">
-        <div @click.stop class="w-full max-w-lg rounded-lg flex flex-col max-h-[90vh] overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
+        <div @click.stop class="w-full max-w-lg rounded-lg flex flex-col max-h-[90vh] overflow-hidden" style="background: var(--color-surface-solid); box-shadow: var(--shadow-modal);">
             <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
                 <div class="icon-wrap w-12 h-12 flex-shrink-0" style="background: var(--color-primary); color: white;"><i data-lucide="truck" class="w-6 h-6"></i></div>
                 <div class="flex-1">

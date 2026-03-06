@@ -164,9 +164,10 @@
                 <div class="space-y-2 mb-3">
                     <template x-for="card in deliveryDayCards" :key="'day-'+card.date">
                         <button @click="selectedDeliveryDay = card.date"
-                            class="w-full text-left px-3 py-2 rounded-lg border-2 transition-colors"
-                            :class="selectedDeliveryDay===card.date ? 'border-[var(--color-primary)]' : ''"
-                            :style="selectedDeliveryDay===card.date ? 'background: var(--color-primary-bg); color: var(--color-primary);' : 'border-color: var(--color-border); color: var(--color-text);'">
+                            class="w-full text-left px-3 py-2 rounded-lg border-2 transition-colors interactive"
+                            :style="selectedDeliveryDay===card.date
+                                ? 'background: var(--color-primary-bg); border-color: var(--color-primary); color: var(--color-primary);'
+                                : 'background: var(--color-surface-solid); border-color: var(--color-border-light); color: var(--color-text);'">
                             <div class="flex items-center justify-between">
                                 <span class="font-semibold text-body" x-text="card.label"></span>
                                 <span class="text-caption-lg" x-text="`${card.count} cliente(s)`"></span>
@@ -233,34 +234,29 @@
                 <div class="space-y-2 max-h-[360px] overflow-y-auto custom-scrollbar" x-show="deliverySessionOpen">
                     <template x-for="route in filteredDeliveryRoutes" :key="'droute-'+route.id">
                         <div class="rounded-lg border-2 p-3"
-                            :class="{
-                                'bg-amber-50 border-amber-200': route.status==='pendente' || route.status==='reaberta',
-                                'bg-blue-50 border-blue-200': route.status==='iniciada',
-                                'bg-green-50 border-green-200': route.status==='entregue',
-                                'bg-orange-50 border-orange-200': route.status==='devolucao'
-                            }">
+                            :style="({'pendente':'background:rgba(245,158,11,0.12);border-color:rgba(245,158,11,0.5)','reaberta':'background:rgba(245,158,11,0.12);border-color:rgba(245,158,11,0.5)','iniciada':'background:rgba(59,130,246,0.12);border-color:rgba(59,130,246,0.5)','entregue':'background:rgba(16,185,129,0.12);border-color:rgba(16,185,129,0.5)','devolucao':'background:rgba(249,115,22,0.12);border-color:rgba(249,115,22,0.5)'})[route.status] || 'background:var(--color-surface-solid);border-color:var(--color-border-light)'">
                             <div class="flex items-start justify-between gap-2 mb-2">
                                 <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-bold text-blue-900 truncate" x-text="route.client_name"></p>
-                                    <p class="text-[11px] text-slate-600 truncate" x-text="`Cod ${route.client_code || '-'} • Pedido ${route.order_number || '-'}`"></p>
+                                    <p class="text-sm font-bold truncate" style="color: var(--color-text);" x-text="route.client_name"></p>
+                                    <p class="text-[11px] truncate" style="color: var(--color-text-secondary);" x-text="`Cod ${route.client_code || '-'} • Pedido ${route.order_number || '-'}`"></p>
                                 </div>
-                                <a :href="route.maps_url" target="_blank" class="text-[11px] text-blue-600 font-semibold underline">Mapa</a>
+                                <a :href="route.maps_url" target="_blank" class="text-[11px] font-semibold underline" style="color: var(--color-primary);">Mapa</a>
                             </div>
-                            <p class="text-[11px] text-slate-700 mb-2 truncate" x-text="`${route.address} - ${route.city}/${route.state}`"></p>
+                            <p class="text-[11px] mb-2 truncate" style="color: var(--color-text-body);" x-text="`${route.address} - ${route.city}/${route.state}`"></p>
                             <div class="flex items-center gap-1.5 mb-2 text-[10px] flex-wrap">
-                                <span class="px-2 py-1 rounded-md bg-white border border-slate-200 text-blue-900 font-semibold" x-text="`${route.weight.toFixed(2)} Kg`"></span>
-                                <span class="px-2 py-1 rounded-md bg-white border border-slate-200 text-blue-900 font-semibold" x-text="`R$ ${route.value.toFixed(2)}`"></span>
-                                <span class="px-2 py-1 rounded-md bg-white border border-slate-200 text-blue-900 font-semibold uppercase" x-text="route.status"></span>
-                                <span class="px-2 py-1 rounded-md bg-white border border-slate-200 text-blue-900 font-mono" x-show="route.status==='iniciada'" x-text="`${formatTimer(route.started_at || '00:00')}`"></span>
+                                <span class="px-2 py-1 rounded-md font-semibold" style="background: var(--color-surface-solid); border: 1px solid var(--color-border-light); color: var(--color-text-body);" x-text="`${route.weight.toFixed(2)} Kg`"></span>
+                                <span class="px-2 py-1 rounded-md font-semibold" style="background: var(--color-surface-solid); border: 1px solid var(--color-border-light); color: var(--color-text-body);" x-text="`R$ ${route.value.toFixed(2)}`"></span>
+                                <span class="px-2 py-1 rounded-md font-semibold uppercase" style="background: var(--color-surface-solid); border: 1px solid var(--color-border-light); color: var(--color-text-body);" x-text="route.status"></span>
+                                <span class="px-2 py-1 rounded-md font-mono" style="background: var(--color-surface-solid); border: 1px solid var(--color-border-light); color: var(--color-text-secondary);" x-show="route.status==='iniciada'" x-text="`${formatTimer(route.started_at || '00:00')}`"></span>
                             </div>
                             <div class="flex gap-1.5 overflow-x-auto custom-scrollbar pb-1">
-                                <button @click="deliveryAction(route,'iniciar')" class="px-3 py-1.5 rounded-lg text-body font-semibold text-white transition-opacity disabled:opacity-50" style="background: var(--color-primary);"
+                                <button @click="deliveryAction(route,'iniciar')" class="px-3 py-1.5 rounded-lg text-body font-semibold text-white transition-opacity disabled:opacity-50 interactive" style="background: var(--color-primary);"
                                     :disabled="!deliverySessionOpen || (route.status!=='pendente' && route.status!=='reaberta')">Iniciar</button>
-                                <button @click="deliveryAction(route,'finalizar')" class="px-3 py-1.5 rounded-lg text-body font-semibold text-white transition-opacity disabled:opacity-50" style="background: var(--color-success);"
+                                <button @click="deliveryAction(route,'finalizar')" class="px-3 py-1.5 rounded-lg text-body font-semibold text-white transition-opacity disabled:opacity-50 interactive" style="background: var(--color-success);"
                                     :disabled="!deliverySessionOpen || route.status!=='iniciada'">Finalizar</button>
-                                <button @click="openMobileReturnModal(route)" class="px-3 py-1.5 rounded-lg text-body font-semibold text-white transition-opacity disabled:opacity-50" style="background: var(--color-warning);"
+                                <button @click="openMobileReturnModal(route)" class="px-3 py-1.5 rounded-lg text-body font-semibold text-white transition-opacity disabled:opacity-50 interactive" style="background: var(--color-warning);"
                                     :disabled="!deliverySessionOpen || route.status!=='iniciada'">Devolução</button>
-                                <button @click="deliveryAction(route,'reabrir')" class="px-3 py-1.5 rounded-lg text-body font-semibold transition-opacity disabled:opacity-50" style="background: var(--color-text-secondary); color: white;"
+                                <button @click="deliveryAction(route,'reabrir')" class="px-3 py-1.5 rounded-lg text-body font-semibold transition-opacity disabled:opacity-50 interactive" style="background: var(--color-text-secondary); color: white;"
                                     :disabled="!deliverySessionOpen || (route.status!=='entregue' && route.status!=='devolucao')">Reabrir</button>
                             </div>
                         </div>
