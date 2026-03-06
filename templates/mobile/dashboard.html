@@ -273,20 +273,65 @@
         <div class="space-y-2">
             {% for module in modules %}
             {% if module.action == "start_separation" %}
-            <form action="/mobile/routine/start" method="POST" @submit.prevent="handleStartAction($event)" class="w-full">
-                <button type="submit" :disabled="isSubmission"
-                    class="interactive w-full surface p-4 text-left flex items-center gap-3 min-h-[48px]"
-                    style="min-height: var(--touch-min, 48px);">
-                    <div class="icon-wrap flex items-center justify-center flex-shrink-0" style="background: var(--color-primary); color: white;">
-                        <i data-lucide="{{ module.icon }}" class="w-5 h-5"></i>
+            <div class="w-full">
+                <form action="/mobile/routine/start" method="POST" @submit.prevent="handleStartAction($event)" class="w-full">
+                    <button type="submit" :disabled="isSubmission"
+                        class="interactive w-full surface p-4 text-left flex items-center gap-3 min-h-[48px]"
+                        style="min-height: var(--touch-min, 48px);">
+                        <div class="icon-wrap flex items-center justify-center flex-shrink-0" style="background: var(--color-primary); color: white;">
+                            <i data-lucide="{{ module.icon }}" class="w-5 h-5"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
+                            <p class="text-caption-lg truncate" x-text="deliveryRoutes.length > 0 ? 'Informe a placa para liberar.' : '{{ module.description }}'"></p>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-5 h-5 flex-shrink-0" style="color: var(--color-text-muted);"></i>
+                    </button>
+                </form>
+                <!-- Formulário placa / KM / ajudantes: sempre visível quando sessão está fechada -->
+                <div x-show="!deliverySessionOpen" class="mt-3 surface rounded-xl p-4 space-y-4" style="border: 1px solid var(--color-border);">
+                    <p class="text-body font-medium" style="color: var(--color-text);">Placa e KM de saída <span x-show="deliveryRoutes.length > 0">para liberar os clientes</span><span x-show="deliveryRoutes.length === 0">(obrigatório para iniciar entregas)</span>:</p>
+                    <div x-show="deliverySetupError" class="rounded-lg px-3 py-2 text-body" style="background: var(--color-danger-bg); color: var(--color-danger);" x-text="deliverySetupError"></div>
+                    <div>
+                        <label for="mod-plate" class="block text-sm font-semibold mb-1.5" style="color: var(--color-text);">Placa *</label>
+                        <input id="mod-plate" type="text" x-model="deliverySetup.plate" @input="normalizePlateInput()" placeholder="Ex.: ABC1D23"
+                            class="w-full rounded-lg px-4 py-3 text-body-lg uppercase font-mono border-2 focus:outline-none focus:ring-2"
+                            style="background: var(--color-surface-solid); border-color: var(--color-border); color: var(--color-text-body);">
                     </div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
-                        <p class="text-caption-lg truncate" x-text="deliveryRoutes.length > 0 ? 'Informe a placa para liberar.' : '{{ module.description }}'"></p>
+                    <div>
+                        <label for="mod-km" class="block text-sm font-semibold mb-1.5" style="color: var(--color-text);">KM de saída *</label>
+                        <input id="mod-km" type="number" inputmode="decimal" step="0.1" min="0" x-model="deliverySetup.km_departure" placeholder="Ex.: 125430,5"
+                            class="w-full rounded-lg px-4 py-3 text-body-lg font-mono border-2 focus:outline-none focus:ring-2"
+                            style="background: var(--color-surface-solid); border-color: var(--color-border); color: var(--color-text-body);">
                     </div>
-                    <i data-lucide="chevron-right" class="w-5 h-5 flex-shrink-0" style="color: var(--color-text-muted);"></i>
-                </button>
-            </form>
+                    <div>
+                        <label class="block text-sm font-semibold mb-1.5" style="color: var(--color-text);">Ajudantes (opcional)</label>
+                        <div class="flex flex-wrap gap-2 mb-2" x-show="deliverySetup.helpers.length > 0">
+                            <template x-for="(helper, idx) in deliverySetup.helpers" :key="'mod-helper-'+idx">
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-body font-medium" style="background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.3); color: var(--color-primary);">
+                                    <span x-text="helper"></span>
+                                    <button type="button" @click="removeDeliveryHelper(idx)" class="touch-target-icon w-6 h-6 rounded-full hover:bg-blue-500/30 flex items-center justify-center leading-none">×</button>
+                                </span>
+                            </template>
+                        </div>
+                        <input type="text" x-model="deliverySetup.helperInput" @keydown.enter.prevent="addDeliveryHelperFromInput()"
+                            placeholder="Nome do ajudante e Enter" autocomplete="off"
+                            class="w-full rounded-lg px-4 py-3 text-body border-2 focus:outline-none"
+                            style="background: var(--color-surface-solid); border-color: var(--color-border); color: var(--color-text-body);">
+                        <div x-show="filteredHelperOptions.length > 0" class="mt-2 max-h-28 overflow-y-auto rounded-lg border divide-y" style="border-color: var(--color-border); background: var(--color-surface-solid);">
+                            <template x-for="emp in filteredHelperOptions" :key="'mod-opt-'+emp.id">
+                                <button type="button" @click="selectDeliveryHelperName(emp.name)" class="w-full text-left px-3 py-2 text-body block" style="color: var(--color-text-body);"><span x-text="emp.name"></span></button>
+                            </template>
+                        </div>
+                    </div>
+                    <button type="button" @click="startDeliverySession()"
+                        class="w-full py-3 rounded-lg font-semibold text-body-lg text-white min-h-[48px] flex items-center justify-center gap-2"
+                        style="background: var(--color-primary);">
+                        <i data-lucide="play" class="w-5 h-5"></i>
+                        Iniciar agora
+                    </button>
+                </div>
+            </div>
             {% elif module.action == "open_admin_start_modal" %}
             <button @click="open_admin_start_modal()" class="interactive w-full surface p-4 text-left flex items-center gap-3">
                 <div class="icon-wrap flex-shrink-0" style="background: var(--color-primary); color: white;"><i data-lucide="{{ module.icon }}" class="w-5 h-5"></i></div>
