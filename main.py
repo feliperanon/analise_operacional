@@ -2485,7 +2485,7 @@ async def mobile_index(request: Request):
 async def mobile_login_page(request: Request, error: Optional[str] = None):
     user = get_current_user(request)
     if isinstance(user, dict) and user.get("type") == "employee":
-        return RedirectResponse(url="/mobile/delivery", status_code=303)
+        return RedirectResponse(url="/mobile/dashboard", status_code=303)
 
     error_map = {
         "missing_registration": "Informe a matrÃ­cula para continuar.",
@@ -2532,7 +2532,7 @@ async def mobile_auth(
     request.session.pop("auth_user_role", None)
     request.session.pop("auth_user_email", None)
     request.session["user_id"] = employee.id
-    return RedirectResponse(url="/mobile/delivery", status_code=303)
+    return RedirectResponse(url="/mobile/dashboard", status_code=303)
 
 
 @app.get("/mobile/logout", response_class=RedirectResponse)
@@ -2667,7 +2667,7 @@ async def mobile_delivery_page(request: Request, session: Session = Depends(get_
     )
     return templates.TemplateResponse(
         "mobile/delivery.html",
-        {"request": request, "employee": employee, "employees_json": employees_json, "hide_header": True},
+        {"request": request, "employee": employee, "employees_json": employees_json},
     )
 
 

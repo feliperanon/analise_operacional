@@ -9,7 +9,9 @@
     <!-- Header -->
     <header class="container-mobile py-4 shrink-0 relative z-20 header-gradient">
         <div class="flex items-center justify-between">
-            <div class="w-11 flex-shrink-0"></div>
+            <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap interactive" style="background: rgba(255,255,255,0.2); color: white;">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </a>
             <div class="text-center flex-1">
                 <h1 class="text-title-lg text-white font-bold">Rota de Entregas</h1>
                 <p class="text-caption text-blue-200" x-show="assignedPlate" x-text="`Caminhão: ${assignedPlate}`"></p>
