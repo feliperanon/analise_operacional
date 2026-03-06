@@ -6174,161 +6174,161 @@ async def api_create_checklist(
             km_val = None
         if is_truck and (km_val is None or km_val < 0):
             return JSONResponse({"error": "Informe o KM do hodÃ´metro para caminhÃ£o."}, status_code=400)
-    last_check = session.exec(
-        select(models.TranspalletChecklist)
-        .where(models.TranspalletChecklist.equipment_code == equipment_code)
-        .order_by(desc(models.TranspalletChecklist.date), desc(models.TranspalletChecklist.submitted_at))
-    ).first()
-    # ReferÃªncia de KM: veÃ­culo (se caminhÃ£o e tiver) ou Ãºltimo checklist
-    last_km_ref = None
-    if is_truck and truck and getattr(truck, "odometer_km", None) is not None:
-        last_km_ref = float(truck.odometer_km)
-    elif last_check and last_check.odometer_km is not None:
-        last_km_ref = float(last_check.odometer_km)
-    if km_val is not None and last_km_ref is not None:
-        last_km = last_km_ref
-        if km_val <= last_km:
-            return JSONResponse({"error": f"KM deve ser maior que o anterior ({last_km:,.0f})."}, status_code=400)  # noqa: E501
-        if km_val > last_km + 1000:
-            return JSONResponse({"error": f"MÃ¡ximo 1000 km/dia. KM anterior: {last_km:,.0f}. MÃ¡x hoje: {last_km + 1000:,.0f}."}, status_code=400)  # noqa: E501
+        last_check = session.exec(
+            select(models.TranspalletChecklist)
+            .where(models.TranspalletChecklist.equipment_code == equipment_code)
+            .order_by(desc(models.TranspalletChecklist.date), desc(models.TranspalletChecklist.submitted_at))
+        ).first()
+        # ReferÃªncia de KM: veÃ­culo (se caminhÃ£o e tiver) ou Ãºltimo checklist
+        last_km_ref = None
+        if is_truck and truck and getattr(truck, "odometer_km", None) is not None:
+            last_km_ref = float(truck.odometer_km)
+        elif last_check and last_check.odometer_km is not None:
+            last_km_ref = float(last_check.odometer_km)
+        if km_val is not None and last_km_ref is not None:
+            last_km = last_km_ref
+            if km_val <= last_km:
+                return JSONResponse({"error": f"KM deve ser maior que o anterior ({last_km:,.0f})."}, status_code=400)  # noqa: E501
+            if km_val > last_km + 1000:
+                return JSONResponse({"error": f"MÃ¡ximo 1000 km/dia. KM anterior: {last_km:,.0f}. MÃ¡x hoje: {last_km + 1000:,.0f}."}, status_code=400)  # noqa: E501
 
-    payload_items = parse_items_payload(items)
-    if not payload_items or len(payload_items) != len(CHECKLIST_ITEM_KEYS):
-        return JSONResponse({"error": "Checklist incompleto."}, status_code=400)
+        payload_items = parse_items_payload(items)
+        if not payload_items or len(payload_items) != len(CHECKLIST_ITEM_KEYS):
+            return JSONResponse({"error": "Checklist incompleto."}, status_code=400)
 
-    nonconforming_keys = [k for k, v in payload_items.items() if not v]
-    observations = (observations or "").strip()
-    files = files or []
-    if nonconforming_keys:
-        if not observations:
-            return JSONResponse({"error": "ObservaÃ§Ã£o obrigatÃ³ria para nÃ£o conformidade."}, status_code=400)
-        if not files:
-            return JSONResponse({"error": "Imagem obrigatÃ³ria para nÃ£o conformidade."}, status_code=400)
+        nonconforming_keys = [k for k, v in payload_items.items() if not v]
+        observations = (observations or "").strip()
+        files = files or []
+        if nonconforming_keys:
+            if not observations:
+                return JSONResponse({"error": "ObservaÃ§Ã£o obrigatÃ³ria para nÃ£o conformidade."}, status_code=400)
+            if not files:
+                return JSONResponse({"error": "Imagem obrigatÃ³ria para nÃ£o conformidade."}, status_code=400)
 
-    critical_flag = any(k in CHECKLIST_CRITICAL_KEYS for k in nonconforming_keys)
-    images = []
-    if files:
-        images = await save_checklist_images(files)
+        critical_flag = any(k in CHECKLIST_CRITICAL_KEYS for k in nonconforming_keys)
+        images = []
+        if files:
+            images = await save_checklist_images(files)
 
-    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
-    date_val = date or now_br.strftime("%Y-%m-%d")
-    shift_val = shift or employee.work_shift or "ManhÃ£"
+        now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+        date_val = date or now_br.strftime("%Y-%m-%d")
+        shift_val = shift or employee.work_shift or "ManhÃ£"
 
-    checklist = models.TranspalletChecklist(
-        employee_id=employee_id,
-        equipment_code=equipment_code,
-        odometer_km=km_val,
-        date=date_val,
-        shift=shift_val,
-        status="submitted",
-        items=payload_items,
-        nonconforming_keys=nonconforming_keys,
-        observations=observations,
-        images=images,
-        critical_flag=critical_flag,
-        submitted_at=now_br
-    )
-    session.add(checklist)
-    session.commit()
-    session.refresh(checklist)
-
-    # Atualizar Ãºltimo KM do veÃ­culo quando checklist for de caminhÃ£o
-    if is_truck and km_val is not None and truck:
-        truck.odometer_km = km_val
-        truck.updated_at = now_br
-        session.add(truck)
-        session.commit()
-
-    if critical_flag:
-        blocked_items = ", ".join([checklist_item_label_map().get(k, k) for k in nonconforming_keys])
-        if equipment:
-            block_equipment(session, equipment, f"Itens crÃ­ticos: {blocked_items}", checklist.id)
-        session.add(models.Event(
-            timestamp=now_br,
-            text=f"Checklist crÃ­tico {equipment_code}: {blocked_items}",
-            type="checklist",
-            category="infraestrutura",
-            sector=equipment_code,
-            impact="high",
-            reference_type="checklist",
-            reference_id=checklist.id,
-            employee_id=employee_id
-        ))
-        session.commit()
-
-    if nonconforming_keys:
-        report_items = checklist_nonconforming_items(nonconforming_keys)
-        image_list = [f"/static/uploads/checklists/{img}" for img in images]
-        checklist_link = f"{APP_BASE_URL}/admin/routine/checklists/{checklist.id}" if APP_BASE_URL else f"/admin/routine/checklists/{checklist.id}"
-        submitted_at = checklist.submitted_at.strftime("%d/%m/%Y %H:%M") if checklist.submitted_at else now_br.strftime("%d/%m/%Y %H:%M")
-        email_date_br = now_br.strftime("%d/%m/%Y")
-        report = {
-            "subject": f"ManutenÃ§Ã£o Equipamento {equipment_code} - {email_date_br}",
-            "checklist_id": checklist.id,
-            "operator_name": employee.name,
-            "operator_id": employee.registration_id or "-",
-            "submitted_at": submitted_at,
-            "shift": shift_val,
-            "equipment_code": equipment_code,
-            "nonconforming_items": report_items,
-            "observations": observations or "-",
-            "checklist_link": checklist_link,
-            "image_list": image_list,
-            "generated_at": now_br.strftime("%d/%m/%Y %H:%M")
-        }
-        nonconforming_lines = []
-        for item in report_items:
-            critical_tag = " [CRÃTICO]" if item["critical"] else ""
-            nonconforming_lines.append(f"  â€¢ {item['label']}{critical_tag}")
-        
-        body_lines = [
-            "OlÃ¡! Espero que se encontrem bem.",
-            "",
-            f"Segue para manutenÃ§Ã£o o equipamento {report['equipment_code']}.",
-            "",
-            f"Operador: {report['operator_name']} â€” MatrÃ­cula: {report['operator_id']}",
-            f"Data/Hora: {report['submitted_at']}",
-            f"Turno: {report['shift']}",
-            "",
-            "Itens que requerem atenÃ§Ã£o:",
-            *nonconforming_lines,
-            "",
-            f"ObservaÃ§Ãµes: {report['observations']}",
-            "",
-            "Atenciosamente,",
-            "Sistema de OperaÃ§Ã£o Inteligente"
-        ]
-        if image_list:
-            body_lines.insert(-3, "")
-            body_lines.insert(-3, f"Imagens anexadas: {len(image_list)}")
-        report["body"] = "\n".join(body_lines)
-        report["pdf_filename"] = f"checklist_{checklist.id}_{date_val}.pdf"
-
-        pdf_error = None
-        try:
-            report["pdf_bytes"] = build_checklist_pdf(report)
-        except Exception as exc:
-            pdf_error = str(exc)
-
-        maintenance_error = None
-        try:
-            recipient_emails = get_maintenance_recipient_emails(session)
-            sent, error = send_maintenance_email(report, recipient_emails)
-            if sent:
-                checklist.maintenance_email_sent_at = now_br
-                if pdf_error:
-                    maintenance_error = f"PDF nÃ£o gerado ({pdf_error}). E-mail enviado sem anexo."
-            else:
-                maintenance_error = error or "Falha ao enviar e-mail."
-        except Exception as exc:
-            maintenance_error = str(exc)
-            logger.exception(f"Erro ao enviar e-mail de manutenÃ§Ã£o (checklist {checklist.id})")
-        if maintenance_error:
-            checklist.maintenance_email_error = maintenance_error
+        checklist = models.TranspalletChecklist(
+            employee_id=employee_id,
+            equipment_code=equipment_code,
+            odometer_km=km_val,
+            date=date_val,
+            shift=shift_val,
+            status="submitted",
+            items=payload_items,
+            nonconforming_keys=nonconforming_keys,
+            observations=observations,
+            images=images,
+            critical_flag=critical_flag,
+            submitted_at=now_br
+        )
         session.add(checklist)
         session.commit()
+        session.refresh(checklist)
 
-    shift_ok = normalize_shift(shift_val) == normalize_shift(employee.work_shift)
+        # Atualizar Ãºltimo KM do veÃ­culo quando checklist for de caminhÃ£o
+        if is_truck and km_val is not None and truck:
+            truck.odometer_km = km_val
+            truck.updated_at = now_br
+            session.add(truck)
+            session.commit()
+
+        if critical_flag:
+            blocked_items = ", ".join([checklist_item_label_map().get(k, k) for k in nonconforming_keys])
+            if equipment:
+                block_equipment(session, equipment, f"Itens crÃ­ticos: {blocked_items}", checklist.id)
+            session.add(models.Event(
+                timestamp=now_br,
+                text=f"Checklist crÃ­tico {equipment_code}: {blocked_items}",
+                type="checklist",
+                category="infraestrutura",
+                sector=equipment_code,
+                impact="high",
+                reference_type="checklist",
+                reference_id=checklist.id,
+                employee_id=employee_id
+            ))
+            session.commit()
+
+        if nonconforming_keys:
+            report_items = checklist_nonconforming_items(nonconforming_keys)
+            image_list = [f"/static/uploads/checklists/{img}" for img in images]
+            checklist_link = f"{APP_BASE_URL}/admin/routine/checklists/{checklist.id}" if APP_BASE_URL else f"/admin/routine/checklists/{checklist.id}"
+            submitted_at = checklist.submitted_at.strftime("%d/%m/%Y %H:%M") if checklist.submitted_at else now_br.strftime("%d/%m/%Y %H:%M")
+            email_date_br = now_br.strftime("%d/%m/%Y")
+            report = {
+                "subject": f"ManutenÃ§Ã£o Equipamento {equipment_code} - {email_date_br}",
+                "checklist_id": checklist.id,
+                "operator_name": employee.name,
+                "operator_id": employee.registration_id or "-",
+                "submitted_at": submitted_at,
+                "shift": shift_val,
+                "equipment_code": equipment_code,
+                "nonconforming_items": report_items,
+                "observations": observations or "-",
+                "checklist_link": checklist_link,
+                "image_list": image_list,
+                "generated_at": now_br.strftime("%d/%m/%Y %H:%M")
+            }
+            nonconforming_lines = []
+            for item in report_items:
+                critical_tag = " [CRÃTICO]" if item["critical"] else ""
+                nonconforming_lines.append(f"  â€¢ {item['label']}{critical_tag}")
+            
+            body_lines = [
+                "OlÃ¡! Espero que se encontrem bem.",
+                "",
+                f"Segue para manutenÃ§Ã£o o equipamento {report['equipment_code']}.",
+                "",
+                f"Operador: {report['operator_name']} â€” MatrÃ­cula: {report['operator_id']}",
+                f"Data/Hora: {report['submitted_at']}",
+                f"Turno: {report['shift']}",
+                "",
+                "Itens que requerem atenÃ§Ã£o:",
+                *nonconforming_lines,
+                "",
+                f"ObservaÃ§Ãµes: {report['observations']}",
+                "",
+                "Atenciosamente,",
+                "Sistema de OperaÃ§Ã£o Inteligente"
+            ]
+            if image_list:
+                body_lines.insert(-3, "")
+                body_lines.insert(-3, f"Imagens anexadas: {len(image_list)}")
+            report["body"] = "\n".join(body_lines)
+            report["pdf_filename"] = f"checklist_{checklist.id}_{date_val}.pdf"
+
+            pdf_error = None
+            try:
+                report["pdf_bytes"] = build_checklist_pdf(report)
+            except Exception as exc:
+                pdf_error = str(exc)
+
+            maintenance_error = None
+            try:
+                recipient_emails = get_maintenance_recipient_emails(session)
+                sent, error = send_maintenance_email(report, recipient_emails)
+                if sent:
+                    checklist.maintenance_email_sent_at = now_br
+                    if pdf_error:
+                        maintenance_error = f"PDF nÃ£o gerado ({pdf_error}). E-mail enviado sem anexo."
+                else:
+                    maintenance_error = error or "Falha ao enviar e-mail."
+            except Exception as exc:
+                maintenance_error = str(exc)
+                logger.exception(f"Erro ao enviar e-mail de manutenÃ§Ã£o (checklist {checklist.id})")
+            if maintenance_error:
+                checklist.maintenance_email_error = maintenance_error
+            session.add(checklist)
+            session.commit()
+
+        shift_ok = normalize_shift(shift_val) == normalize_shift(employee.work_shift)
     if shift_ok:
         tx = models.GameXPTransaction(
             employee_id=employee_id,
