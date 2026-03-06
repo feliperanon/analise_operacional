@@ -36341,3 +36341,5 @@ FROM gameachievement ORDER BY gameachievement.xp_reward]
 2026-03-06 07:48:59,415 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db | source=local_fallback
 2026-03-06 07:49:10,257 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db | source=local_fallback
 2026-03-06 07:49:22,347 | INFO     | main | DATABASE URL DETECTADA: sqlite:///database.db | source=local_fallback
+2026-03-06 12:55:13,861 | WARNING  | main | Admin padrÃ£o criado. Atualize ADMIN_EMAIL/ADMIN_PASS imediatamente.
+2026-03-06 12:55:13,880 | INFO     | main | DATABASE URL DETECTADA: sqlite:///./test.db | source=render
