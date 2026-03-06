@@ -1,0 +1,172 @@
+{#
+Mobile header: only hamburger button + full-screen nav menu.
+Fixes: high z-index, stable colors, click priority above page content.
+#}
+
+<script>
+    function openMobileNavMenu() {
+        const menu = document.getElementById('mobile-nav-menu');
+        if (!menu) return;
+        menu.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeMobileNavMenu() {
+        const menu = document.getElementById('mobile-nav-menu');
+        if (!menu) return;
+        menu.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+</script>
+
+<button
+    type="button"
+    aria-label="Abrir menu"
+    onclick="openMobileNavMenu()"
+    class="fixed top-3 right-3 z-[9998] touch-target-icon flex items-center justify-center w-11 h-11 rounded-lg shadow-lg"
+    style="background: #112434; color: #ffffff;">
+    <i data-lucide="menu" class="w-5 h-5"></i>
+</button>
+
+<div
+    id="mobile-nav-menu"
+    class="hidden fixed inset-0 z-[9999]"
+    style="background: rgba(15, 23, 42, 0.55);"
+    onclick="if (event.target === this) closeMobileNavMenu()">
+    <div
+        class="absolute inset-y-0 right-0 w-full max-w-md bg-white shadow-2xl"
+        style="color: #0f172a;">
+        <div class="border-b border-slate-200">
+            <div class="container-mobile">
+                <div class="flex items-center justify-between py-3">
+                    <h2 class="text-section" style="color: #0f172a;">Menu</h2>
+                    <button
+                        type="button"
+                        aria-label="Fechar menu"
+                        onclick="closeMobileNavMenu()"
+                        class="touch-target-icon flex items-center justify-center w-10 h-10 rounded-lg transition-colors"
+                        style="background: #e2e8f0; color: #1e293b;">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="h-[calc(100%-73px)] flex flex-col">
+            <div class="flex-1 overflow-y-auto">
+                <div class="container-mobile py-4 space-y-1">
+                    {% set user_role = request.session.get("auth_user_role", "") %}
+                    {% set allowed_pages = request.session.get("allowed_pages", []) %}
+                    {% set auth_user_id = request.session.get("auth_user_id") %}
+                    {% set is_employee_session = request.session.get("user_id") %}
+
+                    <a href="/mobile/dashboard" onclick="closeMobileNavMenu()" class="interactive flex items-center gap-3 p-3 rounded-lg hover:bg-blue-50">
+                        <div class="w-10 h-10 rounded-lg bg-blue-900 flex items-center justify-center text-white">
+                            <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-label text-blue-900">Painel</p>
+                            <p class="text-caption text-slate-500">Visao geral</p>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+                    </a>
+
+                    {% if auth_user_id and ("smart_flow" in allowed_pages or user_role == "admin") %}
+                    <a href="/smart-flow" onclick="closeMobileNavMenu()" class="interactive flex items-center gap-3 p-3 rounded-lg hover:bg-blue-50">
+                        <div class="w-10 h-10 rounded-lg bg-blue-900 flex items-center justify-center text-white">
+                            <i data-lucide="zap" class="w-5 h-5"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-label text-blue-900">Smart Flow</p>
+                            <p class="text-caption text-slate-500">Fluxo inteligente</p>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+                    </a>
+                    <a href="/lider/checklists" onclick="closeMobileNavMenu()" class="interactive flex items-center gap-3 p-3 rounded-lg hover:bg-blue-50">
+                        <div class="w-10 h-10 rounded-lg bg-blue-900 flex items-center justify-center text-white">
+                            <i data-lucide="clipboard-check" class="w-5 h-5"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-label text-blue-900">Checklists</p>
+                            <p class="text-caption text-slate-500">Acompanhamento</p>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+                    </a>
+                    <a href="/lider/rotas" onclick="closeMobileNavMenu()" class="interactive flex items-center gap-3 p-3 rounded-lg hover:bg-blue-50">
+                        <div class="w-10 h-10 rounded-lg bg-blue-900 flex items-center justify-center text-white">
+                            <i data-lucide="route" class="w-5 h-5"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-label text-blue-900">Rotas</p>
+                            <p class="text-caption text-slate-500">Acompanhamento</p>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+                    </a>
+                    <a href="/lider/tarefas" onclick="closeMobileNavMenu()" class="interactive flex items-center gap-3 p-3 rounded-lg hover:bg-blue-50">
+                        <div class="w-10 h-10 rounded-lg bg-blue-900 flex items-center justify-center text-white">
+                            <i data-lucide="list-todo" class="w-5 h-5"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-label text-blue-900">Tarefas</p>
+                            <p class="text-caption text-slate-500">Gerenciar equipe</p>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+                    </a>
+                    {% endif %}
+
+                    {% if is_employee_session %}
+                    <a href="/mobile/tarefas" onclick="closeMobileNavMenu()" class="interactive flex items-center gap-3 p-3 rounded-lg hover:bg-blue-50">
+                        <div class="w-10 h-10 rounded-lg bg-blue-900 flex items-center justify-center text-white">
+                            <i data-lucide="list-todo" class="w-5 h-5"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-label text-blue-900">Minhas Tarefas</p>
+                            <p class="text-caption text-slate-500">Do lider</p>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+                    </a>
+                    {% endif %}
+
+                    <a href="/mobile/achievements" onclick="closeMobileNavMenu()" class="interactive flex items-center gap-3 p-3 rounded-lg hover:bg-blue-50">
+                        <div class="w-10 h-10 rounded-lg bg-blue-900 flex items-center justify-center text-white">
+                            <i data-lucide="award" class="w-5 h-5"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-label text-blue-900">Conquistas</p>
+                            <p class="text-caption text-slate-500">Badges e niveis</p>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+                    </a>
+
+                    {% if auth_user_id and (user_role == "admin" or "admin_game" in allowed_pages) %}
+                    <a href="/mobile/game" onclick="closeMobileNavMenu()" class="interactive flex items-center gap-3 p-3 rounded-lg hover:bg-blue-50">
+                        <div class="w-10 h-10 rounded-lg bg-blue-900 flex items-center justify-center text-white">
+                            <i data-lucide="gamepad-2" class="w-5 h-5"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-label text-blue-900">Game Master</p>
+                            <p class="text-caption text-slate-500">Gerenciamento</p>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="border-t border-slate-200">
+                <div class="container-mobile py-4">
+                    <a href="/mobile/logout" onclick="closeMobileNavMenu()" class="interactive flex items-center gap-3 p-3 rounded-lg bg-red-50 hover:bg-red-100">
+                        <div class="w-10 h-10 rounded-lg bg-red-600 flex items-center justify-center text-white">
+                            <i data-lucide="log-out" class="w-5 h-5"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-label text-red-900">Sair</p>
+                            <p class="text-caption text-red-700">Encerrar sessao</p>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-red-400"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

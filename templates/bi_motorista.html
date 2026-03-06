@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% from "bi/_components.html" import kpi_card, chart_card, table_section %}
 
 {% block content %}
@@ -406,7 +406,7 @@
   </div>
 </div>
 
-<script src="/static/js/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
   const chartData = {{ chart_payload_json|safe }} || {};
   const detailRows = {{ detail_rows_json|safe }} || [];
