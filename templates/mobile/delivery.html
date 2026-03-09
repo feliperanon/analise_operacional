@@ -41,7 +41,7 @@
                     </div>
                     <div>
                         <p class="text-[10px] font-bold uppercase tracking-wider mb-0.5" style="color: var(--color-text-muted);">Ajudantes</p>
-                        <p class="text-body font-medium truncate" style="color: var(--color-text-body);" x-text="sessionHelpers.length ? sessionHelpers.join(', ') : '—'"></p>
+                        <p class="text-body font-medium break-words" style="color: var(--color-text-body);" x-text="sessionHelpers && sessionHelpers.length ? sessionHelpers.join(', ') : '—'"></p>
                     </div>
                 </div>
                 <div class="flex flex-wrap gap-3 pt-2 border-t" style="border-color: var(--color-border);">
@@ -523,7 +523,7 @@
     </div>
 
     <!-- Modal: Editar sessão (ajudantes e KM) -->
-    <div x-show="showSessionEditModal" class="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-4 bg-black/40" x-cloak @click.self="showSessionEditModal=false">
+    <div x-show="showSessionEditModal" class="fixed inset-0 z-[99999] flex items-end sm:items-center justify-center p-4 bg-black/40" x-cloak @click.self="showSessionEditModal=false">
         <div @click.stop class="w-full max-w-md rounded-xl p-4" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
             <h3 class="text-title mb-3" style="color: var(--color-text);">Editar rota</h3>
             <p class="text-caption mb-4" style="color: var(--color-text-muted);">Altere ajudantes ou KM de saída.</p>
