@@ -34,16 +34,16 @@
     <div class="container-mobile py-4 space-y-4">
 
         <!-- Equipamento -->
-        <div class="surface p-3">
+        <div class="surface p-4 rounded-xl">
+            <label for="equipment-code" class="text-section block mb-2" style="color: var(--color-text);">Caminhão *</label>
             <div class="flex items-center gap-3">
                 <div class="icon-wrap flex-shrink-0">
-                    <i data-lucide="package-search" class="w-5 h-5 lucide-thick"></i>
+                    <i data-lucide="truck" class="w-5 h-5 lucide-thick" style="color: var(--color-primary);"></i>
                 </div>
-                <label for="equipment-code" class="sr-only">Selecione o caminhão</label>
                 <select id="equipment-code" name="equipment_code" x-model="equipmentCode"
                     @change="odometerKm = (equipmentLastKm[equipmentCode] != null && equipmentLastKm[equipmentCode] !== '') ? equipmentLastKm[equipmentCode] : ''"
-                    class="flex-1 min-w-0 bg-transparent border-none text-body font-semibold focus:ring-0 p-2"
-                    style="color: var(--color-text-body);">
+                    class="flex-1 min-w-0 w-full px-4 py-3 rounded-lg text-body font-medium focus:ring-2 focus:ring-offset-0 focus:outline-none"
+                    style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);">
                     <option value="" disabled selected style="color: var(--color-text-muted);">Selecione o caminhão</option>
                     {% if equipment_list %}
                     {% for eq in equipment_list %}
@@ -124,31 +124,32 @@
         </div>
 
         <!-- Issue Report -->
-        <div x-show="hasIssues" x-transition class="surface p-4 rounded-xl" style="border: 1px solid var(--color-danger); background: rgba(239,68,68,0.08);">
+        <div x-show="hasIssues" x-transition class="surface p-4 rounded-xl" style="border: 1px solid var(--color-border);">
             <div class="flex items-start gap-3 mb-3">
-                <div class="w-10 h-10 flex-shrink-0 rounded-lg flex items-center justify-center" style="border: 1px solid var(--color-danger); color: var(--color-danger);">
+                <div class="w-10 h-10 flex-shrink-0 rounded-lg flex items-center justify-center" style="background: var(--color-warning-bg); color: var(--color-warning);">
                     <i data-lucide="alert-octagon" class="w-5 h-5 lucide-thick"></i>
                 </div>
                 <div>
                     <h3 class="text-section" style="color: var(--color-text);">Problemas Identificados</h3>
-                    <p class="text-caption mt-0.5" style="color: var(--color-danger);">Descreva o problema e anexe uma foto.</p>
+                    <p class="text-caption mt-0.5" style="color: var(--color-text-muted);">Opcional: descreva o problema e anexe fotos.</p>
                 </div>
             </div>
-            <label for="checklist-observations" class="sr-only">Descrição do problema</label>
+            <label for="checklist-observations" class="text-caption block mb-1" style="color: var(--color-text-muted);">Comentário (opcional)</label>
             <textarea id="checklist-observations" name="observations" x-model="observations" rows="3" placeholder="Ex: Roda travando, garfo empenado..."
                 class="w-full rounded-lg px-4 py-3 text-body resize-none mb-3"
                 style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);"></textarea>
+            <label class="text-caption block mb-1" style="color: var(--color-text-muted);">Fotografia (opcional)</label>
             <input type="file" id="files" multiple accept="image/*" capture="environment" @change="handleFileSelect" class="hidden">
             <label for="files"
-                class="flex flex-col items-center justify-center w-full min-h-[7rem] rounded-lg border-2 border-dashed cursor-pointer interactive"
-                style="border-color: var(--color-danger); background: rgba(15,23,42,0.5); color: var(--color-danger);">
+                class="flex flex-col items-center justify-center w-full min-h-[6rem] rounded-lg border-2 border-dashed cursor-pointer interactive"
+                style="border-color: var(--color-border); background: var(--color-surface-solid); color: var(--color-text-muted);">
                 <div x-show="fileCount === 0" class="flex flex-col items-center gap-2">
-                    <i data-lucide="camera" class="w-6 h-6 lucide-thick"></i>
-                    <span class="text-caption font-semibold">Tirar Foto</span>
+                    <i data-lucide="camera" class="w-5 h-5 lucide-thick"></i>
+                    <span class="text-caption">Tirar ou selecionar foto</span>
                 </div>
                 <div x-show="fileCount > 0" class="flex flex-col items-center gap-2" style="color: var(--color-success);">
-                    <i data-lucide="image-plus" class="w-6 h-6 lucide-thick"></i>
-                    <span class="text-caption font-semibold" x-text="fileCount + ' foto(s)'"></span>
+                    <i data-lucide="image-plus" class="w-5 h-5 lucide-thick"></i>
+                    <span class="text-caption font-medium" x-text="fileCount + ' foto(s)'"></span>
                 </div>
             </label>
         </div>
@@ -261,10 +262,6 @@
                 const km = Number(kmRaw.replace(',', '.'));
                 if (isNaN(km) || km < 0) return false;
                 if (Object.keys(this.items).length < this.totalItems) return false;
-                if (this.hasIssues) {
-                    if (!this.observations || this.observations.length < 5) return false;
-                    if (this.fileCount === 0) return false;
-                }
                 return true;
             },
 

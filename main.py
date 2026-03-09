@@ -4215,6 +4215,18 @@ async def api_mobile_delivery_session_end(
     ds.status = "closed"
     ds.ended_at = datetime.now(ZoneInfo("America/Sao_Paulo"))
     session.add(ds)
+    # Atualizar Vehicle.odometer_km com o último KM (histórico)
+    if ds.vehicle_plate:
+        truck = session.exec(
+            select(models.Vehicle)
+            .where(models.Vehicle.placa == ds.vehicle_plate)
+            .where(models.Vehicle.vehicle_type == "caminhao")
+            .where(models.Vehicle.is_active == True)
+        ).first()
+        if truck and (truck.odometer_km is None or float(km) > float(truck.odometer_km or 0)):
+            truck.odometer_km = float(km)
+            truck.updated_at = ds.ended_at
+            session.add(truck)
     session.commit()
     return JSONResponse({"success": True})
 
@@ -4260,6 +4272,18 @@ async def api_mobile_delivery_session_update(
         if km > 0:
             ds.km_departure = km
             updated = True
+            # Atualizar Vehicle.odometer_km (histórico)
+            if ds.vehicle_plate:
+                truck = session.exec(
+                    select(models.Vehicle)
+                    .where(models.Vehicle.placa == ds.vehicle_plate)
+                    .where(models.Vehicle.vehicle_type == "caminhao")
+                    .where(models.Vehicle.is_active == True)
+                ).first()
+                if truck and (truck.odometer_km is None or km > float(truck.odometer_km or 0)):
+                    truck.odometer_km = km
+                    truck.updated_at = datetime.now(ZoneInfo("America/Sao_Paulo"))
+                    session.add(truck)
     if updated:
         session.add(ds)
         session.commit()
@@ -5106,15 +5130,28 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
             .order_by(models.Vehicle.placa)
         ).all()
         for v in trucks:
-            # Preferir KM do veÃ­culo (atualizado por checklist/ediÃ§Ã£o); senÃ£o Ãºltimo checklist
-            last_km = getattr(v, "odometer_km", None)
-            if last_km is None:
-                last_check = session.exec(
-                    select(models.TranspalletChecklist)
-                    .where(models.TranspalletChecklist.equipment_code == v.placa)
-                    .order_by(desc(models.TranspalletChecklist.date), desc(models.TranspalletChecklist.submitted_at))
-                ).first()
-                last_km = last_check.odometer_km if last_check and last_check.odometer_km is not None else None
+            # Ãšltimo KM: mÃ¡x entre Vehicle, checklist e DeliverySession (mobile)
+            candidates = []
+            vo = getattr(v, "odometer_km", None)
+            if vo is not None:
+                candidates.append(float(vo))
+            last_check = session.exec(
+                select(models.TranspalletChecklist)
+                .where(models.TranspalletChecklist.equipment_code == v.placa)
+                .order_by(desc(models.TranspalletChecklist.date), desc(models.TranspalletChecklist.submitted_at))
+            ).first()
+            if last_check and last_check.odometer_km is not None:
+                candidates.append(float(last_check.odometer_km))
+            ds_km = session.exec(
+                select(models.DeliverySession)
+                .where(models.DeliverySession.vehicle_plate == v.placa)
+            ).all()
+            for ds in ds_km:
+                if ds.km_return is not None:
+                    candidates.append(float(ds.km_return))
+                if ds.km_departure is not None:
+                    candidates.append(float(ds.km_departure))
+            last_km = max(candidates) if candidates else None
             marca = getattr(v, "marca", "") or ""
             modelo = getattr(v, "modelo", "") or ""
             equipment_list.append({
@@ -6545,21 +6582,27 @@ async def api_create_checklist(
             km_val = None
         if is_truck and (km_val is None or km_val < 0):
             return JSONResponse({"error": "Informe o KM do hodÃ´metro para caminhÃ£o."}, status_code=400)
+        # ReferÃªncia: mÃ¡x entre Vehicle, checklist e DeliverySession
+        last_km_candidates = []
+        if is_truck and truck and getattr(truck, "odometer_km", None) is not None:
+            last_km_candidates.append(float(truck.odometer_km))
         last_check = session.exec(
             select(models.TranspalletChecklist)
             .where(models.TranspalletChecklist.equipment_code == equipment_code)
             .order_by(desc(models.TranspalletChecklist.date), desc(models.TranspalletChecklist.submitted_at))
         ).first()
-        # ReferÃªncia de KM: veÃ­culo (se caminhÃ£o e tiver) ou Ãºltimo checklist
-        last_km_ref = None
-        if is_truck and truck and getattr(truck, "odometer_km", None) is not None:
-            last_km_ref = float(truck.odometer_km)
-        elif last_check and last_check.odometer_km is not None:
-            last_km_ref = float(last_check.odometer_km)
+        if last_check and last_check.odometer_km is not None:
+            last_km_candidates.append(float(last_check.odometer_km))
+        for dss in session.exec(select(models.DeliverySession).where(models.DeliverySession.vehicle_plate == equipment_code)).all():
+            if dss.km_departure is not None:
+                last_km_candidates.append(float(dss.km_departure))
+            if dss.km_return is not None:
+                last_km_candidates.append(float(dss.km_return))
+        last_km_ref = max(last_km_candidates) if last_km_candidates else None
         if km_val is not None and last_km_ref is not None:
             last_km = last_km_ref
-            if km_val <= last_km:
-                return JSONResponse({"error": f"KM deve ser maior que o anterior ({last_km:,.0f})."}, status_code=400)  # noqa: E501
+            if km_val < last_km:
+                return JSONResponse({"error": f"KM deve ser igual ou maior que o anterior ({last_km:,.0f})."}, status_code=400)  # noqa: E501
             if km_val > last_km + 1000:
                 return JSONResponse({"error": f"MÃ¡ximo 1000 km/dia. KM anterior: {last_km:,.0f}. MÃ¡x hoje: {last_km + 1000:,.0f}."}, status_code=400)  # noqa: E501
 
@@ -10196,6 +10239,44 @@ async def finish_all_delivery_routes(
     rate = (return_value_total / total_planned * 100) if total_planned else 0.0
     feedback = f"Todas as rotas finalizadas: {delivered_count} entregues, {returned_count} devoluções (R$ {return_value_total:,.2f}, {rate:.1f}% dev.)"
     feedback_encoded = urlencode({"delivery_feedback": feedback, "delivery_feedback_level": "success"})
+    return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
+
+
+@app.post("/separacao/delivery/reopen-all-routes", response_class=RedirectResponse)
+async def reopen_all_delivery_routes(
+    request: Request,
+    date: str = Form(...),
+    shift: str = Form("Manhã"),
+    session: Session = Depends(get_session),
+):
+    """Reabre em massa todas as rotas finalizadas do dia/turno."""
+    require_login(request)
+    now = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
+
+    routes = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date == date)
+        .where(models.Route.shift == shift)
+        .where(models.Route.delivery_status.in_(["entregue", "devolucao"]))
+    ).all()
+    routes = list(routes)
+    if not routes:
+        feedback_encoded = urlencode({"delivery_feedback": "Nenhuma rota finalizada para reabrir.", "delivery_feedback_level": "error"})
+        return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
+
+    for route in routes:
+        route.delivery_status = "reaberta"
+        route.status = "pending"
+        route.end_time = None
+        route.delivery_finished_at = None
+        route.delivery_returned_at = None
+        route.delivery_reopen_count = (route.delivery_reopen_count or 0) + 1
+        _append_delivery_event(route, "reabrir", now, note=f"Reabertura em massa #{route.delivery_reopen_count}")
+        session.add(route)
+    session.commit()
+
+    feedback_encoded = urlencode({"delivery_feedback": f"Rotas reabertas em massa: {len(routes)} parada(s).", "delivery_feedback_level": "success"})
     return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
 
 

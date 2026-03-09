@@ -473,8 +473,9 @@
                                 <span class="px-2 py-1 rounded-md bg-orange-900/20 border border-orange-500/30 text-orange-300">Dev R$ {{ "{:,.2f}".format(delivery_summary.returned_value).replace(",", "X").replace(".", ",").replace("X", ".") }}</span>
                             </div>
                             </div>
+                            <div class="flex flex-wrap gap-2 flex-shrink-0">
                             {% if delivery_summary.pending > 0 or delivery_summary.opened_routines > 0 %}
-                            <form action="/separacao/delivery/finish-all-routes" method="post" class="flex-shrink-0" onsubmit="return confirm('Finalizar TODAS as rotas deste dia/turno? Paradas sem devolução serão marcadas como entregues; paradas com devolução permanecem devolução.');">
+                            <form action="/separacao/delivery/finish-all-routes" method="post" onsubmit="return confirm('Finalizar TODAS as rotas deste dia/turno? Paradas sem devolução serão marcadas como entregues; paradas com devolução permanecem devolução.');">
                                 <input type="hidden" name="date" value="{{ selected_date }}">
                                 <input type="hidden" name="shift" value="{{ selected_shift }}">
                                 <button type="submit" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold flex items-center gap-2">
@@ -483,6 +484,17 @@
                                 </button>
                             </form>
                             {% endif %}
+                            {% if delivery_summary.delivered > 0 or delivery_summary.returned > 0 %}
+                            <form action="/separacao/delivery/reopen-all-routes" method="post" onsubmit="return confirm('Reabrir TODAS as rotas finalizadas deste dia/turno? Todas as paradas voltarão para reabertas.');">
+                                <input type="hidden" name="date" value="{{ selected_date }}">
+                                <input type="hidden" name="shift" value="{{ selected_shift }}">
+                                <button type="submit" class="px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold flex items-center gap-2">
+                                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                                    Reabrir em massa
+                                </button>
+                            </form>
+                            {% endif %}
+                            </div>
                         </div>
                     </div>
                 </div>
