@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, Uplo
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Dict
 import json
 import csv
 import io
@@ -406,6 +406,7 @@ async def lifespan(app: FastAPI):
         ensure_devolucao_route_id()
         # Employee schema compatibility must run before auth/bootstrap queries
         ensure_column(engine, "employee", "mobile_access_admin_start", "BOOLEAN DEFAULT FALSE")
+        ensure_column(engine, "employee", "mobile_access_returns", "BOOLEAN DEFAULT FALSE")
         ensure_column(engine, "employee", "seller_code", "VARCHAR(64)")
     except Exception as e:
         logger.error(f"Erro ao migrar vehicle/checklist/client/route: {e}")
@@ -2756,6 +2757,26 @@ async def mobile_dashboard(
             "icon": "route",
             "action": "manage_routes",
         })
+    has_returns_access = (
+        bool(getattr(employee, "mobile_access_returns", False))
+        or bool(getattr(employee, "mobile_access_separation", False))
+        or bool(getattr(employee, "mobile_access_admin_start", False))
+    )
+    if has_returns_access:
+        modules.append({
+            "label": "Devolução",
+            "description": "Avaliar e acompanhar sua taxa de devolução.",
+            "icon": "package",
+            "href": "/mobile/returns",
+        })
+    has_delivery_module_check = bool(getattr(employee, "mobile_access_separation", False)) or bool(getattr(employee, "mobile_access_admin_start", False))
+    if has_delivery_module_check:
+        modules.append({
+            "label": "Entregas",
+            "description": "Histórico de entregas com filtro por período.",
+            "icon": "truck",
+            "href": "/mobile/entregas",
+        })
 
     gamification = {
         "total_xp": float(getattr(employee, "total_xp", 0.0) or 0.0),
@@ -2891,18 +2912,177 @@ async def mobile_achievements_page(request: Request, session: Session = Depends(
     })
 
 
+@app.get("/mobile/returns", response_class=HTMLResponse)
+async def mobile_returns_page(request: Request, session: Session = Depends(get_session)):
+    """Dashboard de devoluções para avaliação do colaborador (requer mobile_access_returns)."""
+    user = get_current_user(request)
+    if not isinstance(user, dict) or user.get("type") != "employee":
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    employee = session.get(models.Employee, user.get("id"))
+    if not employee:
+        request.session.pop("user_id", None)
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    has_returns_access = (
+        bool(getattr(employee, "mobile_access_returns", False))
+        or bool(getattr(employee, "mobile_access_separation", False))
+        or bool(getattr(employee, "mobile_access_admin_start", False))
+    )
+    if not has_returns_access:
+        return RedirectResponse(url="/mobile/dashboard?error=no_permission", status_code=303)
+    return templates.TemplateResponse("mobile/returns.html", {
+        "request": request,
+        "employee": employee,
+    })
+
+
 @app.get("/mobile/api/returns-data", response_class=JSONResponse)
 async def mobile_api_returns_data(
     request: Request,
     days: int = 30,
     session: Session = Depends(get_session),
 ):
-    """Dados de devolução para o gráfico do dashboard mobile. Fallback seguro se sem dados."""
+    """Dados de devolução para o gráfico do dashboard mobile."""
     user_id = request.session.get("user_id")
     if not user_id:
         return JSONResponse({"error": "Não autorizado"}, status_code=401)
+    employee = session.get(models.Employee, int(user_id))
+    has_returns_access = (
+        employee
+        and (
+            bool(getattr(employee, "mobile_access_returns", False))
+            or bool(getattr(employee, "mobile_access_separation", False))
+            or bool(getattr(employee, "mobile_access_admin_start", False))
+        )
+    )
+    if not has_returns_access:
+        return JSONResponse({"error": "Sem permissão para este módulo"}, status_code=403)
     metrics = _compute_employee_returns_metrics(session=session, user_id=int(user_id), days=days)
     return JSONResponse(metrics)
+
+
+@app.get("/mobile/entregas", response_class=HTMLResponse)
+async def mobile_entregas_page(request: Request, session: Session = Depends(get_session)):
+    """Histórico de entregas do colaborador com filtro por período."""
+    user = get_current_user(request)
+    if not isinstance(user, dict) or user.get("type") != "employee":
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    employee = session.get(models.Employee, user.get("id"))
+    if not employee:
+        request.session.pop("user_id", None)
+        return RedirectResponse(url="/mobile/login", status_code=303)
+    has_delivery = bool(getattr(employee, "mobile_access_separation", False)) or bool(getattr(employee, "mobile_access_admin_start", False))
+    if not has_delivery:
+        return RedirectResponse(url="/mobile/dashboard?error=no_permission", status_code=303)
+    return templates.TemplateResponse("mobile/entregas.html", {
+        "request": request,
+        "employee": employee,
+    })
+
+
+@app.get("/api/mobile/delivery/history", response_class=JSONResponse)
+async def api_mobile_delivery_history(
+    request: Request,
+    date_from: str,
+    date_to: str,
+    session: Session = Depends(get_session),
+):
+    """Histórico de entregas agrupado por dia com detalhes."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse({"error": "Não autorizado"}, status_code=401)
+    employee = session.get(models.Employee, int(user_id))
+    has_delivery = employee and (
+        bool(getattr(employee, "mobile_access_separation", False))
+        or bool(getattr(employee, "mobile_access_admin_start", False))
+    )
+    if not has_delivery:
+        return JSONResponse({"error": "Sem permissão"}, status_code=403)
+    try:
+        datetime.strptime(date_from, "%Y-%m-%d")
+        datetime.strptime(date_to, "%Y-%m-%d")
+    except ValueError:
+        return JSONResponse({"error": "Datas inválidas (use YYYY-MM-DD)"}, status_code=400)
+    if date_from > date_to:
+        date_from, date_to = date_to, date_from
+    routes = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.employee_id == int(user_id))
+        .where(models.Route.date >= date_from)
+        .where(models.Route.date <= date_to)
+        .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta", "entregue", "devolucao", "cancelada"]))
+        .order_by(models.Route.date.desc(), models.Route.id)
+    ).all()
+    emp_map = {e.id: e.name for e in session.exec(select(models.Employee)).all()}
+    dates_seen = set()
+    day_summaries = []
+    for r in routes:
+        if r.date in dates_seen:
+            continue
+        dates_seen.add(r.date)
+        day_routes = [x for x in routes if x.date == r.date]
+        total_val = sum(float(x.valor_financeiro or 0) for x in day_routes)
+        return_val = sum(float(x.valor_devolucao or 0) for x in day_routes)
+        return_pct = (return_val / total_val * 100) if total_val > 0 else 0.0
+        delivered = sum(1 for x in day_routes if (x.delivery_status or "").lower() == "entregue")
+        returned = sum(1 for x in day_routes if (x.delivery_status or "").lower() == "devolucao")
+        not_delivered = len(day_routes) - delivered - returned
+        times = []
+        for x in day_routes:
+            for t in [x.delivery_started_at, x.delivery_finished_at, x.delivery_returned_at]:
+                if t:
+                    times.append(t)
+        start_time = min(times) if times else ""
+        end_time = max(times) if times else ""
+        travel_min = 0
+        if start_time and end_time:
+            try:
+                sh, sm = map(int, start_time.split(":")[:2])
+                eh, em = map(int, end_time.split(":")[:2])
+                travel_min = (eh * 60 + em) - (sh * 60 + sm)
+                if travel_min < 0:
+                    travel_min += 24 * 60
+            except (ValueError, IndexError):
+                pass
+        ds = session.exec(
+            select(models.DeliverySession)
+            .where(models.DeliverySession.employee_id == int(user_id))
+            .where(models.DeliverySession.date == r.date)
+            .order_by(models.DeliverySession.id.desc())
+        ).first()
+        helpers = []
+        if ds and ds.helpers_json:
+            try:
+                helpers = json.loads(ds.helpers_json) if isinstance(ds.helpers_json, str) else (ds.helpers_json or [])
+                if not isinstance(helpers, list):
+                    helpers = []
+                helpers = [str(h) for h in helpers if h]
+            except Exception:
+                pass
+        motorista = emp_map.get(r.employee_id, "") or (employee.name if r.employee_id == employee.id else "")
+        try:
+            d_fmt = datetime.strptime(r.date, "%Y-%m-%d").strftime("%d/%m/%Y")
+        except Exception:
+            d_fmt = r.date
+        day_summaries.append({
+            "date": r.date,
+            "date_label": d_fmt,
+            "motorista": motorista,
+            "ajudantes": helpers,
+            "taxa_devolucao_pct": round(return_pct, 1),
+            "clientes_entregues": delivered,
+            "clientes_nao_entregues": not_delivered + returned,
+            "clientes_devolucao": returned,
+            "total_clientes": len(day_routes),
+            "hora_inicial": start_time,
+            "hora_final": end_time,
+            "tempo_percurso_min": travel_min,
+            "placa": (day_routes[0].delivery_vehicle_plate if day_routes else "") or (ds.vehicle_plate if ds else ""),
+            "valor_total": round(total_val, 2),
+            "valor_devolucao": round(return_val, 2),
+        })
+    day_summaries.sort(key=lambda x: x["date"], reverse=True)
+    return JSONResponse({"success": True, "days": day_summaries})
 
 
 app.include_router(init_devolucoes_router(templates=templates, require_login=require_login, logger=logger))
@@ -3663,6 +3843,7 @@ def on_startup():
     ensure_checklist_odometer_schema()
     # Migration for new column
     ensure_column(engine, "employee", "mobile_access_admin_start", "BOOLEAN DEFAULT FALSE")
+    ensure_column(engine, "employee", "mobile_access_returns", "BOOLEAN DEFAULT FALSE")
     ensure_column(engine, "employee", "seller_code", "VARCHAR(64)")
 
 @app.get("/api/admin/clients", dependencies=[Depends(require_leader)])
@@ -3774,10 +3955,13 @@ async def api_mobile_delivery_my_routes(
             .where(models.Route.employee_id == user_id)
             .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta", "entregue", "devolucao"]))
         )
-        if date_from:
-            q = q.where(models.Route.date >= date_from)
-        if date_to:
-            q = q.where(models.Route.date <= date_to)
+        if date_from or date_to:
+            if date_from:
+                q = q.where(models.Route.date >= date_from)
+            if date_to:
+                q = q.where(models.Route.date <= date_to)
+        else:
+            q = q.where(models.Route.date == today_str)
         routes = session.exec(q.order_by(models.Route.date, models.Route.id)).all()
         client_ids = list({r.client_id for r in routes})
         clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
@@ -3881,6 +4065,7 @@ async def api_mobile_delivery_session_start(
         select(models.Route)
         .where(models.Route.type == "delivery")
         .where(models.Route.employee_id == user_id)
+        .where(models.Route.date == today_str)
         .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta"]))
     ).all()
     if not routes:
@@ -18793,6 +18978,7 @@ async def update_employee(
     mobile_access_separation: bool = Form(False),
     mobile_access_checklist: bool = Form(False),
     mobile_access_admin_start: bool = Form(False),
+    mobile_access_returns: bool = Form(False),
     vacation_start: str = Form(None),
     vacation_end: str = Form(None),
     session: Session = Depends(get_session)
@@ -18836,6 +19022,7 @@ async def update_employee(
         emp.mobile_access_separation = mobile_access_separation
         emp.mobile_access_checklist = mobile_access_checklist
         emp.mobile_access_admin_start = mobile_access_admin_start
+        emp.mobile_access_returns = mobile_access_returns
         emp.mobile_access = bool(mobile_access_separation or mobile_access_checklist)
 
         # Update Work Days
