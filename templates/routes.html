@@ -589,8 +589,9 @@
                                             <span class="px-2 py-1 rounded bg-orange-900/20 border border-orange-500/30 text-orange-300">Dev. R$: {{ "{:,.2f}".format(group.returned_value).replace(",", "X").replace(".", ",").replace("X", ".") }} ({{ "%.2f"|format(group.returned_value_percentage)|replace(".", ",") }}%)</span>
                                         </div>
                                         </div>
+                                        <div class="flex flex-wrap gap-2 flex-shrink-0">
                                         {% if group.pending > 0 or group.opened_routines > 0 %}
-                                        <form action="/separacao/delivery/finish-route" method="post" class="flex-shrink-0" onsubmit="return confirm('Finalizar rota inteira? Paradas sem devolução serão marcadas como entregues; paradas com devolução permanecem devolução.');">
+                                        <form action="/separacao/delivery/finish-route" method="post" onsubmit="return confirm('Finalizar rota inteira? Paradas sem devolução serão marcadas como entregues; paradas com devolução permanecem devolução.');">
                                             <input type="hidden" name="date" value="{{ selected_date }}">
                                             <input type="hidden" name="shift" value="{{ selected_shift }}">
                                             <input type="hidden" name="employee_id" value="{{ group.employee_id }}">
@@ -600,6 +601,18 @@
                                             </button>
                                         </form>
                                         {% endif %}
+                                        {% if group.delivered > 0 or group.returned > 0 %}
+                                        <form action="/separacao/delivery/reopen-route" method="post" onsubmit="return confirm('Reabrir toda a rota? Todas as paradas finalizadas (entregues e devoluções) voltarão para reabertas.');">
+                                            <input type="hidden" name="date" value="{{ selected_date }}">
+                                            <input type="hidden" name="shift" value="{{ selected_shift }}">
+                                            <input type="hidden" name="employee_id" value="{{ group.employee_id }}">
+                                            <button type="submit" class="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold flex items-center gap-1.5">
+                                                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                                                Reabrir rota
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
