@@ -2752,8 +2752,8 @@ async def mobile_dashboard(
     modules = []
     if bool(getattr(employee, "mobile_access_separation", False)):
         modules.append({
-            "label": "Iniciar Separação",
-            "description": "Abrir rota de separação.",
+            "label": "Iniciar Entregas",
+            "description": "Abrir rota de entregas.",
             "icon": "play-circle",
             "action": "start_separation",
         })
@@ -2800,7 +2800,7 @@ async def mobile_dashboard(
     has_delivery_module_check = bool(getattr(employee, "mobile_access_separation", False)) or bool(getattr(employee, "mobile_access_admin_start", False))
     if has_delivery_module_check:
         modules.append({
-            "label": "Entregas",
+            "label": "Histórico de Entregas",
             "description": "Histórico de entregas com filtro por período.",
             "icon": "truck",
             "href": "/mobile/entregas",
@@ -10064,6 +10064,61 @@ async def reopen_delivery_route(
     session.commit()
 
     feedback_encoded = urlencode({"delivery_feedback": "Rotina reaberta com sucesso.", "delivery_feedback_level": "success"})
+    return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
+
+
+@app.post("/separacao/delivery/reopen-route", response_class=RedirectResponse)
+async def reopen_delivery_route_all(
+    request: Request,
+    date: str = Form(...),
+    shift: str = Form("Manhã"),
+    employee_id: int = Form(...),
+    session: Session = Depends(get_session),
+):
+    """Reabre toda a rota do motorista: todas as paradas entregues/devolução voltam para reaberta."""
+    require_login(request)
+    now = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
+
+    routes = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date == date)
+        .where(models.Route.shift == shift)
+        .where(models.Route.employee_id == employee_id)
+        .where(models.Route.delivery_status.in_(["entregue", "devolucao"]))
+    ).all()
+    routes = list(routes)
+    if not routes:
+        feedback_encoded = urlencode({"delivery_feedback": "Nenhuma parada finalizada para reabrir.", "delivery_feedback_level": "error"})
+        return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
+
+    started_rows = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date == date)
+        .where(models.Route.employee_id == employee_id)
+        .where(models.Route.delivery_status == "iniciada")
+    ).all()
+    route_plate = _norm_plate(routes[0].delivery_vehicle_plate)
+    if any(_norm_plate(r.delivery_vehicle_plate) == route_plate for r in started_rows):
+        feedback_encoded = urlencode({
+            "delivery_feedback": "Motorista já possui rotina iniciada. Finalize antes de reabrir.",
+            "delivery_feedback_level": "error",
+        })
+        return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
+
+    for route in routes:
+        route.delivery_status = "reaberta"
+        route.status = "pending"
+        route.end_time = None
+        route.delivery_finished_at = None
+        route.delivery_returned_at = None
+        route.delivery_reopen_count = (route.delivery_reopen_count or 0) + 1
+        _append_delivery_event(route, "reabrir", now, note=f"Reabertura em massa #{route.delivery_reopen_count}")
+        session.add(route)
+    session.commit()
+
+    feedback_encoded = urlencode({"delivery_feedback": f"Rota reaberta: {len(routes)} parada(s).", "delivery_feedback_level": "success"})
     return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
 
 
