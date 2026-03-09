@@ -5162,7 +5162,16 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
     except Exception as eq_err:
         logger.warning(f"mobile_checklist: erro ao carregar veÃ­culos: {eq_err}")
 
-    equipment_last_km = {eq["code"]: eq["last_km"] for eq in equipment_list if eq.get("last_km") is not None}
+    # Serializar para JSON (int quando inteiro)
+    def _km_serialize(v):
+        if v is None:
+            return None
+        try:
+            f = float(v)
+            return int(f) if f == int(f) else f
+        except (ValueError, TypeError):
+            return None
+    equipment_last_km = {eq["code"]: _km_serialize(eq.get("last_km")) for eq in equipment_list if eq.get("last_km") is not None}
 
     return templates.TemplateResponse(
         "mobile/routine_checklist.html",
