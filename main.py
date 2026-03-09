@@ -3647,6 +3647,11 @@ class MobileDeliverySessionEndPayload(BaseModel):
     km_return: Optional[float] = None
 
 
+class MobileDeliverySessionUpdatePayload(BaseModel):
+    helpers: Optional[List[str]] = None
+    km_departure: Optional[float] = None
+
+
 class MobileDeliveryActionPayload(BaseModel):
     action: str
     return_reason: Optional[str] = None
@@ -4040,6 +4045,8 @@ async def api_mobile_delivery_my_routes(
                 "id": session_open.id if session_open else None,
                 "km_departure": session_open.km_departure if session_open else None,
                 "vehicle_plate": session_open.vehicle_plate if session_open else None,
+                "helpers": _parse_session_helpers(session_open.helpers_json) if session_open and session_open.helpers_json else [],
+                "started_at": session_open.started_at.strftime("%H:%M") if session_open and session_open.started_at else None,
             } if session_open else None,
             "routes": payload,
             "day_cards": day_cards,
@@ -4156,6 +4163,53 @@ async def api_mobile_delivery_session_end(
     ds.ended_at = datetime.now(ZoneInfo("America/Sao_Paulo"))
     session.add(ds)
     session.commit()
+    return JSONResponse({"success": True})
+
+
+@app.post("/api/mobile/delivery/session/update", response_class=JSONResponse)
+async def api_mobile_delivery_session_update(
+    request: Request,
+    payload: MobileDeliverySessionUpdatePayload,
+    session: Session = Depends(get_session)
+):
+    """Atualiza sessão em aberto: ajudantes e/ou KM de saída."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse({"success": False, "error": "Não autorizado"}, status_code=401)
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        return JSONResponse({"success": False, "error": "Sessão inválida"}, status_code=401)
+    today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    ds = session.exec(
+        select(models.DeliverySession)
+        .where(models.DeliverySession.employee_id == user_id)
+        .where(models.DeliverySession.date == today_str)
+        .where(models.DeliverySession.status == "open")
+        .order_by(models.DeliverySession.id.desc())
+    ).first()
+    if not ds:
+        return JSONResponse({"success": False, "error": "Nenhuma rota aberta para atualizar."}, status_code=400)
+    updated = False
+    if payload.helpers is not None:
+        helper_names = [(h or "").strip() for h in payload.helpers if (h or "").strip()]
+        seen = set()
+        unique = []
+        for h in helper_names:
+            k = h.lower()
+            if k not in seen:
+                seen.add(k)
+                unique.append(h)
+        ds.helpers_json = json.dumps(unique, ensure_ascii=False) if unique else None
+        updated = True
+    if payload.km_departure is not None and isinstance(payload.km_departure, (int, float)):
+        km = float(payload.km_departure)
+        if km > 0:
+            ds.km_departure = km
+            updated = True
+    if updated:
+        session.add(ds)
+        session.commit()
     return JSONResponse({"success": True})
 
 
@@ -8350,6 +8404,19 @@ def _as_float(v: Any) -> float:
 def _maps_link(address: Optional[str], bairro: Optional[str], cidade: Optional[str], estado: Optional[str], cep: Optional[str]) -> str:
     parts = [p for p in [address, bairro, cidade, estado, cep] if p]
     return "https://www.google.com/maps/search/?api=1&query=" + urlencode({"": " ".join(parts)})[1:]
+
+
+def _parse_session_helpers(helpers_json: Optional[str]) -> List[str]:
+    """Parse helpers_json da sessão para lista de nomes."""
+    if not helpers_json:
+        return []
+    try:
+        data = json.loads(helpers_json) if isinstance(helpers_json, str) else helpers_json
+        if not isinstance(data, list):
+            return []
+        return [str(h).strip() for h in data if h]
+    except Exception:
+        return []
 
 
 DELIVERY_RETURN_REASONS = {
