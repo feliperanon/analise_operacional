@@ -1,0 +1,143 @@
+{% extends "mobile/layout.html" %}
+
+{% block title %}Entregas - Histórico{% endblock %}
+
+{% block content %}
+<header class="container-mobile py-3 border-b shrink-0" style="border-color: var(--color-border); background: var(--color-surface);">
+    <div class="flex items-center justify-between gap-3">
+        <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg" style="background: var(--color-surface-solid); color: var(--color-text);">
+            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        </a>
+        <div class="flex-1 min-w-0">
+            <span class="text-[10px] font-bold uppercase tracking-widest" style="color: var(--color-primary);">Entregas</span>
+            <h1 class="text-section truncate" style="color: var(--color-text);">Histórico de Entregas</h1>
+        </div>
+    </div>
+</header>
+
+<div class="container-mobile py-4" x-data="entregasHistory()" x-init="init()">
+    <div class="surface p-4 mb-4">
+        <h3 class="text-body font-semibold mb-3" style="color: var(--color-text);">Filtrar por período</h3>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+            <div>
+                <label class="block text-caption mb-1" style="color: var(--color-text-muted);">Data inicial</label>
+                <input type="date" x-model="dateFrom" @change="loadHistory()"
+                    class="w-full rounded-lg px-3 py-2.5 border text-body"
+                    style="background: var(--color-surface-solid); border-color: var(--color-border); color: var(--color-text);">
+            </div>
+            <div>
+                <label class="block text-caption mb-1" style="color: var(--color-text-muted);">Data final</label>
+                <input type="date" x-model="dateTo" @change="loadHistory()"
+                    class="w-full rounded-lg px-3 py-2.5 border text-body"
+                    style="background: var(--color-surface-solid); border-color: var(--color-border); color: var(--color-text);">
+            </div>
+        </div>
+        <button @click="loadHistory()" class="w-full py-2.5 rounded-lg font-semibold text-body text-white interactive" style="background: var(--color-primary);">
+            <i data-lucide="search" class="w-4 h-4 inline-block mr-2 align-middle"></i>
+            Buscar
+        </button>
+    </div>
+
+    <div x-show="loading" class="text-center py-8">
+        <i data-lucide="loader" class="w-8 h-8 animate-spin mx-auto" style="color: var(--color-primary);"></i>
+        <p class="text-caption mt-2" style="color: var(--color-text-muted);">Carregando...</p>
+    </div>
+
+    <div x-show="!loading && days.length === 0" class="text-center py-8">
+        <i data-lucide="truck" class="w-12 h-12 mx-auto mb-3" style="color: var(--color-text-muted);"></i>
+        <p class="text-body font-semibold mb-1" style="color: var(--color-text);">Nenhuma entrega no período</p>
+        <p class="text-caption" style="color: var(--color-text-muted);">Ajuste o filtro de datas e tente novamente.</p>
+    </div>
+
+    <div class="space-y-3" x-show="!loading && days.length > 0">
+        <template x-for="day in days" :key="day.date">
+            <div class="surface p-4 rounded-xl border-l-4" :style="day.taxa_devolucao_pct > 2 ? 'border-color: var(--color-danger);' : 'border-color: var(--color-primary);'">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-body font-bold" style="color: var(--color-text);" x-text="day.date_label"></span>
+                    <span class="text-caption px-2 py-0.5 rounded" style="background: var(--color-border-light); color: var(--color-text-secondary);" x-text="day.placa || '-'"></span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-caption mb-2">
+                    <div>
+                        <span style="color: var(--color-text-muted);">Motorista:</span>
+                        <span class="font-semibold" style="color: var(--color-text);" x-text="day.motorista || '-'"></span>
+                    </div>
+                    <div>
+                        <span style="color: var(--color-text-muted);">Taxa devolução:</span>
+                        <span class="font-bold" :style="day.taxa_devolucao_pct > 2 ? 'color: var(--color-danger);' : 'color: var(--color-success);'" x-text="day.taxa_devolucao_pct + '%'"></span>
+                    </div>
+                </div>
+                <div x-show="day.ajudantes && day.ajudantes.length > 0" class="text-caption mb-2">
+                    <span style="color: var(--color-text-muted);">Ajudantes:</span>
+                    <span class="font-medium" style="color: var(--color-text);" x-text="day.ajudantes.join(', ')"></span>
+                </div>
+                <div class="flex flex-wrap gap-2 text-caption">
+                    <span class="px-2 py-1 rounded" style="background: var(--color-success-bg); color: var(--color-success);">
+                        Entregues: <strong x-text="day.clientes_entregues"></strong>
+                    </span>
+                    <span class="px-2 py-1 rounded" style="background: var(--color-danger-bg); color: var(--color-danger);">
+                        Devoluções: <strong x-text="day.clientes_devolucao"></strong>
+                    </span>
+                    <span class="px-2 py-1 rounded" style="background: var(--color-border-light); color: var(--color-text-secondary);">
+                        Total: <strong x-text="day.total_clientes"></strong> clientes
+                    </span>
+                </div>
+                <div class="flex flex-wrap gap-3 mt-3 pt-3 border-t" style="border-color: var(--color-border-light);">
+                    <span class="text-caption" x-show="day.hora_inicial">
+                        <i data-lucide="play" class="w-3.5 h-3.5 inline-block mr-1" style="color: var(--color-primary);"></i>
+                        Início: <strong x-text="day.hora_inicial"></strong>
+                    </span>
+                    <span class="text-caption" x-show="day.hora_final">
+                        <i data-lucide="flag" class="w-3.5 h-3.5 inline-block mr-1" style="color: var(--color-success);"></i>
+                        Fim: <strong x-text="day.hora_final"></strong>
+                    </span>
+                    <span class="text-caption" x-show="day.tempo_percurso_min > 0">
+                        <i data-lucide="clock" class="w-3.5 h-3.5 inline-block mr-1" style="color: var(--color-text-muted);"></i>
+                        Percurso: <strong x-text="formatTravelTime(day.tempo_percurso_min)"></strong>
+                    </span>
+                </div>
+            </div>
+        </template>
+    </div>
+</div>
+
+<script>
+    function entregasHistory() {
+        const today = new Date().toISOString().split('T')[0];
+        const monthAgo = new Date();
+        monthAgo.setDate(monthAgo.getDate() - 30);
+        const defaultFrom = monthAgo.toISOString().split('T')[0];
+        return {
+            dateFrom: defaultFrom,
+            dateTo: today,
+            days: [],
+            loading: false,
+            init() {
+                this.loadHistory();
+            },
+            loadHistory() {
+                const from = (this.dateFrom || defaultFrom).trim();
+                const to = (this.dateTo || today).trim();
+                if (!from || !to) return;
+                this.loading = true;
+                fetch(`/api/mobile/delivery/history?date_from=${encodeURIComponent(from)}&date_to=${encodeURIComponent(to)}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        this.loading = false;
+                        this.days = (data.days || []);
+                        this.$nextTick(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
+                    })
+                    .catch(() => {
+                        this.loading = false;
+                        this.days = [];
+                    });
+            },
+            formatTravelTime(min) {
+                if (!min || min <= 0) return '--';
+                const h = Math.floor(min / 60);
+                const m = min % 60;
+                return h ? `${h}h ${m}min` : `${m} min`;
+            }
+        };
+    }
+</script>
+{% endblock %}

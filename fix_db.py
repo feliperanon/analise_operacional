@@ -36,6 +36,17 @@ try:
                 print(f"Error executing ALTER TABLE: {e}")
         else:
             print("Column 'mobile_access_admin_start' ALREADY EXISTS.")
-            
+
+        if "mobile_access_returns" not in col_names:
+            print("Column 'mobile_access_returns' MISSING. Adding it...")
+            try:
+                conn.execute(text("ALTER TABLE employee ADD COLUMN mobile_access_returns BOOLEAN DEFAULT FALSE"))
+                conn.commit()
+                print("Column mobile_access_returns added successfully!")
+            except Exception as e:
+                print(f"Error adding mobile_access_returns: {e}")
+        else:
+            print("Column 'mobile_access_returns' ALREADY EXISTS.")
+
 except Exception as e:
     print(f"Connection failed: {e}")

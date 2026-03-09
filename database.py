@@ -6,7 +6,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(dotenv_path=BASE_DIR / ".env")
+load_dotenv(dotenv_path=BASE_DIR / ".env", override=True)
 
 sqlite_file_name = "database.db"
 local_sqlite_url = f"sqlite:///{sqlite_file_name}"
@@ -60,6 +60,7 @@ primary_candidates = [c for c in primary_candidates if c]
 
 # Performance: only echo SQL in DEBUG mode
 DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
+REQUIRE_RENDER_DB = os.environ.get("REQUIRE_RENDER_DB", "false").lower() == "true"
 
 db_url = local_sqlite_url
 if primary_candidates:
@@ -68,9 +69,19 @@ if primary_candidates:
         db_url = primary_db_url
         os.environ["ACTIVE_DATABASE_SOURCE"] = "render"
     else:
+        if REQUIRE_RENDER_DB:
+            raise RuntimeError(
+                "REQUIRE_RENDER_DB=true e falha ao conectar no banco remoto (DATABASE_URL). "
+                "Verifique DATABASE_URL/RENDER_DATABASE_URL e conectividade."
+            )
         db_url = local_sqlite_url
         os.environ["ACTIVE_DATABASE_SOURCE"] = "local_fallback"
 else:
+    if REQUIRE_RENDER_DB:
+        raise RuntimeError(
+            "REQUIRE_RENDER_DB=true mas nenhuma URL remota foi encontrada. "
+            "Defina DATABASE_URL (ou RENDER_DATABASE_URL/RENDER_POSTGRES_URL)."
+        )
     os.environ["ACTIVE_DATABASE_SOURCE"] = "local"
 
 engine = create_engine(

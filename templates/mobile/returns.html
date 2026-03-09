@@ -1,0 +1,213 @@
+{% extends "mobile/layout.html" %}
+
+{% block title %}Devolução - Avaliação{% endblock %}
+
+{% block content %}
+<header class="container-mobile py-3 border-b shrink-0" style="border-color: var(--color-border); background: var(--color-surface);">
+    <div class="flex items-center justify-between gap-3">
+        <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg" style="background: var(--color-surface-solid); color: var(--color-text);">
+            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        </a>
+        <div class="flex-1 min-w-0">
+            <span class="text-[10px] font-bold uppercase tracking-widest" style="color: var(--color-primary);">Devolução</span>
+            <h1 class="text-section truncate" style="color: var(--color-text);">Dashboard de Avaliação</h1>
+        </div>
+    </div>
+</header>
+
+<div class="container-mobile py-4">
+    <div class="flex items-center justify-between mb-3">
+        <h2 class="text-body-lg font-semibold" style="color: var(--color-text);">Minhas devoluções</h2>
+        <select id="returnPeriodFilter" onchange="loadReturnData()"
+            class="text-caption px-3 py-2 rounded-lg font-medium"
+            style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text);">
+        </select>
+    </div>
+
+    <div class="surface p-4 mb-4">
+        <div class="grid grid-cols-2 gap-3 mb-4">
+            <div class="text-center p-3 rounded-lg border" style="background: var(--color-danger-bg); border-color: var(--color-danger);">
+                <p class="text-xs mb-1" style="color: var(--color-text-muted);">Total (R$)</p>
+                <p id="totalReturnValue" class="text-xl font-bold" style="color: var(--color-danger);">R$ 0,00</p>
+            </div>
+            <div class="text-center p-3 rounded-lg border" style="background: var(--color-warning-bg); border-color: var(--color-warning);">
+                <p class="text-xs mb-1" style="color: var(--color-text-muted);">% Devolvido</p>
+                <p id="totalReturnPercent" class="text-xl font-bold" style="color: var(--color-warning);">0%</p>
+            </div>
+        </div>
+        <div class="h-64 w-full" style="color: #ffffff;">
+            <canvas id="performanceChart"></canvas>
+        </div>
+    </div>
+
+    <div id="returnDetails" class="hidden space-y-3">
+        <div class="flex items-center justify-between mb-2">
+            <h3 class="text-body font-semibold" style="color: var(--color-text);">Detalhamento por Cliente</h3>
+            <button onclick="closeReturnDetails()" class="touch-target-icon rounded-lg" style="color: var(--color-text-muted);">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <div id="returnDetailsList" class="space-y-2 max-h-96 overflow-y-auto">
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let returnChart = null;
+    const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+    function buildPeriodOptions() {
+        const sel = document.getElementById('returnPeriodFilter');
+        if (!sel) return;
+        const now = new Date();
+        const ano = now.getFullYear();
+        const mesAtual = now.getMonth() + 1;
+        let html = '';
+        for (let i = 0; i < 12; i++) {
+            const d = new Date(ano, now.getMonth() - i, 1);
+            const y = d.getFullYear();
+            const m = d.getMonth() + 1;
+            const val = `${y}-${String(m).padStart(2,'0')}`;
+            const label = `${MESES[m-1]} ${y}`;
+            html += `<option value="${val}">${label}</option>`;
+        }
+        html += `<option value="${ano}">Total do ano ${ano}</option>`;
+        html += `<option value="${ano-1}">Total do ano ${ano-1}</option>`;
+        sel.innerHTML = html;
+        sel.value = `${ano}-${String(mesAtual).padStart(2,'0')}`;
+    }
+
+    function loadReturnData() {
+        const periodEl = document.getElementById('returnPeriodFilter');
+        const period = periodEl ? String(periodEl.value || '').trim() : '';
+        const url = period ? `/mobile/api/returns-data?period=${encodeURIComponent(period)}` : '/mobile/api/returns-data?days=30';
+        fetch(url)
+            .then(r => r.ok ? r.json() : Promise.reject(new Error('Erro')))
+            .then(data => {
+                if (!data || typeof data.total_value !== 'number') {
+                    data = { total_value: 0, percent_valor: 0, chart_labels: [], chart_values: [], chart_percents: [], top_clients: [], total_entregas_value: 0 };
+                }
+                const totalVal = Number(data.total_value) || 0;
+                const percentVal = Number(data.percent_valor) || 0;
+                const labels = Array.isArray(data.chart_labels) ? data.chart_labels : [];
+                const values = Array.isArray(data.chart_values) ? data.chart_values : [];
+                const percents = Array.isArray(data.chart_percents) ? data.chart_percents : [];
+                const totalEntregas = Number(data.total_entregas_value) || 0;
+
+                const totalReturnValueEl = document.getElementById('totalReturnValue');
+                const totalReturnPercentEl = document.getElementById('totalReturnPercent');
+                if (totalReturnValueEl) totalReturnValueEl.textContent = `R$ ${totalVal.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                if (totalReturnPercentEl) totalReturnPercentEl.textContent = percentVal.toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1}) + '%';
+
+                const meta = 2.0;
+                const barColors = values.map((_, i) => {
+                    const pct = percents[i] != null ? percents[i] : 0;
+                    return pct > meta ? 'rgba(239, 68, 68, 0.9)' : 'rgba(16, 185, 129, 0.9)';
+                });
+                const barBorders = values.map((_, i) => {
+                    const pct = percents[i] != null ? percents[i] : 0;
+                    return pct > meta ? 'rgba(239, 68, 68, 1)' : 'rgba(16, 185, 129, 1)';
+                });
+
+                const labelsBR = labels.map(l => {
+                    if (!l || l.length < 2) return l;
+                    const parts = l.split('-');
+                    if (parts.length >= 3) return `${parts[2]}/${parts[1]}`;
+                    if (parts.length >= 2) return `${parts[1]}/${parts[0]}`;
+                    return l;
+                });
+
+                const chartEl = document.getElementById('performanceChart');
+                if (!chartEl) return;
+                const ctx = chartEl.getContext('2d');
+                if (returnChart) returnChart.destroy();
+                Chart.defaults.color = '#ffffff';
+                returnChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labelsBR,
+                        datasets: [{
+                            label: 'Devoluções (R$)',
+                            data: values,
+                            backgroundColor: barColors,
+                            borderColor: barBorders,
+                            borderWidth: 1,
+                            borderRadius: 8,
+                            barThickness: 16
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        onClick: (e, items) => {
+                            if (items.length > 0) {
+                                showReturnDetails(Array.isArray(data.top_clients) ? data.top_clients : [], totalEntregas);
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: (c) => `R$ ${c.parsed.y.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
+                                    afterLabel: (c) => {
+                                        const i = c.dataIndex;
+                                        const p = percents[i] != null ? percents[i] : 0;
+                                        return p.toLocaleString('pt-BR', {minimumFractionDigits: 1}) + '% devolvido';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(255,255,255,0.15)' },
+                                ticks: { color: '#ffffff', font: { size: 10 }, callback: v => 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 0}) }
+                            },
+                            x: { grid: { display: false }, ticks: { color: '#ffffff', font: { size: 10 } } }
+                        }
+                    }
+                });
+            })
+            .catch(err => {
+                console.error('Erro ao carregar devoluções:', err);
+                const v = document.getElementById('totalReturnValue');
+                const p = document.getElementById('totalReturnPercent');
+                if (v) v.textContent = 'R$ 0,00';
+                if (p) p.textContent = (0).toLocaleString('pt-BR', {minimumFractionDigits: 1}) + '%';
+            });
+    }
+
+    function showReturnDetails(clients, totalEntregas) {
+        const detailsDiv = document.getElementById('returnDetails');
+        const listDiv = document.getElementById('returnDetailsList');
+        listDiv.innerHTML = clients.map(client => {
+            const percentCliente = totalEntregas > 0 ? (client.value / totalEntregas * 100) : 0;
+            const pctStr = percentCliente.toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1}) + '%';
+            const valStr = 'R$ ' + (client.value || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            const volStr = (client.volume || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' t';
+            return `<div class="surface p-4 border-l-4" style="border-color: var(--color-danger);">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-body font-semibold" style="color: var(--color-text);">${(client.name || 'Cliente').replace(/</g,'&lt;')}</p>
+                    <span class="text-caption px-2 py-1 rounded-full font-bold" style="background: var(--color-warning-bg); color: var(--color-warning);">${pctStr}</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-caption">
+                    <div><p style="color: var(--color-text-muted);">Valor devolvido</p><p class="font-bold" style="color: var(--color-danger);">${valStr}</p></div>
+                    <div><p style="color: var(--color-text-muted);">Volume (t)</p><p class="font-bold" style="color: var(--color-warning);">${volStr}</p></div>
+                </div>
+            </div>`;
+        }).join('');
+        detailsDiv.classList.remove('hidden');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function closeReturnDetails() {
+        document.getElementById('returnDetails').classList.add('hidden');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        buildPeriodOptions();
+        loadReturnData();
+    });
+</script>
+{% endblock %}

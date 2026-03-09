@@ -74,9 +74,14 @@
                             <p class="text-caption-lg mt-0.5 text-blue-100">{{ gamification.level.name }}</p>
                         </div>
                     </div>
-                    <a href="/mobile/achievements" class="touch-target-icon flex items-center justify-center rounded-lg flex-shrink-0 text-white" style="background: #3b82f6;">
-                        <i data-lucide="award" class="w-5 h-5"></i>
-                    </a>
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <a href="/mobile/achievements" class="touch-target-icon flex items-center justify-center rounded-lg text-white" style="background: #3b82f6;">
+                            <i data-lucide="award" class="w-5 h-5"></i>
+                        </a>
+                        <a href="/mobile/logout" class="touch-target-icon flex items-center justify-center rounded-lg text-white" style="background: rgba(239,68,68,0.9);" title="Sair">
+                            <i data-lucide="log-out" class="w-5 h-5"></i>
+                        </a>
+                    </div>
                 </div>
                 <div class="mt-3">
                     <div class="flex items-center justify-between text-caption-lg mb-1">
@@ -99,23 +104,6 @@
                         +<span x-text="dailyXp"></span> XP hoje! Continue assim!
                     </p>
                 </div>
-            </div>
-        </section>
-
-        <!-- 1b. Preset mês atual + filtro retroativo (compacto) -->
-        <section class="container-mobile mt-4" x-show="{% if has_delivery_module|default(false) %}true{% else %}deliveryRoutes.length > 0{% endif %}">
-            <div class="flex items-center justify-between gap-2">
-                <span class="text-body font-medium" style="color: var(--color-text);" x-text="dateFilterLabel || currentMonthLabel"></span>
-                <button type="button" @click="showDateFilter = !showDateFilter"
-                    class="text-caption font-medium touch-target px-2 py-1 rounded-lg interactive"
-                    style="color: var(--color-primary);" x-text="showDateFilter ? 'Fechar filtro' : 'Buscar período'"></button>
-            </div>
-            <div x-show="showDateFilter" x-transition class="flex flex-wrap gap-2 mt-2">
-                <input type="date" x-model="dateFilterFrom" @change="applyDateFilter()"
-                    class="flex-1 min-w-[120px] px-3 py-2 rounded-lg text-body" style="background: var(--color-surface-solid); border: 1px solid var(--color-border-light); color: var(--color-text);" placeholder="De">
-                <input type="date" x-model="dateFilterTo" @change="applyDateFilter()"
-                    class="flex-1 min-w-[120px] px-3 py-2 rounded-lg text-body" style="background: var(--color-surface-solid); border: 1px solid var(--color-border-light); color: var(--color-text);" placeholder="Até">
-                <button type="button" @click="resetDateFilter()" class="touch-target px-3 py-2 rounded-lg text-body font-medium" style="background: var(--color-border-light); color: var(--color-text);">Limpar</button>
             </div>
         </section>
 
@@ -158,85 +146,6 @@
                 </div>
             </template>
         </section>
-        
-        <!-- 2b. Rotas de entrega + Iniciar Rota (Placa/KM/Ajudantes) -->
-        <section class="container-mobile mt-4" x-show="{% if has_delivery_module|default(false) %}true{% else %}deliveryRoutes.length > 0{% endif %}">
-            <div class="surface-shadow p-4">
-                <div class="flex items-start justify-between gap-3 mb-3">
-                    <div class="flex-1 min-w-0">
-                        <h3 class="text-section" style="color: var(--color-text);">Minhas rotas de entrega</h3>
-                        <p class="text-caption-lg mt-0.5" x-text="assignedPlate ? `Caminhão: ${assignedPlate}` : 'Sem caminhão planejado'"></p>
-                    </div>
-                    <div class="flex gap-2">
-                        <a href="/mobile/delivery"
-                            class="touch-target px-3 py-2 rounded-lg font-semibold text-body transition-opacity interactive"
-                            style="background: var(--color-surface-solid); border: 1px solid var(--color-border-light); color: var(--color-text);">
-                            Ver concluídas
-                            <span x-show="deliveryCompletedCount > 0" x-text="`(${deliveryCompletedCount})`"></span>
-                        </a>
-                        <button type="button" x-show="!deliverySessionOpen"
-                            @click.prevent="$dispatch('open-delivery-setup-modal'); (window.__openDeliverySetupModal && window.__openDeliverySetupModal())"
-                            class="btn-futuristic-primary touch-target min-h-[48px] flex items-center justify-center gap-2">
-                            <i data-lucide="play" class="w-4 h-4"></i>
-                            Iniciar Rota
-                        </button>
-                        <button type="button" x-show="deliverySessionOpen" @click.stop="showDeliveryEndModal = true"
-                            class="touch-target px-3 py-2 rounded-lg font-semibold text-body text-white transition-opacity interactive" style="background: var(--color-success);">Encerrar</button>
-                    </div>
-                </div>
-                <div class="space-y-2 mb-3">
-                    <template x-for="card in deliveryDayCards" :key="'day-'+card.date">
-                        <button @click="selectedDeliveryDay = card.date"
-                            class="w-full text-left px-3 py-2 rounded-lg border-2 transition-colors interactive"
-                            :style="selectedDeliveryDay===card.date
-                                ? 'background: var(--color-primary-bg); border-color: var(--color-primary); color: var(--color-primary);'
-                                : 'background: var(--color-surface-solid); border-color: var(--color-border-light); color: var(--color-text);'">
-                            <div class="flex items-center justify-between">
-                                <span class="font-semibold text-body" x-text="card.label"></span>
-                                <span class="text-caption-lg" x-text="`${card.count} cliente(s)`"></span>
-                            </div>
-                        </button>
-                    </template>
-                </div>
-                <div x-show="!deliverySessionOpen" class="surface p-4 space-y-3 mt-3">
-                    <p class="text-body font-medium" style="color: var(--color-text);">Placa, KM e ajudantes para iniciar a rota</p>
-                    <div x-show="deliverySetupError" class="rounded-lg px-3 py-2 text-body flex items-center gap-2" style="background: var(--color-danger-bg); color: var(--color-danger);" x-text="deliverySetupError"></div>
-                    <div>
-                        <label class="block text-caption mb-1" style="color: var(--color-text-muted);">Placa *</label>
-                        <input type="text" x-ref="deliveryPlateInput" x-model="deliverySetup.plate" @input="normalizePlateInput()" placeholder="ABC1D23"
-                            class="w-full rounded-lg px-3 py-2.5 text-body font-mono uppercase"
-                            style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text);">
-                    </div>
-                    <div>
-                        <label class="block text-caption mb-1" style="color: var(--color-text-muted);">KM de saída *</label>
-                        <input type="number" inputmode="decimal" step="0.1" min="0" x-model="deliverySetup.km_departure" placeholder="Ex.: 125430,5"
-                            class="w-full rounded-lg px-3 py-2.5 text-body font-mono"
-                            style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text);">
-                    </div>
-                    <div>
-                        <label class="block text-caption mb-1" style="color: var(--color-text-muted);">Ajudantes (opcional)</label>
-                        <div class="flex gap-2">
-                            <input type="text" x-model="deliverySetup.helperInput" @keydown.enter.prevent="addDeliveryHelperFromInput()" placeholder="Nome do ajudante..."
-                                class="flex-1 rounded-lg px-3 py-2.5 text-body" style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text);">
-                            <button type="button" @click="addDeliveryHelperFromInput()" class="touch-target px-3 py-2.5 rounded-lg" style="background: var(--color-primary); color: white;">
-                                <i data-lucide="plus" class="w-4 h-4"></i>
-                            </button>
-                        </div>
-                        <div class="flex flex-wrap gap-2 mt-2" x-show="deliverySetup.helpers.length > 0">
-                            <template x-for="(helper, idx) in deliverySetup.helpers" :key="'h-'+idx">
-                                <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-caption" style="background: var(--color-primary-bg); color: var(--color-primary);">
-                                    <span x-text="helper"></span>
-                                    <button type="button" @click="removeDeliveryHelper(idx)" class="touch-target-icon"><i data-lucide="x" class="w-3 h-3"></i></button>
-                                </span>
-                            </template>
-                        </div>
-                    </div>
-                    <button type="button" @click="startDeliverySession()" class="w-full py-3 rounded-lg font-semibold text-body text-white" style="background: var(--color-primary);">
-                        Iniciar Rota
-                    </button>
-                </div>
-            </div>
-        </section>
     </div>
 
     <!-- 3. Módulos (ação principal) -->
@@ -246,22 +155,16 @@
         <div class="space-y-2">
             {% for module in modules %}
             {% if module.action == "start_separation" %}
-            <div class="w-full">
-                <form action="/mobile/routine/start" method="POST" @submit.prevent="handleStartAction($event)" class="w-full">
-                    <button type="submit" :disabled="isSubmission"
-                        class="interactive w-full surface p-4 text-left flex items-center gap-3 min-h-[48px]"
-                        style="min-height: var(--touch-min, 48px);">
-                        <div class="icon-wrap flex items-center justify-center flex-shrink-0" style="background: var(--color-primary); color: white;">
-                            <i data-lucide="{{ module.icon }}" class="w-5 h-5"></i>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
-                            <p class="text-caption-lg truncate" x-text="deliveryRoutes.length > 0 ? 'Informe a placa para liberar.' : '{{ module.description }}'"></p>
-                        </div>
-                        <i data-lucide="chevron-right" class="w-5 h-5 flex-shrink-0" style="color: var(--color-text-muted);"></i>
-                    </button>
-                </form>
-            </div>
+            <a href="/mobile/delivery" class="interactive block w-full surface p-4 text-left flex items-center gap-3">
+                <div class="icon-wrap flex items-center justify-center flex-shrink-0" style="background: var(--color-primary); color: white;">
+                    <i data-lucide="{{ module.icon }}" class="w-5 h-5"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
+                    <p class="text-caption-lg truncate">{{ module.description }}</p>
+                </div>
+                <i data-lucide="chevron-right" class="w-5 h-5 flex-shrink-0" style="color: var(--color-text-muted);"></i>
+            </a>
             {% elif module.action == "open_admin_start_modal" %}
             <button @click="open_admin_start_modal()" class="interactive w-full surface p-4 text-left flex items-center gap-3">
                 <div class="icon-wrap flex-shrink-0" style="background: var(--color-primary); color: white;"><i data-lucide="{{ module.icon }}" class="w-5 h-5"></i></div>
@@ -352,49 +255,6 @@
         </div>
     </section>
     {% endif %}
-
-    <!-- 5. Devoluções por Valor (R$) -->
-    <section class="container-mobile mt-8">
-        <div class="flex items-center justify-between mb-3">
-            <h2 class="text-lg font-bold text-blue-900">Devoluções (R$)</h2>
-            <select id="returnPeriodFilter" onchange="loadReturnData()" 
-                class="text-xs bg-white border-2 border-slate-200 rounded-lg px-2 py-1.5 text-blue-900 font-medium">
-                <option value="7">7 dias</option>
-                <option value="30" selected>30 dias</option>
-                <option value="90">90 dias</option>
-                <option value="365">1 ano</option>
-            </select>
-        </div>
-        
-        <div class="surface p-4 mb-4">
-            <div class="grid grid-cols-2 gap-3 mb-4">
-                <div class="text-center p-3 bg-red-50 rounded-lg border border-red-200">
-                    <p class="text-xs text-slate-600 mb-1">Total (R$)</p>
-                    <p id="totalReturnValue" class="text-xl font-bold text-red-600">R$ 0,00</p>
-                </div>
-                <div class="text-center p-3 bg-amber-50 rounded-lg border border-amber-200">
-                    <p class="text-xs text-slate-600 mb-1">% Devolvido</p>
-                    <p id="totalReturnPercent" class="text-xl font-bold text-amber-600">0%</p>
-                </div>
-            </div>
-            <div class="h-64 w-full">
-                <canvas id="performanceChart"></canvas>
-            </div>
-        </div>
-
-        <!-- Detalhamento de Devoluções (Drill-down) -->
-        <div id="returnDetails" class="hidden space-y-3">
-            <div class="flex items-center justify-between mb-2">
-                <h3 class="text-base font-semibold text-blue-900">Detalhamento por Cliente</h3>
-                <button onclick="closeReturnDetails()" class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 hover:text-blue-900">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-            <div id="returnDetailsList" class="space-y-2 max-h-96 overflow-y-auto">
-                <!-- Preenchido via JS -->
-            </div>
-        </div>
-    </section>
 
     <!-- 6. XP History -->
     <section class="container-mobile mt-8">
@@ -507,7 +367,7 @@
                 </div>
             </template>
         </div>
-    </div>
+    </section>
 
     <!-- Modals -->
 
@@ -921,7 +781,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script id="server-data" type="application/json">
         {
             "clients": {{ clients_json | safe }},
@@ -1082,7 +941,6 @@
                     this.$nextTick(() => {
                         lucide.createIcons();
                         if (this.labels && this.labels.length > 0) {
-                            this.initChart();
                         }
                     });
                 }, 100);
@@ -1289,25 +1147,15 @@
                 }, 100);
             },
 
-            // Regra: deliveryRoutes.length > 0 → obrigatório abrir modal Placa/KM. Caso contrário → /mobile/routine/start
+            // Regra: deliveryRoutes.length > 0 → interceptar e abrir modal Placa/KM. Caso contrário → deixar form submeter normalmente
             handleStartAction(ev) {
                 if (this.isSubmission) return;
                 if ((this.deliveryRoutes || []).length > 0) {
+                    ev.preventDefault();
                     this.openDeliverySetupModal();
                     return;
                 }
-                this.isSubmission = true;
-                // currentTarget = form (element that has @submit); target = button (who triggered it)
-                const form = ev && ev.currentTarget && ev.currentTarget.tagName === 'FORM' ? ev.currentTarget : null;
-                if (form) {
-                    form.submit();
-                } else {
-                    const f = document.createElement('form');
-                    f.method = 'POST';
-                    f.action = '/mobile/routine/start';
-                    document.body.appendChild(f);
-                    f.submit();
-                }
+                // deliveryRoutes.length === 0: não prevenir default — o form submete e redireciona para /mobile/routine/start
             },
             openStartEntry(ev) { this.handleStartAction(ev); },
 
@@ -1418,10 +1266,6 @@
                             this.selectedDeliveryDay = this.deliveryDayCards.length ? this.deliveryDayCards[0].date : '';
                         }
                         this.deliverySessionOpen = !!data.session_open;
-                        if (this.deliverySessionOpen) {
-                            window.location.href = '/mobile/delivery';
-                            return;
-                        }
                         this.assignedPlate = data.assigned_plate || '';
                         this.mobileReturnReasons = data.return_reasons || [];
                         if (this.mobileReturnReasons.length && !this.mobileReturn.reason) {
@@ -1726,140 +1570,7 @@
                     });
             },
 
-            initChart() {
-                const periodEl = document.getElementById('returnPeriodFilter');
-                if (periodEl) periodEl.value = '30';
-                loadReturnData();
-            }
         }
-    }
-
-    // Variável global para o gráfico
-    let returnChart = null;
-
-    // Carregar dados de devolução
-    function loadReturnData() {
-        const periodEl = document.getElementById('returnPeriodFilter');
-        const allowedPeriods = ['7', '30', '90', '365'];
-        const selectedPeriod = periodEl ? String(periodEl.value || '').trim() : '30';
-        const period = allowedPeriods.includes(selectedPeriod) ? selectedPeriod : '30';
-        if (periodEl && periodEl.value !== period) periodEl.value = period;
-        fetch(`/mobile/api/returns-data?days=${period}`)
-            .then(r => r.ok ? r.json() : { total_value: 0, percent_valor: 0, chart_labels: [], chart_values: [], top_clients: [], total_entregas_value: 0 })
-            .then(data => {
-                if (!data || typeof data.total_value !== 'number') {
-                    data = { total_value: 0, percent_valor: 0, chart_labels: [], chart_values: [], top_clients: [], total_entregas_value: 0 };
-                }
-                if (data._debug) console.log('📊 Cálculo de Devolução:', data._debug);
-                const totalVal = Number(data.total_value) || 0;
-                const percentVal = Number(data.percent_valor) || 0;
-                const labels = Array.isArray(data.chart_labels) ? data.chart_labels : [];
-                const values = Array.isArray(data.chart_values) ? data.chart_values : [];
-                const totalEntregas = Number(data.total_entregas_value) || 0;
-
-                const totalReturnValueEl = document.getElementById('totalReturnValue');
-                const totalReturnPercentEl = document.getElementById('totalReturnPercent');
-                if (totalReturnValueEl) totalReturnValueEl.textContent = `R$ ${totalVal.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                if (totalReturnPercentEl) totalReturnPercentEl.textContent = `${percentVal.toFixed(1)}%`;
-
-                const chartEl = document.getElementById('performanceChart');
-                if (!chartEl) return;
-                const ctx = chartEl.getContext('2d');
-                
-                if (returnChart) {
-                    returnChart.destroy();
-                }
-                
-                returnChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: 'Devoluções (R$)',
-                            data: values,
-                            backgroundColor: 'rgba(239, 68, 68, 0.8)',
-                            borderColor: 'rgba(239, 68, 68, 1)',
-                            borderWidth: 1,
-                            borderRadius: 8,
-                            barThickness: 16
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        onClick: (e, items) => {
-                            if (items.length > 0) {
-                                showReturnDetails(Array.isArray(data.top_clients) ? data.top_clients : [], totalEntregas);
-                            }
-                        },
-                        plugins: { 
-                            legend: { display: false },
-                            tooltip: {
-                                callbacks: {
-                                    label: (context) => `R$ ${context.parsed.y.toFixed(2)}`
-                                }
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                grid: { color: 'rgba(226, 232, 240, 0.5)' },
-                                ticks: { 
-                                    color: '#64748b', 
-                                    font: { size: 10 },
-                                    callback: (value) => `R$ ${value}`
-                                }
-                            },
-                            x: {
-                                grid: { display: false },
-                                ticks: { color: '#1e3a8a', font: { size: 10, weight: '600' } }
-                            }
-                        }
-                    }
-                });
-            })
-            .catch(err => {
-                console.error('Erro ao carregar devoluções:', err);
-                const totalReturnValueEl = document.getElementById('totalReturnValue');
-                const totalReturnPercentEl = document.getElementById('totalReturnPercent');
-                if (totalReturnValueEl) totalReturnValueEl.textContent = 'R$ 0,00';
-                if (totalReturnPercentEl) totalReturnPercentEl.textContent = '0,0%';
-            });
-    }
-
-    // Mostrar detalhes de devoluções (drill-down)
-    function showReturnDetails(clients, totalEntregas) {
-        const detailsDiv = document.getElementById('returnDetails');
-        const listDiv = document.getElementById('returnDetailsList');
-        
-        listDiv.innerHTML = clients.map(client => {
-            const percentCliente = totalEntregas > 0 ? (client.value / totalEntregas * 100).toFixed(1) : 0;
-            return `
-            <div class="surface p-4 border-l-4 border-red-600">
-                <div class="flex items-center justify-between mb-2">
-                    <p class="text-blue-900 font-semibold text-sm">${client.name}</p>
-                    <span class="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700 font-bold border border-amber-200">${percentCliente}%</span>
-                </div>
-                <div class="grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                        <p class="text-slate-600 mb-0.5">Valor Devolvido</p>
-                        <p class="text-red-600 font-bold">R$ ${client.value.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                    </div>
-                    <div>
-                        <p class="text-slate-600 mb-0.5">Volume (ton)</p>
-                        <p class="text-amber-600 font-bold">${client.volume.toFixed(2)}t</p>
-                    </div>
-                </div>
-            </div>
-        `}).join('');
-        
-        detailsDiv.classList.remove('hidden');
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-    }
-
-    // Fechar detalhes
-    function closeReturnDetails() {
-        document.getElementById('returnDetails').classList.add('hidden');
     }
 
 </script>

@@ -173,12 +173,20 @@ def _build_bi_delivery_dataset(
             sb += 24 * 60
         return max(0, sb - sa)
 
+    def _pct(numerator: float, denominator: float) -> float:
+        """Percentual seguro sem divisor artificial."""
+        den = float(denominator or 0.0)
+        if den <= 0:
+            return 0.0
+        return (float(numerator or 0.0) / den) * 100.0
+
     planned_stops = len(routes)
     planned_kg = planned_value = 0.0
     realized_stops = started_stops = 0
     realized_kg = realized_value = 0.0
     returned_stops = 0
     returned_kg = returned_value = 0.0
+    returned_value_manual = 0.0
     reopen_routes = 0
     dur_list: list[int] = []
 
@@ -257,7 +265,7 @@ def _build_bi_delivery_dataset(
             d["returned_kg"] += ret_w
             d["returned_value"] += ret_v
 
-        per_driver.setdefault(driver, {"driver_name": driver, "driver_id": r.employee_id, "planned_stops": 0, "realized_stops": 0, "started_stops": 0, "returned_stops": 0, "planned_kg": 0.0, "realized_kg": 0.0, "returned_kg": 0.0, "planned_value": 0.0, "realized_value": 0.0, "returned_value": 0.0, "reopen_count": 0, "durations": [], "main_plate": (r.delivery_vehicle_plate or "-").upper()})
+        per_driver.setdefault(driver, {"driver_name": driver, "driver_id": r.employee_id, "planned_stops": 0, "realized_stops": 0, "started_stops": 0, "returned_stops": 0, "planned_kg": 0.0, "realized_kg": 0.0, "returned_kg": 0.0, "planned_value": 0.0, "realized_value": 0.0, "returned_value": 0.0, "manual_returned_value": 0.0, "reopen_count": 0, "durations": [], "main_plate": (r.delivery_vehicle_plate or "-").upper()})
         b = per_driver[driver]
         b["planned_stops"] += 1
         b["planned_kg"] += planned_w
@@ -289,20 +297,24 @@ def _build_bi_delivery_dataset(
         resp = (rsp_map.get(d.responsabilidade_id).nome if rsp_map.get(d.responsabilidade_id) else "Nao informado")
         cluster = d.cluster or "Sem Cluster"
         ret_v = float(d.valor or 0.0)
+        returned_value_manual += ret_v
         above = "SIM" if (d.acima_300 or "").upper() == "SIM" or ret_v >= 300 else "NAO"
         _acc_devol(d.data_romaneio, driver, client, motivo, resp, cluster, ret_v)
         route_rows.append({"route_id": -d.id, "date": d.data_romaneio, "shift": "-", "driver_id": d.motorista_id, "driver_name": driver, "client_id": d.client_id, "client_name": client, "status": "devolucao", "planned_kg": 0.0, "planned_value": 0.0, "delivered_kg": 0.0, "delivered_value": 0.0, "returned_kg": 0.0, "returned_value": round(ret_v, 2), "reopen_count": 0, "duration_m": None, "plate": "-", "order_number": f"Man. {d.id}", "motivo": motivo, "responsabilidade": resp, "cluster": cluster, "acima_300": above, "source": "MANUAL"})
         ex_rows.append({"score": 55, "date": d.data_romaneio, "shift": "-", "driver_name": driver, "driver_id": d.motorista_id, "client_name": client, "status": "devolucao", "planned_kg": 0.0, "planned_value": 0.0, "returned_kg": 0.0, "returned_value": round(ret_v, 2), "reopen_count": 0, "duration_m": None, "source": "MANUAL"})
-        per_driver.setdefault(driver, {"driver_name": driver, "driver_id": d.motorista_id, "planned_stops": 0, "realized_stops": 0, "started_stops": 0, "returned_stops": 0, "planned_kg": 0.0, "realized_kg": 0.0, "returned_kg": 0.0, "planned_value": 0.0, "realized_value": 0.0, "returned_value": 0.0, "reopen_count": 0, "durations": [], "main_plate": "-"})
+        per_driver.setdefault(driver, {"driver_name": driver, "driver_id": d.motorista_id, "planned_stops": 0, "realized_stops": 0, "started_stops": 0, "returned_stops": 0, "planned_kg": 0.0, "realized_kg": 0.0, "returned_kg": 0.0, "planned_value": 0.0, "realized_value": 0.0, "returned_value": 0.0, "manual_returned_value": 0.0, "reopen_count": 0, "durations": [], "main_plate": "-"})
         per_driver[driver]["returned_stops"] += 1
         per_driver[driver]["returned_value"] += ret_v
+        per_driver[driver]["manual_returned_value"] += ret_v
 
     avg_duration = statistics.mean(dur_list) if dur_list else 0.0
     global_return_rate = (returned_stops / max(1, planned_stops) * 100.0) if (planned_stops or manual) else 0.0
     tactical = []
     for row in per_driver.values():
         p = max(1, row["planned_stops"])
-        v = max(0.01, row["planned_value"]) # Avoid division by zero
+        value_base = (row["planned_value"] or 0.0) + (row.get("manual_returned_value") or 0.0)
+        if value_base <= 0:
+            value_base = (row["realized_value"] or 0.0) + (row["returned_value"] or 0.0)
         delivered_stops = max(0, row["realized_stops"] - row["returned_stops"])
         tactical.append({
             **row,
@@ -311,7 +323,7 @@ def _build_bi_delivery_dataset(
             "return_rate": round(row["returned_stops"] / p * 100.0, 2) if row["planned_stops"] else (100.0 if row["returned_stops"] > 0 else 0.0),
             "started_rate": round(row["started_stops"] / p * 100.0, 2) if row["planned_stops"] else 0.0,
             "avg_duration": round(statistics.mean(row["durations"]), 1) if row["durations"] else 0.0,
-            "returned_value_pct": round((row["returned_value"] / v) * 100.0, 2) if row["planned_value"] else 0.0
+            "returned_value_pct": round(_pct(row["returned_value"], value_base), 2)
         })
     tactical.sort(key=lambda x: (x["efficiency"], -x["return_rate"], x["planned_stops"]), reverse=True)
 
@@ -335,7 +347,10 @@ def _build_bi_delivery_dataset(
     ) if rec7 else 0.0
     risk_label, risk_severity = ("Critico", "danger") if forecast_return_value >= 4 else ("Atencao", "warning") if forecast_return_value >= 2 else ("Controlado", "success")
     anomaly_flags: list[str] = []
-    global_return_rate_value = (returned_value / max(0.01, planned_value) * 100.0) if planned_value else 0.0
+    financial_base_value = planned_value + returned_value_manual
+    if financial_base_value <= 0:
+        financial_base_value = realized_value + returned_value
+    global_return_rate_value = _pct(returned_value, financial_base_value)
 
     if global_return_rate_value >= 2:
         anomaly_flags.append(f"Ponto de atencao financeiro: devolucao em valor em {_fmt_br_1(global_return_rate_value)}% (meta <= 2,0%).")
@@ -362,7 +377,7 @@ def _build_bi_delivery_dataset(
         )
     dias_acima_meta = [
         d for d, v in per_day.items()
-        if (v.get("planned_value", 0.0) or 0.0) > 0 and ((v.get("returned_value", 0.0) or 0.0) / max(0.01, (v.get("planned_value", 0.0) or 0.0)) * 100.0) >= 2
+        if (v.get("planned_value", 0.0) or 0.0) > 0 and _pct((v.get("returned_value", 0.0) or 0.0), (v.get("planned_value", 0.0) or 0.0)) >= 2
     ]
     if len(dias_acima_meta) >= 3:
         anomaly_flags.append(f"Serie de risco: {len(dias_acima_meta)} dia(s) com devolucao em valor acima de 2,0%.")
@@ -542,6 +557,7 @@ def _build_bi_delivery_dataset(
     prev_month_planned_val = 0.0
     prev_month_qtd = 0
     prev_month_valor = 0.0
+    prev_month_manual_valor = 0.0
     for r in prev_routes:
         status_raw = (r.delivery_status or "pendente").strip().lower()
         planned_v = float(r.valor_financeiro or 0.0)
@@ -559,8 +575,13 @@ def _build_bi_delivery_dataset(
             qm_prev = qm_prev.where(models.Devolucao.motorista_id == driver_id)
         for d in session.exec(qm_prev).all():
             prev_month_qtd += 1
-            prev_month_valor += float(d.valor or 0.0)
-    prev_month_pct = round(prev_month_valor / max(0.01, prev_month_planned_val) * 100.0, 2) if prev_month_planned_val else 0.0
+            man_val = float(d.valor or 0.0)
+            prev_month_manual_valor += man_val
+            prev_month_valor += man_val
+    prev_month_base = prev_month_planned_val + prev_month_manual_valor
+    if prev_month_base <= 0:
+        prev_month_base = prev_month_valor
+    prev_month_pct = round(_pct(prev_month_valor, prev_month_base), 2)
 
     kpis = {
         "planned_stops": planned_stops,
@@ -576,7 +597,7 @@ def _build_bi_delivery_dataset(
         "returned_value": round(returned_value, 2),
         "return_rate_qtd": round(returned_stops / max(1, planned_stops) * 100.0, 2) if planned_stops else 0.0,
         "return_rate_kg": round(returned_kg / max(1, planned_kg) * 100.0, 2) if planned_kg else 0.0,
-        "return_rate_value": round(returned_value / max(1, planned_value) * 100.0, 2) if planned_value else 0.0,
+        "return_rate_value": round(global_return_rate_value, 2),
         "sla_start": round(started_stops / max(1, planned_stops) * 100.0, 2) if planned_stops else 0.0,
         "sla_finish": round(delivered_stops / max(1, planned_stops) * 100.0, 2) if planned_stops else 0.0,
         "reopen_index": round(reopen_routes / max(1, planned_stops) * 100.0, 2) if planned_stops else 0.0,

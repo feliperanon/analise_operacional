@@ -407,6 +407,7 @@ async def lifespan(app: FastAPI):
         # Employee schema compatibility must run before auth/bootstrap queries
         ensure_column(engine, "employee", "mobile_access_admin_start", "BOOLEAN DEFAULT FALSE")
         ensure_column(engine, "employee", "mobile_access_returns", "BOOLEAN DEFAULT FALSE")
+        ensure_column(engine, "employee", "mobile_access_helper", "BOOLEAN DEFAULT FALSE")
         ensure_column(engine, "employee", "seller_code", "VARCHAR(64)")
     except Exception as e:
         logger.error(f"Erro ao migrar vehicle/checklist/client/route: {e}")
@@ -2694,15 +2695,17 @@ def _build_returns_alert_payload(
     metrics: Dict[str, Any],
     target_percent: float = 2.0,
     days_window: int = 30,
+    period_label: Optional[str] = None,
 ) -> Dict[str, Any]:
     actual_percent = round(float(metrics.get("percent_valor") or 0.0), 2)
     target_percent = round(float(target_percent or 2.0), 2)
     gap_pp = round(actual_percent - target_percent, 2)
     now_sp = datetime.now(ZoneInfo("America/Sao_Paulo"))
     version = f"returns_alert_{now_sp.strftime('%Y_%m')}"
+    label = period_label or (f"Últimos {int(days_window)} dias" if days_window else "Mês atual")
     return {
         "enabled": True,
-        "year_label": f"Ultimos {int(days_window)} dias",
+        "year_label": label,
         "actual_percent": actual_percent,
         "target_percent": target_percent,
         "gap_percent_points": gap_pp,
@@ -2860,12 +2863,16 @@ async def mobile_delivery_page(request: Request, session: Session = Depends(get_
     employees = session.exec(
         select(models.Employee).where(models.Employee.status == "active")
     ).all()
+    helpers_eligible = [e for e in employees if bool(getattr(e, "mobile_access_helper", False)) and e.id != employee.id]
     employees_json = json.dumps(
-        [{"id": e.id, "name": e.name} for e in employees],
+        [{"id": e.id, "name": e.name} for e in helpers_eligible],
         ensure_ascii=False
     )
-    returns_metrics = _compute_employee_returns_metrics(session=session, user_id=int(employee.id), days=30)
-    returns_alert = _build_returns_alert_payload(returns_metrics, target_percent=2.0, days_window=30)
+    now_sp_delivery = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    month_start = now_sp_delivery.replace(day=1).strftime("%Y-%m-%d")
+    month_end = now_sp_delivery.strftime("%Y-%m-%d")
+    returns_metrics_delivery = _compute_employee_returns_metrics(session=session, user_id=int(employee.id), date_from=month_start, date_to=month_end)
+    returns_alert = _build_returns_alert_payload(returns_metrics_delivery, target_percent=2.0, period_label="Mês atual")
     return templates.TemplateResponse(
         "mobile/delivery.html",
         {
@@ -3894,6 +3901,7 @@ def on_startup():
     # Migration for new column
     ensure_column(engine, "employee", "mobile_access_admin_start", "BOOLEAN DEFAULT FALSE")
     ensure_column(engine, "employee", "mobile_access_returns", "BOOLEAN DEFAULT FALSE")
+    ensure_column(engine, "employee", "mobile_access_helper", "BOOLEAN DEFAULT FALSE")
     ensure_column(engine, "employee", "seller_code", "VARCHAR(64)")
 
 @app.get("/api/admin/clients", dependencies=[Depends(require_leader)])
@@ -19091,6 +19099,7 @@ async def update_employee(
     mobile_access_checklist: bool = Form(False),
     mobile_access_admin_start: bool = Form(False),
     mobile_access_returns: bool = Form(False),
+    mobile_access_helper: bool = Form(False),
     vacation_start: str = Form(None),
     vacation_end: str = Form(None),
     session: Session = Depends(get_session)
@@ -19135,6 +19144,7 @@ async def update_employee(
         emp.mobile_access_checklist = mobile_access_checklist
         emp.mobile_access_admin_start = mobile_access_admin_start
         emp.mobile_access_returns = mobile_access_returns
+        emp.mobile_access_helper = mobile_access_helper
         emp.mobile_access = bool(mobile_access_separation or mobile_access_checklist)
 
         # Update Work Days

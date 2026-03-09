@@ -810,6 +810,24 @@
                                     </div>
                                     <span class="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">Permitir Abertura Manual (Líder)</span>
                                 </label>
+                                <label class="flex items-center gap-3 cursor-pointer group">
+                                    <div class="relative inline-block w-10 h-6">
+                                        <input type="checkbox" name="mobile_access_returns" value="true"
+                                            class="sr-only peer" {% if emp.mobile_access_returns %}checked{% endif %}>
+                                        <div class="absolute inset-0 bg-slate-700 rounded-full peer-checked:bg-blue-600 transition-colors pointer-events-none"></div>
+                                        <div class="absolute top-[2px] left-[2px] bg-white border border-gray-300 rounded-full h-5 w-5 transition-transform peer-checked:translate-x-full pointer-events-none"></div>
+                                    </div>
+                                    <span class="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">Dashboard Devoluções (Avaliação)</span>
+                                </label>
+                                <label class="flex items-center gap-3 cursor-pointer group">
+                                    <div class="relative inline-block w-10 h-6">
+                                        <input type="checkbox" name="mobile_access_helper" value="true"
+                                            class="sr-only peer" {% if emp.mobile_access_helper %}checked{% endif %}>
+                                        <div class="absolute inset-0 bg-slate-700 rounded-full peer-checked:bg-blue-600 transition-colors pointer-events-none"></div>
+                                        <div class="absolute top-[2px] left-[2px] bg-white border border-gray-300 rounded-full h-5 w-5 transition-transform peer-checked:translate-x-full pointer-events-none"></div>
+                                    </div>
+                                    <span class="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">Pode ser Ajudante</span>
+                                </label>
                             </div>
                         </div>
 
