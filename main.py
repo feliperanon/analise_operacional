@@ -2624,6 +2624,21 @@ async def mobile_dashboard(
     }
 
     has_delivery_module = bool(getattr(employee, "mobile_access_separation", False)) or bool(getattr(employee, "mobile_access_admin_start", False))
+    returns_actual_percent = 2.34
+    returns_target_percent = 2.00
+    returns_gap_pp = round(returns_actual_percent - returns_target_percent, 2)
+    returns_alert = {
+        "enabled": True,
+        "year_label": "2025",
+        "actual_percent": returns_actual_percent,
+        "target_percent": returns_target_percent,
+        "gap_percent_points": returns_gap_pp,
+        "is_above_target": returns_gap_pp > 0,
+        "severity": "high" if returns_actual_percent > 2.20 else ("medium" if returns_actual_percent > 2.00 else "ok"),
+        "version": "returns_alert_2026_03",
+        "title": "Alerta de Devolucoes",
+        "message": "Fechamos 2025 em 2,34%. Meta 2,00%. Precisamos reduzir 0,34 p.p. com foco em conferencia, acondicionamento e validacao da entrega.",
+    }
     return templates.TemplateResponse(
         "mobile/dashboard.html",
         {
@@ -2646,6 +2661,7 @@ async def mobile_dashboard(
             "chart_daily_kg": json.dumps([], ensure_ascii=False),
             "chart_daily_kgh": json.dumps([], ensure_ascii=False),
             "chart_bg_colors": json.dumps([], ensure_ascii=False),
+            "returns_alert": json.dumps(returns_alert, ensure_ascii=False),
         },
     )
 
@@ -2667,9 +2683,27 @@ async def mobile_delivery_page(request: Request, session: Session = Depends(get_
         [{"id": e.id, "name": e.name} for e in employees],
         ensure_ascii=False
     )
+    returns_actual_percent = 2.34
+    returns_target_percent = 2.00
+    returns_gap_pp = round(returns_actual_percent - returns_target_percent, 2)
+    returns_alert = {
+        "enabled": True,
+        "year_label": "2025",
+        "actual_percent": returns_actual_percent,
+        "target_percent": returns_target_percent,
+        "gap_percent_points": returns_gap_pp,
+        "is_above_target": returns_gap_pp > 0,
+        "severity": "high" if returns_actual_percent > 2.20 else ("medium" if returns_actual_percent > 2.00 else "ok"),
+        "version": "returns_alert_2026_03",
+    }
     return templates.TemplateResponse(
         "mobile/delivery.html",
-        {"request": request, "employee": employee, "employees_json": employees_json},
+        {
+            "request": request,
+            "employee": employee,
+            "employees_json": employees_json,
+            "returns_alert_json": json.dumps(returns_alert, ensure_ascii=False),
+        },
     )
 
 
