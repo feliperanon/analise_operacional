@@ -168,6 +168,12 @@
                         <p class="text-caption-lg mt-0.5" x-text="assignedPlate ? `Caminhão: ${assignedPlate}` : 'Sem caminhão planejado'"></p>
                     </div>
                     <div class="flex gap-2">
+                        <a href="/mobile/delivery"
+                            class="touch-target px-3 py-2 rounded-lg font-semibold text-body transition-opacity interactive"
+                            style="background: var(--color-surface-solid); border: 1px solid var(--color-border-light); color: var(--color-text);">
+                            Ver concluídas
+                            <span x-show="deliveryCompletedCount > 0" x-text="`(${deliveryCompletedCount})`"></span>
+                        </a>
                         <button type="button" x-show="!deliverySessionOpen"
                             @click.prevent="$dispatch('open-delivery-setup-modal'); (window.__openDeliverySetupModal && window.__openDeliverySetupModal())"
                             class="btn-futuristic-primary touch-target min-h-[48px] flex items-center justify-center gap-2">
@@ -975,6 +981,7 @@
             selectedRoute: null,
             deliveryRoutes: [],
             deliveryDayCards: [],
+            deliveryCompletedCount: 0,
             selectedDeliveryDay: '',
             deliverySessionOpen: false,
             assignedPlate: '',
@@ -1017,6 +1024,34 @@
             get filteredDeliveryRoutes() {
                 if (!this.selectedDeliveryDay) return this.deliveryRoutes || [];
                 return (this.deliveryRoutes || []).filter(r => r.date === this.selectedDeliveryDay);
+            },
+
+            isCompletedDeliveryRoute(route) {
+                const status = String((route && route.status) || '').toLowerCase().trim();
+                return status === 'entregue' || status === 'devolucao';
+            },
+
+            buildDeliveryDayCards(routes) {
+                const grouped = {};
+                (routes || []).forEach(route => {
+                    const d = route && route.date ? String(route.date) : '';
+                    if (!d) return;
+                    if (!grouped[d]) grouped[d] = [];
+                    grouped[d].push(route);
+                });
+                return Object.keys(grouped)
+                    .sort()
+                    .map(d => {
+                        let label = d;
+                        const parts = d.split('-');
+                        if (parts.length === 3) label = `${parts[2]}/${parts[1]}`;
+                        return {
+                            date: d,
+                            label: `Entregas do Dia ${label}`,
+                            count: grouped[d].length,
+                            routes: grouped[d],
+                        };
+                    });
             },
 
             get filteredHelperOptions() {
@@ -1370,8 +1405,13 @@
                     .then(r => r.json())
                     .then(data => {
                         if (!data.success) return;
-                        this.deliveryRoutes = data.routes || [];
-                        this.deliveryDayCards = data.day_cards || [];
+                        const allRoutes = Array.isArray(data.routes) ? data.routes : [];
+                        const completedRoutes = allRoutes.filter(r => this.isCompletedDeliveryRoute(r));
+                        const activeRoutes = allRoutes.filter(r => !this.isCompletedDeliveryRoute(r));
+
+                        this.deliveryCompletedCount = completedRoutes.length;
+                        this.deliveryRoutes = activeRoutes;
+                        this.deliveryDayCards = this.buildDeliveryDayCards(activeRoutes);
                         if (!this.selectedDeliveryDay) {
                             this.selectedDeliveryDay = this.deliveryDayCards.length ? this.deliveryDayCards[0].date : '';
                         } else if (!this.deliveryDayCards.find(c => c.date === this.selectedDeliveryDay)) {
@@ -1687,6 +1727,8 @@
             },
 
             initChart() {
+                const periodEl = document.getElementById('returnPeriodFilter');
+                if (periodEl) periodEl.value = '30';
                 loadReturnData();
             }
         }
@@ -1698,7 +1740,10 @@
     // Carregar dados de devolução
     function loadReturnData() {
         const periodEl = document.getElementById('returnPeriodFilter');
-        const period = periodEl ? periodEl.value : 30;
+        const allowedPeriods = ['7', '30', '90', '365'];
+        const selectedPeriod = periodEl ? String(periodEl.value || '').trim() : '30';
+        const period = allowedPeriods.includes(selectedPeriod) ? selectedPeriod : '30';
+        if (periodEl && periodEl.value !== period) periodEl.value = period;
         fetch(`/mobile/api/returns-data?days=${period}`)
             .then(r => r.ok ? r.json() : { total_value: 0, percent_valor: 0, chart_labels: [], chart_values: [], top_clients: [], total_entregas_value: 0 })
             .then(data => {
