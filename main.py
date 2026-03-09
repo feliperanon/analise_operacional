@@ -6570,11 +6570,6 @@ async def api_create_checklist(
         nonconforming_keys = [k for k, v in payload_items.items() if not v]
         observations = (observations or "").strip()
         files = files or []
-        if nonconforming_keys:
-            if not observations:
-                return JSONResponse({"error": "ObservaÃ§Ã£o obrigatÃ³ria para nÃ£o conformidade."}, status_code=400)
-            if not files:
-                return JSONResponse({"error": "Imagem obrigatÃ³ria para nÃ£o conformidade."}, status_code=400)
 
         critical_flag = any(k in CHECKLIST_CRITICAL_KEYS for k in nonconforming_keys)
         images = []
