@@ -2548,12 +2548,15 @@ def _compute_employee_returns_metrics(
     session: Session,
     user_id: int,
     days: int = 30,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Calcula KPIs de devolucao do colaborador no mesmo criterio do endpoint mobile."""
     total_value = 0.0
     percent_valor = 0.0
     chart_labels: List[str] = []
     chart_values: List[float] = []
+    chart_percents: List[float] = []
     top_clients: List[Dict[str, Any]] = []
     total_entregas_value = 0.0
     route_returns: List[Any] = []
@@ -2563,8 +2566,15 @@ def _compute_employee_returns_metrics(
     since = None
 
     try:
-        window_days = max(1, min(365, int(days or 30)))
-        since = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=window_days)).strftime("%Y-%m-%d")
+        if date_from and date_to:
+            since = date_from
+            until = date_to
+        else:
+            window_days = max(1, min(365, int(days or 30)))
+            until_dt = datetime.now(ZoneInfo("America/Sao_Paulo"))
+            since_dt = until_dt - timedelta(days=window_days)
+            since = since_dt.strftime("%Y-%m-%d")
+            until = until_dt.strftime("%Y-%m-%d")
 
         route_returns = session.exec(
             select(models.Route)
@@ -2572,12 +2582,14 @@ def _compute_employee_returns_metrics(
             .where(models.Route.type == "delivery")
             .where(models.Route.delivery_status == "devolucao")
             .where(models.Route.date >= since)
+            .where(models.Route.date <= until)
         ).all()
 
         devolucao_rows = session.exec(
             select(models.Devolucao)
             .where(models.Devolucao.motorista_id == user_id)
             .where(models.Devolucao.data_romaneio >= since)
+            .where(models.Devolucao.data_romaneio <= until)
         ).all()
 
         devolucao_route_ids = {int(d.route_id) for d in devolucao_rows if d.route_id}
@@ -2614,6 +2626,7 @@ def _compute_employee_returns_metrics(
             .where(models.Route.employee_id == user_id)
             .where(models.Route.type == "delivery")
             .where(models.Route.date >= since)
+            .where(models.Route.date <= until)
         ).all()
         total_entregas_value = sum(float(r.valor_financeiro or 0) for r in total_entregas)
         percent_valor = (total_value / total_entregas_value * 100) if total_entregas_value else 0.0
@@ -2624,9 +2637,20 @@ def _compute_employee_returns_metrics(
             if d not in by_date:
                 by_date[d] = 0.0
             by_date[d] += float(item.get("value") or 0.0)
+        total_val_by_date: Dict[str, float] = {}
+        for r in total_entregas:
+            d = r.date or ""
+            if d:
+                total_val_by_date[d] = total_val_by_date.get(d, 0) + float(r.valor_financeiro or 0)
         sorted_dates = sorted(by_date.keys(), reverse=True)[:14]
         chart_labels = [d[-5:] if len(d) >= 5 else d for d in sorted_dates]
         chart_values = [by_date[d] for d in sorted_dates]
+        chart_percents = []
+        for d in sorted_dates:
+            tot = total_val_by_date.get(d) or 0
+            dev = by_date.get(d) or 0
+            pct = (dev / tot * 100) if tot > 0 else 0.0
+            chart_percents.append(round(pct, 1))
 
         client_ids = list({x.get("client_id") for x in combined if x.get("client_id")})
         clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
@@ -2652,6 +2676,7 @@ def _compute_employee_returns_metrics(
         "percent_valor": float(percent_valor or 0.0),
         "chart_labels": chart_labels,
         "chart_values": chart_values,
+        "chart_percents": chart_percents,
         "top_clients": top_clients,
         "total_entregas_value": float(total_entregas_value or 0.0),
         "_debug": {
@@ -2938,10 +2963,11 @@ async def mobile_returns_page(request: Request, session: Session = Depends(get_s
 @app.get("/mobile/api/returns-data", response_class=JSONResponse)
 async def mobile_api_returns_data(
     request: Request,
-    days: int = 30,
+    days: Optional[int] = None,
+    period: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
-    """Dados de devolução para o gráfico do dashboard mobile."""
+    """Dados de devolução para o gráfico do dashboard mobile. period=YYYY-MM (mês) ou YYYY (ano)."""
     user_id = request.session.get("user_id")
     if not user_id:
         return JSONResponse({"error": "Não autorizado"}, status_code=401)
@@ -2956,7 +2982,26 @@ async def mobile_api_returns_data(
     )
     if not has_returns_access:
         return JSONResponse({"error": "Sem permissão para este módulo"}, status_code=403)
-    metrics = _compute_employee_returns_metrics(session=session, user_id=int(user_id), days=days)
+    date_from = None
+    date_to = None
+    if period:
+        p = (period or "").strip()
+        if len(p) == 7 and p[4] == "-":
+            year, month = int(p[:4]), int(p[5:7])
+            if 1 <= month <= 12:
+                import calendar
+                last = calendar.monthrange(year, month)[1]
+                date_from = f"{year:04d}-{month:02d}-01"
+                date_to = f"{year:04d}-{month:02d}-{last:02d}"
+        elif len(p) == 4 and p.isdigit():
+            year = int(p)
+            date_from = f"{year}-01-01"
+            date_to = f"{year}-12-31"
+    metrics = _compute_employee_returns_metrics(
+        session=session, user_id=int(user_id),
+        days=days if days is not None else 30,
+        date_from=date_from, date_to=date_to
+    )
     return JSONResponse(metrics)
 
 
@@ -21568,8 +21613,12 @@ async def api_operational_routes(
             
             data[-1]["duration"] = duration_str
             
-            # Est. XP (Approx 100 XP per 1500kg)
-            est_xp = int((r.tonnage / 1500.0) * 100)
+            # Est. XP (Approx 100 XP per 1500kg) com tolerância a tonnage nulo/inválido
+            try:
+                ton = float(r.tonnage or 0.0)
+            except (TypeError, ValueError):
+                ton = 0.0
+            est_xp = int((max(0.0, ton) / 1500.0) * 100)
             data[-1]["est_xp"] = est_xp
             
         return {"routes": data}
