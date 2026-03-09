@@ -2543,6 +2543,154 @@ async def mobile_logout(request: Request):
     return RedirectResponse(url="/mobile/login", status_code=303)
 
 
+def _compute_employee_returns_metrics(
+    session: Session,
+    user_id: int,
+    days: int = 30,
+) -> Dict[str, Any]:
+    """Calcula KPIs de devolucao do colaborador no mesmo criterio do endpoint mobile."""
+    total_value = 0.0
+    percent_valor = 0.0
+    chart_labels: List[str] = []
+    chart_values: List[float] = []
+    top_clients: List[Dict[str, Any]] = []
+    total_entregas_value = 0.0
+    route_returns: List[Any] = []
+    devolucao_rows: List[Any] = []
+    devolucao_route_ids: set[int] = set()
+    combined: List[Dict[str, Any]] = []
+    since = None
+
+    try:
+        window_days = max(1, min(365, int(days or 30)))
+        since = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=window_days)).strftime("%Y-%m-%d")
+
+        route_returns = session.exec(
+            select(models.Route)
+            .where(models.Route.employee_id == user_id)
+            .where(models.Route.type == "delivery")
+            .where(models.Route.delivery_status == "devolucao")
+            .where(models.Route.date >= since)
+        ).all()
+
+        devolucao_rows = session.exec(
+            select(models.Devolucao)
+            .where(models.Devolucao.motorista_id == user_id)
+            .where(models.Devolucao.data_romaneio >= since)
+        ).all()
+
+        devolucao_route_ids = {int(d.route_id) for d in devolucao_rows if d.route_id}
+        linked_route_map: Dict[int, Any] = {}
+        if devolucao_route_ids:
+            linked_routes = session.exec(
+                select(models.Route).where(models.Route.id.in_(devolucao_route_ids))
+            ).all()
+            linked_route_map = {int(r.id): r for r in linked_routes if r and r.id}
+
+        for r in route_returns:
+            if r.id and int(r.id) in devolucao_route_ids:
+                continue
+            combined.append({
+                "date": r.date or "",
+                "client_id": r.client_id,
+                "value": float(r.valor_devolucao or 0.0),
+                "volume": float(r.devolucao_volume or 0.0),
+            })
+
+        for d in devolucao_rows:
+            linked = linked_route_map.get(int(d.route_id)) if d.route_id else None
+            combined.append({
+                "date": d.data_romaneio or d.data_entrega or "",
+                "client_id": d.client_id,
+                "value": float(d.valor or 0.0),
+                "volume": float((linked.tonnage if linked else 0.0) or 0.0),
+            })
+
+        total_value = sum(float(x.get("value") or 0.0) for x in combined)
+
+        total_entregas = session.exec(
+            select(models.Route)
+            .where(models.Route.employee_id == user_id)
+            .where(models.Route.type == "delivery")
+            .where(models.Route.date >= since)
+        ).all()
+        total_entregas_value = sum(float(r.valor_financeiro or 0) for r in total_entregas)
+        percent_valor = (total_value / total_entregas_value * 100) if total_entregas_value else 0.0
+
+        by_date: Dict[str, float] = {}
+        for item in combined:
+            d = item.get("date") or ""
+            if d not in by_date:
+                by_date[d] = 0.0
+            by_date[d] += float(item.get("value") or 0.0)
+        sorted_dates = sorted(by_date.keys(), reverse=True)[:14]
+        chart_labels = [d[-5:] if len(d) >= 5 else d for d in sorted_dates]
+        chart_values = [by_date[d] for d in sorted_dates]
+
+        client_ids = list({x.get("client_id") for x in combined if x.get("client_id")})
+        clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
+        client_map = {c.id: c for c in clients}
+        for item in combined:
+            c = client_map.get(item.get("client_id"))
+            name = (c.razao_social or c.name or "Cliente") if c else "Cliente"
+            val = float(item.get("value") or 0.0)
+            vol = float(item.get("volume") or 0.0)
+            existing = next((x for x in top_clients if x.get("name") == name), None)
+            if existing:
+                existing["value"] = existing.get("value", 0) + val
+                existing["volume"] = existing.get("volume", 0) + vol
+                existing["count"] = existing.get("count", 0) + 1
+            else:
+                top_clients.append({"name": name, "value": val, "volume": vol, "count": 1})
+        top_clients.sort(key=lambda x: x.get("value", 0), reverse=True)
+    except Exception as e:
+        logger.exception(f"Error computing returns metrics: {e}")
+
+    return {
+        "total_value": float(total_value or 0.0),
+        "percent_valor": float(percent_valor or 0.0),
+        "chart_labels": chart_labels,
+        "chart_values": chart_values,
+        "top_clients": top_clients,
+        "total_entregas_value": float(total_entregas_value or 0.0),
+        "_debug": {
+            "days": int(days or 30),
+            "since": since,
+            "route_returns_count": len(route_returns),
+            "devolucao_rows_count": len(devolucao_rows),
+            "dedup_linked_route_ids": len(devolucao_route_ids),
+            "combined_count": len(combined),
+        },
+    }
+
+
+def _build_returns_alert_payload(
+    metrics: Dict[str, Any],
+    target_percent: float = 2.0,
+    days_window: int = 30,
+) -> Dict[str, Any]:
+    actual_percent = round(float(metrics.get("percent_valor") or 0.0), 2)
+    target_percent = round(float(target_percent or 2.0), 2)
+    gap_pp = round(actual_percent - target_percent, 2)
+    now_sp = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    version = f"returns_alert_{now_sp.strftime('%Y_%m')}"
+    return {
+        "enabled": True,
+        "year_label": f"Ultimos {int(days_window)} dias",
+        "actual_percent": actual_percent,
+        "target_percent": target_percent,
+        "gap_percent_points": gap_pp,
+        "is_above_target": gap_pp > 0,
+        "severity": "high" if actual_percent > 2.20 else ("medium" if actual_percent > 2.00 else "ok"),
+        "version": version,
+        "title": "Alerta de Devolucoes",
+        "message": (
+            f"Estamos em {actual_percent:.2f}% de devolucoes, meta {target_percent:.2f}%. "
+            f"Ajustar conferencia, acondicionamento e validacao da entrega."
+        ),
+    }
+
+
 @app.get("/mobile/dashboard", response_class=HTMLResponse)
 async def mobile_dashboard(
     request: Request,
@@ -2624,21 +2772,8 @@ async def mobile_dashboard(
     }
 
     has_delivery_module = bool(getattr(employee, "mobile_access_separation", False)) or bool(getattr(employee, "mobile_access_admin_start", False))
-    returns_actual_percent = 2.34
-    returns_target_percent = 2.00
-    returns_gap_pp = round(returns_actual_percent - returns_target_percent, 2)
-    returns_alert = {
-        "enabled": True,
-        "year_label": "2025",
-        "actual_percent": returns_actual_percent,
-        "target_percent": returns_target_percent,
-        "gap_percent_points": returns_gap_pp,
-        "is_above_target": returns_gap_pp > 0,
-        "severity": "high" if returns_actual_percent > 2.20 else ("medium" if returns_actual_percent > 2.00 else "ok"),
-        "version": "returns_alert_2026_03",
-        "title": "Alerta de Devolucoes",
-        "message": "Fechamos 2025 em 2,34%. Meta 2,00%. Precisamos reduzir 0,34 p.p. com foco em conferencia, acondicionamento e validacao da entrega.",
-    }
+    returns_metrics = _compute_employee_returns_metrics(session=session, user_id=int(employee.id), days=30)
+    returns_alert = _build_returns_alert_payload(returns_metrics, target_percent=2.0, days_window=30)
     return templates.TemplateResponse(
         "mobile/dashboard.html",
         {
@@ -2683,19 +2818,8 @@ async def mobile_delivery_page(request: Request, session: Session = Depends(get_
         [{"id": e.id, "name": e.name} for e in employees],
         ensure_ascii=False
     )
-    returns_actual_percent = 2.34
-    returns_target_percent = 2.00
-    returns_gap_pp = round(returns_actual_percent - returns_target_percent, 2)
-    returns_alert = {
-        "enabled": True,
-        "year_label": "2025",
-        "actual_percent": returns_actual_percent,
-        "target_percent": returns_target_percent,
-        "gap_percent_points": returns_gap_pp,
-        "is_above_target": returns_gap_pp > 0,
-        "severity": "high" if returns_actual_percent > 2.20 else ("medium" if returns_actual_percent > 2.00 else "ok"),
-        "version": "returns_alert_2026_03",
-    }
+    returns_metrics = _compute_employee_returns_metrics(session=session, user_id=int(employee.id), days=30)
+    returns_alert = _build_returns_alert_payload(returns_metrics, target_percent=2.0, days_window=30)
     return templates.TemplateResponse(
         "mobile/delivery.html",
         {
@@ -2777,118 +2901,8 @@ async def mobile_api_returns_data(
     user_id = request.session.get("user_id")
     if not user_id:
         return JSONResponse({"error": "Não autorizado"}, status_code=401)
-    total_value = 0.0
-    percent_valor = 0.0
-    chart_labels = []
-    chart_values = []
-    top_clients = []
-    total_entregas_value = 0.0
-    try:
-        window_days = max(1, min(365, days))
-        since = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=window_days)).strftime("%Y-%m-%d")
-
-        route_returns = session.exec(
-            select(models.Route)
-            .where(models.Route.employee_id == user_id)
-            .where(models.Route.type == "delivery")
-            .where(models.Route.delivery_status == "devolucao")
-            .where(models.Route.date >= since)
-        ).all()
-
-        devolucao_rows = session.exec(
-            select(models.Devolucao)
-            .where(models.Devolucao.motorista_id == user_id)
-            .where(models.Devolucao.data_romaneio >= since)
-        ).all()
-
-        devolucao_route_ids = {int(d.route_id) for d in devolucao_rows if d.route_id}
-        linked_route_map = {}
-        if devolucao_route_ids:
-            linked_routes = session.exec(
-                select(models.Route).where(models.Route.id.in_(devolucao_route_ids))
-            ).all()
-            linked_route_map = {int(r.id): r for r in linked_routes if r and r.id}
-
-        combined = []
-        for r in route_returns:
-            if r.id and int(r.id) in devolucao_route_ids:
-                continue
-            combined.append({
-                "date": r.date or "",
-                "client_id": r.client_id,
-                "value": float(r.valor_devolucao or 0.0),
-                "volume": float(r.devolucao_volume or 0.0),
-            })
-
-        for d in devolucao_rows:
-            linked = linked_route_map.get(int(d.route_id)) if d.route_id else None
-            combined.append({
-                "date": d.data_romaneio or d.data_entrega or "",
-                "client_id": d.client_id,
-                "value": float(d.valor or 0.0),
-                "volume": float((linked.tonnage if linked else 0.0) or 0.0),
-            })
-
-        total_value = sum(float(x.get("value") or 0.0) for x in combined)
-
-        total_entregas = session.exec(
-            select(models.Route)
-            .where(models.Route.employee_id == user_id)
-            .where(models.Route.type == "delivery")
-            .where(models.Route.date >= since)
-        ).all()
-        total_entregas_value = sum(float(r.valor_financeiro or 0) for r in total_entregas)
-        percent_valor = (total_value / total_entregas_value * 100) if total_entregas_value else 0.0
-        by_date = {}
-        for item in combined:
-            d = item.get("date") or ""
-            if d not in by_date:
-                by_date[d] = 0.0
-            by_date[d] += float(item.get("value") or 0.0)
-        sorted_dates = sorted(by_date.keys(), reverse=True)[:14]
-        chart_labels = [d[-5:] if len(d) >= 5 else d for d in sorted_dates]
-        chart_values = [by_date[d] for d in sorted_dates]
-        client_ids = list({x.get("client_id") for x in combined if x.get("client_id")})
-        clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
-        client_map = {c.id: c for c in clients}
-        top_clients = []
-        for item in combined:
-            c = client_map.get(item.get("client_id"))
-            name = (c.razao_social or c.name or "Cliente") if c else "Cliente"
-            val = float(item.get("value") or 0.0)
-            vol = float(item.get("volume") or 0.0)
-            existing = next((x for x in top_clients if x.get("name") == name), None)
-            if existing:
-                existing["value"] = existing.get("value", 0) + val
-                existing["volume"] = existing.get("volume", 0) + vol
-                existing["count"] = existing.get("count", 0) + 1
-            else:
-                top_clients.append({"name": name, "value": val, "volume": vol, "count": 1})
-        top_clients.sort(key=lambda x: x.get("value", 0), reverse=True)
-    except Exception as e:
-        logger.exception(f"Error building returns-data: {e}")
-        total_value = 0.0
-        percent_valor = 0.0
-        chart_labels = []
-        chart_values = []
-        top_clients = []
-        total_entregas_value = 0.0
-    return JSONResponse({
-        "total_value": total_value,
-        "percent_valor": percent_valor,
-        "chart_labels": chart_labels,
-        "chart_values": chart_values,
-        "top_clients": top_clients,
-        "total_entregas_value": total_entregas_value,
-        "_debug": {
-            "days": int(days),
-            "since": since if "since" in locals() else None,
-            "route_returns_count": len(route_returns) if "route_returns" in locals() else 0,
-            "devolucao_rows_count": len(devolucao_rows) if "devolucao_rows" in locals() else 0,
-            "dedup_linked_route_ids": len(devolucao_route_ids) if "devolucao_route_ids" in locals() else 0,
-            "combined_count": len(combined) if "combined" in locals() else 0,
-        },
-    })
+    metrics = _compute_employee_returns_metrics(session=session, user_id=int(user_id), days=days)
+    return JSONResponse(metrics)
 
 
 app.include_router(init_devolucoes_router(templates=templates, require_login=require_login, logger=logger))
