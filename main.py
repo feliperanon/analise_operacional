@@ -36,6 +36,8 @@ from devolucoes_routes import init_devolucoes_router
 from devolucoes_service import sync_route_to_devolucao
 from game_achievements_routes import init_game_achievements_router
 from game_audit_routes import init_game_audit_router, parse_reason
+from routers.admin_geocoding import init_admin_geocoding_router
+from services.geocoding_service import geocoding_service
 from client_import_utils import normalize_address, normalize_phone_br, normalize_key, find_col_map as find_client_col_map
 import logging
 import pydantic
@@ -2858,6 +2860,7 @@ async def mobile_api_returns_data(
 app.include_router(init_devolucoes_router(templates=templates, require_login=require_login, logger=logger))
 app.include_router(init_game_achievements_router(templates=templates, require_leader=require_leader, require_login=require_login, logger=logger))
 app.include_router(init_game_audit_router(require_login=require_login, require_leader=require_leader))
+app.include_router(init_admin_geocoding_router(require_leader=require_leader))
 
 
 # --- Admin Tools ---
@@ -3520,6 +3523,14 @@ def ensure_client_schema():
             "lgpd_nao_contatar": "BOOLEAN DEFAULT FALSE",
             "lgpd_restricao_dados": "BOOLEAN DEFAULT FALSE",
             "updated_at": "TIMESTAMP",
+            # Geolocalização
+            "latitude": "REAL",
+            "longitude": "REAL",
+            "geocoding_status": "VARCHAR(16) DEFAULT 'pending'",
+            "geocoded_at": "TIMESTAMP",
+            "geocoding_source": "VARCHAR(64)",
+            "geocoding_error": "TEXT",
+            "address_normalized": "VARCHAR(500)",
         }
         with engine.connect() as conn:
             for col_name, col_type in missing.items():
@@ -3759,6 +3770,11 @@ async def api_mobile_delivery_my_routes(
                 "vehicle_plate": r.delivery_vehicle_plate or "",
                 "order_number": r.delivery_order_number or "",
                 "client_code": r.delivery_client_code or "",
+                # Coordenadas para ordenação por proximidade
+                "latitude": getattr(c, "latitude", None) if c else None,
+                "longitude": getattr(c, "longitude", None) if c else None,
+                "tem_coordenadas": bool(c and c.has_valid_coordinates()) if c else False,
+                "endereco_completo": c.get_full_address() if c else "",
             }
             payload.append(item)
             grouped.setdefault(r.date, []).append(item)
@@ -6771,6 +6787,33 @@ def _opt_form(v) -> Optional[str]:
     return str(v).strip() or None
 
 
+def _try_geocode_client(client: models.Client, session: Session) -> None:
+    """Tenta geocodificar um cliente de forma segura (nunca lança exceção).
+
+    Atualiza o cliente no banco com as coordenadas ou status de erro.
+    """
+    try:
+        result = geocoding_service.geocode_cliente(client)
+        now = datetime.now()
+        if result.success:
+            client.latitude = result.latitude
+            client.longitude = result.longitude
+            client.geocoding_status = "success"
+            client.geocoded_at = now
+            client.geocoding_source = result.source
+            client.geocoding_error = None
+            if result.display_name:
+                client.address_normalized = result.display_name[:500]
+        else:
+            client.geocoding_status = "failed"
+            client.geocoded_at = now
+            client.geocoding_error = (result.error or "Erro desconhecido")[:500]
+        session.add(client)
+        session.commit()
+    except Exception as geo_err:
+        logger.warning("Geocodificação falhou para cliente %s: %s", client.id, geo_err)
+
+
 @app.post("/clients/add", response_class=RedirectResponse)
 async def add_client(
     request: Request,
@@ -6819,6 +6862,9 @@ async def add_client(
             )
             session.add(new_client)
             session.commit()
+            session.refresh(new_client)
+            # Tenta geocodificar em background (não bloqueia criação)
+            _try_geocode_client(new_client, session)
     except Exception as e:
         logger.exception(f"Error adding client: {e}")
     return RedirectResponse(url="/clients", status_code=status.HTTP_303_SEE_OTHER)
@@ -7138,6 +7184,8 @@ async def update_client(
         old_name, old_nb, old_setor, old_razao, old_status_op = (
             client.name, client.nb, client.setor, client.razao_social, client.status_operacional
         )
+        # Captura endereço antigo para verificar se mudou
+        old_address_key = (client.endereco or "", client.logradouro or "", client.numero or "", client.municipio or "")
         fone_val = _opt_form(fone)
         fone_e164_val, _ = normalize_phone_br(fone_val)
         endereco_val = _opt_form(endereco)
@@ -7200,6 +7248,13 @@ async def update_client(
                 session.add(log_entry)
         session.add(client)
         session.commit()
+        # Regeocodifica se o endereço mudou
+        new_address_key = (client.endereco or "", client.logradouro or "", client.numero or "", client.municipio or "")
+        if old_address_key != new_address_key:
+            client.geocoding_status = "pending"
+            session.add(client)
+            session.commit()
+            _try_geocode_client(client, session)
     return RedirectResponse(url=f"/clients/{client_id}", status_code=status.HTTP_303_SEE_OTHER)
 
 @app.post("/clients/{client_id}/delete", response_class=RedirectResponse)

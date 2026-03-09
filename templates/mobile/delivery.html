@@ -20,6 +20,40 @@
                 <i data-lucide="refresh-cw" class="w-5 h-5"></i>
             </button>
         </div>
+        <!-- Status do GPS -->
+        <div class="mt-2 flex items-center justify-center gap-2 text-caption" x-show="deliverySessionOpen" x-cloak>
+            <template x-if="locationPermission === 'granted'">
+                <span class="flex items-center gap-1 px-2 py-1 rounded-full" style="background: rgba(16,185,129,0.2); color: #10b981;">
+                    <i data-lucide="navigation" class="w-3 h-3"></i>
+                    <span>GPS ativo</span>
+                    <span x-show="lastGpsUpdate" x-text="'· ' + formatTimeAgo(lastGpsUpdate)" style="opacity:0.7;"></span>
+                </span>
+            </template>
+            <template x-if="locationPermission === 'denied'">
+                <span class="flex items-center gap-1 px-2 py-1 rounded-full" style="background: rgba(239,68,68,0.15); color: #ef4444;">
+                    <i data-lucide="navigation-off" class="w-3 h-3"></i>
+                    <span>GPS negado — ordem padrão</span>
+                </span>
+            </template>
+            <template x-if="locationPermission === 'unavailable'">
+                <span class="flex items-center gap-1 px-2 py-1 rounded-full" style="background: rgba(245,158,11,0.15); color: #f59e0b;">
+                    <i data-lucide="wifi-off" class="w-3 h-3"></i>
+                    <span>GPS indisponível</span>
+                </span>
+            </template>
+            <template x-if="!locationPermission && !locationLoading">
+                <button @click="iniciarMonitoramentoGPS()" class="flex items-center gap-1 px-2 py-1 rounded-full interactive" style="background: rgba(59,130,246,0.2); color: #3b82f6;">
+                    <i data-lucide="locate" class="w-3 h-3"></i>
+                    <span>Ativar GPS</span>
+                </button>
+            </template>
+            <template x-if="locationLoading">
+                <span class="flex items-center gap-1 px-2 py-1 rounded-full" style="background: rgba(99,102,241,0.15); color: #6366f1;">
+                    <i data-lucide="loader" class="w-3 h-3 animate-spin"></i>
+                    <span>Obtendo localização...</span>
+                </span>
+            </template>
+        </div>
     </header>
 
     <!-- BLOCO A: Resumo da Rota (cockpit header) -->
@@ -143,10 +177,16 @@
     <div class="container-mobile mt-4" x-show="deliverySessionOpen && nextDeliveryRoutes.length > 0" x-cloak>
         <div class="flex items-center justify-between mb-2">
             <h2 class="text-section font-bold" style="color: var(--color-text);">Próximas Entregas</h2>
-            <span class="text-caption px-2 py-1 rounded" style="background: var(--color-border-light); color: var(--color-text-secondary);" x-text="nextDeliveryRoutes.length + ' paradas'"></span>
+            <div class="flex items-center gap-2">
+                <span x-show="locationPermission === 'granted'" class="flex items-center gap-1 text-caption px-2 py-0.5 rounded-full" style="background: rgba(6,182,212,0.15); color: #06b6d4;">
+                    <i data-lucide="sort-asc" class="w-3 h-3"></i>
+                    Ordenado por proximidade
+                </span>
+                <span class="text-caption px-2 py-1 rounded" style="background: var(--color-border-light); color: var(--color-text-secondary);" x-text="nextDeliveryRoutes.length + ' paradas'"></span>
+            </div>
         </div>
         <div class="space-y-2">
-            <template x-for="route in nextDeliveryRoutes" :key="`route-${route.id}`">
+            <template x-for="(route, idx) in nextDeliveryRoutes" :key="`route-${route.id}`">
                 <div class="surface-shadow p-3 rounded-lg" :class="routeStatusCardClass(route)">
                     <div class="flex items-start justify-between gap-2 mb-1">
                         <div class="flex-1 min-w-0">
@@ -162,6 +202,21 @@
                         <span class="chip" x-text="`${formatNumberBR(route.weight)} Kg`"></span>
                         <span class="chip" x-text="formatCurrencyBR(route.value)"></span>
                         <span class="chip" x-text="statusLabel(routeStatus(route))"></span>
+                        <!-- Badge de distância -->
+                        <template x-if="route.distancia_metros !== null && route.distancia_metros !== undefined && locationPermission === 'granted'">
+                            <span class="chip" :style="idx === 0 ? 'background: rgba(6,182,212,0.2); color: #06b6d4; font-weight: 700;' : 'background: var(--color-border-light); color: var(--color-text-secondary);'">
+                                <span x-show="idx === 0" style="margin-right:2px;">📍</span>
+                                <span x-text="formatarDistancia(route.distancia_metros)"></span>
+                            </span>
+                        </template>
+                        <!-- Badge "Mais próximo" no primeiro card -->
+                        <template x-if="idx === 0 && route.tem_coordenadas && locationPermission === 'granted'">
+                            <span class="chip" style="background: rgba(6,182,212,0.15); color: #06b6d4; font-weight: 700;">Mais próximo</span>
+                        </template>
+                        <!-- Badge "Sem GPS" para clientes sem coordenadas -->
+                        <template x-if="!route.tem_coordenadas">
+                            <span class="chip" style="background: rgba(107,114,128,0.15); color: #9ca3af;">Sem GPS</span>
+                        </template>
                     </div>
                     <button @click="deliveryAction(route,'iniciar')"
                         class="btn-delivery min-h-[56px] w-full flex items-center justify-center gap-1.5 interactive"
@@ -373,6 +428,17 @@
             completedAccordionOpen: false,
             deliveredAccordionOpen: false,
             returnedAccordionOpen: false,
+            // GPS e ordenação por proximidade
+            currentLatitude: null,
+            currentLongitude: null,
+            locationPermission: null,  // null | 'granted' | 'denied' | 'unavailable'
+            locationLoading: false,
+            locationError: null,
+            lastGpsUpdate: null,
+            _prevLatForReorder: null,
+            _prevLonForReorder: null,
+            _gpsWatchId: null,
+            minDistanceToReorder: 100,  // metros
 
             get helperOptions() { return (this.employees || []).filter(e => e.id !== {{ employee.id }}); },
             get filteredDeliveryRoutes() {
@@ -396,7 +462,29 @@
                 });
             },
             get inProgressRoute() { return this.orderedDeliveryRoutes.find(r => this.routeStatus(r) === 'iniciada') || null; },
-            get nextDeliveryRoutes() { return this.orderedDeliveryRoutes.filter(r => ['pendente', 'reaberta'].includes(this.routeStatus(r))); },
+            get nextDeliveryRoutes() {
+                const pending = this.orderedDeliveryRoutes.filter(r => ['pendente', 'reaberta'].includes(this.routeStatus(r)));
+                // Adiciona distância a cada rota
+                const withDist = pending.map(r => ({
+                    ...r,
+                    distancia_metros: (
+                        this.currentLatitude !== null && this.currentLongitude !== null && r.tem_coordenadas
+                        ? this.calcularDistancia(this.currentLatitude, this.currentLongitude, r.latitude, r.longitude)
+                        : null
+                    ),
+                }));
+                // Se GPS ativo: clientes com coordenadas primeiro (por distância), sem coordenadas no final
+                if (this.currentLatitude !== null && this.currentLongitude !== null) {
+                    const comCoord = withDist.filter(r => r.tem_coordenadas).sort((a, b) => {
+                        const da = a.distancia_metros !== null && a.distancia_metros !== undefined ? a.distancia_metros : Infinity;
+                        const db = b.distancia_metros !== null && b.distancia_metros !== undefined ? b.distancia_metros : Infinity;
+                        return da - db;
+                    });
+                    const semCoord = withDist.filter(r => !r.tem_coordenadas);
+                    return [...comCoord, ...semCoord];
+                }
+                return withDist;
+            },
             get deliveredRoutes() { return this.orderedDeliveryRoutes.filter(r => this.routeStatus(r) === 'entregue'); },
             get returnedRoutes() { return this.orderedDeliveryRoutes.filter(r => this.routeStatus(r) === 'devolucao'); },
             get activeDeliveryRoutes() { return this.orderedDeliveryRoutes.filter(r => !['entregue', 'devolucao'].includes(this.routeStatus(r))); },
@@ -446,7 +534,91 @@
                 }, 1000);
                 window.addEventListener('beforeunload', () => {
                     if (this.timerInterval) clearInterval(this.timerInterval);
+                    if (this._gpsWatchId !== null) navigator.geolocation.clearWatch(this._gpsWatchId);
                 }, { once: true });
+                // Inicia GPS automaticamente ao abrir a tela de entregas
+                this.$watch('deliverySessionOpen', (val) => { if (val) this.iniciarMonitoramentoGPS(); });
+                if (this.deliverySessionOpen) this.iniciarMonitoramentoGPS();
+            },
+            iniciarMonitoramentoGPS() {
+                if (!('geolocation' in navigator)) {
+                    this.locationPermission = 'unavailable';
+                    return;
+                }
+                if (this.locationLoading || this.locationPermission === 'granted') return;
+                this.locationLoading = true;
+                this.locationError = null;
+                const options = { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 };
+                // Obtém posição inicial
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => { this.onPosicaoAtualizada(pos); this.locationLoading = false; },
+                    (err) => { this.onErroGPS(err); this.locationLoading = false; },
+                    options
+                );
+                // Monitora posição contínua
+                if (this._gpsWatchId === null) {
+                    this._gpsWatchId = navigator.geolocation.watchPosition(
+                        (pos) => this.onPosicaoAtualizada(pos),
+                        (err) => this.onErroGPS(err),
+                        { enableHighAccuracy: true, timeout: 30000, maximumAge: 60000 }
+                    );
+                }
+            },
+            onPosicaoAtualizada(position) {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                this.locationPermission = 'granted';
+                this.locationError = null;
+                this.lastGpsUpdate = new Date();
+                if (this.deveReordenar(lat, lon)) {
+                    this._prevLatForReorder = lat;
+                    this._prevLonForReorder = lon;
+                }
+                this.currentLatitude = lat;
+                this.currentLongitude = lon;
+            },
+            onErroGPS(error) {
+                const PERMISSION_DENIED = 1;
+                const POSITION_UNAVAILABLE = 2;
+                if (error.code === PERMISSION_DENIED) {
+                    this.locationPermission = 'denied';
+                    this.locationError = 'Permissão de localização negada';
+                } else if (error.code === POSITION_UNAVAILABLE) {
+                    this.locationPermission = 'unavailable';
+                    this.locationError = 'Localização indisponível';
+                } else {
+                    this.locationPermission = 'unavailable';
+                    this.locationError = 'Erro ao obter localização';
+                }
+            },
+            deveReordenar(novaLat, novaLon) {
+                if (this._prevLatForReorder === null || this._prevLonForReorder === null) return true;
+                const dist = this.calcularDistancia(this._prevLatForReorder, this._prevLonForReorder, novaLat, novaLon);
+                return dist >= this.minDistanceToReorder;
+            },
+            calcularDistancia(lat1, lon1, lat2, lon2) {
+                // Fórmula Haversine
+                const R = 6371000;
+                const phi1 = lat1 * Math.PI / 180;
+                const phi2 = lat2 * Math.PI / 180;
+                const dphi = (lat2 - lat1) * Math.PI / 180;
+                const dlambda = (lon2 - lon1) * Math.PI / 180;
+                const a = Math.sin(dphi / 2) ** 2 + Math.cos(phi1) * Math.cos(phi2) * Math.sin(dlambda / 2) ** 2;
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                return R * c;
+            },
+            formatarDistancia(metros) {
+                if (metros === null || metros === undefined) return '';
+                if (metros < 1000) return `${Math.round(metros)}m`;
+                const km = metros / 1000;
+                return km < 10 ? `${km.toFixed(1)}km` : `${Math.round(km)}km`;
+            },
+            formatTimeAgo(date) {
+                if (!date) return '';
+                const diff = Math.floor((new Date() - new Date(date)) / 1000);
+                if (diff < 60) return `${diff}s atrás`;
+                if (diff < 3600) return `${Math.floor(diff / 60)}min atrás`;
+                return `${Math.floor(diff / 3600)}h atrás`;
             },
             haptic(type) { if ('vibrate' in navigator) { const p = { success: [10,50,30], light: [10] }; navigator.vibrate(p[type] || p.light); } },
             routeStatus(route) { return ((route && route.status) || 'pendente').toString().toLowerCase().trim(); },
