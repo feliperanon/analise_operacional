@@ -1161,7 +1161,7 @@ def send_maintenance_email(report: dict, recipients: Optional[List[str]] = None)
         return _safe_text(value, 'Sistema')
 
     msg = EmailMessage()
-    msg['Subject'] = _safe_text(report.get('subject'), 'NOTIFICAÃ‡ÃÆâ€™O DE MANUTENÃ‡ÃÆâ€™O')
+    msg['Subject'] = _safe_text(report.get('subject'), 'NOTIFICAÇÃO DE MANUTENÇÃO')
     msg['From'] = MAINTENANCE_EMAIL_FROM_FIXED
     msg['To'] = ', '.join(recipient_list)
 
@@ -1196,7 +1196,7 @@ def send_maintenance_email(report: dict, recipients: Optional[List[str]] = None)
     now_str = datetime.now(ZoneInfo('America/Sao_Paulo')).strftime('%d/%m/%Y às %H:%M')
 
     body_text = f"""
-NOTIFICAÃ‡ÃÆâ€™O DE MANUTENÃ‡ÃÆâ€™O
+NOTIFICAÇÃO DE MANUTENÇÃO
 Solicitação de manutenção registrada no sistema
 
 Prezados,
@@ -1227,7 +1227,7 @@ Data/Hora do registro: {now_str}
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background: #0f766e; color: white; padding: 15px 20px; border-radius: 8px 8px 0 0;">
-                <h2 style="margin: 0; font-size: 18px;">NOTIFICAÃ‡ÃÆâ€™O DE MANUTENÃ‡ÃÆâ€™O</h2>
+                <h2 style="margin: 0; font-size: 18px;">NOTIFICAÇÃO DE MANUTENÇÃO</h2>
                 <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Solicitação de manutenção registrada no sistema</p>
             </div>
             <div style="background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none;">
@@ -5220,7 +5220,7 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
             if d_str not in absence_map:
                 # E não tiver checklist feito...
                 if d_str not in done_dates:
-                    # ENTÃÆâ€™O é pendente
+                    # ENTÃO é pendente
                     missing_days.append({
                         "date": current_d.strftime("%d/%m"),
                         "full_date": d_str,
@@ -7071,13 +7071,13 @@ async def api_create_ticket(
         
         # Mencionar chamado existente se houver
         if existing_ticket:
-            email_body_lines.insert(1, f"\n⚠️ ATENÃ‡ÃÆâ€™O: Já existe um chamado ABERTO hoje para este equipamento (Chamado #{existing_ticket.id}).")
+            email_body_lines.insert(1, f"\n⚠️ ATENÇÃO: Já existe um chamado ABERTO hoje para este equipamento (Chamado #{existing_ticket.id}).")
             email_body_lines.insert(2, f"Este é um chamado adicional registrado no mesmo dia.\n")
         
         email_body_lines.append("\nVerifique o anexo PDF para mais detalhes e imagens.")
         
         email_report = {
-            "subject": f"ALERTA MANUTENÃ‡ÃÆâ€™O — {now_br.strftime('%Y-%m-%d')} — Equipamento {equipment_code}",
+            "subject": f"ALERTA MANUTENÇÃO — {now_br.strftime('%Y-%m-%d')} — Equipamento {equipment_code}",
             "body": "\n".join(email_body_lines),
             "pdf_bytes": pdf_bytes,
             "pdf_filename": f"chamado_{ticket.id}_{equipment_code}.pdf"
@@ -7102,7 +7102,7 @@ async def api_create_ticket(
 async def admin_email_test(request: Request, session: Session = Depends(get_session), user=Depends(require_leader)):
     now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
     report = {
-        "subject": f"ALERTA MANUTENÃ‡ÃÆâ€™O — {now_br.strftime('%Y-%m-%d')} — Equipamento TESTE",
+        "subject": f"ALERTA MANUTENÇÃO — {now_br.strftime('%Y-%m-%d')} — Equipamento TESTE",
         "body": "Teste de envio SMTP do sistema de checklists.",
         "pdf_bytes": None
     }
@@ -8795,7 +8795,7 @@ def _validate_delivery_assignment(
         if _norm_plate(r.delivery_vehicle_plate) == plate_norm and r.employee_id:
             plate_drivers.add(r.employee_id)
     
-    logger.info(f"ðŸâ€˜Â¥ Motoristas já vinculados ao caminhão {plate_norm}: {plate_drivers}")
+    logger.info(f"[*] Motoristas já vinculados ao caminhão {plate_norm}: {plate_drivers}")
     
     if plate_drivers and (len(plate_drivers) > 1 or employee_id not in plate_drivers):
         error_msg = "Caminhão já vinculado a outro motorista no dia."
@@ -8976,7 +8976,7 @@ def _find_employee_by_driver_name(name: str, employees: List[models.Employee]) -
         logger.debug("debug log")
         return best_emp
     
-    logger.warning(f"âÅ' Motorista NÃÆâ€™O encontrado: '{name}' (melhor match: {best_emp.name if best_emp else 'nenhum'}, score: {best_score:.0%})")
+    logger.warning(f"âÅ' Motorista NÃO encontrado: '{name}' (melhor match: {best_emp.name if best_emp else 'nenhum'}, score: {best_score:.0%})")
     return None
 
 
@@ -9664,11 +9664,11 @@ async def import_entregas_separacao(
     try:
         import pandas as pd
         content = await file.read()
-        logger.info(f"ðŸâ€œâ€ž Arquivo lido: {len(content)} bytes")
+        logger.info(f"[>] Arquivo lido: {len(content)} bytes")
         
         df = _load_clients_dataframe(content, file.filename)
-        logger.info(f"ðŸâ€œŠ DataFrame carregado: {len(df)} linhas, {len(df.columns)} colunas")
-        logger.info(f"ðŸâ€œâ€¹ Colunas encontradas: {list(df.columns)}")
+        logger.info(f"[>] DataFrame carregado: {len(df)} linhas, {len(df.columns)} colunas")
+        logger.info(f"[>] Colunas encontradas: {list(df.columns)}")
         
         col_map = _delivery_col_map(list(df.columns))
         logger.info("info log")
@@ -9695,7 +9695,7 @@ async def import_entregas_separacao(
             for emp in employees
             if "motorista" in (emp.role or "").lower()
         ]
-        logger.info(f"ðŸâ€˜Â¥ Total de funcionários ativos: {len(employees)}")
+        logger.info(f"[*] Total de funcionários ativos: {len(employees)}")
         logger.info("info log")
 
         parsed_rows = []
@@ -9729,7 +9729,7 @@ async def import_entregas_separacao(
 
             emp = _find_employee_by_driver_name(driver_name_raw, employees)
             if not emp:
-                # Buscar motoristas disponíveis para sugerir
+                # Buscar motoristas disponível para sugerir
                 motoristas_cadastrados = [e.name for e in employees if "motorista" in (e.role or "").lower()][:5]
                 sugestao = f" Motoristas cadastrados: {', '.join(motoristas_cadastrados)}" if motoristas_cadastrados else ""
                 import_result["issues"].append({
@@ -10248,7 +10248,7 @@ async def reassign_delivery_group(
         feedback_encoded = urlencode({"delivery_feedback": "Nenhuma entrega encontrada para o motorista.", "delivery_feedback_level": "error"})
         return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
 
-    logger.info(f"ðŸâ€œ¦ Encontradas {len(rows)} entregas para transferir")
+    logger.info(f"[>] Encontradas {len(rows)} entregas para transferir")
 
     err = _validate_delivery_assignment(
         session=session,
@@ -10913,14 +10913,14 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
         if kgh_change > 10:
             alerts.append({
                 "type": "success",
-                "icon": "ðŸâ€œË†",
+                "icon": "[i]",
                 "message": f"Produtividade {kgh_change:.0f}% acima do dia anterior",
                 "severity": "low"
             })
         elif kgh_change < -10:
             alerts.append({
                 "type": "warning",
-                "icon": "ðŸâ€œâ€°",
+                "icon": "[>]",
                 "message": f"Produtividade {abs(kgh_change):.0f}% abaixo do dia anterior",
                 "severity": "medium"
             })
@@ -10930,7 +10930,7 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
         if elite_count > 0:
             alerts.append({
                 "type": "success",
-                "icon": "ðŸšâ'¬",
+                "icon": "[!]",
                 "message": f"{elite_count} colaborador{'es' if elite_count > 1 else ''} com performance Elite (>300 Kg/h)",
                 "severity": "low"
             })
@@ -14231,20 +14231,20 @@ ANÁLISE POR BADGE:
 TOP 10 COLABORADORES:
 {top10_data}
 
-COLABORADORES QUE PRECISAM DE ATENÃ‡ÃÆâ€™O:
+COLABORADORES QUE PRECISAM DE ATENÇÃO:
 {atencao_data}
 
 Gere um relatório detalhado em português brasileiro com seções:
-1. VISÃÆâ€™O GERAL DO PERÍODO
+1. VISÃO GERAL DO PERÍODO
 2. ANÁLISE DE PRODUTIVIDADE
 3. ANÁLISE DE DISCIPLINA E PRESENÇA
 4. DESTAQUES POSITIVOS
-5. PONTOS DE ATENÃ‡ÃÆâ€™O
+5. PONTOS DE ATENÇÃO
 6. RECOMENDAÇÕES
 
 Use formatação clara com títulos em MAIÚSCULAS e bullet points (•).""",
 
-            "recommendations": f"""Você é um consultor de gestão de pessoas gerando RECOMENDAÇÕES DE AÃ‡ÃÆâ€™O.
+            "recommendations": f"""Você é um consultor de gestão de pessoas gerando RECOMENDAÇÕES DE AÇÃO.
 
 CONTEXTO:
 - Período: {period}
@@ -14255,10 +14255,10 @@ CONTEXTO:
 COLABORADORES REFERÊNCIA (para reconhecer):
 {referencia_data}
 
-COLABORADORES EM EVOLUÃ‡ÃÆâ€™O (para acompanhar):
+COLABORADORES EM EVOLUÇÃO (para acompanhar):
 {evolucao_data}
 
-COLABORADORES QUE PRECISAM DE ATENÃ‡ÃÆâ€™O (ação urgente):
+COLABORADORES QUE PRECISAM DE ATENÇÃO (ação urgente):
 {atencao_full_data}
 
 Gere recomendações práticas em português brasileiro:
@@ -14275,7 +14275,7 @@ Seja específico, mencione nomes quando relevante. Use bullet points (•)."""
         if report_type == "individual" and employee_id:
             emp_data = next((r for r in rows if r.get("id") == employee_id), None)
             if emp_data:
-                prompts["individual"] = f"""Você é um gestor gerando uma AVALIAÃ‡ÃÆâ€™O INDIVIDUAL para feedback.
+                prompts["individual"] = f"""Você é um gestor gerando uma AVALIAÇÃO INDIVIDUAL para feedback.
 
 COLABORADOR: {emp_data.get("name")}
 PERÍODO: {period}
@@ -14917,7 +14917,7 @@ async def operations_performance_analysis_report(
     # Calcular média de kg/h para referência
     avg_kgh = round(sum(e['kgh'] for e in employees_kgh_ranking) / len(employees_kgh_ranking), 1) if employees_kgh_ranking else 0
     
-    # --- ANÁLISE DE CORRELAÃ‡ÃÆâ€™O E IMPACTO ---
+    # --- ANÁLISE DE CORRELAÇÃO E IMPACTO ---
     
     # 1. Correlação: Ausências vs Produtividade
     # Separar colaboradores em grupos: com ausências vs sem ausências
@@ -15026,7 +15026,7 @@ async def operations_performance_analysis_report(
     if correlation < -0.3:
         diagnostics.append({
             'type': 'critical',
-            'icon': 'ðŸâ€œâ€°',
+            'icon': '[>]',
             'title': 'Correlação Negativa Comprovada',
             'description': f'Correlação de {correlation} entre ausências e produtividade. Mais ausências = MENOR produtividade.',
             'impact': f'Queda de {productivity_diff}% na produtividade de quem falta'
@@ -15035,7 +15035,7 @@ async def operations_performance_analysis_report(
     if len(employees_with_absences) > len(employees_without_absences) * 0.5:
         diagnostics.append({
             'type': 'warning',
-            'icon': 'ðŸâ€˜Â¥',
+            'icon': '[*]',
             'title': 'Problema Generalizado de Ausências',
             'description': f'{len(employees_with_absences)} de {len(employees_with_routes)} colaboradores com rotas tiveram ausências no período.',
             'impact': 'Afeta mais da metade da equipe operacional'
@@ -15044,7 +15044,7 @@ async def operations_performance_analysis_report(
     if estimated_tonnage_lost > 10:
         diagnostics.append({
             'type': 'critical',
-            'icon': 'ðŸâ€œ¦',
+            'icon': '[>]',
             'title': 'Perda Significativa de Tonelagem',
             'description': f'Estimativa de {estimated_tonnage_lost} toneladas deixaram de ser movimentadas.',
             'impact': 'Perda de produção por falta de mão de obra'
@@ -15053,7 +15053,7 @@ async def operations_performance_analysis_report(
     if len(critical_days) > 0:
         diagnostics.append({
             'type': 'warning',
-            'icon': 'ðŸâ€œâ€¦',
+            'icon': '[>]',
             'title': f'{len(critical_days)} Dias Críticos Identificados',
             'description': 'Dias com alta ausência e produtividade abaixo da média.',
             'impact': ', '.join([d['date_formatted'] for d in critical_days[:5]])
@@ -15062,7 +15062,7 @@ async def operations_performance_analysis_report(
     if avg_kgh_with_absences < avg_kgh_without_absences:
         diagnostics.append({
             'type': 'info',
-            'icon': 'ðŸâ€™Â¡',
+            'icon': '[!]',
             'title': 'Evidência de Impacto nas Ausências',
             'description': f'Colaboradores sem ausências produzem {avg_kgh_without_absences} kg/h vs {avg_kgh_with_absences} kg/h dos que faltam.',
             'impact': f'Diferença de {productivity_diff}% na produtividade'
@@ -16362,7 +16362,7 @@ async def get_allocations(
                 previous_date = current_date - timedelta(days=days_back)
                 previous_date_str = previous_date.strftime("%Y-%m-%d")
                 
-                print(f"ðŸâ€œâ€¹ Buscando alocações de {previous_date_str} ({days_back} dia(s) atrás)...")
+                print(f"[>] Buscando alocações de {previous_date_str} ({days_back} dia(s) atrás)...")
                 
                 previous_allocations = session.exec(
                     select(models.EmployeeAllocation)
@@ -16378,7 +16378,7 @@ async def get_allocations(
                     print(f"   ⏭️ Nenhuma alocação em {previous_date_str}, tentando dia anterior...")
             
             if previous_allocations and found_date_str:
-                print(f"ðŸâ€œ¥ Copiando {len(previous_allocations)} alocações de {found_date_str} para {date}...")
+                print(f"[>] Copiando {len(previous_allocations)} alocações de {found_date_str} para {date}...")
                 
                 # Copiar alocações encontradas para o dia atual
                 for prev_alloc in previous_allocations:
@@ -16428,7 +16428,7 @@ async def get_allocations(
                 previous_date = current_date - timedelta(days=days_back)
                 previous_date_str = previous_date.strftime("%Y-%m-%d")
                 
-                print(f"ðŸâ€œâ€¹ Buscando rotinas de {previous_date_str} ({days_back} dia(s) atrás)...")
+                print(f"[>] Buscando rotinas de {previous_date_str} ({days_back} dia(s) atrás)...")
                 
                 previous_routines = session.exec(
                     select(models.EmployeeRoutine)
@@ -16552,7 +16552,7 @@ async def get_allocations(
                 previous_date = current_date - timedelta(days=days_back)
                 previous_date_str = previous_date.strftime("%Y-%m-%d")
                 
-                print(f"ðŸâ€œâ€¹ Buscando alocações de {previous_date_str} ({days_back} dia(s) atrás)...")
+                print(f"[>] Buscando alocações de {previous_date_str} ({days_back} dia(s) atrás)...")
                 
                 previous_allocations = session.exec(
                     select(models.EmployeeAllocation)
@@ -16568,7 +16568,7 @@ async def get_allocations(
                     print(f"   ⏭️ Nenhuma alocação em {previous_date_str}, tentando dia anterior...")
             
             if previous_allocations and found_date_str:
-                print(f"ðŸâ€œ¥ Copiando {len(previous_allocations)} alocações de {found_date_str} para {date}...")
+                print(f"[>] Copiando {len(previous_allocations)} alocações de {found_date_str} para {date}...")
                 
                 # Copiar alocações encontradas para o dia atual
                 for prev_alloc in previous_allocations:
@@ -16618,7 +16618,7 @@ async def get_allocations(
                 previous_date = current_date - timedelta(days=days_back)
                 previous_date_str = previous_date.strftime("%Y-%m-%d")
                 
-                print(f"ðŸâ€œâ€¹ Buscando rotinas de {previous_date_str} ({days_back} dia(s) atrás)...")
+                print(f"[>] Buscando rotinas de {previous_date_str} ({days_back} dia(s) atrás)...")
                 
                 previous_routines = session.exec(
                     select(models.EmployeeRoutine)
@@ -17020,7 +17020,7 @@ async def save_allocations(
         daily_op.attendance_log = attendance_log
         session.add(daily_op)
         
-        print(f"ðŸâ€™Â¾ Commit final ({len(new_alloc_objs)} alocações, {len(attendance_log)} logs)...")
+        print(f"[>] Commit final ({len(new_alloc_objs)} alocações, {len(attendance_log)} logs)...")
         session.commit()
         print("log")
         
@@ -17350,7 +17350,7 @@ async def set_employee_routine_extended(
                 ).first()
                 
                 if existing_alert:
-                    # E-mail já foi enviado anteriormente - NÃÆâ€™O enviar novamente
+                    # E-mail já foi enviado anteriormente - NÃO enviar novamente
                     email_already_sent = True
                     print(f"ðŸâ€â€™ E-mail de {alert_type_labels.get(alert_type, 'alerta')} já enviado para {employee.name} em {start_date_str} (enviado em {existing_alert.sent_at.strftime('%d/%m/%Y %H:%M')})")
                 else:
@@ -17383,7 +17383,7 @@ async def set_employee_routine_extended(
                             alert_type=alert_type
                         )
                         email_scheduled = True
-                        print(f"ðŸâ€œ¤ E-mail de {alert_type_labels.get(alert_type, 'alerta')} agendado em background para {employee.name}")
+                        print(f"[>] E-mail de {alert_type_labels.get(alert_type, 'alerta')} agendado em background para {employee.name}")
                     else:
                         print(f"ℹ️ Nenhum destinatário configurado para alertas de {alert_type_labels.get(alert_type, routine)}")
             except Exception as email_exc:
@@ -17916,7 +17916,7 @@ async def routine_report(
             processed_ids.add(employee.id)
 
         # 2. Process Remaining Employees (Same Shift, No Routine/Allocation Today)
-        # Estes são pessoas do turno que NÃÆâ€™O foram alocadas hoje
+        # Estes são pessoas do turno que NÃO foram alocadas hoje
         # IMPORTANTE: Não contar como 'present' se não estão alocados (consistência com Smart Flow)
         for emp in all_employees:
             if emp.id in processed_ids:
@@ -17945,7 +17945,7 @@ async def routine_report(
                 # Pode ser: folga, não programado, etc.
                 # Para consistência com Smart Flow, marcar como 'unallocated' (não soma em presente)
                 report_status = 'unallocated'
-                # NÃÆâ€™O incrementar total_present aqui!
+                # NÃO incrementar total_present aqui!
             
             # Substituted Check (Duplicate logic, could functionality extract)
             is_substituted = False
@@ -18334,7 +18334,7 @@ async def _employees_page_impl(request: Request, session: Session):
         # Default to Manhã only if explicitly Manhã or fallback
         return "Manhã"
     # LÓGICA ATUALIZADA:
-    # - Afastados NÃÆâ€™O contam no total de colaboradores (viram vagas temporárias)
+    # - Afastados NÃO contam no total de colaboradores (viram vagas temporárias)
     # - Quando um afastado retornar, alguém será demitido para fechar o quadro
     # - Total efetivo = ativos + férias (férias é temporário, retorna normalmente)
     # - Vagas = target - total_efetivo (afastados geram vagas)
@@ -18356,7 +18356,7 @@ async def _employees_page_impl(request: Request, session: Session):
             total_effective_headcount += 1  # Férias conta no quadro (retorno normal)
         elif e.status == "away":
             shift_data[s_name]["away"] += 1
-            total_away += 1  # Afastados NÃÆâ€™O contam (viram vaga temporária)
+            total_away += 1  # Afastados NÃO contam (viram vaga temporária)
         
     for s in shifts:
         data = shift_data.get(s, {"active":0, "vacation":0, "away":0})
@@ -20643,7 +20643,7 @@ async def lider_rotas_relatorio_page(
             
             routine = emp_routines.get(day_str, None)  # None = sem rotina registrada
             
-            # NOVA VERIFICAÃ‡ÃÆâ€™O: Checar se o dia está dentro do período de férias do colaborador
+            # NOVA VERIFICAÇÃO: Checar se o dia está dentro do período de férias do colaborador
             is_vacation_period = False
             if emp_vacation_start and emp_vacation_end:
                 if emp_vacation_start <= day_date <= emp_vacation_end:
@@ -20656,7 +20656,7 @@ async def lider_rotas_relatorio_page(
             # 4. Se está afastado (status=away) = JUSTIFICADO
             # 5. Se tem justificativa na rotina (vacation, sick, away, dayoff) = JUSTIFICADO
             # 6. Se tem routine="absent" = FALTA REGISTRADA
-            # 7. Se não tem rota E não tem rotina = NÃÆâ€™O ABRIU APP
+            # 7. Se não tem rota E não tem rotina = NÃO ABRIU APP
             
             has_route = day_str in emp_routes
             
@@ -22271,7 +22271,7 @@ async def admin_checklists_test_email(
         
     try:
         report = {
-            "subject": "ALERTA DE MANUTENÃ‡ÃÆâ€™O - TESTE",
+            "subject": "ALERTA DE MANUTENÇÃO - TESTE",
             "body": "Teste de envio de alerta de manutenção.",
             "equipment_code": "EMP-TESTE-01",
             "operator_name": actor_label,
@@ -22348,7 +22348,7 @@ def send_absence_alert_email(
     alert_configs = {
         "absent": {
             "emoji": "🚨",
-            "title": "SOLICITAÃ‡ÃÆâ€™O DE ADVERTÊNCIA",
+            "title": "SOLICITAÇÃO DE ADVERTÊNCIA",
             "subtitle": "Falta Não Justificada Registrada",
             "type_label": "FALTA",
             "date_label": "Data da Falta",
@@ -22356,8 +22356,8 @@ def send_absence_alert_email(
             "action": "Solicitamos a abertura de processo de advertência conforme procedimento interno."
         },
         "dayoff": {
-            "emoji": "ðŸâ€œâ€¦",
-            "title": "NOTIFICAÃ‡ÃÆâ€™O DE FOLGA",
+            "emoji": "[>]",
+            "title": "NOTIFICAÇÃO DE FOLGA",
             "subtitle": "Folga Registrada no Sistema",
             "type_label": "FOLGA",
             "date_label": "Data da Folga",
@@ -22366,7 +22366,7 @@ def send_absence_alert_email(
         },
         "sick": {
             "emoji": "🏥",
-            "title": "NOTIFICAÃ‡ÃÆâ€™O DE ATESTADO MÉDICO",
+            "title": "NOTIFICAÇÃO DE ATESTADO MÉDICO",
             "subtitle": "Atestado Médico Registrado no Sistema",
             "type_label": "ATESTADO M̉ۡDICO",
             "date_label": "Data do Atestado",
@@ -22375,7 +22375,7 @@ def send_absence_alert_email(
         },
         "early_exit": {
             "emoji": "⏰",
-            "title": "NOTIFICAÃ‡ÃÆâ€™O DE SAÍDA ANTECIPADA",
+            "title": "NOTIFICAÇÃO DE SAÍDA ANTECIPADA",
             "subtitle": "Saída antecipada registrada no sistema",
             "type_label": "SAÍDA ANTECIPADA",
             "date_label": "Data da Saída",
@@ -22877,7 +22877,7 @@ async def admin_absence_maintenance_test_email(
 
     try:
         report = {
-            "subject": "ALERTA DE MANUTENÃ‡ÃÆâ€™O - TESTE",
+            "subject": "ALERTA DE MANUTENÇÃO - TESTE",
             "body": "Teste de envio de alerta de manutenção.",
             "equipment_code": "EMP-TESTE-01",
             "operator_name": actor_label,
