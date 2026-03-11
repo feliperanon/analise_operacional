@@ -56,10 +56,10 @@
                     <option value="" disabled selected>Selecione o equipamento</option>
                     {% if equipment_list %}
                     {% for eq in equipment_list %}
-                    <option value="{{ eq.code }}">{{ eq.code }} - {{ 'Disponível' if eq.status == 'available' else 'Bloqueado' }}</option>
+                    <option value="{{ eq.code }}">{{ eq.code }} - Liberado para entrega</option>
                     {% endfor %}
                     {% else %}
-                    <option value="" disabled>Nenhum equipamento cadastrado</option>
+                    <option value="" disabled>Nenhum caminhão liberado para você hoje</option>
                     {% endif %}
                 </select>
             </div>

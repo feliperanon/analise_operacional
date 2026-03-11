@@ -1,172 +1,433 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Operacao Inteligente</title>
     <link rel="stylesheet" href="/static/styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --brand-blue: #0c4274;
+            --brand-blue-strong: #083a67;
+            --brand-gold: #b78317;
+            --surface: #ffffff;
+            --surface-soft: #f6f8fb;
+            --border: #d8e1ec;
+            --text-main: #0f172a;
+            --text-soft: #51627a;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: radial-gradient(1200px 600px at 15% -10%, #eef4fb 0%, #ffffff 55%),
+                        radial-gradient(900px 500px at 95% 110%, #f7f0df 0%, #ffffff 50%);
+            color: var(--text-main);
+            font-family: "Manrope", sans-serif;
+            display: grid;
+            place-items: center;
+            padding: 20px;
+        }
+
+        .login-shell {
+            width: min(1080px, 100%);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            box-shadow: 0 24px 60px rgba(12, 66, 116, 0.10);
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: 1.05fr 1fr;
+        }
+
+        .brand-side {
+            padding: 42px 44px;
+            background: linear-gradient(165deg, #ffffff 0%, #f6f9fc 65%, #f3efe4 100%);
+            border-right: 1px solid var(--border);
+            position: relative;
+        }
+
+        .brand-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #eaf2fb;
+            color: var(--brand-blue);
+            border: 1px solid #cfe1f5;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            padding: 8px 12px;
+        }
+
+        .brand-logo {
+            width: min(430px, 100%);
+            margin: 26px 0 18px;
+            border-radius: 18px;
+            background: #fff;
+            border: 1px solid #e3e9f0;
+            box-shadow: 0 8px 28px rgba(12, 66, 116, 0.08);
+            padding: 10px;
+        }
+
+        .brand-side h1 {
+            margin: 0;
+            font-family: "Sora", sans-serif;
+            font-size: clamp(24px, 2.7vw, 34px);
+            line-height: 1.18;
+            color: var(--brand-blue-strong);
+            max-width: 12ch;
+        }
+
+        .brand-side p {
+            margin: 14px 0 0;
+            color: var(--text-soft);
+            line-height: 1.6;
+            max-width: 44ch;
+        }
+
+        .metrics {
+            margin-top: 26px;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .metric-card {
+            background: #fff;
+            border: 1px solid #dde6f1;
+            border-radius: 14px;
+            padding: 12px;
+        }
+
+        .metric-label {
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #6f8097;
+            font-weight: 700;
+        }
+
+        .metric-value {
+            margin-top: 6px;
+            color: var(--brand-blue);
+            font-size: 19px;
+            font-weight: 800;
+            letter-spacing: -0.01em;
+        }
+
+        .form-side {
+            padding: 42px 38px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .form-header h2 {
+            margin: 0;
+            font-family: "Sora", sans-serif;
+            font-size: 30px;
+            color: var(--text-main);
+        }
+
+        .form-header p {
+            margin: 10px 0 0;
+            color: var(--text-soft);
+            font-size: 15px;
+        }
+
+        .status-msg {
+            margin-top: 18px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            padding: 12px 14px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .status-error {
+            color: #9f1239;
+            background: #fff1f2;
+            border-color: #fecdd3;
+        }
+
+        .status-success {
+            color: #166534;
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+        }
+
+        form { margin-top: 22px; }
+
+        .field { margin-bottom: 14px; }
+
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: 7px;
+        }
+
+        .input-wrap { position: relative; }
+
+        input[type="email"],
+        input[type="password"] {
+            width: 100%;
+            border: 1px solid #cdd8e6;
+            border-radius: 12px;
+            background: #fff;
+            color: #0f172a;
+            font-size: 15px;
+            font-family: "Manrope", sans-serif;
+            padding: 13px 14px;
+            transition: border-color 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        input[type="password"] { padding-right: 44px; }
+
+        input:focus {
+            outline: none;
+            border-color: #5a9bd8;
+            box-shadow: 0 0 0 4px rgba(12, 66, 116, 0.12);
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 0;
+            background: transparent;
+            color: #607089;
+            padding: 4px;
+            cursor: pointer;
+        }
+
+        .password-toggle:hover { color: var(--brand-blue); }
+
+        .form-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin: 6px 0 14px;
+        }
+
+        .remember {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #51627a;
+        }
+
+        .remember input { accent-color: var(--brand-blue); }
+
+        .forgot {
+            color: var(--brand-blue);
+            font-size: 13px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .forgot:hover { text-decoration: underline; }
+
+        .btn-submit {
+            width: 100%;
+            border: 0;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--brand-blue) 0%, #1b5a95 100%);
+            color: #fff;
+            font-weight: 800;
+            letter-spacing: 0.01em;
+            padding: 14px;
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+            box-shadow: 0 10px 24px rgba(12, 66, 116, 0.25);
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 16px 28px rgba(12, 66, 116, 0.30);
+        }
+
+        .or-wrap {
+            margin: 18px 0 14px;
+            position: relative;
+            text-align: center;
+        }
+
+        .or-wrap::before {
+            content: "";
+            position: absolute;
+            inset: 50% 0 auto;
+            border-top: 1px solid #d5dfeb;
+        }
+
+        .or-wrap span {
+            position: relative;
+            z-index: 1;
+            background: #fff;
+            padding: 0 10px;
+            color: #6b7a91;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .btn-google {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid #cdd8e6;
+            color: #1f2937;
+            background: #fff;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .btn-google:hover { background: #f8fbff; }
+
+        .form-footer {
+            margin-top: 16px;
+            font-size: 12px;
+            color: #77859b;
+            text-align: center;
+        }
+
+        @media (max-width: 980px) {
+            body { padding: 14px; }
+            .login-shell {
+                grid-template-columns: 1fr;
+                border-radius: 20px;
+            }
+            .brand-side {
+                border-right: 0;
+                border-bottom: 1px solid var(--border);
+                padding: 26px 24px;
+            }
+            .form-side {
+                padding: 26px 22px;
+            }
+            .metrics { grid-template-columns: 1fr 1fr; }
+        }
+
+        @media (max-width: 560px) {
+            .metrics { grid-template-columns: 1fr; }
+            .form-header h2 { font-size: 26px; }
+            .form-row { flex-wrap: wrap; }
+        }
+    </style>
 </head>
+<body>
+    <section class="login-shell" aria-label="Tela de login">
+        <aside class="brand-side">
+            <div class="brand-pill">Portal Operacional</div>
+            <img src="{{ url_for('static', path='logo-souza-pinto-login-v2.png') }}?v=20260310" alt="Souza Pinto" class="brand-logo">
+            <h1>Controle de operacao com decisao em tempo real.</h1>
+            <p>Centralize acesso, rastreie eventos criticos e transforme dados de campo em acao gerencial. Mais padrao, menos retrabalho.</p>
 
-<body class="bg-slate-900 text-white flex items-center justify-center min-h-screen overflow-hidden relative">
-
-    <!-- Background Effects -->
-    <div class="absolute top-0 left-0 w-full h-full overflow-hidden -z-10">
-        <div
-            class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600 rounded-full mix-blend-multiply filter blur-[128px] opacity-20 animate-blob">
-        </div>
-        <div
-            class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600 rounded-full mix-blend-multiply filter blur-[128px] opacity-20 animate-blob animation-delay-2000">
-        </div>
-        <div
-            class="absolute top-[50%] left-[50%] w-[30%] h-[30%] bg-cyan-600 rounded-full mix-blend-multiply filter blur-[100px] opacity-10 animate-blob animation-delay-4000">
-        </div>
-    </div>
-
-    <!-- Main Container -->
-    <div class="w-full max-w-5xl mx-4 flex flex-col lg:flex-row gap-6 items-center justify-center relative z-10">
-        
-        <!-- Left Side - Info Panel -->
-        <div class="hidden lg:flex flex-col gap-4 w-80">
-            <!-- Clock & Date Card -->
-            <div class="bg-slate-800/60 backdrop-blur border border-slate-700/50 rounded-2xl p-5 text-center">
-                <div id="current-time" class="text-5xl font-bold text-white tracking-tight">--:--</div>
-                <div id="current-date" class="text-slate-400 text-sm mt-1">Carregando...</div>
-            </div>
-            
-            <!-- Shift Indicator -->
-            <div id="shift-card" class="bg-slate-800/60 backdrop-blur border border-slate-700/50 rounded-2xl p-4 transition-all">
-                <div class="flex items-center gap-3">
-                    <div id="shift-icon" class="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                        <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <p class="text-xs text-slate-500 uppercase tracking-wider font-bold">Turno Atual</p>
-                        <p id="shift-name" class="text-lg font-bold text-white">Carregando...</p>
-                    </div>
+            <div class="metrics">
+                <div class="metric-card">
+                    <div class="metric-label">Status do portal</div>
+                    <div class="metric-value">Online</div>
                 </div>
-                <!-- Progress bar -->
-                <div class="mt-3">
-                    <div class="flex justify-between items-center mb-1">
-                        <span id="shift-start" class="text-sm font-bold text-white">--:--</span>
-                        <span class="text-[10px] text-slate-500">até</span>
-                        <span id="shift-end" class="text-[10px] text-slate-500">--:--</span>
-                    </div>
-                    <div class="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                        <div id="shift-progress" class="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full transition-all duration-1000" style="width: 0%"></div>
-                    </div>
+                <div class="metric-card">
+                    <div class="metric-label">Ambiente</div>
+                    <div class="metric-value">Producao</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Data</div>
+                    <div class="metric-value" id="meta-date">--/--/----</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Horario</div>
+                    <div class="metric-value" id="meta-time">--:--</div>
                 </div>
             </div>
-            
-            <!-- Quick Stats -->
-            <div class="bg-slate-800/60 backdrop-blur border border-slate-700/50 rounded-2xl p-4">
-                <p class="text-xs text-slate-500 uppercase tracking-wider font-bold mb-3">Sistema Operacional</p>
-                <div class="space-y-2">
-                    <div class="flex items-center gap-2 text-sm">
-                        <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                        <span class="text-slate-300">Sistema Online</span>
+        </aside>
+
+        <main class="form-side">
+            <header class="form-header">
+                <h2>Acesso ao sistema</h2>
+                <p>Entre com seu e-mail corporativo para continuar.</p>
+            </header>
+
+            {% if error %}
+            <div class="status-msg status-error">{{ error }}</div>
+            {% endif %}
+            {% if success %}
+            <div class="status-msg status-success">{{ success }}</div>
+            {% endif %}
+
+            <form action="/login" method="POST" id="login-form">
+                <div class="field">
+                    <label for="email">E-mail</label>
+                    <input type="email" name="email" id="email" required placeholder="seuemail@empresa.com">
+                </div>
+
+                <div class="field">
+                    <label for="password">Senha</label>
+                    <div class="input-wrap">
+                        <input type="password" name="password" id="password" required placeholder="Sua senha">
+                        <button type="button" class="password-toggle" onclick="togglePassword()" title="Mostrar/ocultar senha" aria-label="Mostrar ou ocultar senha">
+                            <svg id="eye-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                            <svg id="eye-off-icon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
+                            </svg>
+                        </button>
                     </div>
-                    <div class="flex items-center gap-2 text-sm">
-                        <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
-                        <span class="text-slate-400">Versao 2.0</span>
-                    </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Right Side - Login Card -->
-        <div class="w-full max-w-md p-8 rounded-2xl bg-slate-800/40 backdrop-blur-xl shadow-2xl border border-white/10">
-            <!-- Mobile Clock (visible only on mobile) -->
-            <div class="lg:hidden text-center mb-4 pb-4 border-b border-slate-700/50">
-                <div id="mobile-time" class="text-3xl font-bold text-white">--:--</div>
-                <div id="mobile-greeting" class="text-sm text-slate-400">Carregando...</div>
-            </div>
-            
-            <!-- Header with greeting -->
-            <div class="text-center mb-8">
-                <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
-                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                    </svg>
+                <div class="form-row">
+                    <label for="remember" class="remember">
+                        <input type="checkbox" id="remember" name="remember">
+                        Lembrar meu e-mail
+                    </label>
+                    <a href="/reset" class="forgot">Esqueci minha senha</a>
                 </div>
-                <h1 id="greeting-text" class="text-2xl font-bold mb-1 tracking-tight">Bem-vindo</h1>
-                <p class="text-slate-400 text-sm">Acesse o sistema de Operacao Inteligente</p>
-            </div>
 
-        {% if error %}
-        <div
-            class="mb-4 p-3 rounded-lg bg-red-500/20 border border-red-500/50 text-red-200 text-sm flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            {{ error }}
-        </div>
-        {% endif %}
-        {% if success %}
-        <div
-            class="mb-4 p-3 rounded-lg bg-emerald-500/20 border border-emerald-500/50 text-emerald-200 text-sm flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M5 13l4 4L19 7"></path>
-            </svg>
-            {{ success }}
-        </div>
-        {% endif %}
+                <button type="submit" class="btn-submit">Entrar no Sistema</button>
+            </form>
 
-        <form action="/login" method="POST" class="space-y-6" id="login-form">
-            <div>
-                <label for="email" class="block text-sm font-medium text-slate-300 mb-1">E-mail</label>
-                <input type="email" name="email" id="email" required
-                    class="w-full px-4 py-3 rounded-lg bg-slate-800/50 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    placeholder="seuemail@empresa.com">
-            </div>
+            {% if google_enabled %}
+            <div class="or-wrap"><span>ou</span></div>
+            <a href="/auth/google" class="btn-google">
+                <svg class="w-5 h-5" viewBox="0 0 48 48" aria-hidden="true">
+                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.72 1.22 9.22 3.2l6.86-6.86C35.9 1.9 30.3 0 24 0 14.6 0 6.5 5.38 2.7 13.2l7.98 6.2C12.4 13.2 17.7 9.5 24 9.5z"></path>
+                    <path fill="#4285F4" d="M46.5 24c0-1.64-.15-3.22-.43-4.75H24v9.02h12.67c-.55 2.97-2.23 5.48-4.75 7.18l7.26 5.64c4.25-3.92 6.7-9.7 6.7-17.09z"></path>
+                    <path fill="#FBBC05" d="M10.68 28.1c-.5-1.5-.78-3.1-.78-4.7 0-1.63.28-3.22.78-4.72l-7.98-6.2C.99 15.7 0 19.74 0 23.4c0 3.66.99 7.7 2.7 10.92l7.98-6.22z"></path>
+                    <path fill="#34A853" d="M24 48c6.3 0 11.6-2.08 15.48-5.62l-7.26-5.64c-2.02 1.36-4.62 2.16-8.22 2.16-6.3 0-11.62-3.7-13.54-8.8l-7.98 6.22C6.5 42.62 14.6 48 24 48z"></path>
+                </svg>
+                Entrar com Google
+            </a>
+            {% endif %}
 
-            <div>
-                <label for="password" class="block text-sm font-medium text-slate-300 mb-1">Senha</label>
-                <div class="relative">
-                    <input type="password" name="password" id="password" required
-                        class="w-full px-4 py-3 pr-12 rounded-lg bg-slate-800/50 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                        placeholder="Sua senha">
-                    <button type="button" onclick="togglePassword()" 
-                        class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors p-1"
-                        title="Mostrar/ocultar senha">
-                        <svg id="eye-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                        </svg>
-                        <svg id="eye-off-icon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
-                        </svg>
-                    </button>
-                </div>
-            </div>
+            <p class="form-footer">Souza Pinto Distribuidora - Portal Operacional</p>
+        </main>
+    </section>
 
-            <div class="flex items-center gap-2">
-                <input type="checkbox" id="remember" name="remember"
-                    class="w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer">
-                <label for="remember" class="text-sm text-slate-400 cursor-pointer select-none">Lembrar meu e-mail</label>
-            </div>
-
-            <button type="submit"
-                class="w-full py-3.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-blue-500/30 transform hover:-translate-y-0.5 transition-all duration-200">
-                Entrar no Sistema
-            </button>
-            <div class="flex items-center justify-between text-sm">
-                <a href="/reset" class="text-slate-400 hover:text-white transition-colors">Esqueci minha senha</a>
-            </div>
-        </form>
-
-        <script>
-        // Toggle password visibility
+    <script>
         function togglePassword() {
             var passwordInput = document.getElementById('password');
             var eyeIcon = document.getElementById('eye-icon');
             var eyeOffIcon = document.getElementById('eye-off-icon');
-            
             if (passwordInput.type === 'password') {
                 passwordInput.type = 'text';
                 eyeIcon.classList.add('hidden');
@@ -178,183 +439,40 @@
             }
         }
 
-        // Shift configuration
-        // Horarios: Manha 05:00-13:20, Tarde 12:00-20:20, Noite 18:00-06:00
-        var shifts = {
-            manha: { name: 'Manha', startH: 5, startM: 0, endH: 13, endM: 20, color: 'blue', icon: 'sun' },
-            tarde: { name: 'Tarde', startH: 12, startM: 0, endH: 20, endM: 20, color: 'orange', icon: 'sunset' },
-            noite: { name: 'Noite', startH: 18, startM: 0, endH: 6, endM: 0, color: 'purple', icon: 'moon' }
-        };
-
-        function isWithinShift(hour, minute, startH, startM, endH, endM) {
-            var current = hour * 60 + minute;
-            var start = startH * 60 + startM;
-            var end = endH * 60 + endM;
-            if (start < end) {
-                return current >= start && current < end;
-            }
-            return current >= start || current < end;
-        }
-
-        function getCurrentShift(hour, minute) {
-            if (isWithinShift(hour, minute, 18, 0, 6, 0)) return shifts.noite;
-            if (isWithinShift(hour, minute, 5, 0, 13, 20)) return shifts.manha;
-            return shifts.tarde;
-        }
-
-        function getGreeting(hour) {
-            if (hour >= 5 && hour < 12) return 'Bom dia';
-            if (hour >= 12 && hour < 18) return 'Boa tarde';
-            return 'Boa noite';
-        }
-
-        function getShiftProgress(hour, minute) {
-            var shift = getCurrentShift(hour, minute);
-            var currentMinutes = hour * 60 + minute;
-            var startMinutes = shift.startH * 60 + shift.startM;
-            var endMinutes = shift.endH * 60 + shift.endM;
-            
-            // Turno noite cruza meia-noite (18:00 - 06:00 = 12 horas)
-            if (shift.name === 'Noite') {
-                if (hour >= 18) {
-                    currentMinutes = (hour - 18) * 60 + minute;
-                } else {
-                    currentMinutes = (hour + 6) * 60 + minute;
-                }
-                startMinutes = 0;
-                endMinutes = 12 * 60; // 12 horas de turno
-            }
-            
-            var total = endMinutes - startMinutes;
-            var elapsed = currentMinutes - startMinutes;
-            if (elapsed < 0) elapsed = 0;
-            
-            return Math.min(100, Math.max(0, (elapsed / total) * 100));
-        }
-        
-        function formatTime(h, m) {
-            return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
-        }
-
-        function updateClock() {
+        function updateMetaClock() {
             var now = new Date();
-            var hours = now.getHours();
-            var minutes = now.getMinutes();
-            var seconds = now.getSeconds();
-            
-            var timeStr = String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0');
-            var timeStrFull = timeStr + ':' + String(seconds).padStart(2, '0');
-            
-            // Update time displays
-            var timeEl = document.getElementById('current-time');
-            var mobileTimeEl = document.getElementById('mobile-time');
-            if (timeEl) timeEl.textContent = timeStrFull;
-            if (mobileTimeEl) mobileTimeEl.textContent = timeStr;
-            
-            // Update date
-            var days = ['Domingo', 'Segunda-feira', 'Terca-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sabado'];
-            var months = ['Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-            var dateStr = days[now.getDay()] + ', ' + now.getDate() + ' de ' + months[now.getMonth()];
-            
-            var dateEl = document.getElementById('current-date');
-            if (dateEl) dateEl.textContent = dateStr;
-            
-            // Update greeting
-            var greeting = getGreeting(hours);
-            var greetingEl = document.getElementById('greeting-text');
-            var mobileGreetingEl = document.getElementById('mobile-greeting');
-            if (greetingEl) greetingEl.textContent = greeting + '!';
-            if (mobileGreetingEl) mobileGreetingEl.textContent = greeting + ' - ' + dateStr;
-            
-            // Update shift info
-            var shift = getCurrentShift(hours, minutes);
-            var shiftNameEl = document.getElementById('shift-name');
-            var shiftStartEl = document.getElementById('shift-start');
-            var shiftEndEl = document.getElementById('shift-end');
-            var shiftProgressEl = document.getElementById('shift-progress');
-            var shiftCard = document.getElementById('shift-card');
-            var shiftIcon = document.getElementById('shift-icon');
-            
-            if (shiftNameEl) shiftNameEl.textContent = 'Turno ' + shift.name;
-            if (shiftStartEl) shiftStartEl.textContent = formatTime(shift.startH, shift.startM);
-            if (shiftEndEl) shiftEndEl.textContent = formatTime(shift.endH, shift.endM);
-            
-            var progress = getShiftProgress(hours, minutes);
-            if (shiftProgressEl) shiftProgressEl.style.width = progress + '%';
-            
-            // Update colors based on shift
-            if (shiftCard && shiftIcon) {
-                var colorMap = {
-                    blue: { bg: 'bg-blue-500/20', text: 'text-blue-400', gradient: 'from-blue-500 to-cyan-500' },
-                    orange: { bg: 'bg-orange-500/20', text: 'text-orange-400', gradient: 'from-orange-500 to-amber-500' },
-                    purple: { bg: 'bg-purple-500/20', text: 'text-purple-400', gradient: 'from-purple-500 to-indigo-500' }
-                };
-                var colors = colorMap[shift.color];
-                
-                shiftIcon.className = 'w-12 h-12 rounded-xl ' + colors.bg + ' flex items-center justify-center';
-                shiftIcon.querySelector('svg').className = 'w-6 h-6 ' + colors.text;
-                shiftProgressEl.className = 'h-full bg-gradient-to-r ' + colors.gradient + ' rounded-full transition-all duration-1000';
-            }
+            var dateEl = document.getElementById('meta-date');
+            var timeEl = document.getElementById('meta-time');
+            if (dateEl) dateEl.textContent = now.toLocaleDateString('pt-BR');
+            if (timeEl) timeEl.textContent = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         }
 
-        // Initialize
         document.addEventListener('DOMContentLoaded', function() {
-            // Load saved email
             var savedEmail = localStorage.getItem('remembered_email');
             var rememberCheckbox = document.getElementById('remember');
             var emailInput = document.getElementById('email');
-            
-            if (savedEmail) {
+            if (savedEmail && emailInput && rememberCheckbox) {
                 emailInput.value = savedEmail;
                 rememberCheckbox.checked = true;
             }
-            
-            // Start clock
-            updateClock();
-            setInterval(updateClock, 1000);
-        });
 
-        // Save email on submit
-        document.getElementById('login-form').addEventListener('submit', function() {
-            var rememberCheckbox = document.getElementById('remember');
-            var emailInput = document.getElementById('email');
-            
-            if (rememberCheckbox.checked) {
-                localStorage.setItem('remembered_email', emailInput.value);
-            } else {
-                localStorage.removeItem('remembered_email');
+            var form = document.getElementById('login-form');
+            if (form) {
+                form.addEventListener('submit', function() {
+                    if (rememberCheckbox && emailInput) {
+                        if (rememberCheckbox.checked) {
+                            localStorage.setItem('remembered_email', emailInput.value);
+                        } else {
+                            localStorage.removeItem('remembered_email');
+                        }
+                    }
+                });
             }
+
+            updateMetaClock();
+            setInterval(updateMetaClock, 30000);
         });
-        </script>
-
-        {% if google_enabled %}
-        <div class="mt-6">
-            <div class="relative flex items-center justify-center my-4">
-                <div class="border-t border-slate-700 w-full"></div>
-                <span class="px-3 text-xs text-slate-500 bg-slate-800/40 absolute">ou</span>
-            </div>
-            <a href="/auth/google"
-                class="w-full inline-flex items-center justify-center gap-3 py-3 px-4 rounded-lg bg-white text-slate-900 font-semibold hover:bg-slate-100 transition-colors">
-                <svg class="w-5 h-5" viewBox="0 0 48 48" aria-hidden="true">
-                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.72 1.22 9.22 3.2l6.86-6.86C35.9 1.9 30.3 0 24 0 14.6 0 6.5 5.38 2.7 13.2l7.98 6.2C12.4 13.2 17.7 9.5 24 9.5z"></path>
-                    <path fill="#4285F4" d="M46.5 24c0-1.64-.15-3.22-.43-4.75H24v9.02h12.67c-.55 2.97-2.23 5.48-4.75 7.18l7.26 5.64c4.25-3.92 6.7-9.7 6.7-17.09z"></path>
-                    <path fill="#FBBC05" d="M10.68 28.1c-.5-1.5-.78-3.1-.78-4.7 0-1.63.28-3.22.78-4.72l-7.98-6.2C.99 15.7 0 19.74 0 23.4c0 3.66.99 7.7 2.7 10.92l7.98-6.22z"></path>
-                    <path fill="#34A853" d="M24 48c6.3 0 11.6-2.08 15.48-5.62l-7.26-5.64c-2.02 1.36-4.62 2.16-8.22 2.16-6.3 0-11.62-3.7-13.54-8.8l-7.98 6.22C6.5 42.62 14.6 48 24 48z"></path>
-                    <path fill="none" d="M0 0h48v48H0z"></path>
-                </svg>
-                Entrar com Google
-            </a>
-        </div>
-        {% endif %}
-        </div><!-- End Login Card -->
-    </div><!-- End Main Container -->
-
-    <style>
-        .animation-delay-4000 {
-            animation-delay: 4s;
-        }
-    </style>
-
+    </script>
 </body>
-
 </html>
+

@@ -200,14 +200,19 @@
 
     <!-- 4. Acesso rápido -->
     <section class="container-mobile mt-4" x-show="initialized">
+        <h2 class="text-section mb-3" style="color: var(--color-text);">Acesso rápido</h2>
         <div class="grid grid-cols-2 gap-3">
-            <a href="/mobile/achievements" class="interactive surface p-4 text-center flex flex-col items-center gap-2">
-                <div class="icon-wrap w-12 h-12"><i data-lucide="trophy" class="w-6 h-6"></i></div>
-                <p class="text-body font-semibold" style="color: var(--color-text);">Conquistas</p>
+            <a href="/mobile/achievements" class="interactive block surface p-5 rounded-xl min-h-[100px] flex flex-col items-center justify-center gap-3 text-center transition-all active:scale-[0.98]">
+                <div class="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0" style="background: rgba(245,158,11,0.15); color: #f59e0b;">
+                    <i data-lucide="trophy" class="w-7 h-7"></i>
+                </div>
+                <p class="text-body font-semibold truncate w-full" style="color: var(--color-text);">Conquistas</p>
             </a>
-            <button @click="scrollToHistory()" class="interactive surface p-4 text-center flex flex-col items-center gap-2 w-full">
-                <div class="icon-wrap w-12 h-12"><i data-lucide="history" class="w-6 h-6"></i></div>
-                <p class="text-body font-semibold" style="color: var(--color-text);">Histórico</p>
+            <button type="button" @click="scrollToHistory()" class="interactive block surface p-5 rounded-xl min-h-[100px] flex flex-col items-center justify-center gap-3 text-center w-full transition-all active:scale-[0.98]">
+                <div class="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0" style="background: rgba(59,130,246,0.15); color: #3b82f6;">
+                    <i data-lucide="history" class="w-7 h-7"></i>
+                </div>
+                <p class="text-body font-semibold truncate w-full" style="color: var(--color-text);">Histórico</p>
             </button>
         </div>
     </section>

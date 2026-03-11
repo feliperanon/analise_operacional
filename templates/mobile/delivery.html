@@ -4,6 +4,10 @@
 <div id="xp-popup-delivery" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] pointer-events-none hidden flex items-center justify-center">
     <div class="px-6 py-4 rounded-xl font-bold text-xl text-white" style="background: var(--color-primary); box-shadow: var(--shadow-modal);">+<span id="xp-amount-delivery">0</span> XP!</div>
 </div>
+<div id="delivery-feedback-popup" class="fixed top-6 left-1/2 -translate-x-1/2 z-[110] pointer-events-none hidden">
+    <div id="delivery-feedback-card" class="px-4 py-3 rounded-xl text-sm font-semibold text-white" style="background: rgba(15, 23, 42, 0.95); box-shadow: var(--shadow-modal);"></div>
+</div>
+<div id="delivery-rocket-layer" class="fixed inset-0 z-[109] pointer-events-none overflow-hidden"></div>
 <div x-data="deliveryPageController()" x-init="init()" class="min-h-screen pb-safe delivery-page-layout" style="background: var(--color-bg);">
 
     <!-- Header -->
@@ -27,7 +31,7 @@
                 <span class="text-[10px] font-bold uppercase tracking-widest" style="color: var(--color-primary);">Rota ativa</span>
                 <div class="flex items-center gap-2">
                     <span class="text-caption px-2 py-0.5 rounded" style="background: var(--color-border-light); color: var(--color-text-secondary);" x-text="formatDateBR(selectedDeliveryDay)"></span>
-                    <button @click="openSessionEditModal()" class="touch-target-icon flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 interactive" style="background: var(--color-primary-bg); color: var(--color-primary);" title="Editar ajudantes e KM">
+                    <button x-show="!isHelperView" @click="openSessionEditModal()" class="touch-target-icon flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 interactive" style="background: var(--color-primary-bg); color: var(--color-primary);" title="Editar ajudantes e KM">
                         <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
                         <span class="text-caption font-semibold">Editar</span>
                     </button>
@@ -177,8 +181,8 @@
         </a>
     </div>
 
-    <!-- Sem sessão: formulário para iniciar (quando há rotas) ou mensagem -->
-    <div class="container-mobile mt-6" x-show="!deliverySessionOpen && deliveryDayCards.length > 0" x-cloak>
+    <!-- Sem sessão: formulário para iniciar (quando há rotas) - oculto para ajudantes -->
+    <div class="container-mobile mt-6" x-show="!deliverySessionOpen && deliveryDayCards.length > 0 && !isHelperView" x-cloak>
         <div class="surface-shadow p-4 rounded-xl">
             <h3 class="text-section font-semibold mb-3" style="color: var(--color-text);">Minhas rotas do dia</h3>
             <div class="space-y-2 mb-4">
@@ -247,8 +251,8 @@
     <div class="container-mobile mt-6" x-show="!deliverySessionOpen && deliveryDayCards.length === 0" x-cloak>
         <div class="surface-shadow p-6 rounded-xl text-center">
             <i data-lucide="truck" class="w-12 h-12 mx-auto mb-3" style="color: var(--color-text-muted);"></i>
-            <p class="text-body-lg font-semibold mb-1" style="color: var(--color-text);">Nenhuma rota planejada</p>
-            <p class="text-caption-lg mb-4" style="color: var(--color-text-muted);">Não há rotas de entrega para você hoje. Consulte a coordenação ou acesse o dashboard.</p>
+            <p class="text-body-lg font-semibold mb-1" style="color: var(--color-text);" x-text="isHelperView ? 'Nenhuma rota ativa' : 'Nenhuma rota planejada'"></p>
+            <p class="text-caption-lg mb-4" style="color: var(--color-text-muted);" x-text="isHelperView ? 'O motorista deve incluir você como ajudante ao iniciar a rota.' : 'Não há rotas de entrega para você hoje. Consulte a coordenação ou acesse o dashboard.'"></p>
             <a href="/mobile/dashboard" class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-white min-h-[56px] interactive" style="background: var(--color-primary);">
                 <i data-lucide="arrow-left" class="w-5 h-5"></i>
                 Ir ao Dashboard
@@ -280,7 +284,7 @@
                         <span class="chip" x-text="`${formatNumberBR(inProgressRoute.weight)} Kg`"></span>
                         <span class="chip" x-text="formatCurrencyBR(inProgressRoute.value)"></span>
                     </div>
-                    <div class="grid grid-cols-2 gap-2">
+                    <div class="grid grid-cols-2 gap-2" x-show="!isHelperView">
                         <button @click="deliveryAction(inProgressRoute,'finalizar')"
                             class="btn-delivery min-h-[56px] flex items-center justify-center gap-1.5 w-full interactive"
                             :disabled="actionLoading"
@@ -352,7 +356,7 @@
                             <span class="chip" style="background: rgba(107,114,128,0.15); color: #9ca3af;">Sem GPS</span>
                         </template>
                     </div>
-                    <button @click="deliveryAction(route,'iniciar')"
+                    <button x-show="!isHelperView" @click="deliveryAction(route,'iniciar')"
                         class="btn-delivery min-h-[56px] w-full flex items-center justify-center gap-1.5 interactive"
                         :disabled="!!inProgressRoute || actionLoading"
                         style="background: var(--color-primary);">
@@ -401,7 +405,7 @@
                         <span class="chip" x-text="`${formatNumberBR(route.weight)} Kg`"></span>
                         <span class="chip" x-text="formatCurrencyBR(route.value)"></span>
                     </div>
-                    <button @click="deliveryAction(route,'reabrir')" class="mt-2 btn-delivery min-h-[48px] w-full interactive" :disabled="actionLoading" style="background: var(--color-text-secondary); color: white; opacity: 0.8;">
+                    <button x-show="!isHelperView" @click="deliveryAction(route,'reabrir')" class="mt-2 btn-delivery min-h-[48px] w-full interactive" :disabled="actionLoading" style="background: var(--color-text-secondary); color: white; opacity: 0.8;">
                         <span x-text="actionLoading ? 'Aguarde...' : 'Reabrir'"></span>
                     </button>
                 </div>
@@ -435,7 +439,7 @@
                         <span class="chip" x-text="`${formatNumberBR(route.weight)} Kg`"></span>
                         <span class="chip" x-text="formatCurrencyBR(route.value)"></span>
                     </div>
-                    <button @click="deliveryAction(route,'reabrir')" class="mt-2 btn-delivery min-h-[48px] w-full interactive" :disabled="actionLoading" style="background: var(--color-text-secondary); color: white; opacity: 0.8;">
+                    <button x-show="!isHelperView" @click="deliveryAction(route,'reabrir')" class="mt-2 btn-delivery min-h-[48px] w-full interactive" :disabled="actionLoading" style="background: var(--color-text-secondary); color: white; opacity: 0.8;">
                         <span x-text="actionLoading ? 'Aguarde...' : 'Reabrir'"></span>
                     </button>
                 </div>
@@ -447,8 +451,8 @@
     <div class="h-28" x-show="deliverySessionOpen" x-cloak></div>
     </div><!-- /delivery-content -->
 
-    <!-- Fixed bottom "Encerrar Rota" button -->
-    <div class="fixed bottom-0 left-0 right-0 z-30 flex justify-center pb-4 pt-3 delivery-footer-bar" x-show="deliverySessionOpen" x-cloak>
+    <!-- Fixed bottom "Encerrar Rota" button (oculto para ajudantes) -->
+    <div class="fixed bottom-0 left-0 right-0 z-30 flex justify-center pb-4 pt-3 delivery-footer-bar" x-show="deliverySessionOpen && !isHelperView" x-cloak>
         <div class="container-mobile w-full">
         <button @click="showDeliveryEndModal = true"
             class="w-full min-h-[56px] rounded-2xl font-bold text-white flex items-center justify-center gap-3 interactive touch-target
@@ -522,8 +526,9 @@
         </div>
     </div>
 
-    <!-- Modal: Editar sessão (ajudantes e KM) -->
-    <div x-show="showSessionEditModal" class="fixed inset-0 z-[99999] flex items-end sm:items-center justify-center p-4 bg-black/40" x-cloak @click.self="showSessionEditModal=false">
+    <!-- Modal: Editar sessão (ajudantes e KM) - teleport para ficar acima do header e botão Encerrar -->
+    <template x-teleport="body">
+    <div x-show="showSessionEditModal" class="fixed inset-0 z-[100001] flex items-end sm:items-center justify-center p-4 bg-black/40" x-cloak @click.self="showSessionEditModal=false">
         <div @click.stop class="w-full max-w-md rounded-xl p-4" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
             <h3 class="text-title mb-3" style="color: var(--color-text);">Editar rota</h3>
             <p class="text-caption mb-4" style="color: var(--color-text-muted);">Altere ajudantes ou KM de saída.</p>
@@ -572,6 +577,7 @@
             </div>
         </div>
     </div>
+    </template>
 </div>
 {% endblock %}
 
@@ -597,6 +603,20 @@
     .route-glow-green { border: 2px solid #10b981 !important; box-shadow: 0 0 0 1px #10b981, 0 0 12px rgba(16,185,129,0.3); }
     .route-glow-red   { border: 2px solid #ef4444 !important; box-shadow: 0 0 0 1px #ef4444, 0 0 12px rgba(239,68,68,0.3); }
     .route-glow-amber { border: 2px solid #f59e0b !important; box-shadow: 0 0 0 1px #f59e0b, 0 0 12px rgba(245,158,11,0.3); }
+    .delivery-feedback-success { background: rgba(5, 150, 105, 0.95) !important; }
+    .delivery-feedback-sad { background: rgba(190, 24, 93, 0.95) !important; }
+    .rocket-fly {
+        position: absolute;
+        bottom: -30px;
+        font-size: 28px;
+        animation: rocketFlyUp 1.4s ease-out forwards;
+        filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.25));
+    }
+    @keyframes rocketFlyUp {
+        0% { transform: translateY(0) scale(0.8) rotate(-12deg); opacity: 0; }
+        12% { opacity: 1; }
+        100% { transform: translateY(-120vh) scale(1.15) rotate(12deg); opacity: 0; }
+    }
 </style>
 <script id="delivery-page-data" type="application/json">
 {"employees": {{ employees_json | safe }}, "returnsAlert": {{ returns_alert_json | safe }}, "driverName": {{ employee.name | tojson }}}
@@ -614,6 +634,7 @@
             deliverySessionOpen: false,
             assignedPlate: '',
             driverName: payload.driverName || '',
+            isHelperView: false,
             sessionHelpers: [],
             sessionKmDeparture: '',
             sessionStartedAt: '',
@@ -972,6 +993,8 @@
                         this.selectedDeliveryDay = this.deliveryDayCards[0]?.date || '';
                     }
                     this.deliverySessionOpen = !!data.session_open;
+                    this.isHelperView = !!data.is_helper_view;
+                    if (data.is_helper_view && data.driver_name) this.driverName = data.driver_name;
                     this.assignedPlate = data.assigned_plate || '';
                     const s = data.session || {};
                     this.sessionHelpers = Array.isArray(s.helpers) ? s.helpers : [];
@@ -1010,9 +1033,11 @@
                         alert(data?.error || 'Erro ao encerrar rota. Tente novamente.');
                         return;
                     }
+                    this.showDeliveryFeedback('🎉 Rota encerrada com sucesso!', 'success');
+                    this.playCelebrationEffects();
                     this.showDeliveryEndModal = false; this.deliveryEndKm = '';
                     this.haptic('success');
-                    window.location.href = '/mobile/delivery';
+                    setTimeout(() => { window.location.href = '/mobile/delivery'; }, 1400);
                 }).catch((e) => { this.actionLoading = false; alert('Erro de conexão. Verifique o KM e tente novamente.'); });
             },
             deliveryAction(route, action) {
@@ -1027,7 +1052,12 @@
                         if (action === 'iniciar') {
                             this.$nextTick(() => setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 150));
                         }
-                        if (data.xp_earned && typeof this.showXpPopup === 'function') this.showXpPopup(data.xp_earned);
+                        if (action === 'finalizar') {
+                            const xp = Number(data.xp_earned || 0);
+                            if (xp > 0 && typeof this.showXpPopup === 'function') this.showXpPopup(xp);
+                            this.showDeliveryFeedback('🚀 Entrega concluída! +1 XP', 'success');
+                            this.playCelebrationEffects();
+                        }
                     }).catch(() => { this.actionLoading = false; });
             },
             openMobileReturnModal(route) { this.mobileReturnRoute = route; this.mobileReturn = { reason: this.mobileReturnReasons[0] || '', is_partial: false, weight: '', value: '' }; this.showMobileReturnModal = true; },
@@ -1049,8 +1079,9 @@
                     this.actionLoading = false;
                     if (!data.success) return alert(data.error || 'Erro.');
                     this.showMobileReturnModal = false; this.mobileReturnRoute = null;
-                    this.loadDeliveryData(); this.haptic('success');
-                    if (typeof this.showXpPopup === 'function') this.showXpPopup(data.xp_earned || 5);
+                    this.loadDeliveryData();
+                    this.haptic('medium');
+                    this.showDeliveryFeedback('😢 Que pena que essa devolução aconteceu. Já tentou falar com o comercial?', 'sad');
                     this.$nextTick(() => lucide.createIcons());
                 }).catch(() => { this.actionLoading = false; });
             },
@@ -1075,6 +1106,39 @@
                 this.playSuccessSound();
                 if (typeof confetti === 'function') confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
                 setTimeout(() => el.classList.add('hidden'), 1800);
+            },
+            showDeliveryFeedback(message, type = 'success') {
+                const popup = document.getElementById('delivery-feedback-popup');
+                const card = document.getElementById('delivery-feedback-card');
+                if (!popup || !card) return;
+                card.textContent = message || '';
+                card.classList.remove('delivery-feedback-success', 'delivery-feedback-sad');
+                card.classList.add(type === 'sad' ? 'delivery-feedback-sad' : 'delivery-feedback-success');
+                popup.classList.remove('hidden');
+                setTimeout(() => popup.classList.add('hidden'), 2800);
+            },
+            playCelebrationEffects() {
+                if (typeof confetti === 'function') {
+                    confetti({ particleCount: 90, spread: 65, origin: { y: 0.58 } });
+                    setTimeout(() => confetti({ particleCount: 70, angle: 60, spread: 55, origin: { x: 0, y: 0.7 } }), 160);
+                    setTimeout(() => confetti({ particleCount: 70, angle: 120, spread: 55, origin: { x: 1, y: 0.7 } }), 220);
+                }
+                this.launchRockets();
+            },
+            launchRockets() {
+                const layer = document.getElementById('delivery-rocket-layer');
+                if (!layer) return;
+                const rockets = 6;
+                for (let i = 0; i < rockets; i++) {
+                    const node = document.createElement('span');
+                    node.className = 'rocket-fly';
+                    node.textContent = '🚀';
+                    const left = 8 + (i * (84 / rockets)) + (Math.random() * 8 - 4);
+                    node.style.left = `${Math.max(3, Math.min(95, left))}%`;
+                    node.style.animationDelay = `${Math.random() * 0.22}s`;
+                    layer.appendChild(node);
+                    setTimeout(() => node.remove(), 1600);
+                }
             },
         };
     }
