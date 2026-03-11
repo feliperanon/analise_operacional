@@ -60,6 +60,8 @@ Fixes: high z-index, stable colors, click priority above page content.
                     {% set auth_user_id = request.session.get("auth_user_id") %}
                     {% set is_employee_session = request.session.get("user_id") %}
 
+                    <!-- Início -->
+                    <p class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider" style="color: var(--color-text-muted);">Início</p>
                     <a href="/mobile/dashboard" onclick="closeMobileNavMenu()" class="interactive flex items-center gap-3 p-3 rounded-lg" style="background: rgba(15,23,42,0.5);">
                         <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white" style="background: var(--color-primary);">
                             <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
@@ -72,6 +74,8 @@ Fixes: high z-index, stable colors, click priority above page content.
                     </a>
 
                     {% if auth_user_id and ("smart_flow" in allowed_pages or user_role == "admin") %}
+                    <!-- Operação do Dia -->
+                    <p class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider mt-4" style="color: var(--color-text-muted);">Operação do Dia</p>
                     <a href="/smart-flow" onclick="closeMobileNavMenu()" class="interactive flex items-center gap-3 p-3 rounded-lg" style="background: rgba(15,23,42,0.5);">
                         <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white" style="background: var(--color-primary);">
                             <i data-lucide="zap" class="w-5 h-5"></i>
@@ -115,6 +119,7 @@ Fixes: high z-index, stable colors, click priority above page content.
                     {% endif %}
 
                     {% if is_employee_session %}
+                    <p class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider mt-4" style="color: var(--color-text-muted);">Colaborador</p>
                     <a href="/mobile/tarefas" onclick="closeMobileNavMenu()" class="interactive flex items-center gap-3 p-3 rounded-lg" style="background: rgba(15,23,42,0.5);">
                         <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white" style="background: var(--color-primary);">
                             <i data-lucide="list-todo" class="w-5 h-5"></i>
@@ -127,6 +132,8 @@ Fixes: high z-index, stable colors, click priority above page content.
                     </a>
                     {% endif %}
 
+                    <!-- Engajamento -->
+                    <p class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider mt-4" style="color: var(--color-text-muted);">Engajamento</p>
                     <a href="/mobile/achievements" onclick="closeMobileNavMenu()" class="interactive flex items-center gap-3 p-3 rounded-lg" style="background: rgba(15,23,42,0.5);">
                         <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white" style="background: var(--color-primary);">
                             <i data-lucide="award" class="w-5 h-5"></i>

@@ -30,7 +30,7 @@
 <body class="bg-slate-900 text-white">
     <div class="flex h-screen overflow-hidden" x-data="{ 
         sidebarOpen: false,
-        openMenus: { operacao: false, rotinas: false, cadastros: false, pessoas: false, bi: false, sistema: false }
+        openMenus: { operacao: false, rotinas: false, cadastros: false, pessoas: false, bi: false, sistema: false, lider: false, checklists: false }
     }">
         
         <!-- Menu Button (Fixed) - Hidden on print -->
@@ -156,25 +156,7 @@
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
                             <span class="text-sm">Minhas Ordens</span>
                         </a>
-                    </div>
-                </div>
-
-                <!-- ========== MÓDULO GERENTE ========== -->
-                <div>
-                    <button @click="openMenus.gerente = !openMenus.gerente" class="menu-toggle w-full flex items-center justify-between px-4 py-2.5 text-slate-400 hover:text-white rounded-xl transition-colors">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                                <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                                </svg>
-                            </div>
-                            <span class="font-medium text-sm text-amber-400">Módulo Gerente</span>
-                        </div>
-                        <svg class="w-4 h-4 transition-transform" :class="openMenus.gerente ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                        </svg>
-                    </button>
-                    <div x-show="openMenus.gerente" x-collapse class="ml-4 mt-1 space-y-1 border-l border-amber-500/30 pl-4">
+                        <span class="block px-3 py-1.5 text-[10px] font-bold text-amber-400 uppercase tracking-wider">Gerente</span>
                         <a href="/gm/ordens-servico" class="flex items-center gap-3 px-3 py-2.5 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 rounded-lg transition-colors font-medium">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
                             <span class="text-sm">Ordens de Serviço</span>
@@ -185,100 +167,12 @@
                         </a>
                         <a href="/gm/ordens-servico/historico" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            <span class="text-sm">Histórico</span>
+                            <span class="text-sm">Histórico Ordens</span>
                         </a>
-                    </div>
-                </div>
-
-                <!-- ========== CHECKLISTS OPERACIONAIS ========== -->
-                <div>
-                    <button @click="openMenus.checklists = !openMenus.checklists" class="menu-toggle w-full flex items-center justify-between px-4 py-2.5 text-slate-400 hover:text-white rounded-xl transition-colors">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                                <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
-                                </svg>
-                            </div>
-                            <span class="font-medium text-sm">Checklists</span>
-                        </div>
-                        <svg class="w-4 h-4 transition-transform" :class="openMenus.checklists ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                        </svg>
-                    </button>
-                    <div x-show="openMenus.checklists" x-collapse class="ml-4 mt-1 space-y-1 border-l border-slate-700/50 pl-4">
-                        <a href="/admin/routine/checklists" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5h6m-6 4h6m-7 4h8m-5 4h2m-8 2h10a2 2 0 002-2V5a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-                            <span class="text-sm">Checklists Operacionais</span>
-                        </a>
-                        <a href="/admin/routine/checklists/dashboard" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3v18m-6-6h12M4 21h16a1 1 0 001-1V4a1 1 0 00-1-1H4a1 1 0 00-1 1v16a1 1 0 001 1z"/></svg>
-                            <span class="text-sm">Painel</span>
-                        </a>
-                        <a href="/admin/routine/checklists/settings" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                            <span class="text-sm">Configurações</span>
-                        </a>
-                    </div>
-                </div>
-
-                <!-- ========== BANCO DE DADOS ========== -->
-                <div>
-                    <button @click="openMenus.dados = !openMenus.dados" class="menu-toggle w-full flex items-center justify-between px-4 py-2.5 text-slate-400 hover:text-white rounded-xl transition-colors">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
-                                <svg class="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path>
-                                </svg>
-                            </div>
-                            <span class="font-medium text-sm">Banco de Dados</span>
-                        </div>
-                        <svg class="w-4 h-4 transition-transform" :class="openMenus.dados ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                        </svg>
-                    </button>
-                    <div x-show="openMenus.dados" x-collapse class="ml-4 mt-1 space-y-1 border-l border-slate-700/50 pl-4">
-                        <a href="/clients" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                            <span class="text-sm">Clientes</span>
-                        </a>
-                        <a href="/vehicles" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-                            <i data-lucide="truck" class="w-4 h-4"></i>
-                            <span class="text-sm">Veículos</span>
-                        </a>
-                        <a href="/employees" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-                            <span class="text-sm">Colaboradores</span>
-                        </a>
-                        <a href="/people-intelligence" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                            <span class="text-sm">Inteligência de Pessoas</span>
-                        </a>
-                        <a href="/admin/turnover-analysis" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 17l-4 4m0 0l-4-4m4 4V3"/></svg>
-                            <span class="text-sm">Turnover e Rotatividade</span>
-                        </a>
-                    </div>
-                </div>
-
-                <!-- ========== PROCESSOS ========== -->
-                <div>
-                    <button @click="openMenus.processos = !openMenus.processos" class="menu-toggle w-full flex items-center justify-between px-4 py-2.5 text-slate-400 hover:text-white rounded-xl transition-colors">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-rose-500/20 flex items-center justify-center">
-                                <svg class="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
-                                </svg>
-                            </div>
-                            <span class="font-medium text-sm">Processos</span>
-                        </div>
-                        <svg class="w-4 h-4 transition-transform" :class="openMenus.processos ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                        </svg>
-                    </button>
-                    <div x-show="openMenus.processos" x-collapse class="ml-4 mt-1 space-y-1 border-l border-slate-700/50 pl-4">
+                        <span class="block px-3 py-1.5 text-[10px] font-bold text-rose-400 uppercase tracking-wider">Processos</span>
                         <a href="/separacao" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
-                            <span class="text-sm">Separação de Mercadorias</span>
+                            <span class="text-sm">Separação</span>
                         </a>
                         <a href="/devolucoes" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
@@ -291,22 +185,111 @@
                     </div>
                 </div>
 
-                <!-- ========== GESTÃO & ENGAJAMENTO ========== -->
+                <!-- ========== ROTINAS & CHECKLISTS ========== -->
                 <div>
-                    <button @click="openMenus.gestao = !openMenus.gestao" class="menu-toggle w-full flex items-center justify-between px-4 py-2.5 text-slate-400 hover:text-white rounded-xl transition-colors">
+                    <button @click="openMenus.rotinas = !openMenus.rotinas" class="menu-toggle w-full flex items-center justify-between px-4 py-2.5 text-slate-400 hover:text-white rounded-xl transition-colors">
                         <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-yellow-500/20 flex items-center justify-center">
-                                <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+                            <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                                <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
                                 </svg>
                             </div>
-                            <span class="font-medium text-sm">Gestão & Engajamento</span>
+                            <span class="font-medium text-sm">Rotinas & Checklists</span>
                         </div>
-                        <svg class="w-4 h-4 transition-transform" :class="openMenus.gestao ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 transition-transform" :class="openMenus.rotinas ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                         </svg>
                     </button>
-                    <div x-show="openMenus.gestao" x-collapse class="ml-4 mt-1 space-y-1 border-l border-slate-700/50 pl-4">
+                    <div x-show="openMenus.rotinas" x-collapse class="ml-4 mt-1 space-y-1 border-l border-emerald-500/30 pl-4">
+                        <a href="/admin/routine/checklists" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5h6m-6 4h6m-7 4h8m-5 4h2m-8 2h10a2 2 0 002-2V5a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                            <span class="text-sm">Checklists Operacionais</span>
+                        </a>
+                        <a href="/admin/routine/checklists/dashboard" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3v18m-6-6h12M4 21h16a1 1 0 001-1V4a1 1 0 00-1-1H4a1 1 0 00-1 1v16a1 1 0 001 1z"/></svg>
+                            <span class="text-sm">Painel Checklists</span>
+                        </a>
+                        <a href="/admin/routine/checklists/settings" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            <span class="text-sm">Configurações</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- ========== CADASTROS ========== -->
+                <div>
+                    <button @click="openMenus.cadastros = !openMenus.cadastros" class="menu-toggle w-full flex items-center justify-between px-4 py-2.5 text-slate-400 hover:text-white rounded-xl transition-colors">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                                <svg class="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path>
+                                </svg>
+                            </div>
+                            <span class="font-medium text-sm">Cadastros</span>
+                        </div>
+                        <svg class="w-4 h-4 transition-transform" :class="openMenus.cadastros ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    <div x-show="openMenus.cadastros" x-collapse class="ml-4 mt-1 space-y-1 border-l border-violet-500/30 pl-4">
+                        <a href="/clients" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            <span class="text-sm">Clientes</span>
+                        </a>
+                        <a href="/vehicles" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                            <i data-lucide="truck" class="w-4 h-4"></i>
+                            <span class="text-sm">Veículos</span>
+                        </a>
+                        <a href="/employees" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                            <span class="text-sm">Colaboradores</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- ========== PESSOAS & RH ========== -->
+                <div>
+                    <button @click="openMenus.pessoas = !openMenus.pessoas" class="menu-toggle w-full flex items-center justify-between px-4 py-2.5 text-slate-400 hover:text-white rounded-xl transition-colors">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                                <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                </svg>
+                            </div>
+                            <span class="font-medium text-sm">Pessoas & RH</span>
+                        </div>
+                        <svg class="w-4 h-4 transition-transform" :class="openMenus.pessoas ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    <div x-show="openMenus.pessoas" x-collapse class="ml-4 mt-1 space-y-1 border-l border-indigo-500/30 pl-4">
+                        <a href="/people-intelligence" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                            <span class="text-sm">Inteligência de Pessoas</span>
+                        </a>
+                        <a href="/admin/turnover-analysis" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 17l-4 4m0 0l-4-4m4 4V3"/></svg>
+                            <span class="text-sm">Turnover e Rotatividade</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- ========== BI & MÉTRICAS ========== -->
+                <div>
+                    <button @click="openMenus.bi = !openMenus.bi" class="menu-toggle w-full flex items-center justify-between px-4 py-2.5 text-slate-400 hover:text-white rounded-xl transition-colors">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+                                <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18h18M8 14l3-3 3 2 4-5"></path>
+                                </svg>
+                            </div>
+                            <span class="font-medium text-sm">BI & Métricas</span>
+                        </div>
+                        <svg class="w-4 h-4 transition-transform" :class="openMenus.bi ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    <div x-show="openMenus.bi" x-collapse class="ml-4 mt-1 space-y-1 border-l border-cyan-500/30 pl-4">
                         <a href="/strategy" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                             <span class="text-sm">Estratégia</span>
@@ -330,22 +313,22 @@
                     </div>
                 </div>
 
-                <!-- ========== ACESSO & CONFIGURAÇÕES ========== -->
+                <!-- ========== SISTEMA ========== -->
                 <div>
-                    <button @click="openMenus.acesso = !openMenus.acesso" class="menu-toggle w-full flex items-center justify-between px-4 py-2.5 text-slate-400 hover:text-white rounded-xl transition-colors">
+                    <button @click="openMenus.sistema = !openMenus.sistema" class="menu-toggle w-full flex items-center justify-between px-4 py-2.5 text-slate-400 hover:text-white rounded-xl transition-colors">
                         <div class="flex items-center gap-3">
                             <div class="w-8 h-8 rounded-lg bg-slate-500/20 flex items-center justify-center">
                                 <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
                                 </svg>
                             </div>
-                            <span class="font-medium text-sm">Acesso & Config</span>
+                            <span class="font-medium text-sm">Sistema</span>
                         </div>
-                        <svg class="w-4 h-4 transition-transform" :class="openMenus.acesso ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 transition-transform" :class="openMenus.sistema ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                         </svg>
                     </button>
-                    <div x-show="openMenus.acesso" x-collapse class="ml-4 mt-1 space-y-1 border-l border-slate-700/50 pl-4">
+                    <div x-show="openMenus.sistema" x-collapse class="ml-4 mt-1 space-y-1 border-l border-slate-700/50 pl-4">
                         <a href="/admin/users" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                             <span class="text-sm">Usuários</span>

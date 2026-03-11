@@ -6,10 +6,12 @@
 const SectorManagement = {
     currentSectorId: null,
     searchTerm: '',
+    searchTags: [],
 
     open(sectorId) {
         this.currentSectorId = sectorId;
         this.searchTerm = '';
+        this.searchTags = [];
 
         const sector = Store.state.sectors.find(s => s.id === sectorId);
         if (!sector) {
@@ -35,6 +37,7 @@ const SectorManagement = {
         }
         this.currentSectorId = null;
         this.searchTerm = '';
+        this.searchTags = [];
     },
 
     render(sector) {
@@ -96,19 +99,25 @@ const SectorManagement = {
 
                                 <!-- Right: Colaboradores Disponíveis -->
                                 <div class="space-y-6">
-                                    <!-- Search -->
+                                    <!-- Search com Tags -->
                                     <div>
                                         <h3 class="text-lg font-bold text-white mb-3">Colaboradores Disponíveis</h3>
+
+                                        <!-- Tags de filtro ativas -->
+                                        <div id="search-tags-container" class="flex flex-wrap gap-1.5 mb-2 min-h-[0px]"></div>
+
                                         <div class="relative">
-                                            <input type="text" 
-                                                id="employee-search" 
-                                                placeholder="Buscar colaborador..." 
-                                                oninput="SectorManagement.handleSearch(this.value)"
+                                            <input type="text"
+                                                id="employee-search"
+                                                placeholder="Buscar e pressione Enter..."
+                                                oninput="SectorManagement.handleSearchInput(this.value)"
+                                                onkeydown="SectorManagement.handleSearchKey(event)"
                                                 class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 pl-10 text-white focus:ring-2 focus:ring-blue-500 text-sm">
                                             <svg class="absolute left-3 top-2.5 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                                             </svg>
                                         </div>
+                                        <p class="text-xs text-slate-500 mt-1">Pressione <kbd class="px-1 py-0.5 bg-slate-700 rounded text-slate-300">Enter</kbd> ou <kbd class="px-1 py-0.5 bg-slate-700 rounded text-slate-300">,</kbd> para fixar o filtro</p>
                                     </div>
 
                                     <!-- Available Employees List -->
@@ -440,21 +449,89 @@ const SectorManagement = {
         });
     },
 
-    handleSearch(term) {
-        this.searchTerm = term.toLowerCase();
+    // Digitação livre — filtra em tempo real mas NÃO fixa o termo
+    handleSearchInput(term) {
+        this.searchTerm = term.toLowerCase().trim();
+        this._applyFilters();
+    },
 
+    // Teclado: Enter ou vírgula fixam a tag
+    handleSearchKey(event) {
+        const input = event.target;
+        const raw = input.value.trim();
+
+        if ((event.key === 'Enter' || event.key === ',') && raw) {
+            event.preventDefault();
+            // Remover vírgula se for o separador
+            const term = raw.replace(/,$/, '').trim().toLowerCase();
+            if (term && !this.searchTags.includes(term)) {
+                this.searchTags.push(term);
+            }
+            // Limpar campo e searchTerm temporário
+            input.value = '';
+            this.searchTerm = '';
+            this._renderTags();
+            this._applyFilters();
+        } else if (event.key === 'Backspace' && !input.value && this.searchTags.length > 0) {
+            // Backspace com campo vazio remove a última tag
+            this.searchTags.pop();
+            this._renderTags();
+            this._applyFilters();
+        }
+    },
+
+    // Remove uma tag pelo índice
+    removeSearchTag(index) {
+        this.searchTags.splice(index, 1);
+        this._renderTags();
+        this._applyFilters();
+    },
+
+    // Renderiza as tags visualmente
+    _renderTags() {
+        const container = document.getElementById('search-tags-container');
+        if (!container) return;
+
+        if (this.searchTags.length === 0) {
+            container.innerHTML = '';
+            return;
+        }
+
+        container.innerHTML = this.searchTags.map((tag, i) => `
+            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-600/30 border border-blue-500/50 text-blue-300 text-xs font-medium">
+                ${tag}
+                <button onclick="SectorManagement.removeSearchTag(${i})" class="text-blue-400 hover:text-white leading-none ml-0.5" title="Remover filtro">&times;</button>
+            </span>
+        `).join('');
+    },
+
+    // Aplica todos os filtros ativos (tags fixas + termo digitado no momento)
+    _applyFilters() {
         const state = Store.state;
         const availableEmployees = this.getAvailableEmployees(state);
 
-        const filtered = availableEmployees.filter(emp =>
-            emp.name.toLowerCase().includes(this.searchTerm) ||
-            (emp.role && emp.role.toLowerCase().includes(this.searchTerm))
-        );
+        // Unir tags fixas com o termo sendo digitado agora
+        const allTerms = [...this.searchTags];
+        if (this.searchTerm) allTerms.push(this.searchTerm);
+
+        const filtered = allTerms.length === 0
+            ? availableEmployees
+            : availableEmployees.filter(emp => {
+                const name = emp.name.toLowerCase();
+                const role = (emp.role || '').toLowerCase();
+                // OR: basta bater em qualquer uma das tags
+                return allTerms.some(term => name.includes(term) || role.includes(term));
+            });
 
         const container = document.getElementById('available-employees-list');
         if (container) {
             container.innerHTML = this.renderAvailableEmployees(filtered);
         }
+    },
+
+    // Mantido por compatibilidade (legado)
+    handleSearch(term) {
+        this.handleSearchInput(term);
     },
 
     showSubsectorSelector(empId) {
