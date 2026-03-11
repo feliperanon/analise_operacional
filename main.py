@@ -3190,6 +3190,14 @@ async def api_mobile_delivery_history(
                 helpers = [str(h) for h in helpers if h]
             except Exception:
                 pass
+        # Fallback: ajudantes informados no desktop (Route.delivery_helpers_json) quando sessão está vazia
+        if not helpers and day_routes:
+            helper_ids = set()
+            for x in day_routes:
+                ids = _parse_route_helper_ids(getattr(x, "delivery_helpers_json", None))
+                helper_ids.update(ids)
+            helpers = [emp_map.get(hid, "") for hid in helper_ids if emp_map.get(hid)]
+            helpers = [h for h in helpers if h]
         motorista = emp_map.get(r.employee_id, "") or (employee.name if r.employee_id == employee.id else "")
         try:
             d_fmt = datetime.strptime(r.date, "%Y-%m-%d").strftime("%d/%m/%Y")
