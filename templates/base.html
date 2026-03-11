@@ -30,7 +30,7 @@
 <body class="bg-slate-900 text-white">
     <div class="flex h-screen overflow-hidden" x-data="{ 
         sidebarOpen: false,
-        openMenus: { lider: false, gerente: false, dados: false, processos: false, checklists: false, gestao: false, acesso: false }
+        openMenus: { operacao: false, rotinas: false, cadastros: false, pessoas: false, bi: false, sistema: false }
     }">
         
         <!-- Menu Button (Fixed) - Hidden on print -->
@@ -123,22 +123,23 @@
                 </a>
 
                 {% if user_role == "admin" %}
-                <!-- ========== MÓDULO LÍDER ========== -->
+                <!-- ========== OPERAÇÃO DO DIA ========== -->
                 <div class="pt-3">
-                    <button @click="openMenus.lider = !openMenus.lider" class="menu-toggle w-full flex items-center justify-between px-4 py-2.5 text-slate-400 hover:text-white rounded-xl transition-colors">
+                    <button @click="openMenus.operacao = !openMenus.operacao" class="menu-toggle w-full flex items-center justify-between px-4 py-2.5 text-slate-400 hover:text-white rounded-xl transition-colors">
                         <div class="flex items-center gap-3">
                             <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
                                 <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                                 </svg>
                             </div>
-                            <span class="font-medium text-sm">Módulo Líder</span>
+                            <span class="font-medium text-sm">Operação do Dia</span>
                         </div>
-                        <svg class="w-4 h-4 transition-transform" :class="openMenus.lider ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 transition-transform" :class="openMenus.operacao ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                         </svg>
                     </button>
-                    <div x-show="openMenus.lider" x-collapse class="ml-4 mt-1 space-y-1 border-l border-slate-700/50 pl-4">
+                    <div x-show="openMenus.operacao" x-collapse class="ml-4 mt-1 space-y-1 border-l border-cyan-500/30 pl-4">
+                        <span class="block px-3 py-1.5 text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Líder</span>
                         <a href="/smart-flow" class="flex items-center gap-3 px-3 py-2.5 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-lg transition-colors">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                             <span class="text-sm">Fluxo Inteligente</span>

@@ -10975,6 +10975,8 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
             "selected_date": date,
             "selected_shift": shift or "Todos"
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception(f"Error in API Strategy: {e}")
         return JSONResponse({"error": str(e)}, status_code=500)
