@@ -120,19 +120,19 @@ def calculate_expected_work_days(
 ) -> int:
     """
     Calcula quantos dias o colaborador deveria trabalhar baseado na escala,
-    descontando dias de fÃ©rias se houver sobreposiÃ§Ã£o.
+    descontando dias de férias se houver sobreposição.
     
     Args:
         work_days_json: JSON string com dias da semana
-        start_date: Data inicial do perÃ­odo
-        end_date: Data final do perÃ­odo (exclusiva, geralmente)
-        vacation_start: InÃ­cio das fÃ©rias
-        vacation_end: Fim das fÃ©rias
+        start_date: Data inicial do período
+        end_date: Data final do período (exclusiva, geralmente)
+        vacation_start: Início das férias
+        vacation_end: Fim das férias
     
     Returns:
-        NÃºmero de dias esperados de trabalho
+        Número de dias esperados de trabalho
     """
-    # Default fallback: Segunda a SÃ¡bado (6 dias)
+    # Default fallback: Segunda a Sábado (6 dias)
     default_work_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
     
     try:
@@ -156,10 +156,10 @@ def calculate_expected_work_days(
         "Sunday": 6
     }
     
-    # Converter work_days para nÃºmeros
+    # Converter work_days para números
     work_day_numbers = {day_map[day] for day in work_days if day in day_map}
     
-    # Contar dias no perÃ­odo
+    # Contar dias no período
     expected_days = 0
     current_date = start_date
     
@@ -175,7 +175,7 @@ def calculate_expected_work_days(
             if v_start_date <= curr_d <= v_end_date:
                 is_vacation = True
         
-        # SÃ³ conta se for dia de trabalho E nÃ£o estiver de fÃ©rias
+        # Só conta se for dia de trabalho E não estiver de férias
         if not is_vacation and current_date.weekday() in work_day_numbers:
             expected_days += 1
         current_date += timedelta(days=1)
@@ -258,21 +258,23 @@ def normalize_shift_date(date_str: Optional[str], shift: str, reference: Optiona
 
 
 def normalize_shift(value: Optional[str]) -> str:
-    """Normalize shift labels (ex.: Manha/ManhÃ£ -> manha)."""
+    """Normalize shift labels (ex.: Manha/Manhã -> manha)."""
     if not value:
         return ""
     normalized = unicodedata.normalize("NFD", str(value))
     cleaned = "".join(ch for ch in normalized if not unicodedata.combining(ch))
-    return cleaned.lower().strip()
+    # Remove caracteres residuais de encoding quebrado (ex.: Manhã/ManhĂŁ)
+    alnum_only = "".join(ch for ch in cleaned.lower().strip() if "a" <= ch <= "z")
+    return alnum_only
 
 
 def shift_display_label(normalized: str) -> str:
-    """Retorna rÃ³tulo em portuguÃªs para exibiÃ§Ã£o (evita duplicatas e encoding)."""
+    """Retorna rótulo em português para exibição (evita duplicatas e encoding)."""
     if not normalized:
         return "Outro"
     n = normalized.strip().lower()
     if n.startswith("manha"):
-        return "ManhÃ£"
+        return "Manhã"
     if n.startswith("tard"):
         return "Tarde"
     if n.startswith("noit"):
@@ -350,7 +352,7 @@ def update_vacation_statuses(session: Session, target_date: datetime):
                 
                 # Create vacation routine for today if doesn't exist
                 # Check for each shift
-                for shift in ["ManhÃ£", "Tarde", "Noite"]:
+                for shift in ["Manhã", "Tarde", "Noite"]:
                     # Only create for the employee's actual shift
                     if emp.work_shift and emp.work_shift.lower() != shift.lower():
                         continue
@@ -466,7 +468,7 @@ async def lifespan(app: FastAPI):
             ensure_devolucao_seed(session)
             ensure_vendedores_especiais(session)
     except Exception as e:
-        logger.error(f"Erro ao seed devoluÃ§Ãµes: {e}")
+        logger.error(f"Erro ao seed devoluções: {e}")
     try:
         db_source = os.environ.get("ACTIVE_DATABASE_SOURCE", "unknown")
         logger.info(f"DATABASE URL DETECTADA: {engine.url} | source={db_source}")
@@ -475,7 +477,7 @@ async def lifespan(app: FastAPI):
         logger.error(f"Erro ao iniciar sync: {e}")
     yield
 
-app = FastAPI(title="AnÃ¡lise Operacional", version="2.0.0", lifespan=lifespan)
+app = FastAPI(title="Análise Operacional", version="2.0.0", lifespan=lifespan)
 
 app.include_router(bi_delivery_router)
 app.include_router(bi_motorista_router)
@@ -676,7 +678,7 @@ def get_user_display_name(request: Request, session: Session = None) -> tuple[st
     """
     user = get_current_user(request)
     if not user:
-        return ("UsuÃ¡rio", "US")
+        return ("Usuário", "US")
     
     if isinstance(user, dict) and user.get("type") == "user":
         user_id = user.get("id")
@@ -699,10 +701,10 @@ def get_user_display_name(request: Request, session: Session = None) -> tuple[st
             initials = "".join([n[0].upper() for n in name.split()[:2]]) if name else "US"
             return (name, initials[:2])
     
-    return ("UsuÃ¡rio", "US")
+    return ("Usuário", "US")
 
 def format_user_label(user) -> str:
-    """Converte o usuÃ¡rio logado em um rÃ³tulo legÃ­vel para eventos e logs."""
+    """Converte o usuário logado em um rótulo legível para eventos e logs."""
     try:
         if isinstance(user, dict):
             email = user.get("email")
@@ -717,7 +719,7 @@ def format_user_label(user) -> str:
             role = user.get("role")
             if role:
                 return role
-            return "usuÃ¡rio"
+            return "usuário"
 
         email = getattr(user, "email", None)
         if email:
@@ -730,7 +732,7 @@ def format_user_label(user) -> str:
             return full_name
         return str(user)
     except Exception:
-        return "usuÃ¡rio"
+        return "usuário"
 
 # --- Custom Filters ---
 def fmt_br(val):
@@ -975,7 +977,7 @@ def smtp_config_error(recipient_list: List[str]) -> Optional[str]:
     if not recipient_list:
         missing.append("MAINTENANCE_EMAIL_TO")
     if not host_val or host_val.upper() == "SEU_HOST_AQUI" or len(host_val) == 0:
-        # Verificar se realmente estÃ¡ vazio (nÃ£o apenas espaÃ§os)
+        # Verificar se realmente está vazio (não apenas espaços)
         if not host_val:
             missing.append("SMTP_HOST")
         else:
@@ -1002,7 +1004,7 @@ def smtp_config_error(recipient_list: List[str]) -> Optional[str]:
     if "brevo" in host_val.lower() and from_val.lower().endswith("@smtp-brevo.com"):
         missing.append("MAINTENANCE_EMAIL_FROM (use remetente validado no Brevo)")
     if missing:
-        return "ConfiguraÃ§Ã£o de e-mail incompleta. VariÃ¡veis faltando/invalidas: " + ", ".join(missing)
+        return "Configuração de e-mail incompleta. Variáveis faltando/invalidas: " + ", ".join(missing)
     return None
 
 def checklist_nonconforming_items(keys: Optional[List[str]]) -> List[dict]:
@@ -1021,7 +1023,7 @@ def build_checklist_pdf(report: dict) -> bytes:
         from reportlab.lib.pagesizes import A4
         from reportlab.pdfgen import canvas
     except Exception as exc:
-        raise RuntimeError("ReportLab nÃ£o disponÃ­vel para gerar PDF.") from exc
+        raise RuntimeError("ReportLab não disponível para gerar PDF.") from exc
 
     buffer = io.BytesIO()
     page_width, page_height = A4
@@ -1038,18 +1040,18 @@ def build_checklist_pdf(report: dict) -> bytes:
         c.drawString(40, y, text)
         y -= line_height
 
-    draw_line("Checklist Operacional - NÃ£o Conforme", True)
+    draw_line("Checklist Operacional - Não Conforme", True)
     draw_line(f"Checklist ID: {report['checklist_id']}")
     draw_line(f"Operador: {report['operator_name']} ({report['operator_id']})")
     draw_line(f"Data/Hora: {report['submitted_at']} | Turno: {report['shift']}")
     draw_line(f"Equipamento: {report['equipment_code']}")
     draw_line("")
-    draw_line("Itens nÃ£o conformes:", True)
+    draw_line("Itens não conformes:", True)
     for item in report["nonconforming_items"]:
         critical_tag = " [CRITICO]" if item["critical"] else ""
         draw_line(f"- {item['label']}{critical_tag}")
     draw_line("")
-    draw_line("ObservaÃ§Ãµes:", True)
+    draw_line("Observações:", True)
     for line in (report["observations"] or "-").splitlines():
         draw_line(line)
     if report["image_list"]:
@@ -1071,7 +1073,7 @@ def build_ticket_pdf(report: dict) -> bytes:
         from reportlab.lib.pagesizes import A4
         from reportlab.pdfgen import canvas
     except Exception as exc:
-        raise RuntimeError("ReportLab nÃ£o disponÃ­vel para gerar PDF.") from exc
+        raise RuntimeError("ReportLab não disponível para gerar PDF.") from exc
 
     buffer = io.BytesIO()
     page_width, page_height = A4
@@ -1088,14 +1090,14 @@ def build_ticket_pdf(report: dict) -> bytes:
         c.drawString(40, y, text)
         y -= line_height
 
-    draw_line("Chamado de ManutenÃ§Ã£o - Novo Registro", True)
+    draw_line("Chamado de Manutenção - Novo Registro", True)
     draw_line(f"Ticket ID: {report['ticket_id']}")
     draw_line(f"Solicitante: {report['employee_name']} ({report['employee_id']})")
     draw_line(f"Data/Hora: {report['created_at']} | Turno: {report['shift']}")
     draw_line(f"Equipamento: {report['equipment_code']}")
     draw_line(f"Severidade: {report['severity'].upper()}")
     draw_line("")
-    draw_line("DescriÃ§Ã£o do Problema:", True)
+    draw_line("Descrição do Problema:", True)
     for line in (report["description"] or "-").splitlines():
         draw_line(line)
     if report["image_list"]:
@@ -1135,7 +1137,7 @@ def send_maintenance_email(report: dict, recipients: Optional[List[str]] = None)
             return ''
         candidate = text_value
         for _ in range(2):
-            if not any(token in candidate for token in ("ÃƒÃ†Ã¢â‚¬â„¢", "Ã‚", "Ã¢")):
+            if not any(token in candidate for token in ("ÃÆâ€™", "Â", "â")):
                 break
             try:
                 candidate = candidate.encode('latin1').decode('utf-8')
@@ -1159,13 +1161,13 @@ def send_maintenance_email(report: dict, recipients: Optional[List[str]] = None)
         return _safe_text(value, 'Sistema')
 
     msg = EmailMessage()
-    msg['Subject'] = _safe_text(report.get('subject'), 'NOTIFICAÃƒâ€¡ÃƒÃ†Ã¢â‚¬â„¢O DE MANUTENÃƒâ€¡ÃƒÃ†Ã¢â‚¬â„¢O')
+    msg['Subject'] = _safe_text(report.get('subject'), 'NOTIFICAÃ‡ÃÆâ€™O DE MANUTENÃ‡ÃÆâ€™O')
     msg['From'] = MAINTENANCE_EMAIL_FROM_FIXED
     msg['To'] = ', '.join(recipient_list)
 
     submitted_at = _safe_text(
         report.get('submitted_at'),
-        datetime.now(ZoneInfo('America/Sao_Paulo')).strftime('%d/%m/%Y Ã s %H:%M'),
+        datetime.now(ZoneInfo('America/Sao_Paulo')).strftime('%d/%m/%Y às %H:%M'),
     )
     equipment_code = _safe_text(report.get('equipment_code'))
     operator_name = _safe_text(report.get('operator_name') or report.get('employee_name'))
@@ -1175,7 +1177,7 @@ def send_maintenance_email(report: dict, recipients: Optional[List[str]] = None)
     registered_by = _format_actor_label(report.get('registered_by') or report.get('operator_name'))
     action_text = _safe_text(
         report.get('action'),
-        'Solicitamos avaliaÃ§Ã£o da equipe responsÃ¡vel e tratativa conforme procedimento interno.',
+        'Solicitamos avaliação da equipe responsável e tratativa conforme procedimento interno.',
     )
 
     nonconforming_items = report.get('nonconforming_items') or []
@@ -1188,35 +1190,35 @@ def send_maintenance_email(report: dict, recipients: Optional[List[str]] = None)
             items_html += f'<li>{label}{critical}</li>'
             items_text.append(f'- {label}{critical}')
     else:
-        items_html = '<li>Sem itens nÃ£o conformes informados</li>'
-        items_text = ['- Sem itens nÃ£o conformes informados']
+        items_html = '<li>Sem itens não conformes informados</li>'
+        items_text = ['- Sem itens não conformes informados']
 
-    now_str = datetime.now(ZoneInfo('America/Sao_Paulo')).strftime('%d/%m/%Y Ã s %H:%M')
+    now_str = datetime.now(ZoneInfo('America/Sao_Paulo')).strftime('%d/%m/%Y às %H:%M')
 
     body_text = f"""
-NOTIFICAÃƒâ€¡ÃƒÃ†Ã¢â‚¬â„¢O DE MANUTENÃƒâ€¡ÃƒÃ†Ã¢â‚¬â„¢O
-SolicitaÃ§Ã£o de manutenÃ§Ã£o registrada no sistema
+NOTIFICAÃ‡ÃÆâ€™O DE MANUTENÃ‡ÃÆâ€™O
+Solicitação de manutenção registrada no sistema
 
 Prezados,
 
-Informamos que foi registrado um bloqueio/manutenÃ§Ã£o com os dados abaixo:
+Informamos que foi registrado um bloqueio/manutenção com os dados abaixo:
 
 - Equipamento: {equipment_code}
 - Operador: {operator_name}
-- MatrÃ­cula: {operator_id}
+- Matrícula: {operator_id}
 - Turno: {shift}
 - Data/Hora: {submitted_at}
 - Registrado por: {registered_by}
 
-Itens nÃ£o conformes:
+Itens não conformes:
 {chr(10).join(items_text)}
 
-ObservaÃ§Ãµes: {observations}
+Observações: {observations}
 
 {action_text}
 
 ---
-Este Ã© um e-mail automÃ¡tico gerado pelo sistema de AnÃ¡lise Operacional.
+Este é um e-mail automático gerado pelo sistema de Análise Operacional.
 Data/Hora do registro: {now_str}
     """
 
@@ -1225,29 +1227,29 @@ Data/Hora do registro: {now_str}
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background: #0f766e; color: white; padding: 15px 20px; border-radius: 8px 8px 0 0;">
-                <h2 style="margin: 0; font-size: 18px;">NOTIFICAÃƒâ€¡ÃƒÃ†Ã¢â‚¬â„¢O DE MANUTENÃƒâ€¡ÃƒÃ†Ã¢â‚¬â„¢O</h2>
-                <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">SolicitaÃ§Ã£o de manutenÃ§Ã£o registrada no sistema</p>
+                <h2 style="margin: 0; font-size: 18px;">NOTIFICAÃ‡ÃÆâ€™O DE MANUTENÃ‡ÃÆâ€™O</h2>
+                <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Solicitação de manutenção registrada no sistema</p>
             </div>
             <div style="background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none;">
                 <p>Prezados,</p>
-                <p>Informamos que foi registrado um bloqueio/manutenÃ§Ã£o com os dados abaixo:</p>
+                <p>Informamos que foi registrado um bloqueio/manutenção com os dados abaixo:</p>
                 <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin: 20px 0;">
                     <table style="width: 100%; border-collapse: collapse;">
                         <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Equipamento:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{equipment_code}</td></tr>
                         <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Operador:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{operator_name}</td></tr>
-                        <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>MatrÃ­cula:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{operator_id}</td></tr>
+                        <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Matrícula:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{operator_id}</td></tr>
                         <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Turno:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{shift}</td></tr>
                         <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Data/Hora:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{submitted_at}</td></tr>
                         <tr><td style="padding: 8px 0;"><strong>Registrado por:</strong></td><td style="padding: 8px 0;">{registered_by}</td></tr>
                     </table>
                 </div>
-                <p><strong>Itens nÃ£o conformes:</strong></p>
+                <p><strong>Itens não conformes:</strong></p>
                 <ul>{items_html}</ul>
-                <p><strong>ObservaÃ§Ãµes:</strong> {observations}</p>
+                <p><strong>Observações:</strong> {observations}</p>
                 <p><strong>{action_text}</strong></p>
                 <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
                 <p style="font-size: 12px; color: #6b7280;">
-                    Este Ã© um e-mail automÃ¡tico gerado pelo sistema de AnÃ¡lise Operacional.<br>
+                    Este é um e-mail automático gerado pelo sistema de Análise Operacional.<br>
                     Data/Hora do registro: {now_str}
                 </p>
             </div>
@@ -1294,7 +1296,7 @@ Data/Hora do registro: {now_str}
                 server.send_message(msg)
         return True, None
     except Exception as exc:
-        logger.exception('Erro ao enviar e-mail de manutenÃ§Ã£o')
+        logger.exception('Erro ao enviar e-mail de manutenção')
         return False, str(exc)
 
 async def save_checklist_images(files: List[UploadFile]) -> List[str]:
@@ -1310,7 +1312,7 @@ async def save_checklist_images(files: List[UploadFile]) -> List[str]:
                 raise HTTPException(status_code=400, detail="Imagem muito grande (max 15MB).")
             ext = os.path.splitext(file.filename)[1].lower()
             if ext not in (".jpg", ".jpeg", ".png", ".webp"):
-                raise HTTPException(status_code=400, detail="Formato de imagem invÃ¡lido.")
+                raise HTTPException(status_code=400, detail="Formato de imagem inválido.")
             
             filename = f"{secrets.token_hex(12)}{ext}"
             path = os.path.join(CHECKLIST_IMAGE_DIR, filename)
@@ -1341,7 +1343,7 @@ async def save_ticket_images(files: List[UploadFile]) -> List[str]:
                 raise HTTPException(status_code=400, detail="Imagem muito grande (max 15MB).")
             ext = os.path.splitext(file.filename)[1].lower()
             if ext not in (".jpg", ".jpeg", ".png", ".webp"):
-                raise HTTPException(status_code=400, detail="Formato de imagem invÃ¡lido.")
+                raise HTTPException(status_code=400, detail="Formato de imagem inválido.")
             
             filename = f"{secrets.token_hex(12)}{ext}"
             path = os.path.join(TICKET_IMAGE_DIR, filename)
@@ -1464,7 +1466,7 @@ def ensure_employee_access_schema():
 
 
 def ensure_employee_replaced_by_schema():
-    """Adiciona coluna replaced_by se nÃ£o existir (compatibilidade com DB antigos)."""
+    """Adiciona coluna replaced_by se não existir (compatibilidade com DB antigos)."""
     inspector = inspect(engine)
     if "employee" not in inspector.get_table_names():
         return
@@ -1480,7 +1482,7 @@ def ensure_employee_replaced_by_schema():
                     "FOREIGN KEY (replaced_by) REFERENCES employee(id)"
                 ))
             except Exception:
-                pass  # FK pode jÃ¡ existir ou falhar em alguns DBs
+                pass  # FK pode já existir ou falhar em alguns DBs
     except Exception as e:
         logger.warning(f"Coluna replaced_by: {e}")
 
@@ -1535,7 +1537,7 @@ def ensure_checklist_edit_schema():
             conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}"))
 
 def ensure_substitution_history_schema():
-    """Cria tabela de histÃ³rico de substituiÃ§Ãµes se nÃ£o existir"""
+    """Cria tabela de histórico de substituições se não existir"""
     inspector = inspect(engine)
     existing_tables = inspector.get_table_names()
     
@@ -1566,15 +1568,15 @@ def ensure_substitution_history_schema():
             print("Tabela substitutionhistory criada")
 
 def migrate_existing_substitutions():
-    """Migra substituiÃ§Ãµes existentes (replaced_by) para o histÃ³rico"""
+    """Migra substituições existentes (replaced_by) para o histórico"""
     with Session(engine) as session:
-        # Verificar se jÃ¡ existem registros no histÃ³rico
+        # Verificar se já existem registros no histórico
         existing_count = session.exec(select(func.count()).select_from(models.SubstitutionHistory)).one()
         if existing_count > 0:
             print(f"Historico de substituicoes ja possui {existing_count} registros, pulando migracao")
             return
         
-        # Buscar colaboradores que foram substituÃ­dos (tÃªm replaced_by preenchido)
+        # Buscar colaboradores que foram substituídos (têm replaced_by preenchido)
         replaced_employees = session.exec(
             select(models.Employee)
             .where(models.Employee.replaced_by.isnot(None))
@@ -1594,10 +1596,10 @@ def migrate_existing_substitutions():
             # Determinar o motivo baseado no status do colaborador antigo
             reason = 'fired' if old_emp.status == 'fired' else 'away'
             
-            # Usar a data de admissÃ£o do novo colaborador ou data de demissÃ£o do antigo
+            # Usar a data de admissão do novo colaborador ou data de demissão do antigo
             sub_date = new_emp.admission_date or old_emp.termination_date or datetime.now()
             
-            # Criar registro no histÃ³rico
+            # Criar registro no histórico
             history_record = models.SubstitutionHistory(
                 original_employee_id=old_emp.id,
                 original_employee_name=old_emp.name,
@@ -1609,7 +1611,7 @@ def migrate_existing_substitutions():
                 substitution_date=sub_date,
                 shift=old_emp.work_shift,
                 sector=old_emp.cost_center,
-                registered_by="migraÃ§Ã£o_automÃ¡tica"
+                registered_by="migração_automática"
             )
             session.add(history_record)
             migrated += 1
@@ -1623,7 +1625,7 @@ def ensure_pallet_count_schema():
     inspector = inspect(engine)
     existing_tables = inspector.get_table_names()
     
-    # Criar tabela PalletSector se nÃ£o existir
+    # Criar tabela PalletSector se não existir
     if "palletsector" not in existing_tables:
         with engine.begin() as conn:
             conn.execute(text("""
@@ -1647,9 +1649,9 @@ def ensure_pallet_count_schema():
                 # Alterar sector_id para permitir NULL
                 conn.execute(text("ALTER TABLE palletcount ALTER COLUMN sector_id DROP NOT NULL"))
         except Exception:
-            pass  # JÃ¡ permite NULL ou erro ignorÃ¡vel
+            pass  # Já permite NULL ou erro ignorável
     
-    # Criar tabela PalletCount se nÃ£o existir ou recriar se estrutura antiga
+    # Criar tabela PalletCount se não existir ou recriar se estrutura antiga
     if "palletcount" not in existing_tables:
         with engine.begin() as conn:
             conn.execute(text("""
@@ -1696,7 +1698,7 @@ def ensure_pallet_count_schema():
                 conn.execute(text("CREATE INDEX IF NOT EXISTS ix_palletcount_status ON palletcount (status)"))
                 print("Tabela palletcount recriada com nova estrutura")
     
-    # Criar tabela PalletMaintenanceTicket se nÃ£o existir
+    # Criar tabela PalletMaintenanceTicket se não existir
     if "palletmaintenanceticket" not in existing_tables:
         with engine.begin() as conn:
             conn.execute(text("""
@@ -1725,7 +1727,7 @@ def ensure_pallet_count_schema():
             conn.execute(text("CREATE INDEX IF NOT EXISTS ix_palletmaintenanceticket_status ON palletmaintenanceticket (status)"))
             print("Tabela palletmaintenanceticket criada")
     
-    # Criar tabela PalletCountEmailRecipient se nÃ£o existir
+    # Criar tabela PalletCountEmailRecipient se não existir
     if "palletcountemailrecipient" not in existing_tables:
         with engine.begin() as conn:
             conn.execute(text("""
@@ -1751,7 +1753,7 @@ def ensure_default_admin(session: Session):
         email = f"{email}@local"
     password = ADMIN_PASS
     if not email or not password:
-        logger.warning("Nenhum admin padrÃ£o criado: ADMIN_EMAIL/ADMIN_PASS nÃ£o definidos.")
+        logger.warning("Nenhum admin padrão criado: ADMIN_EMAIL/ADMIN_PASS não definidos.")
         return
     user = models.User(
         username=email,
@@ -1763,7 +1765,7 @@ def ensure_default_admin(session: Session):
     )
     session.add(user)
     session.commit()
-    logger.warning("Admin padrÃ£o criado. Atualize ADMIN_EMAIL/ADMIN_PASS imediatamente.")
+    logger.warning("Admin padrão criado. Atualize ADMIN_EMAIL/ADMIN_PASS imediatamente.")
 
 def admin_users_redirect(message: str, level: str = "success") -> RedirectResponse:
     query = urlencode({"message": message, "level": level})
@@ -1827,7 +1829,7 @@ def require_login(request: Request):
         if not path.startswith("/mobile") and not path.startswith("/static") and not path.startswith("/api"):
             # Trying to access Desktop/Admin page -> Redirect to Mobile Dashboard
             # e.g. /smart-flow, /employees, /
-            print(f"Ã°Å¸Ã¢â‚¬ÂÃ¢â‚¬â„¢ Access Denied: Mobile User {user.get('id')} tried to access {path}")
+            print(f"ðŸâ€â€™ Access Denied: Mobile User {user.get('id')} tried to access {path}")
             raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/mobile/dashboard"})
 
     return user
@@ -1838,10 +1840,10 @@ def require_mobile_module(employee, module: str):
     elif module == "checklist":
         allowed = bool(getattr(employee, "mobile_access_checklist", False))
     else:
-        raise HTTPException(status_code=400, detail="MÃ³dulo invÃ¡lido.")
+        raise HTTPException(status_code=400, detail="Módulo inválido.")
 
     if not allowed:
-        raise HTTPException(status_code=403, detail="Acesso nÃ£o liberado para este mÃ³dulo")
+        raise HTTPException(status_code=403, detail="Acesso não liberado para este módulo")
     return True
 
 def _has_mobile_flags(employee) -> bool:
@@ -1893,7 +1895,7 @@ def require_gm(request: Request, session: Session = Depends(get_session)):
             role = (user.get("role") or "").lower()
             if role in {"admin", "leader"}:
                 return user
-            raise HTTPException(status_code=403, detail="Acesso negado: Requer privilÃ©gios de Admin/GM.")
+            raise HTTPException(status_code=403, detail="Acesso negado: Requer privilégios de Admin/GM.")
 
         if isinstance(user, dict) and user.get("type") == "employee":
             user_id = user.get("id")
@@ -1901,7 +1903,7 @@ def require_gm(request: Request, session: Session = Depends(get_session)):
             if not emp:
                  raise HTTPException(status_code=403, detail="Employee not found")
             if emp.role not in ["Admin", "Manager", "Master"]:
-                raise HTTPException(status_code=403, detail="Acesso negado: Requer privilÃ©gios de Admin/GM.")
+                raise HTTPException(status_code=403, detail="Acesso negado: Requer privilégios de Admin/GM.")
             return emp
             
         raise HTTPException(status_code=403, detail="Invalid auth state")
@@ -2527,9 +2529,9 @@ async def mobile_login_page(request: Request, error: Optional[str] = None):
         return RedirectResponse(url="/mobile/dashboard", status_code=303)
 
     error_map = {
-        "missing_registration": "Informe a matrÃ­cula para continuar.",
-        "invalid_registration": "MatrÃ­cula nÃ£o encontrada.",
-        "access_revoked": "Acesso mobile nÃ£o liberado para este colaborador.",
+        "missing_registration": "Informe a matrícula para continuar.",
+        "invalid_registration": "Matrícula não encontrada.",
+        "access_revoked": "Acesso mobile não liberado para este colaborador.",
     }
     error_text = error_map.get((error or "").strip().lower(), "Erro ao autenticar.") if error else None
     return templates.TemplateResponse("mobile/login.html", {"request": request, "error": error_text})
@@ -2566,7 +2568,7 @@ async def mobile_auth(
             employee.role,
         )
 
-    # Evita sessÃ£o mista entre desktop/admin e mobile.
+    # Evita sessão mista entre desktop/admin e mobile.
     request.session.pop("auth_user_id", None)
     request.session.pop("auth_user_role", None)
     request.session.pop("auth_user_email", None)
@@ -2791,9 +2793,9 @@ async def mobile_dashboard(
     module_value = (module or "").strip().lower()
     error_value = (error or "").strip().lower()
     if error_value == "no_permission":
-        module_notice = "VocÃª nÃ£o possui permissÃ£o para este mÃ³dulo."
+        module_notice = "Você não possui permissão para este módulo."
     elif module_value in {"checklist", "separation"}:
-        module_notice = f"MÃ³dulo '{module_value}' indisponÃ­vel para seu perfil."
+        module_notice = f"Módulo '{module_value}' indisponível para seu perfil."
 
     has_any_mobile_access = _is_mobile_allowed(employee)
     if not has_any_mobile_access:
@@ -3145,7 +3147,12 @@ async def api_mobile_delivery_history(
         dates_seen.add(r.date)
         day_routes = [x for x in routes if x.date == r.date]
         total_val = sum(float(x.valor_financeiro or 0) for x in day_routes)
-        return_val = sum(float(x.valor_devolucao or 0) for x in day_routes)
+        # Só conta valor_devolucao de rotas que ficaram em devolução (status final).
+        # Se marcou devolução mas "retornou da devolução" e entregou, status=entregue → não conta.
+        return_val = sum(
+            float(x.valor_devolucao or 0) for x in day_routes
+            if (x.delivery_status or "").lower() == "devolucao"
+        )
         return_pct = (return_val / total_val * 100) if total_val > 0 else 0.0
         delivered = sum(1 for x in day_routes if (x.delivery_status or "").lower() == "entregue")
         returned = sum(1 for x in day_routes if (x.delivery_status or "").lower() == "devolucao")
@@ -3243,28 +3250,28 @@ async def api_sync_xp_totals(request: Request, session: Session = Depends(get_se
 
 @app.post("/api/game/manual-xp", dependencies=[Depends(require_leader)])
 async def api_manual_xp(payload: ManualXPRequest, request: Request, session: Session = Depends(get_session)):
-    """Cria uma transaÃ§Ã£o manual de XP (bonificaÃ§Ã£o/penalidade)."""
+    """Cria uma transação manual de XP (bonificação/penalidade)."""
     require_login(request)
 
     emp = session.get(models.Employee, payload.employee_id)
     if not emp:
-        return JSONResponse({"success": False, "error": "Colaborador nÃ£o encontrado."}, status_code=404)
+        return JSONResponse({"success": False, "error": "Colaborador não encontrado."}, status_code=404)
 
-    # ValidaÃ§Ã£o bÃ¡sica
+    # Validação básica
     if not payload.reason or not payload.reason.strip():
         return JSONResponse({"success": False, "error": "Informe um motivo (reason)."}, status_code=400)
 
     try:
         amount = int(payload.amount)
     except Exception:
-        return JSONResponse({"success": False, "error": "amount invÃ¡lido."}, status_code=400)
+        return JSONResponse({"success": False, "error": "amount inválido."}, status_code=400)
 
     if amount == 0:
-        return JSONResponse({"success": False, "error": "amount nÃ£o pode ser 0."}, status_code=400)
+        return JSONResponse({"success": False, "error": "amount não pode ser 0."}, status_code=400)
 
     status_val = (payload.status or "confirmed").strip().lower()
     if status_val not in ("confirmed", "provisional"):
-        return JSONResponse({"success": False, "error": "status invÃ¡lido (use confirmed ou provisional)."}, status_code=400)
+        return JSONResponse({"success": False, "error": "status inválido (use confirmed ou provisional)."}, status_code=400)
 
     now = datetime.now()
     tx = GameXPTransaction(
@@ -3401,7 +3408,7 @@ async def api_game_audit_employee_history(
     # 1. Get Employee Info
     emp = session.get(models.Employee, employee_id)
     if not emp:
-        return {"error": "Colaborador nÃ£o encontrado"}
+        return {"error": "Colaborador não encontrado"}
 
     # 2. Get All Transactions (History)
     #    Order by newest first
@@ -3602,7 +3609,7 @@ async def api_save_achievements(payload: AchievementsPayload, session: Session =
 async def api_manage_tx(tx_id: int, action: str, session: Session = Depends(get_session)):
     """Approve/Reject Provisional Transaction"""
     tx = session.get(GameXPTransaction, tx_id)
-    if not tx: return {"error": "TransaÃ§Ã£o nÃ£o encontrada"}
+    if not tx: return {"error": "Transação não encontrada"}
     
     
     if action == "approve":
@@ -3718,11 +3725,11 @@ async def mobile_route_finish(
     try:
         user_id = request.session.get("user_id")
         if not user_id:
-             return JSONResponse({"error": "NÃ£o autorizado"}, status_code=401)
+             return JSONResponse({"error": "Não autorizado"}, status_code=401)
 
         employee = session.get(models.Employee, user_id)
         if not employee:
-             return JSONResponse({"error": "Colaborador nÃ£o encontrado."}, status_code=404)
+             return JSONResponse({"error": "Colaborador não encontrado."}, status_code=404)
         try:
             require_mobile_module(employee, "separation")
         except HTTPException as exc:
@@ -3732,10 +3739,10 @@ async def mobile_route_finish(
               
         route = session.get(models.Route, route_id)
         if not route:
-             return JSONResponse({"error": "Rota nÃ£o encontrada"}, status_code=404)
+             return JSONResponse({"error": "Rota não encontrada"}, status_code=404)
              
         if route.employee_id != user_id:
-             return JSONResponse({"error": "NÃ£o autorizado"}, status_code=403)
+             return JSONResponse({"error": "Não autorizado"}, status_code=403)
              
         # Close Route
         route.end_time = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
@@ -3803,7 +3810,7 @@ def ensure_column(engine, table_name, column_name, column_type_sql):
             logger.error(f"Error adding column {column_name}: {e}")
 
 def ensure_checklist_odometer_schema():
-    """Adiciona coluna odometer_km Ã  tabela transpalletchecklist se nÃ£o existir."""
+    """Adiciona coluna odometer_km à tabela transpalletchecklist se não existir."""
     try:
         inspector = inspect(engine)
         tbl = "transpalletchecklist"
@@ -3819,7 +3826,7 @@ def ensure_checklist_odometer_schema():
 
 
 def ensure_vehicle_schema():
-    """Adiciona colunas in_workshop, sale_value, sold_at Ã  tabela vehicle se nÃ£o existirem."""
+    """Adiciona colunas in_workshop, sale_value, sold_at à tabela vehicle se não existirem."""
     try:
         inspector = inspect(engine)
         if "vehicle" not in inspector.get_table_names():
@@ -3843,7 +3850,7 @@ def ensure_vehicle_schema():
 
 
 def ensure_client_schema():
-    """Adiciona colunas extras de cadastro Ã  tabela client se nÃ£o existirem."""
+    """Adiciona colunas extras de cadastro à tabela client se não existirem."""
     try:
         inspector = inspect(engine)
         if "client" not in inspector.get_table_names():
@@ -3897,13 +3904,13 @@ def ensure_client_schema():
                         conn.commit()
                         logger.info("info log")
                     except Exception as col_err:
-                        logger.error(f"Ã¢ÂÃ…' Erro ao adicionar coluna {col_name}: {col_err}")
+                        logger.error(f"âÅ' Erro ao adicionar coluna {col_name}: {col_err}")
     except Exception as e:
         logger.error(f"ensure_client_schema: {e}")
 
 
 def ensure_route_schema():
-    """Adiciona colunas auxiliares da tabela route (separaÃ§Ã£o + entregas)."""
+    """Adiciona colunas auxiliares da tabela route (separação + entregas)."""
     try:
         inspector = inspect(engine)
         if "route" not in inspector.get_table_names():
@@ -3992,26 +3999,26 @@ async def mobile_route_delete(
     try:
         user_id = request.session.get("user_id")
         if not user_id:
-            return JSONResponse({"error": "NÃ£o autorizado"}, status_code=401)
+            return JSONResponse({"error": "Não autorizado"}, status_code=401)
 
         employee = session.get(models.Employee, user_id)
         if not employee:
-            return JSONResponse({"error": "Colaborador nÃ£o encontrado."}, status_code=404)
+            return JSONResponse({"error": "Colaborador não encontrado."}, status_code=404)
         
-        # Verificar MatrÃ­cula para confirmaÃ§Ã£o de seguranÃ§a
-        # Remove zeros a esquerda para comparaÃ§Ã£o flexÃ­vel se necessÃ¡rio, ou validaÃ§Ã£o exata
+        # Verificar Matrícula para confirmação de segurança
+        # Remove zeros a esquerda para comparação flexível se necessário, ou validação exata
         if payload.registration_id.strip() != employee.registration_id.strip():
-             return JSONResponse({"error": "MatrÃ­cula incorreta. A exclusÃ£o requer sua confirmaÃ§Ã£o."}, status_code=403)
+             return JSONResponse({"error": "Matrícula incorreta. A exclusão requer sua confirmação."}, status_code=403)
 
         route = session.get(models.Route, route_id)
         if not route:
-             return JSONResponse({"error": "Rota nÃ£o encontrada"}, status_code=404)
+             return JSONResponse({"error": "Rota não encontrada"}, status_code=404)
              
         if route.employee_id != user_id:
-             return JSONResponse({"error": "NÃ£o autorizado: Rota pertence a outro colaborador"}, status_code=403)
+             return JSONResponse({"error": "Não autorizado: Rota pertence a outro colaborador"}, status_code=403)
         
         if route.status == "completed":
-             return JSONResponse({"error": "NÃ£o Ã© possÃ­vel excluir uma rota jÃ¡ finalizada."}, status_code=400)
+             return JSONResponse({"error": "Não é possível excluir uma rota já finalizada."}, status_code=400)
 
         # Deletar
         session.delete(route)
@@ -4032,23 +4039,23 @@ async def mobile_route_update(
     try:
         user_id = request.session.get("user_id")
         if not user_id:
-            return JSONResponse({"error": "NÃ£o autorizado"}, status_code=401)
+            return JSONResponse({"error": "Não autorizado"}, status_code=401)
 
         route = session.get(models.Route, route_id)
         if not route:
-             return JSONResponse({"error": "Rota nÃ£o encontrada"}, status_code=404)
+             return JSONResponse({"error": "Rota não encontrada"}, status_code=404)
 
         if route.employee_id != user_id:
-             return JSONResponse({"error": "NÃ£o autorizado"}, status_code=403)
+             return JSONResponse({"error": "Não autorizado"}, status_code=403)
 
         if route.status == "completed":
-             return JSONResponse({"error": "NÃ£o Ã© possÃ­vel editar uma rota jÃ¡ finalizada."}, status_code=400)
+             return JSONResponse({"error": "Não é possível editar uma rota já finalizada."}, status_code=400)
 
         # Atualizar campos se fornecidos
         if payload.client_id:
             client = session.get(models.Client, payload.client_id)
             if not client:
-                return JSONResponse({"error": "Cliente invÃ¡lido"}, status_code=404)
+                return JSONResponse({"error": "Cliente inválido"}, status_code=404)
             route.client_id = payload.client_id
 
         if payload.tonnage is not None:
@@ -4075,7 +4082,7 @@ async def api_mobile_delivery_my_routes(
     try:
         user_id = request.session.get("user_id")
         if not user_id:
-            return JSONResponse({"error": "NÃ£o autorizado"}, status_code=401)
+            return JSONResponse({"error": "Não autorizado"}, status_code=401)
         user_id = int(user_id)
 
         today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
@@ -4218,7 +4225,7 @@ async def api_mobile_delivery_session_start(
 ):
     user_id = request.session.get("user_id")
     if not user_id:
-        return JSONResponse({"error": "NÃ£o autorizado"}, status_code=401)
+        return JSONResponse({"error": "Não autorizado"}, status_code=401)
     today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
 
     routes = session.exec(
@@ -4233,10 +4240,10 @@ async def api_mobile_delivery_session_start(
 
     assigned_plates = sorted({r.delivery_vehicle_plate for r in routes if r.delivery_vehicle_plate})
     if not assigned_plates:
-        return JSONResponse({"error": "CaminhÃ£o nÃ£o definido no planejamento."}, status_code=400)
+        return JSONResponse({"error": "Caminhão não definido no planejamento."}, status_code=400)
 
     if _norm_plate(payload.plate) not in {_norm_plate(p) for p in assigned_plates}:
-        return JSONResponse({"error": f"Placa invÃ¡lida. Placa(s) planejada(s): {', '.join(assigned_plates)}."}, status_code=400)
+        return JSONResponse({"error": f"Placa inválida. Placa(s) planejada(s): {', '.join(assigned_plates)}."}, status_code=400)
 
     existing = session.exec(
         select(models.DeliverySession)
@@ -4245,7 +4252,7 @@ async def api_mobile_delivery_session_start(
         .where(models.DeliverySession.status == "open")
     ).first()
     if existing:
-        return JSONResponse({"error": "Rotina de entrega jÃ¡ iniciada."}, status_code=400)
+        return JSONResponse({"error": "Rotina de entrega já iniciada."}, status_code=400)
 
     helper_names: List[str] = []
     seen_helpers = set()
@@ -4400,10 +4407,10 @@ async def api_mobile_delivery_route_action(
 ):
     user_id = request.session.get("user_id")
     if not user_id:
-        return JSONResponse({"error": "NÃ£o autorizado"}, status_code=401)
+        return JSONResponse({"error": "Não autorizado"}, status_code=401)
     route = session.get(models.Route, route_id)
     if not route or route.type != "delivery" or route.employee_id != user_id:
-        return JSONResponse({"error": "Rota invÃ¡lida."}, status_code=404)
+        return JSONResponse({"error": "Rota inválida."}, status_code=404)
 
     today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
     ds = session.exec(
@@ -4428,9 +4435,9 @@ async def api_mobile_delivery_route_action(
             .where(models.Route.id != route.id)
         ).first()
         if existing_started:
-            return JSONResponse({"error": "JÃ¡ existe uma entrega iniciada."}, status_code=400)
+            return JSONResponse({"error": "Já existe uma entrega iniciada."}, status_code=400)
         if (route.delivery_status or "").lower() in ("entregue", "devolucao"):
-            return JSONResponse({"error": "Rota concluÃ­da. Reabra para iniciar novamente."}, status_code=400)
+            return JSONResponse({"error": "Rota concluída. Reabra para iniciar novamente."}, status_code=400)
         route.delivery_status = "iniciada"
         route.start_time = now
         if not route.delivery_started_at:
@@ -4439,7 +4446,7 @@ async def api_mobile_delivery_route_action(
 
     elif action == "finalizar":
         if (route.delivery_status or "").lower() != "iniciada":
-            return JSONResponse({"error": "SÃ³ pode finalizar rota iniciada."}, status_code=400)
+            return JSONResponse({"error": "Só pode finalizar rota iniciada."}, status_code=400)
         route.delivery_status = "entregue"
         route.status = "completed"
         route.end_time = now
@@ -4471,9 +4478,9 @@ async def api_mobile_delivery_route_action(
         if (route.delivery_status or "").lower() != "iniciada":
             return JSONResponse({"error": "Inicie a entrega antes de devolver."}, status_code=400)
         if not payload.return_reason:
-            return JSONResponse({"error": "Informe o motivo da devoluÃ§Ã£o."}, status_code=400)
+            return JSONResponse({"error": "Informe o motivo da devolução."}, status_code=400)
         if payload.return_reason not in DELIVERY_RETURN_REASONS_FLAT:
-            return JSONResponse({"error": "Motivo de devoluÃ§Ã£o invÃ¡lido."}, status_code=400)
+            return JSONResponse({"error": "Motivo de devolução inválido."}, status_code=400)
         route.delivery_status = "devolucao"
         route.status = "completed"
         route.end_time = now
@@ -4487,7 +4494,7 @@ async def api_mobile_delivery_route_action(
             w = float(payload.return_partial_weight or 0.0)
             v = float(payload.return_partial_value or 0.0)
             if w <= 0 and v <= 0:
-                return JSONResponse({"error": "Para devoluÃ§Ã£o parcial informe peso e/ou valor."}, status_code=400)
+                return JSONResponse({"error": "Para devolução parcial informe peso e/ou valor."}, status_code=400)
             route.devolucao_volume = min(w, float(route.tonnage or 0.0)) if w > 0 else 0.0
             route.valor_devolucao = min(v, float(route.valor_financeiro or 0.0)) if v > 0 else 0.0
         else:
@@ -4499,7 +4506,7 @@ async def api_mobile_delivery_route_action(
 
     elif action == "reabrir":
         if (route.delivery_status or "").lower() not in ("entregue", "devolucao"):
-            return JSONResponse({"error": "Somente rotas concluÃ­das podem ser reabertas."}, status_code=400)
+            return JSONResponse({"error": "Somente rotas concluídas podem ser reabertas."}, status_code=400)
         existing_started = session.exec(
             select(models.Route)
             .where(models.Route.type == "delivery")
@@ -4509,7 +4516,7 @@ async def api_mobile_delivery_route_action(
             .where(models.Route.id != route.id)
         ).first()
         if existing_started:
-            return JSONResponse({"error": "JÃ¡ existe uma entrega iniciada."}, status_code=400)
+            return JSONResponse({"error": "Já existe uma entrega iniciada."}, status_code=400)
         route.delivery_status = "reaberta"
         route.status = "pending"
         route.end_time = None
@@ -4517,7 +4524,7 @@ async def api_mobile_delivery_route_action(
         _append_delivery_event(route, "reabrir", now)
 
     else:
-        return JSONResponse({"error": "AÃ§Ã£o invÃ¡lida."}, status_code=400)
+        return JSONResponse({"error": "Ação inválida."}, status_code=400)
 
     session.add(route)
     session.commit()
@@ -4541,10 +4548,10 @@ async def api_admin_start_route(
     try:
         employee = session.get(models.Employee, employee_id)
         if not employee:
-            return JSONResponse({"error": "Colaborador nÃ£o encontrado"}, status_code=404)
+            return JSONResponse({"error": "Colaborador não encontrado"}, status_code=404)
             
         if not employee.mobile_access_admin_start:
-             return JSONResponse({"error": "Colaborador nÃ£o possui permissÃ£o para abertura manual por lÃ­der."}, status_code=403)
+             return JSONResponse({"error": "Colaborador não possui permissão para abertura manual por líder."}, status_code=403)
 
         from datetime import datetime
         now = datetime.now(ZoneInfo("America/Sao_Paulo"))
@@ -4561,7 +4568,7 @@ async def api_admin_start_route(
             routine = models.EmployeeRoutine(
                 employee_id=employee.id,
                 date=today_str,
-                shift=employee.work_shift or "ManhÃ£",
+                shift=employee.work_shift or "Manhã",
                 status="present",
                 arrival_time=payload.start_time or now.strftime("%H:%M")
             )
@@ -4579,7 +4586,7 @@ async def api_admin_start_route(
         )).first()
         
         if active_route:
-             return JSONResponse({"error": "Colaborador jÃ¡ possui uma rota ativa."}, status_code=400)
+             return JSONResponse({"error": "Colaborador já possui uma rota ativa."}, status_code=400)
              
         new_route = models.Route(
             date=today_str,
@@ -4595,7 +4602,7 @@ async def api_admin_start_route(
         # Log event
         log = models.Event(
             type="routine_change",
-            text=f"Rota MANUAL iniciada por lÃ­der({user['username']}) para {employee.name}",
+            text=f"Rota MANUAL iniciada por líder({user['username']}) para {employee.name}",
             category="processo",
             sector="expedicao",
             impact="low",
@@ -4619,7 +4626,7 @@ async def api_admin_delete_route(
     try:
         route = session.get(models.Route, route_id)
         if not route:
-             return JSONResponse({"error": "Rota nÃ£o encontrada"}, status_code=404)
+             return JSONResponse({"error": "Rota não encontrada"}, status_code=404)
         
         session.delete(route)
         session.commit()
@@ -4638,11 +4645,11 @@ async def api_admin_update_route(
     try:
         route = session.get(models.Route, route_id)
         if not route:
-             return JSONResponse({"error": "Rota nÃ£o encontrada"}, status_code=404)
+             return JSONResponse({"error": "Rota não encontrada"}, status_code=404)
              
         if payload.client_id:
              client = session.get(models.Client, payload.client_id)
-             if not client: return JSONResponse({"error": "Cliente invÃ¡lido"}, status_code=400)
+             if not client: return JSONResponse({"error": "Cliente inválido"}, status_code=400)
              route.client_id = payload.client_id
              
         if payload.tonnage is not None:
@@ -4671,11 +4678,11 @@ async def mobile_routine_start_with_allocation(
 ):
     user_id = request.session.get("user_id")
     if not user_id:
-        return JSONResponse({"error": "NÃ£o autorizado"}, status_code=401)
+        return JSONResponse({"error": "Não autorizado"}, status_code=401)
 
     employee = session.get(models.Employee, user_id)
     if not employee:
-        return JSONResponse({"error": "Colaborador nÃ£o encontrado."}, status_code=404)
+        return JSONResponse({"error": "Colaborador não encontrado."}, status_code=404)
     try:
         require_mobile_module(employee, "separation")
     except HTTPException as exc:
@@ -4700,7 +4707,7 @@ async def mobile_routine_start_with_allocation(
     if not routine:
         routine = models.EmployeeRoutine(
             date=today_str,
-            shift="ManhÃ£", # Placeholder
+            shift="Manhã", # Placeholder
             employee_id=user_id,
             routine="present",
             start_time=now_time,
@@ -4714,7 +4721,7 @@ async def mobile_routine_start_with_allocation(
          routine.end_time = None # Clear end time
          session.add(routine)
          session.commit()
-         # return JSONResponse({"error": "Rotina jÃ¡ encerrada hoje."}, status_code=400) # Removed limitation
+         # return JSONResponse({"error": "Rotina já encerrada hoje."}, status_code=400) # Removed limitation
          
     # 2. Add Allocations
     for item in payload.allocations:
@@ -4794,7 +4801,7 @@ async def mobile_routine_start(request: Request, session: Session = Depends(get_
     else:
         # Create New
         # Determine shift based on time? For now placeholder
-        current_shift = "ManhÃ£" 
+        current_shift = "Manhã" 
         routine = models.EmployeeRoutine(
             date=today_str,
             shift=current_shift, # Placeholder
@@ -4868,7 +4875,7 @@ async def mobile_routine_stop(request: Request, session: Session = Depends(get_s
         logger.error(f"Error calculating XP on routine end: {e}")
     
     # Redirect to Separacao as per last request? Or stay on Dashboard (which will likely redirect or show closed state)?
-    # User: "Quando eu clicar encerrar o dia no botÃ£o deve se finalizar e encerrar tambem na pagina /separacao"
+    # User: "Quando eu clicar encerrar o dia no botão deve se finalizar e encerrar tambem na pagina /separacao"
     # User previously said: "Quando confirmar tem que ir para /separacao" for START.
     # For STOP, usually they log out or see a summary.
     # I'll stick to redirecting to dashboard or login, but the DATA is synced.
@@ -4924,7 +4931,7 @@ async def mobile_routine_stop(request: Request, session: Session = Depends(get_s
                 date=today_str,
                 employee_id=user_id,
                 event_type="conquista",
-                description=f"Quebrou recorde diÃ¡rio: {today_prod}kg",
+                description=f"Quebrou recorde diário: {today_prod}kg",
                 severity="info"
             )
              session.add(event)
@@ -4932,7 +4939,7 @@ async def mobile_routine_stop(request: Request, session: Session = Depends(get_s
         session.commit()
         
         # Logout after stopping routine? Or just stay on dashboard locked?
-        # User requested: "encerrar operaÃ§Ã£o e travar"
+        # User requested: "encerrar operação e travar"
         # Let's logout to be safe/clear
     return RedirectResponse(url="/mobile/dashboard", status_code=303)
 
@@ -4992,15 +4999,15 @@ def apply_checklist_review(
         raise HTTPException(status_code=400, detail=detail)
 
     if action == "reject" and not comment_text:
-        raise HTTPException(status_code=400, detail="ComentÃ¡rio obrigatÃ³rio para rejeiÃ§Ã£o.")
+        raise HTTPException(status_code=400, detail="Comentário obrigatório para rejeição.")
     if action == "approve":
         if checklist.critical_flag and (not comment_text or not checklist.images):
             reject_tx_missing_evidence(
-                "AprovaÃ§Ã£o exige comentÃ¡rio e evidÃªncia para itens crÃ­ticos. TransaÃ§Ã£o XP rejeitada por falta de evidÃªncia."
+                "Aprovação exige comentário e evidência para itens críticos. Transação XP rejeitada por falta de evidência."
             )
         if checklist.nonconforming_keys and not comment_text:
             reject_tx_missing_evidence(
-                "ComentÃ¡rio obrigatÃ³rio quando houver nÃ£o conformidades. TransaÃ§Ã£o XP rejeitada por falta de evidÃªncia."
+                "Comentário obrigatório quando houver não conformidades. Transação XP rejeitada por falta de evidência."
             )
 
     if action == "review":
@@ -5010,7 +5017,7 @@ def apply_checklist_review(
     elif action == "reject":
         checklist.status = "rejected"
     else:
-        raise HTTPException(status_code=400, detail="AÃ§Ã£o invÃ¡lida.")
+        raise HTTPException(status_code=400, detail="Ação inválida.")
 
     checklist.reviewed_by = reviewer
     checklist.reviewed_at = now
@@ -5075,7 +5082,7 @@ async def mobile_checklist_history(request: Request, session: Session = Depends(
             "type": "checklist"
         })
     
-    # Buscar chamados abertos do colaborador (Ãºltimos 30 dias)
+    # Buscar chamados abertos do colaborador (últimos 30 dias)
     three_days_ago = datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=30)
     open_tickets = session.exec(
         select(models.EquipmentTicket)
@@ -5085,7 +5092,7 @@ async def mobile_checklist_history(request: Request, session: Session = Depends(
         .order_by(models.EquipmentTicket.created_at.desc())
     ).all()
     
-    # Adicionar chamados abertos ao histÃ³rico
+    # Adicionar chamados abertos ao histórico
     for ticket in open_tickets:
         history_view.append({
             "equipment_code": ticket.equipment_code,
@@ -5159,7 +5166,7 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
             "equipment_code": c.equipment_code,
             "submitted_at_fmt": c.submitted_at.strftime("%H:%M") if c.submitted_at else "-",
             "status_class": "bg-red-500/10 text-red-400" if (c.critical_flag or c.nonconforming_keys) else "bg-emerald-500/10 text-emerald-400",
-            "status_label": "Falha" if c.critical_flag else ("AtenÃ§Ã£o" if c.nonconforming_keys else "OK"),
+            "status_label": "Falha" if c.critical_flag else ("Atenção" if c.nonconforming_keys else "OK"),
             "original": c
         })
 
@@ -5167,11 +5174,11 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
     # Regra: Work Days - Absences - Done Days
     missing_days = []
     
-    # Janela de anÃ¡lise: Ãšltimos 14 dias atÃ© ontem
+    # Janela de análise: Últimos 14 dias até ontem
     analysis_end = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=1)).date()
     analysis_start = analysis_end - timedelta(days=13) # 14 dias total
     
-    # Buscar Checklists feitos no perÃ­odo (extrair valores: Row/tuple usa r[0], escalar usa r)
+    # Buscar Checklists feitos no período (extrair valores: Row/tuple usa r[0], escalar usa r)
     rows_raw = session.exec(
         select(models.TranspalletChecklist.date)
         .where(models.TranspalletChecklist.employee_id == employee_id)
@@ -5184,7 +5191,7 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
         if val is not None:
             done_dates.add(str(val))
     
-    # Buscar AusÃªncias (EmployeeRoutine != present)
+    # Buscar Ausências (EmployeeRoutine != present)
     absences = session.exec(
         select(models.EmployeeRoutine)
         .where(models.EmployeeRoutine.employee_id == employee_id)
@@ -5209,11 +5216,11 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
         
         # Se for dia de trabalho...
         if week_day_name in work_days_list:
-            # E nÃ£o tiver ausÃªncia registrada...
+            # E não tiver ausência registrada...
             if d_str not in absence_map:
-                # E nÃ£o tiver checklist feito...
+                # E não tiver checklist feito...
                 if d_str not in done_dates:
-                    # ENTÃƒÃ†Ã¢â‚¬â„¢O Ã© pendente
+                    # ENTÃÆâ€™O é pendente
                     missing_days.append({
                         "date": current_d.strftime("%d/%m"),
                         "full_date": d_str,
@@ -5228,11 +5235,11 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
     # Weekday Translation
     weekday_map = {
         "Monday": "Segunda-feira",
-        "Tuesday": "TerÃ§a-feira",
+        "Tuesday": "Terça-feira",
         "Wednesday": "Quarta-feira",
         "Thursday": "Quinta-feira",
         "Friday": "Sexta-feira",
-        "Saturday": "SÃ¡bado",
+        "Saturday": "Sábado",
         "Sunday": "Domingo"
     }
 
@@ -5247,7 +5254,7 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
             "weekday_pt": pt_weekday
         })
     
-    # 5. Lista de caminhÃµes liberados para o colaborador no dia
+    # 5. Lista de caminhões liberados para o colaborador no dia
     allowed_plates = _get_delivery_allowed_plates(session, int(employee_id), today)
     equipment_list = []
     try:
@@ -5261,7 +5268,7 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
                 .order_by(models.Vehicle.placa)
             ).all()
         for v in trucks:
-            # Ãšltimo KM: mÃ¡x entre Vehicle, checklist e DeliverySession (mobile)
+            # Último KM: máx entre Vehicle, checklist e DeliverySession (mobile)
             candidates = []
             vo = getattr(v, "odometer_km", None)
             if vo is not None:
@@ -5287,11 +5294,11 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
             modelo = getattr(v, "modelo", "") or ""
             equipment_list.append({
                 "code": v.placa,
-                "label": f"{v.placa} â€” {marca} {modelo}".strip() or v.placa,
+                "label": f"{v.placa} — {marca} {modelo}".strip() or v.placa,
                 "last_km": last_km
             })
     except Exception as eq_err:
-        logger.warning(f"mobile_checklist: erro ao carregar veÃ­culos: {eq_err}")
+        logger.warning(f"mobile_checklist: erro ao carregar veículos: {eq_err}")
 
     # Serializar para JSON (int quando inteiro)
     def _km_serialize(v):
@@ -5343,20 +5350,20 @@ async def mobile_tickets_list(request: Request, session: Session = Depends(get_s
     open_tickets = [t for t in all_tickets if t.status == "open"]
     closed_tickets = [t for t in all_tickets if t.status != "open"]
     
-    # EstatÃ­sticas
+    # Estatísticas
     total_tickets = len(all_tickets)
     open_count = len(open_tickets)
     closed_count = len(closed_tickets)
     high_severity_count = len([t for t in all_tickets if t.severity == "high"])
     
-    # Tickets recentes (Ãºltimos 7 dias)
+    # Tickets recentes (últimos 7 dias)
     seven_days_ago = datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=7)
-    # Converter para naive datetime para comparaÃ§Ã£o (created_at geralmente Ã© naive no banco)
+    # Converter para naive datetime para comparação (created_at geralmente é naive no banco)
     seven_days_ago_naive = seven_days_ago.replace(tzinfo=None)
     recent_tickets = []
     for t in all_tickets:
         if t.created_at:
-            # Normalizar created_at para naive se necessÃ¡rio
+            # Normalizar created_at para naive se necessário
             ticket_date = t.created_at.replace(tzinfo=None) if t.created_at.tzinfo else t.created_at
             if ticket_date >= seven_days_ago_naive:
                 recent_tickets.append(t)
@@ -5409,7 +5416,7 @@ async def mobile_ticket_new(request: Request, session: Session = Depends(get_ses
         ).all()
         equipment_list = [{"code": v.placa, "status": "available"} for v in trucks]
     
-    # Buscar chamados abertos dos Ãºltimos 3 dias
+    # Buscar chamados abertos dos últimos 3 dias
     three_days_ago = datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=3)
     open_tickets = session.exec(
         select(models.EquipmentTicket, models.Employee)
@@ -5451,9 +5458,9 @@ async def mobile_ticket_detail(request: Request, ticket_id: int, session: Sessio
     
     ticket = session.get(models.EquipmentTicket, ticket_id)
     if not ticket:
-        return HTMLResponse("Chamado nÃ£o encontrado", status_code=404)
+        return HTMLResponse("Chamado não encontrado", status_code=404)
     
-    # Verificar se o ticket pertence ao colaborador ou se Ã© admin
+    # Verificar se o ticket pertence ao colaborador ou se é admin
     if ticket.employee_id != employee.id:
         return HTMLResponse("Acesso negado", status_code=403)
     
@@ -5477,12 +5484,12 @@ async def mobile_ticket_create(
 ):
     user = require_login(request)
     if not isinstance(user, dict) or user.get("type") != "employee":
-        return JSONResponse({"error": "NÃ£o autorizado"}, status_code=401)
+        return JSONResponse({"error": "Não autorizado"}, status_code=401)
     
     employee_id = user.get("id")
     employee = session.get(models.Employee, employee_id)
     if not employee:
-        return JSONResponse({"error": "Colaborador nÃ£o encontrado"}, status_code=404)
+        return JSONResponse({"error": "Colaborador não encontrado"}, status_code=404)
     
     equipment_code = equipment_code.strip().upper()
     images = []
@@ -5513,24 +5520,24 @@ async def mobile_ticket_create(
         
         if recipient_emails:
             ticket_link = f"{APP_BASE_URL}/admin/equipment/tickets/{ticket.id}" if APP_BASE_URL else f"/admin/equipment/tickets/{ticket.id}"
-            priority_labels = {"low": "Baixa", "medium": "MÃ©dia", "high": "Alta", "critical": "CrÃ­tica"}
+            priority_labels = {"low": "Baixa", "medium": "Média", "high": "Alta", "critical": "Crítica"}
             date_br = now_br.strftime('%d/%m/%Y')
             
-            subject = f"ManutenÃ§Ã£o Equipamento {equipment_code} - {date_br}"
+            subject = f"Manutenção Equipamento {equipment_code} - {date_br}"
             body_lines = [
-                "OlÃ¡! Espero que se encontrem bem.",
+                "Olá! Espero que se encontrem bem.",
                 "",
-                f"Segue para manutenÃ§Ã£o o equipamento {equipment_code}.",
+                f"Segue para manutenção o equipamento {equipment_code}.",
                 "",
-                f"Operador: {employee.name} â€” MatrÃ­cula: {employee.registration_id or '-'}",
+                f"Operador: {employee.name} — Matrícula: {employee.registration_id or '-'}",
                 f"Data/Hora: {now_br.strftime('%d/%m/%Y %H:%M')}",
                 f"Prioridade: {priority_labels.get(priority, priority)}",
                 "",
-                "DescriÃ§Ã£o do problema:",
+                "Descrição do problema:",
                 description,
                 "",
                 "Atenciosamente,",
-                "Sistema de OperaÃ§Ã£o Inteligente"
+                "Sistema de Operação Inteligente"
             ]
             if images:
                 image_list = [f"/static/uploads/tickets/{img}" for img in images]
@@ -5549,7 +5556,7 @@ async def mobile_ticket_create(
             else:
                 ticket.email_error = error or "Falha ao enviar e-mail"
         else:
-            ticket.email_error = "Nenhum destinatÃ¡rio configurado"
+            ticket.email_error = "Nenhum destinatário configurado"
     except Exception as exc:
         ticket.email_error = str(exc)
         logger.exception(f"Erro ao enviar e-mail de ticket {ticket.id}")
@@ -5588,7 +5595,7 @@ async def admin_checklists_dashboard(
         .where(models.TranspalletChecklist.submitted_at >= start_date)
         .group_by(models.TranspalletChecklist.shift)
     ).all()
-    # Agrupar por turno normalizado para evitar duplicatas (ex.: ManhÃ£ vs Manh? por encoding)
+    # Agrupar por turno normalizado para evitar duplicatas (ex.: Manhã vs Manh? por encoding)
     by_norm = {}
     for shift, count in shift_counts:
         norm = normalize_shift(shift)
@@ -5651,7 +5658,7 @@ async def admin_checklists_dashboard(
         "tickets_high": f"/admin/equipment/tickets?days={period_days}&severity=high&status=open",
     }
 
-    # Chamados abertos (checklists crÃ­ticos pendentes)
+    # Chamados abertos (checklists críticos pendentes)
     open_calls_query = (
         select(models.TranspalletChecklist, models.Employee)
         .join(models.Employee, models.Employee.id == models.TranspalletChecklist.employee_id)
@@ -5786,10 +5793,10 @@ async def admin_equipment_ticket_close(
 ):
     ticket = session.get(models.EquipmentTicket, ticket_id)
     if not ticket:
-        query = urlencode({"message": "Chamado nÃ£o encontrado.", "level": "error"})
+        query = urlencode({"message": "Chamado não encontrado.", "level": "error"})
         return RedirectResponse(url=f"/admin/equipment/tickets?{query}", status_code=status.HTTP_303_SEE_OTHER)
     if ticket.status == "closed":
-        query = urlencode({"message": "Chamado jÃ¡ encerrado.", "level": "error"})
+        query = urlencode({"message": "Chamado já encerrado.", "level": "error"})
         return RedirectResponse(url=f"/admin/equipment/tickets?{query}", status_code=status.HTTP_303_SEE_OTHER)
 
     now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
@@ -5844,7 +5851,7 @@ async def admin_checklists_add_email(
 ):
     email_norm = normalize_email(email)
     if not email_norm or "@" not in email_norm:
-        return admin_checklists_settings_redirect("E-mail invÃ¡lido.", "error")
+        return admin_checklists_settings_redirect("E-mail inválido.", "error")
 
     existing = session.exec(
         select(models.ChecklistEmailRecipient)
@@ -5871,7 +5878,7 @@ async def admin_checklists_remove_email(
 ):
     recipient = session.get(models.AbsenceAlertRecipient, recipient_id)
     if not recipient:
-        return admin_checklists_settings_redirect("E-mail nÃ£o encontrado.", "error")
+        return admin_checklists_settings_redirect("E-mail não encontrado.", "error")
     if recipient.is_active:
         recipient.is_active = False
         session.add(recipient)
@@ -5887,14 +5894,14 @@ async def admin_checklists_add_equipment(
 ):
     code_norm = (code or "").strip()
     if not code_norm:
-        return admin_checklists_settings_redirect("Informe o cÃ³digo do equipamento.", "error")
+        return admin_checklists_settings_redirect("Informe o código do equipamento.", "error")
 
     existing = session.exec(
         select(models.TranspalletEquipment)
         .where(models.TranspalletEquipment.code == code_norm)
     ).first()
     if existing:
-        return admin_checklists_settings_redirect("Equipamento jÃ¡ cadastrado.", "error")
+        return admin_checklists_settings_redirect("Equipamento já cadastrado.", "error")
 
     equipment = models.TranspalletEquipment(code=code_norm, status="available")
     session.add(equipment)
@@ -5912,20 +5919,20 @@ async def admin_checklists_remove_equipment(
 ):
     equipment = session.get(models.TranspalletEquipment, equipment_id)
     if not equipment:
-        return admin_checklists_settings_redirect("Equipamento nÃ£o encontrado.", "error")
+        return admin_checklists_settings_redirect("Equipamento não encontrado.", "error")
     if equipment.status == "blocked":
         if force_delete != "true":
             reason = equipment.blocked_reason or "Equipamento bloqueado."
             if equipment.last_checklist_id:
                 reason = f"{reason} (Checklist #{equipment.last_checklist_id})"
             return admin_checklists_settings_redirect(
-                f"Equipamento bloqueado nÃ£o pode ser removido. {reason}",
+                f"Equipamento bloqueado não pode ser removido. {reason}",
                 "error"
             )
         comment = (comment or "").strip()
         if not comment:
             return admin_checklists_settings_redirect(
-                "ComentÃ¡rio obrigatÃ³rio para forÃ§ar remoÃ§Ã£o de equipamento bloqueado.",
+                "Comentário obrigatório para forçar remoção de equipamento bloqueado.",
                 "error"
             )
 
@@ -5935,14 +5942,14 @@ async def admin_checklists_remove_equipment(
     ).one() or 0
     if usage_count and equipment.status != "blocked":
         return admin_checklists_settings_redirect(
-            "Equipamento com checklists registrados nÃ£o pode ser removido.",
+            "Equipamento com checklists registrados não pode ser removido.",
             "error"
         )
 
     if equipment.status == "blocked" and force_delete == "true":
         session.add(models.Event(
             timestamp=datetime.now(ZoneInfo("America/Sao_Paulo")),
-            text=f"Equipamento {equipment.code} removido Ã  forÃ§a. Motivo: {comment}",
+            text=f"Equipamento {equipment.code} removido à força. Motivo: {comment}",
             type="equipment_force_remove",
             category="infraestrutura",
             sector=equipment.code,
@@ -6049,13 +6056,13 @@ async def admin_checklists_page(
 
     status_labels = {
         "submitted": "Enviado",
-        "reviewed": "Em revisÃ£o",
+        "reviewed": "Em revisão",
         "approved": "Aprovado",
         "rejected": "Rejeitado"
     }
     equipment_labels = {
         "blocked": "Bloqueado",
-        "available": "DisponÃ­vel"
+        "available": "Disponível"
     }
 
     checklist_rows = []
@@ -6132,7 +6139,7 @@ async def admin_checklist_detail(
 ):
     checklist = session.get(models.TranspalletChecklist, checklist_id)
     if not checklist:
-        raise HTTPException(status_code=404, detail="Checklist nÃ£o encontrado.")
+        raise HTTPException(status_code=404, detail="Checklist não encontrado.")
     employee = session.get(models.Employee, checklist.employee_id)
     equipment = session.exec(
         select(models.TranspalletEquipment).where(models.TranspalletEquipment.code == checklist.equipment_code)
@@ -6163,16 +6170,16 @@ async def admin_checklist_delete(
 ):
     checklist = session.get(models.TranspalletChecklist, checklist_id)
     if not checklist:
-        raise HTTPException(status_code=404, detail="Checklist nÃ£o encontrado.")
+        raise HTTPException(status_code=404, detail="Checklist não encontrado.")
 
     if checklist.status == "approved" and confirm_delete != "true":
-        raise HTTPException(status_code=400, detail="ConfirmaÃ§Ã£o obrigatÃ³ria para excluir checklist aprovado.")
+        raise HTTPException(status_code=400, detail="Confirmação obrigatória para excluir checklist aprovado.")
 
     now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
     if checklist.xp_transaction_id:
         tx = session.get(models.GameXPTransaction, checklist.xp_transaction_id)
         if tx:
-            # Se a transaÃ§Ã£o foi confirmada/aprovada, remover XP do total do colaborador
+            # Se a transação foi confirmada/aprovada, remover XP do total do colaborador
             if tx.status in ["approved", "confirmed"]:
                 emp = session.get(models.Employee, checklist.employee_id)
                 if emp and tx.amount:
@@ -6180,7 +6187,7 @@ async def admin_checklist_delete(
                     emp.total_xp = max(0, emp.total_xp - abs(tx.amount))
                     session.add(emp)
             
-            note = "Checklist excluÃ­do por admin"
+            note = "Checklist excluído por admin"
             tx.status = "rejected"
             if tx.reason:
                 if note not in tx.reason:
@@ -6189,18 +6196,18 @@ async def admin_checklist_delete(
                 tx.reason = note
             session.add(tx)
 
-    # Formata quem realizou a exclusÃ£o de forma mais legÃ­vel
+    # Formata quem realizou a exclusão de forma mais legível
     try:
         if isinstance(user, dict):
-            user_label = user.get("email") or user.get("id") or "usuÃ¡rio"
+            user_label = user.get("email") or user.get("id") or "usuário"
         else:
             user_label = getattr(user, "email", None) or getattr(user, "name", None) or str(user)
     except Exception:
-        user_label = "usuÃ¡rio"
+        user_label = "usuário"
 
     session.add(models.Event(
         timestamp=now_br,
-        text=f"Checklist #{checklist.id} excluÃ­do por {user_label}.",
+        text=f"Checklist #{checklist.id} excluído por {user_label}.",
         type="checklist_delete",
         category="processo",
         sector=checklist.equipment_code,
@@ -6244,7 +6251,7 @@ async def admin_checklist_bulk_delete(
         if checklist.xp_transaction_id:
             tx = session.get(models.GameXPTransaction, checklist.xp_transaction_id)
             if tx:
-                # Se a transaÃ§Ã£o foi confirmada/aprovada, remover XP do total do colaborador
+                # Se a transação foi confirmada/aprovada, remover XP do total do colaborador
                 if tx.status in ["approved", "confirmed"]:
                     emp = session.get(models.Employee, checklist.employee_id)
                     if emp and tx.amount:
@@ -6252,20 +6259,20 @@ async def admin_checklist_bulk_delete(
                         emp.total_xp = max(0, emp.total_xp - abs(tx.amount))
                         session.add(emp)
                 
-                # Revogar a transaÃ§Ã£o
+                # Revogar a transação
                 tx.status = "rejected"
                 if tx.reason:
-                    tx.reason = f"{tx.reason} | Revogado: Checklist #{checklist.id} excluÃ­do em lote."
+                    tx.reason = f"{tx.reason} | Revogado: Checklist #{checklist.id} excluído em lote."
                 else:
-                    tx.reason = f"Revogado: Checklist #{checklist.id} excluÃ­do em lote."
+                    tx.reason = f"Revogado: Checklist #{checklist.id} excluído em lote."
                 session.add(tx)
 
-        # Formata quem realizou a exclusÃ£o em lote de forma mais legÃ­vel
+        # Formata quem realizou a exclusão em lote de forma mais legível
         user_label = format_user_label(user)
 
         session.add(models.Event(
             timestamp=now_br,
-            text=f"Checklist #{checklist.id} excluÃ­do em lote por {user_label}.",
+            text=f"Checklist #{checklist.id} excluído em lote por {user_label}.",
             type="checklist_delete",
             category="processo",
             sector=checklist.equipment_code,
@@ -6293,15 +6300,15 @@ async def admin_checklist_edit(
 ):
     checklist = session.get(models.TranspalletChecklist, checklist_id)
     if not checklist:
-        raise HTTPException(status_code=404, detail="Checklist nÃ£o encontrado.")
+        raise HTTPException(status_code=404, detail="Checklist não encontrado.")
 
     comment = (edit_comment or "").strip()
     if not comment:
-        raise HTTPException(status_code=400, detail="ComentÃ¡rio obrigatÃ³rio para ediÃ§Ã£o.")
+        raise HTTPException(status_code=400, detail="Comentário obrigatório para edição.")
 
     new_equipment = (equipment_code or "").strip().upper()
     if not new_equipment:
-        raise HTTPException(status_code=400, detail="Equipamento obrigatÃ³rio.")
+        raise HTTPException(status_code=400, detail="Equipamento obrigatório.")
 
     new_observations = (observations or "").strip()
     old_equipment = checklist.equipment_code
@@ -6321,7 +6328,7 @@ async def admin_checklist_edit(
     if new_observations != old_observations:
         checklist.previous_observations = old_observations
         checklist.observations = new_observations
-        changes.append("ObservaÃ§Ãµes atualizadas")
+        changes.append("Observações atualizadas")
 
     if new_images:
         checklist.images = (checklist.images or []) + new_images
@@ -6336,7 +6343,7 @@ async def admin_checklist_edit(
     if changes:
         session.add(models.Event(
             timestamp=now_br,
-            text=f"Checklist #{checklist.id} editado por {actor_label}. Motivo: {comment}. AlteraÃ§Ãµes: {', '.join(changes)}.",
+            text=f"Checklist #{checklist.id} editado por {actor_label}. Motivo: {comment}. Alterações: {', '.join(changes)}.",
             type="checklist_edit",
             category="processo",
             sector=checklist.equipment_code,
@@ -6360,10 +6367,10 @@ async def admin_cleanup_all_checklists(
 ):
     """
     Remove TODOS os checklists operacionais (TranspalletChecklist),
-    limpa histÃ³rico em todas as pÃ¡ginas (por exclusÃ£o no banco) e
-    remove automaticamente o XP jÃ¡ creditado.
+    limpa histórico em todas as páginas (por exclusão no banco) e
+    remove automaticamente o XP já creditado.
 
-    Uso exclusivo para admin/lÃ­der, com confirmaÃ§Ã£o forte.
+    Uso exclusivo para admin/líder, com confirmação forte.
     """
     phrase = (confirm_phrase or "").strip().lower()
     expected = "apagar todos os checklists"
@@ -6392,7 +6399,7 @@ async def admin_cleanup_all_checklists(
                 eq.last_checklist_id = None
                 session.add(eq)
 
-        # Remover XP se houve transaÃ§Ã£o
+        # Remover XP se houve transação
         if checklist.xp_transaction_id:
             tx = session.get(models.GameXPTransaction, checklist.xp_transaction_id)
             if tx:
@@ -6415,7 +6422,7 @@ async def admin_cleanup_all_checklists(
         session.add(
             models.Event(
                 timestamp=now_br,
-                text=f"Checklist #{checklist.id} excluÃ­do em limpeza global por {actor_label}.",
+                text=f"Checklist #{checklist.id} excluído em limpeza global por {actor_label}.",
                 type="checklist_delete",
                 category="processo",
                 sector=checklist.equipment_code,
@@ -6444,7 +6451,7 @@ async def admin_cleanup_all_tickets(
 ):
     """
     Remove TODOS os chamados de equipamento (EquipmentTicket) e seus eventos
-    de histÃ³rico. Uso exclusivo para admin/lÃ­der, com confirmaÃ§Ã£o forte.
+    de histórico. Uso exclusivo para admin/líder, com confirmação forte.
     """
     phrase = (confirm_phrase or "").strip().lower()
     expected = "apagar todos os chamados"
@@ -6460,7 +6467,7 @@ async def admin_cleanup_all_tickets(
     tickets = session.exec(select(models.EquipmentTicket)).all()
 
     for ticket in tickets:
-        # Remover eventos de histÃ³rico deste ticket, se modelo existir
+        # Remover eventos de histórico deste ticket, se modelo existir
         try:
             events = session.exec(
                 select(models.EquipmentTicketEvent).where(
@@ -6470,10 +6477,10 @@ async def admin_cleanup_all_tickets(
             for ev in events:
                 session.delete(ev)
         except AttributeError:
-            # Se nÃ£o existir EquipmentTicketEvent no modelo, ignora silenciosamente
+            # Se não existir EquipmentTicketEvent no modelo, ignora silenciosamente
             pass
 
-        # NÃ£o hÃ¡ XP direto amarrado ao ticket, entÃ£o apenas deletamos
+        # Não há XP direto amarrado ao ticket, então apenas deletamos
         session.delete(ticket)
 
     session.commit()
@@ -6541,7 +6548,7 @@ async def admin_checklist_approve(
 ):
     checklist = session.get(models.TranspalletChecklist, checklist_id)
     if not checklist:
-        raise HTTPException(status_code=404, detail="Checklist nÃ£o encontrado.")
+        raise HTTPException(status_code=404, detail="Checklist não encontrado.")
     reviewer = format_user_label(user)
     apply_checklist_review(session, checklist, reviewer, "approve", comment)
     session.commit()
@@ -6557,7 +6564,7 @@ async def admin_checklist_reject(
 ):
     checklist = session.get(models.TranspalletChecklist, checklist_id)
     if not checklist:
-        raise HTTPException(status_code=404, detail="Checklist nÃ£o encontrado.")
+        raise HTTPException(status_code=404, detail="Checklist não encontrado.")
     reviewer = format_user_label(user)
     apply_checklist_review(session, checklist, reviewer, "reject", comment)
     session.commit()
@@ -6573,7 +6580,7 @@ async def admin_checklist_review(
 ):
     checklist = session.get(models.TranspalletChecklist, checklist_id)
     if not checklist:
-        raise HTTPException(status_code=404, detail="Checklist nÃ£o encontrado.")
+        raise HTTPException(status_code=404, detail="Checklist não encontrado.")
     reviewer = format_user_label(user)
     apply_checklist_review(session, checklist, reviewer, "review", comment)
     session.commit()
@@ -6588,7 +6595,7 @@ async def admin_checklist_release_equipment(
 ):
     checklist = session.get(models.TranspalletChecklist, checklist_id)
     if not checklist:
-        raise HTTPException(status_code=404, detail="Checklist nÃ£o encontrado.")
+        raise HTTPException(status_code=404, detail="Checklist não encontrado.")
     equipment = session.exec(
         select(models.TranspalletEquipment).where(models.TranspalletEquipment.code == checklist.equipment_code)
     ).first()
@@ -6604,54 +6611,54 @@ async def admin_checklist_resend_email(
     session: Session = Depends(get_session),
     user=Depends(require_leader)
 ):
-    """Reenviar e-mail de manutenÃ§Ã£o do checklist"""
+    """Reenviar e-mail de manutenção do checklist"""
     checklist = session.get(models.TranspalletChecklist, checklist_id)
     if not checklist:
-        raise HTTPException(status_code=404, detail="Checklist nÃ£o encontrado.")
+        raise HTTPException(status_code=404, detail="Checklist não encontrado.")
     
     employee = session.get(models.Employee, checklist.employee_id)
     equipment = session.exec(
         select(models.TranspalletEquipment).where(models.TranspalletEquipment.code == checklist.equipment_code)
     ).first()
     
-    # Buscar destinatÃ¡rios
+    # Buscar destinatários
     recipient_emails = get_maintenance_recipient_emails(session)
     
     if not recipient_emails:
-        checklist.maintenance_email_error = "Nenhum destinatÃ¡rio configurado"
+        checklist.maintenance_email_error = "Nenhum destinatário configurado"
         session.add(checklist)
         session.commit()
-        return RedirectResponse(url=f"/admin/routine/checklists/{checklist_id}?message=Nenhum+destinatÃ¡rio+configurado&level=error", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(url=f"/admin/routine/checklists/{checklist_id}?message=Nenhum+destinatário+configurado&level=error", status_code=status.HTTP_303_SEE_OTHER)
     
-    # Montar relatÃ³rio
+    # Montar relatório
     label_map = checklist_item_label_map()
     nonconforming_items = checklist_nonconforming_items(checklist.nonconforming_keys)
     
     # Montar corpo do e-mail
     nonconforming_lines = []
     for item in nonconforming_items:
-        critical_tag = " [CRÃTICO]" if item.get("critical") else ""
-        nonconforming_lines.append(f"  â€¢ {item.get('label', item.get('key', ''))}{critical_tag}")
+        critical_tag = " [CRÍTICO]" if item.get("critical") else ""
+        nonconforming_lines.append(f"  • {item.get('label', item.get('key', ''))}{critical_tag}")
     
     checklist_link = f"{APP_BASE_URL}/admin/routine/checklists/{checklist.id}" if APP_BASE_URL else f"/admin/routine/checklists/{checklist.id}"
     date_br = datetime.strptime(checklist.date, "%Y-%m-%d").strftime("%d/%m/%Y") if checklist.date else now_br.strftime("%d/%m/%Y")
     
     body_lines = [
-        "OlÃ¡! Espero que se encontrem bem.",
+        "Olá! Espero que se encontrem bem.",
         "",
-        f"Segue para manutenÃ§Ã£o o equipamento {checklist.equipment_code}.",
+        f"Segue para manutenção o equipamento {checklist.equipment_code}.",
         "",
-        f"Operador: {employee.name if employee else 'Desconhecido'} â€” MatrÃ­cula: {employee.registration_id if employee else '-'}",
+        f"Operador: {employee.name if employee else 'Desconhecido'} — Matrícula: {employee.registration_id if employee else '-'}",
         f"Data: {date_br}",
         f"Turno: {checklist.shift}",
         "",
-        "Itens que requerem atenÃ§Ã£o:",
+        "Itens que requerem atenção:",
         *nonconforming_lines,
         "",
-        f"ObservaÃ§Ãµes: {checklist.observations or '-'}",
+        f"Observações: {checklist.observations or '-'}",
         "",
         "Atenciosamente,",
-        "Sistema de OperaÃ§Ã£o Inteligente"
+        "Sistema de Operação Inteligente"
     ]
     
     report = {
@@ -6663,7 +6670,7 @@ async def admin_checklist_resend_email(
         "critical": checklist.critical_flag,
         "observations": checklist.observations or "",
         "images": [f"/static/uploads/checklists/{img}" for img in (checklist.images or [])],
-        "subject": f"ManutenÃ§Ã£o Equipamento {checklist.equipment_code} - {date_br}",
+        "subject": f"Manutenção Equipamento {checklist.equipment_code} - {date_br}",
         "body": "\n".join(body_lines)
     }
     
@@ -6697,30 +6704,30 @@ async def api_create_checklist(
     try:
         user = require_login(request)
         if not isinstance(user, dict) or user.get("type") != "employee":
-            return JSONResponse({"error": "NÃ£o autorizado"}, status_code=401)
+            return JSONResponse({"error": "Não autorizado"}, status_code=401)
 
         employee_id = user.get("id")
         employee = session.get(models.Employee, employee_id)
         if not employee:
-            return JSONResponse({"error": "Colaborador nÃ£o encontrado."}, status_code=404)
+            return JSONResponse({"error": "Colaborador não encontrado."}, status_code=404)
         require_mobile_module(employee, "checklist")
 
         equipment_code = (equipment_code or "").strip().upper()
         if not equipment_code:
-            return JSONResponse({"error": "Equipamento obrigatÃ³rio."}, status_code=400)
-        # Restringe ao(s) caminhÃ£o(Ãµes) liberado(s) para o colaborador na data
+            return JSONResponse({"error": "Equipamento obrigatório."}, status_code=400)
+        # Restringe ao(s) caminhão(ões) liberado(s) para o colaborador na data
         date_ref = date or datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
         allowed_plates = _get_delivery_allowed_plates(session, int(employee_id), date_ref)
         if not allowed_plates:
-            return JSONResponse({"error": "Nenhum caminhÃ£o liberado para entrega nesta data."}, status_code=403)
+            return JSONResponse({"error": "Nenhum caminhão liberado para entrega nesta data."}, status_code=403)
         allowed_norm = {_norm_plate(p) for p in allowed_plates}
         if _norm_plate(equipment_code) not in allowed_norm:
             return JSONResponse(
-                {"error": f"CaminhÃ£o nÃ£o liberado para vocÃª. Liberado(s): {', '.join(allowed_plates)}."},
+                {"error": f"Caminhão não liberado para você. Liberado(s): {', '.join(allowed_plates)}."},
                 status_code=403
             )
 
-        # Aceita TranspalletEquipment OU Vehicle (caminhÃ£o por placa)
+        # Aceita TranspalletEquipment OU Vehicle (caminhão por placa)
         equipment = session.exec(
             select(models.TranspalletEquipment).where(models.TranspalletEquipment.code == equipment_code)
         ).first()
@@ -6733,17 +6740,17 @@ async def api_create_checklist(
                 .where(models.Vehicle.is_active == True)
             ).first()
             if not truck:
-                return JSONResponse({"error": "Equipamento nÃ£o cadastrado."}, status_code=400)
+                return JSONResponse({"error": "Equipamento não cadastrado."}, status_code=400)
             is_truck = True
 
-        # ValidaÃ§Ã£o KM (obrigatÃ³rio apenas para caminhÃ£o)
+        # Validação KM (obrigatório apenas para caminhão)
         try:
             km_val = float((odometer_km or "").strip().replace(",", ".")) if odometer_km else None
         except (ValueError, TypeError):
             km_val = None
         if is_truck and (km_val is None or km_val < 0):
-            return JSONResponse({"error": "Informe o KM do hodÃ´metro para caminhÃ£o."}, status_code=400)
-        # ReferÃªncia: mÃ¡x entre Vehicle, checklist e DeliverySession
+            return JSONResponse({"error": "Informe o KM do hodômetro para caminhão."}, status_code=400)
+        # Referência: máx entre Vehicle, checklist e DeliverySession
         last_km_candidates = []
         if is_truck and truck and getattr(truck, "odometer_km", None) is not None:
             last_km_candidates.append(float(truck.odometer_km))
@@ -6765,7 +6772,7 @@ async def api_create_checklist(
             if km_val < last_km:
                 return JSONResponse({"error": f"KM deve ser igual ou maior que o anterior ({last_km:,.0f})."}, status_code=400)  # noqa: E501
             if km_val > last_km + 1000:
-                return JSONResponse({"error": f"MÃ¡ximo 1000 km/dia. KM anterior: {last_km:,.0f}. MÃ¡x hoje: {last_km + 1000:,.0f}."}, status_code=400)  # noqa: E501
+                return JSONResponse({"error": f"Máximo 1000 km/dia. KM anterior: {last_km:,.0f}. Máx hoje: {last_km + 1000:,.0f}."}, status_code=400)  # noqa: E501
 
         payload_items = parse_items_payload(items)
         if not payload_items or len(payload_items) != len(CHECKLIST_ITEM_KEYS):
@@ -6782,7 +6789,7 @@ async def api_create_checklist(
 
         now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
         date_val = date or now_br.strftime("%Y-%m-%d")
-        shift_val = shift or employee.work_shift or "ManhÃ£"
+        shift_val = shift or employee.work_shift or "Manhã"
 
         checklist = models.TranspalletChecklist(
             employee_id=employee_id,
@@ -6802,7 +6809,7 @@ async def api_create_checklist(
         session.commit()
         session.refresh(checklist)
 
-        # Atualizar Ãºltimo KM do veÃ­culo quando checklist for de caminhÃ£o
+        # Atualizar último KM do veículo quando checklist for de caminhão
         if is_truck and km_val is not None and truck:
             truck.odometer_km = km_val
             truck.updated_at = now_br
@@ -6812,10 +6819,10 @@ async def api_create_checklist(
         if critical_flag:
             blocked_items = ", ".join([checklist_item_label_map().get(k, k) for k in nonconforming_keys])
             if equipment:
-                block_equipment(session, equipment, f"Itens crÃ­ticos: {blocked_items}", checklist.id)
+                block_equipment(session, equipment, f"Itens críticos: {blocked_items}", checklist.id)
             session.add(models.Event(
                 timestamp=now_br,
-                text=f"Checklist crÃ­tico {equipment_code}: {blocked_items}",
+                text=f"Checklist crítico {equipment_code}: {blocked_items}",
                 type="checklist",
                 category="infraestrutura",
                 sector=equipment_code,
@@ -6833,7 +6840,7 @@ async def api_create_checklist(
             submitted_at = checklist.submitted_at.strftime("%d/%m/%Y %H:%M") if checklist.submitted_at else now_br.strftime("%d/%m/%Y %H:%M")
             email_date_br = now_br.strftime("%d/%m/%Y")
             report = {
-                "subject": f"ManutenÃ§Ã£o Equipamento {equipment_code} - {email_date_br}",
+                "subject": f"Manutenção Equipamento {equipment_code} - {email_date_br}",
                 "checklist_id": checklist.id,
                 "operator_name": employee.name,
                 "operator_id": employee.registration_id or "-",
@@ -6848,25 +6855,25 @@ async def api_create_checklist(
             }
             nonconforming_lines = []
             for item in report_items:
-                critical_tag = " [CRÃTICO]" if item["critical"] else ""
-                nonconforming_lines.append(f"  â€¢ {item['label']}{critical_tag}")
+                critical_tag = " [CRÍTICO]" if item["critical"] else ""
+                nonconforming_lines.append(f"  • {item['label']}{critical_tag}")
             
             body_lines = [
-                "OlÃ¡! Espero que se encontrem bem.",
+                "Olá! Espero que se encontrem bem.",
                 "",
-                f"Segue para manutenÃ§Ã£o o equipamento {report['equipment_code']}.",
+                f"Segue para manutenção o equipamento {report['equipment_code']}.",
                 "",
-                f"Operador: {report['operator_name']} â€” MatrÃ­cula: {report['operator_id']}",
+                f"Operador: {report['operator_name']} — Matrícula: {report['operator_id']}",
                 f"Data/Hora: {report['submitted_at']}",
                 f"Turno: {report['shift']}",
                 "",
-                "Itens que requerem atenÃ§Ã£o:",
+                "Itens que requerem atenção:",
                 *nonconforming_lines,
                 "",
-                f"ObservaÃ§Ãµes: {report['observations']}",
+                f"Observações: {report['observations']}",
                 "",
                 "Atenciosamente,",
-                "Sistema de OperaÃ§Ã£o Inteligente"
+                "Sistema de Operação Inteligente"
             ]
             if image_list:
                 body_lines.insert(-3, "")
@@ -6887,12 +6894,12 @@ async def api_create_checklist(
                 if sent:
                     checklist.maintenance_email_sent_at = now_br
                     if pdf_error:
-                        maintenance_error = f"PDF nÃ£o gerado ({pdf_error}). E-mail enviado sem anexo."
+                        maintenance_error = f"PDF não gerado ({pdf_error}). E-mail enviado sem anexo."
                 else:
                     maintenance_error = error or "Falha ao enviar e-mail."
             except Exception as exc:
                 maintenance_error = str(exc)
-                logger.exception(f"Erro ao enviar e-mail de manutenÃ§Ã£o (checklist {checklist.id})")
+                logger.exception(f"Erro ao enviar e-mail de manutenção (checklist {checklist.id})")
             if maintenance_error:
                 checklist.maintenance_email_error = maintenance_error
             session.add(checklist)
@@ -6935,38 +6942,38 @@ async def api_create_ticket(
 ):
     user = require_login(request)
     if not isinstance(user, dict) or user.get("type") != "employee":
-        return JSONResponse({"error": "NÃ£o autorizado"}, status_code=401)
+        return JSONResponse({"error": "Não autorizado"}, status_code=401)
 
     employee = session.get(models.Employee, user.get("id"))
     if not employee:
-        return JSONResponse({"error": "Colaborador nÃ£o encontrado."}, status_code=404)
+        return JSONResponse({"error": "Colaborador não encontrado."}, status_code=404)
     
     # Gating
     try:
         require_mobile_module(employee, "checklist")
     except HTTPException:
-        return JSONResponse({"error": "Acesso nÃ£o autorizado ao mÃ³dulo de checklist."}, status_code=403)
+        return JSONResponse({"error": "Acesso não autorizado ao módulo de checklist."}, status_code=403)
 
     equipment_code = (equipment_code or "").strip().upper()
     description = (description or "").strip()
 
     if not equipment_code:
-        return JSONResponse({"error": "Equipamento obrigatÃ³rio."}, status_code=400)
+        return JSONResponse({"error": "Equipamento obrigatório."}, status_code=400)
     if not description:
-        return JSONResponse({"error": "DescriÃ§Ã£o obrigatÃ³ria."}, status_code=400)
+        return JSONResponse({"error": "Descrição obrigatória."}, status_code=400)
 
     today_ref = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
     allowed_plates = _get_delivery_allowed_plates(session, int(employee.id), today_ref)
     if not allowed_plates:
-        return JSONResponse({"error": "Nenhum caminhÃ£o liberado para entrega hoje."}, status_code=403)
+        return JSONResponse({"error": "Nenhum caminhão liberado para entrega hoje."}, status_code=403)
     allowed_norm = {_norm_plate(p) for p in allowed_plates}
     if _norm_plate(equipment_code) not in allowed_norm:
         return JSONResponse(
-            {"error": f"CaminhÃ£o nÃ£o liberado para vocÃª. Liberado(s): {', '.join(allowed_plates)}."},
+            {"error": f"Caminhão não liberado para você. Liberado(s): {', '.join(allowed_plates)}."},
             status_code=403
         )
 
-    # Verificar se existe chamado aberto no mesmo dia (apenas para aviso, nÃ£o bloqueia)
+    # Verificar se existe chamado aberto no mesmo dia (apenas para aviso, não bloqueia)
     today_start = datetime.now(ZoneInfo("America/Sao_Paulo")).replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start + timedelta(days=1)
     
@@ -6978,7 +6985,7 @@ async def api_create_ticket(
         .where(models.EquipmentTicket.created_at < today_end)
     ).first()
     
-    # NÃ£o bloqueia mais, apenas armazena para mencionar no email
+    # Não bloqueia mais, apenas armazena para mencionar no email
 
 
     # Auto Severity Logic
@@ -6998,7 +7005,7 @@ async def api_create_ticket(
         severity_norm = "high"
 
     now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
-    shift_val = employee.work_shift or "ManhÃ£"
+    shift_val = employee.work_shift or "Manhã"
 
     ticket = models.EquipmentTicket(
         equipment_code=equipment_code,
@@ -7032,7 +7039,7 @@ async def api_create_ticket(
 
     if severity_norm == "high":
         equipment = resolve_equipment(session, equipment_code)
-        block_equipment(session, equipment, f"Chamado crÃ­tico #{ticket.id}", None)
+        block_equipment(session, equipment, f"Chamado crítico #{ticket.id}", None)
         session.add(equipment)
 
     # --- Email Notification ---
@@ -7053,24 +7060,24 @@ async def api_create_ticket(
         
         # Preparar corpo do email
         email_body_lines = [
-            f"Novo chamado de manutenÃ§Ã£o registrado.\n",
+            f"Novo chamado de manutenção registrado.\n",
             f"Equipamento: {equipment_code}",
             f"Severidade: {severity_norm.upper()}",
             f"Solicitante: {employee.name} ({employee.registration_id})",
             f"Turno: {shift_val}",
             f"Data/Hora: {now_br.strftime('%d/%m/%Y %H:%M')}\n",
-            f"DescriÃ§Ã£o:\n{description}\n"
+            f"Descrição:\n{description}\n"
         ]
         
         # Mencionar chamado existente se houver
         if existing_ticket:
-            email_body_lines.insert(1, f"\nâš ï¸ ATENÃƒâ€¡ÃƒÃ†Ã¢â‚¬â„¢O: JÃ¡ existe um chamado ABERTO hoje para este equipamento (Chamado #{existing_ticket.id}).")
-            email_body_lines.insert(2, f"Este Ã© um chamado adicional registrado no mesmo dia.\n")
+            email_body_lines.insert(1, f"\n⚠️ ATENÃ‡ÃÆâ€™O: Já existe um chamado ABERTO hoje para este equipamento (Chamado #{existing_ticket.id}).")
+            email_body_lines.insert(2, f"Este é um chamado adicional registrado no mesmo dia.\n")
         
         email_body_lines.append("\nVerifique o anexo PDF para mais detalhes e imagens.")
         
         email_report = {
-            "subject": f"ALERTA MANUTENÃƒâ€¡ÃƒÃ†Ã¢â‚¬â„¢O â€” {now_br.strftime('%Y-%m-%d')} â€” Equipamento {equipment_code}",
+            "subject": f"ALERTA MANUTENÃ‡ÃÆâ€™O — {now_br.strftime('%Y-%m-%d')} — Equipamento {equipment_code}",
             "body": "\n".join(email_body_lines),
             "pdf_bytes": pdf_bytes,
             "pdf_filename": f"chamado_{ticket.id}_{equipment_code}.pdf"
@@ -7095,7 +7102,7 @@ async def api_create_ticket(
 async def admin_email_test(request: Request, session: Session = Depends(get_session), user=Depends(require_leader)):
     now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
     report = {
-        "subject": f"ALERTA MANUTENÃƒâ€¡ÃƒÃ†Ã¢â‚¬â„¢O â€” {now_br.strftime('%Y-%m-%d')} â€” Equipamento TESTE",
+        "subject": f"ALERTA MANUTENÃ‡ÃÆâ€™O — {now_br.strftime('%Y-%m-%d')} — Equipamento TESTE",
         "body": "Teste de envio SMTP do sistema de checklists.",
         "pdf_bytes": None
     }
@@ -7127,7 +7134,7 @@ async def api_list_checklists(
         if isinstance(current_user, dict) and current_user.get("type") == "employee":
             employee = session.get(models.Employee, current_user.get("id"))
             if not employee:
-                return JSONResponse({"error": "Colaborador nÃ£o encontrado."}, status_code=404)
+                return JSONResponse({"error": "Colaborador não encontrado."}, status_code=404)
             require_mobile_module(employee, "checklist")
 
         query = (
@@ -7189,14 +7196,14 @@ async def api_get_checklist(
     current_user = get_current_user(request)
     checklist = session.get(models.TranspalletChecklist, checklist_id)
     if not checklist:
-        return JSONResponse({"error": "Checklist nÃ£o encontrado."}, status_code=404)
+        return JSONResponse({"error": "Checklist não encontrado."}, status_code=404)
     if isinstance(current_user, dict) and current_user.get("type") == "employee":
         employee = session.get(models.Employee, current_user.get("id"))
         if not employee:
-            return JSONResponse({"error": "Colaborador nÃ£o encontrado."}, status_code=404)
+            return JSONResponse({"error": "Colaborador não encontrado."}, status_code=404)
         require_mobile_module(employee, "checklist")
         if checklist.employee_id != current_user.get("id"):
-            return JSONResponse({"error": "NÃ£o autorizado"}, status_code=403)
+            return JSONResponse({"error": "Não autorizado"}, status_code=403)
 
     employee = session.get(models.Employee, checklist.employee_id)
     image_urls = [f"/static/uploads/checklists/{img}" for img in (checklist.images or [])]
@@ -7252,7 +7259,7 @@ async def api_review_checklist(
 ):
     checklist = session.get(models.TranspalletChecklist, checklist_id)
     if not checklist:
-        return JSONResponse({"error": "Checklist nÃ£o encontrado."}, status_code=404)
+        return JSONResponse({"error": "Checklist não encontrado."}, status_code=404)
     reviewer = format_user_label(user)
     apply_checklist_review(session, checklist, reviewer, "review", comment)
     session.commit()
@@ -7268,7 +7275,7 @@ async def api_approve_checklist(
 ):
     checklist = session.get(models.TranspalletChecklist, checklist_id)
     if not checklist:
-        return JSONResponse({"error": "Checklist nÃ£o encontrado."}, status_code=404)
+        return JSONResponse({"error": "Checklist não encontrado."}, status_code=404)
     reviewer = format_user_label(user)
     apply_checklist_review(session, checklist, reviewer, "approve", comment)
     session.commit()
@@ -7284,7 +7291,7 @@ async def api_reject_checklist(
 ):
     checklist = session.get(models.TranspalletChecklist, checklist_id)
     if not checklist:
-        return JSONResponse({"error": "Checklist nÃ£o encontrado."}, status_code=404)
+        return JSONResponse({"error": "Checklist não encontrado."}, status_code=404)
     reviewer = format_user_label(user)
     apply_checklist_review(session, checklist, reviewer, "reject", comment)
     session.commit()
@@ -7299,7 +7306,7 @@ async def api_release_equipment(
 ):
     checklist = session.get(models.TranspalletChecklist, checklist_id)
     if not checklist:
-        return JSONResponse({"error": "Checklist nÃ£o encontrado."}, status_code=404)
+        return JSONResponse({"error": "Checklist não encontrado."}, status_code=404)
     equipment = session.exec(
         select(models.TranspalletEquipment).where(models.TranspalletEquipment.code == checklist.equipment_code)
     ).first()
@@ -7312,7 +7319,7 @@ async def api_release_equipment(
 async def mobile_ai_today(request: Request, session: Session = Depends(get_session)):
     user = require_login(request)
     if not isinstance(user, dict) or user.get("type") != "employee":
-         return JSONResponse({"error": "NÃ£o autorizado"}, status_code=401)
+         return JSONResponse({"error": "Não autorizado"}, status_code=401)
          
     user_id = user.get("id")
     today = datetime.now().date()
@@ -7325,7 +7332,7 @@ async def mobile_ai_today(request: Request, session: Session = Depends(get_sessi
     return {
         "avg_prod": avg_prod,
         "target_prod": target,
-        "message": f"Ontem vocÃª fez X. Hoje sua meta Ã© {target}kg/h."
+        "message": f"Ontem você fez X. Hoje sua meta é {target}kg/h."
     }
 
 
@@ -7823,7 +7830,7 @@ async def delete_client(request: Request, client_id: int, session: Session = Dep
 
 @app.get("/clients/template")
 async def clients_template(request: Request):
-    """Retorna planilha Excel modelo para importaÃ§Ã£o de clientes."""
+    """Retorna planilha Excel modelo para importação de clientes."""
     import pandas as pd
     require_login(request)
     df = pd.DataFrame([
@@ -7834,12 +7841,12 @@ async def clients_template(request: Request):
             "SA": "Norte",
             "VISITA": "Semanal",
             "FANTAS": "Supermercado ABC",
-            "RazÃ£o Social": "ABC ComÃ©rcio Ltda",
-            "MUNICÃPIO": "SÃ£o Paulo",
+            "Razão Social": "ABC Comércio Ltda",
+            "MUNICÍPIO": "São Paulo",
             "BAIRRO": "Centro",
-            "ENDEREÃ‡O": "Rua Exemplo, 100",
+            "ENDEREÇO": "Rua Exemplo, 100",
             "FONE": "(11) 3333-4444",
-            "SEGMENTO": "AlimentÃ­cio",
+            "SEGMENTO": "Alimentício",
             "STATUS": "Ativo",
         },
         {
@@ -7848,13 +7855,13 @@ async def clients_template(request: Request):
             "ME": "02",
             "SA": "Sul",
             "VISITA": "Quinzenal",
-            "FANTAS": "AtacadÃ£o XYZ",
-            "RazÃ£o Social": "XYZ Distribuidora S.A.",
-            "MUNICÃPIO": "Curitiba",
+            "FANTAS": "Atacadão XYZ",
+            "Razão Social": "XYZ Distribuidora S.A.",
+            "MUNICÍPIO": "Curitiba",
             "BAIRRO": "Industrial",
-            "ENDEREÃ‡O": "Av. IndÃºstria, 500",
+            "ENDEREÇO": "Av. Indústria, 500",
             "FONE": "(41) 99999-0000",
-            "SEGMENTO": "LogÃ­stica",
+            "SEGMENTO": "Logística",
             "STATUS": "Ativo",
         },
     ])
@@ -7889,7 +7896,7 @@ def _load_clients_dataframe(content: bytes, filename: str):
     elif ext.endswith(".xls"):
         df = pd.read_excel(io.BytesIO(content), engine="xlrd", header=0)
     else:
-        raise ValueError("Formato invÃ¡lido")
+        raise ValueError("Formato inválido")
     df.columns = [str(c).strip() for c in df.columns]
     return df
 
@@ -7909,7 +7916,7 @@ async def clients_import(
     file: UploadFile = File(...),
     session: Session = Depends(get_session)
 ):
-    """ImportaÃ§Ã£o com normalizaÃ§Ã£o e deduplicaÃ§Ã£o. Redireciona para tela de conflitos se houver duplicados."""
+    """Importação com normalização e deduplicação. Redireciona para tela de conflitos se houver duplicados."""
     require_login(request)
     user = request.session.get("username", "")
     if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls", ".csv")):
@@ -7926,7 +7933,7 @@ async def clients_import(
         if name_col is None:
             return RedirectResponse(url="/clients?error=missing_columns", status_code=status.HTTP_303_SEE_OTHER)
 
-        # Ãndices para dedup (fone_e164, endereco_normalizado, razao+bairro)
+        # Índices para dedup (fone_e164, endereco_normalizado, razao+bairro)
         all_clients = list(session.exec(select(models.Client)).all())
         existing_by_fone = {}
         existing_by_endereco = {}
@@ -8209,7 +8216,7 @@ async def vehicles_page(request: Request, session: Session = Depends(get_session
         "moto_pct": pct_m,
         "carro_pct": pct_r,
     }
-    # Segmentos do grÃ¡fico pizza (SVG) para tooltip no hover: Ã¢ngulo comeÃ§a no topo (-90Â°)
+    # Segmentos do gráfico pizza (SVG) para tooltip no hover: ângulo começa no topo (-90°)
     def deg2xy(deg):
         rad = math.radians(deg - 90)
         return (50 + 40 * math.cos(rad), 50 + 40 * math.sin(rad))
@@ -8217,7 +8224,7 @@ async def vehicles_page(request: Request, session: Session = Depends(get_session
     a2 = a1 + 360 * (by_type["moto"] / total) if total else 0
     pie_slices = []
     for (start, end, fill, label, count, pct) in [
-        (a0, a1, "#f59e0b", "CaminhÃµes", by_type["caminhao"], pct_c),
+        (a0, a1, "#f59e0b", "Caminhões", by_type["caminhao"], pct_c),
         (a1, a2, "#10b981", "Motos", by_type["moto"], pct_m),
         (a2, 360, "#3b82f6", "Carros", by_type["carro"], pct_r),
     ]:
@@ -8270,36 +8277,36 @@ async def add_vehicle(
 
 @app.get("/vehicles/template")
 async def vehicles_template(request: Request):
-    """Retorna planilha Excel modelo para importaÃ§Ã£o de veÃ­culos."""
+    """Retorna planilha Excel modelo para importação de veículos."""
     import io
     import pandas as pd
     require_login(request)
     df = pd.DataFrame([{
         "Placa": "ABC1234",
-        "VeÃ­culo": "CaminhÃ£o",
+        "Veículo": "Caminhão",
         "Marca": "FORD",
         "Modelo": "CARGO 815/E",
         "Renavam": "306637642",
         "Ano": "2010/2011",
-        "NÂº do CRV": "8323093847",
+        "Nº do CRV": "8323093847",
         "CHASSI": "9BFVCE1NOBBB61839",
     }, {
         "Placa": "XYZ9876",
-        "VeÃ­culo": "Moto",
+        "Veículo": "Moto",
         "Marca": "HONDA",
         "Modelo": "CG 160 CARGO",
         "Renavam": "1203972285",
         "Ano": "2021/2022",
-        "NÂº do CRV": "14946217335",
+        "Nº do CRV": "14946217335",
         "CHASSI": "9BFZH55L5L8413592",
     }, {
         "Placa": "DEF4567",
-        "VeÃ­culo": "Carro",
+        "Veículo": "Carro",
         "Marca": "TOYOTA",
         "Modelo": "ETIOS HB X VSC MT",
         "Renavam": "",
         "Ano": "2019/2019",
-        "NÂº do CRV": "",
+        "Nº do CRV": "",
         "CHASSI": "",
     }])
     buf = io.BytesIO()
@@ -8314,7 +8321,7 @@ async def vehicles_template(request: Request):
 
 @app.get("/vehicles/import")
 async def vehicles_import_get(request: Request):
-    """Redireciona para /vehicles se acessar /vehicles/import via GET (ex: barra de endereÃ§o)."""
+    """Redireciona para /vehicles se acessar /vehicles/import via GET (ex: barra de endereço)."""
     require_login(request)
     return RedirectResponse(url="/vehicles", status_code=status.HTTP_303_SEE_OTHER)
 
@@ -8341,12 +8348,12 @@ async def vehicles_import(
             col_map = {}
             keywords = {
                 "placa": ["placa"],
-                "veiculo": ["veiculo", "veÃ­culo"],
+                "veiculo": ["veiculo", "veículo"],
                 "marca": ["marca"],
                 "modelo": ["modelo"],
                 "renavam": ["renavam"],
                 "ano": ["ano"],
-                "crv": ["crv", "nÂº do crv", "numero crv"],
+                "crv": ["crv", "nº do crv", "numero crv"],
                 "chassi": ["chassi"],
             }
             for std, kws in keywords.items():
@@ -8365,7 +8372,7 @@ async def vehicles_import(
         df.columns = [str(c).strip() for c in df.columns]
         col_map = find_col_map(df.columns)
 
-        # Fallback: se header na linha 0 nÃ£o tem as colunas, tenta linha 1
+        # Fallback: se header na linha 0 não tem as colunas, tenta linha 1
         if ("placa" not in col_map or "veiculo" not in col_map or "marca" not in col_map or "modelo" not in col_map):
             df2 = pd.read_excel(io=content, engine=engine, header=1)
             df2.columns = [str(c).strip() for c in df2.columns]
@@ -8373,7 +8380,7 @@ async def vehicles_import(
             if all(k in col_map2 for k in ["placa", "veiculo", "marca", "modelo"]):
                 df, col_map = df2, col_map2
 
-        # Fallback: mapeamento posicional (ordem padrÃ£o: Placa, VeÃ­culo, Marca, Modelo, ...)
+        # Fallback: mapeamento posicional (ordem padrão: Placa, Veículo, Marca, Modelo, ...)
         if ("placa" not in col_map or "veiculo" not in col_map or "marca" not in col_map or "modelo" not in col_map):
             if len(df.columns) >= 4:
                 ordem = ["placa", "veiculo", "marca", "modelo", "renavam", "ano", "crv", "chassi"]
@@ -8438,7 +8445,7 @@ async def vehicle_detail_page(request: Request, vehicle_id: int, session: Sessio
 
 @app.get("/vehicles/{vehicle_id}/history", response_class=HTMLResponse)
 async def vehicle_history_page(request: Request, vehicle_id: int, session: Session = Depends(get_session)):
-    """HistÃ³rico do caminhÃ£o: checklists e futuramente manutenÃ§Ã£o, motoristas."""
+    """Histórico do caminhão: checklists e futuramente manutenção, motoristas."""
     user = require_login(request)
     vehicle = session.get(models.Vehicle, vehicle_id)
     if not vehicle:
@@ -8473,7 +8480,7 @@ async def vehicle_history_page(request: Request, vehicle_id: int, session: Sessi
             "nonconforming": bool(c.nonconforming_keys),
             "submitted_at": c.submitted_at.strftime("%d/%m %H:%M") if c.submitted_at else "-",
         })
-    # Ãšltimo KM: do veÃ­culo (atualizado por checklist/ediÃ§Ã£o) ou do Ãºltimo checklist
+    # Último KM: do veículo (atualizado por checklist/edição) ou do último checklist
     last_km = getattr(vehicle, "odometer_km", None)
     if last_km is None and rows:
         last_km = rows[0].get("odometer_km")
@@ -8549,7 +8556,7 @@ async def update_vehicle(
 
 @app.post("/vehicles/{vehicle_id}/workshop", response_class=RedirectResponse)
 async def vehicle_toggle_workshop(request: Request, vehicle_id: int, session: Session = Depends(get_session)):
-    """Alterna status 'na oficina' do veÃ­culo."""
+    """Alterna status 'na oficina' do veículo."""
     require_login(request)
     vehicle = session.get(models.Vehicle, vehicle_id)
     if vehicle:
@@ -8571,7 +8578,7 @@ async def delete_vehicle(request: Request, vehicle_id: int, session: Session = D
 
 
 # --- Route Management ---
-# --- SeparaÃ§Ã£o de Mercadorias Management ---
+# --- Separação de Mercadorias Management ---
 def _norm_text(v: Any) -> str:
     if v is None:
         return ""
@@ -8726,30 +8733,30 @@ def _get_delivery_allowed_plates(
 DELIVERY_RETURN_REASONS = {
     "COMERCIAL": [
         "PEDIDO / PRODUTO ERRADO",
-        "CLIENTE NÃƒÃ†Ã¢â‚¬â„¢O FEZ PEDIDO",
+        "CLIENTE NÃO FEZ PEDIDO",
         "PRAZO ERRADO",
-        "PREÃ‡O ERRADO",
+        "PREÇO ERRADO",
         "SEM VASILHAME",
         "FORMA DE PAGAMENTO ERRADA",
-        "VENDEDOR NÃƒÃ†Ã¢â‚¬â„¢O PASSOU",
-        "TROCAS NÃƒÃ†Ã¢â‚¬â„¢O AUTORIZADAS",
-        "TROCAS NÃƒÃ†Ã¢â‚¬â„¢O ENVIADAS",
+        "VENDEDOR NÃO PASSOU",
+        "TROCAS NÃO AUTORIZADAS",
+        "TROCAS NÃO ENVIADAS",
     ],
     "MERCADO": [
-        "HORÃRIO ENTREGA",
+        "HORÁRIO ENTREGA",
         "PONTO VENDA FECHADO / AUSENTE",
         "SEM DINHEIRO / CHEQUE",
         "CLIENTE DESISTIU DA COMPRA",
     ],
-    "LOGÃSTICA": [
-        "DIFÃCIL ACESSO",
+    "LOGÍSTICA": [
+        "DIFÍCIL ACESSO",
         "PRODUTO DANIFICADO E/OU FALTA",
-        "LOCAL ENTREGA NÃƒÃ†Ã¢â‚¬â„¢O LOCALIZADA",
-        "ÃREA DE RISCO",
-        "CAMINHÃƒÃ†Ã¢â‚¬â„¢O QUEBRADO NA ROTA",
+        "LOCAL ENTREGA NÃO LOCALIZADA",
+        "ÁREA DE RISCO",
+        "CAMINHÃO QUEBRADO NA ROTA",
         "FURTO / ROUBO",
         "QUANTIDADE ERRADA CARREGAMENTO",
-        "PEDIDO NÃƒÃ†Ã¢â‚¬â„¢O ENTREGUE",
+        "PEDIDO NÃO ENTREGUE",
         "FALTA DE PRODUTO NO ESTOQUE",
     ],
 }
@@ -8766,8 +8773,8 @@ def _validate_delivery_assignment(
 ) -> Optional[str]:
     plate_norm = _norm_plate(vehicle_plate)
     if not plate_norm:
-        logger.warning(f"ðŸš« ValidaÃ§Ã£o falhou: Placa invÃ¡lida '{vehicle_plate}'")
-        return "Placa invÃ¡lida."
+        logger.warning(f"🚫 Validação falhou: Placa inválida '{vehicle_plate}'")
+        return "Placa inválida."
 
     rows = session.exec(
         select(models.Route)
@@ -8775,10 +8782,10 @@ def _validate_delivery_assignment(
         .where(models.Route.date == date)
     ).all()
 
-    logger.info(f"Ã°Å¸Ã¢â‚¬ÂÃ‚Â Validando troca: motorista_id={employee_id}, placa={plate_norm}, data={date}, total_entregas={len(rows)}")
-    logger.info(f"Ã°Å¸Ã¢â‚¬ÂÃ‚Â ParÃ¢metros: exclude_route_id={exclude_route_id}, ignore_employee_id={ignore_employee_id}")
+    logger.info(f"ðŸâ€Â Validando troca: motorista_id={employee_id}, placa={plate_norm}, data={date}, total_entregas={len(rows)}")
+    logger.info(f"ðŸâ€Â Parâmetros: exclude_route_id={exclude_route_id}, ignore_employee_id={ignore_employee_id}")
 
-    # Regra 2: caminhÃ£o nÃ£o pode estar em dois motoristas
+    # Regra 2: caminhão não pode estar em dois motoristas
     plate_drivers = set()
     for r in rows:
         if exclude_route_id and r.id == exclude_route_id:
@@ -8788,11 +8795,11 @@ def _validate_delivery_assignment(
         if _norm_plate(r.delivery_vehicle_plate) == plate_norm and r.employee_id:
             plate_drivers.add(r.employee_id)
     
-    logger.info(f"Ã°Å¸Ã¢â‚¬ËœÃ‚Â¥ Motoristas jÃ¡ vinculados ao caminhÃ£o {plate_norm}: {plate_drivers}")
+    logger.info(f"ðŸâ€˜Â¥ Motoristas já vinculados ao caminhão {plate_norm}: {plate_drivers}")
     
     if plate_drivers and (len(plate_drivers) > 1 or employee_id not in plate_drivers):
-        error_msg = "CaminhÃ£o jÃ¡ vinculado a outro motorista no dia."
-        logger.warning(f"ðŸš« Regra 2 violada: {error_msg}")
+        error_msg = "Caminhão já vinculado a outro motorista no dia."
+        logger.warning(f"🚫 Regra 2 violada: {error_msg}")
         return error_msg
     
     logger.info("info log")
@@ -8804,7 +8811,7 @@ def _delivery_col_map(columns: List[str]) -> dict:
     normalized = {_norm_text(c): c for c in columns}
 
     aliases = {
-        "route_code": ["n rota", "nº rota", "nÂº rota", "nÂ° rota", "no rota", "numero rota", "rota", "nº rota / placa veiculo", "n rota / placa veiculo"],
+        "route_code": ["n rota", "nº rota", "nº rota", "n° rota", "no rota", "numero rota", "rota", "nº rota / placa veiculo", "n rota / placa veiculo"],
         "plate": ["placa veiculo", "placa", "veiculo", "placa do veiculo"],
         "driver": ["motorista", "nome motorista"],
         "order_number": ["pedidos", "pedido", "n pedido", "numero pedido"],
@@ -8885,10 +8892,10 @@ def _build_delivery_sync_token(rows: List[models.Route], date: str, shift: str) 
 def _find_employee_by_driver_name(name: str, employees: List[models.Employee]) -> Optional[models.Employee]:
     target = _norm_text(name)
     if not target:
-        logger.debug(f"Ã°Å¸Ã¢â‚¬ÂÃ‚Â Busca motorista: nome vazio")
+        logger.debug(f"ðŸâ€Â Busca motorista: nome vazio")
         return None
 
-    logger.debug(f"Ã°Å¸Ã¢â‚¬ÂÃ‚Â Buscando motorista: '{name}' (normalizado: '{target}')")
+    logger.debug(f"ðŸâ€Â Buscando motorista: '{name}' (normalizado: '{target}')")
     
     # Busca exata
     exact = None
@@ -8903,11 +8910,11 @@ def _find_employee_by_driver_name(name: str, employees: List[models.Employee]) -
     # Usar tokens canônicos para assimilação (ex.: JR <-> JUNIOR, primeiro nome + último)
     target_tokens = _canonical_name_tokens(name)
     if not target_tokens:
-        logger.debug(f"Ã¢ÂÃ…' Nenhum token vÃ¡lido em '{target}'")
+        logger.debug(f"âÅ' Nenhum token válido em '{target}'")
         return None
 
-    # Caso comum de abreviaÃ§Ã£o de 1 palavra (ex.: "FERNANDO"):
-    # prioriza colaborador cujo nome COMEÃ‡A com a palavra.
+    # Caso comum de abreviação de 1 palavra (ex.: "FERNANDO"):
+    # prioriza colaborador cujo nome COMEÇA com a palavra.
     raw_tokens = {t for t in target.split() if t}
     if len(raw_tokens) == 1:
         token = next(iter(raw_tokens))
@@ -8917,7 +8924,7 @@ def _find_employee_by_driver_name(name: str, employees: List[models.Employee]) -
             if emp_norm.startswith(token + " ") or emp_norm == token:
                 starts_with_matches.append(emp)
         if starts_with_matches:
-            # Prioridade 1: cargo de motorista (ou variaÃ§Ãµes)
+            # Prioridade 1: cargo de motorista (ou variações)
             driver_matches = [
                 emp for emp in starts_with_matches
                 if "motorista" in _norm_text(getattr(emp, "role", "") or "")
@@ -8928,11 +8935,11 @@ def _find_employee_by_driver_name(name: str, employees: List[models.Employee]) -
                 # Em empate entre motoristas, usa nome mais curto (mais aderente ao nome simples da planilha)
                 return sorted(driver_matches, key=lambda e: len(_norm_text(e.name)))[0]
 
-            # Prioridade 2: se houver apenas um "comeÃ§a com", usa ele
+            # Prioridade 2: se houver apenas um "começa com", usa ele
             if len(starts_with_matches) == 1:
                 return starts_with_matches[0]
 
-            # Prioridade 3: fallback determinÃ­stico para evitar perda de importaÃ§Ã£o
+            # Prioridade 3: fallback determinístico para evitar perda de importação
             return sorted(starts_with_matches, key=lambda e: len(_norm_text(e.name)))[0]
 
     # Caso o nome vindo da planilha seja abreviado (ex.: "HAMILTON JR" -> "HAMILTON ... JUNIOR")
@@ -8964,12 +8971,12 @@ def _find_employee_by_driver_name(name: str, employees: List[models.Employee]) -
             best_score = score
             best_emp = emp
 
-    # threshold conservador para evitar associaÃ§Ã£o errada
+    # threshold conservador para evitar associação errada
     if best_emp and best_score >= 0.75:
         logger.debug("debug log")
         return best_emp
     
-    logger.warning(f"Ã¢ÂÃ…' Motorista NÃƒÃ†Ã¢â‚¬â„¢O encontrado: '{name}' (melhor match: {best_emp.name if best_emp else 'nenhum'}, score: {best_score:.0%})")
+    logger.warning(f"âÅ' Motorista NÃÆâ€™O encontrado: '{name}' (melhor match: {best_emp.name if best_emp else 'nenhum'}, score: {best_score:.0%})")
     return None
 
 
@@ -9068,7 +9075,7 @@ def _create_pre_client(
 async def separacao_page(
     request: Request,
     date: Optional[str] = None,
-    shift: str = "ManhÃ£",
+    shift: str = "Manhã",
     session: Session = Depends(get_session),
     delivery_import: Optional[dict] = None,
 ):
@@ -9280,7 +9287,7 @@ async def separacao_page(
 
     for route in delivery_rows:
         emp = emp_map_id.get(route.employee_id)
-        driver_name = emp.name if emp else "Motorista nÃ£o cadastrado"
+        driver_name = emp.name if emp else "Motorista não cadastrado"
         plate_norm = _norm_plate(route.delivery_vehicle_plate) or "-"
         key = (route.employee_id or 0, plate_norm)
         if key not in delivery_by_employee:
@@ -9346,7 +9353,7 @@ async def separacao_page(
             "reaberta": "Reaberta",
             "iniciada": "Iniciada",
             "cancelada": "Cancelada",
-            "devolucao": "DevoluÃ§Ã£o",
+            "devolucao": "Devolução",
             "entregue": "Entregue",
         }
 
@@ -9367,7 +9374,7 @@ async def separacao_page(
             "id": route.id,
             "route_code": route.delivery_route_code or "-",
             "order_number": route.delivery_order_number or "-",
-            "client_name": cli_display_map.get(route.client_id, cli_map.get(route.client_id, "Cliente nÃ£o cadastrado")),
+            "client_name": cli_display_map.get(route.client_id, cli_map.get(route.client_id, "Cliente não cadastrado")),
             "client_secondary": cli_secondary_map.get(route.client_id),
             "client_code": route.delivery_client_code or "-",
             "address": route.delivery_address or "-",
@@ -9453,17 +9460,17 @@ async def separacao_page(
         has_open_started = any(r.get("status_raw") == "iniciada" for r in group["rows"])
         if has_open_started:
             for r in group["rows"]:
-                # Apenas a rotina jÃ¡ iniciada pode continuar ativa; as demais ficam bloqueadas para "Iniciar".
+                # Apenas a rotina já iniciada pode continuar ativa; as demais ficam bloqueadas para "Iniciar".
                 r["can_start"] = r.get("status_raw") == "iniciada"
         else:
             for r in group["rows"]:
                 r["can_start"] = r.get("status_raw") in ("pendente", "reaberta")
 
-        # Auto-organizaÃ§Ã£o:
+        # Auto-organização:
         # 1) Pendentes
         # 2) Iniciadas
-        # 3) ConcluÃ­das (entregue/devoluÃ§Ã£o)
-        # Em cada grupo, ordena por horÃ¡rio crescente para refletir a rotina ao longo do dia.
+        # 3) Concluídas (entregue/devolução)
+        # Em cada grupo, ordena por horário crescente para refletir a rotina ao longo do dia.
         def _time_to_minutes(t: str) -> int:
             try:
                 hh, mm = (t or "").split(":")
@@ -9479,7 +9486,7 @@ async def separacao_page(
                 return (0, _time_to_minutes(row.get("last_started_at") or ""), row.get("id", 0))
             if status == "iniciada":
                 return (1, _time_to_minutes(row.get("started_at") or ""), row.get("id", 0))
-            # concluÃ­das: entregue/devoluÃ§Ã£o
+            # concluídas: entregue/devolução
             finished_time = row.get("finished_at") or row.get("returned_at") or row.get("canceled_at") or ""
             return (2, _time_to_minutes(finished_time), row.get("id", 0))
 
@@ -9631,7 +9638,7 @@ async def delete_separacao(
 async def import_entregas_separacao(
     request: Request,
     date: str = Form(...),
-    shift: str = Form("ManhÃ£"),
+    shift: str = Form("Manhã"),
     input_date: Optional[str] = Form(None),
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
@@ -9647,21 +9654,21 @@ async def import_entregas_separacao(
         "pre_registered_clients": 0,
     }
 
-    logger.info(f"ðŸšš Iniciando importaÃ§Ã£o de entregas: {file.filename} para data {date}, turno {shift}")
+    logger.info(f"🚚 Iniciando importação de entregas: {file.filename} para data {date}, turno {shift}")
 
     if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls", ".csv")):
         import_result["message"] = "Arquivo inválido. Use .xls, .xlsx ou .csv."
-        logger.warning(f"Ã¢ÂÃ…' Arquivo invÃ¡lido: {file.filename}")
+        logger.warning(f"âÅ' Arquivo inválido: {file.filename}")
         return await separacao_page(request=request, date=date, shift=shift, session=session, delivery_import=import_result)
 
     try:
         import pandas as pd
         content = await file.read()
-        logger.info(f"Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Å¾ Arquivo lido: {len(content)} bytes")
+        logger.info(f"ðŸâ€œâ€ž Arquivo lido: {len(content)} bytes")
         
         df = _load_clients_dataframe(content, file.filename)
-        logger.info(f"Ã°Å¸Ã¢â‚¬Å“Å  DataFrame carregado: {len(df)} linhas, {len(df.columns)} colunas")
-        logger.info(f"Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Â¹ Colunas encontradas: {list(df.columns)}")
+        logger.info(f"ðŸâ€œŠ DataFrame carregado: {len(df)} linhas, {len(df.columns)} colunas")
+        logger.info(f"ðŸâ€œâ€¹ Colunas encontradas: {list(df.columns)}")
         
         col_map = _delivery_col_map(list(df.columns))
         logger.info("info log")
@@ -9674,7 +9681,7 @@ async def import_entregas_separacao(
                 "row": "-",
                 "reason": f"Colunas ausentes: {', '.join(missing_required)}. Colunas encontradas: {', '.join(df.columns)}",
             })
-            logger.error(f"Ã¢ÂÃ…' Colunas ausentes: {missing_required}")
+            logger.error(f"âÅ' Colunas ausentes: {missing_required}")
             return await separacao_page(request=request, date=date, shift=shift, session=session, delivery_import=import_result)
 
         employees = session.exec(select(models.Employee).where(models.Employee.status != "fired")).all()
@@ -9688,7 +9695,7 @@ async def import_entregas_separacao(
             for emp in employees
             if "motorista" in (emp.role or "").lower()
         ]
-        logger.info(f"Ã°Å¸Ã¢â‚¬ËœÃ‚Â¥ Total de funcionÃ¡rios ativos: {len(employees)}")
+        logger.info(f"ðŸâ€˜Â¥ Total de funcionários ativos: {len(employees)}")
         logger.info("info log")
 
         parsed_rows = []
@@ -9722,14 +9729,14 @@ async def import_entregas_separacao(
 
             emp = _find_employee_by_driver_name(driver_name_raw, employees)
             if not emp:
-                # Buscar motoristas disponÃ­veis para sugerir
+                # Buscar motoristas disponíveis para sugerir
                 motoristas_cadastrados = [e.name for e in employees if "motorista" in (e.role or "").lower()][:5]
                 sugestao = f" Motoristas cadastrados: {', '.join(motoristas_cadastrados)}" if motoristas_cadastrados else ""
                 import_result["issues"].append({
                     "row": row_num,
                     "reason": f"Motorista não encontrado: '{driver_name_raw}'.{sugestao}",
                 })
-                logger.warning(f"Ã¢ÂÃ…' Motorista nÃ£o encontrado na linha {row_num}: '{driver_name_raw}'")
+                logger.warning(f"âÅ' Motorista não encontrado na linha {row_num}: '{driver_name_raw}'")
                 continue
 
             vehicle = vehicle_by_plate.get(_norm_plate(plate_raw))
@@ -9872,7 +9879,7 @@ async def import_entregas_separacao(
             )
     except Exception as exc:
         import_result["message"] = f"Erro ao importar planilha: {str(exc)}"
-        logger.exception(f"Ã¢ÂÃ…' Falha na importaÃ§Ã£o de entregas: {exc}")
+        logger.exception(f"âÅ' Falha na importação de entregas: {exc}")
         import_result["issues"].append({
             "row": "-",
             "reason": f"Erro técnico: {str(exc)}"
@@ -9890,7 +9897,7 @@ async def import_entregas_separacao_get():
 async def separacao_delivery_sync_token(
     request: Request,
     date: Optional[str] = None,
-    shift: str = "ManhÃ£",
+    shift: str = "Manhã",
     session: Session = Depends(get_session),
 ):
     require_login(request)
@@ -9914,7 +9921,7 @@ async def update_delivery_status(
     route_id: int = Form(...),
     action: str = Form(...),
     date: str = Form(...),
-    shift: str = Form("ManhÃ£"),
+    shift: str = Form("Manhã"),
     return_category: Optional[str] = Form(None),
     return_reason: Optional[str] = Form(None),
     return_is_partial: Optional[str] = Form(None),
@@ -9926,7 +9933,7 @@ async def update_delivery_status(
     route = session.get(models.Route, route_id)
     if not route or route.type != "delivery":
         return RedirectResponse(
-            url=f"/separacao?date={date}&shift={shift}&delivery_feedback=Entrega%20nÃ£o%20encontrada&delivery_feedback_level=error",
+            url=f"/separacao?date={date}&shift={shift}&delivery_feedback=Entrega%20não%20encontrada&delivery_feedback_level=error",
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
@@ -9937,7 +9944,7 @@ async def update_delivery_status(
     if action_norm == "iniciar":
         if (route.delivery_status or "").lower() in ("entregue", "devolucao"):
             feedback_encoded = urlencode({
-                "delivery_feedback": "Rotina jÃ¡ concluÃ­da. Use 'Reabrir' para iniciar novamente sem perder histÃ³rico.",
+                "delivery_feedback": "Rotina já concluída. Use 'Reabrir' para iniciar novamente sem perder histórico.",
                 "delivery_feedback_level": "error",
             })
             return RedirectResponse(
@@ -9959,7 +9966,7 @@ async def update_delivery_status(
         )
         if already_started:
             feedback_encoded = urlencode({
-                "delivery_feedback": "Motorista jÃ¡ possui uma rotina iniciada. Finalize antes de iniciar outra.",
+                "delivery_feedback": "Motorista já possui uma rotina iniciada. Finalize antes de iniciar outra.",
                 "delivery_feedback_level": "error",
             })
             return RedirectResponse(
@@ -9975,7 +9982,7 @@ async def update_delivery_status(
         feedback = "Entrega iniciada."
     elif action_norm == "cancelar":
         feedback_encoded = urlencode({
-            "delivery_feedback": "A aÃ§Ã£o de cancelamento foi desativada.",
+            "delivery_feedback": "A ação de cancelamento foi desativada.",
             "delivery_feedback_level": "error",
         })
         return RedirectResponse(
@@ -9985,7 +9992,7 @@ async def update_delivery_status(
     elif action_norm == "devolucao":
         if (route.delivery_status or "").lower() != "iniciada":
             feedback_encoded = urlencode({
-                "delivery_feedback": "Para registrar devoluÃ§Ã£o, inicie a entrega primeiro.",
+                "delivery_feedback": "Para registrar devolução, inicie a entrega primeiro.",
                 "delivery_feedback_level": "error",
             })
             return RedirectResponse(
@@ -9994,7 +10001,7 @@ async def update_delivery_status(
             )
         if not return_category or not return_reason:
             feedback_encoded = urlencode({
-                "delivery_feedback": "Para devoluÃ§Ã£o, informe categoria e motivo.",
+                "delivery_feedback": "Para devolução, informe categoria e motivo.",
                 "delivery_feedback_level": "error",
             })
             return RedirectResponse(
@@ -10007,7 +10014,7 @@ async def update_delivery_status(
         if is_partial:
             if partial_weight <= 0 and partial_value <= 0:
                 feedback_encoded = urlencode({
-                    "delivery_feedback": "Para devoluÃ§Ã£o parcial, informe peso e/ou valor devolvido.",
+                    "delivery_feedback": "Para devolução parcial, informe peso e/ou valor devolvido.",
                     "delivery_feedback_level": "error",
                 })
                 return RedirectResponse(
@@ -10023,7 +10030,7 @@ async def update_delivery_status(
             route.devolucao_volume = partial_weight if partial_weight > 0 else 0.0
             route.valor_devolucao = partial_value if partial_value > 0 else 0.0
         else:
-            # DevoluÃ§Ã£o total: usa o valor/peso integral para anÃ¡lises
+            # Devolução total: usa o valor/peso integral para análises
             route.devolucao_volume = route.tonnage or 0.0
             route.valor_devolucao = route.valor_financeiro or 0.0
         route.delivery_status = "devolucao"
@@ -10043,7 +10050,7 @@ async def update_delivery_status(
             sync_route_to_devolucao(session, route, source="WEB")
         except Exception as e:
             logger.warning(f"sync_route_to_devolucao: {e}")
-        feedback = "Entrega marcada como devoluÃ§Ã£o."
+        feedback = "Entrega marcada como devolução."
     elif action_norm in ["entregue", "finalizar"]:
         route.delivery_status = "entregue"
         route.status = "completed"
@@ -10071,14 +10078,14 @@ async def update_delivery_planning_date(
     route_id: int = Form(...),
     planning_date: str = Form(...),
     date: str = Form(...),
-    shift: str = Form("ManhÃ£"),
+    shift: str = Form("Manhã"),
     session: Session = Depends(get_session),
 ):
     require_login(request)
     route = session.get(models.Route, route_id)
     if not route or route.type != "delivery":
         feedback_encoded = urlencode({
-            "delivery_feedback": "Entrega nÃ£o encontrada.",
+            "delivery_feedback": "Entrega não encontrada.",
             "delivery_feedback_level": "error",
         })
         return RedirectResponse(
@@ -10090,7 +10097,7 @@ async def update_delivery_planning_date(
         datetime.strptime(planning_date, "%Y-%m-%d")
     except Exception:
         feedback_encoded = urlencode({
-            "delivery_feedback": "Data de planejamento invÃ¡lida.",
+            "delivery_feedback": "Data de planejamento inválida.",
             "delivery_feedback_level": "error",
         })
         return RedirectResponse(
@@ -10117,7 +10124,7 @@ async def update_delivery_planning_date_bulk(
     request: Request,
     current_date: str = Form(...),
     planning_date: str = Form(...),
-    shift: str = Form("ManhÃ£"),
+    shift: str = Form("Manhã"),
     session: Session = Depends(get_session),
 ):
     require_login(request)
@@ -10125,7 +10132,7 @@ async def update_delivery_planning_date_bulk(
         datetime.strptime(planning_date, "%Y-%m-%d")
     except Exception:
         feedback_encoded = urlencode({
-            "delivery_feedback": "Data geral invÃ¡lida.",
+            "delivery_feedback": "Data geral inválida.",
             "delivery_feedback_level": "error",
         })
         return RedirectResponse(
@@ -10161,14 +10168,14 @@ async def reassign_delivery_stop(
     new_employee_id: int = Form(...),
     new_vehicle_plate: str = Form(...),
     date: str = Form(...),
-    shift: str = Form("ManhÃ£"),
+    shift: str = Form("Manhã"),
     session: Session = Depends(get_session),
 ):
     require_login(request)
     route = session.get(models.Route, route_id)
     if not route or route.type != "delivery":
         feedback_encoded = urlencode({
-            "delivery_feedback": "Entrega nÃ£o encontrada para reatribuiÃ§Ã£o.",
+            "delivery_feedback": "Entrega não encontrada para reatribuição.",
             "delivery_feedback_level": "error",
         })
         return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
@@ -10203,12 +10210,12 @@ async def reassign_delivery_group(
     new_vehicle_plate: str = Form(...),
     helper_ids: Optional[List[int]] = Form(None),
     date: str = Form(...),
-    shift: str = Form("ManhÃ£"),
+    shift: str = Form("Manhã"),
     session: Session = Depends(get_session),
 ):
     require_login(request)
     
-    # Buscar nomes para logs mais legÃ­veis
+    # Buscar nomes para logs mais legíveis
     source_emp = session.get(models.Employee, source_employee_id)
     new_emp = session.get(models.Employee, new_employee_id)
     source_name = source_emp.name if source_emp else f"ID={source_employee_id}"
@@ -10225,7 +10232,7 @@ async def reassign_delivery_group(
         normalized_helper_ids.append(helper_id)
     helpers_json = json.dumps(normalized_helper_ids) if normalized_helper_ids else None
     
-    logger.info(f"Ã°Å¸Ã¢â‚¬ÂÃ¢â‚¬Å¾ Tentativa de troca de motorista: {source_name} â†’ {new_name}, CaminhÃ£o: {new_vehicle_plate}, Data: {date}")
+    logger.info(f"ðŸâ€â€ž Tentativa de troca de motorista: {source_name} → {new_name}, Caminhão: {new_vehicle_plate}, Data: {date}")
     
     source_plate_norm = _norm_plate(source_vehicle_plate)
     rows = session.exec(
@@ -10237,11 +10244,11 @@ async def reassign_delivery_group(
     if source_plate_norm:
         rows = [r for r in rows if _norm_plate(r.delivery_vehicle_plate) == source_plate_norm]
     if not rows:
-        logger.warning(f"Ã¢ÂÃ…' Nenhuma entrega encontrada para {source_name} na data {date}")
+        logger.warning(f"âÅ' Nenhuma entrega encontrada para {source_name} na data {date}")
         feedback_encoded = urlencode({"delivery_feedback": "Nenhuma entrega encontrada para o motorista.", "delivery_feedback_level": "error"})
         return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
 
-    logger.info(f"Ã°Å¸Ã¢â‚¬Å“Â¦ Encontradas {len(rows)} entregas para transferir")
+    logger.info(f"ðŸâ€œ¦ Encontradas {len(rows)} entregas para transferir")
 
     err = _validate_delivery_assignment(
         session=session,
@@ -10251,7 +10258,7 @@ async def reassign_delivery_group(
         ignore_employee_id=source_employee_id,
     )
     if err:
-        logger.error(f"Ã¢ÂÃ…' ValidaÃ§Ã£o falhou: {err}")
+        logger.error(f"âÅ' Validação falhou: {err}")
         feedback_encoded = urlencode({"delivery_feedback": err, "delivery_feedback_level": "error"})
         return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
 
@@ -10263,7 +10270,7 @@ async def reassign_delivery_group(
     session.commit()
 
     logger.info("info log")
-    feedback_encoded = urlencode({"delivery_feedback": f"TransferÃªncia concluÃ­da em {len(rows)} parada(s).", "delivery_feedback_level": "success"})
+    feedback_encoded = urlencode({"delivery_feedback": f"Transferência concluída em {len(rows)} parada(s).", "delivery_feedback_level": "success"})
     return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
 
 
@@ -10272,17 +10279,17 @@ async def reopen_delivery_route(
     request: Request,
     route_id: int = Form(...),
     date: str = Form(...),
-    shift: str = Form("ManhÃ£"),
+    shift: str = Form("Manhã"),
     session: Session = Depends(get_session),
 ):
     require_login(request)
     route = session.get(models.Route, route_id)
     if not route or route.type != "delivery":
-        feedback_encoded = urlencode({"delivery_feedback": "Entrega nÃ£o encontrada.", "delivery_feedback_level": "error"})
+        feedback_encoded = urlencode({"delivery_feedback": "Entrega não encontrada.", "delivery_feedback_level": "error"})
         return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
 
     if (route.delivery_status or "").lower() not in ("entregue", "devolucao"):
-        feedback_encoded = urlencode({"delivery_feedback": "Somente rotinas concluÃ­das podem ser reabertas.", "delivery_feedback_level": "error"})
+        feedback_encoded = urlencode({"delivery_feedback": "Somente rotinas concluídas podem ser reabertas.", "delivery_feedback_level": "error"})
         return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
 
     started_rows = session.exec(
@@ -10300,7 +10307,7 @@ async def reopen_delivery_route(
     )
     if already_started:
         feedback_encoded = urlencode({
-            "delivery_feedback": "Motorista jÃ¡ possui rotina iniciada. Finalize antes de reabrir outra.",
+            "delivery_feedback": "Motorista já possui rotina iniciada. Finalize antes de reabrir outra.",
             "delivery_feedback_level": "error",
         })
         return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
@@ -10887,7 +10894,7 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
         if high_idle_count > 0:
             alerts.append({
                 "type": "warning",
-                "icon": "â±ï¸",
+                "icon": "⏱️",
                 "message": f"{high_idle_count} colaborador{'es' if high_idle_count > 1 else ''} com ociosidade > 2h",
                 "severity": "medium"
             })
@@ -10897,8 +10904,8 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
         if critical_sla:
             alerts.append({
                 "type": "danger",
-                "icon": "ðŸš¨",
-                "message": f"{len(critical_sla)} cliente{'s' if len(critical_sla) > 1 else ''} com SLA crÃ­tico (>1h)",
+                "icon": "🚨",
+                "message": f"{len(critical_sla)} cliente{'s' if len(critical_sla) > 1 else ''} com SLA crítico (>1h)",
                 "severity": "high"
             })
         
@@ -10906,14 +10913,14 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
         if kgh_change > 10:
             alerts.append({
                 "type": "success",
-                "icon": "Ã°Å¸Ã¢â‚¬Å“Ã‹â€ ",
+                "icon": "ðŸâ€œË†",
                 "message": f"Produtividade {kgh_change:.0f}% acima do dia anterior",
                 "severity": "low"
             })
         elif kgh_change < -10:
             alerts.append({
                 "type": "warning",
-                "icon": "Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Â°",
+                "icon": "ðŸâ€œâ€°",
                 "message": f"Produtividade {abs(kgh_change):.0f}% abaixo do dia anterior",
                 "severity": "medium"
             })
@@ -10923,7 +10930,7 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
         if elite_count > 0:
             alerts.append({
                 "type": "success",
-                "icon": "Ã°Å¸Å¡Ã¢'Â¬",
+                "icon": "ðŸšâ'¬",
                 "message": f"{elite_count} colaborador{'es' if elite_count > 1 else ''} com performance Elite (>300 Kg/h)",
                 "severity": "low"
             })
@@ -10933,7 +10940,7 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
         if low_perf_count > 0:
             alerts.append({
                 "type": "warning", 
-                "icon": "âš ï¸",
+                "icon": "⚠️",
                 "message": f"{low_perf_count} colaborador{'es' if low_perf_count > 1 else ''} abaixo da meta (<150 Kg/h)",
                 "severity": "medium"
             })
@@ -10943,7 +10950,7 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
             alerts.append({
                 "type": "success",
                 "icon": "check-circle",
-                "message": "OperaÃ§Ã£o dentro dos parÃ¢metros normais",
+                "message": "Operação dentro dos parâmetros normais",
                 "severity": "low"
             })
 
@@ -11003,9 +11010,9 @@ ABSENCE_JUSTIFIED_KEYWORDS = [
     "ausencia_justificada",
     "justificada",
     "medico",
-    "mÃ©dico",
+    "médico",
     "doenca",
-    "doenÃ§a",
+    "doença",
     "hospital",
     "consulta",
     "exame"
@@ -11050,11 +11057,11 @@ ROUTINE_AUDIT_KEYWORDS = [
     "rotina atualizada",
     "rotina marcada"
 ]
-# Prioridade de ausÃªncias: maior valor = mais prioritÃ¡rio
+# Prioridade de ausências: maior valor = mais prioritário
 # justified (atestado) > unjustified (falta) - atestado SEMPRE prevalece sobre falta
 ABSENCE_PRIORITY = {"leave": 5, "justified": 4, "offday": 2, "unjustified": 1, "present": 0}
-ROUTE_BAND_LABELS = {"Leve": "Leve", "Media": "MÃ©dia", "Pesada": "Pesada"}
-TENURE_BAND_LABELS = {"Novatos": "Novatos", "Consolidacao": "ConsolidaÃ§Ã£o", "Veteranos": "Veteranos"}
+ROUTE_BAND_LABELS = {"Leve": "Leve", "Media": "Média", "Pesada": "Pesada"}
+TENURE_BAND_LABELS = {"Novatos": "Novatos", "Consolidacao": "Consolidação", "Veteranos": "Veteranos"}
 
 
 def get_absence_priority(group: Optional[str]) -> int:
@@ -11196,13 +11203,13 @@ def fetch_absences_agg(session: Session, employee_ids: List[int], start_dt: date
     per_employee_routine_days = {}
     per_employee_present_days = {}  # Dias com rotina "present"
     per_employee_event_days = {}
-    per_employee_vacation_periods = {}  # PerÃ­odos de fÃ©rias por colaborador
+    per_employee_vacation_periods = {}  # Períodos de férias por colaborador
     unknown_counts = Counter()
 
     start_date_str = start_dt.date().strftime("%Y-%m-%d")
     end_date_str = end_dt.date().strftime("%Y-%m-%d")
     
-    # Buscar perÃ­odos de fÃ©rias dos colaboradores (vacation_start/vacation_end)
+    # Buscar períodos de férias dos colaboradores (vacation_start/vacation_end)
     employees_with_vacation = session.exec(
         select(models.Employee.id, models.Employee.vacation_start, models.Employee.vacation_end, models.Employee.status)
         .where(models.Employee.id.in_(employee_ids))
@@ -11218,7 +11225,7 @@ def fetch_absences_agg(session: Session, employee_ids: List[int], start_dt: date
                 "status": emp_status
             }
     
-    # PrÃ©-processar dias de fÃ©rias para cada colaborador no perÃ­odo de anÃ¡lise
+    # Pré-processar dias de férias para cada colaborador no período de análise
     analysis_start = start_dt.date()
     analysis_end = end_dt.date()
     
@@ -11226,17 +11233,17 @@ def fetch_absences_agg(session: Session, employee_ids: List[int], start_dt: date
         vac_start = vac_info["start"]
         vac_end = vac_info["end"]
         
-        # Verificar sobreposiÃ§Ã£o com o perÃ­odo de anÃ¡lise
+        # Verificar sobreposição com o período de análise
         if vac_end < analysis_start or vac_start > analysis_end:
-            continue  # Sem sobreposiÃ§Ã£o
+            continue  # Sem sobreposição
         
-        # Marcar cada dia de fÃ©rias dentro do perÃ­odo de anÃ¡lise
+        # Marcar cada dia de férias dentro do período de análise
         current = max(vac_start, analysis_start)
         end_mark = min(vac_end, analysis_end)
         
         while current <= end_mark:
             day_key = current.strftime("%Y-%m-%d")
-            # Marcar como "leave" (fÃ©rias) - maior prioridade que unjustified
+            # Marcar como "leave" (férias) - maior prioridade que unjustified
             current_group = per_employee_days.setdefault(emp_id, {}).get(day_key)
             if not current_group or get_absence_priority("leave") > get_absence_priority(current_group):
                 per_employee_days[emp_id][day_key] = "leave"
@@ -11272,7 +11279,7 @@ def fetch_absences_agg(session: Session, employee_ids: List[int], start_dt: date
                 }
             continue
         if group == "present":
-            # Contar dias presente para cÃ¡lculo de presenÃ§a
+            # Contar dias presente para cálculo de presença
             per_employee_present_days.setdefault(emp_id, set()).add(day_key)
             continue
         current = per_employee_days.setdefault(emp_id, {}).get(day_key)
@@ -11306,7 +11313,7 @@ def fetch_absences_agg(session: Session, employee_ids: List[int], start_dt: date
         rows = []
 
     # Tipos de eventos gerados automaticamente pelo sistema de rotinas
-    # Estes nÃ£o devem ser contados como fallback porque jÃ¡ tÃªm EmployeeRoutine correspondente
+    # Estes não devem ser contados como fallback porque já têm EmployeeRoutine correspondente
     ROUTINE_GENERATED_EVENT_TYPES = {"falta", "atestado", "afastamento", "folga", "ferias_hist", "ferias", "presenca", "routine_change"}
     
     for event_id, emp_id, ev_type, ev_category, ev_text, ev_day in rows:
@@ -11315,8 +11322,8 @@ def fetch_absences_agg(session: Session, employee_ids: List[int], start_dt: date
         day_key = str(ev_day)
         if day_key in per_employee_routine_days.get(emp_id, set()):
             continue
-        # Ignorar eventos que sÃ£o gerados automaticamente pelo sistema de rotinas
-        # Esses eventos existem para histÃ³rico mas nÃ£o devem ser contados como ausÃªncia
+        # Ignorar eventos que são gerados automaticamente pelo sistema de rotinas
+        # Esses eventos existem para histórico mas não devem ser contados como ausência
         ev_type_lower = (ev_type or "").lower().strip()
         if ev_type_lower in ROUTINE_GENERATED_EVENT_TYPES:
             continue
@@ -11397,7 +11404,7 @@ def fetch_absences_agg(session: Session, employee_ids: List[int], start_dt: date
     unknown_total = sum(unknown_counts.values())
     unknown_examples = [{"label": label, "count": count} for label, count in unknown_counts.most_common(10)]
     if unknown_total and LOG_LEVEL == logging.DEBUG:
-        logger.debug("AusÃªncias nÃ£o classificadas: %s | exemplos: %s", unknown_total, unknown_examples)
+        logger.debug("Ausências não classificadas: %s | exemplos: %s", unknown_total, unknown_examples)
 
     return absence_counts, {
         "unknown": unknown_total,
@@ -11584,15 +11591,15 @@ def fmt_ddmmyyyy(value) -> str:
 
 def fmt_hhmm(value) -> str:
     if not value:
-        return "â€”"
+        return "—"
     try:
         if isinstance(value, datetime):
             if value.tzinfo:
                 value = value.astimezone(ZoneInfo("America/Sao_Paulo"))
             return value.strftime("%H:%M")
     except Exception:
-        return "â€”"
-    return "â€”"
+        return "—"
+    return "—"
 
 def fmt_datetime_br(value) -> str:
     if not value:
@@ -11772,14 +11779,14 @@ async def _operations_performance_impl(
     total_days = (end_date - start_date).days + 1
     period_range_start = fmt_ddmmyyyy(start_date)
     period_range_end = fmt_ddmmyyyy(end_date)
-    period_range_label = f"{period_range_start} â†’ {period_range_end}"
+    period_range_label = f"{period_range_start} → {period_range_end}"
     month_names = [
-        "janeiro", "fevereiro", "marÃ§o", "abril", "maio", "junho",
+        "janeiro", "fevereiro", "março", "abril", "maio", "junho",
         "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"
     ]
     month_label = f"{month_names[target_date.month - 1].capitalize()}/{target_date.year}"
     if period == "monthly":
-        period_context_label = f"MÃªs: {month_label}"
+        period_context_label = f"Mês: {month_label}"
     elif period == "weekly":
         period_context_label = f"Semana: {period_range_start} a {period_range_end}"
     else:
@@ -11791,7 +11798,7 @@ async def _operations_performance_impl(
     allowed_employees = session.exec(allowed_query).all()
     allowed_ids = {emp.id for emp in allowed_employees if emp and emp.id}
 
-    # --- Colaboradores elegÃ­veis (habilitados no app de SeparaÃ§Ã£o) ---
+    # --- Colaboradores elegíveis (habilitados no app de Separação) ---
     employees_query = (
         select(models.Employee)
         .where(models.Employee.status != "fired")
@@ -11852,7 +11859,7 @@ async def _operations_performance_impl(
     if route_band and route_band not in ["Todos", "Geral"]:
         routes = [r for r in routes if assign_band(r["tonnage"], band_low, band_high) == route_band]
 
-    # IDs com rotas (podem ser subconjunto de todos os elegÃ­veis)
+    # IDs com rotas (podem ser subconjunto de todos os elegíveis)
     employee_ids = sorted({r["employee_id"] for r in routes})
     start_dt = datetime.combine(start_date, datetime.min.time()).replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
     end_dt = datetime.combine(end_date, datetime.max.time()).replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
@@ -11867,7 +11874,7 @@ async def _operations_performance_impl(
         .group_by(models.Event.employee_id)
     )
     
-    # --- Contagem de ausÃªncias usando fetch_absences_agg (obtÃ©m sources tambÃ©m) ---
+    # --- Contagem de ausências usando fetch_absences_agg (obtém sources também) ---
     absence_counts = {}
     absences_sources = {}
     absences_debug_days = {}
@@ -11886,13 +11893,13 @@ async def _operations_performance_impl(
             if LOG_LEVEL == logging.DEBUG:
                 absences_debug_days = absence_meta.get("debug_days", {})
         except Exception as e:
-            logger.exception(f"Erro ao buscar ausÃªncias: {e}")
+            logger.exception(f"Erro ao buscar ausências: {e}")
             absence_counts = {}
             absences_sources = {}
             absences_present_days = {}
             absences_debug_days = {}
     
-    # Fallback: se nÃ£o conseguiu buscar, usar mÃ©todo antigo (sÃ³ se absence_counts estiver vazio)
+    # Fallback: se não conseguiu buscar, usar método antigo (só se absence_counts estiver vazio)
     if not absence_counts and all_employee_ids:
         routines_rows = session.exec(
             select(models.EmployeeRoutine)
@@ -11901,7 +11908,7 @@ async def _operations_performance_impl(
             .where(models.EmployeeRoutine.date <= end_date.strftime("%Y-%m-%d"))
         ).all()
 
-        # Usar set para contar apenas dias Ãºnicos (evita contar 3x por turno)
+        # Usar set para contar apenas dias únicos (evita contar 3x por turno)
         absence_days = {}  # {emp_id: {type: set(dates)}}
         for r in routines_rows:
             emp_id = r.employee_id
@@ -11938,7 +11945,7 @@ async def _operations_performance_impl(
                 "offday": len(days_map["offday"])
             }
     
-    # Buscar event_counts para ocorrÃªncias
+    # Buscar event_counts para ocorrências
     event_counts = {}
     if all_employee_ids:
         event_query = (
@@ -12069,7 +12076,7 @@ async def _operations_performance_impl(
         daily_entry["tonnage"] += item["tonnage"]
         daily_entry["secs"] += duration
 
-    # Incluir colaboradores elegÃ­veis sem rotas (ex.: sÃ³ com faltas/atestados)
+    # Incluir colaboradores elegíveis sem rotas (ex.: só com faltas/atestados)
     for emp in employees:
         if emp.id not in stats:
             stats[emp.id] = {
@@ -12107,7 +12114,7 @@ async def _operations_performance_impl(
         elif trend_ratio < -0.05:
             trend_label = "Em queda"
         else:
-            trend_label = "EstÃ¡vel"
+            trend_label = "Estável"
 
         occurrences = int(event_counts.get(eid, 0))
         penalty_factor = max(0.7, 1 - occurrences * 0.05)
@@ -12118,7 +12125,7 @@ async def _operations_performance_impl(
         leave_days = absence_data["leave"]
         offday_days = absence_data["offday"]
         
-        # Usar dias com rotina "present" se disponÃ­vel, senÃ£o usa dias com rotas
+        # Usar dias com rotina "present" se disponível, senão usa dias com rotas
         present_days_from_routine = absences_present_days.get(eid, 0)
         days_with_routes = len(payload["days"])
         # Priorizar dias de rotina "present"; fallback para dias com rotas
@@ -12378,10 +12385,10 @@ async def _operations_performance_impl(
             row["_context_score"] = compute_context_score(route_norm, row.get("top_client_share", 0.0))
 
             row["pillar_sources"] = {
-                "productivity": "EstatÃ­stica",
-                "quality": "EstatÃ­stica",
+                "productivity": "Estatística",
+                "quality": "Estatística",
                 "discipline": "Regras",
-                "evolution": "EstatÃ­stica",
+                "evolution": "Estatística",
                 "context": "Regras"
             }
             row["pillar_weights"] = get_pillar_weights(row["tenure_band"])
@@ -12460,7 +12467,7 @@ async def _operations_performance_impl(
     team_avg_trip_minutes = safe_mean([r["avg_trip_minutes"] for r in rows_filtered])
     team_avg_presence_adjusted = safe_mean([r["regularity_adjusted"] for r in rows_filtered])
 
-    # Disciplina do time: considerar todos os colaboradores elegÃ­veis (nÃ£o sÃ³ quem teve rota)
+    # Disciplina do time: considerar todos os colaboradores elegíveis (não só quem teve rota)
     def get_absences_for_emp(emp_id: int) -> dict:
         return absence_counts.get(emp_id, {"justified": 0, "unjustified": 0, "leave": 0, "offday": 0})
 
@@ -12480,9 +12487,9 @@ async def _operations_performance_impl(
 
     def badge_meta(label: str) -> dict:
         styles = {
-            "ReferÃªncia": "bg-emerald-500/20 text-emerald-200 border-emerald-500/30",
-            "Em evoluÃ§Ã£o": "bg-blue-500/20 text-blue-200 border-blue-500/30",
-            "AtenÃ§Ã£o": "bg-red-500/20 text-red-200 border-red-500/30",
+            "Referência": "bg-emerald-500/20 text-emerald-200 border-emerald-500/30",
+            "Em evolução": "bg-blue-500/20 text-blue-200 border-blue-500/30",
+            "Atenção": "bg-red-500/20 text-red-200 border-red-500/30",
             "Potencial": "bg-amber-500/20 text-amber-200 border-amber-500/30"
         }
         return {"label": label, "class": styles.get(label, styles["Potencial"])}
@@ -12491,34 +12498,34 @@ async def _operations_performance_impl(
         sample_small = row.get("sample_small", False)
         if row["score"] >= 85 and row["discipline_rate"] >= 0.95 and row["regularity_adjusted"] >= 0.8 and not sample_small:
             return {
-                "label": "ReferÃªncia",
+                "label": "Referência",
                 "reason": "Alta entrega com disciplina consistente.",
-                "rule": "Score>=85, Disciplina>=95%, PresenÃ§a>=80%, dias>=3"
+                "rule": "Score>=85, Disciplina>=95%, Presença>=80%, dias>=3"
             }
         if row["trend_ratio"] > 0.05:
             return {
-                "label": "Em evoluÃ§Ã£o",
-                "reason": "TendÃªncia de melhora no perÃ­odo.",
-                "rule": "TendÃªncia>0,05"
+                "label": "Em evolução",
+                "reason": "Tendência de melhora no período.",
+                "rule": "Tendência>0,05"
             }
         attention_trigger = row["unjustified_absences"] > 0 or row["avg_kgh"] < team_avg_kgh * 0.85
         if attention_trigger:
             if sample_small and row["unjustified_absences"] == 0:
                 return {
                     "label": "Potencial",
-                    "reason": "Amostra pequena; evite conclusÃµes fortes.",
+                    "reason": "Amostra pequena; evite conclusões fortes.",
                     "rule": "Amostra<3 dias -> selo rebaixado"
                 }
             return {
-                "label": "AtenÃ§Ã£o",
-                "reason": "Queda de eficiÃªncia ou faltas nÃ£o justificadas.",
-                "rule": "Falta(s) nÃ£o justificadas ou kg/h < 85% da mÃ©dia"
+                "label": "Atenção",
+                "reason": "Queda de eficiência ou faltas não justificadas.",
+                "rule": "Falta(s) não justificadas ou kg/h < 85% da média"
             }
         if row["regularity_adjusted"] >= 0.8 and row["score"] <= median_score:
             return {
                 "label": "Potencial",
-                "reason": "PresenÃ§a alta com performance abaixo do potencial.",
-                "rule": "PresenÃ§a>=80% e score abaixo da mediana"
+                "reason": "Presença alta com performance abaixo do potencial.",
+                "rule": "Presença>=80% e score abaixo da mediana"
             }
         if sample_small:
             return {
@@ -12528,7 +12535,7 @@ async def _operations_performance_impl(
             }
         return {
             "label": "Potencial",
-            "reason": "Margem clara para evoluÃ§Ã£o com ajustes operacionais.",
+            "reason": "Margem clara para evolução com ajustes operacionais.",
             "rule": "Sem sinais fortes de destaque"
         }
 
@@ -12536,26 +12543,26 @@ async def _operations_performance_impl(
         reasons = []
         sample_small = row.get("sample_small", False)
         if sample_small:
-            reasons.append("Amostra pequena (indÃ­cios, dados insuficientes)")
+            reasons.append("Amostra pequena (indícios, dados insuficientes)")
         if row["avg_kgh"] > team_avg_kgh * 1.1:
-            reasons.append("IndÃ­cios de velocidade acima da mÃ©dia" if sample_small else "Velocidade acima da mÃ©dia do time")
+            reasons.append("Indícios de velocidade acima da média" if sample_small else "Velocidade acima da média do time")
         if row.get("delta_expected_context") is not None:
             if row["delta_expected_context"] > team_avg_kgh * 0.05:
-                reasons.append("IndÃ­cios acima do esperado para rota/turno" if sample_small else "Acima do esperado para rota/turno")
+                reasons.append("Indícios acima do esperado para rota/turno" if sample_small else "Acima do esperado para rota/turno")
             elif row["delta_expected_context"] < -team_avg_kgh * 0.05:
-                reasons.append("IndÃ­cios abaixo do esperado para rota/turno" if sample_small else "Abaixo do esperado para rota/turno")
+                reasons.append("Indícios abaixo do esperado para rota/turno" if sample_small else "Abaixo do esperado para rota/turno")
         if row["avg_trip_minutes"] > team_avg_trip_minutes * 1.15:
-            reasons.append("IndÃ­cios de tempo por viagem acima da mÃ©dia" if sample_small else "Tempo por viagem acima da mÃ©dia")
+            reasons.append("Indícios de tempo por viagem acima da média" if sample_small else "Tempo por viagem acima da média")
         if row["regularity_adjusted"] >= 0.8:
-            reasons.append("PresenÃ§a consistente no perÃ­odo")
+            reasons.append("Presença consistente no período")
         if row["trend_ratio"] > 0.05:
-            reasons.append("IndÃ­cios de melhora" if sample_small else "TendÃªncia de melhora")
+            reasons.append("Indícios de melhora" if sample_small else "Tendência de melhora")
         if row["trend_ratio"] < -0.05:
-            reasons.append("IndÃ­cios de queda" if sample_small else "TendÃªncia de queda")
+            reasons.append("Indícios de queda" if sample_small else "Tendência de queda")
         if row["unjustified_absences"] > 0:
-            reasons.append(f"{row['unjustified_absences']} falta(s) nÃ£o justificadas")
+            reasons.append(f"{row['unjustified_absences']} falta(s) não justificadas")
         if row["occurrences"] > 0:
-            reasons.append(f"{row['occurrences']} ocorrÃªncia(s) operacional(is)")
+            reasons.append(f"{row['occurrences']} ocorrência(s) operacional(is)")
         if row["top_client"] and row["top_client"] != "-":
             reasons.append(f"Cliente recorrente: {row['top_client']}")
         return reasons[:4]
@@ -12568,7 +12575,7 @@ async def _operations_performance_impl(
         row["badge_reason"] = badge["reason"]
         row["badge_rule"] = badge.get("rule", "")
         row["analysis_reasons"] = build_reasons(row)
-        row["score_source"] = "EstatÃ­stica"
+        row["score_source"] = "Estatística"
         row["group_label"] = f"Rota {row.get('route_band_label', row.get('route_band', '-'))} / Turno {row.get('shift') or '-'}"
         row["sample_note"] = "Amostra pequena; dados insuficientes." if row.get("sample_small") else ""
 
@@ -12603,8 +12610,8 @@ async def _operations_performance_impl(
         ("Velocidade (kg/h)", kgh_values),
         ("Volume (kg)", tonnage_values),
         ("Regularidade ajustada", regularity_values),
-        ("ConsistÃªncia", consistency_values),
-        ("TendÃªncia", trend_values)
+        ("Consistência", consistency_values),
+        ("Tendência", trend_values)
     ]:
         corr = pearson_corr(values, score_values)
         feature_drivers.append({"label": label, "corr": corr})
@@ -12722,7 +12729,7 @@ async def _operations_performance_impl(
         insights["bottleneck"] = {"name": bottleneck["name"], "detail": f"{bottleneck_label} min/viagem"}
     best_presence = max(rows_filtered, key=lambda x: x["regularity_adjusted"], default=None)
     if best_presence:
-        insights["presence"] = {"name": best_presence["name"], "detail": f"{best_presence['regularity_adjusted']:.0%} presenÃ§a"}
+        insights["presence"] = {"name": best_presence["name"], "detail": f"{best_presence['regularity_adjusted']:.0%} presença"}
     most_absences = max(rows_filtered, key=lambda x: x["unjustified_absences"], default=None)
     if most_absences and most_absences["unjustified_absences"] > 0:
         insights["absences"] = {"name": most_absences["name"], "detail": f"{most_absences['unjustified_absences']} faltas"}
@@ -12735,7 +12742,7 @@ async def _operations_performance_impl(
     if veteran_candidates:
         veteran_ref = max(veteran_candidates, key=lambda x: (x["score"], -x["cv"]), default=None)
         if veteran_ref:
-            insights["veteran"] = {"name": veteran_ref["name"], "detail": "ReferÃªncia de consistÃªncia"}
+            insights["veteran"] = {"name": veteran_ref["name"], "detail": "Referência de consistência"}
     potential = None
     if rows_filtered:
         median_score = sorted(score_values)[len(score_values) // 2]
@@ -12743,7 +12750,7 @@ async def _operations_performance_impl(
         if candidates:
             potential = max(candidates, key=lambda x: x["regularity_adjusted"])
     if potential:
-        insights["potential"] = {"name": potential["name"], "detail": "Alta presenÃ§a, ganho possÃ­vel"}
+        insights["potential"] = {"name": potential["name"], "detail": "Alta presença, ganho possível"}
 
     band_labels = {
         "Leve": f"<= {format_int_br(band_low)} kg" if band_low else "-",
@@ -12751,7 +12758,7 @@ async def _operations_performance_impl(
         "Pesada": f">= {format_int_br(band_high)} kg" if band_high else "-"
     }
 
-    # Totais de ausÃªncias do time (dias Ãºnicos) usando o mesmo agrupamento de ausÃªncias
+    # Totais de ausências do time (dias únicos) usando o mesmo agrupamento de ausências
     absence_totals = {
         "justified": sum(get_absences_for_emp(eid)["justified"] for eid in eligible_emp_ids),
         "unjustified": team_unjustified_total,
@@ -12760,7 +12767,7 @@ async def _operations_performance_impl(
     }
 
     # ============================================
-    # DEBUG CÃLCULOS - DocumentaÃ§Ã£o de todas as fÃ³rmulas
+    # DEBUG CÁLCULOS - Documentação de todas as fórmulas
     # ============================================
     calculation_debug = None
     try:
@@ -12773,31 +12780,31 @@ async def _operations_performance_impl(
             },
             "formulas": {
                 "presence_adjusted": {
-                    "name": "PresenÃ§a Ajustada",
+                    "name": "Presença Ajustada",
                     "formula": "dias_trabalhados / (total_dias - atestados - afastamentos - folgas)",
-                    "description": "Percentual de presenÃ§a considerando apenas os dias que o colaborador deveria trabalhar",
-                    "example": "Se trabalhou 15 dias em perÃ­odo de 30 dias, com 5 folgas e 2 atestados: 15 / (30-2-0-5) = 65%"
+                    "description": "Percentual de presença considerando apenas os dias que o colaborador deveria trabalhar",
+                    "example": "Se trabalhou 15 dias em período de 30 dias, com 5 folgas e 2 atestados: 15 / (30-2-0-5) = 65%"
                 },
                 "discipline_rate": {
                     "name": "Taxa de Disciplina",
                     "formula": "1 - (faltas_nao_justificadas / total_dias)",
-                    "description": "Percentual de dias sem falta nÃ£o justificada no perÃ­odo",
+                    "description": "Percentual de dias sem falta não justificada no período",
                     "example": "Se teve 2 faltas em 30 dias: 1 - (2/30) = 93%"
                 },
                 "consistency_score": {
-                    "name": "ConsistÃªncia",
-                    "formula": "1 - CV (Coeficiente de VariaÃ§Ã£o)",
-                    "description": "Quanto menor a variaÃ§Ã£o do Kg/h diÃ¡rio, maior a consistÃªncia",
-                    "example": "Se CV = 0.25, consistÃªncia = 75%"
+                    "name": "Consistência",
+                    "formula": "1 - CV (Coeficiente de Variação)",
+                    "description": "Quanto menor a variação do Kg/h diário, maior a consistência",
+                    "example": "Se CV = 0.25, consistência = 75%"
                 },
                 "avg_kgh": {
-                    "name": "MÃ©dia Kg/h",
+                    "name": "Média Kg/h",
                     "formula": "total_tonelagem / total_horas",
                     "description": "Quilos movimentados por hora trabalhada"
                 },
                 "score": {
                     "name": "Score Geral",
-                    "formula": "PÃ—35% + QÃ—20% + DÃ—20% + EÃ—10% + CÃ—15%",
+                    "formula": "P×35% + Q×20% + D×20% + E×10% + C×15%",
                     "description": "Nota ponderada dos 5 pilares",
                     "weights": {"P": 35, "Q": 20, "D": 20, "E": 10, "C": 15}
                 }
@@ -12806,7 +12813,7 @@ async def _operations_performance_impl(
                 "total_days": total_days,
                 "total_employees": len(rows_filtered) if rows_filtered else 0,
                 "avg_presence_adjusted": team_avg_presence_adjusted if team_avg_presence_adjusted is not None else 0,
-                "avg_presence_calculation": f"mÃ©dia de {len(rows_filtered)} colaboradores",
+                "avg_presence_calculation": f"média de {len(rows_filtered)} colaboradores",
                 "total_unjustified": team_unjustified_total or 0,
                 "discipline_rate": discipline_rate if discipline_rate is not None else 0,
                 "discipline_calculation": f"1 - ({team_unjustified_total or 0} / max(1, {total_days}))",
@@ -13131,7 +13138,7 @@ async def get_ranking_details(
         elif trend_ratio < -0.05:
             trend_label = "Em queda"
         else:
-            trend_label = "EstÃ¡vel"
+            trend_label = "Estável"
 
         top_client = client_counts.most_common(1)[0][0] if client_counts else "-"
         top_client_count = client_counts.most_common(1)[0][1] if client_counts else 0
@@ -13151,8 +13158,8 @@ async def get_ranking_details(
         if hours > 0:
             avg_kgh = total_tonnage / hours
             
-        # --- Contagem de ausÃªncias usando get_absence_summary (fonte Ãºnica e consistente) ---
-        # Esta funÃ§Ã£o usa fetch_absences_agg internamente e garante consistÃªncia
+        # --- Contagem de ausências usando get_absence_summary (fonte única e consistente) ---
+        # Esta função usa fetch_absences_agg internamente e garante consistência
         absence_summary = get_absence_summary(
             session,
             employee_id,
@@ -13168,7 +13175,7 @@ async def get_ranking_details(
         leave_days = absence_days.get("leave", 0)
         offday_days = absence_days.get("offday", 0)
         
-        # Extrair logs de ausÃªncia
+        # Extrair logs de ausência
         absence_logs = absence_summary.get("logs", {})
         absence_events = {
             "justified": absence_logs.get("justified", 0),
@@ -13182,7 +13189,7 @@ async def get_ranking_details(
         absence_event_day_map = absence_summary.get("logs_day_map", {})
         absence_event_record_map = absence_summary.get("logs_record_ids", {})
         
-        # Buscar rotinas para timeline (fallback se day_map nÃ£o estiver disponÃ­vel)
+        # Buscar rotinas para timeline (fallback se day_map não estiver disponível)
         routines_rows = session.exec(
             select(models.EmployeeRoutine.date, models.EmployeeRoutine.routine)
             .where(models.EmployeeRoutine.employee_id == employee_id)
@@ -13498,48 +13505,48 @@ async def get_ranking_details(
         def build_badge() -> dict:
             sample_small_local = sample_small
             if productivity_score == 0 and quality_score == 0 and discipline_score == 0:
-                return {"label": "Potencial", "reason": "Sem dados suficientes.", "rule": "Sem produÃ§Ã£o no perÃ­odo"}
+                return {"label": "Potencial", "reason": "Sem dados suficientes.", "rule": "Sem produção no período"}
             if weighted_score >= 85 and discipline_rate >= 0.95 and regularity_adjusted >= 0.8 and not sample_small_local:
-                return {"label": "ReferÃªncia", "reason": "Alta entrega com disciplina consistente.", "rule": "Score>=85, Disciplina>=95%, PresenÃ§a>=80%, dias>=3"}
+                return {"label": "Referência", "reason": "Alta entrega com disciplina consistente.", "rule": "Score>=85, Disciplina>=95%, Presença>=80%, dias>=3"}
             if trend_ratio > 0.05:
-                return {"label": "Em evoluÃ§Ã£o", "reason": "TendÃªncia de melhora no perÃ­odo.", "rule": "TendÃªncia>0,05"}
+                return {"label": "Em evolução", "reason": "Tendência de melhora no período.", "rule": "Tendência>0,05"}
             if unjustified_days > 0 or (group_rows and avg_kgh < safe_mean([r["avg_kgh"] for r in group_rows]) * 0.85):
                 if sample_small_local and unjustified_days == 0:
-                    return {"label": "Potencial", "reason": "Amostra pequena; evite conclusÃµes fortes.", "rule": "Amostra<3 dias -> selo rebaixado"}
-                return {"label": "AtenÃ§Ã£o", "reason": "Queda de eficiÃªncia ou faltas nÃ£o justificadas.", "rule": "Falta(s) nÃ£o justificadas ou kg/h < 85% da mÃ©dia"}
+                    return {"label": "Potencial", "reason": "Amostra pequena; evite conclusões fortes.", "rule": "Amostra<3 dias -> selo rebaixado"}
+                return {"label": "Atenção", "reason": "Queda de eficiência ou faltas não justificadas.", "rule": "Falta(s) não justificadas ou kg/h < 85% da média"}
             if regularity_adjusted >= 0.8 and weighted_score <= median_score_group:
-                return {"label": "Potencial", "reason": "PresenÃ§a alta com performance abaixo do potencial.", "rule": "PresenÃ§a>=80% e score abaixo da mediana"}
+                return {"label": "Potencial", "reason": "Presença alta com performance abaixo do potencial.", "rule": "Presença>=80% e score abaixo da mediana"}
             if sample_small_local:
                 return {"label": "Potencial", "reason": "Amostra pequena; dados insuficientes.", "rule": "Amostra<3 dias"}
-            return {"label": "Potencial", "reason": "Margem clara para evoluÃ§Ã£o com ajustes operacionais.", "rule": "Sem sinais fortes de destaque"}
+            return {"label": "Potencial", "reason": "Margem clara para evolução com ajustes operacionais.", "rule": "Sem sinais fortes de destaque"}
 
         def build_strengths() -> List[str]:
             items = []
             if sample_small:
-                items.append("Amostra pequena: indÃ­cios limitados")
+                items.append("Amostra pequena: indícios limitados")
             if group_rows and avg_kgh > safe_mean([r["avg_kgh"] for r in group_rows]) * 1.1:
-                items.append("Velocidade acima da mÃ©dia do grupo")
+                items.append("Velocidade acima da média do grupo")
             if regularity_adjusted >= 0.8:
-                items.append("PresenÃ§a consistente no perÃ­odo")
+                items.append("Presença consistente no período")
             if trend_ratio > 0.05:
-                items.append("TendÃªncia de melhora no perÃ­odo")
+                items.append("Tendência de melhora no período")
             if discipline_rate >= 0.95 and unjustified_days == 0:
                 items.append("Disciplina alta sem faltas")
-            return items or ["Sem sinais fortes de destaque no perÃ­odo"]
+            return items or ["Sem sinais fortes de destaque no período"]
 
         def build_losses() -> List[str]:
             items = []
             if sample_small:
                 items.append("Amostra pequena: dados insuficientes")
             if group_rows and avg_trip_minutes > safe_mean([r["avg_trip_minutes"] for r in group_rows]) * 1.15:
-                items.append("Tempo mÃ©dio por viagem acima da mÃ©dia")
+                items.append("Tempo médio por viagem acima da média")
             if unjustified_days > 0:
-                items.append(f"{unjustified_days} falta(s) nÃ£o justificadas")
+                items.append(f"{unjustified_days} falta(s) não justificadas")
             if occurrences:
-                items.append(f"{occurrences} ocorrÃªncia(s) operacional(is)")
+                items.append(f"{occurrences} ocorrência(s) operacional(is)")
             if group_rows and avg_kgh < safe_mean([r["avg_kgh"] for r in group_rows]) * 0.9:
-                items.append("Velocidade abaixo da mÃ©dia do grupo")
-            return items or ["Sem perdas crÃ­ticas detectadas no perÃ­odo"]
+                items.append("Velocidade abaixo da média do grupo")
+            return items or ["Sem perdas críticas detectadas no período"]
 
         def build_how_works() -> List[str]:
             items = [
@@ -13554,12 +13561,12 @@ async def get_ranking_details(
         def build_replicable() -> List[str]:
             items = []
             if max(0.0, 1 - cv) >= 0.7:
-                items.append("Ritmo estÃ¡vel ao longo do perÃ­odo")
+                items.append("Ritmo estável ao longo do período")
             if discipline_rate >= 0.95 and unjustified_days == 0:
                 items.append("Disciplina operacional consistente")
             if group_rows and avg_kgh > safe_mean([r["avg_kgh"] for r in group_rows]) * 1.1:
-                items.append("Velocidade acima da mÃ©dia replicÃ¡vel com padronizaÃ§Ã£o")
-            return items or ["Sem padrÃ£o claro para replicaÃ§Ã£o no perÃ­odo"]
+                items.append("Velocidade acima da média replicável com padronização")
+            return items or ["Sem padrão claro para replicação no período"]
 
         weighted_score = target_row["score"] if target_row else 0.0
         productivity_percentile_group_pct = round(productivity_percentile_group * 100, 1)
@@ -13567,20 +13574,20 @@ async def get_ranking_details(
         time_reliability_rate = round(completeness_rate * 100, 1)
         time_estimated = completeness_rate < 0.7
         pillar_sources = {
-            "productivity": "EstatÃ­stica",
-            "quality": "EstatÃ­stica",
+            "productivity": "Estatística",
+            "quality": "Estatística",
             "discipline": "Regras",
-            "evolution": "EstatÃ­stica",
+            "evolution": "Estatística",
             "context": "Regras"
         }
 
         badge = build_badge()
 
-        # Extrair source das ausÃªncias (jÃ¡ obtido acima)
+        # Extrair source das ausências (já obtido acima)
         absences_source = absence_summary.get("source_key", "routine")
         absences_source_label = absence_summary.get("source_label", format_absence_source_label(absences_source))
 
-        # Obter routine_days_logged do absence_summary (jÃ¡ calculado)
+        # Obter routine_days_logged do absence_summary (já calculado)
         routine_days_logged = absence_summary.get("routine_days_logged", 0)
         
         # Buscar rotinas para verificar routine_missing
@@ -13593,10 +13600,10 @@ async def get_ranking_details(
         routine_days = {str(r_date) for r_date, _ in routine_rows}
         if period == "daily":
             routine_missing = start_date_str not in routine_days
-            routine_missing_label = "Sem rotina lanÃ§ada no dia"
+            routine_missing_label = "Sem rotina lançada no dia"
         else:
             routine_missing = routine_days_logged == 0
-            routine_missing_label = "Sem rotina lanÃ§ada no perÃ­odo"
+            routine_missing_label = "Sem rotina lançada no período"
         absence_timeline = []
         label_map = {
             "unjustified": "Falta",
@@ -13647,13 +13654,13 @@ async def get_ranking_details(
                 return "Alta"
             if route_days < 4 and routine_days < 8:
                 return "Baixa"
-            return "MÃ©dia"
+            return "Média"
 
         confidence_level = compute_confidence_level(route_days_active, routine_days_logged)
         confidence_note_map = {
-            "Baixa": "Poucos dias no perÃ­odo; use como sinal, nÃ£o como decisÃ£o.",
-            "MÃ©dia": "Sinal moderado; confirme com a lideranÃ§a.",
-            "Alta": "Sinal consistente no perÃ­odo."
+            "Baixa": "Poucos dias no período; use como sinal, não como decisão.",
+            "Média": "Sinal moderado; confirme com a liderança.",
+            "Alta": "Sinal consistente no período."
         }
         confidence_note = confidence_note_map.get(confidence_level, "")
 
@@ -13716,7 +13723,7 @@ async def get_ranking_details(
 
         def build_pattern_change() -> dict:
             status = "Sem dados suficientes"
-            summary = "Sem dados suficientes para avaliar mudanÃ§a de padrÃ£o no perÃ­odo."
+            summary = "Sem dados suficientes para avaliar mudança de padrão no período."
             evidence = []
             delta_pct = 0.0
             delta_trip = 0.0
@@ -13747,7 +13754,7 @@ async def get_ranking_details(
                     baseline_kgh_values = baseline_stats["kgh_values"]
                     baseline_trip_minutes = baseline_stats["avg_trip_minutes"]
                 current_label = "No dia base"
-                baseline_label = "mÃ©dia dos Ãºltimos 7 dias"
+                baseline_label = "média dos últimos 7 dias"
             elif period == "weekly":
                 current_kgh_values = daily_kgh_sorted
                 latest_kgh = safe_mean(current_kgh_values) if current_kgh_values else None
@@ -13760,7 +13767,7 @@ async def get_ranking_details(
                     baseline_kgh_values = baseline_stats["kgh_values"]
                     baseline_trip_minutes = baseline_stats["avg_trip_minutes"]
                 current_label = "Na semana atual"
-                baseline_label = "mÃ©dia da semana anterior"
+                baseline_label = "média da semana anterior"
             else:
                 first_half_kgh = []
                 second_half_kgh = []
@@ -13795,15 +13802,15 @@ async def get_ranking_details(
                     baseline_kgh_values = second_half_kgh
                     current_trip_minutes = first_half_trip
                     baseline_trip_minutes = second_half_trip
-                    current_label = "Na 1Âª quinzena"
-                    baseline_label = "mÃ©dia da 2Âª quinzena"
+                    current_label = "Na 1ª quinzena"
+                    baseline_label = "média da 2ª quinzena"
                 else:
                     current_kgh_values = second_half_kgh
                     baseline_kgh_values = first_half_kgh
                     current_trip_minutes = second_half_trip
                     baseline_trip_minutes = first_half_trip
-                    current_label = "Na 2Âª quinzena"
-                    baseline_label = "mÃ©dia da 1Âª quinzena"
+                    current_label = "Na 2ª quinzena"
+                    baseline_label = "média da 1ª quinzena"
                 latest_kgh = safe_mean(current_kgh_values) if current_kgh_values else None
 
             if latest_kgh and baseline_kgh_values:
@@ -13821,7 +13828,7 @@ async def get_ranking_details(
                 baseline_cv = (safe_stdev(baseline_kgh_values) / baseline_mean) if baseline_mean else 0.0
                 delta_cv = current_cv - baseline_cv
                 if delta_cv >= 0.15:
-                    evidence.append(f"OscilaÃ§Ã£o maior no perÃ­odo (+{fmt_br_2(delta_cv)})")
+                    evidence.append(f"Oscilação maior no período (+{fmt_br_2(delta_cv)})")
             if current_trip_minutes and baseline_trip_minutes:
                 delta_trip = current_trip_minutes - baseline_trip_minutes
                 sign = "+" if delta_trip >= 0 else "-"
@@ -13829,7 +13836,7 @@ async def get_ranking_details(
             elif group_trip_avg:
                 delta_trip = avg_trip_minutes - group_trip_avg
                 sign = "+" if delta_trip >= 0 else "-"
-                evidence.append(f"Tempo/viagem {sign}{fmt_br(abs(delta_trip))} min vs mÃ©dia do grupo")
+                evidence.append(f"Tempo/viagem {sign}{fmt_br(abs(delta_trip))} min vs média do grupo")
 
             focus_date_label = fmt_ddmm(focus_date)
             if focus_date_label and routes_data:
@@ -13837,7 +13844,7 @@ async def get_ranking_details(
                 if latest_clients:
                     latest_client = Counter(latest_clients).most_common(1)[0][0]
                     if latest_client != top_client:
-                        evidence.append(f"Cliente no dia: {latest_client} (padrÃ£o: {top_client})")
+                        evidence.append(f"Cliente no dia: {latest_client} (padrão: {top_client})")
                     else:
                         evidence.append(f"Cliente predominante no dia: {latest_client}")
 
@@ -13846,7 +13853,7 @@ async def get_ranking_details(
                 prev_day = (focus_date - timedelta(days=1)).isoformat()
                 next_day = (focus_date + timedelta(days=1)).isoformat()
                 if prev_day in absence_days_set or next_day in absence_days_set:
-                    evidence.append("AusÃªncia prÃ³xima no calendÃ¡rio (dia anterior/posterior)")
+                    evidence.append("Ausência próxima no calendário (dia anterior/posterior)")
 
             reliability_label = fmt_br_pct(completeness_rate)
             if completeness_rate < 0.7:
@@ -13857,9 +13864,9 @@ async def get_ranking_details(
 
             if latest_kgh and baseline:
                 if abs(delta_pct) >= 0.15 or abs(delta_trip) >= 8 or delta_cv >= 0.15:
-                    status = "Sinal de atenÃ§Ã£o" if delta_pct < -0.15 else "MudanÃ§a de contexto"
+                    status = "Sinal de atenção" if delta_pct < -0.15 else "Mudança de contexto"
                 else:
-                    status = "VariaÃ§Ã£o normal"
+                    status = "Variação normal"
 
             return {
                 "label": status,
@@ -13884,7 +13891,7 @@ async def get_ranking_details(
                 and (score_percentile_group >= 0.8 or weighted_score >= 80)
                 and unjustified_days == 0
                 and completeness_rate >= 0.85
-                and pattern_change.get("label") != "Sinal de atenÃ§Ã£o"
+                and pattern_change.get("label") != "Sinal de atenção"
             )
             if promotion_condition:
                 promo_evidence = []
@@ -13892,11 +13899,11 @@ async def get_ranking_details(
                     promo_evidence.append("Score no top 20% da liga")
                 else:
                     promo_evidence.append(f"Score ponderado {fmt_br_2(weighted_score)}")
-                promo_evidence.append("0 faltas no perÃ­odo")
+                promo_evidence.append("0 faltas no período")
                 if kgh_above_median_days:
                     promo_evidence.append(f"Produtividade acima da mediana por {kgh_above_median_days} dias")
                 promotion.append({
-                    "label": "ElegÃ­vel para promoÃ§Ã£o",
+                    "label": "Elegível para promoção",
                     "evidence": promo_evidence[:3],
                     "confidence": confidence_level
                 })
@@ -13914,14 +13921,14 @@ async def get_ranking_details(
             training_evidence = []
             if productivity_percentile_group <= 0.3:
                 training_evidence.append(f"Kg/h abaixo do grupo ({fmt_br_pct(productivity_percentile_group)})")
-                training_focus = "Treino de mÃ©todo (sequÃªncia e padrÃ£o)"
+                training_focus = "Treino de método (sequência e padrão)"
             if regularity_adjusted < 0.70 and unjustified_days == 0:
                 training_evidence.append("Regularidade abaixo do esperado")
-                training_focus = "Treino de rotina (constÃ¢ncia e organizaÃ§Ã£o)"
+                training_focus = "Treino de rotina (constância e organização)"
             if cv > 0.35:
-                training_evidence.append(f"OscilaÃ§Ã£o alta (CV {fmt_br_2(cv)})")
+                training_evidence.append(f"Oscilação alta (CV {fmt_br_2(cv)})")
                 if not training_focus:
-                    training_focus = "Treino de padrÃ£o para estabilidade"
+                    training_focus = "Treino de padrão para estabilidade"
             if training_condition:
                 training.append({
                     "label": "Treinamento direcionado",
@@ -13939,16 +13946,16 @@ async def get_ranking_details(
             risk_evidence = []
             if risk_triggers:
                 if unjustified_days >= 2:
-                    risk_evidence.append(f"Faltas nÃ£o justificadas: {unjustified_days}")
+                    risk_evidence.append(f"Faltas não justificadas: {unjustified_days}")
                 if score_percentile_group <= 0.20:
                     risk_evidence.append(f"Score abaixo do percentil 20 ({fmt_br_pct(score_percentile_group)})")
                 if pattern_change_delta <= -0.15:
-                    risk_evidence.append(f"Queda diÃ¡ria relevante ({fmt_br_pct(abs(pattern_change_delta))})")
+                    risk_evidence.append(f"Queda diária relevante ({fmt_br_pct(abs(pattern_change_delta))})")
                 if confidence_level == "Baixa":
                     risk_evidence.append("Sinal fraco por baixa amostra")
                     risk_status = "Sinal fraco (baixa amostra)"
                 else:
-                    risk_status = "Risco operacional (revisÃ£o humana)" if unjustified_days >= 2 else "Alerta precoce"
+                    risk_status = "Risco operacional (revisão humana)" if unjustified_days >= 2 else "Alerta precoce"
                 risk.append({
                     "label": risk_status,
                     "evidence": risk_evidence[:3],
@@ -13956,16 +13963,16 @@ async def get_ranking_details(
                 })
 
             if promotion_condition:
-                readiness_for_promotion = "ElegÃ­vel para promoÃ§Ã£o"
+                readiness_for_promotion = "Elegível para promoção"
             elif risk_triggers and confidence_level != "Baixa":
-                readiness_for_promotion = "NÃ£o recomendado para promoÃ§Ã£o no momento"
+                readiness_for_promotion = "Não recomendado para promoção no momento"
             elif training_condition:
-                readiness_for_promotion = "ElegÃ­vel para desenvolvimento"
+                readiness_for_promotion = "Elegível para desenvolvimento"
             else:
                 readiness_for_promotion = "Requer acompanhamento"
 
             if training_condition:
-                training_priority = "Alta" if len(training_evidence) >= 2 else "MÃ©dia"
+                training_priority = "Alta" if len(training_evidence) >= 2 else "Média"
             else:
                 training_priority = "Baixa"
 
@@ -13982,17 +13989,17 @@ async def get_ranking_details(
 
         recommendations = build_recommendations()
 
-        model_origin = "EstatÃ­stica" if len(group_rows) >= 12 else "Regras"
+        model_origin = "Estatística" if len(group_rows) >= 12 else "Regras"
         model_notes = {
             "sees": [
                 f"Percentil do grupo: {fmt_br_pct(score_percentile_group)}",
                 f"Disciplina: {fmt_br_pct(discipline_rate)}",
-                f"ConsistÃªncia (CV): {fmt_br_2(cv)}"
+                f"Consistência (CV): {fmt_br_2(cv)}"
             ],
             "not_conclude": [
-                "CorrelaÃ§Ã£o nÃ£o indica causa",
-                "NÃ£o substitui avaliaÃ§Ã£o do lÃ­der",
-                "NÃ£o considera fatores pessoais fora do perÃ­odo"
+                "Correlação não indica causa",
+                "Não substitui avaliação do líder",
+                "Não considera fatores pessoais fora do período"
             ]
         }
 
@@ -14123,8 +14130,8 @@ async def get_ranking_details(
                     "shift": employee_shift
                 },
                 "sources": {
-                    "score": "EstatÃ­stica",
-                    "trend": "EstatÃ­stica",
+                    "score": "Estatística",
+                    "trend": "Estatística",
                     "context": "Regras"
                 }
             },
@@ -14148,17 +14155,17 @@ async def generate_ai_report(
     user=Depends(require_leader)
 ):
     """
-    Gera relatÃ³rios de performance usando IA (OpenAI GPT-4o-mini).
+    Gera relatórios de performance usando IA (OpenAI GPT-4o-mini).
     
-    Tipos de relatÃ³rio:
-    - executive: Resumo executivo para diretoria (1-2 parÃ¡grafos)
-    - detailed: RelatÃ³rio detalhado por setor/turno
-    - individual: AnÃ¡lise individual de um colaborador
-    - recommendations: RecomendaÃ§Ãµes de aÃ§Ã£o prioritÃ¡rias
+    Tipos de relatório:
+    - executive: Resumo executivo para diretoria (1-2 parágrafos)
+    - detailed: Relatório detalhado por setor/turno
+    - individual: Análise individual de um colaborador
+    - recommendations: Recomendações de ação prioritárias
     """
     if not gemini_client:
         return JSONResponse(
-            {"error": "ServiÃ§o de IA nÃ£o configurado. Configure GEMINI_API_KEY no ambiente."},
+            {"error": "Serviço de IA não configurado. Configure GEMINI_API_KEY no ambiente."},
             status_code=503
         )
     
@@ -14176,24 +14183,24 @@ async def generate_ai_report(
         # Preparar dados para os prompts (fora das f-strings para evitar erros de sintaxe)
         top5_data = json.dumps([{"nome": r.get("name"), "score": r.get("score"), "badge": r.get("badge")} for r in rows[:5]], ensure_ascii=False, indent=2)
         top10_data = json.dumps([{"nome": r.get("name"), "score": r.get("score"), "kgh": r.get("avg_kgh"), "badge": r.get("badge"), "tendencia": r.get("trend_label")} for r in rows[:10]], ensure_ascii=False, indent=2)
-        badge_counts = json.dumps({badge: len([r for r in rows if r.get("badge") == badge]) for badge in ["ReferÃªncia", "Em evoluÃ§Ã£o", "Potencial", "AtenÃ§Ã£o"]}, ensure_ascii=False)
-        atencao_data = json.dumps([{"nome": r.get("name"), "score": r.get("score"), "faltas": r.get("unjustified_absences"), "motivo": r.get("badge_reason")} for r in rows if r.get("badge") == "AtenÃ§Ã£o"][:5], ensure_ascii=False, indent=2)
-        referencia_data = json.dumps([{"nome": r.get("name"), "score": r.get("score"), "motivo": r.get("badge_reason")} for r in rows if r.get("badge") == "ReferÃªncia"][:5], ensure_ascii=False, indent=2)
-        evolucao_data = json.dumps([{"nome": r.get("name"), "score": r.get("score"), "tendencia": r.get("trend_label")} for r in rows if r.get("badge") == "Em evoluÃ§Ã£o"][:5], ensure_ascii=False, indent=2)
-        atencao_full_data = json.dumps([{"nome": r.get("name"), "score": r.get("score"), "faltas": r.get("unjustified_absences"), "kgh": r.get("avg_kgh"), "motivo": r.get("badge_reason")} for r in rows if r.get("badge") == "AtenÃ§Ã£o"], ensure_ascii=False, indent=2)
+        badge_counts = json.dumps({badge: len([r for r in rows if r.get("badge") == badge]) for badge in ["Referência", "Em evolução", "Potencial", "Atenção"]}, ensure_ascii=False)
+        atencao_data = json.dumps([{"nome": r.get("name"), "score": r.get("score"), "faltas": r.get("unjustified_absences"), "motivo": r.get("badge_reason")} for r in rows if r.get("badge") == "Atenção"][:5], ensure_ascii=False, indent=2)
+        referencia_data = json.dumps([{"nome": r.get("name"), "score": r.get("score"), "motivo": r.get("badge_reason")} for r in rows if r.get("badge") == "Referência"][:5], ensure_ascii=False, indent=2)
+        evolucao_data = json.dumps([{"nome": r.get("name"), "score": r.get("score"), "tendencia": r.get("trend_label")} for r in rows if r.get("badge") == "Em evolução"][:5], ensure_ascii=False, indent=2)
+        atencao_full_data = json.dumps([{"nome": r.get("name"), "score": r.get("score"), "faltas": r.get("unjustified_absences"), "kgh": r.get("avg_kgh"), "motivo": r.get("badge_reason")} for r in rows if r.get("badge") == "Atenção"], ensure_ascii=False, indent=2)
         insights_data = json.dumps(insights, ensure_ascii=False, indent=2)
         
-        # Prompts especÃ­ficos para cada tipo de relatÃ³rio
+        # Prompts específicos para cada tipo de relatório
         prompts = {
-            "executive": f"""VocÃª Ã© um analista de operaÃ§Ãµes logÃ­sticas gerando um RESUMO EXECUTIVO para a diretoria.
+            "executive": f"""Você é um analista de operações logísticas gerando um RESUMO EXECUTIVO para a diretoria.
 
-DADOS DO PERÃODO ({period}):
+DADOS DO PERÍODO ({period}):
 - Volume total: {team_stats.get('total_tonnage', 0):,.0f} kg
-- MÃ©dia Kg/h: {team_stats.get('avg_kgh', 0):,.0f}
+- Média Kg/h: {team_stats.get('avg_kgh', 0):,.0f}
 - Colaboradores ativos: {team_stats.get('active_employees', 0)}
-- Taxa de presenÃ§a: {team_stats.get('avg_presence_adjusted', 0)*100:.1f}%
+- Taxa de presença: {team_stats.get('avg_presence_adjusted', 0)*100:.1f}%
 - Taxa de disciplina: {team_stats.get('discipline_rate', 0)*100:.1f}%
-- Faltas nÃ£o justificadas: {team_stats.get('unjustified_total', 0)}
+- Faltas não justificadas: {team_stats.get('unjustified_total', 0)}
 
 DESTAQUES:
 {insights_data}
@@ -14201,108 +14208,108 @@ DESTAQUES:
 TOP 5 COLABORADORES:
 {top5_data}
 
-Gere um resumo executivo de 2-3 parÃ¡grafos em portuguÃªs brasileiro, profissional e objetivo, destacando:
-1. Performance geral do perÃ­odo
+Gere um resumo executivo de 2-3 parágrafos em português brasileiro, profissional e objetivo, destacando:
+1. Performance geral do período
 2. Pontos positivos e conquistas
-3. Pontos de atenÃ§Ã£o que requerem aÃ§Ã£o
+3. Pontos de atenção que requerem ação
 
-NÃ£o use markdown, apenas texto corrido.""",
+Não use markdown, apenas texto corrido.""",
 
-            "detailed": f"""VocÃª Ã© um analista de operaÃ§Ãµes logÃ­sticas gerando um RELATÃ“RIO DETALHADO.
+            "detailed": f"""Você é um analista de operações logísticas gerando um RELATÓRIO DETALHADO.
 
-DADOS DO PERÃODO ({period}) - Turno: {shift}:
+DADOS DO PERÍODO ({period}) - Turno: {shift}:
 - Volume total: {team_stats.get('total_tonnage', 0):,.0f} kg
-- MÃ©dia Kg/h: {team_stats.get('avg_kgh', 0):,.0f}
-- Tempo mÃ©dio/viagem: {team_stats.get('avg_trip_minutes', 0):.1f} min
+- Média Kg/h: {team_stats.get('avg_kgh', 0):,.0f}
+- Tempo médio/viagem: {team_stats.get('avg_trip_minutes', 0):.1f} min
 - Colaboradores ativos: {team_stats.get('active_employees', 0)}
-- Taxa de presenÃ§a: {team_stats.get('avg_presence_adjusted', 0)*100:.1f}%
+- Taxa de presença: {team_stats.get('avg_presence_adjusted', 0)*100:.1f}%
 - Taxa de disciplina: {team_stats.get('discipline_rate', 0)*100:.1f}%
 
-ANÃLISE POR BADGE:
+ANÁLISE POR BADGE:
 {badge_counts}
 
 TOP 10 COLABORADORES:
 {top10_data}
 
-COLABORADORES QUE PRECISAM DE ATENÃƒâ€¡ÃƒÃ†Ã¢â‚¬â„¢O:
+COLABORADORES QUE PRECISAM DE ATENÃ‡ÃÆâ€™O:
 {atencao_data}
 
-Gere um relatÃ³rio detalhado em portuguÃªs brasileiro com seÃ§Ãµes:
-1. VISÃƒÃ†Ã¢â‚¬â„¢O GERAL DO PERÃODO
-2. ANÃLISE DE PRODUTIVIDADE
-3. ANÃLISE DE DISCIPLINA E PRESENÃ‡A
+Gere um relatório detalhado em português brasileiro com seções:
+1. VISÃÆâ€™O GERAL DO PERÍODO
+2. ANÁLISE DE PRODUTIVIDADE
+3. ANÁLISE DE DISCIPLINA E PRESENÇA
 4. DESTAQUES POSITIVOS
-5. PONTOS DE ATENÃƒâ€¡ÃƒÃ†Ã¢â‚¬â„¢O
-6. RECOMENDAÃ‡Ã•ES
+5. PONTOS DE ATENÃ‡ÃÆâ€™O
+6. RECOMENDAÇÕES
 
-Use formataÃ§Ã£o clara com tÃ­tulos em MAIÃšSCULAS e bullet points (â€¢).""",
+Use formatação clara com títulos em MAIÚSCULAS e bullet points (•).""",
 
-            "recommendations": f"""VocÃª Ã© um consultor de gestÃ£o de pessoas gerando RECOMENDAÃ‡Ã•ES DE AÃƒâ€¡ÃƒÃ†Ã¢â‚¬â„¢O.
+            "recommendations": f"""Você é um consultor de gestão de pessoas gerando RECOMENDAÇÕES DE AÃ‡ÃÆâ€™O.
 
 CONTEXTO:
-- PerÃ­odo: {period}
+- Período: {period}
 - Colaboradores ativos: {team_stats.get('active_employees', 0)}
 - Taxa de disciplina: {team_stats.get('discipline_rate', 0)*100:.1f}%
-- Faltas nÃ£o justificadas: {team_stats.get('unjustified_total', 0)}
+- Faltas não justificadas: {team_stats.get('unjustified_total', 0)}
 
-COLABORADORES REFERÃŠNCIA (para reconhecer):
+COLABORADORES REFERÊNCIA (para reconhecer):
 {referencia_data}
 
-COLABORADORES EM EVOLUÃƒâ€¡ÃƒÃ†Ã¢â‚¬â„¢O (para acompanhar):
+COLABORADORES EM EVOLUÃ‡ÃÆâ€™O (para acompanhar):
 {evolucao_data}
 
-COLABORADORES QUE PRECISAM DE ATENÃƒâ€¡ÃƒÃ†Ã¢â‚¬â„¢O (aÃ§Ã£o urgente):
+COLABORADORES QUE PRECISAM DE ATENÃ‡ÃÆâ€™O (ação urgente):
 {atencao_full_data}
 
-Gere recomendaÃ§Ãµes prÃ¡ticas em portuguÃªs brasileiro:
-1. AÃ‡Ã•ES IMEDIATAS (esta semana)
+Gere recomendações práticas em português brasileiro:
+1. AÇÕES IMEDIATAS (esta semana)
 2. RECONHECIMENTOS E FEEDBACK POSITIVO
-3. CONVERSAS INDIVIDUAIS NECESSÃRIAS
+3. CONVERSAS INDIVIDUAIS NECESSÁRIAS
 4. TREINAMENTOS SUGERIDOS
 5. ALERTAS DE RISCO
 
-Seja especÃ­fico, mencione nomes quando relevante. Use bullet points (â€¢)."""
+Seja específico, mencione nomes quando relevante. Use bullet points (•)."""
         }
         
-        # Prompt para relatÃ³rio individual
+        # Prompt para relatório individual
         if report_type == "individual" and employee_id:
             emp_data = next((r for r in rows if r.get("id") == employee_id), None)
             if emp_data:
-                prompts["individual"] = f"""VocÃª Ã© um gestor gerando uma AVALIAÃƒâ€¡ÃƒÃ†Ã¢â‚¬â„¢O INDIVIDUAL para feedback.
+                prompts["individual"] = f"""Você é um gestor gerando uma AVALIAÃ‡ÃÆâ€™O INDIVIDUAL para feedback.
 
 COLABORADOR: {emp_data.get("name")}
-PERÃODO: {period}
+PERÍODO: {period}
 
 INDICADORES:
 - Score geral: {emp_data.get("score", 0):.1f}
 - Badge: {emp_data.get("badge")}
-- Kg/h mÃ©dio: {emp_data.get("avg_kgh", 0):,.0f}
+- Kg/h médio: {emp_data.get("avg_kgh", 0):,.0f}
 - Volume total: {emp_data.get("total_tonnage", 0):,.0f} kg
 - Viagens: {emp_data.get("count", 0)}
-- PresenÃ§a ajustada: {emp_data.get("regularity_adjusted", 0)*100:.1f}%
-- ConsistÃªncia (CV): {emp_data.get("cv", 0):.2f}
-- TendÃªncia: {emp_data.get("trend_label")}
-- Faltas nÃ£o justificadas: {emp_data.get("unjustified_absences", 0)}
+- Presença ajustada: {emp_data.get("regularity_adjusted", 0)*100:.1f}%
+- Consistência (CV): {emp_data.get("cv", 0):.2f}
+- Tendência: {emp_data.get("trend_label")}
+- Faltas não justificadas: {emp_data.get("unjustified_absences", 0)}
 - Tempo de casa: {emp_data.get("tenure_months", 0)} meses
 - Liga: {emp_data.get("tenure_band")}
 
 CONTEXTO:
-- MÃ©dia Kg/h do time: {team_stats.get('avg_kgh', 0):,.0f}
-- PosiÃ§Ã£o no ranking: {rows.index(emp_data) + 1 if emp_data in rows else 'N/A'} de {len(rows)}
+- Média Kg/h do time: {team_stats.get('avg_kgh', 0):,.0f}
+- Posição no ranking: {rows.index(emp_data) + 1 if emp_data in rows else 'N/A'} de {len(rows)}
 
-Gere uma avaliaÃ§Ã£o individual em portuguÃªs brasileiro com:
+Gere uma avaliação individual em português brasileiro com:
 1. RESUMO DO DESEMPENHO (2-3 frases)
 2. PONTOS FORTES (bullets)
-3. ÃREAS DE MELHORIA (bullets)
-4. SUGESTÌ‰Û¢ES DE DESENVOLVIMENTO (bullets)
-5. PRÃ“XIMOS PASSOS RECOMENDADOS
+3. ÁREAS DE MELHORIA (bullets)
+4. SUGEST̉ۢES DE DESENVOLVIMENTO (bullets)
+5. PRÓXIMOS PASSOS RECOMENDADOS
 
 Tom: profissional mas construtivo, focado em desenvolvimento."""
         
         prompt = prompts.get(report_type, prompts["executive"])
         
         # Chamar Google Gemini
-        system_instruction = "VocÃª Ã© um analista de operaÃ§Ãµes logÃ­sticas especializado em gestÃ£o de pessoas e performance operacional. Responda sempre em portuguÃªs brasileiro."
+        system_instruction = "Você é um analista de operações logísticas especializado em gestão de pessoas e performance operacional. Responda sempre em português brasileiro."
         full_prompt = f"{system_instruction}\n\n{prompt}"
         
         response = gemini_client.models.generate_content(
@@ -14320,11 +14327,11 @@ Tom: profissional mas construtivo, focado em desenvolvimento."""
         })
         
     except Exception as e:
-        logger.error(f"Erro ao gerar relatÃ³rio IA: {e}")
+        logger.error(f"Erro ao gerar relatório IA: {e}")
         import traceback
         traceback.print_exc()
         return JSONResponse(
-            {"error": f"Erro ao gerar relatÃ³rio: {str(e)}"},
+            {"error": f"Erro ao gerar relatório: {str(e)}"},
             status_code=500
         )
 
@@ -14339,8 +14346,8 @@ async def export_performance_report(
     user=Depends(require_leader)
 ):
     """
-    Gera relatÃ³rio PDF de performance operacional.
-    Reutiliza a lÃ³gica da pÃ¡gina principal de rankings.
+    Gera relatório PDF de performance operacional.
+    Reutiliza a lógica da página principal de rankings.
     """
     from collections import Counter
     
@@ -14380,19 +14387,19 @@ async def export_performance_report(
     start_dt = datetime.combine(start_date, datetime.min.time())
     end_dt = datetime.combine(end_date, datetime.max.time())
     
-    # Labels do perÃ­odo
-    period_label_map = {'daily': 'DiÃ¡rio', 'weekly': 'Semanal', 'monthly': 'Mensal'}
+    # Labels do período
+    period_label_map = {'daily': 'Diário', 'weekly': 'Semanal', 'monthly': 'Mensal'}
     period_label = period_label_map.get(period, period)
     period_range_label = f"{start_date.strftime('%d/%m/%Y')} a {end_date.strftime('%d/%m/%Y')}"
     
-    # Buscar colaboradores elegÃ­veis (habilitados no app de SeparaÃ§Ã£o)
+    # Buscar colaboradores elegíveis (habilitados no app de Separação)
     allowed_query = select(models.Employee).where(models.Employee.mobile_access_separation == True)
     if shift and shift not in ["Todos", "Geral", None]:
         allowed_query = allowed_query.where(models.Employee.work_shift == shift)
     allowed_employees = session.exec(allowed_query).all()
     allowed_ids = {emp.id for emp in allowed_employees if emp and emp.id}
     
-    # Buscar rotas apenas de colaboradores elegÃ­veis
+    # Buscar rotas apenas de colaboradores elegíveis
     query = (
         select(models.Route)
         .where(models.Route.tonnage > 0)
@@ -14429,7 +14436,7 @@ async def export_performance_report(
         entry["count"] += 1
         entry["days"].add(str(route.date))
         
-        # Calcular tempo usando funÃ§Ã£o robusta
+        # Calcular tempo usando função robusta
         diff = duration_seconds(route.start_time, route.end_time)
         
         if diff > 0:
@@ -14448,14 +14455,14 @@ async def export_performance_report(
         emps = session.exec(select(models.Employee).where(models.Employee.id.in_(emp_ids))).all()
         employees = {e.id: e for e in emps}
     
-    # Calcular mÃ©tricas
+    # Calcular métricas
     rows = []
     for emp_id, data in stats.items():
         emp = employees.get(emp_id)
         if not emp:
             continue
         
-        # Kg/h mÃ©dio
+        # Kg/h médio
         daily_kgh = []
         for day_data in data["daily"].values():
             if day_data["secs"] > 0:
@@ -14465,14 +14472,14 @@ async def export_performance_report(
         # CV
         cv = (statistics.pstdev(daily_kgh) / avg_kgh) if avg_kgh and len(daily_kgh) > 1 else 0
         
-        # Tempo mÃ©dio por viagem
+        # Tempo médio por viagem
         avg_trip_minutes = (data["secs"] / 60 / data["count"]) if data["count"] else 0
         
-        # PresenÃ§a
+        # Presença
         active_days = len(data["days"])
         regularity = active_days / max(1, total_days)
         
-        # TendÃªncia
+        # Tendência
         if len(daily_kgh) >= 3:
             half = len(daily_kgh) // 2
             first_half = statistics.mean(daily_kgh[:half]) if daily_kgh[:half] else 0
@@ -14482,28 +14489,28 @@ async def export_performance_report(
             trend = 0
         
         if trend > 0.05:
-            trend_label = f"â†‘ +{trend*100:.0f}%"
+            trend_label = f"↑ +{trend*100:.0f}%"
         elif trend < -0.05:
-            trend_label = f"â†“ {trend*100:.0f}%"
+            trend_label = f"↓ {trend*100:.0f}%"
         else:
-            trend_label = "â†’ EstÃ¡vel"
+            trend_label = "→ Estável"
         
         # Score simples
         score = min(100, (avg_kgh / 800 * 50) + (regularity * 30) + ((1 - cv) * 20))
         
         # Badge
         if score >= 85 and regularity >= 0.8:
-            badge = "ReferÃªncia"
-            badge_reason = "Alta entrega com presenÃ§a consistente"
+            badge = "Referência"
+            badge_reason = "Alta entrega com presença consistente"
         elif trend > 0.05:
-            badge = "Em evoluÃ§Ã£o"
-            badge_reason = "TendÃªncia positiva no perÃ­odo"
+            badge = "Em evolução"
+            badge_reason = "Tendência positiva no período"
         elif score < 50 or regularity < 0.5:
-            badge = "AtenÃ§Ã£o"
+            badge = "Atenção"
             badge_reason = "Performance abaixo do esperado"
         else:
             badge = "Potencial"
-            badge_reason = "Margem para evoluÃ§Ã£o"
+            badge_reason = "Margem para evolução"
         
         rows.append({
             "id": emp_id,
@@ -14530,7 +14537,7 @@ async def export_performance_report(
     # Ordenar por score
     rows.sort(key=lambda x: x["score"], reverse=True)
     
-    # Calcular estatÃ­sticas do time
+    # Calcular estatísticas do time
     team_stats = {
         "total_tonnage": sum(r["total_tonnage"] for r in rows),
         "avg_kgh": statistics.mean([r["avg_kgh"] for r in rows]) if rows else 0,
@@ -14543,28 +14550,28 @@ async def export_performance_report(
     
     # Contagem de badges
     badge_counts = {
-        "referencia": len([r for r in rows if r["badge"] == "ReferÃªncia"]),
-        "evolucao": len([r for r in rows if r["badge"] == "Em evoluÃ§Ã£o"]),
+        "referencia": len([r for r in rows if r["badge"] == "Referência"]),
+        "evolucao": len([r for r in rows if r["badge"] == "Em evolução"]),
         "potencial": len([r for r in rows if r["badge"] == "Potencial"]),
-        "atencao": len([r for r in rows if r["badge"] == "AtenÃ§Ã£o"])
+        "atencao": len([r for r in rows if r["badge"] == "Atenção"])
     }
     
     # Insights
     insights = {}
     if rows:
         insights["best"] = {"name": rows[0]["name"], "detail": f"Score {rows[0]['score']:.1f}"}
-        improved = max(rows, key=lambda x: float(x["trend_label"].replace("â†‘ +", "").replace("â†“ ", "").replace("â†’ EstÃ¡vel", "0").replace("%", "") or 0), default=None)
+        improved = max(rows, key=lambda x: float(x["trend_label"].replace("↑ +", "").replace("↓ ", "").replace("→ Estável", "0").replace("%", "") or 0), default=None)
         if improved:
             insights["improved"] = {"name": improved["name"], "detail": improved["trend_label"]}
         best_presence = max(rows, key=lambda x: x["regularity_adjusted"], default=None)
         if best_presence:
-            insights["presence"] = {"name": best_presence["name"], "detail": f"{best_presence['regularity_adjusted']*100:.0f}% presenÃ§a"}
+            insights["presence"] = {"name": best_presence["name"], "detail": f"{best_presence['regularity_adjusted']*100:.0f}% presença"}
         most_consistent = min(rows, key=lambda x: x["cv"], default=None)
         if most_consistent:
             insights["consistent"] = {"name": most_consistent["name"], "detail": f"CV {most_consistent['cv']:.2f}"}
     
-    # Lista de atenÃ§Ã£o
-    attention_list = [r for r in rows if r["badge"] == "AtenÃ§Ã£o"]
+    # Lista de atenção
+    attention_list = [r for r in rows if r["badge"] == "Atenção"]
     
     return templates.TemplateResponse(
         "rankings_report_pdf.html",
@@ -14579,7 +14586,7 @@ async def export_performance_report(
             "period_label": period_label,
             "period_range_label": period_range_label,
             "generated_at": datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y %H:%M"),
-            "ai_report": None  # Pode ser preenchido se houver relatÃ³rio IA em cache
+            "ai_report": None  # Pode ser preenchido se houver relatório IA em cache
         }
     )
 
@@ -14595,9 +14602,9 @@ async def operations_performance_analysis_report(
     user=Depends(require_leader)
 ):
     """
-    RelatÃ³rio completo de anÃ¡lise de performance operacional.
-    Inclui: faltas, atestados, advertÃªncias, demora em conclusÃ£o, grÃ¡ficos comparativos.
-    Filtros: diÃ¡rio, semanal, mensal.
+    Relatório completo de análise de performance operacional.
+    Inclui: faltas, atestados, advertências, demora em conclusão, gráficos comparativos.
+    Filtros: diário, semanal, mensal.
     """
     from zoneinfo import ZoneInfo
     
@@ -14609,12 +14616,12 @@ async def operations_performance_analysis_report(
     start_dt = datetime.combine(start_date, datetime.min.time()).replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
     end_dt = datetime.combine(end_date, datetime.max.time()).replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
     
-    # Labels do perÃ­odo
-    period_label_map = {'daily': 'DiÃ¡rio', 'weekly': 'Semanal', 'monthly': 'Mensal'}
+    # Labels do período
+    period_label_map = {'daily': 'Diário', 'weekly': 'Semanal', 'monthly': 'Mensal'}
     period_label = period_label_map.get(period, period)
     period_range_label = f"{start_date.strftime('%d/%m/%Y')} a {end_date.strftime('%d/%m/%Y')}"
     
-    # Buscar colaboradores ativos COM acesso ao App de SeparaÃ§Ã£o
+    # Buscar colaboradores ativos COM acesso ao App de Separação
     employees_query = (
         select(models.Employee)
         .where(models.Employee.status != "fired")
@@ -14638,7 +14645,7 @@ async def operations_performance_analysis_report(
     
     routines = [r for r in routines if r.employee_id in employee_ids]
     
-    # Agrupar por dia Ãºnico para evitar contagem duplicada
+    # Agrupar por dia único para evitar contagem duplicada
     unique_days = {}
     for r in routines:
         key = (r.employee_id, str(r.date))
@@ -14663,7 +14670,7 @@ async def operations_performance_analysis_report(
     total_absences = sum(1 for v in unique_days.values() if v == 'falta')
     total_sick = sum(1 for v in unique_days.values() if v == 'atestado')
     
-    # --- Buscar AdvertÃªncias (da tabela Event) ---
+    # --- Buscar Advertências (da tabela Event) ---
     warnings_query = (
         select(models.Event)
         .where(models.Event.timestamp >= start_dt)
@@ -14675,7 +14682,7 @@ async def operations_performance_analysis_report(
     total_warnings = len(warnings)
     
     # --- Buscar Tarefas para calcular demora ---
-    # Usando OperationalTaskExecution para medir tempo de conclusÃ£o
+    # Usando OperationalTaskExecution para medir tempo de conclusão
     task_executions = session.exec(
         select(models.OperationalTaskExecution)
         .where(models.OperationalTaskExecution.scheduled_date >= start_date.strftime("%Y-%m-%d"))
@@ -14687,7 +14694,7 @@ async def operations_performance_analysis_report(
     delay_by_employee = {}
     for exec in task_executions:
         if exec.user_id and exec.started_at and exec.completed_at:
-            # Tempo de execuÃ§Ã£o em minutos
+            # Tempo de execução em minutos
             duration = (exec.completed_at - exec.started_at).total_seconds() / 60
             if exec.user_id not in delay_by_employee:
                 delay_by_employee[exec.user_id] = []
@@ -14754,7 +14761,7 @@ async def operations_performance_analysis_report(
         route_stats_by_employee[route.employee_id]['total_hours'] += hours
         route_stats_by_employee[route.employee_id]['route_count'] += 1
     
-    # --- Calcular estatÃ­sticas por colaborador ---
+    # --- Calcular estatísticas por colaborador ---
     emp_stats = {}
     for emp in employees:
         emp_stats[emp.id] = {
@@ -14787,17 +14794,17 @@ async def operations_performance_analysis_report(
             if rs['total_hours'] > 0:
                 emp_stats[emp.id]['kgh'] = round(rs['total_tonnage'] / rs['total_hours'], 1)
     
-    # Contar dias Ãºnicos por colaborador
+    # Contar dias únicos por colaborador
     for (emp_id, day), routine_type in unique_days.items():
         if emp_id in emp_stats:
             emp_stats[emp_id][routine_type] += 1
     
-    # Contar advertÃªncias por colaborador
+    # Contar advertências por colaborador
     for w in warnings:
         if w.employee_id in emp_stats:
             emp_stats[w.employee_id]['advertencia'] += 1
     
-    # Calcular demora mÃ©dia por colaborador
+    # Calcular demora média por colaborador
     for emp_id, delays in delay_by_employee.items():
         if emp_id in emp_stats and delays:
             emp_stats[emp_id]['avg_delay'] = round(sum(delays) / len(delays), 1)
@@ -14831,7 +14838,7 @@ async def operations_performance_analysis_report(
             ) if stats['expected_work_days'] > 0 else 100
             
             # Score de risco: quanto maior, pior o colaborador
-            # Peso: falta (3), atestado (2), advertÃªncia (4), demora (1 por 10min)
+            # Peso: falta (3), atestado (2), advertência (4), demora (1 por 10min)
             risk_score = (stats['falta'] * 3) + (stats['atestado'] * 2) + (stats['advertencia'] * 4) + (stats['avg_delay'] / 10)
             stats['risk_score'] = round(risk_score, 1)
     
@@ -14842,7 +14849,7 @@ async def operations_performance_analysis_report(
     if limit and limit < len(employees_ranking):
         employees_ranking = employees_ranking[:limit]
     
-    # --- Calcular estatÃ­sticas por setor ---
+    # --- Calcular estatísticas por setor ---
     sector_stats = {}
     for stats in emp_stats.values():
         sec = stats['sector']
@@ -14861,20 +14868,20 @@ async def operations_performance_analysis_report(
     
     sectors.sort(key=lambda x: x['risk_index'], reverse=True)
     
-    # --- Recalcular totais de ausÃªncias dos emp_stats (garantir consistÃªncia) ---
+    # --- Recalcular totais de ausências dos emp_stats (garantir consistência) ---
     total_absences = sum(s['falta'] for s in emp_stats.values())
     total_sick = sum(s['atestado'] for s in emp_stats.values())
     total_warnings = sum(s['advertencia'] for s in emp_stats.values())
     
-    # --- Calcular taxa de presenÃ§a ---
+    # --- Calcular taxa de presença ---
     total_expected = sum(s['expected_work_days'] for s in emp_stats.values())
     total_events = total_absences + total_sick
     presence_rate = round((1 - (total_events / max(1, total_expected))) * 100, 1) if total_expected > 0 else 100
     
-    # Contar colaboradores crÃ­ticos (score >= 10)
+    # Contar colaboradores críticos (score >= 10)
     critical_count = len([e for e in emp_stats.values() if e['risk_score'] >= 10])
     
-    # --- Preparar dados para grÃ¡ficos ---
+    # --- Preparar dados para gráficos ---
     top_10_worst = employees_ranking[:10]
     
     # Ranking de kg/h (apenas colaboradores com rotas, ordenado por kg/h)
@@ -14907,34 +14914,34 @@ async def operations_performance_analysis_report(
         }
     }
     
-    # Calcular mÃ©dia de kg/h para referÃªncia
+    # Calcular média de kg/h para referência
     avg_kgh = round(sum(e['kgh'] for e in employees_kgh_ranking) / len(employees_kgh_ranking), 1) if employees_kgh_ranking else 0
     
-    # --- ANÃLISE DE CORRELAÃƒâ€¡ÃƒÃ†Ã¢â‚¬â„¢O E IMPACTO ---
+    # --- ANÁLISE DE CORRELAÃ‡ÃÆâ€™O E IMPACTO ---
     
-    # 1. CorrelaÃ§Ã£o: AusÃªncias vs Produtividade
-    # Separar colaboradores em grupos: com ausÃªncias vs sem ausÃªncias
+    # 1. Correlação: Ausências vs Produtividade
+    # Separar colaboradores em grupos: com ausências vs sem ausências
     employees_with_absences = [e for e in employees_with_routes if (e['falta'] + e['atestado']) > 0]
     employees_without_absences = [e for e in employees_with_routes if (e['falta'] + e['atestado']) == 0]
     
     avg_kgh_with_absences = round(sum(e['kgh'] for e in employees_with_absences) / len(employees_with_absences), 1) if employees_with_absences else 0
     avg_kgh_without_absences = round(sum(e['kgh'] for e in employees_without_absences) / len(employees_without_absences), 1) if employees_without_absences else 0
     
-    # DiferenÃ§a percentual de produtividade
+    # Diferença percentual de produtividade
     productivity_diff = round(((avg_kgh_without_absences - avg_kgh_with_absences) / avg_kgh_with_absences) * 100, 1) if avg_kgh_with_absences > 0 else 0
     
-    # 2. AnÃ¡lise de MÃ£o de Obra Perdida
-    # Cada ausÃªncia = 1 dia de trabalho perdido (assumindo 8h/dia)
+    # 2. Análise de Mão de Obra Perdida
+    # Cada ausência = 1 dia de trabalho perdido (assumindo 8h/dia)
     total_man_days_lost = total_absences + total_sick
     total_man_hours_lost = total_man_days_lost * 8  # 8 horas por dia
     
-    # Estimativa de tonelagem perdida (usando mÃ©dia de kg/h)
+    # Estimativa de tonelagem perdida (usando média de kg/h)
     estimated_tonnage_lost = round((avg_kgh * total_man_hours_lost) / 1000, 2)  # em toneladas
     
-    # 3. Taxa de AbsenteÃ­smo
+    # 3. Taxa de Absenteísmo
     absenteeism_rate = round((total_man_days_lost / max(1, total_expected)) * 100, 2)
     
-    # 4. AnÃ¡lise por Dia (agrupar rotas e ausÃªncias por data)
+    # 4. Análise por Dia (agrupar rotas e ausências por data)
     routes_by_date = {}
     for route in routes:
         date_key = str(route.date)
@@ -14954,7 +14961,7 @@ async def operations_performance_analysis_report(
         absences_by_date[day][routine_type] += 1
         absences_by_date[day]['total'] += 1
     
-    # Calcular produtividade por dia - TODOS os dias do perÃ­odo (nÃ£o sÃ³ os com rotas)
+    # Calcular produtividade por dia - TODOS os dias do período (não só os com rotas)
     daily_analysis = []
     current_day = start_date
     while current_day <= end_date:
@@ -14975,16 +14982,16 @@ async def operations_performance_analysis_report(
         })
         current_day += timedelta(days=1)
     
-    # 5. Calcular correlaÃ§Ã£o estatÃ­stica (Pearson simplificado)
+    # 5. Calcular correlação estatística (Pearson simplificado)
     if len(daily_analysis) >= 3:
         absences_list = [d['absences'] for d in daily_analysis]
         kgh_list = [d['kgh'] for d in daily_analysis]
         
-        # MÃ©dia
+        # Média
         mean_abs = sum(absences_list) / len(absences_list)
         mean_kgh = sum(kgh_list) / len(kgh_list)
         
-        # CovariÃ¢ncia e desvios
+        # Covariância e desvios
         numerator = sum((a - mean_abs) * (k - mean_kgh) for a, k in zip(absences_list, kgh_list))
         denom_abs = sum((a - mean_abs) ** 2 for a in absences_list) ** 0.5
         denom_kgh = sum((k - mean_kgh) ** 2 for k in kgh_list) ** 0.5
@@ -14993,83 +15000,83 @@ async def operations_performance_analysis_report(
     else:
         correlation = 0
     
-    # 6. Identificar dias crÃ­ticos (alta ausÃªncia + baixa produtividade)
+    # 6. Identificar dias críticos (alta ausência + baixa produtividade)
     critical_days = [d for d in daily_analysis if d['absences'] >= 2 and d['kgh'] < avg_kgh]
     
-    # 7. DiagnÃ³stico automÃ¡tico
+    # 7. Diagnóstico automático
     diagnostics = []
     
     if absenteeism_rate > 10:
         diagnostics.append({
             'type': 'critical',
-            'icon': 'ðŸš¨',
-            'title': 'Taxa de AbsenteÃ­smo CrÃ­tica',
-            'description': f'Taxa de {absenteeism_rate}% estÃ¡ muito acima do aceitÃ¡vel (5%). Impacto direto na operaÃ§Ã£o.',
+            'icon': '🚨',
+            'title': 'Taxa de Absenteísmo Crítica',
+            'description': f'Taxa de {absenteeism_rate}% está muito acima do aceitável (5%). Impacto direto na operação.',
             'impact': f'{total_man_hours_lost}h de trabalho perdidas'
         })
     elif absenteeism_rate > 5:
         diagnostics.append({
             'type': 'warning',
-            'icon': 'âš ï¸',
-            'title': 'Taxa de AbsenteÃ­smo Elevada',
-            'description': f'Taxa de {absenteeism_rate}% requer atenÃ§Ã£o. Meta: abaixo de 5%.',
+            'icon': '⚠️',
+            'title': 'Taxa de Absenteísmo Elevada',
+            'description': f'Taxa de {absenteeism_rate}% requer atenção. Meta: abaixo de 5%.',
             'impact': f'{total_man_hours_lost}h de trabalho perdidas'
         })
     
     if correlation < -0.3:
         diagnostics.append({
             'type': 'critical',
-            'icon': 'Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Â°',
-            'title': 'CorrelaÃ§Ã£o Negativa Comprovada',
-            'description': f'CorrelaÃ§Ã£o de {correlation} entre ausÃªncias e produtividade. Mais ausÃªncias = MENOR produtividade.',
+            'icon': 'ðŸâ€œâ€°',
+            'title': 'Correlação Negativa Comprovada',
+            'description': f'Correlação de {correlation} entre ausências e produtividade. Mais ausências = MENOR produtividade.',
             'impact': f'Queda de {productivity_diff}% na produtividade de quem falta'
         })
     
     if len(employees_with_absences) > len(employees_without_absences) * 0.5:
         diagnostics.append({
             'type': 'warning',
-            'icon': 'Ã°Å¸Ã¢â‚¬ËœÃ‚Â¥',
-            'title': 'Problema Generalizado de AusÃªncias',
-            'description': f'{len(employees_with_absences)} de {len(employees_with_routes)} colaboradores com rotas tiveram ausÃªncias no perÃ­odo.',
+            'icon': 'ðŸâ€˜Â¥',
+            'title': 'Problema Generalizado de Ausências',
+            'description': f'{len(employees_with_absences)} de {len(employees_with_routes)} colaboradores com rotas tiveram ausências no período.',
             'impact': 'Afeta mais da metade da equipe operacional'
         })
     
     if estimated_tonnage_lost > 10:
         diagnostics.append({
             'type': 'critical',
-            'icon': 'Ã°Å¸Ã¢â‚¬Å“Â¦',
+            'icon': 'ðŸâ€œ¦',
             'title': 'Perda Significativa de Tonelagem',
             'description': f'Estimativa de {estimated_tonnage_lost} toneladas deixaram de ser movimentadas.',
-            'impact': 'Perda de produÃ§Ã£o por falta de mÃ£o de obra'
+            'impact': 'Perda de produção por falta de mão de obra'
         })
     
     if len(critical_days) > 0:
         diagnostics.append({
             'type': 'warning',
-            'icon': 'Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Â¦',
-            'title': f'{len(critical_days)} Dias CrÃ­ticos Identificados',
-            'description': 'Dias com alta ausÃªncia e produtividade abaixo da mÃ©dia.',
+            'icon': 'ðŸâ€œâ€¦',
+            'title': f'{len(critical_days)} Dias Críticos Identificados',
+            'description': 'Dias com alta ausência e produtividade abaixo da média.',
             'impact': ', '.join([d['date_formatted'] for d in critical_days[:5]])
         })
     
     if avg_kgh_with_absences < avg_kgh_without_absences:
         diagnostics.append({
             'type': 'info',
-            'icon': 'Ã°Å¸Ã¢â‚¬â„¢Ã‚Â¡',
-            'title': 'EvidÃªncia de Impacto nas AusÃªncias',
-            'description': f'Colaboradores sem ausÃªncias produzem {avg_kgh_without_absences} kg/h vs {avg_kgh_with_absences} kg/h dos que faltam.',
-            'impact': f'DiferenÃ§a de {productivity_diff}% na produtividade'
+            'icon': 'ðŸâ€™Â¡',
+            'title': 'Evidência de Impacto nas Ausências',
+            'description': f'Colaboradores sem ausências produzem {avg_kgh_without_absences} kg/h vs {avg_kgh_with_absences} kg/h dos que faltam.',
+            'impact': f'Diferença de {productivity_diff}% na produtividade'
         })
     
-    # Adicionar dados de correlaÃ§Ã£o ao chart_data
+    # Adicionar dados de correlação ao chart_data
     chart_data['correlation'] = {
         'with_absences': {
-            'label': 'Com AusÃªncias',
+            'label': 'Com Ausências',
             'kgh': avg_kgh_with_absences,
             'count': len(employees_with_absences)
         },
         'without_absences': {
-            'label': 'Sem AusÃªncias',
+            'label': 'Sem Ausências',
             'kgh': avg_kgh_without_absences,
             'count': len(employees_without_absences)
         }
@@ -15083,7 +15090,7 @@ async def operations_performance_analysis_report(
         'tonnage': [d['tonnage'] for d in daily_analysis]
     }
     
-    # Dados para scatter plot de correlaÃ§Ã£o individual
+    # Dados para scatter plot de correlação individual
     chart_data['scatter_correlation'] = {
         'data': [
             {'x': e['falta'] + e['atestado'], 'y': e['kgh'], 'name': e['name'][:15]}
@@ -15116,7 +15123,7 @@ async def operations_performance_analysis_report(
         'critical_days_count': len(critical_days)
     }
     
-    # AnÃ¡lise de impacto
+    # Análise de impacto
     impact_analysis = {
         'diagnostics': diagnostics,
         'critical_days': critical_days,
@@ -15146,7 +15153,7 @@ async def operations_performance_analysis_report(
 
 # --- Smart Flow Routes ---
 @app.get("/smart-flow", response_class=HTMLResponse)
-async def smart_flow_page(request: Request, shift: str = "ManhÃ£", date: Optional[str] = None, session: Session = Depends(get_session)):
+async def smart_flow_page(request: Request, shift: str = "Manhã", date: Optional[str] = None, session: Session = Depends(get_session)):
     try:
         user = require_login(request)
         # Get Employees for "Available Pool" (Active, Sick, Vacation, Away - Everyone except Fired)
@@ -15205,7 +15212,7 @@ async def smart_flow_page(request: Request, shift: str = "ManhÃ£", date: Optio
 
         def _default_attendance_status(emp_status: Optional[str]) -> str:
             normalized = (emp_status or '').lower()
-            if normalized in {'vacation', 'fÃ©rias', 'ferias'}:
+            if normalized in {'vacation', 'férias', 'ferias'}:
                 return 'vacation'
             if normalized in {'sick', 'atestado'}:
                 return 'sick'
@@ -15256,10 +15263,10 @@ async def smart_flow_page(request: Request, shift: str = "ManhÃ£", date: Optio
             # Default Seed (Targets initialized to 0 to avoid confusion with HR Target)
             sector_config = {
                 "sectors": [
-                    { "key": "recebimento", "label": "Recebimento", "target": 0, "subsectors": ["Doca 1", "Doca 2", "PaletizaÃ§Ã£o"] },
-                    { "key": "camara_fria", "label": "CÃ¢mara Fria", "target": 0, "subsectors": ["Armazenagem", "Abastecimento"] },
-                    { "key": "selecao", "label": "SeleÃ§Ã£o", "target": 0, "subsectors": ["Linha 1", "Linha 2"] },
-                    { "key": "expedicao", "label": "ExpediÃ§Ã£o", "target": 0, "subsectors": ["SeparaÃ§Ã£o", "Carregamento"] }
+                    { "key": "recebimento", "label": "Recebimento", "target": 0, "subsectors": ["Doca 1", "Doca 2", "Paletização"] },
+                    { "key": "camara_fria", "label": "Câmara Fria", "target": 0, "subsectors": ["Armazenagem", "Abastecimento"] },
+                    { "key": "selecao", "label": "Seleção", "target": 0, "subsectors": ["Linha 1", "Linha 2"] },
+                    { "key": "expedicao", "label": "Expedição", "target": 0, "subsectors": ["Separação", "Carregamento"] }
                 ]
             }
     
@@ -15360,9 +15367,9 @@ async def smart_flow_page(request: Request, shift: str = "ManhÃ£", date: Optio
         active_preview = active_vacations[:5]
         active_more = max(0, len(active_vacations) - len(active_preview))
 
-        # Get employees who are substituted (for Dashboard "SubstituiÃ§Ã£o" KPI)
-        # Logic: Events where text contains "SubstituÃ­do por"
-        sub_events = session.exec(select(models.Event).where(col(models.Event.text).contains("SubstituÃ­do por"))).all()
+        # Get employees who are substituted (for Dashboard "Substituição" KPI)
+        # Logic: Events where text contains "Substituído por"
+        sub_events = session.exec(select(models.Event).where(col(models.Event.text).contains("Substituído por"))).all()
         substituted_ids = {e.employee_id for e in sub_events}
 
         return templates.TemplateResponse("smart_flow.html", {
@@ -15440,7 +15447,7 @@ async def schedule_vacation(
         fmt_start = datetime.strptime(data.start_date, "%Y-%m-%d").strftime("%d/%m/%Y")
         fmt_end = datetime.strptime(data.end_date, "%Y-%m-%d").strftime("%d/%m/%Y")
         
-        evt_text = f"FÃ©rias Agendadas: {fmt_start} a {fmt_end}"
+        evt_text = f"Férias Agendadas: {fmt_start} a {fmt_end}"
         new_event = models.Event(
             employee_id=emp.id,
             type="ferias_hist",
@@ -15476,7 +15483,7 @@ async def bulk_schedule_vacation(
         # Find by Registration ID
         emp = session.exec(select(models.Employee).where(models.Employee.registration_id == str(item.registration_id))).first()
         if not emp:
-            errors.append(f"MatrÃ­cula {item.registration_id} nÃ£o encontrada.")
+            errors.append(f"Matrícula {item.registration_id} não encontrada.")
             continue
             
         try:
@@ -15501,7 +15508,7 @@ async def bulk_schedule_vacation(
             hist_event = models.Event(
                 employee_id=emp.id,
                 type="ferias_hist",
-                text=f"FÃ©rias Agendadas: {item.start_date} a {item.end_date}",
+                text=f"Férias Agendadas: {item.start_date} a {item.end_date}",
                 category="pessoas",
                 sector=emp.cost_center or "Geral",
                 timestamp=datetime.now()
@@ -15512,9 +15519,9 @@ async def bulk_schedule_vacation(
             updated_count += 1
             
         except ValueError:
-            errors.append(f"Data invÃ¡lida para matrÃ­cula {item.registration_id}")
+            errors.append(f"Data inválida para matrícula {item.registration_id}")
         except Exception as e:
-            errors.append(f"Erro ao processar matrÃ­cula {item.registration_id}: {str(e)}")
+            errors.append(f"Erro ao processar matrícula {item.registration_id}: {str(e)}")
 
     session.commit()
     msg = f"{updated_count} colaboradores atualizados/agendados."
@@ -15531,13 +15538,13 @@ async def import_medical_certificates(
     session: Session = Depends(get_session)
 ):
     """
-    Importa atestados mÃ©dicos em lote a partir de planilha Excel/CSV
+    Importa atestados médicos em lote a partir de planilha Excel/CSV
     
     Formato esperado:
-    - Coluna 1: MatrÃ­cula
-    - Coluna 2: Data InÃ­cio (YYYY-MM-DD ou DD/MM/YYYY)
+    - Coluna 1: Matrícula
+    - Coluna 2: Data Início (YYYY-MM-DD ou DD/MM/YYYY)
     - Coluna 3: Data Fim (YYYY-MM-DD ou DD/MM/YYYY)
-    - Coluna 4: ObservaÃ§Ã£o (opcional)
+    - Coluna 4: Observação (opcional)
     
     Retorna:
     {
@@ -15554,27 +15561,27 @@ async def import_medical_certificates(
     import pandas as pd
     
     trace_id = str(uuid.uuid4())[:8]
-    logger.info(f"[{trace_id}] Iniciando importaÃ§Ã£o de atestados - arquivo: {file.filename}")
+    logger.info(f"[{trace_id}] Iniciando importação de atestados - arquivo: {file.filename}")
     
-    # ValidaÃ§Ã£o 1: Tamanho do arquivo (max 5MB)
+    # Validação 1: Tamanho do arquivo (max 5MB)
     MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
     contents = await file.read()
     
     if len(contents) > MAX_FILE_SIZE:
         logger.warning(f"[{trace_id}] Arquivo muito grande: {len(contents)} bytes")
         return JSONResponse({
-            "error": "Arquivo muito grande. Tamanho mÃ¡ximo: 5MB",
+            "error": "Arquivo muito grande. Tamanho máximo: 5MB",
             "trace_id": trace_id
         }, status_code=400)
     
-    # ValidaÃ§Ã£o 2: Formato do arquivo
+    # Validação 2: Formato do arquivo
     allowed_extensions = ['.xlsx', '.xls', '.csv']
     file_ext = os.path.splitext(file.filename)[1].lower()
     
     if file_ext not in allowed_extensions:
-        logger.warning(f"[{trace_id}] Formato invÃ¡lido: {file_ext}")
+        logger.warning(f"[{trace_id}] Formato inválido: {file_ext}")
         return JSONResponse({
-            "error": f"Formato de arquivo invÃ¡lido. Permitidos: {', '.join(allowed_extensions)}",
+            "error": f"Formato de arquivo inválido. Permitidos: {', '.join(allowed_extensions)}",
             "trace_id": trace_id
         }, status_code=400)
     
@@ -15597,7 +15604,7 @@ async def import_medical_certificates(
                     break
             
             if df is None or len(df.columns) <= 1:
-                raise ValueError("NÃ£o foi possÃ­vel ler o arquivo CSV. Verifique o formato do arquivo.")
+                raise ValueError("Não foi possível ler o arquivo CSV. Verifique o formato do arquivo.")
         else:
             df = pd.read_excel(io.BytesIO(contents), engine='openpyxl')
         
@@ -15610,21 +15617,21 @@ async def import_medical_certificates(
             "trace_id": trace_id
         }, status_code=400)
     
-    # ValidaÃ§Ã£o 3: Verificar colunas obrigatÃ³rias
+    # Validação 3: Verificar colunas obrigatórias
     if df.empty:
         return JSONResponse({
             "error": "Arquivo vazio",
             "trace_id": trace_id
         }, status_code=400)
     
-    # Normalizar nomes de colunas (case-insensitive, sem espaÃ§os extras)
-    # TambÃ©m substituir underscores por espaÃ§os para normalizaÃ§Ã£o
+    # Normalizar nomes de colunas (case-insensitive, sem espaços extras)
+    # Também substituir underscores por espaços para normalização
     df.columns = df.columns.str.strip().str.lower().str.replace('_', ' ')
     
-    # Mapear possÃ­veis nomes de colunas (mais flexÃ­vel)
+    # Mapear possíveis nomes de colunas (mais flexível)
     col_mapping = {}
     for col in df.columns:
-        col_clean = col.replace(' ', '').replace('Ã­', 'i').replace('Ãº', 'u')
+        col_clean = col.replace(' ', '').replace('í', 'i').replace('ú', 'u')
         
         if 'matr' in col_clean or 'matricula' in col_clean:
             col_mapping['matricula'] = col
@@ -15642,7 +15649,7 @@ async def import_medical_certificates(
         # Mensagem de erro mais clara com as colunas encontradas
         found_cols = list(df.columns)
         return JSONResponse({
-            "error": f"Colunas obrigatÃ³rias faltando: {', '.join(missing_cols)}. Esperado: MatrÃ­cula, Data InÃ­cio, Data Fim. Encontrado: {', '.join(found_cols)}",
+            "error": f"Colunas obrigatórias faltando: {', '.join(missing_cols)}. Esperado: Matrícula, Data Início, Data Fim. Encontrado: {', '.join(found_cols)}",
             "trace_id": trace_id
         }, status_code=400)
     
@@ -15654,7 +15661,7 @@ async def import_medical_certificates(
     details = []
     
     for idx, row in df.iterrows():
-        row_num = idx + 2  # +2 porque: Ã­ndice comeÃ§a em 0 + linha de cabeÃ§alho
+        row_num = idx + 2  # +2 porque: índice começa em 0 + linha de cabeçalho
         
         try:
             # Extrair dados
@@ -15663,13 +15670,13 @@ async def import_medical_certificates(
             data_fim_raw = row[col_mapping['data_fim']]
             observacao = str(row.get(col_mapping.get('observacao', ''), '')).strip() if 'observacao' in col_mapping else ''
             
-            # ValidaÃ§Ã£o: MatrÃ­cula nÃ£o vazia
+            # Validação: Matrícula não vazia
             if not matricula or matricula == 'nan':
                 details.append({
                     "linha": row_num,
                     "status": "erro",
                     "matricula": matricula,
-                    "mensagem": "MatrÃ­cula vazia"
+                    "mensagem": "Matrícula vazia"
                 })
                 error_count += 1
                 continue
@@ -15684,23 +15691,23 @@ async def import_medical_certificates(
                     "linha": row_num,
                     "status": "ignorado",
                     "matricula": matricula,
-                    "mensagem": "MatrÃ­cula nÃ£o encontrada no sistema"
+                    "mensagem": "Matrícula não encontrada no sistema"
                 })
                 skipped_count += 1
-                logger.warning(f"[{trace_id}] Linha {row_num}: MatrÃ­cula {matricula} nÃ£o encontrada")
+                logger.warning(f"[{trace_id}] Linha {row_num}: Matrícula {matricula} não encontrada")
                 continue
             
             # Parsear datas (suporta YYYY-MM-DD e DD/MM/YYYY)
             def parse_date(date_val):
-                """Tenta parsear data em mÃºltiplos formatos"""
+                """Tenta parsear data em múltiplos formatos"""
                 if pd.isna(date_val):
                     return None
                 
-                # Se jÃ¡ Ã© datetime do pandas
+                # Se já é datetime do pandas
                 if isinstance(date_val, pd.Timestamp):
                     return date_val.to_pydatetime().replace(tzinfo=tz)
                 
-                # Se Ã© string
+                # Se é string
                 date_str = str(date_val).strip()
                 formats = ["%Y-%m-%d", "%d/%m/%Y", "%Y/%m/%d", "%d-%m-%Y"]
                 
@@ -15722,25 +15729,25 @@ async def import_medical_certificates(
                     "status": "erro",
                     "matricula": matricula,
                     "nome": emp.name,
-                    "mensagem": f"Data invÃ¡lida (InÃ­cio: {data_inicio_raw}, Fim: {data_fim_raw})"
+                    "mensagem": f"Data inválida (Início: {data_inicio_raw}, Fim: {data_fim_raw})"
                 })
                 error_count += 1
-                logger.warning(f"[{trace_id}] Linha {row_num}: Datas invÃ¡lidas para {emp.name}")
+                logger.warning(f"[{trace_id}] Linha {row_num}: Datas inválidas para {emp.name}")
                 continue
             
-            # ValidaÃ§Ã£o: Data fim >= Data inÃ­cio
+            # Validação: Data fim >= Data início
             if data_fim < data_inicio:
                 details.append({
                     "linha": row_num,
                     "status": "erro",
                     "matricula": matricula,
                     "nome": emp.name,
-                    "mensagem": "Data fim anterior Ã  data inÃ­cio"
+                    "mensagem": "Data fim anterior à data início"
                 })
                 error_count += 1
                 continue
             
-            # Verificar duplicaÃ§Ã£o (se jÃ¡ existe evento de atestado no perÃ­odo)
+            # Verificar duplicação (se já existe evento de atestado no período)
             existing_events = session.exec(
                 select(models.Event)
                 .where(models.Event.employee_id == emp.id)
@@ -15755,13 +15762,13 @@ async def import_medical_certificates(
                     "status": "ignorado",
                     "matricula": matricula,
                     "nome": emp.name,
-                    "mensagem": f"JÃ¡ existe atestado registrado no perÃ­odo ({len(existing_events)} evento(s))"
+                    "mensagem": f"Já existe atestado registrado no período ({len(existing_events)} evento(s))"
                 })
                 skipped_count += 1
                 logger.info(f"[{trace_id}] Linha {row_num}: Atestado duplicado para {emp.name}")
                 continue
             
-            # Criar eventos para cada dia do perÃ­odo
+            # Criar eventos para cada dia do período
             current_date = data_inicio
             events_created = 0
             events_to_add = []
@@ -15769,7 +15776,7 @@ async def import_medical_certificates(
             
             while current_date <= data_fim:
                 # Criar evento de atestado
-                evt_text = f"Atestado mÃ©dico"
+                evt_text = f"Atestado médico"
                 if observacao and observacao != 'nan':
                     evt_text += f" - {observacao}"
                 
@@ -15785,9 +15792,9 @@ async def import_medical_certificates(
                 events_to_add.append(new_event)
                 events_created += 1
                 
-                # Criar rotinas para todos os turnos (sem verificar se existe - mais rÃ¡pido)
+                # Criar rotinas para todos os turnos (sem verificar se existe - mais rápido)
                 date_str = current_date.strftime("%Y-%m-%d")
-                for shift in ["ManhÃ£", "Tarde", "Noite"]:
+                for shift in ["Manhã", "Tarde", "Noite"]:
                     routine = models.EmployeeRoutine(
                         employee_id=emp.id,
                         date=date_str,
@@ -15827,9 +15834,9 @@ async def import_medical_certificates(
                 "mensagem": f"Erro ao processar: {str(e)}"
             })
             error_count += 1
-            # NÃ£o fazer rollback aqui - continuar processando outras linhas
+            # Não fazer rollback aqui - continuar processando outras linhas
     
-    # Commit Ãºnico no final (muito mais rÃ¡pido!)
+    # Commit único no final (muito mais rápido!)
     try:
         session.commit()
         logger.info(f"[{trace_id}] Commit realizado com sucesso")
@@ -15846,7 +15853,7 @@ async def import_medical_certificates(
             }
         }, status_code=500)
     
-    logger.info(f"[{trace_id}] ImportaÃ§Ã£o concluÃ­da - Sucesso: {success_count}, Erros: {error_count}, Ignorados: {skipped_count}")
+    logger.info(f"[{trace_id}] Importação concluída - Sucesso: {success_count}, Erros: {error_count}, Ignorados: {skipped_count}")
     
     return JSONResponse({
         "success_count": success_count,
@@ -15859,7 +15866,7 @@ async def import_medical_certificates(
 
 @app.get("/import-medical-certificates", response_class=HTMLResponse)
 async def import_medical_certificates_page(request: Request):
-    """PÃ¡gina de importaÃ§Ã£o de atestados"""
+    """Página de importação de atestados"""
     user = require_login(request)
     return templates.TemplateResponse("import_medical_certificates.html", {
         "request": request,
@@ -15868,7 +15875,7 @@ async def import_medical_certificates_page(request: Request):
 
 @app.get("/api/debug/force-sync")
 async def force_sync_debug():
-    """ForÃ§a sincronizaÃ§Ã£o e retorna log detalhado"""
+    """Força sincronização e retorna log detalhado"""
     logs = []
     try:
         with Session(engine) as session:
@@ -15883,7 +15890,7 @@ async def force_sync_debug():
             for shift, sector_list in shifts.items():
                  config_db = session.exec(select(models.SectorConfiguration).where(models.SectorConfiguration.shift_name == shift)).first()
                  if not config_db: 
-                     logs.append(f"Ã¢ÂÃ…' Config nÃ£o encontrada para turno '{shift}'")
+                     logs.append(f"âÅ' Config não encontrada para turno '{shift}'")
                      continue
                  
                  data = config_db.config_json
@@ -15892,7 +15899,7 @@ async def force_sync_debug():
                      data = json.loads(data)
                  
                  if not data: 
-                    logs.append(f"Ã¢ÂÃ…' JSON invÃ¡lido/vazio para '{shift}'")
+                    logs.append(f"âÅ' JSON inválido/vazio para '{shift}'")
                     continue
                  
                  config_sectors = data.get('sectors', [])
@@ -15930,7 +15937,7 @@ async def force_sync_debug():
             session.commit()
             logs.append("Sync concluido com sucesso")
     except Exception as e:
-        logs.append(f"Ã¢ÂÃ…' ERRO FATAL: {str(e)}")
+        logs.append(f"âÅ' ERRO FATAL: {str(e)}")
         import traceback
         logs.append(traceback.format_exc())
     
@@ -16040,21 +16047,21 @@ async def update_routine(
 
 @app.get("/api/employees", response_class=JSONResponse)
 async def get_all_employees(request: Request, session: Session = Depends(get_session)):
-    """Retorna todos os colaboradores (incluindo demitidos, mas excluindo substituÃ­dos)"""
+    """Retorna todos os colaboradores (incluindo demitidos, mas excluindo substituídos)"""
     user = get_current_user(request)
     
-    # Verificar se estÃ¡ logado
+    # Verificar se está logado
     if not user:
-        raise HTTPException(status_code=403, detail="NÃ£o autenticado")
+        raise HTTPException(status_code=403, detail="Não autenticado")
     
-    # Permitir acesso para qualquer usuÃ¡rio logado (nÃ£o precisa de permissÃ£o especÃ­fica)
-    # Isso Ã© necessÃ¡rio para o Smart Flow funcionar
-    # Bypass da verificaÃ§Ã£o de permissÃµes de pÃ¡gina para este endpoint especÃ­fico
+    # Permitir acesso para qualquer usuário logado (não precisa de permissão específica)
+    # Isso é necessário para o Smart Flow funcionar
+    # Bypass da verificação de permissões de página para este endpoint específico
     
-    # Buscar TODOS os colaboradores nÃ£o substituÃ­dos
+    # Buscar TODOS os colaboradores não substituídos
     employees = session.exec(
         select(models.Employee)
-        .where(models.Employee.replaced_by.is_(None))  # Excluir substituÃ­dos
+        .where(models.Employee.replaced_by.is_(None))  # Excluir substituídos
     ).all()
     
     return JSONResponse(
@@ -16080,7 +16087,7 @@ async def get_all_employees(request: Request, session: Session = Depends(get_ses
 @app.get("/api/smart-flow/sectors", response_class=JSONResponse, dependencies=[Depends(require_leader)])
 async def get_sectors(
     request: Request,
-    shift: str = "ManhÃ£",
+    shift: str = "Manhã",
     session: Session = Depends(get_session)
 ):
     """Retorna todos os setores e sub-setores de um turno"""
@@ -16129,7 +16136,7 @@ async def create_sector(
     """Cria um novo setor"""
     require_login(request)
     
-    # Pegar prÃ³xima ordem
+    # Pegar próxima ordem
     max_order_result = session.exec(
         select(models.Sector.order)
         .where(models.Sector.shift == shift)
@@ -16165,14 +16172,14 @@ async def update_sector(
     require_login(request)
     
     # DEBUG: Log para rastrear chamadas
-    # print(f"Ã°Å¸Ã¢â‚¬ÂÃ‚Â§ UPDATE_SECTOR CHAMADO: {sector_id} - {name}")
+    # print(f"ðŸâ€Â§ UPDATE_SECTOR CHAMADO: {sector_id} - {name}")
     
     sector = session.get(models.Sector, sector_id)
     if not sector:
-        return JSONResponse({"error": "Setor nÃ£o encontrado"}, status_code=404)
+        return JSONResponse({"error": "Setor não encontrado"}, status_code=404)
     
     # Track if max_employees changed (need to sync with SectorConfiguration)
-    # FORÃ‡ANDO True para garantir sincronizaÃ§Ã£o durante debug
+    # FORÇANDO True para garantir sincronização durante debug
     meta_changed = True 
     
     if name is not None:
@@ -16195,7 +16202,7 @@ async def update_sector(
         # Parse config
         config_data = config_db.config_json if isinstance(config_db.config_json, dict) else json.loads(config_db.config_json)
         
-        # Atualizar meta do setor na configuraÃ§Ã£o
+        # Atualizar meta do setor na configuração
         sectors_list = config_data.get('sectors', [])
         found = False
         
@@ -16206,7 +16213,7 @@ async def update_sector(
                 break
         
         if found:
-            # Salvar configuraÃ§Ã£o atualizada
+            # Salvar configuração atualizada
             config_db.config_json = config_data
             config_db.updated_at = datetime.now()
             session.add(config_db)
@@ -16215,7 +16222,7 @@ async def update_sector(
     try:
         session.commit()
     except Exception as e:
-        print(f"Ã¢ÂÃ…' Erro ao salvar setor ou configuraÃ§Ã£o: {e}")
+        print(f"âÅ' Erro ao salvar setor ou configuração: {e}")
         session.rollback()
         return JSONResponse({"error": f"Erro ao atualizar setor: {e}"}, status_code=500)
     
@@ -16227,14 +16234,14 @@ async def delete_sector(
     sector_id: int,
     session: Session = Depends(get_session)
 ):
-    """Exclui um setor e remove todas as alocaÃ§Ãµes"""
+    """Exclui um setor e remove todas as alocações"""
     require_login(request)
     
     sector = session.get(models.Sector, sector_id)
     if not sector:
-        return JSONResponse({"error": "Setor nÃ£o encontrado"}, status_code=404)
+        return JSONResponse({"error": "Setor não encontrado"}, status_code=404)
     
-    # Cascade delete vai remover sub-setores e alocaÃ§Ãµes automaticamente
+    # Cascade delete vai remover sub-setores e alocações automaticamente
     session.delete(sector)
     session.commit()
     
@@ -16253,9 +16260,9 @@ async def create_subsector(
     
     sector = session.get(models.Sector, sector_id)
     if not sector:
-        return JSONResponse({"error": "Setor nÃ£o encontrado"}, status_code=404)
+        return JSONResponse({"error": "Setor não encontrado"}, status_code=404)
     
-    # Pegar prÃ³xima ordem
+    # Pegar próxima ordem
     max_order_result = session.exec(
         select(models.SubSector.order)
         .where(models.SubSector.sector_id == sector_id)
@@ -16290,7 +16297,7 @@ async def update_subsector(
     
     subsector = session.get(models.SubSector, subsector_id)
     if not subsector:
-        return JSONResponse({"error": "Sub-setor nÃ£o encontrado"}, status_code=404)
+        return JSONResponse({"error": "Sub-setor não encontrado"}, status_code=404)
     
     if name is not None:
         subsector.name = name
@@ -16308,14 +16315,14 @@ async def delete_subsector(
     subsector_id: int,
     session: Session = Depends(get_session)
 ):
-    """Exclui um sub-setor e remove todas as alocaÃ§Ãµes"""
+    """Exclui um sub-setor e remove todas as alocações"""
     require_login(request)
     
     subsector = session.get(models.SubSector, subsector_id)
     if not subsector:
-        return JSONResponse({"error": "Sub-setor nÃ£o encontrado"}, status_code=404)
+        return JSONResponse({"error": "Sub-setor não encontrado"}, status_code=404)
     
-    # Cascade delete vai remover alocaÃ§Ãµes automaticamente
+    # Cascade delete vai remover alocações automaticamente
     session.delete(subsector)
     session.commit()
     
@@ -16328,25 +16335,25 @@ async def get_allocations(
     shift: str,
     session: Session = Depends(get_session)
 ):
-    """Retorna alocaÃ§Ãµes e rotinas do dia/turno"""
+    """Retorna alocações e rotinas do dia/turno"""
     require_login(request)
     
-    # Buscar alocaÃ§Ãµes do dia atual
+    # Buscar alocações do dia atual
     allocations = session.exec(
         select(models.EmployeeAllocation)
         .where(models.EmployeeAllocation.date == date)
         .where(models.EmployeeAllocation.shift == shift)
     ).all()
     
-    # Se nÃ£o houver alocaÃ§Ãµes, buscar dos dias anteriores
-    # IMPORTANTE: Para escala 12x36 (noturno), a Ãºltima alocaÃ§Ã£o pode ter sido hÃ¡ 2-3 dias
-    # Buscamos atÃ© 4 dias para trÃ¡s para cobrir escala 12x36 + feriados/fins de semana
+    # Se não houver alocações, buscar dos dias anteriores
+    # IMPORTANTE: Para escala 12x36 (noturno), a última alocação pode ter sido há 2-3 dias
+    # Buscamos até 4 dias para trás para cobrir escala 12x36 + feriados/fins de semana
     if not allocations:
         from datetime import datetime, timedelta
         try:
             current_date = datetime.strptime(date, "%Y-%m-%d")
             
-            # Buscar atÃ© 4 dias para trÃ¡s (cobre escala 12x36 + possÃ­veis feriados)
+            # Buscar até 4 dias para trás (cobre escala 12x36 + possíveis feriados)
             MAX_DAYS_LOOKBACK = 4
             previous_allocations = []
             found_date_str = None
@@ -16355,7 +16362,7 @@ async def get_allocations(
                 previous_date = current_date - timedelta(days=days_back)
                 previous_date_str = previous_date.strftime("%Y-%m-%d")
                 
-                print(f"Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Â¹ Buscando alocaÃ§Ãµes de {previous_date_str} ({days_back} dia(s) atrÃ¡s)...")
+                print(f"ðŸâ€œâ€¹ Buscando alocações de {previous_date_str} ({days_back} dia(s) atrás)...")
                 
                 previous_allocations = session.exec(
                     select(models.EmployeeAllocation)
@@ -16368,12 +16375,12 @@ async def get_allocations(
                     print("log")
                     break
                 else:
-                    print(f"   â­ï¸ Nenhuma alocaÃ§Ã£o em {previous_date_str}, tentando dia anterior...")
+                    print(f"   ⏭️ Nenhuma alocação em {previous_date_str}, tentando dia anterior...")
             
             if previous_allocations and found_date_str:
-                print(f"Ã°Å¸Ã¢â‚¬Å“Â¥ Copiando {len(previous_allocations)} alocaÃ§Ãµes de {found_date_str} para {date}...")
+                print(f"ðŸâ€œ¥ Copiando {len(previous_allocations)} alocações de {found_date_str} para {date}...")
                 
-                # Copiar alocaÃ§Ãµes encontradas para o dia atual
+                # Copiar alocações encontradas para o dia atual
                 for prev_alloc in previous_allocations:
                     new_alloc = models.EmployeeAllocation(
                         date=date,
@@ -16385,7 +16392,7 @@ async def get_allocations(
                 
                 session.commit()
                 
-                # Recarregar alocaÃ§Ãµes criadas
+                # Recarregar alocações criadas
                 allocations = session.exec(
                     select(models.EmployeeAllocation)
                     .where(models.EmployeeAllocation.date == date)
@@ -16394,9 +16401,9 @@ async def get_allocations(
                 
                 print("log")
             else:
-                print(f"âš ï¸ Nenhuma alocaÃ§Ã£o encontrada nos Ãºltimos {MAX_DAYS_LOOKBACK} dias para turno {shift}")
+                print(f"⚠️ Nenhuma alocação encontrada nos últimos {MAX_DAYS_LOOKBACK} dias para turno {shift}")
         except Exception as e:
-            print(f"Ã¢ÂÃ…' Erro ao copiar escala de dias anteriores: {e}")
+            print(f"âÅ' Erro ao copiar escala de dias anteriores: {e}")
     
     # Buscar rotinas do dia atual
     routines = session.exec(
@@ -16405,14 +16412,14 @@ async def get_allocations(
         .where(models.EmployeeRoutine.shift == shift)
     ).all()
     
-    # Se nÃ£o houver rotinas, copiar de dias anteriores (especialmente FÃ©rias e Afastado)
-    # IMPORTANTE: Para escala 12x36 (noturno), buscamos atÃ© 4 dias para trÃ¡s
+    # Se não houver rotinas, copiar de dias anteriores (especialmente Férias e Afastado)
+    # IMPORTANTE: Para escala 12x36 (noturno), buscamos até 4 dias para trás
     if not routines and allocations:
         from datetime import datetime, timedelta
         try:
             current_date = datetime.strptime(date, "%Y-%m-%d")
             
-            # Buscar atÃ© 4 dias para trÃ¡s (cobre escala 12x36 + possÃ­veis feriados)
+            # Buscar até 4 dias para trás (cobre escala 12x36 + possíveis feriados)
             MAX_DAYS_LOOKBACK = 4
             previous_routines = []
             found_date_str = None
@@ -16421,7 +16428,7 @@ async def get_allocations(
                 previous_date = current_date - timedelta(days=days_back)
                 previous_date_str = previous_date.strftime("%Y-%m-%d")
                 
-                print(f"Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Â¹ Buscando rotinas de {previous_date_str} ({days_back} dia(s) atrÃ¡s)...")
+                print(f"ðŸâ€œâ€¹ Buscando rotinas de {previous_date_str} ({days_back} dia(s) atrás)...")
                 
                 previous_routines = session.exec(
                     select(models.EmployeeRoutine)
@@ -16434,7 +16441,7 @@ async def get_allocations(
                     print("log")
                     break
                 else:
-                    print(f"   â­ï¸ Nenhuma rotina em {previous_date_str}, tentando dia anterior...")
+                    print(f"   ⏭️ Nenhuma rotina em {previous_date_str}, tentando dia anterior...")
             
             if previous_routines and found_date_str:
                 # Copiar apenas rotinas persistentes (vacation, away, sick)
@@ -16450,18 +16457,18 @@ async def get_allocations(
                             emp_status = (emp.status or 'active').lower()
                             routine_type = prev_routine.routine.lower()
                             
-                            # SÃ³ copiar se o status atual ainda corresponder Ã  rotina
-                            # vacation -> status deve ser vacation/fÃ©rias
+                            # Só copiar se o status atual ainda corresponder à rotina
+                            # vacation -> status deve ser vacation/férias
                             # away -> status deve ser away/afastado
-                            # sick -> status deve ser sick/atestado OU qualquer status (atestado pode ser temporÃ¡rio)
+                            # sick -> status deve ser sick/atestado OU qualquer status (atestado pode ser temporário)
                             should_copy = False
                             
-                            if routine_type == 'vacation' and emp_status in ['vacation', 'fÃ©rias', 'ferias']:
+                            if routine_type == 'vacation' and emp_status in ['vacation', 'férias', 'ferias']:
                                 should_copy = True
                             elif routine_type == 'away' and emp_status in ['away', 'afastado']:
                                 should_copy = True
                             elif routine_type == 'sick':
-                                # Atestado Ã© temporÃ¡rio, copiar apenas se ainda estÃ¡ como sick
+                                # Atestado é temporário, copiar apenas se ainda está como sick
                                 should_copy = emp_status in ['sick', 'atestado']
                             
                             if should_copy:
@@ -16474,7 +16481,7 @@ async def get_allocations(
                                 session.add(new_routine)
                                 copied_count += 1
                             else:
-                                print(f"â­ï¸ NÃ£o copiando rotina '{prev_routine.routine}' para {emp.name} - status atual Ã© '{emp_status}'")
+                                print(f"⏭️ Não copiando rotina '{prev_routine.routine}' para {emp.name} - status atual é '{emp_status}'")
                 
                 if copied_count > 0:
                     session.commit()
@@ -16487,11 +16494,11 @@ async def get_allocations(
                         .where(models.EmployeeRoutine.shift == shift)
                     ).all()
             else:
-                print(f"âš ï¸ Nenhuma rotina encontrada nos Ãºltimos {MAX_DAYS_LOOKBACK} dias para turno {shift}")
+                print(f"⚠️ Nenhuma rotina encontrada nos últimos {MAX_DAYS_LOOKBACK} dias para turno {shift}")
         except Exception as e:
-            print(f"Ã¢ÂÃ…' Erro ao copiar rotinas: {e}")
+            print(f"âÅ' Erro ao copiar rotinas: {e}")
     
-    # Montar resposta - APENAS subsector_id, nÃ£o objeto completo
+    # Montar resposta - APENAS subsector_id, não objeto completo
     allocations_map = {}
     for alloc in allocations:
         allocations_map[alloc.employee_id] = alloc.subsector_id
@@ -16500,7 +16507,7 @@ async def get_allocations(
     for routine in routines:
         routines_map[routine.employee_id] = routine.routine
     
-    # Buscar tonÃ©lagem das ROTAS (AutomÃ¡tico)
+    # Buscar tonélagem das ROTAS (Automático)
     # Requisito: "Favor puxar os dados da tonelagem das rotas"
     route_tonnage = session.exec(
         select(func.sum(models.Route.tonnage))
@@ -16512,31 +16519,31 @@ async def get_allocations(
     tonnage = route_tonnage if route_tonnage else 0.0
 
     # Fetch Targets - SEMPRE usar soma dos setores (SOURCE OF TRUTH)
-    # HeadcountTarget Ã© legado e pode estar desatualizado
+    # HeadcountTarget é legado e pode estar desatualizado
     all_sectors = session.exec(select(models.Sector)).all()
-    target_map = {"ManhÃ£": 0, "Tarde": 0, "Noite": 0}
+    target_map = {"Manhã": 0, "Tarde": 0, "Noite": 0}
     for sec in all_sectors:
-        sec_shift_norm = "ManhÃ£"
+        sec_shift_norm = "Manhã"
         if "tarde" in sec.shift.lower(): sec_shift_norm = "Tarde"
         elif "noite" in sec.shift.lower(): sec_shift_norm = "Noite"
         target_map[sec_shift_norm] += sec.max_employees
 
-    # Buscar alocaÃ§Ãµes do dia atual
+    # Buscar alocações do dia atual
     allocations = session.exec(
         select(models.EmployeeAllocation)
         .where(models.EmployeeAllocation.date == date)
         .where(models.EmployeeAllocation.shift == shift)
     ).all()
     
-    # Se nÃ£o houver alocaÃ§Ãµes, buscar dos dias anteriores
-    # IMPORTANTE: Para escala 12x36 (noturno), a Ãºltima alocaÃ§Ã£o pode ter sido hÃ¡ 2-3 dias
-    # Buscamos atÃ© 4 dias para trÃ¡s para cobrir escala 12x36 + feriados/fins de semana
+    # Se não houver alocações, buscar dos dias anteriores
+    # IMPORTANTE: Para escala 12x36 (noturno), a última alocação pode ter sido há 2-3 dias
+    # Buscamos até 4 dias para trás para cobrir escala 12x36 + feriados/fins de semana
     if not allocations:
         from datetime import datetime, timedelta
         try:
             current_date = datetime.strptime(date, "%Y-%m-%d")
             
-            # Buscar atÃ© 4 dias para trÃ¡s (cobre escala 12x36 + possÃ­veis feriados)
+            # Buscar até 4 dias para trás (cobre escala 12x36 + possíveis feriados)
             MAX_DAYS_LOOKBACK = 4
             previous_allocations = []
             found_date_str = None
@@ -16545,7 +16552,7 @@ async def get_allocations(
                 previous_date = current_date - timedelta(days=days_back)
                 previous_date_str = previous_date.strftime("%Y-%m-%d")
                 
-                print(f"Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Â¹ Buscando alocaÃ§Ãµes de {previous_date_str} ({days_back} dia(s) atrÃ¡s)...")
+                print(f"ðŸâ€œâ€¹ Buscando alocações de {previous_date_str} ({days_back} dia(s) atrás)...")
                 
                 previous_allocations = session.exec(
                     select(models.EmployeeAllocation)
@@ -16558,12 +16565,12 @@ async def get_allocations(
                     print("log")
                     break
                 else:
-                    print(f"   â­ï¸ Nenhuma alocaÃ§Ã£o em {previous_date_str}, tentando dia anterior...")
+                    print(f"   ⏭️ Nenhuma alocação em {previous_date_str}, tentando dia anterior...")
             
             if previous_allocations and found_date_str:
-                print(f"Ã°Å¸Ã¢â‚¬Å“Â¥ Copiando {len(previous_allocations)} alocaÃ§Ãµes de {found_date_str} para {date}...")
+                print(f"ðŸâ€œ¥ Copiando {len(previous_allocations)} alocações de {found_date_str} para {date}...")
                 
-                # Copiar alocaÃ§Ãµes encontradas para o dia atual
+                # Copiar alocações encontradas para o dia atual
                 for prev_alloc in previous_allocations:
                     new_alloc = models.EmployeeAllocation(
                         date=date,
@@ -16575,7 +16582,7 @@ async def get_allocations(
                 
                 session.commit()
                 
-                # Recarregar alocaÃ§Ãµes criadas
+                # Recarregar alocações criadas
                 allocations = session.exec(
                     select(models.EmployeeAllocation)
                     .where(models.EmployeeAllocation.date == date)
@@ -16584,9 +16591,9 @@ async def get_allocations(
                 
                 print("log")
             else:
-                print(f"âš ï¸ Nenhuma alocaÃ§Ã£o encontrada nos Ãºltimos {MAX_DAYS_LOOKBACK} dias para turno {shift}")
+                print(f"⚠️ Nenhuma alocação encontrada nos últimos {MAX_DAYS_LOOKBACK} dias para turno {shift}")
         except Exception as e:
-            print(f"Ã¢ÂÃ…' Erro ao copiar escala de dias anteriores: {e}")
+            print(f"âÅ' Erro ao copiar escala de dias anteriores: {e}")
     
     # Buscar rotinas do dia atual
     routines = session.exec(
@@ -16595,14 +16602,14 @@ async def get_allocations(
         .where(models.EmployeeRoutine.shift == shift)
     ).all()
     
-    # Se nÃ£o houver rotinas, copiar de dias anteriores (especialmente FÃ©rias e Afastado)
-    # IMPORTANTE: Para escala 12x36 (noturno), buscamos atÃ© 4 dias para trÃ¡s
+    # Se não houver rotinas, copiar de dias anteriores (especialmente Férias e Afastado)
+    # IMPORTANTE: Para escala 12x36 (noturno), buscamos até 4 dias para trás
     if not routines and allocations:
         from datetime import datetime, timedelta
         try:
             current_date = datetime.strptime(date, "%Y-%m-%d")
             
-            # Buscar atÃ© 4 dias para trÃ¡s (cobre escala 12x36 + possÃ­veis feriados)
+            # Buscar até 4 dias para trás (cobre escala 12x36 + possíveis feriados)
             MAX_DAYS_LOOKBACK = 4
             previous_routines = []
             found_date_str = None
@@ -16611,7 +16618,7 @@ async def get_allocations(
                 previous_date = current_date - timedelta(days=days_back)
                 previous_date_str = previous_date.strftime("%Y-%m-%d")
                 
-                print(f"Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Â¹ Buscando rotinas de {previous_date_str} ({days_back} dia(s) atrÃ¡s)...")
+                print(f"ðŸâ€œâ€¹ Buscando rotinas de {previous_date_str} ({days_back} dia(s) atrás)...")
                 
                 previous_routines = session.exec(
                     select(models.EmployeeRoutine)
@@ -16624,7 +16631,7 @@ async def get_allocations(
                     print("log")
                     break
                 else:
-                    print(f"   â­ï¸ Nenhuma rotina em {previous_date_str}, tentando dia anterior...")
+                    print(f"   ⏭️ Nenhuma rotina em {previous_date_str}, tentando dia anterior...")
             
             if previous_routines and found_date_str:
                 # Copiar apenas rotinas persistentes (vacation, away, sick)
@@ -16640,18 +16647,18 @@ async def get_allocations(
                             emp_status = (emp.status or 'active').lower()
                             routine_type = prev_routine.routine.lower()
                             
-                            # SÃ³ copiar se o status atual ainda corresponder Ã  rotina
-                            # vacation -> status deve ser vacation/fÃ©rias
+                            # Só copiar se o status atual ainda corresponder à rotina
+                            # vacation -> status deve ser vacation/férias
                             # away -> status deve ser away/afastado
-                            # sick -> status deve ser sick/atestado OU qualquer status (atestado pode ser temporÃ¡rio)
+                            # sick -> status deve ser sick/atestado OU qualquer status (atestado pode ser temporário)
                             should_copy = False
                             
-                            if routine_type == 'vacation' and emp_status in ['vacation', 'fÃ©rias', 'ferias']:
+                            if routine_type == 'vacation' and emp_status in ['vacation', 'férias', 'ferias']:
                                 should_copy = True
                             elif routine_type == 'away' and emp_status in ['away', 'afastado']:
                                 should_copy = True
                             elif routine_type == 'sick':
-                                # Atestado Ã© temporÃ¡rio, copiar apenas se ainda estÃ¡ como sick
+                                # Atestado é temporário, copiar apenas se ainda está como sick
                                 should_copy = emp_status in ['sick', 'atestado']
                             
                             if should_copy:
@@ -16664,7 +16671,7 @@ async def get_allocations(
                                 session.add(new_routine)
                                 copied_count += 1
                             else:
-                                print(f"â­ï¸ NÃ£o copiando rotina '{prev_routine.routine}' para {emp.name} - status atual Ã© '{emp_status}'")
+                                print(f"⏭️ Não copiando rotina '{prev_routine.routine}' para {emp.name} - status atual é '{emp_status}'")
                 
                 if copied_count > 0:
                     session.commit()
@@ -16677,11 +16684,11 @@ async def get_allocations(
                         .where(models.EmployeeRoutine.shift == shift)
                     ).all()
             else:
-                print(f"âš ï¸ Nenhuma rotina encontrada nos Ãºltimos {MAX_DAYS_LOOKBACK} dias para turno {shift}")
+                print(f"⚠️ Nenhuma rotina encontrada nos últimos {MAX_DAYS_LOOKBACK} dias para turno {shift}")
         except Exception as e:
-            print(f"Ã¢ÂÃ…' Erro ao copiar rotinas: {e}")
+            print(f"âÅ' Erro ao copiar rotinas: {e}")
     
-    # Montar resposta - APENAS subsector_id, nÃ£o objeto completo
+    # Montar resposta - APENAS subsector_id, não objeto completo
     allocations_map = {}
     for alloc in allocations:
         allocations_map[alloc.employee_id] = alloc.subsector_id
@@ -16690,7 +16697,7 @@ async def get_allocations(
     for routine in routines:
         routines_map[routine.employee_id] = routine.routine
     
-    # Buscar tonÃ©lagem das ROTAS (AutomÃ¡tico)
+    # Buscar tonélagem das ROTAS (Automático)
     # Requisito: "Favor puxar os dados da tonelagem das rotas"
     route_tonnage = session.exec(
         select(func.sum(models.Route.tonnage))
@@ -16702,11 +16709,11 @@ async def get_allocations(
     tonnage = route_tonnage if route_tonnage else 0.0
 
     # Fetch Targets - SEMPRE usar soma dos setores (SOURCE OF TRUTH)
-    # HeadcountTarget Ã© legado e pode estar desatualizado
+    # HeadcountTarget é legado e pode estar desatualizado
     all_sectors = session.exec(select(models.Sector)).all()
-    target_map = {"ManhÃ£": 0, "Tarde": 0, "Noite": 0}
+    target_map = {"Manhã": 0, "Tarde": 0, "Noite": 0}
     for sec in all_sectors:
-        sec_shift_norm = "ManhÃ£"
+        sec_shift_norm = "Manhã"
         if "tarde" in sec.shift.lower(): sec_shift_norm = "Tarde"
         elif "noite" in sec.shift.lower(): sec_shift_norm = "Noite"
         target_map[sec_shift_norm] += sec.max_employees
@@ -16725,10 +16732,10 @@ async def get_routine(
     shift: str,
     session: Session = Depends(get_session)
 ):
-    """Retorna dados da rotina diÃ¡ria (KPIs, Log, Config)"""
+    """Retorna dados da rotina diária (KPIs, Log, Config)"""
     require_login(request)
     
-    # 1. Buscar OperaÃ§Ã£o DiÃ¡ria
+    # 1. Buscar Operação Diária
     daily = session.exec(
         select(models.DailyOperation)
         .where(models.DailyOperation.date == date)
@@ -16753,7 +16760,7 @@ async def get_routine(
         "productivity": 0
     }
     
-    # Helper normalizaÃ§Ã£o simples
+    # Helper normalização simples
     def normalize_status(val):
         if not val: return ""
         s = str(val).lower().strip()
@@ -16766,7 +16773,7 @@ async def get_routine(
         if s in ['afastado', 'licenca', 'inss']: return 'away'
         return s
 
-    # Iterar sobre o log de presenÃ§a (Source of Truth do dia)
+    # Iterar sobre o log de presença (Source of Truth do dia)
     for emp_id, entry in log.items():
         raw_status = entry.get('status')
         status = normalize_status(raw_status)
@@ -16777,7 +16784,7 @@ async def get_routine(
             kpis['dayoff'] += 1
         elif status == 'sick':
             kpis['sick'] += 1
-        elif status in ['absent', 'missing']: # missing n Ã© padrÃ£o mas vai que
+        elif status in ['absent', 'missing']: # missing n é padrão mas vai que
             kpis['missing'] += 1
         elif status == 'vacation':
             kpis['vacation'] += 1
@@ -16793,11 +16800,11 @@ async def get_routine(
     if kpis['present'] < kpis['target']:
         kpis['gap'] = kpis['target'] - kpis['present']
     else:
-        kpis['gap'] = 0 # Sem gap negativo visualmente, ou pode ser negativo pra mostrar excesso? Render.js sÃ³ mostra o valor. Deixar 0 se superavit ou negativo? O padrÃ£o gap Ã© "falta", entÃ£o positivo Ã© ruim.
-        # Se tem 10 vagas e 12 presentes, gap Ã© -2 (sobra)? Ou 0 (nÃ£o falta)?
+        kpis['gap'] = 0 # Sem gap negativo visualmente, ou pode ser negativo pra mostrar excesso? Render.js só mostra o valor. Deixar 0 se superavit ou negativo? O padrão gap é "falta", então positivo é ruim.
+        # Se tem 10 vagas e 12 presentes, gap é -2 (sobra)? Ou 0 (não falta)?
         # Geralmente Gap = Meta - Real. Se Meta 10, Real 8, Gap 2. Se Meta 10, Real 12, Gap -2.
         # render.js: setText('total-gap', kpis.gap || 0);
-        # Vamos manter matemÃ¡tica simples.
+        # Vamos manter matemática simples.
         kpis['gap'] = kpis['target'] - kpis['present']
 
     if kpis['target'] > 0:
@@ -16808,7 +16815,7 @@ async def get_routine(
     if kpis['present'] > 0:
         kpis['productivity'] = int(tonnage / kpis['present'])
         
-    # 5. ConfiguraÃ§Ã£o de Setores (Se salva no daily)
+    # 5. Configuração de Setores (Se salva no daily)
     # Alguns componentes usam sectors_config para saber estado de accordion etc, 
     # mas o principal vem de /api/smart-flow/sectors
     sectors_config = [] 
@@ -16830,7 +16837,7 @@ async def save_allocations(
     request: Request,
     session: Session = Depends(get_session)
 ):
-    """Salva alocaÃ§Ãµes e rotinas do dia (Otimizado)"""
+    """Salva alocações e rotinas do dia (Otimizado)"""
     require_login(request)
     
     try:
@@ -16842,9 +16849,9 @@ async def save_allocations(
         tonnage = data.get("tonnage") # Optional float
         
         if not date or not shift:
-            return JSONResponse({"error": "Data e turno sÃ£o obrigatÃ³rios"}, status_code=400)
+            return JSONResponse({"error": "Data e turno são obrigatórios"}, status_code=400)
 
-        print(f"âš¡ [SmartFlow] Salvando alocaÃ§Ãµes para {date} - {shift}")
+        print(f"âš¡ [SmartFlow] Salvando alocações para {date} - {shift}")
         now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
         date = normalize_shift_date(date, shift, now_br)
         
@@ -16873,7 +16880,7 @@ async def save_allocations(
             )
             session.exec(statement)
         except Exception as e_del:
-            print(f"âš ï¸ Erro no bulk delete, tentando delete manual: {e_del}")
+            print(f"⚠️ Erro no bulk delete, tentando delete manual: {e_del}")
             old_allocs = session.exec(
                 select(models.EmployeeAllocation)
                 .where(models.EmployeeAllocation.date == date)
@@ -17013,14 +17020,14 @@ async def save_allocations(
         daily_op.attendance_log = attendance_log
         session.add(daily_op)
         
-        print(f"Ã°Å¸Ã¢â‚¬â„¢Ã‚Â¾ Commit final ({len(new_alloc_objs)} alocaÃ§Ãµes, {len(attendance_log)} logs)...")
+        print(f"ðŸâ€™Â¾ Commit final ({len(new_alloc_objs)} alocações, {len(attendance_log)} logs)...")
         session.commit()
         print("log")
         
         return {"success": True, "message": "Dados salvos com sucesso"}
         
     except Exception as e:
-        error_msg = f"Ã¢ÂÃ…' ERRO ao salvar alocaÃ§Ãµes: {e}"
+        error_msg = f"âÅ' ERRO ao salvar alocações: {e}"
         print(error_msg)
         import traceback
         traceback.print_exc()
@@ -17042,7 +17049,7 @@ async def set_employee_vacation(
     request: Request,
     session: Session = Depends(get_session)
 ):
-    """Define fÃ©rias de um colaborador"""
+    """Define férias de um colaborador"""
     require_login(request)
     
     try:
@@ -17057,24 +17064,24 @@ async def set_employee_vacation(
         # Buscar colaborador
         employee = session.get(models.Employee, int(employee_id))
         if not employee:
-            return JSONResponse({"error": "Colaborador nÃ£o encontrado"}, status_code=404)
+            return JSONResponse({"error": "Colaborador não encontrado"}, status_code=404)
         
         # Validar datas
         start_date = datetime.strptime(vacation_start, "%Y-%m-%d")
         end_date = datetime.strptime(vacation_end, "%Y-%m-%d")
         
         if start_date > end_date:
-            return JSONResponse({"error": "Data de inÃ­cio nÃ£o pode ser maior que data de fim"}, status_code=400)
+            return JSONResponse({"error": "Data de início não pode ser maior que data de fim"}, status_code=400)
         
         # Atualizar colaborador
         employee.vacation_start = start_date
         employee.vacation_end = end_date
         employee.status = "vacation"
         
-        # Criar evento para histÃ³rico
+        # Criar evento para histórico
         event = models.Event(
             timestamp=datetime.now(),
-            text=f"FÃ©rias Agendadas: {start_date.strftime('%d/%m/%Y')} a {end_date.strftime('%d/%m/%Y')}",
+            text=f"Férias Agendadas: {start_date.strftime('%d/%m/%Y')} a {end_date.strftime('%d/%m/%Y')}",
             type="ferias_hist",
             category="vacation",
             employee_id=employee_id
@@ -17085,9 +17092,9 @@ async def set_employee_vacation(
         
         print("log")
         
-        return {"success": True, "message": "FÃ©rias definidas com sucesso"}
+        return {"success": True, "message": "Férias definidas com sucesso"}
     except Exception as e:
-        print(f"Ã¢ÂÃ…' Erro ao definir fÃ©rias: {e}")
+        print(f"âÅ' Erro ao definir férias: {e}")
         session.rollback()
         return JSONResponse({"error": str(e)}, status_code=500)
 
@@ -17098,7 +17105,7 @@ async def set_employee_routine_extended(
     background_tasks: BackgroundTasks,
     session: Session = Depends(get_session)
 ):
-    """Define rotina estendida de um colaborador (mÃºltiplos dias)"""
+    """Define rotina estendida de um colaborador (múltiplos dias)"""
     require_login(request)
     
     try:
@@ -17115,13 +17122,13 @@ async def set_employee_routine_extended(
         # Buscar colaborador
         employee = session.get(models.Employee, int(employee_id))
         if not employee:
-            return JSONResponse({"error": "Colaborador nÃ£o encontrado"}, status_code=404)
+            return JSONResponse({"error": "Colaborador não encontrado"}, status_code=404)
         
         # Parse dates
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
         end_date = start_date + timedelta(days=days - 1)
         
-        # Verificar quais dias jÃ¡ existem
+        # Verificar quais dias já existem
         existing_routines = session.exec(
             select(models.EmployeeRoutine)
             .where(models.EmployeeRoutine.employee_id == int(employee_id))
@@ -17139,54 +17146,54 @@ async def set_employee_routine_extended(
         
         existing_dates_set = set(existing_by_date.keys())
         
-        # Verificar se TODOS os dias jÃ¡ existem e update_existing nÃ£o foi solicitado
+        # Verificar se TODOS os dias já existem e update_existing não foi solicitado
         all_dates_in_range = set()
         check_date = start_date
         while check_date <= end_date:
             all_dates_in_range.add(check_date.strftime("%Y-%m-%d"))
             check_date += timedelta(days=1)
         
-        # Verificar se hÃ¡ conflitos (alguns ou todos os dias jÃ¡ existem)
+        # Verificar se há conflitos (alguns ou todos os dias já existem)
         conflicting_dates = sorted(list(existing_dates_set.intersection(all_dates_in_range)))
         
-        # Verificar se todos os dias conflitantes jÃ¡ tÃªm a mesma rotina
-        # Se sim, permitir atualizaÃ§Ã£o automÃ¡tica sem pedir confirmaÃ§Ã£o
+        # Verificar se todos os dias conflitantes já têm a mesma rotina
+        # Se sim, permitir atualização automática sem pedir confirmação
         all_same_routine = True
         if conflicting_dates:
             for date_key in conflicting_dates:
                 routines_for_date = existing_by_date.get(date_key, [])
                 if routines_for_date:
-                    # Verificar se pelo menos uma rotina existente Ã© diferente
+                    # Verificar se pelo menos uma rotina existente é diferente
                     existing_routine = routines_for_date[0].routine
                     if existing_routine != routine:
                         all_same_routine = False
                         break
         
-        # Se todos os dias jÃ¡ tÃªm a mesma rotina, permitir atualizaÃ§Ã£o automÃ¡tica
+        # Se todos os dias já têm a mesma rotina, permitir atualização automática
         if conflicting_dates and all_same_routine and not update_existing:
-            # Mesma rotina - atualizar automaticamente sem pedir confirmaÃ§Ã£o
+            # Mesma rotina - atualizar automaticamente sem pedir confirmação
             update_existing = True
         
         if conflicting_dates and not update_existing:
-            # Retornar com cÃ³digo especial para frontend perguntar se quer atualizar
+            # Retornar com código especial para frontend perguntar se quer atualizar
             conflict_dates_formatted = [datetime.strptime(d, "%Y-%m-%d").strftime("%d/%m/%Y") for d in conflicting_dates]
             return JSONResponse({
-                "error": f"Os seguintes dias jÃ¡ possuem registros: {', '.join(conflict_dates_formatted[:5])}{'...' if len(conflict_dates_formatted) > 5 else ''}. Deseja atualizar?",
+                "error": f"Os seguintes dias já possuem registros: {', '.join(conflict_dates_formatted[:5])}{'...' if len(conflict_dates_formatted) > 5 else ''}. Deseja atualizar?",
                 "conflicts": conflict_dates_formatted,
                 "can_update": True,
                 "success": False
             }, status_code=409)  # 409 Conflict - indica que pode ser resolvido com update
         
-        # Labels em portuguÃªs
+        # Labels em português
         routine_labels = {
             'present': 'Presente',
-            'vacation': 'FÃ©rias',
+            'vacation': 'Férias',
             'sick': 'Atestado',
             'away': 'Afastado',
             'absent': 'Falta',
             'dayoff': 'Folga',
-            # Entrada adicional para saÃ­da antecipada
-            'early_exit': 'SaÃ­da antecipada'
+            # Entrada adicional para saída antecipada
+            'early_exit': 'Saída antecipada'
         }
         
         # Mapear tipo de evento
@@ -17213,29 +17220,29 @@ async def set_employee_routine_extended(
                 date_str = current_date.strftime("%Y-%m-%d")
                 
                 if date_str in existing_dates_set:
-                    # Verificar se a rotina existente Ã© a mesma
+                    # Verificar se a rotina existente é a mesma
                     existing_routines_for_date = existing_by_date.get(date_str, [])
                     existing_routine = existing_routines_for_date[0].routine if existing_routines_for_date else None
                     same_routine = (existing_routine == routine)
                     
                     if update_existing or same_routine:
-                        # Se Ã© a mesma rotina, permitir atualizaÃ§Ã£o automÃ¡tica
-                        # Se update_existing foi solicitado, verificar proteÃ§Ãµes
+                        # Se é a mesma rotina, permitir atualização automática
+                        # Se update_existing foi solicitado, verificar proteções
                         if not same_routine:
-                            # Verificar se estÃ¡ tentando sobrescrever atestado/afastamento por falta
-                            # Atestado e afastamento tÃªm prioridade sobre falta
+                            # Verificar se está tentando sobrescrever atestado/afastamento por falta
+                            # Atestado e afastamento têm prioridade sobre falta
                             protected_routines = {'sick', 'away', 'vacation'}
                             downgrade_routine = routine in {'absent', 'dayoff', 'present'}
                             
                             skip_update = False
                             for existing_r in existing_routines_for_date:
                                 if existing_r.routine in protected_routines and downgrade_routine:
-                                    # NÃ£o permitir sobrescrever atestado/afastamento por falta/folga/presente
+                                    # Não permitir sobrescrever atestado/afastamento por falta/folga/presente
                                     skip_update = True
                                     break
                             
                             if skip_update:
-                                # Pular este dia - nÃ£o sobrescrever atestado/afastamento
+                                # Pular este dia - não sobrescrever atestado/afastamento
                                 skipped_count += 1
                                 current_date += timedelta(days=1)
                                 continue
@@ -17246,7 +17253,7 @@ async def set_employee_routine_extended(
                             session.add(existing_r)
                         updated_count += 1
                         
-                        # Criar novo evento de alteraÃ§Ã£o para histÃ³rico apenas se a rotina mudou
+                        # Criar novo evento de alteração para histórico apenas se a rotina mudou
                         if not same_routine:
                             event_timestamp = datetime.combine(current_date, datetime.min.time()).replace(tzinfo=br_tz) + timedelta(hours=3)
                             event_text = f"{employee.name}: Rotina alterada para {routine_labels.get(routine, routine)} em {current_date.strftime('%d/%m/%Y')}"
@@ -17260,13 +17267,13 @@ async def set_employee_routine_extended(
                             )
                             session.add(new_event)
                     else:
-                        # Pular dias que jÃ¡ existem com rotina diferente (comportamento original)
+                        # Pular dias que já existem com rotina diferente (comportamento original)
                         skipped_count += 1
                         current_date += timedelta(days=1)
                         continue
                 else:
                     # Criar EmployeeRoutine para cada turno
-                    for shift_name in ["ManhÃ£", "Tarde", "Noite"]:
+                    for shift_name in ["Manhã", "Tarde", "Noite"]:
                         new_routine = models.EmployeeRoutine(
                             date=date_str,
                             shift=shift_name,
@@ -17275,7 +17282,7 @@ async def set_employee_routine_extended(
                         )
                         session.add(new_routine)
                     
-                    # Criar Event para histÃ³rico (um por dia)
+                    # Criar Event para histórico (um por dia)
                     event_timestamp = datetime.combine(current_date, datetime.min.time()).replace(tzinfo=br_tz) + timedelta(hours=3)
                     event_text = f"{employee.name}: {routine_labels.get(routine, routine)} em {current_date.strftime('%d/%m/%Y')}"
                     
@@ -17304,12 +17311,12 @@ async def set_employee_routine_extended(
         if updated_count > 0:
             action_parts.append(f"{updated_count} atualizado(s)")
         
-        action_info = ", ".join(action_parts) if action_parts else "nenhuma alteraÃ§Ã£o"
+        action_info = ", ".join(action_parts) if action_parts else "nenhuma alteração"
         print("log")
         
         # ================================================================
-        # ENVIO DE E-MAIL AUTOMÃTICO PARA AUSÃŠNCIAS (FALTA, FOLGA, ATESTADO)
-        # COM TRAVA DE SEGURANÃ‡A CONTRA DUPLICADOS
+        # ENVIO DE E-MAIL AUTOMÁTICO PARA AUSÊNCIAS (FALTA, FOLGA, ATESTADO)
+        # COM TRAVA DE SEGURANÇA CONTRA DUPLICADOS
         # ================================================================
         email_sent = False
         email_error = None
@@ -17317,25 +17324,25 @@ async def set_employee_routine_extended(
         
         # Mapear rotina para tipo de alerta
         routine_to_alert_type = {
-            "absent": "absent",   # Falta -> AdvertÃªncia
-            "dayoff": "dayoff",   # Folga -> NotificaÃ§Ã£o de Folga
-            "sick": "sick",       # Atestado -> NotificaÃ§Ã£o MÃ©dica
-            "early_exit": "early_exit"  # SaÃ­da antecipada -> Alerta de saÃ­da antecipada
+            "absent": "absent",   # Falta -> Advertência
+            "dayoff": "dayoff",   # Folga -> Notificação de Folga
+            "sick": "sick",       # Atestado -> Notificação Médica
+            "early_exit": "early_exit"  # Saída antecipada -> Alerta de saída antecipada
         }
         
         alert_type = routine_to_alert_type.get(routine)
         alert_type_labels = {
-            "absent": "advertÃªncia",
+            "absent": "advertência",
             "dayoff": "folga",
             "sick": "atestado",
-            "early_exit": "saÃ­da antecipada"  # Regulamos esse alerta com e-mail tambÃ©m
+            "early_exit": "saída antecipada"  # Regulamos esse alerta com e-mail também
         }
         
         # Enviar alerta se for um dos tipos configurados (AGORA EM BACKGROUND)
         email_scheduled = False
         if alert_type and (created_count > 0 or updated_count > 0):
             try:
-                # TRAVA DE SEGURANÃ‡A: Verificar se jÃ¡ foi enviado e-mail para este colaborador/data/tipo
+                # TRAVA DE SEGURANÇA: Verificar se já foi enviado e-mail para este colaborador/data/tipo
                 existing_alert = session.exec(
                     select(models.AbsenceAlertLog)
                     .where(models.AbsenceAlertLog.employee_id == int(employee_id))
@@ -17343,11 +17350,11 @@ async def set_employee_routine_extended(
                 ).first()
                 
                 if existing_alert:
-                    # E-mail jÃ¡ foi enviado anteriormente - NÃƒÃ†Ã¢â‚¬â„¢O enviar novamente
+                    # E-mail já foi enviado anteriormente - NÃÆâ€™O enviar novamente
                     email_already_sent = True
-                    print(f"Ã°Å¸Ã¢â‚¬ÂÃ¢â‚¬â„¢ E-mail de {alert_type_labels.get(alert_type, 'alerta')} jÃ¡ enviado para {employee.name} em {start_date_str} (enviado em {existing_alert.sent_at.strftime('%d/%m/%Y %H:%M')})")
+                    print(f"ðŸâ€â€™ E-mail de {alert_type_labels.get(alert_type, 'alerta')} já enviado para {employee.name} em {start_date_str} (enviado em {existing_alert.sent_at.strftime('%d/%m/%Y %H:%M')})")
                 else:
-                    # Buscar destinatÃ¡rios ativos para este TIPO de alerta
+                    # Buscar destinatários ativos para este TIPO de alerta
                     alert_recipients = session.exec(
                         select(models.AbsenceAlertRecipient)
                         .where(models.AbsenceAlertRecipient.is_active == True)
@@ -17361,7 +17368,7 @@ async def set_employee_routine_extended(
                         user_session = request.session.get("user", {})
                         registered_by = user_session.get("username") or user_session.get("email") or "Sistema"
                         
-                        # AGENDAR envio de e-mail em BACKGROUND (nÃ£o bloqueia a requisiÃ§Ã£o)
+                        # AGENDAR envio de e-mail em BACKGROUND (não bloqueia a requisição)
                         background_tasks.add_task(
                             send_absence_alert_email_background,
                             employee_id=int(employee_id),
@@ -17376,20 +17383,20 @@ async def set_employee_routine_extended(
                             alert_type=alert_type
                         )
                         email_scheduled = True
-                        print(f"Ã°Å¸Ã¢â‚¬Å“Â¤ E-mail de {alert_type_labels.get(alert_type, 'alerta')} agendado em background para {employee.name}")
+                        print(f"ðŸâ€œ¤ E-mail de {alert_type_labels.get(alert_type, 'alerta')} agendado em background para {employee.name}")
                     else:
-                        print(f"â„¹ï¸ Nenhum destinatÃ¡rio configurado para alertas de {alert_type_labels.get(alert_type, routine)}")
+                        print(f"ℹ️ Nenhum destinatário configurado para alertas de {alert_type_labels.get(alert_type, routine)}")
             except Exception as email_exc:
-                print(f"âš ï¸ Erro ao processar envio de e-mail de {alert_type_labels.get(alert_type, 'alerta')}: {email_exc}")
+                print(f"⚠️ Erro ao processar envio de e-mail de {alert_type_labels.get(alert_type, 'alerta')}: {email_exc}")
                 email_error = str(email_exc)
         
         message = f"Rotina processada com sucesso: {action_info}"
         if alert_type and email_scheduled:
             message += f" | E-mail de {alert_type_labels.get(alert_type, 'alerta')} sendo enviado..."
         elif alert_type and email_already_sent:
-            message += " | E-mail jÃ¡ enviado anteriormente (nÃ£o duplicado)."
+            message += " | E-mail já enviado anteriormente (não duplicado)."
         elif alert_type and email_error:
-            message += f" | Aviso: E-mail nÃ£o enviado ({email_error})"
+            message += f" | Aviso: E-mail não enviado ({email_error})"
         
         return {
             "success": True,
@@ -17400,7 +17407,7 @@ async def set_employee_routine_extended(
             "email_already_sent": email_already_sent if alert_type else None
         }
     except Exception as e:
-        print(f"Ã¢ÂÃ…' Erro ao criar rotina estendida: {e}")
+        print(f"âÅ' Erro ao criar rotina estendida: {e}")
         import traceback
         traceback.print_exc()
         session.rollback()
@@ -17425,7 +17432,7 @@ async def set_employee_routine(
         # Buscar colaborador
         employee = session.get(models.Employee, int(employee_id))
         if not employee:
-            return JSONResponse({"error": "Colaborador nÃ£o encontrado"}, status_code=404)
+            return JSONResponse({"error": "Colaborador não encontrado"}, status_code=404)
         
         old_status = employee.status
         
@@ -17455,24 +17462,24 @@ async def set_employee_routine(
              new_status = 'active' # Reset to active on present
              should_update_status = True
         
-        # Atualizar colaborador APENAS se for mudanÃ§a de status persistente
+        # Atualizar colaborador APENAS se for mudança de status persistente
         if should_update_status:
              employee.status = new_status
         
-        # Se voltar para presente, limpar fÃ©rias
+        # Se voltar para presente, limpar férias
         if routine == 'present':
             employee.vacation_start = None
             employee.vacation_end = None
         
-        # Labels em portuguÃªs
+        # Labels em português
         routine_labels = {
             'present': 'Presente',
-            'vacation': 'FÃ©rias',
+            'vacation': 'Férias',
             'sick': 'Atestado',
             'away': 'Afastado',
             'absent': 'Falta',
             'dayoff': 'Folga',
-            'early_exit': 'SaÃ­da antecipada'
+            'early_exit': 'Saída antecipada'
         }
         
         # Determine Event Type correctly for Report
@@ -17498,8 +17505,8 @@ async def set_employee_routine(
         )
         session.add(event)
 
-        # --- Sincronizar rotina diÃ¡ria (EmployeeRoutine) ---
-        # Fonte Ãºnica para faltas/atestados/afastamentos usada em relatÃ³rios e performance.
+        # --- Sincronizar rotina diária (EmployeeRoutine) ---
+        # Fonte única para faltas/atestados/afastamentos usada em relatórios e performance.
         # Por enquanto aplicamos para a data atual em todos os turnos.
         from zoneinfo import ZoneInfo
 
@@ -17515,16 +17522,16 @@ async def set_employee_routine(
         # Indexar por turno para facilitar upsert
         existing_by_shift = {r.shift: r for r in existing_daily if getattr(r, "shift", None)}
 
-        # ProteÃ§Ã£o: nÃ£o permitir sobrescrever atestado/afastamento por falta/folga/presente
+        # Proteção: não permitir sobrescrever atestado/afastamento por falta/folga/presente
         protected_routines = {'sick', 'away', 'vacation'}
         downgrade_routine = routine in {'absent', 'dayoff', 'present'}
         
-        for shift_name in ["ManhÃ£", "Tarde", "Noite"]:
+        for shift_name in ["Manhã", "Tarde", "Noite"]:
             existing = existing_by_shift.get(shift_name)
             if existing:
-                # Verificar se estÃ¡ tentando fazer downgrade de rotina protegida
+                # Verificar se está tentando fazer downgrade de rotina protegida
                 if existing.routine in protected_routines and downgrade_routine:
-                    # NÃ£o sobrescrever atestado/afastamento por falta/folga
+                    # Não sobrescrever atestado/afastamento por falta/folga
                     continue
                     
                 if existing.routine != routine:
@@ -17545,7 +17552,7 @@ async def set_employee_routine(
         
         return {"success": True, "message": "Rotina atualizada com sucesso"}
     except Exception as e:
-        print(f"Ã¢ÂÃ…' Erro ao atualizar rotina: {e}")
+        print(f"âÅ' Erro ao atualizar rotina: {e}")
         session.rollback()
         return JSONResponse({"error": str(e)}, status_code=500)
 
@@ -17559,9 +17566,9 @@ async def organogram_report(
     session: Session = Depends(get_session)
 ):
     """
-    RelatÃ³rio de Organograma Operacional
+    Relatório de Organograma Operacional
     Mostra setores, sub-setores e colaboradores alocados
-    Com indicaÃ§Ã£o de vagas em aberto
+    Com indicação de vagas em aberto
     """
     user = require_login(request)
     try:
@@ -17569,7 +17576,7 @@ async def organogram_report(
         if not date:
             date = datetime.now().strftime("%Y-%m-%d")
         if not shift:
-            shift = "ManhÃ£"  # Default shift
+            shift = "Manhã"  # Default shift
         
         # Fetch sectors for this shift
         db_sectors = session.exec(
@@ -17741,22 +17748,22 @@ async def routine_report(
         emp_map = {str(e.registration_id): e for e in all_employees}
         
         # 3. Fetch Sectors from Sector Table (SOURCE OF TRUTH - Same as Smart Flow)
-        # IMPORTANTE: Usar tabela Sector ao invÃ©s de SectorConfiguration para garantir
-        # consistÃªncia entre Smart Flow e RelatÃ³rio
+        # IMPORTANTE: Usar tabela Sector ao invés de SectorConfiguration para garantir
+        # consistência entre Smart Flow e Relatório
         db_sectors = session.exec(
             select(models.Sector)
             .where(models.Sector.shift == shift)
             .order_by(models.Sector.order)
         ).all()
         
-        # Normalizar nome do setor para key (ex: "CÃ¢mara Fria" -> "camara_fria")
+        # Normalizar nome do setor para key (ex: "Câmara Fria" -> "camara_fria")
         def normalize_sector_key(name):
             import unicodedata
             name_norm = unicodedata.normalize('NFD', name.lower().strip())
             key = name_norm.encode('ascii', 'ignore').decode('utf-8').replace(' ', '_')
             return key
         
-        # Converter para estrutura esperada pelo relatÃ³rio
+        # Converter para estrutura esperada pelo relatório
         SECTORS = []
         for sec in db_sectors:
             SECTORS.append({
@@ -17766,7 +17773,7 @@ async def routine_report(
             })
         
         # DEBUG: Log configuration status
-        print(f"Ã°Å¸Ã¢â‚¬ÂÃ‚Â DEBUG - Sectors from Sector table: {len(SECTORS)}")
+        print(f"ðŸâ€Â DEBUG - Sectors from Sector table: {len(SECTORS)}")
         for s in SECTORS:
             print(f"   - {s.get('label')}: meta {s.get('target')}")
         
@@ -17831,15 +17838,15 @@ async def routine_report(
             sector_key = sector_name_norm.encode('ascii', 'ignore').decode('utf-8').replace(' ', '_')
             
             # Resolve Status
-            # Priority: Routine DiÃ¡ria > Employee Status Database > 'present'
-            # IMPORTANTE: Se nÃ£o houver rotina no dia, verificar status do empregado (vacation, away, etc)
+            # Priority: Routine Diária > Employee Status Database > 'present'
+            # IMPORTANTE: Se não houver rotina no dia, verificar status do empregado (vacation, away, etc)
             if emp.id in routine_map:
                 status = routine_map[emp.id]
             elif emp.status in ['vacation', 'away', 'sick']:
-                # Usar status do banco se for ausÃªncia conhecida
+                # Usar status do banco se for ausência conhecida
                 status = emp.status
             else:
-                # Default para colaboradores ativos sem rotina especÃ­fica
+                # Default para colaboradores ativos sem rotina específica
                 status = 'present'
             
             log[str(emp.registration_id)] = {
@@ -17895,7 +17902,7 @@ async def routine_report(
             if daily_status in ['away', 'vacation']:
                  has_sub_evt = session.exec(select(models.Event).where(
                     models.Event.employee_id == employee.id,
-                    models.Event.text.like("%SubstituÃ­do por%")
+                    models.Event.text.like("%Substituído por%")
                  )).first()
                  if has_sub_evt:
                      is_substituted = True
@@ -17909,8 +17916,8 @@ async def routine_report(
             processed_ids.add(employee.id)
 
         # 2. Process Remaining Employees (Same Shift, No Routine/Allocation Today)
-        # Estes sÃ£o pessoas do turno que NÃƒÃ†Ã¢â‚¬â„¢O foram alocadas hoje
-        # IMPORTANTE: NÃ£o contar como 'present' se nÃ£o estÃ£o alocados (consistÃªncia com Smart Flow)
+        # Estes são pessoas do turno que NÃÆâ€™O foram alocadas hoje
+        # IMPORTANTE: Não contar como 'present' se não estão alocados (consistência com Smart Flow)
         for emp in all_employees:
             if emp.id in processed_ids:
                 continue
@@ -17918,14 +17925,14 @@ async def routine_report(
             if emp.status == 'fired': 
                 continue # Fired and no routine = ignored
                 
-            # Check Shift - comparaÃ§Ã£o EXATA (nÃ£o usar 'in' para evitar matches incorretos)
+            # Check Shift - comparação EXATA (não usar 'in' para evitar matches incorretos)
             emp_shift_norm = normalize_str(emp.work_shift)
             if emp_shift_norm != target_shift_norm:
                 continue # Wrong shift
                 
             # Determine Status from DB Profile
-            # IMPORTANTE: Se nÃ£o estÃ¡ alocado, usar o status do cadastro
-            # NÃ£o assumir 'present' para pessoas nÃ£o alocadas (divergia do Smart Flow)
+            # IMPORTANTE: Se não está alocado, usar o status do cadastro
+            # Não assumir 'present' para pessoas não alocadas (divergia do Smart Flow)
             db_status = emp.status
             report_status = db_status  # Usar status real do banco
             
@@ -17934,18 +17941,18 @@ async def routine_report(
             elif db_status == 'vacation':
                 report_status = 'vacation'
             elif db_status == 'active':
-                # Active mas nÃ£o alocado = nÃ£o contar como presente operacionalmente
-                # Pode ser: folga, nÃ£o programado, etc.
-                # Para consistÃªncia com Smart Flow, marcar como 'unallocated' (nÃ£o soma em presente)
+                # Active mas não alocado = não contar como presente operacionalmente
+                # Pode ser: folga, não programado, etc.
+                # Para consistência com Smart Flow, marcar como 'unallocated' (não soma em presente)
                 report_status = 'unallocated'
-                # NÃƒÃ†Ã¢â‚¬â„¢O incrementar total_present aqui!
+                # NÃÆâ€™O incrementar total_present aqui!
             
             # Substituted Check (Duplicate logic, could functionality extract)
             is_substituted = False
             if report_status in ['away', 'vacation']:
                  has_sub_evt = session.exec(select(models.Event).where(
                     models.Event.employee_id == emp.id,
-                    models.Event.text.like("%SubstituÃ­do por%")
+                    models.Event.text.like("%Substituído por%")
                  )).first()
                  if has_sub_evt:
                      is_substituted = True
@@ -17957,21 +17964,21 @@ async def routine_report(
                 "is_substituted": is_substituted
             })
         
-        # DEBUG: Mostrar setores Ãºnicos presentes no attendance_log
+        # DEBUG: Mostrar setores únicos presentes no attendance_log
         unique_sectors = set(p['sector_daily'] for p in people_list if p['sector_daily'])
-        print(f"Ã°Å¸Ã¢â‚¬ÂÃ‚Â DEBUG - Setores no attendance_log: {unique_sectors}")
-        print(f"Ã°Å¸Ã¢â‚¬ÂÃ‚Â DEBUG - Total de colaboradores: {len(people_list)}")
+        print(f"ðŸâ€Â DEBUG - Setores no attendance_log: {unique_sectors}")
+        print(f"ðŸâ€Â DEBUG - Total de colaboradores: {len(people_list)}")
             
         # Substituted Count (Employees 'Away' who have a replacement OR Active employees who are replacements?)
         # User said "reminding that it can only pull this information from the away routine when creating a new employee"
         # Interpreted as: Count of Away employees who have been substituted.
-        # Logic: Find 'away' employees. Check if they have an event "SubstituÃ­do por..."
+        # Logic: Find 'away' employees. Check if they have an event "Substituído por..."
         count_substitutions = 0
         away_employees = [e for e in all_employees if e.status == 'away']
         for emp in away_employees:
             has_sub = session.exec(select(models.Event).where(
                 models.Event.employee_id == emp.id,
-                models.Event.text.like("%SubstituÃ­do por%")
+                models.Event.text.like("%Substituído por%")
             )).first()
             if has_sub:
                 count_substitutions += 1
@@ -17993,7 +18000,7 @@ async def routine_report(
             total_target += target
             
             # IMPORTANTE: Mostrar TODOS os setores, mesmo sem colaboradores
-            # Isso mantÃ©m consistÃªncia com o Smart Flow
+            # Isso mantém consistência com o Smart Flow
             
             # Counts per sector
             present_people = [p for p in allocated_people if p['status_daily'] == 'present']
@@ -18016,7 +18023,7 @@ async def routine_report(
                 "present_count": len(present_people),
                 "vacancies": vacancies, # Vagas
                 "absences": len(absent_people), # Faltas/Atestados
-                "vacation_away": len(vacation_away_people), # FÃ©rias/Afastados
+                "vacation_away": len(vacation_away_people), # Férias/Afastados
                 "gap": gap
             })
             total_allocated_sum += len(allocated_people)
@@ -18032,7 +18039,7 @@ async def routine_report(
         
         if others_present or others_allocated:
             sectors_detailed.append({
-                "label": "Outros / NÃ£o Definido",
+                "label": "Outros / Não Definido",
                 "target": 0,
                 "allocated_count": len(others_allocated),
                 "present_count": len(others_present),
@@ -18047,11 +18054,11 @@ async def routine_report(
         total_operational_vacancies = sum(s.get('vacancies', 0) for s in sectors_detailed)
             
         # Top KPIs - ALINHADO COM SMART FLOW
-        # IMPORTANTE: Total target = SOMA DAS METAS CONFIGURADAS (nÃ£o colaboradores do turno)
-        # Isso garante consistÃªncia com o Smart Flow
+        # IMPORTANTE: Total target = SOMA DAS METAS CONFIGURADAS (não colaboradores do turno)
+        # Isso garante consistência com o Smart Flow
         
-        # total_target jÃ¡ foi calculado no loop acima (soma de todas as metas)
-        # NÃ£o usar total_target_real (colaboradores ativos) pois isso causa divergÃªncia
+        # total_target já foi calculado no loop acima (soma de todas as metas)
+        # Não usar total_target_real (colaboradores ativos) pois isso causa divergência
         
         # Total Headcount (Active Workforce + Absences + Vacation + etc)
         total_headcount = len(people_list)
@@ -18095,16 +18102,16 @@ async def routine_report(
         for emp in away_employees:
             has_sub = session.exec(select(models.Event).where(
                 models.Event.employee_id == emp.id,
-                models.Event.text.like("%SubstituÃ­do por%")
+                models.Event.text.like("%Substituído por%")
             )).first()
             if has_sub:
                 count_substitutions += 1
         
         # DEBUG DIAGNOSTIC
-        print(f"RelatÃ³rio Debug - Data: {date}, Turno: {shift}")
+        print(f"Relatório Debug - Data: {date}, Turno: {shift}")
         print(f"Meta Total: {total_target}")
         print(f"Headcount Total (People List): {total_headcount}")
-        print(f"Presentes: {total_present}, Faltas: {daily_absent}, FÃ©rias: {daily_vacation}, Afastados: {daily_away}")
+        print(f"Presentes: {total_present}, Faltas: {daily_absent}, Férias: {daily_vacation}, Afastados: {daily_away}")
         print(f"Vagas Calculadas (Meta - Headcount): {kpi_vacancies}")
         print(f"Vagas Operacionais (Soma Setores): {total_operational_vacancies}")
         
@@ -18114,9 +18121,9 @@ async def routine_report(
             if emp.id not in processed_ids and emp.status != 'fired':
                 emp_shift_norm = normalize_str(emp.work_shift)
                 if target_shift_norm not in emp_shift_norm:
-                     # print(f"Ignorado (Turno IncompatÃ­vel): {emp.name} ({emp.work_shift}) - Status: {emp.status}")
+                     # print(f"Ignorado (Turno Incompatível): {emp.name} ({emp.work_shift}) - Status: {emp.status}")
                      ignored_count += 1
-        print(f"Total ignorados por turno incompatÃ­vel: {ignored_count}")
+        print(f"Total ignorados por turno incompatível: {ignored_count}")
 
         snapshot = {
             "kpis": {
@@ -18231,7 +18238,7 @@ async def routine_report(
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return HTMLResponse(content=f"<h1>Erro ao Gerar RelatÃ³rio</h1><pre>{traceback.format_exc()}</pre>", status_code=500)
+        return HTMLResponse(content=f"<h1>Erro ao Gerar Relatório</h1><pre>{traceback.format_exc()}</pre>", status_code=500)
 
 from sqlmodel import select
 @app.get("/employees", response_class=HTMLResponse)
@@ -18251,7 +18258,7 @@ async def _employees_page_impl(request: Request, session: Session):
     update_vacation_statuses(session, datetime.now())
     # user = require_login(request)
     user = "debug_admin"
-        # Fetch Employees (excluindo substituÃ­dos)
+        # Fetch Employees (excluindo substituídos)
     employees = session.exec(
         select(models.Employee)
         .where(models.Employee.replaced_by.is_(None))
@@ -18264,7 +18271,7 @@ async def _employees_page_impl(request: Request, session: Session):
     legacy_targets = session.exec(select(models.HeadcountTarget)).all()
     if not legacy_targets:
         defaults = [
-            models.HeadcountTarget(shift_name="ManhÃ£", target_value=50),
+            models.HeadcountTarget(shift_name="Manhã", target_value=50),
             models.HeadcountTarget(shift_name="Tarde", target_value=50),
             models.HeadcountTarget(shift_name="Noite", target_value=50)
         ]
@@ -18277,12 +18284,12 @@ async def _employees_page_impl(request: Request, session: Session):
     # 2. Smart Flow Sector Targets (Sum of sector capacities)
     # This is the SOURCE OF TRUTH if sectors exist.
     all_sectors = session.exec(select(models.Sector)).all()
-    sector_map_sum = {"ManhÃ£": 0, "Tarde": 0, "Noite": 0}
+    sector_map_sum = {"Manhã": 0, "Tarde": 0, "Noite": 0}
     has_sectors = False
     
     for sec in all_sectors:
         # Normalize shift name just in case
-        sec_shift_norm = "ManhÃ£"
+        sec_shift_norm = "Manhã"
         if "tarde" in sec.shift.lower(): sec_shift_norm = "Tarde"
         elif "noite" in sec.shift.lower(): sec_shift_norm = "Noite"
         
@@ -18294,7 +18301,7 @@ async def _employees_page_impl(request: Request, session: Session):
     # Sector Sum is operational capacity, but Target is HR Budget.
     
     target_map = {}
-    for s in ["ManhÃ£", "Tarde", "Noite"]:
+    for s in ["Manhã", "Tarde", "Noite"]:
         manual_val = legacy_map.get(s, 0)
         sector_val = sector_map_sum[s]
         
@@ -18311,11 +18318,11 @@ async def _employees_page_impl(request: Request, session: Session):
     total_target = sum(target_map.values())
     
         # Shift Stats
-    shifts = ["ManhÃ£", "Tarde", "Noite"]
+    shifts = ["Manhã", "Tarde", "Noite"]
     shift_stats = []
         # Init counters for each shift
     shift_data = {
-        "ManhÃ£": {"active": 0, "vacation": 0, "away": 0},
+        "Manhã": {"active": 0, "vacation": 0, "away": 0},
         "Tarde": {"active": 0, "vacation": 0, "away": 0},
         "Noite": {"active": 0, "vacation": 0, "away": 0}
     }
@@ -18324,15 +18331,15 @@ async def _employees_page_impl(request: Request, session: Session):
         s = (shift_val or "").strip().lower()
         if "noite" in s: return "Noite"
         if "tarde" in s: return "Tarde"
-        # Default to ManhÃ£ only if explicitly ManhÃ£ or fallback
-        return "ManhÃ£"
-    # LÃ“GICA ATUALIZADA:
-    # - Afastados NÃƒÃ†Ã¢â‚¬â„¢O contam no total de colaboradores (viram vagas temporÃ¡rias)
-    # - Quando um afastado retornar, alguÃ©m serÃ¡ demitido para fechar o quadro
-    # - Total efetivo = ativos + fÃ©rias (fÃ©rias Ã© temporÃ¡rio, retorna normalmente)
+        # Default to Manhã only if explicitly Manhã or fallback
+        return "Manhã"
+    # LÓGICA ATUALIZADA:
+    # - Afastados NÃÆâ€™O contam no total de colaboradores (viram vagas temporárias)
+    # - Quando um afastado retornar, alguém será demitido para fechar o quadro
+    # - Total efetivo = ativos + férias (férias é temporário, retorna normalmente)
     # - Vagas = target - total_efetivo (afastados geram vagas)
     
-    total_effective_headcount = 0  # Ativos + FÃ©rias (exclui afastados)
+    total_effective_headcount = 0  # Ativos + Férias (exclui afastados)
     total_away = 0  # Contador separado de afastados
     
     for e in employees:
@@ -18346,10 +18353,10 @@ async def _employees_page_impl(request: Request, session: Session):
             total_effective_headcount += 1
         elif e.status == "vacation":
             shift_data[s_name]["vacation"] += 1
-            total_effective_headcount += 1  # FÃ©rias conta no quadro (retorno normal)
+            total_effective_headcount += 1  # Férias conta no quadro (retorno normal)
         elif e.status == "away":
             shift_data[s_name]["away"] += 1
-            total_away += 1  # Afastados NÃƒÃ†Ã¢â‚¬â„¢O contam (viram vaga temporÃ¡ria)
+            total_away += 1  # Afastados NÃÆâ€™O contam (viram vaga temporária)
         
     for s in shifts:
         data = shift_data.get(s, {"active":0, "vacation":0, "away":0})
@@ -18357,14 +18364,14 @@ async def _employees_page_impl(request: Request, session: Session):
         vacation_count = data["vacation"]
         away_count = data["away"]
         
-        # Headcount efetivo do turno = ativos + fÃ©rias (exclui afastados)
-        # Afastados geram vagas temporÃ¡rias que precisam ser preenchidas por substitutos
+        # Headcount efetivo do turno = ativos + férias (exclui afastados)
+        # Afastados geram vagas temporárias que precisam ser preenchidas por substitutos
         effective_shift_headcount = active_count + vacation_count
         
         target = target_map.get(s, 0)
         
         # Vagas = target - headcount_efetivo
-        # Afastados automaticamente viram vagas atÃ© retornarem
+        # Afastados automaticamente viram vagas até retornarem
         shift_vacancies = max(0, target - effective_shift_headcount)
         
         shift_stats.append({
@@ -18372,7 +18379,7 @@ async def _employees_page_impl(request: Request, session: Session):
             "count": active_count,  # Ativos trabalhando
             "headcount": effective_shift_headcount,  # Efetivo (exclui afastados)
             "vacation": vacation_count,
-            "away": away_count,  # Afastados (mostrar separado mas nÃ£o conta no quadro)
+            "away": away_count,  # Afastados (mostrar separado mas não conta no quadro)
             "target": target,
             "vacancies": shift_vacancies
         })
@@ -18385,7 +18392,7 @@ async def _employees_page_impl(request: Request, session: Session):
     }
     
     # Vagas totais = target - headcount_efetivo
-    # Isso inclui automaticamente os afastados como vagas temporÃ¡rias
+    # Isso inclui automaticamente os afastados como vagas temporárias
     total_vacancies = max(0, total_target - total_effective_headcount)
     
     return templates.TemplateResponse("employees.html", {
@@ -18396,7 +18403,7 @@ async def _employees_page_impl(request: Request, session: Session):
             "total_active": total_effective_headcount,  # Efetivo (exclui afastados)
             "total_target": total_target,
             "vacancies": total_vacancies,  # Inclui afastados como vagas
-            "total_away": total_away,  # Afastados separados (para referÃªncia)
+            "total_away": total_away,  # Afastados separados (para referência)
             "shifts": shift_stats,
             "statuses": status_stats,
             "targets_map": target_map
@@ -18406,7 +18413,7 @@ async def _employees_page_impl(request: Request, session: Session):
     })
 
 class HeadcountTargetUpdate(BaseModel):
-    targets: dict[str, int] # e.g. {"ManhÃ£": 50, "Tarde": 40}
+    targets: dict[str, int] # e.g. {"Manhã": 50, "Tarde": 40}
 
 @app.post("/api/employees/targets")
 async def update_headcount_targets(data: HeadcountTargetUpdate, session: Session = Depends(get_session)):
@@ -18482,7 +18489,7 @@ async def add_employee(
     # Auto-assign Schedule based on Shift
     default_schedule = None
     s_lower = (work_shift or "").lower()
-    if "manhÃ£" in s_lower or "manha" in s_lower:
+    if "manhã" in s_lower or "manha" in s_lower:
         default_schedule = "05:00 - 13:20"
     elif "tarde" in s_lower:
         default_schedule = "12:00 - 20:20"
@@ -18510,15 +18517,15 @@ async def add_employee(
         if is_substitution and replaced_employee_id:
             old_emp = session.get(models.Employee, replaced_employee_id)
             if old_emp:
-                # Marcar colaborador antigo como substituÃ­do
+                # Marcar colaborador antigo como substituído
                 old_emp.replaced_by = new_employee.id
                 session.add(old_emp)
                 
                 # 1. History for New Employee
-                # "Entrou em substituiÃ§Ã£o a X (Motivo)"
+                # "Entrou em substituição a X (Motivo)"
                 reason_pt = "Demitido" if sub_reason == 'fired' else "Afastado"
                 new_evt = models.Event(
-                    text=f"Entrou em substituiÃ§Ã£o a {old_emp.name} ({reason_pt})",
+                    text=f"Entrou em substituição a {old_emp.name} ({reason_pt})",
                     type="alteracao_cadastro",
                     category="pessoas",
                     employee_id=new_employee.id,
@@ -18527,9 +18534,9 @@ async def add_employee(
                 session.add(new_evt)
                 
                 # 2. History for Old Employee
-                # "SubstituÃ­do por Y (Data)"
+                # "Substituído por Y (Data)"
                 old_evt = models.Event(
-                    text=f"SubstituÃ­do por {new_employee.name}",
+                    text=f"Substituído por {new_employee.name}",
                     type="alteracao_cadastro",
                     category="pessoas",
                     employee_id=old_emp.id,
@@ -18537,7 +18544,7 @@ async def add_employee(
                 )
                 session.add(old_evt)
                 
-                # 3. Registrar no HistÃ³rico de SubstituiÃ§Ãµes
+                # 3. Registrar no Histórico de Substituições
                 try:
                     user = require_login(request)
                     registered_by = user.email if hasattr(user, 'email') else str(user)
@@ -18583,7 +18590,7 @@ async def employee_detail(
     today_date = today.date()
     base_date = safe_parse_iso_date(date) or today_date
 
-    absence_period_label = "MÃªs"
+    absence_period_label = "Mês"
     absence_start_date, absence_end_date = get_period_range(base_date, "monthly")
     absence_summary = get_absence_summary(
         session,
@@ -18707,7 +18714,7 @@ async def employee_detail(
     
     warnings = len([e for e in all_events if e.type == 'advertencia'])
     
-    # Deduplicar eventos para timeline: manter apenas 1 por (data, tipo) para tipos de ausÃªncia
+    # Deduplicar eventos para timeline: manter apenas 1 por (data, tipo) para tipos de ausência
     # Tipos que devem ser deduplicados por dia
     DEDUPE_TYPES = {"falta", "atestado", "afastamento", "folga", "dayoff", "sick", "absent", "away"}
     seen_day_type = set()
@@ -18719,7 +18726,7 @@ async def employee_detail(
             ev_date = ev.timestamp.date() if ev.timestamp else None
             dedupe_key = (ev_date, ev_type)
             if dedupe_key in seen_day_type:
-                continue  # JÃ¡ vimos esse tipo nesse dia
+                continue  # Já vimos esse tipo nesse dia
             seen_day_type.add(dedupe_key)
         events.append(ev)
     absence_counts = absence_summary["days"]
@@ -18788,7 +18795,7 @@ async def employee_detail(
         except:
             work_days_list = [] # Fallback
             
-    days_map = {'Monday': 'Segunda', 'Tuesday': 'TerÃ§a', 'Wednesday': 'Quarta', 'Thursday': 'Quinta', 'Friday': 'Sexta', 'Saturday': 'SÃ¡bado', 'Sunday': 'Domingo'}
+    days_map = {'Monday': 'Segunda', 'Tuesday': 'Terça', 'Wednesday': 'Quarta', 'Thursday': 'Quinta', 'Friday': 'Sexta', 'Saturday': 'Sábado', 'Sunday': 'Domingo'}
     # Translate immediately for simpler template
     work_days_display = ", ".join([days_map.get(d, d) for d in work_days_list])
 
@@ -18902,17 +18909,17 @@ async def employee_detail(
                     if current_allocation or current_activity:
                         break
 
-    # Buscar informaÃ§Ãµes de substituiÃ§Ã£o
+    # Buscar informações de substituição
     substitution_info = None
     replaced_employee = None
     
-    # Verificar se este colaborador SUBSTITUIU alguÃ©m (Ã© novo e substituiu)
+    # Verificar se este colaborador SUBSTITUIU alguém (é novo e substituiu)
     sub_as_new = session.exec(
         select(models.SubstitutionHistory)
         .where(models.SubstitutionHistory.new_employee_id == employee_id)
     ).first()
     
-    # Verificar se este colaborador FOI SUBSTITUÃDO (saiu e foi substituÃ­do)
+    # Verificar se este colaborador FOI SUBSTITUÍDO (saiu e foi substituído)
     sub_as_old = session.exec(
         select(models.SubstitutionHistory)
         .where(models.SubstitutionHistory.original_employee_id == employee_id)
@@ -18924,7 +18931,7 @@ async def employee_detail(
             "original_name": sub_as_new.original_employee_name,
             "original_registration": sub_as_new.original_registration_id,
             "original_id": sub_as_new.original_employee_id,
-            "reason": "DemissÃ£o" if sub_as_new.reason == 'fired' else "Afastamento",
+            "reason": "Demissão" if sub_as_new.reason == 'fired' else "Afastamento",
             "date": sub_as_new.substitution_date.strftime("%d/%m/%Y")
         }
     
@@ -18934,7 +18941,7 @@ async def employee_detail(
             "new_name": sub_as_old.new_employee_name,
             "new_registration": sub_as_old.new_registration_id,
             "new_id": sub_as_old.new_employee_id,
-            "reason": "DemissÃ£o" if sub_as_old.reason == 'fired' else "Afastamento",
+            "reason": "Demissão" if sub_as_old.reason == 'fired' else "Afastamento",
             "date": sub_as_old.substitution_date.strftime("%d/%m/%Y")
         }
 
@@ -19052,7 +19059,7 @@ async def update_employee_status(
             text_desc = f"Status alterado para {status_action}"
             if status_action == "vacation":
                 event_type = "ferias_hist"
-                text_desc = "Entrou em FÃ©rias"
+                text_desc = "Entrou em Férias"
             elif status_action == "fired":
                 event_type = "demissao"
                 text_desc = "Colaborador Demitido"
@@ -19074,13 +19081,13 @@ async def update_employee_status(
                  # Map internal status to Portuguese
                  status_map = {
                      "active": "Ativo",
-                     "vacation": "FÃ©rias",
+                     "vacation": "Férias",
                      "away": "Afastado",
                      "fired": "Demitido",
                      "day_off": "Folga"
                  }
                  pt_status = status_map.get(status_action, status_action)
-                 text_desc = f"AlteraÃ§Ã£o de Rotina ({datetime.now().strftime('%d/%m/%Y')}): {pt_status}"
+                 text_desc = f"Alteração de Rotina ({datetime.now().strftime('%d/%m/%Y')}): {pt_status}"
                  
             new_event = models.Event(
                 text=text_desc,
@@ -19092,7 +19099,7 @@ async def update_employee_status(
             session.add(new_event)
             emp.status = status_action
             
-            # Preencher termination_date automaticamente para demissÃ£o/afastamento
+            # Preencher termination_date automaticamente para demissão/afastamento
             if status_action in ("fired", "away"):
                 if not emp.termination_date:
                     emp.termination_date = datetime.now()
@@ -19113,14 +19120,14 @@ async def return_employee_from_leave(
     session: Session = Depends(get_session)
 ):
     """
-    Retorna um colaborador de fÃ©rias/atestado/afastamento.
-    Atualiza o status para 'active', limpa datas de fÃ©rias e atualiza rotinas.
+    Retorna um colaborador de férias/atestado/afastamento.
+    Atualiza o status para 'active', limpa datas de férias e atualiza rotinas.
     """
     require_login(request)
     emp = session.get(models.Employee, emp_id)
     
     if not emp:
-        raise HTTPException(status_code=404, detail="Colaborador nÃ£o encontrado")
+        raise HTTPException(status_code=404, detail="Colaborador não encontrado")
     
     previous_status = emp.status
     br_tz = ZoneInfo("America/Sao_Paulo")
@@ -19129,14 +19136,14 @@ async def return_employee_from_leave(
     try:
         return_dt = datetime.strptime(return_date, "%Y-%m-%d")
     except ValueError:
-        raise HTTPException(status_code=400, detail="Data de retorno invÃ¡lida")
+        raise HTTPException(status_code=400, detail="Data de retorno inválida")
     
     # Map do status anterior para texto descritivo
     status_map = {
-        "vacation": "FÃ©rias",
+        "vacation": "Férias",
         "away": "Afastamento",
         "sick": "Atestado",
-        "fired": "DemissÃ£o",
+        "fired": "Demissão",
         "day_off": "Folga"
     }
     previous_status_label = status_map.get(previous_status, previous_status)
@@ -19144,7 +19151,7 @@ async def return_employee_from_leave(
     # 1. Atualizar status do colaborador para 'active'
     emp.status = "active"
     
-    # 2. Limpar datas de fÃ©rias se existirem
+    # 2. Limpar datas de férias se existirem
     if emp.vacation_start or emp.vacation_end:
         emp.vacation_start = None
         emp.vacation_end = None
@@ -19162,12 +19169,12 @@ async def return_employee_from_leave(
     )
     session.add(new_event)
     
-    # 4. Atualizar rotinas: de return_date atÃ© hoje + 30 dias, marcar como 'present'
+    # 4. Atualizar rotinas: de return_date até hoje + 30 dias, marcar como 'present'
     today = datetime.now(br_tz).date()
     end_update_date = today + timedelta(days=30)
     current_date = return_dt.date()
     
-    # Buscar rotinas existentes no perÃ­odo
+    # Buscar rotinas existentes no período
     existing_routines = session.exec(
         select(models.EmployeeRoutine)
         .where(models.EmployeeRoutine.employee_id == emp_id)
@@ -19190,7 +19197,7 @@ async def return_employee_from_leave(
         date_str = current_date.strftime("%Y-%m-%d")
         
         if date_str in existing_by_date:
-            # Atualizar rotinas existentes que nÃ£o sÃ£o 'present'
+            # Atualizar rotinas existentes que não são 'present'
             for routine in existing_by_date[date_str]:
                 if routine.routine in ('vacation', 'away', 'sick', 'absent'):
                     routine.routine = 'present'
@@ -19198,7 +19205,7 @@ async def return_employee_from_leave(
                     routines_updated += 1
         else:
             # Criar novas rotinas como 'present' para cada turno
-            for shift_name in ["ManhÃ£", "Tarde", "Noite"]:
+            for shift_name in ["Manhã", "Tarde", "Noite"]:
                 new_routine = models.EmployeeRoutine(
                     date=date_str,
                     shift=shift_name,
@@ -19229,7 +19236,7 @@ async def update_event_content(
     require_login(request)
     event = session.get(models.Event, event_id)
     if not event:
-        raise HTTPException(status_code=404, detail="Evento nÃ£o encontrado")
+        raise HTTPException(status_code=404, detail="Evento não encontrado")
     
     # Update fields
     event.type = new_type
@@ -19281,10 +19288,10 @@ async def update_vacation_event(
     require_login(request)
     event = session.get(models.Event, event_id)
     if not event or event.type != 'ferias_hist':
-        raise HTTPException(status_code=404, detail="Evento de fÃ©rias nÃ£o encontrado")
+        raise HTTPException(status_code=404, detail="Evento de férias não encontrado")
         emp = session.get(models.Employee, event.employee_id)
     if not emp:
-        raise HTTPException(status_code=404, detail="Colaborador nÃ£o encontrado")
+        raise HTTPException(status_code=404, detail="Colaborador não encontrado")
     try:
         # Update Employee Dates
         v_start = datetime.strptime(start_date, "%Y-%m-%d")
@@ -19292,7 +19299,7 @@ async def update_vacation_event(
         # Update Event Text (BR Format)
         fmt_start = v_start.strftime("%d/%m/%Y")
         fmt_end = v_end.strftime("%d/%m/%Y")
-        event.text = f"FÃ©rias Agendadas: {fmt_start} a {fmt_end}"
+        event.text = f"Férias Agendadas: {fmt_start} a {fmt_end}"
         session.add(event)
         
         emp.vacation_start = v_start
@@ -19312,7 +19319,7 @@ async def update_vacation_event(
         session.add(emp)
         session.commit()
     except ValueError:
-        raise HTTPException(status_code=400, detail="Data invÃ¡lida")
+        raise HTTPException(status_code=400, detail="Data inválida")
         
     return RedirectResponse(url=f"/employees/{emp.id}", status_code=status.HTTP_303_SEE_OTHER)
 class MobileAdminStartPayload(BaseModel):
@@ -19338,31 +19345,31 @@ async def mobile_admin_start_route(
                 if user and user.employee_id:
                     user_id = user.employee_id
                 else:
-                    return JSONResponse({"error": "UsuÃ¡rio web sem colaborador vinculado"}, status_code=403)
+                    return JSONResponse({"error": "Usuário web sem colaborador vinculado"}, status_code=403)
             else:
-                return JSONResponse({"error": "NÃ£o autorizado"}, status_code=401)
+                return JSONResponse({"error": "Não autorizado"}, status_code=401)
             
         try:
             user_id = int(str(user_id))
         except:
-             return JSONResponse({"error": "ID de usuÃ¡rio invÃ¡lido"}, status_code=400)
+             return JSONResponse({"error": "ID de usuário inválido"}, status_code=400)
             
         current_emp = session.get(models.Employee, user_id)
         if not current_emp:
-             return JSONResponse({"error": "LÃ­der nÃ£o encontrado"}, status_code=403)
+             return JSONResponse({"error": "Líder não encontrado"}, status_code=403)
              
         if not getattr(current_emp, "mobile_access_admin_start", False):
-             return JSONResponse({"error": "Sem permissÃ£o de lÃ­der"}, status_code=403)
+             return JSONResponse({"error": "Sem permissão de líder"}, status_code=403)
 
         # Find Target Employee
         target_emp = session.exec(select(models.Employee).where(models.Employee.registration_id == payload.registration_id)).first()
         if not target_emp:
-            return JSONResponse({"error": "MatrÃ­cula nÃ£o encontrada"}, status_code=404)
+            return JSONResponse({"error": "Matrícula não encontrada"}, status_code=404)
             
         # Verify Client Existence (Prevent FK Error)
         client = session.get(models.Client, payload.client_id)
         if not client:
-             return JSONResponse({"error": "Cliente nÃ£o encontrado"}, status_code=404)
+             return JSONResponse({"error": "Cliente não encontrado"}, status_code=404)
 
         # 1. Create Routine if needed (Safely)
         today_str = datetime.now().strftime("%Y-%m-%d")
@@ -19377,7 +19384,7 @@ async def mobile_admin_start_route(
                 routine = models.EmployeeRoutine(
                     employee_id=target_emp.id,
                     date=today_str,
-                    shift=target_emp.work_shift or "ManhÃ£",
+                    shift=target_emp.work_shift or "Manhã",
                     start_time=datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M"),
                     routine="present",
                     status="open"
@@ -19400,7 +19407,7 @@ async def mobile_admin_start_route(
             employee_id=target_emp.id,
             client_id=payload.client_id,
             date=today_str,
-            shift=target_emp.work_shift or "ManhÃ£",
+            shift=target_emp.work_shift or "Manhã",
             start_time=datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M"),
             status="pending",
             tonnage=payload.tonnage
@@ -19410,7 +19417,7 @@ async def mobile_admin_start_route(
         # 4. Log
         log = models.Event(
             type="routine_change",
-            text=f"Rota iniciada via Mobile (LÃ­der {current_emp.name}) para {target_emp.name}",
+            text=f"Rota iniciada via Mobile (Líder {current_emp.name}) para {target_emp.name}",
             category="processo",
             sector="expedicao",
             impact="low",
@@ -19464,7 +19471,7 @@ async def update_employee(
                     # Log Role Change
         if emp.role != role:
             session.add(models.Event(
-                text=f"AlteraÃ§Ã£o de Cargo: {emp.role} para {role}",
+                text=f"Alteração de Cargo: {emp.role} para {role}",
                 type="alteracao_cadastro",
                 category="pessoas",
                 employee_id=emp.id
@@ -19472,7 +19479,7 @@ async def update_employee(
         # Log Cost Center Change
         if emp.cost_center != cost_center:
             session.add(models.Event(
-                text=f"AlteraÃ§Ã£o de Centro de Custo: {emp.cost_center} -> {cost_center}",
+                text=f"Alteração de Centro de Custo: {emp.cost_center} -> {cost_center}",
                 type="alteracao_cadastro",
                 category="pessoas",
                 employee_id=emp.id
@@ -19555,7 +19562,7 @@ async def update_employee(
             except:
                 pass
         
-        # Processar fÃ©rias programadas
+        # Processar férias programadas
         if vacation_start and vacation_end:
             try:
                 v_start = datetime.strptime(vacation_start, "%Y-%m-%d")
@@ -19569,33 +19576,33 @@ async def update_employee(
                     emp.vacation_start = v_start
                     emp.vacation_end = v_end
                     
-                    # Verificar se hoje estÃ¡ dentro do perÃ­odo de fÃ©rias
+                    # Verificar se hoje está dentro do período de férias
                     today = datetime.now()
                     if v_start <= today <= v_end:
                         emp.status = 'vacation'
                     elif emp.status == 'vacation' and today > v_end:
-                        # FÃ©rias acabaram, voltar para ativo
+                        # Férias acabaram, voltar para ativo
                         emp.status = 'active'
                     
-                    # Log se houve alteraÃ§Ã£o
+                    # Log se houve alteração
                     if old_v_start != v_start or old_v_end != v_end:
                         session.add(models.Event(
-                            text=f"FÃ©rias programadas: {v_start.strftime('%d/%m/%Y')} a {v_end.strftime('%d/%m/%Y')}",
+                            text=f"Férias programadas: {v_start.strftime('%d/%m/%Y')} a {v_end.strftime('%d/%m/%Y')}",
                             type="ferias",
                             category="pessoas",
                             employee_id=emp.id
                         ))
             except Exception as e:
-                print(f"Erro ao processar fÃ©rias: {e}")
+                print(f"Erro ao processar férias: {e}")
         elif vacation_start == "" and vacation_end == "":
-            # Se ambos foram limpos, limpar as fÃ©rias
+            # Se ambos foram limpos, limpar as férias
             if emp.vacation_start or emp.vacation_end:
                 emp.vacation_start = None
                 emp.vacation_end = None
                 if emp.status == 'vacation':
                     emp.status = 'active'
                 session.add(models.Event(
-                    text="FÃ©rias canceladas/removidas",
+                    text="Férias canceladas/removidas",
                     type="ferias",
                     category="pessoas",
                     employee_id=emp.id
@@ -19644,8 +19651,8 @@ async def import_occurrences(
     session: Session = Depends(get_session)
 ):
     """
-    Importa ocorrÃªncias (Faltas/Atestados) a partir de texto copiado do Excel.
-    Formato esperado: Matricula | Nome(Ignorado) | Data | OcorrÃªncia
+    Importa ocorrências (Faltas/Atestados) a partir de texto copiado do Excel.
+    Formato esperado: Matricula | Nome(Ignorado) | Data | Ocorrência
     """
     lines = data.raw_text.strip().split('\n')
     stats = {"total": 0, "success": 0, "errors": []}
@@ -19671,7 +19678,7 @@ async def import_occurrences(
         # Validate Employee
         employee = emp_map.get(reg_id)
         if not employee:
-            stats['errors'].append(f"MatrÃ­cula {reg_id}: Colaborador nÃ£o encontrado")
+            stats['errors'].append(f"Matrícula {reg_id}: Colaborador não encontrado")
             continue
             
         # Validate Date
@@ -19683,7 +19690,7 @@ async def import_occurrences(
                  start_date_obj = datetime.strptime(date_str, "%Y-%m-%d")
                  iso_date = start_date_obj.strftime("%Y-%m-%d")
              except:
-                stats['errors'].append(f"MatrÃ­cula {reg_id}: Data invÃ¡lida ({date_str})")
+                stats['errors'].append(f"Matrícula {reg_id}: Data inválida ({date_str})")
                 continue
                 
         # CHECK FOR MULTI-DAY RANGE (If occurrence_raw is actually a Date)
@@ -19726,12 +19733,12 @@ async def import_occurrences(
                     routine_type, event_type = "absent", "falta"
                 elif "atestado" in occ_lower:
                     routine_type, event_type = "sick", "atestado"
-                elif "suspensÃ£o" in occ_lower or "suspensao" in occ_lower:
+                elif "suspensão" in occ_lower or "suspensao" in occ_lower:
                     routine_type, event_type = "absent", "suspension"
-                elif "advertÃªncia" in occ_lower or "advertencia" in occ_lower:
+                elif "advertência" in occ_lower or "advertencia" in occ_lower:
                     routine_type, event_type = None, "advertencia"
                 else:
-                    stats['errors'].append(f"MatrÃ­cula {reg_id}: OcorrÃªncia desconhecida ({occurrence_raw})")
+                    stats['errors'].append(f"Matrícula {reg_id}: Ocorrência desconhecida ({occurrence_raw})")
                     break # Skip this line entirely if error
             
             pending_entries.append({
@@ -19791,7 +19798,7 @@ async def import_occurrences(
         # Event Creation (Blind Insert for history)
         new_event = models.Event(
             timestamp=entry["date_obj"].replace(hour=8, minute=0),
-            text=f"ImportaÃ§Ã£o em Massa: {entry['raw_occ']}",
+            text=f"Importação em Massa: {entry['raw_occ']}",
             type=entry["event_type"],
             category="import",
             employee_id=emp.id
@@ -19841,7 +19848,7 @@ async def import_employees(
         if target_sheet is None:
             target_sheet = sheet_names[0]
 
-        # Detecta cabeÃ§alho nos primeiros registros.
+        # Detecta cabeçalho nos primeiros registros.
         df_temp = pd.read_excel(io.BytesIO(content), sheet_name=target_sheet, header=None, nrows=10)
         header_row = 0
         expected_headers = {"matricula", "colaborador", "nome funcionario", "nome cargo", "turno", "cargo"}
@@ -19854,16 +19861,16 @@ async def import_employees(
         df = pd.read_excel(io.BytesIO(content), sheet_name=target_sheet, header=header_row)
         df.columns = df.columns.astype(str).str.strip()
 
-        col_registration = pick_column(df.columns, "MatrÃ­cula", "Matricula")
-        col_name = pick_column(df.columns, "Colaborador", "Nome FuncionÃ¡rio", "Nome Funcionario", "Nome")
-        col_role = pick_column(df.columns, "Cargo", "Nome Cargo", "FunÃ§Ã£o", "Funcao")
+        col_registration = pick_column(df.columns, "Matrícula", "Matricula")
+        col_name = pick_column(df.columns, "Colaborador", "Nome Funcionário", "Nome Funcionario", "Nome")
+        col_role = pick_column(df.columns, "Cargo", "Nome Cargo", "Função", "Funcao")
         col_cost_center = pick_column(df.columns, "Centro de Custo")
         col_shift = pick_column(df.columns, "Turno")
-        col_admission = pick_column(df.columns, "Data AdmissÃ£o", "AdmissÃ£o", "Admissao", "AdminissÃ£o", "Adminissao")
+        col_admission = pick_column(df.columns, "Data Admissão", "Admissão", "Admissao", "Adminissão", "Adminissao")
         col_birthday = pick_column(df.columns, "Data Nascimento", "Nascimento", "Data de Nascimento")
 
         if not col_registration:
-            raise ValueError("Coluna de matrÃ­cula nÃ£o encontrada no arquivo.")
+            raise ValueError("Coluna de matrícula não encontrada no arquivo.")
 
         count = 0 
         seen_registration = set()
@@ -19903,15 +19910,15 @@ async def import_employees(
                         pass
                         
                 # Shift
-                shift_raw = str(row.get(col_shift, "ManhÃ£")) if col_shift else "ManhÃ£"
+                shift_raw = str(row.get(col_shift, "Manhã")) if col_shift else "Manhã"
                 if pd.isna(shift_raw) or shift_raw.strip() == "" or shift_raw.lower() == "nan":
-                    shift_raw = "ManhÃ£"
+                    shift_raw = "Manhã"
                     
-                # Normalize specific cases to match System options (ManhÃ£, Tarde, Noite)
+                # Normalize specific cases to match System options (Manhã, Tarde, Noite)
                 shift_clean = shift_raw.strip().title() # Converts NOITE -> Noite
                 
-                if "Manha" in shift_clean or "ManhÃ£" in shift_clean:
-                    shift_val = "ManhÃ£"
+                if "Manha" in shift_clean or "Manhã" in shift_clean:
+                    shift_val = "Manhã"
                 elif "Tarde" in shift_clean:
                     shift_val = "Tarde"
                 elif "Noite" in shift_clean:
@@ -19922,7 +19929,7 @@ async def import_employees(
                 # Auto-assign Schedule
                 default_schedule = None
                 s_lower = (shift_val or "").lower()
-                if "manhÃ£" in s_lower or "manha" in s_lower:
+                if "manhã" in s_lower or "manha" in s_lower:
                     default_schedule = "05:00 - 13:20"
                 elif "tarde" in s_lower:
                     default_schedule = "12:00 - 20:20"
@@ -19946,7 +19953,7 @@ async def import_employees(
         session.commit()
     except Exception as e:
         print(f"Import Error: {e}")
-        return RedirectResponse(url=f"/employees?error=Erro na importaÃ§Ã£o: {str(e)}", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(url=f"/employees?error=Erro na importação: {str(e)}", status_code=status.HTTP_303_SEE_OTHER)
         
     return RedirectResponse(url=f"/employees?success={count} colaboradores importados com sucesso.", status_code=status.HTTP_303_SEE_OTHER)
 @app.exception_handler(HTTPException)
@@ -19964,7 +19971,7 @@ async def auth_exception_handler(request: Request, exc: HTTPException):
 # --- People Intelligence Helper ---
 def get_people_intelligence_metrics(session: Session, shift: str, start_date: Optional[str], end_date: Optional[str], status_filter: Optional[List[str]] = None):
     # 1. Overview Data
-    # Se status_filter nÃ£o for fornecido, usa comportamento padrÃ£o (excluindo demitidos)
+    # Se status_filter não for fornecido, usa comportamento padrão (excluindo demitidos)
     if status_filter and len(status_filter) > 0:
         # Filtro personalizado de status
         employees = session.exec(
@@ -19973,7 +19980,7 @@ def get_people_intelligence_metrics(session: Session, shift: str, start_date: Op
             .where(models.Employee.replaced_by.is_(None))
         ).all()
     else:
-        # Comportamento padrÃ£o: excluir demitidos
+        # Comportamento padrão: excluir demitidos
         employees = session.exec(
             select(models.Employee)
             .where(models.Employee.status != "fired")
@@ -20017,7 +20024,7 @@ def get_people_intelligence_metrics(session: Session, shift: str, start_date: Op
     
     # Filter events by employee_ids (shift filter) for context if needed, 
     # BUT for Metrics (KPIs) we will use EmployeeRoutine table to count DAYS lost.
-    # This is more accurate for "Taxa de AbsenteÃ­smo" (Man-Days).
+    # This is more accurate for "Taxa de Absenteísmo" (Man-Days).
     
     # Fetch Routines for the period
     routines = session.exec(
@@ -20029,8 +20036,8 @@ def get_people_intelligence_metrics(session: Session, shift: str, start_date: Op
     # Filter routines for selected shift employees
     routines = [r for r in routines if r.employee_id in employee_ids]
     
-    # Agrupar por dia Ãºnico (employee_id + date) para evitar contagem duplicada
-    # Cada dia pode ter atÃ© 3 registros (ManhÃ£, Tarde, Noite)
+    # Agrupar por dia único (employee_id + date) para evitar contagem duplicada
+    # Cada dia pode ter até 3 registros (Manhã, Tarde, Noite)
     unique_days = {}  # (emp_id, date) -> routine_type (prioridade: absent > sick > away)
     for r in routines:
         key = (r.employee_id, str(r.date))
@@ -20045,7 +20052,7 @@ def get_people_intelligence_metrics(session: Session, shift: str, start_date: Op
         else:
             continue  # Ignorar outros tipos (present, vacation, etc.)
         
-        # Se jÃ¡ existe um registro para esse dia, manter o de maior prioridade
+        # Se já existe um registro para esse dia, manter o de maior prioridade
         if key not in unique_days:
             unique_days[key] = normalized
         else:
@@ -20054,7 +20061,7 @@ def get_people_intelligence_metrics(session: Session, shift: str, start_date: Op
             if priority.get(normalized, 0) > priority.get(unique_days[key], 0):
                 unique_days[key] = normalized
     
-    # Contadores gerais (Dias ÃšNICOS)
+    # Contadores gerais (Dias ÚNICOS)
     total_absences = sum(1 for v in unique_days.values() if v == 'falta')
     total_sick = sum(1 for v in unique_days.values() if v == 'atestado')
     total_away = sum(1 for v in unique_days.values() if v == 'afastamento')
@@ -20266,7 +20273,7 @@ async def people_intelligence_report(
     # Generate status labels for display
     status_labels = {
         'active': 'Ativos',
-        'vacation': 'FÃ©rias',
+        'vacation': 'Férias',
         'away': 'Afastados', 
         'fired': 'Demitidos'
     }
@@ -20289,7 +20296,7 @@ async def people_intelligence_report(
 
 
 @app.get("/smart-flow/load", response_class=JSONResponse, dependencies=[Depends(require_leader)])
-async def smart_flow_load(request: Request, shift: str = "ManhÃ£", date: Optional[str] = None, session: Session = Depends(get_session)):
+async def smart_flow_load(request: Request, shift: str = "Manhã", date: Optional[str] = None, session: Session = Depends(get_session)):
     try:
         now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
         if not date:
@@ -20312,10 +20319,10 @@ async def smart_flow_load(request: Request, shift: str = "ManhÃ£", date: Optio
         if not sector_config or not isinstance(sector_config, dict) or "sectors" not in sector_config:
             sector_config = {
                 "sectors": [
-                    { "key": "recebimento", "label": "Recebimento", "target": 0, "subsectors": ["Doca 1", "Doca 2", "PaletizaÃ§Ã£o"] },
-                    { "key": "camara_fria", "label": "CÃ¢mara Fria", "target": 0, "subsectors": ["Armazenagem", "Abastecimento"] },
-                    { "key": "selecao", "label": "SeleÃ§Ã£o", "target": 0, "subsectors": ["Linha 1", "Linha 2"] },
-                    { "key": "expedicao", "label": "ExpediÃ§Ã£o", "target": 0, "subsectors": ["SeparaÃ§Ã£o", "Carregamento"] }
+                    { "key": "recebimento", "label": "Recebimento", "target": 0, "subsectors": ["Doca 1", "Doca 2", "Paletização"] },
+                    { "key": "camara_fria", "label": "Câmara Fria", "target": 0, "subsectors": ["Armazenagem", "Abastecimento"] },
+                    { "key": "selecao", "label": "Seleção", "target": 0, "subsectors": ["Linha 1", "Linha 2"] },
+                    { "key": "expedicao", "label": "Expedição", "target": 0, "subsectors": ["Separação", "Carregamento"] }
                 ]
             }
 
@@ -20343,40 +20350,50 @@ async def smart_flow_load(request: Request, shift: str = "ManhÃ£", date: Optio
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
 
-# --- MÃ³dulo LÃ­der: Checklists em dia, Rotas, Tarefas ---
+# --- Módulo Líder: Checklists em dia, Rotas, Tarefas ---
 
 @app.get("/lider/checklists", response_class=HTMLResponse, dependencies=[Depends(require_leader)])
 async def lider_checklists_page(
     request: Request,
     date: Optional[str] = None,
-    shift: str = "ManhÃ£",
+    shift: str = "Manhã",
     session: Session = Depends(get_session),
 ):
-    """PÃ¡gina: quem nÃ£o fez checklist (paleteira) no dia/turno."""
+    """Página: quem não fez checklist de veículo no dia/turno."""
     user = require_login(request)
     if not date:
         date = datetime.now().strftime("%Y-%m-%d")
+
+    shift_norm = normalize_shift(shift)
+    shift_display = shift_display_label(shift_norm)
+
     # Quem deveria fazer: mobile_access_checklist e ativo no turno
-    employees = session.exec(
+    all_expected = session.exec(
         select(models.Employee)
         .where(models.Employee.status != "fired")
-        .where(models.Employee.work_shift == shift)
         .where(models.Employee.mobile_access_checklist == True)
     ).all()
+    employees = [e for e in all_expected if normalize_shift(getattr(e, "work_shift", "")) == shift_norm]
+
     # Quem fez checklist na data/turno
     done_ids = set()
-    for row in session.exec(
-        select(models.TranspalletChecklist.employee_id)
+    checklist_rows = session.exec(
+        select(models.TranspalletChecklist)
         .where(models.TranspalletChecklist.date == date)
-        .where(models.TranspalletChecklist.shift == shift)
-    ).all():
-        done_ids.add(row)
+    ).all()
+    for row in checklist_rows:
+        if normalize_shift(getattr(row, "shift", "")) != shift_norm:
+            continue
+        if row.employee_id:
+            done_ids.add(row.employee_id)
+
     missing = [e for e in employees if e.id not in done_ids]
     return templates.TemplateResponse("lider_checklists.html", {
         "request": request,
         "user": user,
         "current_date": date,
-        "current_shift": shift,
+        "current_shift": shift_display,
+        "missing_veiculos": missing,
         "missing_paleteira": missing,
         "total_expected": len(employees),
         "total_done": len(done_ids),
@@ -20387,52 +20404,107 @@ async def lider_checklists_page(
 async def lider_rotas_page(
     request: Request,
     date: Optional[str] = None,
-    shift: str = "ManhÃ£",
+    shift: str = "Manhã",
     session: Session = Depends(get_session),
 ):
-    """PÃ¡gina: quem nÃ£o estÃ¡ no app fazendo rota + velocidade da equipe."""
+    """Página: avaliação de motoristas e ajudantes (rotas/sessões) por dia/turno."""
     user = require_login(request)
     if not date:
         date = datetime.now().strftime("%Y-%m-%d")
-    # Quem deveria estar no app: mobile_access_separation, ativo, turno do dia
-    expected = session.exec(
+
+    shift_norm = normalize_shift(shift)
+    shift_display = shift_display_label(shift_norm)
+
+    # Motoristas esperados no app
+    all_drivers = session.exec(
         select(models.Employee)
         .where(models.Employee.status != "fired")
-        .where(models.Employee.work_shift == shift)
         .where(models.Employee.mobile_access_separation == True)
     ).all()
-    expected_ids = {e.id for e in expected}
-    # Quem tem rota no dia/turno
-    routes = session.exec(
+    expected_drivers = [e for e in all_drivers if normalize_shift(getattr(e, "work_shift", "")) == shift_norm]
+    expected_driver_ids = {e.id for e in expected_drivers}
+
+    # Ajudantes esperados no app
+    all_helpers = session.exec(
+        select(models.Employee)
+        .where(models.Employee.status != "fired")
+        .where(models.Employee.mobile_access_helper == True)
+    ).all()
+    expected_helpers = [e for e in all_helpers if normalize_shift(getattr(e, "work_shift", "")) == shift_norm]
+
+    # Rotas do dia/turno (somente entrega)
+    routes_day = session.exec(
         select(models.Route)
         .where(models.Route.date == date)
-        .where(models.Route.shift == shift)
+        .where(models.Route.type == "delivery")
     ).all()
-    with_route_ids = {r.employee_id for r in routes}
-    missing_route = [e for e in expected if e.id not in with_route_ids]
-    # Velocidade: kg/h por colaborador e total
+    routes = [r for r in routes_day if normalize_shift(getattr(r, "shift", "")) == shift_norm]
+
+    with_route_driver_ids = {r.employee_id for r in routes if r.employee_id}
+    missing_route_drivers = [e for e in expected_drivers if e.id not in with_route_driver_ids]
+
+    # Velocidade: kg/h por motorista (8h de referência)
     emp_tonnage = {}
     for r in routes:
         emp_tonnage[r.employee_id] = emp_tonnage.get(r.employee_id, 0) + (r.tonnage or 0)
     total_tonnage = sum(emp_tonnage.values())
-    # Calcular kg/h aproximado (horas no turno: 8h)
+
     hours_shift = 8.0
-    velocity_list = []
-    for e in expected:
+    driver_velocity = []
+    for e in expected_drivers:
         kg = emp_tonnage.get(e.id, 0)
         kgh = kg / hours_shift if hours_shift else 0
-        velocity_list.append({"employee": e, "tonnage": kg, "kgh": round(kgh, 1)})
-    velocity_list.sort(key=lambda x: -x["tonnage"])
+        driver_velocity.append({"employee": e, "tonnage": kg, "kgh": round(kgh, 1)})
+    driver_velocity.sort(key=lambda x: -x["tonnage"])
+
+    # Sessoes do dia (origem de verdade para ajudantes logados com motorista)
+    sessions = session.exec(
+        select(models.DeliverySession).where(models.DeliverySession.date == date)
+    ).all()
+
+    helper_counts = {}
+    for ds in sessions:
+        if ds.employee_id not in expected_driver_ids:
+            continue
+        helper_names = _parse_session_helpers(ds.helpers_json)
+        for helper_name in helper_names:
+            key = helper_name.strip().lower()
+            if not key:
+                continue
+            helper_counts[key] = helper_counts.get(key, 0) + 1
+
+    helper_activity = []
+    missing_helpers = []
+    for h in expected_helpers:
+        key = (h.name or "").strip().lower()
+        sessions_count = helper_counts.get(key, 0)
+        item = {
+            "employee": h,
+            "sessions_count": sessions_count,
+            "is_active": sessions_count > 0,
+        }
+        helper_activity.append(item)
+        if sessions_count == 0:
+            missing_helpers.append(h)
+    helper_activity.sort(key=lambda x: x["sessions_count"], reverse=True)
+
     return templates.TemplateResponse("lider_rotas.html", {
         "request": request,
         "user": user,
         "current_date": date,
-        "current_shift": shift,
-        "missing_route": missing_route,
-        "velocity_list": velocity_list,
+        "current_shift": shift_display,
+        "missing_route": missing_route_drivers,
+        "missing_route_drivers": missing_route_drivers,
+        "driver_velocity": driver_velocity,
+        "velocity_list": driver_velocity,
+        "helper_activity": helper_activity,
+        "missing_helpers": missing_helpers,
         "total_tonnage": total_tonnage,
-        "total_with_route": len(with_route_ids),
-        "total_expected": len(expected),
+        "total_with_route": len(with_route_driver_ids),
+        "total_expected": len(expected_drivers),
+        "total_expected_drivers": len(expected_drivers),
+        "total_expected_helpers": len(expected_helpers),
+        "total_helpers_active": sum(1 for x in helper_activity if x["is_active"]),
     })
 
 
@@ -20444,13 +20516,13 @@ async def lider_rotas_relatorio_page(
     shift: str = "Todos",
     session: Session = Depends(get_session),
 ):
-    """RelatÃ³rio de dias sem rota por colaborador - para impressÃ£o."""
+    """Relatório de dias sem rota por colaborador - para impressão."""
     user = require_login(request)
     br_tz = ZoneInfo("America/Sao_Paulo")
     now = datetime.now(br_tz)
     today = now.date()
     
-    # Defaults para primeiro dia do mÃªs atÃ© hoje
+    # Defaults para primeiro dia do mês até hoje
     if not start_date:
         first_day = date(today.year, today.month, 1)
     else:
@@ -20467,11 +20539,11 @@ async def lider_rotas_relatorio_page(
         except:
             last_day = today
     
-    # Limitar ao dia atual - nÃ£o considerar dias futuros como ausÃªncia
+    # Limitar ao dia atual - não considerar dias futuros como ausência
     if last_day > today:
         last_day = today
     
-    # Gerar lista de dias do mÃªs (somente atÃ© hoje, sem dias futuros)
+    # Gerar lista de dias do mês (somente até hoje, sem dias futuros)
     all_days = []
     current = first_day
     while current <= last_day:
@@ -20491,7 +20563,7 @@ async def lider_rotas_relatorio_page(
     emp_map = {e.id: e for e in employees}
     emp_ids = list(emp_map.keys())
     
-    # Buscar todas as rotas do perÃ­odo
+    # Buscar todas as rotas do período
     routes = session.exec(
         select(models.Route)
         .where(models.Route.date >= first_day.strftime("%Y-%m-%d"))
@@ -20506,7 +20578,7 @@ async def lider_rotas_relatorio_page(
             routes_by_emp[r.employee_id] = set()
         routes_by_emp[r.employee_id].add(r.date)
     
-    # Buscar rotinas para saber dias de folga/fÃ©rias/atestado (para nÃ£o contar como falta de rota)
+    # Buscar rotinas para saber dias de folga/férias/atestado (para não contar como falta de rota)
     routines = session.exec(
         select(models.EmployeeRoutine)
         .where(models.EmployeeRoutine.date >= first_day.strftime("%Y-%m-%d"))
@@ -20524,16 +20596,16 @@ async def lider_rotas_relatorio_page(
     # Calcular dias sem rota por colaborador
     report_data = []
     total_missing = 0
-    total_no_app = 0  # Total de dias que nÃ£o abriram o app
+    total_no_app = 0  # Total de dias que não abriram o app
     
-    # Mapa de dias da semana em inglÃªs para comparaÃ§Ã£o
+    # Mapa de dias da semana em inglês para comparação
     weekday_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     
     for emp_id, emp in emp_map.items():
         emp_routes = routes_by_emp.get(emp_id, set())
         emp_routines = routines_by_emp.get(emp_id, {})
         
-        # Obter dias de trabalho do colaborador (padrÃ£o: segunda a sÃ¡bado)
+        # Obter dias de trabalho do colaborador (padrão: segunda a sábado)
         work_days_list = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
         try:
             if emp.work_days:
@@ -20542,69 +20614,69 @@ async def lider_rotas_relatorio_page(
         except:
             pass
         
-        # Dias sem rota (excluindo fÃ©rias, folga, atestado, afastamento)
+        # Dias sem rota (excluindo férias, folga, atestado, afastamento)
         missing_days = []
         justified_days = []
-        no_app_days = []  # Dias que nÃ£o abriu o app (sem rota E sem rotina)
+        no_app_days = []  # Dias que não abriu o app (sem rota E sem rotina)
         
-        # Verificar datas de fÃ©rias do colaborador (vacation_start e vacation_end)
+        # Verificar datas de férias do colaborador (vacation_start e vacation_end)
         emp_vacation_start = None
         emp_vacation_end = None
         if emp.vacation_start and emp.vacation_end:
             emp_vacation_start = emp.vacation_start.date() if hasattr(emp.vacation_start, 'date') else emp.vacation_start
             emp_vacation_end = emp.vacation_end.date() if hasattr(emp.vacation_end, 'date') else emp.vacation_end
         
-        # Verificar se colaborador estÃ¡ afastado
+        # Verificar se colaborador está afastado
         emp_is_away = emp.status == 'away'
         
         for day_str in all_days:
             day_date = datetime.strptime(day_str, "%Y-%m-%d").date()
             day_weekday = weekday_names[day_date.weekday()]
             
-            # Verificar se Ã© dia de trabalho do colaborador
+            # Verificar se é dia de trabalho do colaborador
             if day_weekday not in work_days_list:
-                continue  # NÃ£o Ã© dia de trabalho, pular
+                continue  # Não é dia de trabalho, pular
             
-            # Ignorar dias futuros (nÃ£o pode faltar em dia que ainda nÃ£o chegou)
+            # Ignorar dias futuros (não pode faltar em dia que ainda não chegou)
             if day_date > now.date():
                 continue
             
             routine = emp_routines.get(day_str, None)  # None = sem rotina registrada
             
-            # NOVA VERIFICAÃƒâ€¡ÃƒÃ†Ã¢â‚¬â„¢O: Checar se o dia estÃ¡ dentro do perÃ­odo de fÃ©rias do colaborador
+            # NOVA VERIFICAÃ‡ÃÆâ€™O: Checar se o dia está dentro do período de férias do colaborador
             is_vacation_period = False
             if emp_vacation_start and emp_vacation_end:
                 if emp_vacation_start <= day_date <= emp_vacation_end:
                     is_vacation_period = True
             
-            # LÃ³gica de presenÃ§a:
+            # Lógica de presença:
             # 1. Se tem Route = TRABALHOU
             # 2. Se tem EmployeeRoutine com routine="present" = TRABALHOU (fluxo operacional)
-            # 3. Se estÃ¡ no perÃ­odo de fÃ©rias (vacation_start/vacation_end) = JUSTIFICADO
-            # 4. Se estÃ¡ afastado (status=away) = JUSTIFICADO
+            # 3. Se está no período de férias (vacation_start/vacation_end) = JUSTIFICADO
+            # 4. Se está afastado (status=away) = JUSTIFICADO
             # 5. Se tem justificativa na rotina (vacation, sick, away, dayoff) = JUSTIFICADO
             # 6. Se tem routine="absent" = FALTA REGISTRADA
-            # 7. Se nÃ£o tem rota E nÃ£o tem rotina = NÃƒÃ†Ã¢â‚¬â„¢O ABRIU APP
+            # 7. Se não tem rota E não tem rotina = NÃÆâ€™O ABRIU APP
             
             has_route = day_str in emp_routes
             
             if has_route or routine == "present":
-                # Colaborador trabalhou (tem rota OU marcou presenÃ§a no fluxo operacional)
-                continue  # NÃ£o Ã© ausÃªncia
+                # Colaborador trabalhou (tem rota OU marcou presença no fluxo operacional)
+                continue  # Não é ausência
             elif is_vacation_period:
-                # Colaborador estava de fÃ©rias (baseado em vacation_start/vacation_end)
+                # Colaborador estava de férias (baseado em vacation_start/vacation_end)
                 justified_days.append({
                     "date": day_str,
                     "reason": "Ferias"
                 })
             elif emp_is_away:
-                # Colaborador estÃ¡ afastado (status=away)
+                # Colaborador está afastado (status=away)
                 justified_days.append({
                     "date": day_str,
                     "reason": "Afastado"
                 })
             elif routine in ("vacation", "sick", "away", "dayoff"):
-                # Justificado via rotina diÃ¡ria - nÃ£o deveria trabalhar
+                # Justificado via rotina diária - não deveria trabalhar
                 justified_days.append({
                     "date": day_str,
                     "reason": {
@@ -20618,10 +20690,10 @@ async def lider_rotas_relatorio_page(
                 # Falta registrada explicitamente
                 missing_days.append(day_str)
             elif routine is None and not has_route:
-                # NÃ£o abriu o app - sem rota e sem rotina registrada
+                # Não abriu o app - sem rota e sem rotina registrada
                 no_app_days.append(day_str)
         
-        # Calcular dias trabalhados: dias com rota OU com presenÃ§a registrada no fluxo operacional
+        # Calcular dias trabalhados: dias com rota OU com presença registrada no fluxo operacional
         days_with_presence = {d for d, r in emp_routines.items() if r == "present"}
         total_worked_days = len(emp_routes.union(days_with_presence))
         
@@ -20639,7 +20711,7 @@ async def lider_rotas_relatorio_page(
             total_missing += len(missing_days)
             total_no_app += len(no_app_days)
     
-    # Ordenar por quantidade de ausÃªncias (faltas + nÃ£o abriu app, maior primeiro)
+    # Ordenar por quantidade de ausências (faltas + não abriu app, maior primeiro)
     report_data.sort(key=lambda x: (x["total_missing"] + x["total_no_app"]), reverse=True)
     
     return templates.TemplateResponse("lider_rotas_relatorio.html", {
@@ -20660,7 +20732,7 @@ async def lider_rotas_relatorio_page(
 
 @app.get("/lider/tarefas", response_class=HTMLResponse, dependencies=[Depends(require_leader)])
 async def lider_tarefas_page(request: Request, session: Session = Depends(get_session)):
-    """PÃ¡gina: listar e criar tarefas para colaboradores."""
+    """Página: listar e criar tarefas para colaboradores."""
     user = require_login(request)
     tasks = session.exec(
         select(models.LeaderTask)
@@ -20689,7 +20761,7 @@ async def api_lider_create_task(
         body = await request.json()
         title = (body.get("title") or "").strip()
         if not title:
-            return JSONResponse({"error": "TÃ­tulo Ã© obrigatÃ³rio"}, status_code=400)
+            return JSONResponse({"error": "Título é obrigatório"}, status_code=400)
         description = (body.get("description") or "").strip() or None
         priority = (body.get("priority") or "medium").strip().lower()
         if priority not in ("low", "medium", "high"):
@@ -20705,7 +20777,7 @@ async def api_lider_create_task(
                 due_at = datetime.fromisoformat(body["due_at"].replace("Z", "+00:00"))
             except Exception:
                 pass
-        username = (user.get("username") or user.get("name") or "lÃ­der") if isinstance(user, dict) else "lÃ­der"
+        username = (user.get("username") or user.get("name") or "líder") if isinstance(user, dict) else "líder"
         task = models.LeaderTask(
             title=title,
             description=description,
@@ -20726,7 +20798,7 @@ async def api_lider_create_task(
 
 @app.get("/api/lider/tarefas", response_class=JSONResponse, dependencies=[Depends(require_leader)])
 async def api_lider_list_tasks(request: Request, session: Session = Depends(get_session)):
-    """Lista tarefas (lÃ­der)."""
+    """Lista tarefas (líder)."""
     require_login(request)
     tasks = session.exec(
         select(models.LeaderTask)
@@ -20790,12 +20862,12 @@ async def api_marcar_tarefa_visto(
     db_user = session.get(models.User, user_id) if user_id else None
     emp_id = db_user.employee_id if db_user else None
     if not emp_id:
-        return JSONResponse({"error": "Colaborador nÃ£o identificado"}, status_code=403)
+        return JSONResponse({"error": "Colaborador não identificado"}, status_code=403)
     task = session.get(models.LeaderTask, task_id)
     if not task or task.status != "sent":
-        return JSONResponse({"error": "Tarefa nÃ£o encontrada"}, status_code=404)
+        return JSONResponse({"error": "Tarefa não encontrada"}, status_code=404)
     if emp_id not in (task.recipient_employee_ids or []):
-        return JSONResponse({"error": "Tarefa nÃ£o Ã© sua"}, status_code=403)
+        return JSONResponse({"error": "Tarefa não é sua"}, status_code=403)
     existing = session.exec(
         select(models.LeaderTaskResponse)
         .where(models.LeaderTaskResponse.task_id == task_id)
@@ -20819,18 +20891,18 @@ async def api_concluir_tarefa(
     task_id: int,
     session: Session = Depends(get_session),
 ):
-    """Colaborador marca tarefa como concluÃ­da."""
+    """Colaborador marca tarefa como concluída."""
     user = require_login(request)
     user_id = (user.get("id") if isinstance(user, dict) else None)
     db_user = session.get(models.User, user_id) if user_id else None
     emp_id = db_user.employee_id if db_user else None
     if not emp_id:
-        return JSONResponse({"error": "Colaborador nÃ£o identificado"}, status_code=403)
+        return JSONResponse({"error": "Colaborador não identificado"}, status_code=403)
     task = session.get(models.LeaderTask, task_id)
     if not task or task.status != "sent":
-        return JSONResponse({"error": "Tarefa nÃ£o encontrada"}, status_code=404)
+        return JSONResponse({"error": "Tarefa não encontrada"}, status_code=404)
     if emp_id not in (task.recipient_employee_ids or []):
-        return JSONResponse({"error": "Tarefa nÃ£o Ã© sua"}, status_code=403)
+        return JSONResponse({"error": "Tarefa não é sua"}, status_code=403)
     try:
         body = await request.json()
     except Exception:
@@ -20858,11 +20930,11 @@ async def api_concluir_tarefa(
     return {"success": True}
 
 
-# --- API de Alertas para LÃ­deres ---
+# --- API de Alertas para Líderes ---
 
 @app.get("/api/lider/alertas", response_class=JSONResponse)
 async def api_lider_alertas(request: Request, session: Session = Depends(get_session)):
-    """Retorna alertas importantes para o lÃ­der logado."""
+    """Retorna alertas importantes para o líder logado."""
     user = require_leader(request)
     user_id = user.get("id") if isinstance(user, dict) else None
     user_role = user.get("role", "").lower() if isinstance(user, dict) else ""
@@ -20878,7 +20950,7 @@ async def api_lider_alertas(request: Request, session: Session = Depends(get_ses
     today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
     now = datetime.now(ZoneInfo("America/Sao_Paulo"))
     
-    # 1. Ordens de serviÃ§o pendentes do lÃ­der
+    # 1. Ordens de serviço pendentes do líder
     if user_id:
         executions = session.exec(
             select(models.OperationalTaskExecution)
@@ -20914,9 +20986,9 @@ async def api_lider_alertas(request: Request, session: Session = Depends(get_ses
                 else:
                     alertas["ordens_pendentes"].append(item)
     
-    # 2. Colaboradores sem rota hoje (apenas para lÃ­deres/admins)
+    # 2. Colaboradores sem rota hoje (apenas para líderes/admins)
     if user_role in ("leader", "admin"):
-        # Buscar colaboradores que deveriam ter rota hoje mas nÃ£o tÃªm
+        # Buscar colaboradores que deveriam ter rota hoje mas não têm
         employees_with_route = session.exec(
             select(models.Route.employee_id)
             .where(models.Route.date == today)
@@ -20937,7 +21009,7 @@ async def api_lider_alertas(request: Request, session: Session = Depends(get_ses
             if routine.employee_id not in employee_ids_with_route:
                 emp = session.get(models.Employee, routine.employee_id)
                 if emp and emp.status == "active":
-                    # Verificar se deveria ter rota (colaborador de separaÃ§Ã£o)
+                    # Verificar se deveria ter rota (colaborador de separação)
                     if emp.role and "separ" in emp.role.lower():
                         alertas["colaboradores_sem_rota"].append({
                             "id": emp.id,
@@ -20976,10 +21048,10 @@ async def api_lider_alertas(request: Request, session: Session = Depends(get_ses
     return alertas
 
 
-# --- GM: Ordens de ServiÃ§o Operacionais ---
+# --- GM: Ordens de Serviço Operacionais ---
 
 def require_gm(request: Request):
-    """Verifica se o usuÃ¡rio Ã© GM (admin) para acessar ordens de serviÃ§o."""
+    """Verifica se o usuário é GM (admin) para acessar ordens de serviço."""
     user = require_login(request)
     role = user.get("role", "").lower() if isinstance(user, dict) else ""
     if role not in ("admin", "gm"):
@@ -20989,7 +21061,7 @@ def require_gm(request: Request):
 
 @app.get("/gm/ordens-servico", response_class=HTMLResponse)
 async def gm_ordens_servico_page(request: Request, session: Session = Depends(get_session)):
-    """PÃ¡gina principal: criar e gerenciar ordens de serviÃ§o."""
+    """Página principal: criar e gerenciar ordens de serviço."""
     user = require_gm(request)
     
     # Buscar tarefas ativas
@@ -20999,21 +21071,21 @@ async def gm_ordens_servico_page(request: Request, session: Session = Depends(ge
         .order_by(desc(models.OperationalTask.created_at))
     ).all()
     
-    # Buscar lÃ­deres (usuÃ¡rios com role leader)
+    # Buscar líderes (usuários com role leader)
     leaders = session.exec(
         select(models.User)
         .where(models.User.role == "leader")
         .where(models.User.is_active == True)
     ).all()
     
-    # Buscar execuÃ§Ãµes do dia para mostrar status
+    # Buscar execuções do dia para mostrar status
     today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
     executions_today = session.exec(
         select(models.OperationalTaskExecution)
         .where(models.OperationalTaskExecution.scheduled_date == today)
     ).all()
     
-    # Mapear execuÃ§Ãµes por task_id e user_id
+    # Mapear execuções por task_id e user_id
     exec_map = {}
     for ex in executions_today:
         key = (ex.task_id, ex.user_id)
@@ -21031,13 +21103,13 @@ async def gm_ordens_servico_page(request: Request, session: Session = Depends(ge
 
 @app.post("/api/gm/ordens-servico", response_class=JSONResponse)
 async def api_gm_create_ordem(request: Request, session: Session = Depends(get_session)):
-    """Criar nova ordem de serviÃ§o."""
+    """Criar nova ordem de serviço."""
     user = require_gm(request)
     try:
         body = await request.json()
         title = (body.get("title") or "").strip()
         if not title:
-            return JSONResponse({"error": "TÃ­tulo Ã© obrigatÃ³rio"}, status_code=400)
+            return JSONResponse({"error": "Título é obrigatório"}, status_code=400)
         
         description = (body.get("description") or "").strip() or None
         category = (body.get("category") or "geral").strip().lower()
@@ -21118,17 +21190,17 @@ async def api_gm_create_ordem(request: Request, session: Session = Depends(get_s
         session.commit()
         session.refresh(task)
         
-        # Gerar execuÃ§Ãµes para hoje se aplicÃ¡vel
+        # Gerar execuções para hoje se aplicável
         generate_executions_for_task(session, task)
         
         return {"success": True, "task_id": task.id}
     except Exception as e:
-        logger.exception("Erro ao criar ordem de serviÃ§o")
+        logger.exception("Erro ao criar ordem de serviço")
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
 def generate_executions_for_task(session: Session, task: models.OperationalTask, target_date: str = None):
-    """Gera execuÃ§Ãµes para uma tarefa em uma data especÃ­fica."""
+    """Gera execuções para uma tarefa em uma data específica."""
     if target_date is None:
         target_date = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
     
@@ -21140,7 +21212,7 @@ def generate_executions_for_task(session: Session, task: models.OperationalTask,
     should_execute = False
     
     if task.recurrence_type == "once":
-        # Tarefa Ãºnica - executar se foi criada hoje ou se valid_from Ã© hoje
+        # Tarefa única - executar se foi criada hoje ou se valid_from é hoje
         if task.valid_from:
             should_execute = task.valid_from.strftime("%Y-%m-%d") == target_date
         else:
@@ -21161,9 +21233,9 @@ def generate_executions_for_task(session: Session, task: models.OperationalTask,
     if task.valid_until and target_dt > task.valid_until.replace(tzinfo=None):
         return
     
-    # Criar execuÃ§Ã£o para cada lÃ­der responsÃ¡vel
+    # Criar execução para cada líder responsável
     for user_id in (task.recipient_user_ids or []):
-        # Verificar se jÃ¡ existe execuÃ§Ã£o para este lÃ­der nesta data
+        # Verificar se já existe execução para este líder nesta data
         existing = session.exec(
             select(models.OperationalTaskExecution)
             .where(models.OperationalTaskExecution.task_id == task.id)
@@ -21185,7 +21257,7 @@ def generate_executions_for_task(session: Session, task: models.OperationalTask,
 
 @app.get("/api/gm/ordens-servico", response_class=JSONResponse)
 async def api_gm_list_ordens(request: Request, session: Session = Depends(get_session)):
-    """Listar ordens de serviÃ§o."""
+    """Listar ordens de serviço."""
     require_gm(request)
     tasks = session.exec(
         select(models.OperationalTask)
@@ -21213,11 +21285,11 @@ async def api_gm_list_ordens(request: Request, session: Session = Depends(get_se
 
 @app.put("/api/gm/ordens-servico/{task_id}", response_class=JSONResponse)
 async def api_gm_update_ordem(task_id: int, request: Request, session: Session = Depends(get_session)):
-    """Atualizar ordem de serviÃ§o."""
+    """Atualizar ordem de serviço."""
     require_gm(request)
     task = session.get(models.OperationalTask, task_id)
     if not task:
-        return JSONResponse({"error": "Tarefa nÃ£o encontrada"}, status_code=404)
+        return JSONResponse({"error": "Tarefa não encontrada"}, status_code=404)
     
     try:
         body = await request.json()
@@ -21251,17 +21323,17 @@ async def api_gm_update_ordem(task_id: int, request: Request, session: Session =
         
         return {"success": True}
     except Exception as e:
-        logger.exception("Erro ao atualizar ordem de serviÃ§o")
+        logger.exception("Erro ao atualizar ordem de serviço")
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
 @app.delete("/api/gm/ordens-servico/{task_id}", response_class=JSONResponse)
 async def api_gm_delete_ordem(task_id: int, request: Request, session: Session = Depends(get_session)):
-    """Arquivar ordem de serviÃ§o."""
+    """Arquivar ordem de serviço."""
     require_gm(request)
     task = session.get(models.OperationalTask, task_id)
     if not task:
-        return JSONResponse({"error": "Tarefa nÃ£o encontrada"}, status_code=404)
+        return JSONResponse({"error": "Tarefa não encontrada"}, status_code=404)
     
     task.status = "archived"
     task.updated_at = datetime.now()
@@ -21273,10 +21345,10 @@ async def api_gm_delete_ordem(task_id: int, request: Request, session: Session =
 
 @app.get("/gm/ordens-servico/historico", response_class=HTMLResponse)
 async def gm_ordens_historico_page(request: Request, session: Session = Depends(get_session)):
-    """PÃ¡gina de histÃ³rico de execuÃ§Ãµes."""
+    """Página de histórico de execuções."""
     user = require_gm(request)
     
-    # Buscar todas as execuÃ§Ãµes dos Ãºltimos 30 dias
+    # Buscar todas as execuções dos últimos 30 dias
     start_date = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=30)).strftime("%Y-%m-%d")
     
     executions = session.exec(
@@ -21285,7 +21357,7 @@ async def gm_ordens_historico_page(request: Request, session: Session = Depends(
         .order_by(desc(models.OperationalTaskExecution.scheduled_date))
     ).all()
     
-    # Enriquecer com dados da tarefa e lÃ­der
+    # Enriquecer com dados da tarefa e líder
     enriched = []
     for ex in executions:
         task = session.get(models.OperationalTask, ex.task_id)
@@ -21312,7 +21384,7 @@ async def api_gm_historico(
     status: Optional[str] = None,
     session: Session = Depends(get_session)
 ):
-    """API para buscar histÃ³rico de execuÃ§Ãµes com filtros."""
+    """API para buscar histórico de execuções com filtros."""
     require_gm(request)
     
     query = select(models.OperationalTaskExecution)
@@ -21336,10 +21408,10 @@ async def api_gm_historico(
         out.append({
             "id": ex.id,
             "task_id": ex.task_id,
-            "task_title": task.title if task else "â€”",
+            "task_title": task.title if task else "—",
             "scheduled_date": ex.scheduled_date,
             "user_id": ex.user_id,
-            "leader_name": leader.username if leader else "â€”",
+            "leader_name": leader.username if leader else "—",
             "status": ex.status,
             "started_at": ex.started_at.isoformat() if ex.started_at else None,
             "completed_at": ex.completed_at.isoformat() if ex.completed_at else None,
@@ -21353,17 +21425,17 @@ async def api_gm_historico(
 
 @app.get("/gm/ordens-servico/kpis", response_class=HTMLResponse)
 async def gm_ordens_kpis_page(request: Request, session: Session = Depends(get_session)):
-    """PÃ¡gina de KPIs dos lÃ­deres."""
+    """Página de KPIs dos líderes."""
     user = require_gm(request)
     
-    # Buscar lÃ­deres
+    # Buscar líderes
     leaders = session.exec(
         select(models.User)
         .where(models.User.role == "leader")
         .where(models.User.is_active == True)
     ).all()
     
-    # Calcular KPIs para cada lÃ­der (Ãºltimos 30 dias)
+    # Calcular KPIs para cada líder (últimos 30 dias)
     start_date = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=30)).strftime("%Y-%m-%d")
     
     kpis = []
@@ -21382,7 +21454,7 @@ async def gm_ordens_kpis_page(request: Request, session: Session = Depends(get_s
         not_done = len([e for e in executions if e.status == "not_done"])
         justified = len([e for e in executions if e.status == "justified"])
         
-        # Calcular taxa de conclusÃ£o
+        # Calcular taxa de conclusão
         completion_rate = (completed / total * 100) if total > 0 else 0
         
         # Calcular taxa de pontualidade (completadas no dia programado)
@@ -21397,10 +21469,10 @@ async def gm_ordens_kpis_page(request: Request, session: Session = Depends(get_s
         # Taxa de adiamento
         postpone_rate = (postponed / total * 100) if total > 0 else 0
         
-        # Taxa de nÃ£o execuÃ§Ã£o
+        # Taxa de não execução
         not_done_rate = (not_done / total * 100) if total > 0 else 0
         
-        # Score geral (fÃ³rmula ponderada)
+        # Score geral (fórmula ponderada)
         score = (
             completion_rate * 0.40 +
             punctuality_rate * 0.30 +
@@ -21441,7 +21513,7 @@ async def api_gm_kpis(
     end_date: Optional[str] = None,
     session: Session = Depends(get_session)
 ):
-    """API para buscar KPIs com filtro de perÃ­odo."""
+    """API para buscar KPIs com filtro de período."""
     require_gm(request)
     
     if not start_date:
@@ -21505,20 +21577,20 @@ async def api_gm_kpis(
     return kpis
 
 
-# --- Rotas para LÃDERES executarem as ordens ---
+# --- Rotas para LÍDERES executarem as ordens ---
 
 @app.get("/lider/minhas-ordens", response_class=HTMLResponse)
 async def lider_minhas_ordens_page(request: Request, session: Session = Depends(get_session)):
-    """PÃ¡gina do lÃ­der para ver e executar suas ordens de serviÃ§o."""
+    """Página do líder para ver e executar suas ordens de serviço."""
     user = require_leader(request)
     user_id = user.get("id") if isinstance(user, dict) else None
     
     if not user_id:
-        return HTMLResponse("UsuÃ¡rio nÃ£o identificado", status_code=403)
+        return HTMLResponse("Usuário não identificado", status_code=403)
     
     today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
     
-    # Gerar execuÃ§Ãµes do dia para todas as tarefas ativas
+    # Gerar execuções do dia para todas as tarefas ativas
     active_tasks = session.exec(
         select(models.OperationalTask)
         .where(models.OperationalTask.status == "active")
@@ -21528,7 +21600,7 @@ async def lider_minhas_ordens_page(request: Request, session: Session = Depends(
         if user_id in (task.recipient_user_ids or []):
             generate_executions_for_task(session, task, today)
     
-    # Buscar execuÃ§Ãµes do lÃ­der para hoje
+    # Buscar execuções do líder para hoje
     executions_today = session.exec(
         select(models.OperationalTaskExecution)
         .where(models.OperationalTaskExecution.user_id == user_id)
@@ -21546,7 +21618,7 @@ async def lider_minhas_ordens_page(request: Request, session: Session = Depends(
                 "task": task,
             })
     
-    # Buscar histÃ³rico recente (Ãºltimos 7 dias)
+    # Buscar histórico recente (últimos 7 dias)
     week_ago = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=7)).strftime("%Y-%m-%d")
     history = session.exec(
         select(models.OperationalTaskExecution)
@@ -21576,7 +21648,7 @@ async def lider_minhas_ordens_page(request: Request, session: Session = Depends(
 
 @app.get("/api/lider/minhas-ordens", response_class=JSONResponse)
 async def api_lider_minhas_ordens(request: Request, session: Session = Depends(get_session)):
-    """API: listar ordens do lÃ­der para hoje."""
+    """API: listar ordens do líder para hoje."""
     user = require_leader(request)
     user_id = user.get("id") if isinstance(user, dict) else None
     
@@ -21614,17 +21686,17 @@ async def api_lider_minhas_ordens(request: Request, session: Session = Depends(g
 
 @app.post("/api/lider/ordens/{execution_id}/iniciar", response_class=JSONResponse)
 async def api_lider_iniciar_ordem(execution_id: int, request: Request, session: Session = Depends(get_session)):
-    """LÃ­der inicia execuÃ§Ã£o da ordem."""
+    """Líder inicia execução da ordem."""
     user = require_leader(request)
     user_id = user.get("id") if isinstance(user, dict) else None
     
     execution = session.get(models.OperationalTaskExecution, execution_id)
     if not execution:
-        return JSONResponse({"error": "ExecuÃ§Ã£o nÃ£o encontrada"}, status_code=404)
+        return JSONResponse({"error": "Execução não encontrada"}, status_code=404)
     if execution.user_id != user_id:
-        return JSONResponse({"error": "Esta ordem nÃ£o Ã© sua"}, status_code=403)
+        return JSONResponse({"error": "Esta ordem não é sua"}, status_code=403)
     if execution.status not in ("pending",):
-        return JSONResponse({"error": f"Status atual ({execution.status}) nÃ£o permite iniciar"}, status_code=400)
+        return JSONResponse({"error": f"Status atual ({execution.status}) não permite iniciar"}, status_code=400)
     
     execution.status = "in_progress"
     execution.started_at = datetime.now(ZoneInfo("America/Sao_Paulo"))
@@ -21637,17 +21709,17 @@ async def api_lider_iniciar_ordem(execution_id: int, request: Request, session: 
 
 @app.post("/api/lider/ordens/{execution_id}/concluir", response_class=JSONResponse)
 async def api_lider_concluir_ordem(execution_id: int, request: Request, session: Session = Depends(get_session)):
-    """LÃ­der conclui execuÃ§Ã£o da ordem."""
+    """Líder conclui execução da ordem."""
     user = require_leader(request)
     user_id = user.get("id") if isinstance(user, dict) else None
     
     execution = session.get(models.OperationalTaskExecution, execution_id)
     if not execution:
-        return JSONResponse({"error": "ExecuÃ§Ã£o nÃ£o encontrada"}, status_code=404)
+        return JSONResponse({"error": "Execução não encontrada"}, status_code=404)
     if execution.user_id != user_id:
-        return JSONResponse({"error": "Esta ordem nÃ£o Ã© sua"}, status_code=403)
+        return JSONResponse({"error": "Esta ordem não é sua"}, status_code=403)
     if execution.status not in ("pending", "in_progress"):
-        return JSONResponse({"error": f"Status atual ({execution.status}) nÃ£o permite concluir"}, status_code=400)
+        return JSONResponse({"error": f"Status atual ({execution.status}) não permite concluir"}, status_code=400)
     
     try:
         body = await request.json()
@@ -21661,9 +21733,9 @@ async def api_lider_concluir_ordem(execution_id: int, request: Request, session:
     
     # Validar requisitos
     if task and task.requires_note and not note:
-        return JSONResponse({"error": "ObservaÃ§Ã£o Ã© obrigatÃ³ria para esta tarefa"}, status_code=400)
+        return JSONResponse({"error": "Observação é obrigatória para esta tarefa"}, status_code=400)
     if task and task.requires_photo and not photo_urls:
-        return JSONResponse({"error": "Foto Ã© obrigatÃ³ria para esta tarefa"}, status_code=400)
+        return JSONResponse({"error": "Foto é obrigatória para esta tarefa"}, status_code=400)
     
     execution.status = "completed"
     execution.completed_at = datetime.now(ZoneInfo("America/Sao_Paulo"))
@@ -21682,17 +21754,17 @@ async def api_lider_concluir_ordem(execution_id: int, request: Request, session:
 
 @app.post("/api/lider/ordens/{execution_id}/adiar", response_class=JSONResponse)
 async def api_lider_adiar_ordem(execution_id: int, request: Request, session: Session = Depends(get_session)):
-    """LÃ­der adia execuÃ§Ã£o da ordem."""
+    """Líder adia execução da ordem."""
     user = require_leader(request)
     user_id = user.get("id") if isinstance(user, dict) else None
     
     execution = session.get(models.OperationalTaskExecution, execution_id)
     if not execution:
-        return JSONResponse({"error": "ExecuÃ§Ã£o nÃ£o encontrada"}, status_code=404)
+        return JSONResponse({"error": "Execução não encontrada"}, status_code=404)
     if execution.user_id != user_id:
-        return JSONResponse({"error": "Esta ordem nÃ£o Ã© sua"}, status_code=403)
+        return JSONResponse({"error": "Esta ordem não é sua"}, status_code=403)
     if execution.status not in ("pending", "in_progress"):
-        return JSONResponse({"error": f"Status atual ({execution.status}) nÃ£o permite adiar"}, status_code=400)
+        return JSONResponse({"error": f"Status atual ({execution.status}) não permite adiar"}, status_code=400)
     
     try:
         body = await request.json()
@@ -21703,9 +21775,9 @@ async def api_lider_adiar_ordem(execution_id: int, request: Request, session: Se
     postpone_reason = (body.get("reason") or "").strip()
     
     if not postponed_to:
-        return JSONResponse({"error": "Nova data Ã© obrigatÃ³ria"}, status_code=400)
+        return JSONResponse({"error": "Nova data é obrigatória"}, status_code=400)
     if not postpone_reason:
-        return JSONResponse({"error": "Motivo do adiamento Ã© obrigatÃ³rio"}, status_code=400)
+        return JSONResponse({"error": "Motivo do adiamento é obrigatório"}, status_code=400)
     
     execution.status = "postponed"
     execution.postponed_to = postponed_to
@@ -21719,17 +21791,17 @@ async def api_lider_adiar_ordem(execution_id: int, request: Request, session: Se
 
 @app.post("/api/lider/ordens/{execution_id}/nao-fazer", response_class=JSONResponse)
 async def api_lider_nao_fazer_ordem(execution_id: int, request: Request, session: Session = Depends(get_session)):
-    """LÃ­der marca ordem como nÃ£o realizada."""
+    """Líder marca ordem como não realizada."""
     user = require_leader(request)
     user_id = user.get("id") if isinstance(user, dict) else None
     
     execution = session.get(models.OperationalTaskExecution, execution_id)
     if not execution:
-        return JSONResponse({"error": "ExecuÃ§Ã£o nÃ£o encontrada"}, status_code=404)
+        return JSONResponse({"error": "Execução não encontrada"}, status_code=404)
     if execution.user_id != user_id:
-        return JSONResponse({"error": "Esta ordem nÃ£o Ã© sua"}, status_code=403)
+        return JSONResponse({"error": "Esta ordem não é sua"}, status_code=403)
     if execution.status not in ("pending", "in_progress"):
-        return JSONResponse({"error": f"Status atual ({execution.status}) nÃ£o permite esta aÃ§Ã£o"}, status_code=400)
+        return JSONResponse({"error": f"Status atual ({execution.status}) não permite esta ação"}, status_code=400)
     
     try:
         body = await request.json()
@@ -21739,7 +21811,7 @@ async def api_lider_nao_fazer_ordem(execution_id: int, request: Request, session
     reason = (body.get("reason") or "").strip()
     
     if not reason:
-        return JSONResponse({"error": "Motivo Ã© obrigatÃ³rio"}, status_code=400)
+        return JSONResponse({"error": "Motivo é obrigatório"}, status_code=400)
     
     execution.status = "not_done"
     execution.not_done_reason = reason
@@ -21750,10 +21822,10 @@ async def api_lider_nao_fazer_ordem(execution_id: int, request: Request, session
     return {"success": True, "status": execution.status}
 
 
-# Job para gerar execuÃ§Ãµes diÃ¡rias (pode ser chamado por cron ou no startup)
+# Job para gerar execuções diárias (pode ser chamado por cron ou no startup)
 @app.post("/api/gm/ordens-servico/gerar-execucoes", response_class=JSONResponse)
 async def api_gm_gerar_execucoes(request: Request, session: Session = Depends(get_session)):
-    """Gera execuÃ§Ãµes para o dia atual para todas as tarefas ativas."""
+    """Gera execuções para o dia atual para todas as tarefas ativas."""
     require_gm(request)
     
     today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
@@ -21998,7 +22070,7 @@ async def api_update_route(
     try:
         route = session.get(models.Route, route_id)
         if not route:
-            return JSONResponse({"error": "Rota nÃ£o encontrada"}, status_code=404)
+            return JSONResponse({"error": "Rota não encontrada"}, status_code=404)
             
         if payload.tonnage is not None:
             route.tonnage = payload.tonnage
@@ -22028,7 +22100,7 @@ async def api_delete_route(route_id: int, session: Session = Depends(get_session
     try:
         route = session.get(models.Route, route_id)
         if not route:
-            return JSONResponse({"error": "Rota nÃ£o encontrada"}, status_code=404)
+            return JSONResponse({"error": "Rota não encontrada"}, status_code=404)
         
         target_date = route.date # Save date before delete
         session.delete(route)
@@ -22056,7 +22128,7 @@ async def admin_equipment_ticket_detail(
         require_login(request)
         ticket = session.get(models.EquipmentTicket, ticket_id)
         if not ticket:
-            return HTMLResponse("Chamado nÃ£o encontrado", status_code=404)
+            return HTMLResponse("Chamado não encontrado", status_code=404)
         
         employee = session.get(models.Employee, ticket.employee_id) if ticket.employee_id else None
         events = session.exec(
@@ -22105,7 +22177,7 @@ async def admin_equipment_ticket_delete(
         
     session.add(models.Event(
         timestamp=datetime.now(ZoneInfo("America/Sao_Paulo")),
-        text=f"Chamado #{ticket.id} EXCLUÃDO por {actor_label}.",
+        text=f"Chamado #{ticket.id} EXCLUÍDO por {actor_label}.",
         type="ticket_delete",
         category="audit",
         reference_type="ticket_deleted",
@@ -22195,22 +22267,22 @@ async def admin_checklists_test_email(
     actor_label = user.get("email") if isinstance(user, dict) else str(user or "Sistema")
     recipient = session.get(models.AbsenceAlertRecipient, recipient_id)
     if not recipient:
-        return admin_checklists_settings_redirect("E-mail nÃ£o encontrado.", "error")
+        return admin_checklists_settings_redirect("E-mail não encontrado.", "error")
         
     try:
         report = {
-            "subject": "ALERTA DE MANUTENÃƒâ€¡ÃƒÃ†Ã¢â‚¬â„¢O - TESTE",
-            "body": "Teste de envio de alerta de manutenÃ§Ã£o.",
+            "subject": "ALERTA DE MANUTENÃ‡ÃÆâ€™O - TESTE",
+            "body": "Teste de envio de alerta de manutenção.",
             "equipment_code": "EMP-TESTE-01",
             "operator_name": actor_label,
             "registered_by": actor_label,
             "operator_id": "00000",
-            "shift": "ManhÃ£",
-            "submitted_at": datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y Ã s %H:%M"),
-            "observations": "Este Ã© um e-mail de teste enviado pela tela de configuraÃ§Ãµes.",
+            "shift": "Manhã",
+            "submitted_at": datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y às %H:%M"),
+            "observations": "Este é um e-mail de teste enviado pela tela de configurações.",
             "nonconforming_items": [
                 {"label": "Freio de estacionamento", "critical": True},
-                {"label": "SinalizaÃ§Ã£o sonora", "critical": False},
+                {"label": "Sinalização sonora", "critical": False},
             ],
         }
         sent, error = send_maintenance_email(report, [recipient.email])
@@ -22222,7 +22294,7 @@ async def admin_checklists_test_email(
     return admin_checklists_settings_redirect(f"E-mail de teste enviado para {recipient.email}", "success")
 
 # ============================================================================
-# ABSENCE ALERTS (ADVERTÃŠNCIA) - ConfiguraÃ§Ã£o de E-mails
+# ABSENCE ALERTS (ADVERTÊNCIA) - Configuração de E-mails
 # ============================================================================
 
 def absence_alerts_settings_redirect(message: str, level: str = "success"):
@@ -22242,8 +22314,8 @@ def send_absence_alert_email(
     alert_type: str = "absent"
 ) -> tuple:
     """
-    Envia e-mail de alerta de ausÃªncia (falta, folga, atestado ou saÃ­da antecipada).
-    alert_type: 'absent' (falta/advertÃªncia), 'dayoff' (folga), 'sick' (atestado), 'early_exit' (saÃ­da antecipada)
+    Envia e-mail de alerta de ausência (falta, folga, atestado ou saída antecipada).
+    alert_type: 'absent' (falta/advertência), 'dayoff' (folga), 'sick' (atestado), 'early_exit' (saída antecipada)
     Retorna (success: bool, error: str ou None)
     """
     smtp_port = parse_int_env(SMTP_PORT_RAW, 587)
@@ -22251,7 +22323,7 @@ def send_absence_alert_email(
     recipient_list = [normalize_email(r) for r in recipients if normalize_email(r)]
     
     if not recipient_list:
-        return False, "Nenhum destinatÃ¡rio configurado"
+        return False, "Nenhum destinatário configurado"
     
     config_error = smtp_config_error(recipient_list)
     if config_error:
@@ -22272,20 +22344,20 @@ def send_absence_alert_email(
     
     days_text = f"{days} dia(s)" if days > 1 else "1 dia"
     
-    # ConfiguraÃ§Ã£o por tipo de alerta
+    # Configuração por tipo de alerta
     alert_configs = {
         "absent": {
-            "emoji": "ðŸš¨",
-            "title": "SOLICITAÃƒâ€¡ÃƒÃ†Ã¢â‚¬â„¢O DE ADVERTÃŠNCIA",
-            "subtitle": "Falta NÃ£o Justificada Registrada",
+            "emoji": "🚨",
+            "title": "SOLICITAÃ‡ÃÆâ€™O DE ADVERTÊNCIA",
+            "subtitle": "Falta Não Justificada Registrada",
             "type_label": "FALTA",
             "date_label": "Data da Falta",
             "color": "#dc2626",
-            "action": "Solicitamos a abertura de processo de advertÃªncia conforme procedimento interno."
+            "action": "Solicitamos a abertura de processo de advertência conforme procedimento interno."
         },
         "dayoff": {
-            "emoji": "Ã°Å¸Ã¢â‚¬Å“Ã¢â‚¬Â¦",
-            "title": "NOTIFICAÃƒâ€¡ÃƒÃ†Ã¢â‚¬â„¢O DE FOLGA",
+            "emoji": "ðŸâ€œâ€¦",
+            "title": "NOTIFICAÃ‡ÃÆâ€™O DE FOLGA",
             "subtitle": "Folga Registrada no Sistema",
             "type_label": "FOLGA",
             "date_label": "Data da Folga",
@@ -22293,29 +22365,29 @@ def send_absence_alert_email(
             "action": "Informamos para fins de controle de escala e planejamento operacional."
         },
         "sick": {
-            "emoji": "ðŸ¥",
-            "title": "NOTIFICAÃƒâ€¡ÃƒÃ†Ã¢â‚¬â„¢O DE ATESTADO MÃ‰DICO",
-            "subtitle": "Atestado MÃ©dico Registrado no Sistema",
-            "type_label": "ATESTADO MÌ‰Û¡DICO",
+            "emoji": "🏥",
+            "title": "NOTIFICAÃ‡ÃÆâ€™O DE ATESTADO MÉDICO",
+            "subtitle": "Atestado Médico Registrado no Sistema",
+            "type_label": "ATESTADO M̉ۡDICO",
             "date_label": "Data do Atestado",
             "color": "#d97706",
-            "action": "Informamos para fins de controle mÃ©dico e registro de afastamento."
+            "action": "Informamos para fins de controle médico e registro de afastamento."
         },
         "early_exit": {
-            "emoji": "â°",
-            "title": "NOTIFICAÃƒâ€¡ÃƒÃ†Ã¢â‚¬â„¢O DE SAÃDA ANTECIPADA",
-            "subtitle": "SaÃ­da antecipada registrada no sistema",
-            "type_label": "SAÃDA ANTECIPADA",
-            "date_label": "Data da SaÃ­da",
+            "emoji": "⏰",
+            "title": "NOTIFICAÃ‡ÃÆâ€™O DE SAÍDA ANTECIPADA",
+            "subtitle": "Saída antecipada registrada no sistema",
+            "type_label": "SAÍDA ANTECIPADA",
+            "date_label": "Data da Saída",
             "color": "#fb7185",
-            "action": "Solicitamos atualizaÃ§Ã£o do controle de jornada, conferÃªncia do ponto e validaÃ§Ã£o da saÃ­da antecipada."
+            "action": "Solicitamos atualização do controle de jornada, conferência do ponto e validação da saída antecipada."
         }
     }
     
     config = alert_configs.get(alert_type, alert_configs["absent"])
     
     # Montar assunto
-    subject = f"{config['emoji']} {config['title']} â€” {config['type_label']} â€” {employee.name}"
+    subject = f"{config['emoji']} {config['title']} — {config['type_label']} — {employee.name}"
     
     # Montar corpo do e-mail
     body_html = f"""
@@ -22339,7 +22411,7 @@ def send_absence_alert_email(
                             <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{employee.name}</td>
                         </tr>
                         <tr>
-                            <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>MatrÃ­cula:</strong></td>
+                            <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Matrícula:</strong></td>
                             <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{employee.registration_id}</td>
                         </tr>
                         <tr>
@@ -22355,7 +22427,7 @@ def send_absence_alert_email(
                             <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: {config['color']}; font-weight: bold;">{formatted_date}</td>
                         </tr>
                         <tr>
-                            <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>PerÃ­odo:</strong></td>
+                            <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Período:</strong></td>
                             <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">{days_text}</td>
                         </tr>
                         <tr>
@@ -22370,8 +22442,8 @@ def send_absence_alert_email(
                 <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
                 
                 <p style="font-size: 12px; color: #6b7280;">
-                    Este Ã© um e-mail automÃ¡tico gerado pelo sistema de AnÃ¡lise Operacional.<br>
-                    Data/Hora do registro: {datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y Ã s %H:%M")}
+                    Este é um e-mail automático gerado pelo sistema de Análise Operacional.<br>
+                    Data/Hora do registro: {datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y às %H:%M")}
                 </p>
             </div>
         </div>
@@ -22387,18 +22459,18 @@ Prezados,
 Informamos que o colaborador abaixo foi registrado com {config['type_label']} no sistema:
 
 - Colaborador: {employee.name}
-- MatrÃ­cula: {employee.registration_id}
+- Matrícula: {employee.registration_id}
 - Cargo: {employee.role or '-'}
 - Turno: {employee.work_shift or '-'}
 - {config['date_label']}: {formatted_date}
-- PerÃ­odo: {days_text}
+- Período: {days_text}
 - Registrado por: {registered_by}
 
 {config['action']}
 
 ---
-Este Ã© um e-mail automÃ¡tico gerado pelo sistema de AnÃ¡lise Operacional.
-Data/Hora do registro: {datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y Ã s %H:%M")}
+Este é um e-mail automático gerado pelo sistema de Análise Operacional.
+Data/Hora do registro: {datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y às %H:%M")}
     """
     
     msg = EmailMessage()
@@ -22451,12 +22523,12 @@ def send_absence_alert_email_background(
     alert_type: str
 ):
     """
-    FunÃ§Ã£o executada em background para enviar e-mail de alerta.
-    Recebe dados primitivos em vez de objetos SQLModel para evitar problemas de sessÃ£o.
+    Função executada em background para enviar e-mail de alerta.
+    Recebe dados primitivos em vez de objetos SQLModel para evitar problemas de sessão.
     """
     from database import get_session
     
-    # Criar objeto fake de employee apenas com os dados necessÃ¡rios para o e-mail
+    # Criar objeto fake de employee apenas com os dados necessários para o e-mail
     class EmployeeData:
         def __init__(self, id, name, registration_id, role, work_shift):
             self.id = id
@@ -22474,10 +22546,10 @@ def send_absence_alert_email_background(
     )
     
     alert_type_labels = {
-        "absent": "advertÃªncia",
+        "absent": "advertência",
         "dayoff": "folga",
         "sick": "atestado",
-        "early_exit": "saÃ­da antecipada"  # Logado como alerta especÃ­fico
+        "early_exit": "saída antecipada"  # Logado como alerta específico
     }
     
     try:
@@ -22492,7 +22564,7 @@ def send_absence_alert_email_background(
         )
         
         if email_sent:
-            # Registrar log no banco de dados usando nova sessÃ£o
+            # Registrar log no banco de dados usando nova sessão
             with Session(engine) as session:
                 alert_log = models.AbsenceAlertLog(
                     employee_id=employee_id,
@@ -22502,11 +22574,11 @@ def send_absence_alert_email_background(
                 )
                 session.add(alert_log)
                 session.commit()
-            print(f"Ã°Å¸Ã¢â‚¬Å“Â§ [Background] E-mail de {alert_type_labels.get(alert_type, 'alerta')} enviado para {len(recipients)} destinatÃ¡rio(s) - {employee_name}")
+            print(f"ðŸâ€œ§ [Background] E-mail de {alert_type_labels.get(alert_type, 'alerta')} enviado para {len(recipients)} destinatário(s) - {employee_name}")
         else:
-            print(f"âš ï¸ [Background] Falha ao enviar e-mail de {alert_type_labels.get(alert_type, 'alerta')}: {email_error}")
+            print(f"⚠️ [Background] Falha ao enviar e-mail de {alert_type_labels.get(alert_type, 'alerta')}: {email_error}")
     except Exception as exc:
-        print(f"âš ï¸ [Background] Erro ao processar envio de e-mail: {exc}")
+        print(f"⚠️ [Background] Erro ao processar envio de e-mail: {exc}")
         import traceback
         traceback.print_exc()
 
@@ -22518,7 +22590,7 @@ async def admin_absence_alerts_settings(
     session: Session = Depends(get_session),
     user=Depends(require_leader)
 ):
-    """PÃ¡gina de configuraÃ§Ã£o de alertas de falta (advertÃªncias)"""
+    """Página de configuração de alertas de falta (advertências)"""
     message = request.query_params.get("message")
     level = request.query_params.get("level", "success")
     
@@ -22532,9 +22604,9 @@ async def admin_absence_alerts_settings(
     absent_recipients = [r for r in recipients if getattr(r, 'alert_type', 'absent') == 'absent']
     dayoff_recipients = [r for r in recipients if getattr(r, 'alert_type', None) == 'dayoff']
     sick_recipients = [r for r in recipients if getattr(r, 'alert_type', None) == 'sick']
-    # Novo grupo de destinatÃ¡rios para saÃ­da antecipada
+    # Novo grupo de destinatários para saída antecipada
     early_exit_recipients = [r for r in recipients if getattr(r, 'alert_type', None) == 'early_exit']
-    # MigraÃ§Ã£o leve: espelha destinatÃ¡rios antigos de manutenÃ§Ã£o para a tabela setorial (com campo name/setor)
+    # Migração leve: espelha destinatários antigos de manutenção para a tabela setorial (com campo name/setor)
     legacy_maintenance = session.exec(
         select(models.ChecklistEmailRecipient).order_by(models.ChecklistEmailRecipient.email)
     ).all()
@@ -22564,7 +22636,7 @@ async def admin_absence_alerts_settings(
         .order_by(models.AbsenceAlertRecipient.email)
     ).all()
     
-    # Info SMTP para exibiÃ§Ã£o
+    # Info SMTP para exibição
     smtp_configured = bool(SMTP_HOST and SMTP_USER and SMTP_PASS)
     
     return templates.TemplateResponse(
@@ -22597,14 +22669,14 @@ async def admin_absence_alerts_add_email(
     session: Session = Depends(get_session),
     user=Depends(require_leader)
 ):
-    """Adiciona ou reativa um e-mail de destinatÃ¡rio de alertas de ausÃªncia"""
+    """Adiciona ou reativa um e-mail de destinatário de alertas de ausência"""
     email_normalized = normalize_email(email)
     if not email_normalized:
-        return absence_alerts_settings_redirect("E-mail invÃ¡lido.", "error")
+        return absence_alerts_settings_redirect("E-mail inválido.", "error")
     
     # Validar alert_type
     valid_types = ["absent", "dayoff", "sick", "early_exit"]
-    # 'early_exit' usa os mesmos destinatÃ¡rios das ausÃªncias crÃ­ticas
+    # 'early_exit' usa os mesmos destinatários das ausências críticas
     if alert_type not in valid_types:
         alert_type = "absent"
     
@@ -22612,11 +22684,11 @@ async def admin_absence_alerts_add_email(
         "absent": "Falta",
         "dayoff": "Folga",
         "sick": "Atestado",
-        "early_exit": "SaÃ­da antecipada"
+        "early_exit": "Saída antecipada"
     }
     type_label = type_labels.get(alert_type, "Falta")
     
-    # Verificar se jÃ¡ existe para este tipo
+    # Verificar se já existe para este tipo
     existing = session.exec(
         select(models.AbsenceAlertRecipient)
         .where(models.AbsenceAlertRecipient.email == email_normalized)
@@ -22625,7 +22697,7 @@ async def admin_absence_alerts_add_email(
     
     if existing:
         if existing.is_active:
-            return absence_alerts_settings_redirect(f"E-mail jÃ¡ cadastrado para {type_label}.", "error")
+            return absence_alerts_settings_redirect(f"E-mail já cadastrado para {type_label}.", "error")
         else:
             # Reativar
             existing.is_active = True
@@ -22654,10 +22726,10 @@ async def admin_absence_alerts_remove_email(
     session: Session = Depends(get_session),
     user=Depends(require_leader)
 ):
-    """Remove (desativa) um e-mail de destinatÃ¡rio de alertas de falta"""
+    """Remove (desativa) um e-mail de destinatário de alertas de falta"""
     recipient = session.get(models.AbsenceAlertRecipient, recipient_id)
     if not recipient:
-        return absence_alerts_settings_redirect("E-mail nÃ£o encontrado.", "error")
+        return absence_alerts_settings_redirect("E-mail não encontrado.", "error")
     
     recipient.is_active = False
     session.add(recipient)
@@ -22673,17 +22745,17 @@ async def admin_absence_alerts_test_email(
     session: Session = Depends(get_session),
     user=Depends(require_leader)
 ):
-    """Envia e-mail de teste para um destinatÃ¡rio"""
+    """Envia e-mail de teste para um destinatário"""
     recipient = session.get(models.AbsenceAlertRecipient, recipient_id)
     if not recipient:
-        return absence_alerts_settings_redirect("E-mail nÃ£o encontrado.", "error")
+        return absence_alerts_settings_redirect("E-mail não encontrado.", "error")
     
-    # Criar funcionÃ¡rio fictÃ­cio para teste
+    # Criar funcionário fictício para teste
     class MockEmployee:
-        name = "FUNCIONÃRIO TESTE"
+        name = "FUNCIONÁRIO TESTE"
         registration_id = "00000"
         role = "Colaborador de Teste"
-        work_shift = "ManhÃ£"
+        work_shift = "Manhã"
     
     mock_employee = MockEmployee()
     today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
@@ -22705,7 +22777,7 @@ async def admin_absence_alerts_test_email(
         "absent": "Falta",
         "dayoff": "Folga",
         "sick": "Atestado",
-        "early_exit": "SaÃ­da antecipada"
+        "early_exit": "Saída antecipada"
     }
     type_label = type_labels.get(alert_type, "Falta")
     
@@ -22724,7 +22796,7 @@ async def admin_absence_maintenance_add_email(
 ):
     email_norm = normalize_email(email)
     if not email_norm or "@" not in email_norm:
-        return maintenance_emails_settings_redirect("E-mail invÃ¡lido.", "error")
+        return maintenance_emails_settings_redirect("E-mail inválido.", "error")
 
     existing = session.exec(
         select(models.AbsenceAlertRecipient)
@@ -22736,7 +22808,7 @@ async def admin_absence_maintenance_add_email(
         if existing.is_active:
             session.add(existing)
             session.commit()
-            return maintenance_emails_settings_redirect("E-mail jÃ¡ cadastrado.", "error")
+            return maintenance_emails_settings_redirect("E-mail já cadastrado.", "error")
         existing.is_active = True
         session.add(existing)
         session.commit()
@@ -22771,9 +22843,9 @@ async def admin_absence_maintenance_remove_email(
 ):
     recipient = session.get(models.AbsenceAlertRecipient, recipient_id)
     if not recipient:
-        return maintenance_emails_settings_redirect("E-mail nÃ£o encontrado.", "error")
+        return maintenance_emails_settings_redirect("E-mail não encontrado.", "error")
     if recipient.alert_type != "maintenance":
-        return maintenance_emails_settings_redirect("Tipo de destinatÃ¡rio invÃ¡lido.", "error")
+        return maintenance_emails_settings_redirect("Tipo de destinatário inválido.", "error")
 
     if recipient.is_active:
         recipient.is_active = False
@@ -22799,24 +22871,24 @@ async def admin_absence_maintenance_test_email(
     actor_label = user.get("email") if isinstance(user, dict) else str(user or "Sistema")
     recipient = session.get(models.AbsenceAlertRecipient, recipient_id)
     if not recipient:
-        return maintenance_emails_settings_redirect("E-mail nÃ£o encontrado.", "error")
+        return maintenance_emails_settings_redirect("E-mail não encontrado.", "error")
     if recipient.alert_type != "maintenance":
-        return maintenance_emails_settings_redirect("Tipo de destinatÃ¡rio invÃ¡lido.", "error")
+        return maintenance_emails_settings_redirect("Tipo de destinatário inválido.", "error")
 
     try:
         report = {
-            "subject": "ALERTA DE MANUTENÃƒâ€¡ÃƒÃ†Ã¢â‚¬â„¢O - TESTE",
-            "body": "Teste de envio de alerta de manutenÃ§Ã£o.",
+            "subject": "ALERTA DE MANUTENÃ‡ÃÆâ€™O - TESTE",
+            "body": "Teste de envio de alerta de manutenção.",
             "equipment_code": "EMP-TESTE-01",
             "operator_name": actor_label,
             "registered_by": actor_label,
             "operator_id": "00000",
-            "shift": "ManhÃ£",
-            "submitted_at": datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y Ã s %H:%M"),
-            "observations": "Este Ã© um e-mail de teste enviado pela tela de configuraÃ§Ãµes.",
+            "shift": "Manhã",
+            "submitted_at": datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y às %H:%M"),
+            "observations": "Este é um e-mail de teste enviado pela tela de configurações.",
             "nonconforming_items": [
                 {"label": "Freio de estacionamento", "critical": True},
-                {"label": "SinalizaÃ§Ã£o sonora", "critical": False},
+                {"label": "Sinalização sonora", "critical": False},
             ],
         }
         sent, error = send_maintenance_email(report, [recipient.email])
@@ -22850,7 +22922,7 @@ async def mobile_admin_routes_page(
     request: Request,
     session: Session = Depends(get_session)
 ):
-    """PÃ¡gina de gestÃ£o de rotas para lÃ­deres"""
+    """Página de gestão de rotas para líderes"""
     user_id = request.session.get("user_id")
     if not user_id:
         return RedirectResponse(url="/mobile/login", status_code=303)
@@ -22884,16 +22956,16 @@ async def api_list_admin_routes(
     """API para listar rotas ativas e colaboradores sem rota"""
     user_id = request.session.get("user_id")
     if not user_id:
-        return JSONResponse({"error": "NÃ£o autorizado"}, status_code=401)
+        return JSONResponse({"error": "Não autorizado"}, status_code=401)
     
     try:
         user_id = int(str(user_id))
     except Exception:
-        return JSONResponse({"error": "ID invÃ¡lido"}, status_code=400)
+        return JSONResponse({"error": "ID inválido"}, status_code=400)
     
     current_emp = session.get(models.Employee, user_id)
     if not current_emp or not getattr(current_emp, "mobile_access_admin_start", False):
-        return JSONResponse({"error": "Sem permissÃ£o"}, status_code=403)
+        return JSONResponse({"error": "Sem permissão"}, status_code=403)
     
     today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
     
@@ -22929,7 +23001,7 @@ async def api_list_admin_routes(
                 "client_name": (client.name if client else "Desconhecido") or "Desconhecido",
                 "tonnage": float(tonnage),
                 "start_time": str(getattr(route, "start_time", "") or ""),
-                "shift": str(getattr(route, "shift", "ManhÃ£") or "ManhÃ£")
+                "shift": str(getattr(route, "shift", "Manhã") or "Manhã")
             })
         
         # Colaboradores ativos sem rota hoje
@@ -22943,7 +23015,7 @@ async def api_list_admin_routes(
         
         employees_with_route = {route.employee_id for route in active_routes}
         
-        # Filtrar colaboradores que tiveram rota nos Ãºltimos 4 dias
+        # Filtrar colaboradores que tiveram rota nos últimos 4 dias
         four_days_ago = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=4)).strftime("%Y-%m-%d")
         
         recent_route_employees = session.exec(
@@ -22972,7 +23044,7 @@ async def api_list_admin_routes(
                     "id": emp.id,
                     "name": str(emp.name or ""),
                     "registration_id": str(getattr(emp, "registration_id", "") or ""),
-                    "shift": str(getattr(emp, "work_shift", "ManhÃ£") or "ManhÃ£")
+                    "shift": str(getattr(emp, "work_shift", "Manhã") or "Manhã")
                 })
         
         # Buscar todos os clientes para os selects
@@ -23012,47 +23084,47 @@ async def api_edit_admin_route(
     try:
         user_id = request.session.get("user_id")
         if not user_id:
-            return JSONResponse({"error": "NÃ£o autorizado"}, status_code=401)
+            return JSONResponse({"error": "Não autorizado"}, status_code=401)
         
         try:
             user_id = int(str(user_id))
         except:
-            return JSONResponse({"error": "ID invÃ¡lido"}, status_code=400)
+            return JSONResponse({"error": "ID inválido"}, status_code=400)
         
         current_emp = session.get(models.Employee, user_id)
         if not current_emp or not getattr(current_emp, "mobile_access_admin_start", False):
-            return JSONResponse({"error": "Sem permissÃ£o"}, status_code=403)
+            return JSONResponse({"error": "Sem permissão"}, status_code=403)
         
         # Validar justificativa
         if not payload.reason or len(payload.reason.strip()) < 5:
-            return JSONResponse({"error": "Justificativa obrigatÃ³ria (mÃ­nimo 5 caracteres)"}, status_code=400)
+            return JSONResponse({"error": "Justificativa obrigatória (mínimo 5 caracteres)"}, status_code=400)
         
         # Buscar rota
         route = session.get(models.Route, route_id)
         if not route:
-            return JSONResponse({"error": "Rota nÃ£o encontrada"}, status_code=404)
+            return JSONResponse({"error": "Rota não encontrada"}, status_code=404)
         
         # Validar colaborador
         target_emp = session.get(models.Employee, payload.employee_id)
         if not target_emp:
-            return JSONResponse({"error": "Colaborador nÃ£o encontrado"}, status_code=404)
+            return JSONResponse({"error": "Colaborador não encontrado"}, status_code=404)
         
         # Validar cliente
         client = session.get(models.Client, payload.client_id)
         if not client:
-            return JSONResponse({"error": "Cliente nÃ£o encontrado"}, status_code=404)
+            return JSONResponse({"error": "Cliente não encontrado"}, status_code=404)
         
-        # Registrar alteraÃ§Ãµes
+        # Registrar alterações
         old_emp = session.get(models.Employee, route.employee_id)
         old_client = session.get(models.Client, route.client_id)
         
         changes = []
         if route.employee_id != payload.employee_id:
-            changes.append(f"Colaborador: {old_emp.name if old_emp else 'N/A'} â†’ {target_emp.name}")
+            changes.append(f"Colaborador: {old_emp.name if old_emp else 'N/A'} → {target_emp.name}")
         if route.client_id != payload.client_id:
-            changes.append(f"Cliente: {old_client.name if old_client else 'N/A'} â†’ {client.name}")
+            changes.append(f"Cliente: {old_client.name if old_client else 'N/A'} → {client.name}")
         if route.tonnage != payload.tonnage:
-            changes.append(f"Tonelagem: {route.tonnage} â†’ {payload.tonnage}")
+            changes.append(f"Tonelagem: {route.tonnage} → {payload.tonnage}")
         
         # Atualizar rota
         route.employee_id = payload.employee_id
@@ -23063,7 +23135,7 @@ async def api_edit_admin_route(
         # Log de auditoria
         log = models.Event(
             type="route_edit",
-            text=f"Rota #{route_id} editada por {current_emp.name}. AlteraÃ§Ãµes: {'; '.join(changes)}. Justificativa: {payload.reason}",
+            text=f"Rota #{route_id} editada por {current_emp.name}. Alterações: {'; '.join(changes)}. Justificativa: {payload.reason}",
             category="processo",
             sector="expedicao",
             impact="medium",
@@ -23091,34 +23163,34 @@ async def api_delete_admin_route(
     try:
         user_id = request.session.get("user_id")
         if not user_id:
-            return JSONResponse({"error": "NÃ£o autorizado"}, status_code=401)
+            return JSONResponse({"error": "Não autorizado"}, status_code=401)
         
         try:
             user_id = int(str(user_id))
         except:
-            return JSONResponse({"error": "ID invÃ¡lido"}, status_code=400)
+            return JSONResponse({"error": "ID inválido"}, status_code=400)
         
         current_emp = session.get(models.Employee, user_id)
         if not current_emp or not getattr(current_emp, "mobile_access_admin_start", False):
-            return JSONResponse({"error": "Sem permissÃ£o"}, status_code=403)
+            return JSONResponse({"error": "Sem permissão"}, status_code=403)
         
         # Validar justificativa
         if not payload.reason or len(payload.reason.strip()) < 5:
-            return JSONResponse({"error": "Justificativa obrigatÃ³ria (mÃ­nimo 5 caracteres)"}, status_code=400)
+            return JSONResponse({"error": "Justificativa obrigatória (mínimo 5 caracteres)"}, status_code=400)
         
         # Buscar rota
         route = session.get(models.Route, route_id)
         if not route:
-            return JSONResponse({"error": "Rota nÃ£o encontrada"}, status_code=404)
+            return JSONResponse({"error": "Rota não encontrada"}, status_code=404)
         
-        # Guardar informaÃ§Ãµes para log
+        # Guardar informações para log
         emp = session.get(models.Employee, route.employee_id)
         client = session.get(models.Client, route.client_id)
         
         # Log de auditoria
         log = models.Event(
             type="route_delete",
-            text=f"Rota #{route_id} excluÃ­da por {current_emp.name}. Colaborador: {emp.name if emp else 'N/A'}, Cliente: {client.name if client else 'N/A'}. Justificativa: {payload.reason}",
+            text=f"Rota #{route_id} excluída por {current_emp.name}. Colaborador: {emp.name if emp else 'N/A'}, Cliente: {client.name if client else 'N/A'}. Justificativa: {payload.reason}",
             category="processo",
             sector="expedicao",
             impact="high",
@@ -23131,7 +23203,7 @@ async def api_delete_admin_route(
         session.delete(route)
         session.commit()
         
-        return JSONResponse({"success": True, "message": "Rota excluÃ­da com sucesso"})
+        return JSONResponse({"success": True, "message": "Rota excluída com sucesso"})
         
     except Exception as e:
         logger.exception("Error deleting route")

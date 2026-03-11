@@ -139,16 +139,22 @@ def main():
         print(f"Diretório não encontrado: {root}")
         return 1
 
-    py_files = list(root.rglob("*.py"))
-    py_files = [
-        f for f in py_files
+    # Incluir .py, .html e .jinja2
+    all_files = []
+    for ext in ["*.py", "*.html", "*.jinja2", "*.jinja"]:
+        all_files.extend(root.rglob(ext))
+    all_files = [
+        f for f in all_files
         if "venv" not in str(f) and ".venv" not in str(f)
         and "__pycache__" not in str(f)
+        and "node_modules" not in str(f)
         and "fix_mojibake.py" not in f.name
     ]
+    # Remover duplicatas e ordenar
+    files = sorted(set(all_files))
 
     modified = 0
-    for f in sorted(py_files):
+    for f in files:
         n = process_file(f, dry_run=args.dry_run)
         if n > 0:
             print(f"  {'[DRY-RUN] ' if args.dry_run else ''}Corrigido: {f.relative_to(root)}")
