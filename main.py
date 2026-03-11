@@ -9279,6 +9279,17 @@ async def separacao_page(
     ).all()
     delivery_sync_token = _build_delivery_sync_token(delivery_rows, date, shift)
 
+    emp_by_name = {e.name.lower().strip(): e for e in all_employees if (e.name or "").strip()}
+    driver_ids_for_date = list({r.employee_id for r in delivery_rows if r.employee_id})
+    sessions_for_date = []
+    if driver_ids_for_date:
+        sessions_for_date = session.exec(
+            select(models.DeliverySession)
+            .where(models.DeliverySession.date == date)
+            .where(models.DeliverySession.employee_id.in_(driver_ids_for_date))
+        ).all()
+    session_by_driver = {(ds.employee_id, ds.date): ds for ds in sessions_for_date}
+
     delivery_by_employee = {}
     delivery_summary = {
         "total_stops": len(delivery_rows),
@@ -9341,6 +9352,24 @@ async def separacao_page(
                         helper_names.append(helper_emp.name)
         except Exception:
             pass
+
+        # Fallback: ajudantes informados no mobile (DeliverySession.helpers_json com nomes)
+        if not helper_ids and not helper_names:
+            ds = session_by_driver.get((route.employee_id or 0, route.date))
+            if ds and ds.helpers_json:
+                try:
+                    session_names = json.loads(ds.helpers_json) if isinstance(ds.helpers_json, str) else (ds.helpers_json or [])
+                    if isinstance(session_names, list):
+                        for name in session_names:
+                            n = (name or "").strip()
+                            if not n or n.lower() == (driver_name or "").lower():
+                                continue
+                            emp = emp_by_name.get(n.lower())
+                            if emp and emp.id != route.employee_id:
+                                helper_ids.append(emp.id)
+                                helper_names.append(emp.name)
+                except Exception:
+                    pass
 
         known_helper_ids = set(delivery_by_employee[key]["helper_ids"])
         for helper_id in helper_ids:
