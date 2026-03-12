@@ -24,18 +24,18 @@
         </select>
     </div>
 
-    <div class="surface p-4 mb-4">
+    <div class="surface p-4 mb-4 relative">
+        <button type="button" id="btnHelpDevolucao" class="absolute top-3 right-3 touch-target-icon rounded-full p-1" style="color: var(--color-text-muted);" title="Como funciona">
+            <i data-lucide="help-circle" class="w-4 h-4"></i>
+        </button>
         <div class="grid grid-cols-3 gap-2 mb-4">
             <div class="text-center p-2 rounded-lg border min-w-0" style="background: var(--color-danger-bg); border-color: var(--color-danger);">
                 <p class="text-[10px] mb-0.5 truncate" style="color: var(--color-text-muted);">Total (R$)</p>
                 <p id="totalReturnValue" class="text-sm font-bold leading-tight" style="color: var(--color-danger);">R$ 0,00</p>
             </div>
-            <div class="text-center p-2 rounded-lg border relative min-w-0" style="background: var(--color-warning-bg); border-color: var(--color-warning);">
+            <div class="text-center p-2 rounded-lg border min-w-0" style="background: var(--color-warning-bg); border-color: var(--color-warning);">
                 <p class="text-[10px] mb-0.5 truncate" style="color: var(--color-text-muted);">% Devolvido</p>
                 <p id="totalReturnPercent" class="text-sm font-bold leading-tight" style="color: var(--color-warning);">0%</p>
-                <button type="button" id="btnHelpDevolucao" class="absolute top-1 right-1 touch-target-icon rounded-full p-0.5" style="color: var(--color-text-muted);" title="Como funciona">
-                    <i data-lucide="help-circle" class="w-3.5 h-3.5"></i>
-                </button>
             </div>
             <div class="text-center p-2 rounded-lg border min-w-0" style="background: var(--color-success-bg); border-color: var(--color-success);">
                 <p class="text-[10px] mb-0.5 truncate" style="color: var(--color-text-muted);">Prêmio Dev.</p>
@@ -46,15 +46,13 @@
             <canvas id="performanceChart"></canvas>
         </div>
 
-        <div id="cargaDescargaCard" class="mt-4 p-4 rounded-lg border flex flex-col gap-3" style="background: var(--color-surface-solid); border-color: var(--color-border);">
+        <div id="cargaDescargaCard" class="mt-4 p-4 rounded-lg border flex flex-col gap-3 relative" style="background: var(--color-surface-solid); border-color: var(--color-border);">
+            <button type="button" id="btnHelpCargaDescarga" class="absolute top-3 right-3 touch-target-icon rounded-full p-1" style="color: var(--color-text-muted);" title="Como funciona">
+                <i data-lucide="help-circle" class="w-4 h-4"></i>
+            </button>
             <div class="flex items-center justify-between gap-4">
                 <div class="flex-1">
-                    <div class="flex items-center gap-2 mb-1">
-                        <h3 class="text-body font-semibold" style="color: var(--color-text);">Carga e Descarga</h3>
-                        <button type="button" id="btnHelpCargaDescarga" class="touch-target-icon rounded-full p-1" style="color: var(--color-text-muted);" title="Como funciona">
-                            <i data-lucide="help-circle" class="w-4 h-4"></i>
-                        </button>
-                    </div>
+                    <h3 class="text-body font-semibold mb-1" style="color: var(--color-text);">Carga e Descarga</h3>
                     <p id="cargaDescargaWeekLabel" class="text-xs font-medium" style="color: var(--color-primary);">—</p>
                     <p id="cargaDescargaStatus" class="text-caption mt-0.5" style="color: var(--color-text-muted);"><span id="cargaDescargaCount">0</span> recarga(s)</p>
                     <p class="text-[10px] mt-0.5" style="color: var(--color-text-muted);">peso &gt;2.500 kg ou vol. &gt;250</p>
@@ -64,15 +62,13 @@
             <div id="cargaDescargaByDay" class="space-y-1.5 text-caption max-h-32 overflow-y-auto"></div>
         </div>
 
-        <div id="cestaBasicaCard" class="mt-4 p-4 rounded-lg border flex flex-col gap-3" style="background: var(--color-surface-solid); border-color: var(--color-border);">
+        <div id="cestaBasicaCard" class="mt-4 p-4 rounded-lg border flex flex-col gap-3 relative" style="background: var(--color-surface-solid); border-color: var(--color-border);">
+            <button type="button" id="btnHelpCestaBasica" class="absolute top-3 right-3 touch-target-icon rounded-full p-1" style="color: var(--color-text-muted);" title="Como funciona">
+                <i data-lucide="help-circle" class="w-4 h-4"></i>
+            </button>
             <div class="flex items-center justify-between gap-4">
                 <div class="flex-1">
-                    <div class="flex items-center gap-2 mb-1">
-                        <h3 class="text-body font-semibold" style="color: var(--color-text);">Cesta Básica</h3>
-                        <button type="button" id="btnHelpCestaBasica" class="touch-target-icon rounded-full p-1" style="color: var(--color-text-muted);" title="Como funciona">
-                            <i data-lucide="help-circle" class="w-4 h-4"></i>
-                        </button>
-                    </div>
+                    <h3 class="text-body font-semibold mb-1" style="color: var(--color-text);">Cesta Básica</h3>
                     <p id="cestaBasicaStatus" class="text-caption" style="color: var(--color-text-muted);">Carregando...</p>
                 </div>
                 <span id="cestaBasicaValor" class="text-xl font-bold shrink-0" style="color: var(--color-success);">R$ 0,00</span>
