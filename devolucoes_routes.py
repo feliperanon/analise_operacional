@@ -553,7 +553,8 @@ def init_devolucoes_router(
         request: Request,
         session: Session = Depends(get_session),
     ):
-        """Reconcilia devoluções existentes com rotas: atualiza Route para devolução quando houver match."""
+        """Reconcilia devoluções existentes com rotas: atualiza Route para devolução quando houver match.
+        Exige período (start_date e end_date) obrigatório."""
         require_login(request)
         try:
             body = {}
@@ -561,8 +562,18 @@ def init_devolucoes_router(
                 body = await request.json()
             except Exception:
                 pass
-            start_date = body.get("start_date")
-            end_date = body.get("end_date")
+            start_date = body.get("start_date") or ""
+            end_date = body.get("end_date") or ""
+            if not start_date or not end_date:
+                return JSONResponse(
+                    {"ok": False, "error": "Período obrigatório. Informe data início e data fim."},
+                    status_code=400,
+                )
+            if start_date > end_date:
+                return JSONResponse(
+                    {"ok": False, "error": "Data início deve ser anterior à data fim."},
+                    status_code=400,
+                )
             updated = reconcile_all_devolucoes_with_routes(session, start_date, end_date)
             session.commit()
             return JSONResponse({"ok": True, "updated_routes": updated})

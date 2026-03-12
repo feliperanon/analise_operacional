@@ -282,6 +282,48 @@ def shift_display_label(normalized: str) -> str:
     return normalized.strip().title() if normalized else "Outro"
 
 
+def normalize_cost_center(value: Optional[str]) -> str:
+    """Normaliza centro de custo para comparação consistente."""
+    if not value:
+        return ""
+    normalized = unicodedata.normalize("NFD", str(value))
+    cleaned = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+    compact = " ".join("".join(ch if (ch.isalnum() or ch.isspace()) else " " for ch in cleaned).lower().split())
+    if not compact:
+        return ""
+    if "souza" in compact and "pinto" in compact:
+        return "souza_pinto"
+    if "exemplar" in compact:
+        return "exemplar"
+    return compact.replace(" ", "_")
+
+
+def cost_center_display_label(value: Optional[str]) -> str:
+    """Retorna rótulo amigável para centro de custo."""
+    normalized = normalize_cost_center(value)
+    if normalized == "souza_pinto":
+        return "Souza Pinto"
+    if normalized == "exemplar":
+        return "Exemplar"
+    raw = (value or "").strip()
+    return raw if raw else "Sem Centro"
+
+
+def parse_cost_center_filter(value: Optional[str]) -> Optional[str]:
+    raw = (value or "").strip()
+    if not raw or raw in {"Todos", "Geral", "null", "None"}:
+        return None
+    return cost_center_display_label(raw)
+
+
+def employee_matches_cost_center(employee: Optional[models.Employee], selected_cost_center: Optional[str]) -> bool:
+    if not selected_cost_center:
+        return True
+    if not employee:
+        return False
+    return cost_center_display_label(getattr(employee, "cost_center", None)) == selected_cost_center
+
+
 # API Models
 from pydantic import BaseModel
 from typing import Optional, List
@@ -814,9 +856,9 @@ def is_google_enabled() -> bool:
 
 PAGE_OPTIONS = [
     {"key": "admin_game", "label": "Game Master", "path": "/admin/game", "prefixes": ["/admin/game", "/api/game"]},
-    {"key": "smart_flow", "label": "Smart Flow", "path": "/smart-flow", "prefixes": ["/smart-flow", "/api/smart-flow", "/smart-flow/load", "/api/employees", "/settings", "/employees", "/funcoes", "/lider", "/api/lider"]},
+    {"key": "smart_flow", "label": "Smart Flow", "path": "/smart-flow", "prefixes": ["/smart-flow", "/api/smart-flow", "/smart-flow/load", "/api/employees", "/settings", "/employees", "/funcoes", "/relatorio-avaliacao-motorista", "/lider", "/api/lider"]},
     {"key": "checklist_admin", "label": "Checklists Operacionais", "path": "/admin/routine/checklists", "prefixes": ["/admin/routine/checklists", "/api/routine/checklists"]},
-    {"key": "ops_performance", "label": "Avaliacao Operacional", "path": "/operations/performance", "prefixes": ["/operations/performance", "/operations/performance/analysis", "/rankings", "/api/rankings"]}
+    {"key": "ops_performance", "label": "Avaliacao Operacional", "path": "/operations/performance", "prefixes": ["/operations/performance", "/operations/performance/analysis", "/rankings", "/api/rankings", "/gamificacao/entregas"]}
 ]
 PAGE_KEYS = {p["key"] for p in PAGE_OPTIONS}
 
@@ -1930,7 +1972,7 @@ def _infer_shift_name(now_br: datetime) -> str:
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard_entry(
     request: Request,
-    shift: Optional[str] = None,
+    cost_center: Optional[str] = None,
     date_ref: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
@@ -1941,9 +1983,7 @@ async def dashboard_entry(
         return RedirectResponse(url="/mobile/dashboard", status_code=303)
 
     now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
-    selected_shift = (shift or _infer_shift_name(now_br) or "Manha").strip().title()
-    if selected_shift not in {"Manha", "Tarde", "Noite"}:
-        selected_shift = "Manha"
+    selected_cost_center = parse_cost_center_filter(cost_center)
 
     selected_date = now_br.date()
     if date_ref:
@@ -1953,51 +1993,44 @@ async def dashboard_entry(
             pass
     selected_date_str = selected_date.strftime("%Y-%m-%d")
 
-    employees = session.exec(
+    employees_all = session.exec(
         select(models.Employee).where(models.Employee.status != "fired")
     ).all()
+    employees = [e for e in employees_all if employee_matches_cost_center(e, selected_cost_center)]
     employee_by_id = {e.id: e for e in employees if e.id is not None}
+    employee_ids = set(employee_by_id.keys())
 
     clients = session.exec(select(models.Client)).all()
     client_by_id = {c.id: c for c in clients if c.id is not None}
 
     routines = session.exec(
-        select(models.EmployeeRoutine)
-        .where(models.EmployeeRoutine.date == selected_date_str)
-        .where(models.EmployeeRoutine.shift == selected_shift)
+        select(models.EmployeeRoutine).where(models.EmployeeRoutine.date == selected_date_str)
     ).all()
+    routines = [r for r in routines if r.employee_id in employee_ids]
     routine_by_employee = {r.employee_id: r for r in routines}
 
-    targets = session.exec(select(models.HeadcountTarget)).all()
-    target_map = {"Manha": 0, "Tarde": 0, "Noite": 0}
-    for t in targets:
-        raw = (t.shift_name or "").lower()
-        if "tarde" in raw:
-            target_map["Tarde"] = int(t.target_value or 0)
-        elif "noite" in raw:
-            target_map["Noite"] = int(t.target_value or 0)
-        else:
-            target_map["Manha"] = int(t.target_value or 0)
+    # Cost centers summary (Empresa / Centro de Custo)
+    cost_centers_summary = {}
+    cost_center_options = ["Todos"]
+    for emp in employees_all:
+        lbl = cost_center_display_label(emp.cost_center)
+        if lbl not in cost_centers_summary:
+            cost_centers_summary[lbl] = {"headcount": 0, "target": 0, "away": 0}
+        away = 1 if (emp.status or "").lower() in {"away", "vacation", "sick", "day_off"} else 0
+        cost_centers_summary[lbl]["headcount"] += max(0, 1 - away)
+        cost_centers_summary[lbl]["away"] += away
+        cost_centers_summary[lbl]["target"] = cost_centers_summary[lbl]["headcount"]
+    cost_center_options.extend(sorted(k for k in cost_centers_summary.keys() if k and k != "Sem Centro"))
+    if "Sem Centro" in cost_centers_summary:
+        cost_center_options.append("Sem Centro")
 
-    # Shift summary cards
-    shifts_summary = {}
-    for shift_name in ("Manha", "Tarde", "Noite"):
-        shift_employees = [e for e in employees if (e.work_shift or "").lower().startswith(shift_name.lower())]
-        away_count = sum(1 for e in shift_employees if (e.status or "").lower() in {"away", "vacation", "sick", "day_off"})
-        present_count = max(0, len(shift_employees) - away_count)
-        shifts_summary[shift_name.lower()] = {
-            "headcount": present_count,
-            "target": target_map.get(shift_name, 0),
-            "away": away_count,
-        }
-
-    # Delivery routes for selected day/shift (operational KPIs + live)
+    # Delivery routes for selected day (filter by employee cost_center)
     routes = session.exec(
         select(models.Route)
         .where(models.Route.type == "delivery")
         .where(models.Route.date == selected_date_str)
-        .where(models.Route.shift == selected_shift)
     ).all()
+    routes = [r for r in routes if r.employee_id in employee_ids]
 
     def _parse_hhmm(v: Optional[str]) -> Optional[int]:
         if not v:
@@ -2039,9 +2072,9 @@ async def dashboard_entry(
         e_status = (e.status or "").lower()
 
         if r_status == "absent" or e_status == "away":
-            ausentes.append({"name": e.name, "shift": e.work_shift or "-", "status": "Falta"})
+            ausentes.append({"name": e.name, "full_name": e.name, "cost_center": cost_center_display_label(e.cost_center) or "-", "status": "Falta"})
         if r_status == "sick" or e_status == "sick":
-            atestados.append({"name": e.name, "shift": e.work_shift or "-", "status": "Atestado"})
+            atestados.append({"name": e.name, "full_name": e.name, "cost_center": cost_center_display_label(e.cost_center) or "-", "status": "Atestado"})
 
     # HR cards
     birthdays = []
@@ -2068,6 +2101,7 @@ async def dashboard_entry(
             if 0 <= delta <= 30:
                 experience_expiring.append({
                     "name": e.name,
+                    "full_name": e.name,
                     "date": dt.strftime("%d/%m"),
                     "days": delta,
                     "type": label,
@@ -2088,10 +2122,15 @@ async def dashboard_entry(
                 "days_left": f"{(ve - selected_date).days + 1}d",
             })
         elif vs > selected_date:
+            delta_d = (vs - selected_date).days
             upcoming_vacation.append({
                 "name": e.name,
-                "start_date": vs.strftime("%d/%m"),
-                "start_in": f"{(vs - selected_date).days}d",
+                "full_name": e.name,
+                "cost_center": cost_center_display_label(e.cost_center) or "-",
+                "shift": cost_center_display_label(e.cost_center) or "-",
+                "start_date": vs.strftime("%Y-%m-%d"),
+                "start_in": f"{delta_d}d",
+                "days_until": f"{delta_d}d",
             })
     upcoming_vacation.sort(key=lambda x: int(str(x["start_in"]).replace("d", "")))
 
@@ -2124,18 +2163,17 @@ async def dashboard_entry(
     live_separation = list(live_buckets.values())
     live_separation.sort(key=lambda x: len(x["routes"]), reverse=True)
 
-    selected_shift_headcount = shifts_summary[selected_shift.lower()]["headcount"]
-    selected_shift_target = shifts_summary[selected_shift.lower()]["target"]
+    selected_headcount = sum(1 for e in employees if (e.status or "").lower() not in {"away", "vacation", "sick", "day_off"})
+    selected_target = selected_headcount
 
     dashboard_payload = {
-        "current_shift_name": selected_shift,
-        "shifts_summary": shifts_summary,
+        "cost_centers_summary": cost_centers_summary,
         "kpi": {
             "tonnage": round(total_tonnage, 2),
             "avg_kgh": round(avg_kgh, 1),
             "completed_routes_count": completed_count,
-            "headcount": selected_shift_headcount,
-            "target_headcount": selected_shift_target,
+            "headcount": selected_headcount,
+            "target_headcount": selected_target,
         },
         "alerts": {
             "ausentes": ausentes,
@@ -2155,7 +2193,8 @@ async def dashboard_entry(
         {
             "request": request,
             "dashboard": dashboard_payload,
-            "current_shift": selected_shift,
+            "current_cost_center": selected_cost_center or "Todos",
+            "cost_center_options": cost_center_options,
             "current_date": selected_date_str,
         },
     )
@@ -2582,6 +2621,197 @@ async def mobile_logout(request: Request):
     return RedirectResponse(url="/mobile/login", status_code=303)
 
 
+CARGA_DESCARGA_PRIZE = 46.0
+CARGA_DESCARGA_MIN_KG = 2500.0
+CESTA_BASICA_PRIZE = 100.0
+
+
+def _check_cesta_basica_eligible(
+    session: Session,
+    user_id: int,
+    since: str,
+    until: str,
+) -> bool:
+    """Retorna True se colaborador NÃO teve falta nem advertência no período (dados do desktop)."""
+    try:
+        since_dt = datetime.strptime(since, "%Y-%m-%d").replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+        until_dt = datetime.strptime(until, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=ZoneInfo("America/Sao_Paulo"))
+
+        falta_or_adv = session.exec(
+            select(models.Event)
+            .where(models.Event.employee_id == user_id)
+            .where(models.Event.type.in_(["falta", "advertencia"]))
+            .where(models.Event.timestamp >= since_dt)
+            .where(models.Event.timestamp <= until_dt)
+        ).first()
+        if falta_or_adv:
+            return False
+
+        absent_routine = session.exec(
+            select(models.EmployeeRoutine)
+            .where(models.EmployeeRoutine.employee_id == user_id)
+            .where(models.EmployeeRoutine.routine == "absent")
+            .where(models.EmployeeRoutine.date >= since)
+            .where(models.EmployeeRoutine.date <= until)
+        ).first()
+        if absent_routine:
+            return False
+
+        return True
+    except Exception as e:
+        logger.exception(f"Error checking cesta basica: {e}")
+        return False
+CARGA_DESCARGA_MIN_VOLUMES = 250  # Se Route tiver coluna volumes, usar
+
+
+def _carga_descarga_week_bounds() -> tuple[str, str, str]:
+    """Retorna (since, until, label) da semana atual (segunda a domingo)."""
+    tz = ZoneInfo("America/Sao_Paulo")
+    today = datetime.now(tz).date()
+    weekday = today.weekday()
+    monday = today - timedelta(days=weekday)
+    sunday = monday + timedelta(days=6)
+    label = f"Semana {monday.strftime('%d/%m')} - {sunday.strftime('%d/%m')}"
+    return (monday.strftime("%Y-%m-%d"), min(today, sunday).strftime("%Y-%m-%d"), label)
+
+
+def _parse_session_helper_ids(helpers_json: Optional[str]) -> List[int]:
+    """Parse helpers_json (pode ter ids ou nomes) para lista de employee_id."""
+    if not helpers_json:
+        return []
+    try:
+        data = json.loads(helpers_json) if isinstance(helpers_json, str) else helpers_json
+        if not isinstance(data, list):
+            return []
+        ids = []
+        for h in data:
+            if h is None:
+                continue
+            if isinstance(h, int) and h > 0:
+                ids.append(h)
+            elif isinstance(h, str) and str(h).strip().isdigit():
+                ids.append(int(h.strip()))
+        return ids
+    except Exception:
+        return []
+
+
+def _compute_carga_descarga_metrics(
+    session: Session,
+    user_id: int,
+    since: str,
+    until: str,
+) -> tuple[int, float, List[Dict[str, Any]]]:
+    """Conta cargas elegíveis. Regras: 1 motorista só OU 1 motorista+1 ajudante; carga >= 2500kg ou 250 volumes. 2+ ajudantes não recebem."""
+    count = 0
+    by_day: List[Dict[str, Any]] = []
+    try:
+        employees = session.exec(select(models.Employee)).all()
+        emp_by_name = {(e.name or "").strip().lower(): e for e in employees if e and (e.name or "").strip()}
+
+        routes = list(session.exec(
+            select(models.Route)
+            .where(models.Route.type == "delivery")
+            .where(models.Route.date >= since)
+            .where(models.Route.date <= until)
+        ).all())
+        tonnage_by_date_driver: Dict[tuple[str, int], float] = {}
+        helper_ids_by_date_driver: Dict[tuple[str, int], set] = {}
+        for r in routes:
+            key = (r.date or "", r.employee_id or 0)
+            tonnage_by_date_driver[key] = tonnage_by_date_driver.get(key, 0.0) + float(r.tonnage or 0.0)
+            if key not in helper_ids_by_date_driver:
+                helper_ids_by_date_driver[key] = set()
+            helper_ids_by_date_driver[key].update(_parse_route_helper_ids(r.delivery_helpers_json))
+
+        sessions_closed = list(session.exec(
+            select(models.DeliverySession)
+            .where(models.DeliverySession.status == "closed")
+            .where(models.DeliverySession.date >= since)
+            .where(models.DeliverySession.date <= until)
+        ).all())
+        sessions_open_today = list(session.exec(
+            select(models.DeliverySession)
+            .where(models.DeliverySession.status == "open")
+            .where(models.DeliverySession.date >= since)
+            .where(models.DeliverySession.date <= until)
+        ).all())
+        sessions_all = sessions_closed + sessions_open_today
+
+        for ds in sessions_all:
+            key = (ds.date or "", ds.employee_id or 0)
+            if not helper_ids_by_date_driver.get(key):
+                for hid in _parse_session_helper_ids(ds.helpers_json):
+                    if hid != (ds.employee_id or 0):
+                        if key not in helper_ids_by_date_driver:
+                            helper_ids_by_date_driver[key] = set()
+                        helper_ids_by_date_driver[key].add(hid)
+                if not helper_ids_by_date_driver.get(key):
+                    for name in _parse_session_helpers(ds.helpers_json):
+                        emp = emp_by_name.get((name or "").strip().lower())
+                        if emp and emp.id and emp.id != (ds.employee_id or 0):
+                            if key not in helper_ids_by_date_driver:
+                                helper_ids_by_date_driver[key] = set()
+                            helper_ids_by_date_driver[key].add(emp.id)
+
+        cargas_count: Dict[tuple[str, int, Optional[int]], int] = {}
+        for ds in sessions_closed:
+            driver_id = ds.employee_id or 0
+            helper_ids = helper_ids_by_date_driver.get((ds.date or "", driver_id), set()) - {driver_id}
+            if len(helper_ids) > 1:
+                continue
+            helper_id: Optional[int] = next(iter(helper_ids), None) if len(helper_ids) == 1 else None
+            key = (ds.date or "", driver_id, helper_id)
+            cargas_count[key] = cargas_count.get(key, 0) + 1
+
+        for (date_str, driver_id), tonnage in list(tonnage_by_date_driver.items()):
+            if tonnage < CARGA_DESCARGA_MIN_KG:
+                continue
+            helper_ids = helper_ids_by_date_driver.get((date_str, driver_id), set()) - {driver_id}
+            if len(helper_ids) > 1:
+                continue
+            helper_id = next(iter(helper_ids), None) if len(helper_ids) == 1 else None
+            key = (date_str, driver_id, helper_id)
+            if key not in cargas_count:
+                cargas_count[key] = 1
+
+        by_date_user: Dict[str, int] = {}
+        for (date_str, driver_id, helper_id), session_count in cargas_count.items():
+            tonnage = tonnage_by_date_driver.get((date_str, driver_id), 0.0)
+            if tonnage < CARGA_DESCARGA_MIN_KG:
+                continue
+            max_cargas = int(tonnage / CARGA_DESCARGA_MIN_KG)
+            eligible = min(session_count, max_cargas)
+            if eligible <= 0:
+                continue
+            participants = [driver_id]
+            if helper_id is not None:
+                participants.append(helper_id)
+            for pid in participants:
+                if int(user_id) == int(pid):
+                    count += eligible
+                    by_date_user[date_str] = by_date_user.get(date_str, 0) + eligible
+                    break
+
+        for d in sorted(by_date_user.keys()):
+            c = by_date_user[d]
+            try:
+                parts = d.split("-")
+                label = f"{parts[2]}/{parts[1]}" if len(parts) >= 3 else d
+            except Exception:
+                label = d
+            by_day.append({
+                "date": d,
+                "date_label": label,
+                "count": c,
+                "value": round(c * CARGA_DESCARGA_PRIZE, 2),
+            })
+    except Exception as e:
+        logger.exception(f"Error computing carga_descarga: {e}")
+    value = count * CARGA_DESCARGA_PRIZE
+    return (count, round(value, 2), by_day)
+
+
 def _compute_employee_returns_metrics(
     session: Session,
     user_id: int,
@@ -2597,11 +2827,12 @@ def _compute_employee_returns_metrics(
     chart_percents: List[float] = []
     top_clients: List[Dict[str, Any]] = []
     total_entregas_value = 0.0
-    route_returns: List[Any] = []
+    participant_routes: List[Any] = []
     devolucao_rows: List[Any] = []
-    devolucao_route_ids: set[int] = set()
     combined: List[Dict[str, Any]] = []
     since = None
+    route_return_entries_count = 0
+    participant_route_ids: set[int] = set()
 
     try:
         if date_from and date_to:
@@ -2614,75 +2845,93 @@ def _compute_employee_returns_metrics(
             since = since_dt.strftime("%Y-%m-%d")
             until = until_dt.strftime("%Y-%m-%d")
 
-        route_returns = list(session.exec(
-            select(models.Route)
-            .where(models.Route.employee_id == user_id)
-            .where(models.Route.type == "delivery")
-            .where(models.Route.delivery_status == "devolucao")
-            .where(models.Route.date >= since)
-            .where(models.Route.date <= until)
-        ).all())
+        employees_all = session.exec(
+            select(models.Employee)
+            .where(models.Employee.status != "fired")
+            .order_by(models.Employee.name)
+        ).all()
+        emp_by_name = {
+            (emp.name or "").strip().lower(): emp
+            for emp in employees_all
+            if emp and emp.id and (emp.name or "").strip()
+        }
 
-        routes_as_helper = session.exec(
+        sessions_for_period = session.exec(
+            select(models.DeliverySession)
+            .where(models.DeliverySession.date >= since)
+            .where(models.DeliverySession.date <= until)
+        ).all()
+        session_helpers_by_driver: Dict[Any, List[str]] = {}
+        for delivery_session in sessions_for_period:
+            session_helpers_by_driver[(delivery_session.employee_id or 0, delivery_session.date)] = _parse_session_helpers(
+                delivery_session.helpers_json
+            )
+
+        routes_in_period = session.exec(
             select(models.Route)
             .where(models.Route.type == "delivery")
             .where(models.Route.date >= since)
             .where(models.Route.date <= until)
         ).all()
-        for r in routes_as_helper:
-            if int(user_id) in _parse_route_helper_ids(r.delivery_helpers_json):
-                if (r.delivery_status or "").lower() == "devolucao" and r not in route_returns:
-                    route_returns.append(r)
+        total_val_by_date: Dict[str, float] = {}
+        for route in routes_in_period:
+            helper_ids = _resolve_delivery_route_helper_ids(route, session_helpers_by_driver, emp_by_name)
+            if int(route.employee_id or 0) != int(user_id) and int(user_id) not in helper_ids:
+                continue
+            participant_routes.append(route)
+            if route.id:
+                participant_route_ids.add(int(route.id))
+            metrics = _delivery_route_return_metrics(route)
+            route_date = route.date or ""
+            total_entregas_value += metrics["planned_value"]
+            if route_date:
+                total_val_by_date[route_date] = total_val_by_date.get(route_date, 0.0) + metrics["planned_value"]
+            if not metrics["has_return"]:
+                continue
+            route_return_entries_count += 1
+            combined.append({
+                "date": route_date,
+                "client_id": route.client_id,
+                "value": metrics["returned_value"],
+                "volume": metrics["returned_weight"],
+            })
 
-        devolucao_rows = session.exec(
+        devolucao_query = (
             select(models.Devolucao)
-            .where(models.Devolucao.motorista_id == user_id)
+            .where(
+                or_(
+                    models.Devolucao.motorista_id == user_id,
+                    models.Devolucao.ajudante_id == user_id,
+                )
+            )
             .where(models.Devolucao.data_romaneio >= since)
             .where(models.Devolucao.data_romaneio <= until)
-        ).all()
-
-        devolucao_route_ids = {int(d.route_id) for d in devolucao_rows if d.route_id}
-        linked_route_map: Dict[int, Any] = {}
-        if devolucao_route_ids:
-            linked_routes = session.exec(
-                select(models.Route).where(models.Route.id.in_(devolucao_route_ids))
-            ).all()
-            linked_route_map = {int(r.id): r for r in linked_routes if r and r.id}
-
-        for r in route_returns:
-            if r.id and int(r.id) in devolucao_route_ids:
-                continue
-            combined.append({
-                "date": r.date or "",
-                "client_id": r.client_id,
-                "value": float(r.valor_devolucao or 0.0),
-                "volume": float(r.devolucao_volume or 0.0),
-            })
+        )
+        if participant_route_ids:
+            devolucao_query = devolucao_query.where(
+                or_(
+                    models.Devolucao.route_id.is_(None),
+                    models.Devolucao.route_id.notin_(participant_route_ids),
+                )
+            )
+        devolucao_rows = session.exec(devolucao_query).all()
 
         for d in devolucao_rows:
-            linked = linked_route_map.get(int(d.route_id)) if d.route_id else None
+            value = _safe_float(d.valor)
+            if value <= 0:
+                continue
+            entry_date = d.data_romaneio or d.data_entrega or ""
             combined.append({
-                "date": d.data_romaneio or d.data_entrega or "",
+                "date": entry_date,
                 "client_id": d.client_id,
-                "value": float(d.valor or 0.0),
-                "volume": float((linked.tonnage if linked else 0.0) or 0.0),
+                "value": value,
+                "volume": 0.0,
             })
+            total_entregas_value += value
+            if entry_date:
+                total_val_by_date[entry_date] = total_val_by_date.get(entry_date, 0.0) + value
 
         total_value = sum(float(x.get("value") or 0.0) for x in combined)
-
-        total_entregas = list(session.exec(
-            select(models.Route)
-            .where(models.Route.employee_id == user_id)
-            .where(models.Route.type == "delivery")
-            .where(models.Route.date >= since)
-            .where(models.Route.date <= until)
-        ).all())
-        seen_total = {r.id for r in total_entregas if r.id}
-        for r in routes_as_helper:
-            if r.id not in seen_total and int(user_id) in _parse_route_helper_ids(r.delivery_helpers_json):
-                total_entregas.append(r)
-                seen_total.add(r.id)
-        total_entregas_value = sum(float(r.valor_financeiro or 0) for r in total_entregas)
         percent_valor = (total_value / total_entregas_value * 100) if total_entregas_value else 0.0
 
         by_date: Dict[str, float] = {}
@@ -2691,11 +2940,6 @@ def _compute_employee_returns_metrics(
             if d not in by_date:
                 by_date[d] = 0.0
             by_date[d] += float(item.get("value") or 0.0)
-        total_val_by_date: Dict[str, float] = {}
-        for r in total_entregas:
-            d = r.date or ""
-            if d:
-                total_val_by_date[d] = total_val_by_date.get(d, 0) + float(r.valor_financeiro or 0)
         sorted_dates = sorted(by_date.keys(), reverse=True)[:14]
         chart_labels = [d[-5:] if len(d) >= 5 else d for d in sorted_dates]
         chart_values = [by_date[d] for d in sorted_dates]
@@ -2724,6 +2968,16 @@ def _compute_employee_returns_metrics(
         top_clients.sort(key=lambda x: x.get("value", 0), reverse=True)
     except Exception as e:
         logger.exception(f"Error computing returns metrics: {e}")
+        if since is None:
+            until_dt = datetime.now(ZoneInfo("America/Sao_Paulo"))
+            since_dt = until_dt - timedelta(days=30)
+            since = since_dt.strftime("%Y-%m-%d")
+            until = until_dt.strftime("%Y-%m-%d")
+
+    cd_since, cd_until, cd_week_label = _carga_descarga_week_bounds()
+    carga_count, carga_value, carga_by_day = _compute_carga_descarga_metrics(session, user_id, cd_since, cd_until)
+    cesta_eligible = _check_cesta_basica_eligible(session, user_id, since, until)
+    cesta_value = CESTA_BASICA_PRIZE if cesta_eligible else 0.0
 
     return {
         "total_value": float(total_value or 0.0),
@@ -2733,12 +2987,19 @@ def _compute_employee_returns_metrics(
         "chart_percents": chart_percents,
         "top_clients": top_clients,
         "total_entregas_value": float(total_entregas_value or 0.0),
+        "carga_descarga_count": carga_count,
+        "carga_descarga_value": carga_value,
+        "carga_descarga_week_label": cd_week_label,
+        "carga_descarga_by_day": carga_by_day,
+        "cesta_basica_eligible": cesta_eligible,
+        "cesta_basica_value": cesta_value,
         "_debug": {
             "days": int(days or 30),
             "since": since,
-            "route_returns_count": len(route_returns),
+            "route_returns_count": route_return_entries_count,
+            "participant_routes_count": len(participant_routes),
             "devolucao_rows_count": len(devolucao_rows),
-            "dedup_linked_route_ids": len(devolucao_route_ids),
+            "participant_route_ids_count": len(participant_route_ids),
             "combined_count": len(combined),
         },
     }
@@ -3047,17 +3308,25 @@ async def mobile_api_returns_data(
     date_to = None
     if period:
         p = (period or "").strip()
+        today_sp = datetime.now(ZoneInfo("America/Sao_Paulo")).date()
         if len(p) == 7 and p[4] == "-":
             year, month = int(p[:4]), int(p[5:7])
             if 1 <= month <= 12:
-                import calendar
                 last = calendar.monthrange(year, month)[1]
-                date_from = f"{year:04d}-{month:02d}-01"
-                date_to = f"{year:04d}-{month:02d}-{last:02d}"
+                start_dt = date(year, month, 1)
+                end_dt = date(year, month, last)
+                if year == today_sp.year and month == today_sp.month:
+                    end_dt = today_sp
+                date_from = start_dt.strftime("%Y-%m-%d")
+                date_to = end_dt.strftime("%Y-%m-%d")
         elif len(p) == 4 and p.isdigit():
             year = int(p)
-            date_from = f"{year}-01-01"
-            date_to = f"{year}-12-31"
+            start_dt = date(year, 1, 1)
+            end_dt = date(year, 12, 31)
+            if year == today_sp.year:
+                end_dt = today_sp
+            date_from = start_dt.strftime("%Y-%m-%d")
+            date_to = end_dt.strftime("%Y-%m-%d")
     metrics = _compute_employee_returns_metrics(
         session=session, user_id=int(user_id),
         days=days if days is not None else 30,
@@ -3116,47 +3385,100 @@ async def api_mobile_delivery_history(
     if date_from > date_to:
         date_from, date_to = date_to, date_from
 
-    routes_as_driver = session.exec(
+    employees_all = session.exec(select(models.Employee).order_by(models.Employee.name)).all()
+    emp_map = {e.id: e.name for e in employees_all if e and e.id}
+    emp_by_name = {
+        (e.name or "").strip().lower(): e
+        for e in employees_all
+        if e and e.id and (e.name or "").strip()
+    }
+
+    sessions_for_period = session.exec(
+        select(models.DeliverySession)
+        .where(models.DeliverySession.date >= date_from)
+        .where(models.DeliverySession.date <= date_to)
+        .order_by(models.DeliverySession.date.desc(), models.DeliverySession.id.desc())
+    ).all()
+    session_helpers_by_driver: Dict[Any, List[str]] = {}
+    session_by_driver_date: Dict[Any, Any] = {}
+    for ds in sessions_for_period:
+        key = (ds.employee_id or 0, ds.date)
+        session_helpers_by_driver[key] = _parse_session_helpers(ds.helpers_json)
+        if key not in session_by_driver_date:
+            session_by_driver_date[key] = ds
+
+    routes_in_period = session.exec(
         select(models.Route)
         .where(models.Route.type == "delivery")
-        .where(models.Route.employee_id == int(user_id))
         .where(models.Route.date >= date_from)
         .where(models.Route.date <= date_to)
-        .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta", "entregue", "devolucao", "cancelada"]))
-        .order_by(models.Route.date.desc(), models.Route.id)
+        .order_by(models.Route.date.desc(), models.Route.id.desc())
     ).all()
-    routes_as_helper = session.exec(
-        select(models.Route)
-        .where(models.Route.type == "delivery")
-        .where(models.Route.date >= date_from)
-        .where(models.Route.date <= date_to)
-        .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta", "entregue", "devolucao", "cancelada"]))
-    ).all()
-    driver_ids = {int(r.id) for r in routes_as_driver if r.id}
-    helper_routes = [
-        r for r in routes_as_helper
-        if r.id and int(r.id) not in driver_ids and int(user_id) in _parse_route_helper_ids(r.delivery_helpers_json)
-    ]
-    routes = sorted(list(routes_as_driver) + helper_routes, key=lambda x: ((x.date or ""), x.id or 0), reverse=True)
-    emp_map = {e.id: e.name for e in session.exec(select(models.Employee)).all()}
-    dates_seen = set()
-    day_summaries = []
-    for r in routes:
-        if r.date in dates_seen:
+    participant_routes = []
+    participant_route_ids: set[int] = set()
+    for route in routes_in_period:
+        helper_ids = _resolve_delivery_route_helper_ids(route, session_helpers_by_driver, emp_by_name)
+        if int(route.employee_id or 0) != int(user_id) and int(user_id) not in helper_ids:
             continue
-        dates_seen.add(r.date)
-        day_routes = [x for x in routes if x.date == r.date]
-        total_val = sum(float(x.valor_financeiro or 0) for x in day_routes)
-        # Só conta valor_devolucao de rotas que ficaram em devolução (status final).
-        # Se marcou devolução mas "retornou da devolução" e entregou, status=entregue → não conta.
-        return_val = sum(
-            float(x.valor_devolucao or 0) for x in day_routes
-            if (x.delivery_status or "").lower() == "devolucao"
+        participant_routes.append(route)
+        if route.id:
+            participant_route_ids.add(int(route.id))
+
+    devolucao_query = (
+        select(models.Devolucao)
+        .where(
+            or_(
+                models.Devolucao.motorista_id == int(user_id),
+                models.Devolucao.ajudante_id == int(user_id),
+            )
+        )
+        .where(models.Devolucao.data_romaneio >= date_from)
+        .where(models.Devolucao.data_romaneio <= date_to)
+    )
+    if participant_route_ids:
+        devolucao_query = devolucao_query.where(
+            or_(
+                models.Devolucao.route_id.is_(None),
+                models.Devolucao.route_id.notin_(participant_route_ids),
+            )
+        )
+    devolucao_rows = session.exec(devolucao_query).all()
+
+    date_keys = sorted({
+        r.date for r in participant_routes if r.date
+    } | {
+        (d.data_romaneio or d.data_entrega or "") for d in devolucao_rows if (d.data_romaneio or d.data_entrega)
+    }, reverse=True)
+
+    day_summaries = []
+    for day_key in date_keys:
+        day_routes = [x for x in participant_routes if x.date == day_key]
+        day_devolucoes = [
+            d for d in devolucao_rows
+            if (d.data_romaneio or d.data_entrega or "") == day_key and _safe_float(d.valor) > 0
+        ]
+        route_metrics = [(x, _delivery_route_return_metrics(x)) for x in day_routes]
+        total_val = (
+            sum(float(metrics["planned_value"] or 0.0) for _, metrics in route_metrics)
+            + sum(_safe_float(d.valor) for d in day_devolucoes)
+        )
+        return_val = (
+            sum(float(metrics["returned_value"] or 0.0) for _, metrics in route_metrics if metrics["has_return"])
+            + sum(_safe_float(d.valor) for d in day_devolucoes)
         )
         return_pct = (return_val / total_val * 100) if total_val > 0 else 0.0
-        delivered = sum(1 for x in day_routes if (x.delivery_status or "").lower() == "entregue")
-        returned = sum(1 for x in day_routes if (x.delivery_status or "").lower() == "devolucao")
-        not_delivered = len(day_routes) - delivered - returned
+        delivered = sum(
+            1 for route, metrics in route_metrics
+            if (route.delivery_status or "").lower() == "entregue" and not metrics["has_return"]
+        )
+        returned = sum(1 for _, metrics in route_metrics if metrics["has_return"]) + len(day_devolucoes)
+        total_client_ids = {
+            int(route.client_id) for route in day_routes if route.client_id is not None
+        } | {
+            int(d.client_id) for d in day_devolucoes if d.client_id is not None
+        }
+        total_clientes = len(total_client_ids) if total_client_ids else (len(day_routes) + len(day_devolucoes))
+        not_delivered = max(0, total_clientes - delivered - returned)
         times = []
         for x in day_routes:
             for t in [x.delivery_started_at, x.delivery_finished_at, x.delivery_returned_at]:
@@ -3174,13 +3496,13 @@ async def api_mobile_delivery_history(
                     travel_min += 24 * 60
             except (ValueError, IndexError):
                 pass
-        driver_id = r.employee_id or int(user_id)
-        ds = session.exec(
-            select(models.DeliverySession)
-            .where(models.DeliverySession.employee_id == driver_id)
-            .where(models.DeliverySession.date == r.date)
-            .order_by(models.DeliverySession.id.desc())
-        ).first()
+        driver_id = (
+            day_routes[0].employee_id
+            if day_routes and day_routes[0].employee_id
+            else day_devolucoes[0].motorista_id if day_devolucoes and day_devolucoes[0].motorista_id
+            else int(user_id)
+        )
+        ds = session_by_driver_date.get((driver_id or 0, day_key))
         helpers = []
         if ds and ds.helpers_json:
             try:
@@ -3198,13 +3520,13 @@ async def api_mobile_delivery_history(
                 helper_ids.update(ids)
             helpers = [emp_map.get(hid, "") for hid in helper_ids if emp_map.get(hid)]
             helpers = [h for h in helpers if h]
-        motorista = emp_map.get(r.employee_id, "") or (employee.name if r.employee_id == employee.id else "")
+        motorista = emp_map.get(driver_id, "") or (employee.name if driver_id == employee.id else "")
         try:
-            d_fmt = datetime.strptime(r.date, "%Y-%m-%d").strftime("%d/%m/%Y")
+            d_fmt = datetime.strptime(day_key, "%Y-%m-%d").strftime("%d/%m/%Y")
         except Exception:
-            d_fmt = r.date
+            d_fmt = day_key
         day_summaries.append({
-            "date": r.date,
+            "date": day_key,
             "date_label": d_fmt,
             "motorista": motorista,
             "ajudantes": helpers,
@@ -3212,7 +3534,7 @@ async def api_mobile_delivery_history(
             "clientes_entregues": delivered,
             "clientes_nao_entregues": not_delivered + returned,
             "clientes_devolucao": returned,
-            "total_clientes": len(day_routes),
+            "total_clientes": total_clientes,
             "hora_inicial": start_time,
             "hora_final": end_time,
             "tempo_percurso_min": travel_min,
@@ -3256,6 +3578,81 @@ async def api_sync_xp_totals(request: Request, session: Session = Depends(get_se
     except Exception as e:
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)
 
+
+@app.get("/api/admin/backup", response_class=Response, dependencies=[Depends(require_leader)])
+async def api_admin_backup():
+    """Cria backup do banco e retorna o arquivo para download."""
+    try:
+        from backup_service import create_backup
+        backup_path, err = create_backup()
+        if err:
+            return JSONResponse({"success": False, "error": err}, status_code=500)
+        if not backup_path or not Path(backup_path).exists():
+            return JSONResponse({"success": False, "error": "Backup não foi criado."}, status_code=500)
+        filename = Path(backup_path).name
+        return FileResponse(
+            path=str(backup_path),
+            filename=filename,
+            media_type="application/octet-stream",
+        )
+    except Exception as e:
+        logger.exception(f"api_admin_backup: {e}")
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+@app.post("/api/admin/reset-data", response_class=JSONResponse, dependencies=[Depends(require_leader)])
+async def api_admin_reset_data(
+    request: Request,
+    reset_routes: Optional[str] = Form(None),
+    reset_xp: Optional[str] = Form(None),
+    reset_all: Optional[str] = Form(None),
+    session: Session = Depends(get_session),
+):
+    """Reseta dados operacionais (rotas/presença) e/ou gamificação (XP). Requer confirmação no frontend."""
+    try:
+        do_routes = (reset_routes or "").strip().lower() == "true"
+        do_xp = (reset_xp or "").strip().lower() == "true"
+        do_all = (reset_all or "").strip().lower() == "true"
+        if not (do_routes or do_xp or do_all):
+            return JSONResponse({"success": False, "error": "Nenhuma opção de reset informada."}, status_code=400)
+        if do_all:
+            do_routes = do_xp = True
+        counts = {}
+        if do_routes:
+            r = session.execute(delete(models.DevolucaoStaging))
+            counts["DevolucaoStaging"] = r.rowcount or 0
+            r = session.execute(delete(models.DevolucaoImportRowError))
+            counts["DevolucaoImportRowError"] = r.rowcount or 0
+            r = session.execute(delete(models.Devolucao))
+            counts["Devolucao"] = r.rowcount or 0
+            r = session.execute(delete(models.DevolucaoImportBatch))
+            counts["DevolucaoImportBatch"] = r.rowcount or 0
+            r = session.execute(delete(models.DeliverySession))
+            counts["DeliverySession"] = r.rowcount or 0
+            r = session.execute(delete(models.Route))
+            counts["Route"] = r.rowcount or 0
+            r = session.execute(delete(models.EmployeeRoutine))
+            counts["EmployeeRoutine"] = r.rowcount or 0
+            r = session.execute(delete(models.DailyOperation))
+            counts["DailyOperation"] = r.rowcount or 0
+        if do_xp:
+            employees = session.exec(select(models.Employee)).all()
+            for emp in employees:
+                emp.total_xp = 0
+                session.add(emp)
+            counts["EmployeesZeroed"] = len(employees)
+            r = session.execute(delete(models.GameXPTransaction))
+            counts["GameXPTransaction"] = r.rowcount or 0
+            r = session.execute(delete(models.EmployeeAchievement))
+            counts["EmployeeAchievement"] = r.rowcount or 0
+        session.commit()
+        return JSONResponse({"success": True, "counts": counts})
+    except Exception as e:
+        session.rollback()
+        logger.exception(f"api_admin_reset_data: {e}")
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
 @app.post("/api/game/manual-xp", dependencies=[Depends(require_leader)])
 async def api_manual_xp(payload: ManualXPRequest, request: Request, session: Session = Depends(get_session)):
     """Cria uma transação manual de XP (bonificação/penalidade)."""
@@ -3282,7 +3679,7 @@ async def api_manual_xp(payload: ManualXPRequest, request: Request, session: Ses
         return JSONResponse({"success": False, "error": "status inválido (use confirmed ou provisional)."}, status_code=400)
 
     now = datetime.now()
-    tx = GameXPTransaction(
+    tx = models.GameXPTransaction(
         employee_id=payload.employee_id,
         amount=amount,
         source_type="manual_admin",
@@ -3318,10 +3715,10 @@ async def admin_game_dashboard(request: Request, session: Session = Depends(get_
     """Manager Dashboard for Gamification Control"""
     # 1. Fetch Provisional Transactions
     pending_txs = session.exec(
-        select(GameXPTransaction, models.Employee)
+        select(models.GameXPTransaction, models.Employee)
         .join(models.Employee)
-        .where(GameXPTransaction.status == "provisional")
-        .order_by(desc(GameXPTransaction.created_at))
+        .where(models.GameXPTransaction.status == "provisional")
+        .order_by(desc(models.GameXPTransaction.created_at))
     ).all()
     
     # Format for template
@@ -3337,9 +3734,9 @@ async def admin_game_dashboard(request: Request, session: Session = Depends(get_
 
     # 2. Fetch Recent Ledger (Audit)
     history_txs = session.exec(
-        select(GameXPTransaction, models.Employee)
+        select(models.GameXPTransaction, models.Employee)
         .join(models.Employee)
-        .order_by(desc(GameXPTransaction.created_at))
+        .order_by(desc(models.GameXPTransaction.created_at))
         .limit(50)
     ).all()
     
@@ -3364,9 +3761,9 @@ async def admin_game_dashboard(request: Request, session: Session = Depends(get_
 async def admin_game_audit(request: Request, session: Session = Depends(get_session), user=Depends(require_leader)):
     """Exclusive Audit Log Page"""
     history_txs = session.exec(
-        select(GameXPTransaction, models.Employee)
+        select(models.GameXPTransaction, models.Employee)
         .join(models.Employee)
-        .order_by(desc(GameXPTransaction.created_at))
+        .order_by(desc(models.GameXPTransaction.created_at))
         .limit(200) # Load more history
     ).all()
     
@@ -3421,9 +3818,9 @@ async def api_game_audit_employee_history(
     # 2. Get All Transactions (History)
     #    Order by newest first
     txs = session.exec(
-        select(GameXPTransaction)
-        .where(GameXPTransaction.employee_id == employee_id)
-        .order_by(desc(GameXPTransaction.created_at))
+        select(models.GameXPTransaction)
+        .where(models.GameXPTransaction.employee_id == employee_id)
+        .order_by(desc(models.GameXPTransaction.created_at))
     ).all()
 
     # 3. Collect Dates for enrichment (Produtividade YYYY-MM-DD or ref: daily_YYYY-MM-DD in reason)
@@ -3616,7 +4013,7 @@ async def api_save_achievements(payload: AchievementsPayload, session: Session =
 @app.post("/api/game/transaction/{tx_id}/{action}", dependencies=[Depends(require_leader)])
 async def api_manage_tx(tx_id: int, action: str, session: Session = Depends(get_session)):
     """Approve/Reject Provisional Transaction"""
-    tx = session.get(GameXPTransaction, tx_id)
+    tx = session.get(models.GameXPTransaction, tx_id)
     if not tx: return {"error": "Transação não encontrada"}
     
     
@@ -4094,9 +4491,12 @@ async def api_mobile_delivery_my_routes(
         user_id = int(user_id)
 
         today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+        today_dt = datetime.strptime(today_str, "%Y-%m-%d").date()
+        week_ago_str = (today_dt - timedelta(days=7)).strftime("%Y-%m-%d")
         employee = session.get(models.Employee, user_id)
         employee_name = (employee.name or "").strip() if employee else ""
 
+        # 1. Tenta sessão de hoje (motorista)
         session_open = session.exec(
             select(models.DeliverySession)
             .where(models.DeliverySession.employee_id == user_id)
@@ -4106,6 +4506,7 @@ async def api_mobile_delivery_my_routes(
         ).first()
 
         is_helper_view = False
+        # 2. Se não encontrou, tenta como ajudante em sessões de hoje
         if not session_open and employee_name:
             sessions_today = session.exec(
                 select(models.DeliverySession)
@@ -4118,6 +4519,50 @@ async def api_mobile_delivery_my_routes(
                     session_open = ds
                     is_helper_view = True
                     break
+
+        def _session_has_pending_routes(sess) -> bool:
+            """Só considera sessão órfã se ainda houver paradas pendentes/em andamento."""
+            if not sess:
+                return False
+            pendentes = session.exec(
+                select(models.Route)
+                .where(models.Route.type == "delivery")
+                .where(models.Route.employee_id == sess.employee_id)
+                .where(models.Route.date == sess.date)
+                .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta"]))
+            ).first()
+            return pendentes is not None
+
+        # 3. Sessão órfã: busca sessões abertas dos últimos 7 dias APENAS se houver paradas pendentes
+        #    (não exibe rota já encerrada para o motorista)
+        if not session_open:
+            candidates = session.exec(
+                select(models.DeliverySession)
+                .where(models.DeliverySession.employee_id == user_id)
+                .where(models.DeliverySession.date >= week_ago_str)
+                .where(models.DeliverySession.date <= today_str)
+                .where(models.DeliverySession.status == "open")
+                .order_by(desc(models.DeliverySession.date), desc(models.DeliverySession.id))
+            ).all()
+            for ds in candidates:
+                if _session_has_pending_routes(ds):
+                    session_open = ds
+                    break
+        if not session_open and employee_name:
+            sessions_recent = session.exec(
+                select(models.DeliverySession)
+                .where(models.DeliverySession.date >= week_ago_str)
+                .where(models.DeliverySession.date <= today_str)
+                .where(models.DeliverySession.status == "open")
+                .order_by(desc(models.DeliverySession.date), desc(models.DeliverySession.id))
+            ).all()
+            for ds in sessions_recent:
+                helpers = _parse_session_helpers(ds.helpers_json)
+                if any((h or "").strip().lower() == employee_name.lower() for h in helpers):
+                    if _session_has_pending_routes(ds):
+                        session_open = ds
+                        is_helper_view = True
+                        break
 
         driver_id = session_open.employee_id if session_open else user_id
         q = (
@@ -4132,7 +4577,12 @@ async def api_mobile_delivery_my_routes(
             if date_to:
                 q = q.where(models.Route.date <= date_to)
         else:
-            q = q.where(models.Route.date == today_str)
+            today_dt = datetime.strptime(today_str, "%Y-%m-%d").date()
+            month_start = today_dt.replace(day=1)
+            _, last_day = calendar.monthrange(today_dt.year, today_dt.month)
+            month_end = today_dt.replace(day=last_day)
+            q = q.where(models.Route.date >= month_start.strftime("%Y-%m-%d"))
+            q = q.where(models.Route.date <= month_end.strftime("%Y-%m-%d"))
         routes = session.exec(q.order_by(models.Route.date, models.Route.id)).all()
         client_ids = list({r.client_id for r in routes})
         clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
@@ -9083,6 +9533,8 @@ def _create_pre_client(
 async def separacao_page(
     request: Request,
     date: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
     shift: str = "Manhã",
     session: Session = Depends(get_session),
     delivery_import: Optional[dict] = None,
@@ -9097,15 +9549,29 @@ async def separacao_page(
         current_emp_id = user.get("id")
         is_mobile_user = True
     
-    if not date:
-        date = datetime.now().strftime("%Y-%m-%d")
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    if date_from and date_to:
+        date_from_str = date_from
+        date_to_str = date_to
+        if date_from_str > date_to_str:
+            date_from_str, date_to_str = date_to_str, date_from_str
+    elif date_from:
+        date_from_str = date_from
+        date_to_str = date_from
+    elif date:
+        date_from_str = date
+        date_to_str = date
+    else:
+        date_from_str = today_str
+        date_to_str = today_str
+    date = date_from_str  # mantém 'date' para compatibilidade (primeiro dia)
     selected_date_obj = datetime.strptime(date, "%Y-%m-%d")
     suggested_input_date = (selected_date_obj - timedelta(days=1)).strftime("%Y-%m-%d")
         
-    # 1. Fetch DailyOperation
+    # 1. Fetch DailyOperation (usa primeiro dia do período)
     daily_op = session.exec(
         select(models.DailyOperation)
-        .where(models.DailyOperation.date == date)
+        .where(models.DailyOperation.date == date_from_str)
         .where(models.DailyOperation.shift == shift)
     ).first()
     
@@ -9143,7 +9609,8 @@ async def separacao_page(
     # 4. Fetch Routes
     query = (
         select(models.Route)
-        .where(models.Route.date == date)
+        .where(models.Route.date >= date_from_str)
+        .where(models.Route.date <= date_to_str)
         .where(models.Route.shift == shift)
         .where(or_(models.Route.type == None, models.Route.type == "separation"))
     )
@@ -9270,22 +9737,25 @@ async def separacao_page(
         if not r['end_time']: # Active/Open route
             active_client_ids.add(r['client_id'])
 
-    # Delivery list (same selected date)
+    # Delivery list (período selecionado)
     delivery_rows = session.exec(
         select(models.Route)
-        .where(models.Route.date == date)
+        .where(models.Route.date >= date_from_str)
+        .where(models.Route.date <= date_to_str)
         .where(models.Route.type == "delivery")
-        .order_by(models.Route.delivery_route_code, models.Route.created_at)
+        .order_by(models.Route.date, models.Route.delivery_route_code, models.Route.created_at)
     ).all()
     delivery_sync_token = _build_delivery_sync_token(delivery_rows, date, shift)
 
     emp_by_name = {e.name.lower().strip(): e for e in all_employees if (e.name or "").strip()}
     driver_ids_for_date = list({r.employee_id for r in delivery_rows if r.employee_id})
+    all_dates_in_range = list({r.date for r in delivery_rows})
     sessions_for_date = []
-    if driver_ids_for_date:
+    if driver_ids_for_date and all_dates_in_range:
         sessions_for_date = session.exec(
             select(models.DeliverySession)
-            .where(models.DeliverySession.date == date)
+            .where(models.DeliverySession.date >= date_from_str)
+            .where(models.DeliverySession.date <= date_to_str)
             .where(models.DeliverySession.employee_id.in_(driver_ids_for_date))
         ).all()
     session_by_driver = {(ds.employee_id, ds.date): ds for ds in sessions_for_date}
@@ -9308,9 +9778,10 @@ async def separacao_page(
         emp = emp_map_id.get(route.employee_id)
         driver_name = emp.name if emp else "Motorista não cadastrado"
         plate_norm = _norm_plate(route.delivery_vehicle_plate) or "-"
-        key = (route.employee_id or 0, plate_norm)
+        key = (route.date, route.employee_id or 0, plate_norm)
         if key not in delivery_by_employee:
             delivery_by_employee[key] = {
+                "group_date": route.date,
                 "employee_id": route.employee_id,
                 "driver_name": driver_name,
                 "vehicle_plate": route.delivery_vehicle_plate or "-",
@@ -9480,7 +9951,7 @@ async def separacao_page(
 
     delivery_groups = sorted(
         delivery_by_employee.values(),
-        key=lambda x: (x["driver_name"], _norm_plate(x.get("vehicle_plate"))),
+        key=lambda x: (x.get("group_date", ""), x["driver_name"], _norm_plate(x.get("vehicle_plate"))),
     )
     for group in delivery_groups:
         stops = len(group["rows"])
@@ -9564,9 +10035,12 @@ async def separacao_page(
         "routes": routes_view, # Keep flat list for "Total" count
         "grouped_routes": grouped_routes, # New grouped structure
         "selected_date": date,
+        "selected_date_from": date_from_str,
+        "selected_date_to": date_to_str,
         "selected_shift": shift,
         "selected_date_fmt": selected_date_obj.strftime("%d/%m/%Y"),
         "suggested_input_date": suggested_input_date,
+        "suggest_week_ago": (datetime.strptime(date_to_str, "%Y-%m-%d") - timedelta(days=7)).strftime("%Y-%m-%d"),
         "delivery_groups": delivery_groups,
         "delivery_summary": delivery_summary,
         "delivery_sync_token": delivery_sync_token,
@@ -10420,18 +10894,30 @@ async def reopen_delivery_route_all(
 @app.post("/separacao/delivery/finish-all-routes", response_class=RedirectResponse)
 async def finish_all_delivery_routes(
     request: Request,
-    date: str = Form(...),
+    date: str = Form(None),
+    date_from: Optional[str] = Form(None),
+    date_to: Optional[str] = Form(None),
     shift: str = Form("Manhã"),
     session: Session = Depends(get_session),
 ):
-    """Finaliza em massa todas as rotas do dia/turno: paradas com devolução ficam devolução; demais ficam entregue."""
+    """Finaliza em massa todas as rotas do período/turno: paradas com devolução ficam devolução; demais ficam entregue."""
     require_login(request)
+    df = date_from or date
+    dt = date_to or date or df
+    if not df:
+        df = datetime.now().strftime("%Y-%m-%d")
+    if not dt:
+        dt = df
+    if df > dt:
+        df, dt = dt, df
+    redirect_url = f"/separacao?date_from={df}&date_to={dt}&shift={shift}"
     now = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
 
     routes = session.exec(
         select(models.Route)
         .where(models.Route.type == "delivery")
-        .where(models.Route.date == date)
+        .where(models.Route.date >= df)
+        .where(models.Route.date <= dt)
         .where(models.Route.shift == shift)
     ).all()
 
@@ -10496,31 +10982,43 @@ async def finish_all_delivery_routes(
     rate = (return_value_total / total_planned * 100) if total_planned else 0.0
     feedback = f"Todas as rotas finalizadas: {delivered_count} entregues, {returned_count} devoluções (R$ {return_value_total:,.2f}, {rate:.1f}% dev.)"
     feedback_encoded = urlencode({"delivery_feedback": feedback, "delivery_feedback_level": "success"})
-    return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
+    return RedirectResponse(url=redirect_url + f"&{feedback_encoded}", status_code=303)
 
 
 @app.post("/separacao/delivery/reopen-all-routes", response_class=RedirectResponse)
 async def reopen_all_delivery_routes(
     request: Request,
-    date: str = Form(...),
+    date: str = Form(None),
+    date_from: Optional[str] = Form(None),
+    date_to: Optional[str] = Form(None),
     shift: str = Form("Manhã"),
     session: Session = Depends(get_session),
 ):
-    """Reabre em massa todas as rotas finalizadas do dia/turno."""
+    """Reabre em massa todas as rotas finalizadas do período/turno."""
     require_login(request)
+    df = date_from or date
+    dt = date_to or date or df
+    if not df:
+        df = datetime.now().strftime("%Y-%m-%d")
+    if not dt:
+        dt = df
+    if df > dt:
+        df, dt = dt, df
+    redirect_url = f"/separacao?date_from={df}&date_to={dt}&shift={shift}"
     now = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
 
     routes = session.exec(
         select(models.Route)
         .where(models.Route.type == "delivery")
-        .where(models.Route.date == date)
+        .where(models.Route.date >= df)
+        .where(models.Route.date <= dt)
         .where(models.Route.shift == shift)
         .where(models.Route.delivery_status.in_(["entregue", "devolucao"]))
     ).all()
     routes = list(routes)
     if not routes:
         feedback_encoded = urlencode({"delivery_feedback": "Nenhuma rota finalizada para reabrir.", "delivery_feedback_level": "error"})
-        return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
+        return RedirectResponse(url=redirect_url + f"&{feedback_encoded}", status_code=303)
 
     for route in routes:
         route.delivery_status = "reaberta"
@@ -10534,7 +11032,7 @@ async def reopen_all_delivery_routes(
     session.commit()
 
     feedback_encoded = urlencode({"delivery_feedback": f"Rotas reabertas em massa: {len(routes)} parada(s).", "delivery_feedback_level": "success"})
-    return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
+    return RedirectResponse(url=redirect_url + f"&{feedback_encoded}", status_code=303)
 
 
 @app.post("/separacao/delivery/finish-route", response_class=RedirectResponse)
@@ -10621,6 +11119,122 @@ async def finish_delivery_route(
     return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
 
 
+@app.post("/separacao/delivery/bulk-action", response_class=RedirectResponse)
+async def delivery_bulk_action(
+    request: Request,
+    date: str = Form(None),
+    date_from: Optional[str] = Form(None),
+    date_to: Optional[str] = Form(None),
+    shift: str = Form("Manhã"),
+    employee_ids: str = Form(...),  # JSON array [1,2,3] ou comma-separated
+    action: str = Form(...),  # delete_routes | clear_devolucoes
+    session: Session = Depends(get_session),
+):
+    """Ações em massa para motoristas selecionados: apagar rotas ou limpar devoluções."""
+    require_login(request)
+    df = date_from or date
+    dt = date_to or date or df
+    if not df:
+        df = datetime.now().strftime("%Y-%m-%d")
+    if not dt:
+        dt = df
+    if df > dt:
+        df, dt = dt, df
+    redirect_base = f"/separacao?date_from={df}&date_to={dt}&shift={shift}"
+
+    try:
+        ids_raw = employee_ids.strip()
+        if ids_raw.startswith("["):
+            ids_list = json.loads(ids_raw)
+        else:
+            ids_list = [int(x.strip()) for x in ids_raw.split(",") if x.strip()]
+        ids_list = [int(x) for x in ids_list if x]
+    except Exception:
+        feedback_encoded = urlencode({"delivery_feedback": "IDs de motoristas inválidos.", "delivery_feedback_level": "error"})
+        return RedirectResponse(url=redirect_base + f"&{feedback_encoded}", status_code=303)
+
+    if not ids_list:
+        feedback_encoded = urlencode({"delivery_feedback": "Selecione ao menos um motorista.", "delivery_feedback_level": "error"})
+        return RedirectResponse(url=redirect_base + f"&{feedback_encoded}", status_code=303)
+
+    action_norm = (action or "").strip().lower()
+    if action_norm not in ("delete_routes", "clear_devolucoes"):
+        feedback_encoded = urlencode({"delivery_feedback": "Ação inválida.", "delivery_feedback_level": "error"})
+        return RedirectResponse(url=redirect_base + f"&{feedback_encoded}", status_code=303)
+
+    routes = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date >= df)
+        .where(models.Route.date <= dt)
+        .where(models.Route.shift == shift)
+        .where(models.Route.employee_id.in_(ids_list))
+    ).all()
+    routes = list(routes)
+    route_ids = [r.id for r in routes if r.id]
+
+    if action_norm == "delete_routes":
+        # 1. Delete Devolucao linked to those routes (or motorista+date no período)
+        if route_ids:
+            session.execute(delete(models.Devolucao).where(models.Devolucao.route_id.in_(route_ids)))
+        session.execute(
+            delete(models.Devolucao).where(
+                models.Devolucao.motorista_id.in_(ids_list),
+                models.Devolucao.data_romaneio >= df,
+                models.Devolucao.data_romaneio <= dt,
+            )
+        )
+        # 2. Delete DeliverySession for those drivers no período
+        session.execute(
+            delete(models.DeliverySession).where(
+                models.DeliverySession.employee_id.in_(ids_list),
+                models.DeliverySession.date >= df,
+                models.DeliverySession.date <= dt,
+            )
+        )
+        # 3. Delete Route
+        if route_ids:
+            session.execute(delete(models.Route).where(models.Route.id.in_(route_ids)))
+        session.commit()
+        feedback_encoded = urlencode({
+            "delivery_feedback": f"Rotas apagadas para {len(ids_list)} motorista(s): {len(routes)} parada(s) removida(s).",
+            "delivery_feedback_level": "success",
+        })
+        return RedirectResponse(url=redirect_base + f"&{feedback_encoded}", status_code=303)
+
+    # clear_devolucoes - Devolucao por data no período
+    now = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
+    devolucao_stmt = (
+        delete(models.Devolucao)
+        .where(models.Devolucao.motorista_id.in_(ids_list))
+        .where(models.Devolucao.data_romaneio >= df)
+        .where(models.Devolucao.data_romaneio <= dt)
+    )
+    r_del = session.execute(devolucao_stmt)
+    dev_deleted = r_del.rowcount if hasattr(r_del, "rowcount") else 0
+    # 2. Revert Route.delivery_status from devolucao to reaberta
+    for route in routes:
+        if (route.delivery_status or "").lower() == "devolucao":
+            route.delivery_status = "reaberta"
+            route.status = "pending"
+            route.devolucao_volume = None
+            route.valor_devolucao = None
+            route.delivery_returned_at = None
+            route.delivery_return_category = None
+            route.delivery_return_reason = None
+            route.end_time = None
+            route.delivery_finished_at = None
+            route.delivery_reopen_count = (route.delivery_reopen_count or 0) + 1
+            _append_delivery_event(route, "reabrir", now, note=f"Limpeza de devoluções em massa #{route.delivery_reopen_count}")
+            session.add(route)
+    session.commit()
+    feedback_encoded = urlencode({
+        "delivery_feedback": f"Devoluções limpas: {dev_deleted} registro(s) removido(s); paradas revertidas para reabertas.",
+        "delivery_feedback_level": "success",
+    })
+    return RedirectResponse(url=redirect_base + f"&{feedback_encoded}", status_code=303)
+
+
 @app.post("/separacao/update", response_class=RedirectResponse)
 async def update_separacao(
     request: Request,
@@ -10701,8 +11315,13 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
         if not date:
             date = datetime.now().strftime("%Y-%m-%d")
         
-        # Fetch all *completed* routes for analysis
-        all_routes = session.exec(select(models.Route).where(models.Route.tonnage > 0).order_by(models.Route.date.desc())).all()
+        # Fetch all *delivery* routes with movement for analysis (apenas clientes com movimentação na rotina de entregas)
+        all_routes = session.exec(
+            select(models.Route)
+            .where(models.Route.type == "delivery")
+            .where(models.Route.tonnage > 0)
+            .order_by(models.Route.date.desc())
+        ).all()
         clients = session.exec(select(models.Client)).all()
         client_map = {c.id: c.name for c in clients}
 
@@ -10716,8 +11335,98 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
         emp_stats = {} 
         client_dur_stats = {} 
         emp_day_intervals = {} 
+        helper_stats = {}
+        helper_day_intervals = {}
+        team_member_stats = {}
+        team_day_intervals = {}
         
-        all_emps = {e.id: e.name for e in session.exec(select(models.Employee)).all()}
+        all_employee_records = session.exec(select(models.Employee)).all()
+        all_emps = {e.id: e.name for e in all_employee_records}
+        emp_objs = {e.id: e for e in all_employee_records}
+        emp_by_name = {(e.name or "").strip().lower(): e for e in all_employee_records if e.name}
+
+        sessions_for_date = session.exec(
+            select(models.DeliverySession).where(models.DeliverySession.date == date)
+        ).all()
+        session_helpers_by_driver = {}
+        for ds in sessions_for_date:
+            session_helpers_by_driver[(ds.employee_id or 0, ds.date)] = _parse_session_helpers(ds.helpers_json)
+
+        def add_participant_route(stats_map, interval_map, employee_id, route_date, tonnage_value, start_dt, end_dt, role):
+            if not employee_id:
+                return
+            duration_seconds = (end_dt - start_dt).total_seconds()
+            if duration_seconds <= 0:
+                return
+
+            payload = stats_map.setdefault(employee_id, {"ton": 0.0, "dur": 0.0, "count": 0, "roles": set()})
+            payload["ton"] += tonnage_value
+            payload["dur"] += duration_seconds
+            payload["count"] += 1
+            payload["roles"].add(role)
+
+            key = (employee_id, route_date)
+            if key not in interval_map:
+                interval_map[key] = []
+            interval_map[key].append((start_dt, end_dt))
+
+        def get_shift_duration_hours(employee_obj):
+            shift_duration_hours = 8.0
+            if employee_obj and employee_obj.work_schedule:
+                try:
+                    parts = employee_obj.work_schedule.split('-')
+                    if len(parts) == 2:
+                        h_start = datetime.strptime(parts[0].strip(), "%H:%M")
+                        h_end = datetime.strptime(parts[1].strip(), "%H:%M")
+                        if h_end < h_start:
+                            h_end += timedelta(days=1)
+                        shift_duration_hours = (h_end - h_start).total_seconds() / 3600
+                except Exception:
+                    pass
+            return shift_duration_hours
+
+        def build_productivity_rows(stats_map, interval_map):
+            rows = []
+            for eid, stat in stats_map.items():
+                real_active_hours = 0.0
+                intervals = interval_map.get((eid, date), [])
+                if intervals:
+                    intervals.sort(key=lambda x: x[0])
+                    merged = []
+                    for start, end in intervals:
+                        if not merged or start > merged[-1][1]:
+                            merged.append([start, end])
+                        else:
+                            merged[-1][1] = max(merged[-1][1], end)
+                    real_active_hours = sum((m[1] - m[0]).total_seconds() for m in merged) / 3600
+
+                kgh = (stat['ton'] / real_active_hours) if real_active_hours > 0 else 0
+                emp = emp_objs.get(eid)
+                shift_duration_hours = get_shift_duration_hours(emp)
+                idle_hours = max(0, shift_duration_hours - real_active_hours)
+                roles = stat.get("roles", set())
+
+                if "motorista" in roles and "ajudante" in roles:
+                    role_label = "Misto"
+                elif "ajudante" in roles:
+                    role_label = "Ajudante"
+                else:
+                    role_label = "Motorista"
+
+                rows.append({
+                    "employee_id": eid,
+                    "name": all_emps.get(eid, "Unknown"),
+                    "kgh": kgh,
+                    "active_hours": real_active_hours,
+                    "idle_hours": idle_hours,
+                    "shift_duration": shift_duration_hours,
+                    "route_count": stat.get("count", 0),
+                    "tonnage": stat.get("ton", 0.0),
+                    "role_label": role_label,
+                })
+
+            rows.sort(key=lambda x: x['kgh'], reverse=True)
+            return rows
         
         # Track selected day stats
         selected_day_routes = 0
@@ -10734,7 +11443,7 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
         prev_day_kgh_count = 0
         
         for r in all_routes:
-            t = r.tonnage or 0.0
+            t = _safe_float(r.tonnage)
             
             # ABC Logic
             total_sys_tonnage += t
@@ -10791,6 +11500,8 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
                         s = datetime.strptime(r.start_time, "%H:%M")
                         e = datetime.strptime(r.end_time, "%H:%M")
                         dur = (e - s).total_seconds()
+                        if dur <= 0:
+                            continue
                         
                         if r.client_id:
                             if r.client_id not in client_dur_stats:
@@ -10799,13 +11510,31 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
                             client_dur_stats[r.client_id]['count'] += 1
                         
                         eid = r.employee_id
-                        if eid not in emp_stats: emp_stats[eid] = {'ton': 0, 'dur': 0}
-                        emp_stats[eid]['ton'] += (r.tonnage or 0)
-                        emp_stats[eid]['dur'] += dur
-                        
-                        key = (eid, r.date)
-                        if key not in emp_day_intervals: emp_day_intervals[key] = []
-                        emp_day_intervals[key].append((s, e))
+                        add_participant_route(emp_stats, emp_day_intervals, eid, r.date, t, s, e, "motorista")
+                        add_participant_route(team_member_stats, team_day_intervals, eid, r.date, t, s, e, "motorista")
+
+                        helper_ids = [
+                            hid for hid in _parse_route_helper_ids(getattr(r, "delivery_helpers_json", None))
+                            if hid and hid != eid
+                        ]
+                        if not helper_ids:
+                            fallback_names = session_helpers_by_driver.get((eid, r.date), [])
+                            for helper_name in fallback_names:
+                                helper_emp = emp_by_name.get((helper_name or "").strip().lower())
+                                if helper_emp and helper_emp.id and helper_emp.id != eid:
+                                    helper_ids.append(helper_emp.id)
+
+                        normalized_helper_ids = []
+                        seen_helper_ids = set()
+                        for helper_id in helper_ids:
+                            if helper_id in seen_helper_ids or helper_id == eid:
+                                continue
+                            seen_helper_ids.add(helper_id)
+                            normalized_helper_ids.append(helper_id)
+
+                        for helper_id in normalized_helper_ids:
+                            add_participant_route(helper_stats, helper_day_intervals, helper_id, r.date, t, s, e, "ajudante")
+                            add_participant_route(team_member_stats, team_day_intervals, helper_id, r.date, t, s, e, "ajudante")
                     except:
                         pass
                     
@@ -10849,7 +11578,6 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
         
         # Productivity & Idle
         productivity = []
-        emp_objs = {e.id: e for e in session.exec(select(models.Employee)).all()}
         
         total_kgh_sum = 0
         total_kgh_count = 0
@@ -10895,10 +11623,15 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
                 "kgh": kgh,
                 "active_hours": real_active_hours,
                 "idle_hours": idle_hours,
-                "shift_duration": shift_duration_hours
+                "shift_duration": shift_duration_hours,
+                "route_count": s.get('count', 0),
+                "tonnage": s.get('ton', 0.0),
+                "role_label": "Motorista",
             })
             
         productivity.sort(key=lambda x: x['kgh'], reverse=True)
+        helper_productivity = build_productivity_rows(helper_stats, helper_day_intervals)
+        team_productivity = build_productivity_rows(team_member_stats, team_day_intervals)
 
         # KPI Summaries
         avg_sys_kgh = (total_kgh_sum / total_kgh_count) if total_kgh_count > 0 else 0
@@ -11006,6 +11739,8 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
                 "total_vol_raw": round(selected_day_tonnage, 2),
                 "routes_count": selected_day_routes,
                 "employees_count": len(selected_day_employees),
+                "helpers_count": len(helper_productivity),
+                "team_members_count": len(team_productivity),
                 "kgh_change": round(kgh_change, 1),
                 "tonnage_change": round(tonnage_change, 1),
                 "meta_percent": round(meta_percent, 1),
@@ -11014,6 +11749,8 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
                 "week_avg_kgh": round(week_avg_kgh, 1)
             },
             "productivity": productivity,
+            "helper_productivity": helper_productivity,
+            "team_productivity": team_productivity,
             "sla_ranking": sla_ranking,
             "alerts": alerts,
             "selected_date": date,
@@ -11029,6 +11766,746 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
 async def strategy_page(request: Request):
     # Static Skeleton - Data loaded via API
     return templates.TemplateResponse("strategy.html", {"request": request})
+
+
+DELIVERY_GAMIFICATION_TARGET_PCT = 2.0
+# Premiação de Devolução: prêmio por faixa de taxa de devolução (valor devolvido / valor planejado)
+# 0,0% até 1,5% = R$300 | 1,51% até 2,0% = R$250 | 2,01% até 2,5% = R$180 | Acima de 2,51% = R$0
+DELIVERY_GAMIFICATION_RETURN_PRIZE_TIERS = [
+    (1.5, 300.0),
+    (2.0, 250.0),
+    (2.5, 180.0),
+]
+
+
+def _return_rate_to_prize(return_rate_pct: float) -> float:
+    """Retorna o prêmio conforme a faixa de taxa de devolução."""
+    for limit, prize in DELIVERY_GAMIFICATION_RETURN_PRIZE_TIERS:
+        if return_rate_pct <= limit:
+            return prize
+    return 0.0
+
+
+def _delivery_gamification_period_window(
+    date_str: Optional[str],
+    period: Optional[str],
+) -> Dict[str, Any]:
+    tz = ZoneInfo("America/Sao_Paulo")
+    base_date = datetime.now(tz).date()
+    if date_str:
+        try:
+            base_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except Exception:
+            pass
+
+    period_norm = str(period or "monthly").strip().lower()
+    if period_norm not in {"daily", "weekly", "monthly"}:
+        period_norm = "monthly"
+
+    if period_norm == "daily":
+        start_date = base_date
+        end_date = base_date
+        period_label = "Diário"
+        range_label = _fmt_br_date(base_date.strftime("%Y-%m-%d"))
+    elif period_norm == "weekly":
+        start_date = base_date - timedelta(days=6)
+        end_date = base_date
+        period_label = "Últimos 7 dias"
+        range_label = (
+            f"{_fmt_br_date(start_date.strftime('%Y-%m-%d'))} a "
+            f"{_fmt_br_date(end_date.strftime('%Y-%m-%d'))}"
+        )
+    else:
+        start_date = base_date.replace(day=1)
+        end_date = base_date
+        period_label = "Mês até a data"
+        range_label = (
+            f"{_fmt_br_date(start_date.strftime('%Y-%m-%d'))} a "
+            f"{_fmt_br_date(end_date.strftime('%Y-%m-%d'))}"
+        )
+
+    return {
+        "base_date": base_date,
+        "date": base_date.strftime("%Y-%m-%d"),
+        "period": period_norm,
+        "label": period_label,
+        "start_date": start_date,
+        "end_date": end_date,
+        "start": start_date.strftime("%Y-%m-%d"),
+        "end": end_date.strftime("%Y-%m-%d"),
+        "range_label": range_label,
+    }
+
+
+def _is_delivery_driver_candidate(employee: Optional[models.Employee]) -> bool:
+    if not employee:
+        return False
+    status_value = str(getattr(employee, "status", "") or "").strip().lower()
+    if status_value == "fired":
+        return False
+    role_value = str(getattr(employee, "role", "") or "").strip().upper()
+    return (
+        "MOTOR" in role_value
+        or "CONDUTOR" in role_value
+        or bool(getattr(employee, "mobile_access_returns", False))
+        or bool(getattr(employee, "mobile_access_admin_start", False))
+    )
+
+
+def _is_delivery_helper_candidate(employee: Optional[models.Employee]) -> bool:
+    if not employee:
+        return False
+    status_value = str(getattr(employee, "status", "") or "").strip().lower()
+    if status_value == "fired":
+        return False
+    role_value = str(getattr(employee, "role", "") or "").strip().upper()
+    return (
+        bool(getattr(employee, "mobile_access_helper", False))
+        or "AJUD" in role_value
+        or "AUX" in role_value
+        or "ENTREGA" in role_value
+    )
+
+
+def _make_delivery_gamification_stat(employee: models.Employee) -> Dict[str, Any]:
+    return {
+        "employee_id": employee.id,
+        "name": employee.name or f"Colaborador {employee.id}",
+        "cost_center": cost_center_display_label(getattr(employee, "cost_center", None)) or "Sem Centro",
+        "role_tags": set(),
+        "planned_value": 0.0,
+        "returned_value": 0.0,
+        "planned_weight": 0.0,
+        "returned_weight": 0.0,
+        "route_count": 0,
+        "return_count": 0,
+        "completed_count": 0,
+        "active_days": set(),
+        "intervals": [],
+    }
+
+
+def _merge_intervals_hours(intervals: List[Any]) -> float:
+    valid = [(start, end) for start, end in intervals if start and end and end > start]
+    if not valid:
+        return 0.0
+    valid.sort(key=lambda item: item[0])
+    merged: List[List[datetime]] = []
+    for start, end in valid:
+        if not merged or start > merged[-1][1]:
+            merged.append([start, end])
+        else:
+            merged[-1][1] = max(merged[-1][1], end)
+    total_seconds = sum((end - start).total_seconds() for start, end in merged)
+    return total_seconds / 3600 if total_seconds > 0 else 0.0
+
+
+def _delivery_route_interval(route: models.Route) -> Optional[Any]:
+    if not route.date or not route.start_time or not route.end_time:
+        return None
+    try:
+        route_day = datetime.strptime(route.date, "%Y-%m-%d").date()
+        start_time = datetime.strptime(route.start_time, "%H:%M").time()
+        end_time = datetime.strptime(route.end_time, "%H:%M").time()
+        start_dt = datetime.combine(route_day, start_time)
+        end_dt = datetime.combine(route_day, end_time)
+        if end_dt < start_dt:
+            end_dt += timedelta(days=1)
+        if end_dt <= start_dt:
+            return None
+        return (start_dt, end_dt)
+    except Exception:
+        return None
+
+
+def _resolve_delivery_route_helper_ids(
+    route: models.Route,
+    session_helpers_by_driver: Dict[Any, List[str]],
+    emp_by_name: Dict[str, models.Employee],
+) -> List[int]:
+    helper_ids = [
+        helper_id
+        for helper_id in _parse_route_helper_ids(getattr(route, "delivery_helpers_json", None))
+        if helper_id and helper_id != route.employee_id
+    ]
+    if not helper_ids:
+        fallback_names = session_helpers_by_driver.get((route.employee_id or 0, route.date), [])
+        for helper_name in fallback_names:
+            helper_emp = emp_by_name.get((helper_name or "").strip().lower())
+            if helper_emp and helper_emp.id and helper_emp.id != route.employee_id:
+                helper_ids.append(helper_emp.id)
+
+    normalized: List[int] = []
+    seen: set[int] = set()
+    for helper_id in helper_ids:
+        if helper_id in seen:
+            continue
+        seen.add(helper_id)
+        normalized.append(helper_id)
+    return normalized
+
+
+def _delivery_route_return_metrics(route: models.Route) -> Dict[str, Any]:
+    """Fonte única da regra de devolução por rota para mobile e gamificação."""
+    planned_value = _safe_float(getattr(route, "valor_financeiro", None))
+    planned_weight = _safe_float(getattr(route, "tonnage", None))
+    status_norm = str(getattr(route, "delivery_status", "") or "").strip().lower()
+    has_return = (
+        status_norm == "devolucao"
+        or _safe_float(getattr(route, "valor_devolucao", None)) > 0
+        or _safe_float(getattr(route, "devolucao_volume", None)) > 0
+    )
+
+    returned_value = _safe_float(getattr(route, "valor_devolucao", None))
+    if has_return and returned_value <= 0:
+        returned_value = planned_value
+    if planned_value > 0:
+        returned_value = min(returned_value, planned_value)
+
+    returned_weight = _safe_float(getattr(route, "devolucao_volume", None))
+    if has_return and returned_weight <= 0:
+        returned_weight = planned_weight
+    if planned_weight > 0:
+        returned_weight = min(returned_weight, planned_weight)
+
+    return {
+        "planned_value": planned_value,
+        "returned_value": returned_value,
+        "planned_weight": planned_weight,
+        "returned_weight": returned_weight,
+        "has_return": has_return,
+        "is_completed": status_norm in {"entregue", "devolucao"},
+    }
+
+
+def _build_delivery_gamification_rows(
+    stats_map: Dict[int, Dict[str, Any]],
+    fallback_role_label: str,
+) -> List[Dict[str, Any]]:
+    rows: List[Dict[str, Any]] = []
+    for payload in stats_map.values():
+        planned_value = round(_safe_float(payload.get("planned_value")), 2)
+        returned_value = round(_safe_float(payload.get("returned_value")), 2)
+        planned_weight = round(_safe_float(payload.get("planned_weight")), 2)
+        returned_weight = round(_safe_float(payload.get("returned_weight")), 2)
+        route_count = int(payload.get("route_count") or 0)
+        active_hours = _merge_intervals_hours(payload.get("intervals") or [])
+        kgh = round((planned_weight / active_hours), 1) if active_hours > 0 else 0.0
+        return_rate_pct = round((returned_value / planned_value * 100.0), 2) if planned_value > 0 else 0.0
+
+        role_tags = payload.get("role_tags", set()) or set()
+        if "Motorista" in role_tags and "Ajudante" in role_tags:
+            role_label = "Misto"
+        elif "Ajudante" in role_tags:
+            role_label = "Ajudante"
+        elif "Motorista" in role_tags:
+            role_label = "Motorista"
+        else:
+            role_label = fallback_role_label
+
+        rows.append({
+            "employee_id": payload.get("employee_id"),
+            "name": payload.get("name") or "Colaborador",
+            "cost_center": payload.get("cost_center") or "Sem Centro",
+            "role_label": role_label,
+            "planned_value": planned_value,
+            "returned_value": returned_value,
+            "planned_weight": planned_weight,
+            "returned_weight": returned_weight,
+            "route_count": route_count,
+            "return_count": int(payload.get("return_count") or 0),
+            "completed_count": int(payload.get("completed_count") or 0),
+            "active_days_count": len(payload.get("active_days") or set()),
+            "active_hours": round(active_hours, 2),
+            "kgh": kgh,
+            "return_rate_pct": return_rate_pct,
+            "within_target": route_count > 0 and return_rate_pct <= DELIVERY_GAMIFICATION_TARGET_PCT,
+            "has_activity": route_count > 0,
+        })
+    return rows
+
+
+def _order_delivery_gamification_return_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    active_rows = [row for row in rows if row.get("has_activity")]
+    inactive_rows = [row for row in rows if not row.get("has_activity")]
+    active_rows.sort(
+        key=lambda row: (
+            0 if row.get("within_target") else 1,
+            round(_safe_float(row.get("return_rate_pct")), 4),
+            -_safe_float(row.get("planned_value")),
+            -int(row.get("route_count") or 0),
+            -_safe_float(row.get("kgh")),
+            str(row.get("name") or "").lower(),
+        )
+    )
+    inactive_rows.sort(key=lambda row: str(row.get("name") or "").lower())
+    ordered = active_rows + inactive_rows
+    for index, row in enumerate(ordered, start=1):
+        row["return_rank"] = index
+    return ordered
+
+
+def _order_delivery_gamification_productivity_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    active_rows = [row for row in rows if _safe_float(row.get("kgh")) > 0]
+    inactive_rows = [row for row in rows if _safe_float(row.get("kgh")) <= 0]
+    active_rows.sort(
+        key=lambda row: (
+            -_safe_float(row.get("kgh")),
+            -_safe_float(row.get("planned_weight")),
+            -int(row.get("route_count") or 0),
+            str(row.get("name") or "").lower(),
+        )
+    )
+    inactive_rows.sort(key=lambda row: str(row.get("name") or "").lower())
+    ordered = active_rows + inactive_rows
+    for index, row in enumerate(ordered, start=1):
+        row["productivity_rank"] = index
+    return ordered
+
+
+def _decorate_delivery_gamification_status(
+    rows: List[Dict[str, Any]],
+    average_kgh: float,
+    consistency_goal_days: int,
+):
+    for row in rows:
+        if not row.get("has_activity"):
+            row["status_label"] = "Sem movimento"
+            row["status_tone"] = "slate"
+            continue
+        if (
+            row.get("within_target")
+            and _safe_float(row.get("return_rate_pct")) <= 1.0
+            and _safe_float(row.get("kgh")) >= average_kgh
+            and int(row.get("active_days_count") or 0) >= consistency_goal_days
+        ):
+            row["status_label"] = "Elite"
+            row["status_tone"] = "violet"
+        elif row.get("within_target"):
+            row["status_label"] = "Na meta"
+            row["status_tone"] = "emerald"
+        elif _safe_float(row.get("return_rate_pct")) <= 4.0:
+            row["status_label"] = "Atenção"
+            row["status_tone"] = "amber"
+        else:
+            row["status_label"] = "Crítico"
+            row["status_tone"] = "rose"
+
+
+def _build_delivery_gamification_dataset(
+    session: Session,
+    date_str: Optional[str],
+    period: Optional[str],
+    cost_center: Optional[str],
+) -> Dict[str, Any]:
+    window = _delivery_gamification_period_window(date_str, period)
+    selected_cost_center = parse_cost_center_filter(cost_center)
+
+    employees_all = session.exec(
+        select(models.Employee)
+        .where(models.Employee.status != "fired")
+        .order_by(models.Employee.name)
+    ).all()
+    emp_by_id = {emp.id: emp for emp in employees_all if emp and emp.id}
+    emp_by_name = {
+        (emp.name or "").strip().lower(): emp
+        for emp in employees_all
+        if emp and emp.id and (emp.name or "").strip()
+    }
+
+    driver_candidate_ids_all = {
+        emp.id for emp in employees_all
+        if emp and emp.id and _is_delivery_driver_candidate(emp)
+    }
+    helper_candidate_ids_all = {
+        emp.id for emp in employees_all
+        if emp and emp.id and _is_delivery_helper_candidate(emp)
+    }
+
+    driver_candidate_ids = {
+        emp_id for emp_id in driver_candidate_ids_all
+        if employee_matches_cost_center(emp_by_id.get(emp_id), selected_cost_center)
+    }
+    helper_candidate_ids = {
+        emp_id for emp_id in helper_candidate_ids_all
+        if employee_matches_cost_center(emp_by_id.get(emp_id), selected_cost_center)
+    }
+
+    cost_center_options = ["Todos"]
+    known_centers = sorted({
+        cost_center_display_label(emp.cost_center)
+        for emp in employees_all
+        if emp and cost_center_display_label(emp.cost_center)
+    })
+    cost_center_options.extend([center for center in known_centers if center and center != "Todos"])
+
+    sessions_for_period = session.exec(
+        select(models.DeliverySession)
+        .where(models.DeliverySession.date >= window["start"])
+        .where(models.DeliverySession.date <= window["end"])
+    ).all()
+    session_helpers_by_driver: Dict[Any, List[str]] = {}
+    for delivery_session in sessions_for_period:
+        session_helpers_by_driver[(delivery_session.employee_id or 0, delivery_session.date)] = _parse_session_helpers(
+            delivery_session.helpers_json
+        )
+
+    routes = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date >= window["start"])
+        .where(models.Route.date <= window["end"])
+        .order_by(models.Route.date, models.Route.start_time, models.Route.created_at)
+    ).all()
+
+    driver_stats: Dict[int, Dict[str, Any]] = {}
+    helper_stats: Dict[int, Dict[str, Any]] = {}
+    team_stats: Dict[int, Dict[str, Any]] = {}
+    participant_ids_seen: set[int] = set()
+
+    summary_route_keys: set[str] = set()
+    summary_total_routes = 0
+    summary_planned_value = 0.0
+    summary_returned_value = 0.0
+    summary_planned_weight = 0.0
+    summary_returned_weight = 0.0
+
+    def ensure_stat(stats_map: Dict[int, Dict[str, Any]], employee: models.Employee, role_label: str) -> Dict[str, Any]:
+        payload = stats_map.get(employee.id)
+        if payload is None:
+            payload = _make_delivery_gamification_stat(employee)
+            stats_map[employee.id] = payload
+        payload["role_tags"].add(role_label)
+        return payload
+
+    def add_route_to_payload(payload: Dict[str, Any], role_label: str, route: models.Route, interval: Optional[Any], metrics: Dict[str, float]):
+        payload["role_tags"].add(role_label)
+        payload["route_count"] += 1
+        payload["planned_value"] += metrics["planned_value"]
+        payload["returned_value"] += metrics["returned_value"]
+        payload["planned_weight"] += metrics["planned_weight"]
+        payload["returned_weight"] += metrics["returned_weight"]
+        if metrics["has_return"]:
+            payload["return_count"] += 1
+        if metrics["is_completed"]:
+            payload["completed_count"] += 1
+        if route.date:
+            payload["active_days"].add(route.date)
+        if interval:
+            payload["intervals"].append(interval)
+
+    for route in routes:
+        driver_emp = emp_by_id.get(route.employee_id)
+        helper_ids = _resolve_delivery_route_helper_ids(route, session_helpers_by_driver, emp_by_name)
+        selected_helper_ids = [
+            helper_id
+            for helper_id in helper_ids
+            if helper_id in emp_by_id and employee_matches_cost_center(emp_by_id.get(helper_id), selected_cost_center)
+        ]
+        driver_selected = bool(driver_emp and employee_matches_cost_center(driver_emp, selected_cost_center))
+
+        if not driver_selected and not selected_helper_ids:
+            continue
+
+        route_metrics = _delivery_route_return_metrics(route)
+        planned_value = route_metrics["planned_value"]
+        returned_value = route_metrics["returned_value"]
+        planned_weight = route_metrics["planned_weight"]
+        returned_weight = route_metrics["returned_weight"]
+
+        interval = _delivery_route_interval(route)
+
+        route_key = (
+            str(route.id)
+            if route.id is not None
+            else f"{route.date}|{route.employee_id}|{route.client_id}|{route.start_time}|{route.end_time}"
+        )
+        if route_key not in summary_route_keys:
+            summary_route_keys.add(route_key)
+            summary_total_routes += 1
+            summary_planned_value += planned_value
+            summary_returned_value += returned_value
+            summary_planned_weight += planned_weight
+            summary_returned_weight += returned_weight
+
+        if driver_selected and driver_emp and driver_emp.id:
+            participant_ids_seen.add(driver_emp.id)
+            driver_payload = ensure_stat(driver_stats, driver_emp, "Motorista")
+            team_payload = ensure_stat(team_stats, driver_emp, "Motorista")
+            add_route_to_payload(driver_payload, "Motorista", route, interval, route_metrics)
+            add_route_to_payload(team_payload, "Motorista", route, interval, route_metrics)
+
+        for helper_id in selected_helper_ids:
+            helper_emp = emp_by_id.get(helper_id)
+            if not helper_emp or not helper_emp.id:
+                continue
+            participant_ids_seen.add(helper_emp.id)
+            helper_payload = ensure_stat(helper_stats, helper_emp, "Ajudante")
+            team_payload = ensure_stat(team_stats, helper_emp, "Ajudante")
+            add_route_to_payload(helper_payload, "Ajudante", route, interval, route_metrics)
+            add_route_to_payload(team_payload, "Ajudante", route, interval, route_metrics)
+
+    # Incorporar devoluções da tabela Devolucao (importadas em /devolucoes, fora da Route)
+    route_ids_in_period = {r.id for r in routes if r.id}
+    dev_query = (
+        select(models.Devolucao)
+        .where(models.Devolucao.data_romaneio >= window["start"])
+        .where(models.Devolucao.data_romaneio <= window["end"])
+    )
+    if route_ids_in_period:
+        dev_query = dev_query.where(
+            or_(
+                models.Devolucao.route_id.is_(None),
+                models.Devolucao.route_id.notin_(route_ids_in_period),
+            )
+        )
+    # Quando não há rotas no período, incluir todas as devoluções (são standalone)
+    devolucoes_standalone = session.exec(dev_query).all()
+    for dev in devolucoes_standalone:
+        valor_dev = _safe_float(dev.valor)
+        if valor_dev <= 0:
+            continue
+        # Motorista
+        motorista_emp = emp_by_id.get(dev.motorista_id)
+        if motorista_emp and employee_matches_cost_center(motorista_emp, selected_cost_center):
+            participant_ids_seen.add(motorista_emp.id)
+            driver_payload = ensure_stat(driver_stats, motorista_emp, "Motorista")
+            team_payload = ensure_stat(team_stats, motorista_emp, "Motorista")
+            driver_payload["returned_value"] += valor_dev
+            driver_payload["return_count"] += 1
+            driver_payload["planned_value"] += valor_dev
+            driver_payload["route_count"] += 1
+            if dev.data_romaneio:
+                driver_payload["active_days"].add(dev.data_romaneio)
+            team_payload["returned_value"] += valor_dev
+            team_payload["return_count"] += 1
+            team_payload["planned_value"] += valor_dev
+            team_payload["route_count"] += 1
+            if dev.data_romaneio:
+                team_payload["active_days"].add(dev.data_romaneio)
+            summary_returned_value += valor_dev
+            summary_planned_value += valor_dev
+            summary_total_routes += 1
+        # Ajudante
+        if dev.ajudante_id:
+            ajudante_emp = emp_by_id.get(dev.ajudante_id)
+            if ajudante_emp and employee_matches_cost_center(ajudante_emp, selected_cost_center):
+                participant_ids_seen.add(ajudante_emp.id)
+                helper_payload = ensure_stat(helper_stats, ajudante_emp, "Ajudante")
+                team_payload = ensure_stat(team_stats, ajudante_emp, "Ajudante")
+                helper_payload["returned_value"] += valor_dev
+                helper_payload["return_count"] += 1
+                helper_payload["planned_value"] += valor_dev
+                helper_payload["route_count"] += 1
+                if dev.data_romaneio:
+                    helper_payload["active_days"].add(dev.data_romaneio)
+                team_payload["returned_value"] += valor_dev
+                team_payload["return_count"] += 1
+                team_payload["planned_value"] += valor_dev
+                team_payload["route_count"] += 1
+                if dev.data_romaneio:
+                    team_payload["active_days"].add(dev.data_romaneio)
+
+    candidate_team_ids = driver_candidate_ids | helper_candidate_ids | participant_ids_seen
+    for emp_id in sorted(driver_candidate_ids):
+        employee = emp_by_id.get(emp_id)
+        if not employee:
+            continue
+        payload = driver_stats.setdefault(emp_id, _make_delivery_gamification_stat(employee))
+        payload["role_tags"].add("Motorista")
+
+    for emp_id in sorted(helper_candidate_ids):
+        employee = emp_by_id.get(emp_id)
+        if not employee:
+            continue
+        payload = helper_stats.setdefault(emp_id, _make_delivery_gamification_stat(employee))
+        payload["role_tags"].add("Ajudante")
+
+    for emp_id in sorted(candidate_team_ids):
+        employee = emp_by_id.get(emp_id)
+        if not employee:
+            continue
+        payload = team_stats.setdefault(emp_id, _make_delivery_gamification_stat(employee))
+        if emp_id in driver_candidate_ids or emp_id in driver_stats:
+            payload["role_tags"].add("Motorista")
+        if emp_id in helper_candidate_ids or emp_id in helper_stats:
+            payload["role_tags"].add("Ajudante")
+
+    driver_rows = _build_delivery_gamification_rows(driver_stats, "Motorista")
+    helper_rows = _build_delivery_gamification_rows(helper_stats, "Ajudante")
+    team_rows = _build_delivery_gamification_rows(team_stats, "Misto")
+
+    driver_rows = _order_delivery_gamification_return_rows(driver_rows)
+    helper_rows = _order_delivery_gamification_return_rows(helper_rows)
+    team_rows = _order_delivery_gamification_return_rows(team_rows)
+    productivity_rows = _order_delivery_gamification_productivity_rows(list(team_rows))
+
+    active_team_rows = [row for row in team_rows if row.get("has_activity")]
+    active_productivity_rows = [row for row in productivity_rows if _safe_float(row.get("kgh")) > 0]
+    consistency_goal_days = {"daily": 1, "weekly": 3, "monthly": 8}.get(window["period"], 8)
+    average_kgh = (
+        sum(_safe_float(row.get("kgh")) for row in active_productivity_rows) / len(active_productivity_rows)
+        if active_productivity_rows else 0.0
+    )
+
+    podium_rows = [row for row in team_rows if row.get("has_activity")][:3]
+
+    team_by_id: Dict[int, Dict[str, Any]] = {}
+    for row in team_rows:
+        employee_id = row.get("employee_id")
+        if not employee_id:
+            continue
+        return_rate_pct = _safe_float(row.get("return_rate_pct"))
+        if row.get("has_activity"):
+            payout = _return_rate_to_prize(return_rate_pct)
+        else:
+            payout = 0.0
+        row["estimated_payout"] = round(payout, 2)
+        row["productivity_bonus"] = 0.0
+        row["podium_bonus"] = 0.0
+        team_by_id[employee_id] = row
+
+    for rows in (driver_rows, helper_rows):
+        for row in rows:
+            linked = team_by_id.get(row.get("employee_id"))
+            row["estimated_payout"] = round(_safe_float(linked.get("estimated_payout")) if linked else 0.0, 2)
+            row["combined_return_rank"] = int(linked.get("return_rank") or 0) if linked else 0
+            row["combined_productivity_rank"] = int(linked.get("productivity_rank") or 0) if linked else 0
+
+    _decorate_delivery_gamification_status(driver_rows, average_kgh, consistency_goal_days)
+    _decorate_delivery_gamification_status(helper_rows, average_kgh, consistency_goal_days)
+    _decorate_delivery_gamification_status(team_rows, average_kgh, consistency_goal_days)
+    _decorate_delivery_gamification_status(productivity_rows, average_kgh, consistency_goal_days)
+
+    within_target_rows = [row for row in active_team_rows if row.get("within_target")]
+    risk_rows = sorted(
+        [row for row in active_team_rows if not row.get("within_target")],
+        key=lambda row: (
+            -_safe_float(row.get("return_rate_pct")),
+            -_safe_float(row.get("returned_value")),
+            -int(row.get("route_count") or 0),
+        )
+    )[:6]
+    guardians_rows = sorted(
+        [row for row in active_team_rows if int(row.get("return_count") or 0) == 0],
+        key=lambda row: (
+            -_safe_float(row.get("planned_value")),
+            -_safe_float(row.get("kgh")),
+            -int(row.get("route_count") or 0),
+        )
+    )[:4]
+
+    best_driver = next((row for row in driver_rows if row.get("has_activity")), None)
+    best_helper = next((row for row in helper_rows if row.get("has_activity")), None)
+    productivity_star = next((row for row in productivity_rows if _safe_float(row.get("kgh")) > 0), None)
+
+    insights: List[Dict[str, str]] = []
+    if best_driver:
+        insights.append({
+            "tone": "emerald",
+            "title": "Motorista em destaque",
+            "text": (
+                f"{best_driver['name']} puxa a fila dos motoristas com "
+                f"{_fmt_br_float(best_driver['return_rate_pct'], 2)}% de devolução em valor."
+            ),
+        })
+    if best_helper:
+        insights.append({
+            "tone": "sky",
+            "title": "Ajudante em destaque",
+            "text": (
+                f"{best_helper['name']} lidera entre ajudantes com "
+                f"{_fmt_br_float(best_helper['return_rate_pct'], 2)}% e "
+                f"R$ {_fmt_br_float(best_helper['planned_value'], 2)} movimentados."
+            ),
+        })
+    if productivity_star:
+        insights.append({
+            "tone": "amber",
+            "title": "Pico de produtividade",
+            "text": (
+                f"{productivity_star['name']} está no topo da produtividade com "
+                f"{_fmt_br_float(productivity_star['kgh'], 1)} kg/h."
+            ),
+        })
+    if risk_rows:
+        insights.append({
+            "tone": "rose",
+            "title": "Ação imediata",
+            "text": (
+                f"{len(risk_rows)} colaborador(es) estão acima de {DELIVERY_GAMIFICATION_TARGET_PCT:.0f}% "
+                f"de devolução e precisam de correção rápida."
+            ),
+        })
+
+    summary = {
+        "collaborators_count": len(team_rows),
+        "active_count": len(active_team_rows),
+        "within_target_count": len(within_target_rows),
+        "outside_target_count": len([row for row in active_team_rows if not row.get("within_target")]),
+        "global_return_rate_pct": round(
+            (summary_returned_value / summary_planned_value * 100.0) if summary_planned_value > 0 else 0.0,
+            2,
+        ),
+        "avg_kgh": round(average_kgh, 1),
+        "projected_total_payout": round(sum(_safe_float(row.get("estimated_payout")) for row in active_team_rows), 2),
+        "protected_value": round(max(0.0, summary_planned_value - summary_returned_value), 2),
+        "planned_value": round(summary_planned_value, 2),
+        "returned_value": round(summary_returned_value, 2),
+        "planned_weight": round(summary_planned_weight, 2),
+        "returned_weight": round(summary_returned_weight, 2),
+        "total_routes": summary_total_routes,
+    }
+
+    return {
+        "filters": {
+            "date": window["date"],
+            "period": window["period"],
+            "cost_center": selected_cost_center or "Todos",
+        },
+        "period_label": window["label"],
+        "period_range_label": window["range_label"],
+        "cost_center_options": cost_center_options,
+        "meta_pct": DELIVERY_GAMIFICATION_TARGET_PCT,
+        "consistency_goal_days": consistency_goal_days,
+        "prize_rules": {
+            "devolucao": [
+                {"label": "0,0% até 1,5%", "prize": 300.0},
+                {"label": "1,51% até 2,0%", "prize": 250.0},
+                {"label": "2,01% até 2,5%", "prize": 180.0},
+                {"label": "Acima de 2,51%", "prize": 0.0},
+            ],
+        },
+        "summary": summary,
+        "podium_rows": podium_rows,
+        "productivity_podium_rows": [row for row in productivity_rows if _safe_float(row.get("kgh")) > 0][:3],
+        "guardians_rows": guardians_rows,
+        "risk_rows": risk_rows,
+        "driver_rows": driver_rows,
+        "helper_rows": helper_rows,
+        "team_rows": team_rows,
+        "productivity_rows": productivity_rows,
+        "insights": insights,
+    }
+
+
+@app.get("/gamificacao/entregas", response_class=HTMLResponse)
+async def delivery_gamification_page(
+    request: Request,
+    date: Optional[str] = None,
+    period: str = "monthly",
+    cost_center: str = "Todos",
+    session: Session = Depends(get_session),
+    user=Depends(require_leader),
+):
+    data = _build_delivery_gamification_dataset(session, date, period, cost_center)
+    return templates.TemplateResponse(
+        "delivery_gamification.html",
+        {
+            "request": request,
+            **data,
+        },
+    )
 
 
 @app.get("/bi", response_class=HTMLResponse)
@@ -11664,7 +13141,7 @@ async def operations_performance_page(
     request: Request,
     date: Optional[str] = None,
     period: str = "daily",
-    shift: str = "Todos",
+    cost_center: str = "Todos",
     route_band: str = "Todos",
     tenure_band: str = "Todos",
     sort_by: str = "score",
@@ -11673,7 +13150,7 @@ async def operations_performance_page(
     user = Depends(require_leader)
 ):
     try:
-        return await _operations_performance_impl(request, date, period, shift, route_band, tenure_band, sort_by, order, session)
+        return await _operations_performance_impl(request, date, period, cost_center, route_band, tenure_band, sort_by, order, session)
     except Exception as e:
         if request.query_params.get("debug") == "1":
             import traceback
@@ -11686,7 +13163,7 @@ async def _operations_performance_impl(
     request: Request,
     date: Optional[str],
     period: str,
-    shift: str,
+    cost_center: str,
     route_band: str,
     tenure_band: str,
     sort_by: str,
@@ -11829,22 +13306,26 @@ async def _operations_performance_impl(
     else:
         period_context_label = f"Dia: {period_range_start}"
 
-    allowed_query = select(models.Employee).where(models.Employee.mobile_access_separation == True)
-    if shift and shift not in ["Todos", "Geral", None]:
-        allowed_query = allowed_query.where(models.Employee.work_shift == shift)
-    allowed_employees = session.exec(allowed_query).all()
+    selected_cost_center = parse_cost_center_filter(cost_center)
+    allowed_employees_all = session.exec(
+        select(models.Employee).where(models.Employee.mobile_access_separation == True)
+    ).all()
+    cost_center_options = ["Todos"]
+    cost_center_options.extend(
+        sorted({cost_center_display_label(emp.cost_center) for emp in allowed_employees_all if emp})
+    )
+
+    allowed_employees = [
+        emp for emp in allowed_employees_all
+        if employee_matches_cost_center(emp, selected_cost_center)
+    ]
     allowed_ids = {emp.id for emp in allowed_employees if emp and emp.id}
 
     # --- Colaboradores elegíveis (habilitados no app de Separação) ---
-    employees_query = (
-        select(models.Employee)
-        .where(models.Employee.status != "fired")
-        .where(models.Employee.replaced_by.is_(None))
-        .where(models.Employee.mobile_access_separation == True)
-    )
-    if shift and shift not in ["Todos", "Geral", None]:
-        employees_query = employees_query.where(models.Employee.work_shift == shift)
-    employees = session.exec(employees_query).all()
+    employees = [
+        emp for emp in allowed_employees
+        if emp and emp.status != "fired" and emp.replaced_by is None
+    ]
     all_employee_ids = [e.id for e in employees]
 
     query = (
@@ -11855,8 +13336,6 @@ async def _operations_performance_impl(
         .where(models.Route.date >= start_date.strftime("%Y-%m-%d"))
         .where(models.Route.date <= end_date.strftime("%Y-%m-%d"))
     )
-    if shift and shift not in ["Todos", "Geral", None]:
-        query = query.where(models.Route.shift == shift)
     if allowed_ids:
         query = query.where(models.Route.employee_id.in_(allowed_ids))
         routes_rows = session.exec(query).all()
@@ -12128,6 +13607,45 @@ async def _operations_performance_impl(
                 "clients": Counter()
             }
 
+    # Histórico de ajudantes por motorista (DeliverySession.helpers_json - mobile envia nomes)
+    emp_map_for_helpers = {e.id: e for e in employees}
+    ajudantes_by_employee: dict[int, list[str]] = {eid: [] for eid in stats}
+    if all_employee_ids:
+        sessions_with_helpers = session.exec(
+            select(models.DeliverySession)
+            .where(models.DeliverySession.employee_id.in_(all_employee_ids))
+            .where(models.DeliverySession.date >= start_date.strftime("%Y-%m-%d"))
+            .where(models.DeliverySession.date <= end_date.strftime("%Y-%m-%d"))
+            .where(models.DeliverySession.helpers_json.is_not(None))
+        ).all()
+        for ds in sessions_with_helpers:
+            try:
+                hl = json.loads(ds.helpers_json) if isinstance(ds.helpers_json, str) else (ds.helpers_json or [])
+                names: list[str] = []
+                seen = set()
+                for h in (hl if isinstance(hl, list) else []):
+                    if h is None:
+                        continue
+                    if isinstance(h, (int, str)) and str(h).strip().isdigit():
+                        he = emp_map_for_helpers.get(int(h))
+                        if he and he.name:
+                            key = he.name.strip().lower()
+                            if key not in seen:
+                                seen.add(key)
+                                names.append(he.name)
+                    elif isinstance(h, str) and (h or "").strip():
+                        name = (h or "").strip()
+                        key = name.lower()
+                        if key not in seen:
+                            seen.add(key)
+                            names.append(name)
+                if names and ds.employee_id in ajudantes_by_employee:
+                    ajudantes_by_employee[ds.employee_id] = list(dict.fromkeys(
+                        ajudantes_by_employee[ds.employee_id] + names
+                    ))
+            except Exception:
+                pass
+
     rows_all = []
     for eid, payload in stats.items():
         employee = payload["employee"]
@@ -12194,7 +13712,7 @@ async def _operations_performance_impl(
             "id": eid,
             "name": employee.name if employee else "N/A",
             "photo": employee.photo_url if employee else None,
-            "shift": employee.work_shift if employee else None,
+            "cost_center": cost_center_display_label(getattr(employee, "cost_center", None)) if employee else "Sem Centro",
             "total_tonnage": payload["tonnage"],
             "total_hours": hours,
             "count": payload["count"],
@@ -12228,7 +13746,8 @@ async def _operations_performance_impl(
             "tenure_months": tenure_months,
             "tenure_band": tenure_group,
             "tenure_band_label": tenure_band_label,
-            "absences_source": absences_source
+            "absences_source": absences_source,
+            "ajudantes": ajudantes_by_employee.get(eid, [])
         }
         if LOG_LEVEL == logging.DEBUG:
             row["debug_absence_days"] = debug_absence_days
@@ -12243,7 +13762,7 @@ async def _operations_performance_impl(
                 "filters": {
                     "date": date,
                     "period": period,
-                    "shift": shift,
+                    "cost_center": selected_cost_center or "Todos",
                     "route_band": route_band,
                     "tenure_band": tenure_band,
                     "sort_by": sort_by,
@@ -12276,6 +13795,7 @@ async def _operations_performance_impl(
                 "route_band": route_band,
                 "absence_totals": {"justified": 0, "unjustified": 0, "leave": 0, "offday": 0},
                 "league_rankings": [],
+                "cost_center_options": cost_center_options,
                 "debug_absences": debug_absences,
                 "debug_absence_diagnostic": debug_absence_diagnostic,
                 "debug_absence_employee_id": debug_absence_employee_id,
@@ -12293,7 +13813,7 @@ async def _operations_performance_impl(
                 "filters": {
                     "date": date,
                     "period": period,
-                    "shift": shift,
+                    "cost_center": selected_cost_center or "Todos",
                     "route_band": route_band,
                     "tenure_band": tenure_band,
                     "sort_by": sort_by,
@@ -12322,6 +13842,7 @@ async def _operations_performance_impl(
                 "route_band": route_band,
                 "absence_totals": {"justified": 0, "unjustified": 0, "leave": 0, "offday": 0},
                 "league_rankings": [],
+                "cost_center_options": cost_center_options,
                 "debug_absences": debug_absences,
                 "debug_absence_diagnostic": debug_absence_diagnostic,
                 "debug_absence_employee_id": debug_absence_employee_id,
@@ -12429,7 +13950,7 @@ async def _operations_performance_impl(
                 "context": "Regras"
             }
             row["pillar_weights"] = get_pillar_weights(row["tenure_band"])
-            row["group_key"] = f"{row.get('route_band', '-')}/{row.get('shift') or '-'}"
+            row["group_key"] = f"{row.get('route_band', '-')}/{row.get('cost_center') or '-'}"
 
         group_map = {}
         for row in rows_subset:
@@ -12585,9 +14106,9 @@ async def _operations_performance_impl(
             reasons.append("Indícios de velocidade acima da média" if sample_small else "Velocidade acima da média do time")
         if row.get("delta_expected_context") is not None:
             if row["delta_expected_context"] > team_avg_kgh * 0.05:
-                reasons.append("Indícios acima do esperado para rota/turno" if sample_small else "Acima do esperado para rota/turno")
+                reasons.append("Indícios acima do esperado para rota/empresa" if sample_small else "Acima do esperado para rota/empresa")
             elif row["delta_expected_context"] < -team_avg_kgh * 0.05:
-                reasons.append("Indícios abaixo do esperado para rota/turno" if sample_small else "Abaixo do esperado para rota/turno")
+                reasons.append("Indícios abaixo do esperado para rota/empresa" if sample_small else "Abaixo do esperado para rota/empresa")
         if row["avg_trip_minutes"] > team_avg_trip_minutes * 1.15:
             reasons.append("Indícios de tempo por viagem acima da média" if sample_small else "Tempo por viagem acima da média")
         if row["regularity_adjusted"] >= 0.8:
@@ -12613,7 +14134,7 @@ async def _operations_performance_impl(
         row["badge_rule"] = badge.get("rule", "")
         row["analysis_reasons"] = build_reasons(row)
         row["score_source"] = "Estatística"
-        row["group_label"] = f"Rota {row.get('route_band_label', row.get('route_band', '-'))} / Turno {row.get('shift') or '-'}"
+        row["group_label"] = f"Rota {row.get('route_band_label', row.get('route_band', '-'))} / Empresa {row.get('cost_center') or '-'}"
         row["sample_note"] = "Amostra pequena; dados insuficientes." if row.get("sample_small") else ""
 
     if len(rows_filtered) > 1:
@@ -12633,11 +14154,11 @@ async def _operations_performance_impl(
 
     expected_map = {}
     for row in rows_filtered:
-        key = (row.get("route_band"), row.get("shift"))
+        key = (row.get("route_band"), row.get("cost_center"))
         expected_map.setdefault(key, []).append(row["avg_kgh"])
     expected_map = {key: safe_mean(vals) for key, vals in expected_map.items()}
     for row in rows_filtered:
-        key = (row.get("route_band"), row.get("shift"))
+        key = (row.get("route_band"), row.get("cost_center"))
         expected_context = expected_map.get(key, team_avg_kgh)
         row["expected_kgh_context"] = expected_context
         row["delta_expected_context"] = row["avg_kgh"] - expected_context
@@ -12911,7 +14432,7 @@ async def _operations_performance_impl(
             "filters": {
                 "date": date,
                 "period": period,
-                "shift": shift,
+                "cost_center": selected_cost_center or "Todos",
                 "route_band": route_band,
                 "tenure_band": tenure_band,
                 "sort_by": sort_by,
@@ -12940,11 +14461,13 @@ async def _operations_performance_impl(
             "route_band": route_band,
             "absence_totals": absence_totals,
             "league_rankings": league_rankings,
+            "cost_center_options": cost_center_options,
             "debug_absences": debug_absences,
             "debug_absence_diagnostic": debug_absence_diagnostic,
             "debug_absence_employee_id": debug_absence_employee_id,
             "debug_absence_summary": debug_absence_summary,
-            "calculation_debug": calculation_debug
+            "calculation_debug": calculation_debug,
+            "gemini_available": gemini_client is not None,
         }
     )
 @app.get("/api/rankings/employee/{employee_id}/details")
@@ -12953,7 +14476,7 @@ async def get_ranking_details(
     employee_id: int,
     date: str,
     period: str = "daily",
-    shift: Optional[str] = None,
+    cost_center: Optional[str] = None,
     route_band: str = "Todos",
     tenure_band: str = "Todos",
     session: Session = Depends(get_session),
@@ -12969,9 +14492,22 @@ async def get_ranking_details(
         end_date_str = end_date_obj.strftime("%Y-%m-%d")
         total_days = (end_date_obj - start_date_obj).days + 1
         debug_absence = LOG_LEVEL == logging.DEBUG
-            
+             
         employee = session.exec(select(models.Employee).where(models.Employee.id == employee_id)).first()
-        employee_shift = employee.work_shift if employee else "-"
+        employee_cost_center = cost_center_display_label(getattr(employee, "cost_center", None)) if employee else "Sem Centro"
+        selected_cost_center = parse_cost_center_filter(cost_center)
+        peer_cost_center = selected_cost_center or employee_cost_center
+        peer_employees = session.exec(
+            select(models.Employee)
+            .where(models.Employee.status != "fired")
+            .where(models.Employee.replaced_by.is_(None))
+            .where(models.Employee.mobile_access_separation == True)
+        ).all()
+        peer_employees = [
+            emp for emp in peer_employees
+            if employee_matches_cost_center(emp, peer_cost_center)
+        ]
+        peer_employee_ids = [emp.id for emp in peer_employees if emp and emp.id]
         tenure_months = 0
         tenure_band_value = "Novatos"
         admission_date = to_date(getattr(employee, "admission_date", None))
@@ -13063,8 +14599,8 @@ async def get_ranking_details(
                 .where(models.Route.date >= start_date_str)
                 .where(models.Route.date <= end_date_str)
             )
-            if shift and shift not in ['Geral', 'Todos', None, 'null']:
-                tonnage_query = tonnage_query.where(models.Route.shift == shift)
+            if peer_employee_ids:
+                tonnage_query = tonnage_query.where(models.Route.employee_id.in_(peer_employee_ids))
             tonnage_rows = session.exec(tonnage_query).all()
             tonnage_values = []
             for val in tonnage_rows:
@@ -13086,9 +14622,6 @@ async def get_ranking_details(
             query = query.where(models.Route.tonnage > 0)
             query = query.where(models.Route.date >= start_date_str)
             query = query.where(models.Route.date <= end_date_str)
-
-            if shift and shift not in ['Geral', 'Todos', None, 'null']:
-                query = query.where(models.Route.shift == shift)
 
             results = session.exec(query).all() # List of (Route, Client)
             if route_band and route_band not in ["Todos", "Geral", None, "null"]:
@@ -13261,8 +14794,8 @@ async def get_ranking_details(
             .where(models.Route.date >= start_date_str)
             .where(models.Route.date <= end_date_str)
         )
-        if shift and shift not in ["Geral", "Todos", None, "null"]:
-            team_query = team_query.where(models.Route.shift == shift)
+        if peer_employee_ids:
+            team_query = team_query.where(models.Route.employee_id.in_(peer_employee_ids))
         team_rows = session.exec(team_query).all()
 
         group_tonnage_values = [float(r.tonnage or 0) for r in team_rows if r.tonnage]
@@ -13285,8 +14818,6 @@ async def get_ranking_details(
             if group_tonnage_values:
                 if assign_band(tonnage_val, band_low_group, band_high_group) != route_band_value:
                     continue
-            if employee_shift not in ["-", None] and route.shift != employee_shift:
-                continue
             entry = group_stats.setdefault(route.employee_id, {
                 "tonnage": 0.0,
                 "secs": 0.0,
@@ -13344,9 +14875,9 @@ async def get_ranking_details(
             except Exception:
                 group_event_counts = {}
 
-        group_employees = session.exec(
-            select(models.Employee).where(models.Employee.id.in_(group_employee_ids))
-        ).all() if group_employee_ids else []
+        group_employees = peer_employees if group_employee_ids else []
+        if group_employee_ids:
+            group_employees = [emp for emp in group_employees if emp.id in group_employee_ids]
         group_emp_map = {emp.id: emp for emp in group_employees}
 
         def get_pillar_weights(tenure_band: str) -> dict:
@@ -13537,7 +15068,7 @@ async def get_ranking_details(
 
         route_band_label = ROUTE_BAND_LABELS.get(route_band_value, route_band_value)
         tenure_band_label = TENURE_BAND_LABELS.get(tenure_band_value, tenure_band_value)
-        group_label = f"Rota {route_band_label} / Turno {employee_shift}"
+        group_label = f"Rota {route_band_label} / Empresa {employee_cost_center}"
 
         def build_badge() -> dict:
             sample_small_local = sample_small
@@ -13589,7 +15120,7 @@ async def get_ranking_details(
             items = [
                 f"Liga: {tenure_band_label} ({tenure_months}m)",
                 f"Tipo de rota: {route_band_label}",
-                f"Turno: {employee_shift}"
+                f"Empresa: {employee_cost_center}"
             ]
             if top_client and top_client != "-":
                 items.append(f"Cliente recorrente: {top_client}")
@@ -13718,8 +15249,6 @@ async def get_ranking_details(
             base_query = base_query.where(models.Route.tonnage > 0)
             base_query = base_query.where(models.Route.date >= start_str)
             base_query = base_query.where(models.Route.date <= end_str)
-            if shift and shift not in ['Geral', 'Todos', None, 'null']:
-                base_query = base_query.where(models.Route.shift == shift)
             base_results = session.exec(base_query).all()
             if route_band and route_band not in ["Todos", "Geral", None, "null"]:
                 if tonnage_values:
@@ -14164,7 +15693,7 @@ async def get_ranking_details(
                     "route_band": route_band_label,
                     "top_client": top_client,
                     "top_client_share": round(top_client_share * 100, 1),
-                    "shift": employee_shift
+                    "cost_center": employee_cost_center
                 },
                 "sources": {
                     "score": "Estatística",
@@ -14196,7 +15725,7 @@ async def generate_ai_report(
     
     Tipos de relatório:
     - executive: Resumo executivo para diretoria (1-2 parágrafos)
-    - detailed: Relatório detalhado por setor/turno
+    - detailed: Relatório detalhado por empresa
     - individual: Análise individual de um colaborador
     - recommendations: Recomendações de ação prioritárias
     """
@@ -14212,7 +15741,7 @@ async def generate_ai_report(
         employee_id = data.get("employee_id")
         date_str = data.get("date")
         period = data.get("period", "weekly")
-        shift = data.get("shift", "Todos")
+        cost_center = data.get("cost_center", "Todos")
         team_stats = data.get("team_stats", {})
         rows = data.get("rows", [])
         insights = data.get("insights", {})
@@ -14254,7 +15783,7 @@ Não use markdown, apenas texto corrido.""",
 
             "detailed": f"""Você é um analista de operações logísticas gerando um RELATÓRIO DETALHADO.
 
-DADOS DO PERÍODO ({period}) - Turno: {shift}:
+DADOS DO PERÍODO ({period}) - Empresa: {cost_center}:
 - Volume total: {team_stats.get('total_tonnage', 0):,.0f} kg
 - Média Kg/h: {team_stats.get('avg_kgh', 0):,.0f}
 - Tempo médio/viagem: {team_stats.get('avg_trip_minutes', 0):.1f} min
@@ -14378,7 +15907,7 @@ async def export_performance_report(
     request: Request,
     date: Optional[str] = None,
     period: str = "weekly",
-    shift: str = "Todos",
+    cost_center: str = "Todos",
     session: Session = Depends(get_session),
     user=Depends(require_leader)
 ):
@@ -14430,10 +15959,14 @@ async def export_performance_report(
     period_range_label = f"{start_date.strftime('%d/%m/%Y')} a {end_date.strftime('%d/%m/%Y')}"
     
     # Buscar colaboradores elegíveis (habilitados no app de Separação)
-    allowed_query = select(models.Employee).where(models.Employee.mobile_access_separation == True)
-    if shift and shift not in ["Todos", "Geral", None]:
-        allowed_query = allowed_query.where(models.Employee.work_shift == shift)
-    allowed_employees = session.exec(allowed_query).all()
+    selected_cost_center = parse_cost_center_filter(cost_center)
+    allowed_employees = session.exec(
+        select(models.Employee).where(models.Employee.mobile_access_separation == True)
+    ).all()
+    allowed_employees = [
+        emp for emp in allowed_employees
+        if employee_matches_cost_center(emp, selected_cost_center)
+    ]
     allowed_ids = {emp.id for emp in allowed_employees if emp and emp.id}
     
     # Buscar rotas apenas de colaboradores elegíveis
@@ -14443,8 +15976,6 @@ async def export_performance_report(
         .where(models.Route.date >= start_date.strftime("%Y-%m-%d"))
         .where(models.Route.date <= end_date.strftime("%Y-%m-%d"))
     )
-    if shift and shift not in ["Todos", "Geral", None]:
-        query = query.where(models.Route.shift == shift)
     if allowed_ids:
         query = query.where(models.Route.employee_id.in_(allowed_ids))
     
@@ -14619,7 +16150,7 @@ async def export_performance_report(
             "badge_counts": badge_counts,
             "insights": insights,
             "attention_list": attention_list,
-            "filters": {"shift": shift, "period": period, "date": date},
+            "filters": {"cost_center": selected_cost_center or "Todos", "period": period, "date": date},
             "period_label": period_label,
             "period_range_label": period_range_label,
             "generated_at": datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y %H:%M"),
@@ -14633,7 +16164,7 @@ async def operations_performance_analysis_report(
     request: Request,
     date: Optional[str] = None,
     period: str = "weekly",
-    shift: str = "Todos",
+    cost_center: str = "Todos",
     limit: int = 20,
     session: Session = Depends(get_session),
     user=Depends(require_leader)
@@ -14659,16 +16190,21 @@ async def operations_performance_analysis_report(
     period_range_label = f"{start_date.strftime('%d/%m/%Y')} a {end_date.strftime('%d/%m/%Y')}"
     
     # Buscar colaboradores ativos COM acesso ao App de Separação
-    employees_query = (
+    selected_cost_center = parse_cost_center_filter(cost_center)
+    eligible_employees_all = session.exec(
         select(models.Employee)
         .where(models.Employee.status != "fired")
         .where(models.Employee.replaced_by.is_(None))
         .where(models.Employee.mobile_access_separation == True)
+    ).all()
+    cost_center_options = ["Todos"]
+    cost_center_options.extend(
+        sorted({cost_center_display_label(emp.cost_center) for emp in eligible_employees_all})
     )
-    if shift and shift not in ["Todos", "Geral", None]:
-        employees_query = employees_query.where(models.Employee.work_shift == shift)
-    
-    employees = session.exec(employees_query).all()
+    employees = [
+        emp for emp in eligible_employees_all
+        if employee_matches_cost_center(emp, selected_cost_center)
+    ]
     total_headcount = len(employees)
     employee_ids = {e.id for e in employees}
     emp_map = {e.id: e for e in employees}
@@ -14770,8 +16306,8 @@ async def operations_performance_analysis_report(
         .where(models.Route.date >= start_date.strftime("%Y-%m-%d"))
         .where(models.Route.date <= end_date.strftime("%Y-%m-%d"))
     )
-    if shift and shift not in ["Todos", "Geral", None]:
-        routes_query = routes_query.where(models.Route.shift == shift)
+    if employee_ids:
+        routes_query = routes_query.where(models.Route.employee_id.in_(employee_ids))
     
     routes = session.exec(routes_query).all()
     
@@ -15180,7 +16716,8 @@ async def operations_performance_analysis_report(
             "period": period,
             "period_label": period_label,
             "period_range_label": period_range_label,
-            "shift": shift,
+            "cost_center": selected_cost_center or "Todos",
+            "cost_center_options": cost_center_options,
             "date": date or target_date.strftime("%Y-%m-%d"),
             "limit": limit,
             "generated_at": datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y %H:%M")
@@ -16109,6 +17646,7 @@ async def get_all_employees(request: Request, session: Session = Depends(get_ses
                 "name": e.name,
                 "role": e.role,
                 "shift": e.work_shift,
+                "cost_center": e.cost_center,
                 "status": e.status
             } for e in employees]
         },
@@ -18361,149 +19899,99 @@ async def _employees_page_impl(request: Request, session: Session):
     update_vacation_statuses(session, datetime.now())
     # user = require_login(request)
     user = "debug_admin"
-        # Fetch Employees (excluindo substituídos)
-    employees = session.exec(
+    # Fetch Employees (excluindo substituídos) + demitidos substituídos (para aparecer no filtro Demitidos)
+    employees = list(session.exec(
         select(models.Employee)
         .where(models.Employee.replaced_by.is_(None))
+    ).all())
+    fired_substituted = session.exec(
+        select(models.Employee)
+        .where(models.Employee.replaced_by.isnot(None))
+        .where(or_(models.Employee.status == "fired", models.Employee.status == "demitido"))
     ).all()
-        # Calculate Stats
-    total_active = sum(1 for e in employees if e.status == "active")
-        # Fetch Targets (Create defaults if not exist)
-    # Fetch Targets Algorithm
-    # 1. Legacy HeadcountTarget (user manually input global target)
+    # Inclui demitidos substituídos para aparecerem ao filtrar por Demitidos
+    employees_for_display = employees + list(fired_substituted)
     legacy_targets = session.exec(select(models.HeadcountTarget)).all()
-    if not legacy_targets:
-        defaults = [
-            models.HeadcountTarget(shift_name="Manhã", target_value=50),
-            models.HeadcountTarget(shift_name="Tarde", target_value=50),
-            models.HeadcountTarget(shift_name="Noite", target_value=50)
-        ]
-        for d in defaults: session.add(d)
-        session.commit()
-        legacy_targets = session.exec(select(models.HeadcountTarget)).all()
-        
-    legacy_map = {t.shift_name: t.target_value for t in legacy_targets}
-
-    # 2. Smart Flow Sector Targets (Sum of sector capacities)
-    # This is the SOURCE OF TRUTH if sectors exist.
-    all_sectors = session.exec(select(models.Sector)).all()
-    sector_map_sum = {"Manhã": 0, "Tarde": 0, "Noite": 0}
-    has_sectors = False
-    
-    for sec in all_sectors:
-        # Normalize shift name just in case
-        sec_shift_norm = "Manhã"
-        if "tarde" in sec.shift.lower(): sec_shift_norm = "Tarde"
-        elif "noite" in sec.shift.lower(): sec_shift_norm = "Noite"
-        
-        sector_map_sum[sec_shift_norm] += sec.max_employees
-        has_sectors = True
-        
-    # Decision: User stated /employees is OFFICIAL.
-    # So we MUST prioritize the Manual Target (Legacy) over Sector Sum key-by-key.
-    # Sector Sum is operational capacity, but Target is HR Budget.
-    
     target_map = {}
-    for s in ["Manhã", "Tarde", "Noite"]:
-        manual_val = legacy_map.get(s, 0)
-        sector_val = sector_map_sum[s]
-        
-        # If manual value is set (exists in DB and > 0, or just exists?), prioritize it.
-        # But we treated 0 as 'not set' or 'default'.
-        # Let's trust the DB. If user saved 41, use 41.
-        if manual_val > 0:
-             target_map[s] = manual_val
-        elif sector_val > 0:
-             target_map[s] = sector_val
-        else:
-             target_map[s] = 0
+    for target in legacy_targets:
+        label = cost_center_display_label(target.shift_name)
+        target_map[label] = int(target.target_value or 0)
 
-    total_target = sum(target_map.values())
-    
-        # Shift Stats
-    shifts = ["Manhã", "Tarde", "Noite"]
-    shift_stats = []
-        # Init counters for each shift
-    shift_data = {
-        "Manhã": {"active": 0, "vacation": 0, "away": 0},
-        "Tarde": {"active": 0, "vacation": 0, "away": 0},
-        "Noite": {"active": 0, "vacation": 0, "away": 0}
-    }
-    # Helper to determine shift from work_shift
-    def get_shift_name(shift_val):
-        s = (shift_val or "").strip().lower()
-        if "noite" in s: return "Noite"
-        if "tarde" in s: return "Tarde"
-        # Default to Manhã only if explicitly Manhã or fallback
-        return "Manhã"
-    # LÓGICA ATUALIZADA:
-    # - Afastados NÃO contam no total de colaboradores (viram vagas temporárias)
-    # - Quando um afastado retornar, alguém será demitido para fechar o quadro
-    # - Total efetivo = ativos + férias (férias é temporário, retorna normalmente)
-    # - Vagas = target - total_efetivo (afastados geram vagas)
-    
-    total_effective_headcount = 0  # Ativos + Férias (exclui afastados)
-    total_away = 0  # Contador separado de afastados
-    
-    for e in employees:
-        if e.status == "fired":
+    total_effective_headcount = 0
+    total_away = 0
+    center_data = {}
+
+    for center_name in ["Souza Pinto", "Exemplar"]:
+        center_data[center_name] = {"active": 0, "vacation": 0, "away": 0}
+
+    for employee in employees:
+        if employee.status == "fired":
             continue
-        # Determine shift
-        s_name = get_shift_name(e.work_shift)
-        # Increment specific status counter for that shift
-        if e.status == "active":
-            shift_data[s_name]["active"] += 1
+        center_name = cost_center_display_label(employee.cost_center)
+        if center_name not in center_data:
+            center_data[center_name] = {"active": 0, "vacation": 0, "away": 0}
+
+        if employee.status == "active":
+            center_data[center_name]["active"] += 1
             total_effective_headcount += 1
-        elif e.status == "vacation":
-            shift_data[s_name]["vacation"] += 1
-            total_effective_headcount += 1  # Férias conta no quadro (retorno normal)
-        elif e.status == "away":
-            shift_data[s_name]["away"] += 1
-            total_away += 1  # Afastados NÃO contam (viram vaga temporária)
-        
-    for s in shifts:
-        data = shift_data.get(s, {"active":0, "vacation":0, "away":0})
-        active_count = data["active"]
-        vacation_count = data["vacation"]
-        away_count = data["away"]
-        
-        # Headcount efetivo do turno = ativos + férias (exclui afastados)
-        # Afastados geram vagas temporárias que precisam ser preenchidas por substitutos
-        effective_shift_headcount = active_count + vacation_count
-        
-        target = target_map.get(s, 0)
-        
-        # Vagas = target - headcount_efetivo
-        # Afastados automaticamente viram vagas até retornarem
-        shift_vacancies = max(0, target - effective_shift_headcount)
-        
-        shift_stats.append({
-            "name": s,
-            "count": active_count,  # Ativos trabalhando
-            "headcount": effective_shift_headcount,  # Efetivo (exclui afastados)
-            "vacation": vacation_count,
-            "away": away_count,  # Afastados (mostrar separado mas não conta no quadro)
+        elif employee.status == "vacation":
+            center_data[center_name]["vacation"] += 1
+            total_effective_headcount += 1
+        elif employee.status == "away":
+            center_data[center_name]["away"] += 1
+            total_away += 1
+
+    ordered_centers = [name for name in ["Souza Pinto", "Exemplar"] if name in center_data]
+    ordered_centers.extend(sorted(name for name in center_data.keys() if name not in {"Souza Pinto", "Exemplar"}))
+
+    center_stats = []
+    total_target = 0
+    for center_name in ordered_centers:
+        data = center_data.get(center_name, {"active": 0, "vacation": 0, "away": 0})
+        effective_headcount = data["active"] + data["vacation"]
+        target = target_map.get(center_name, effective_headcount)
+        vacancies = max(0, target - effective_headcount)
+        total_target += target
+
+        theme = "slate"
+        if center_name == "Souza Pinto":
+            theme = "cyan"
+        elif center_name == "Exemplar":
+            theme = "emerald"
+
+        center_stats.append({
+            "key": normalize_cost_center(center_name) or "sem_centro",
+            "name": center_name,
+            "theme": theme,
+            "count": data["active"],
+            "headcount": effective_headcount,
+            "vacation": data["vacation"],
+            "away": data["away"],
             "target": target,
-            "vacancies": shift_vacancies
+            "vacancies": vacancies,
         })
-        
-    # Status Stats (Global)
+
+    # Status Stats (Global) - inclui demitidos substituídos (replaced_by preenchido)
+    all_employees_for_status = session.exec(select(models.Employee)).all()
+    def _is_fired(e):
+        s = (e.status or "").strip().lower()
+        return s == "fired" or s == "demitido"
     status_stats = {
-        "vacation": sum(1 for e in employees if e.status == "vacation"),
-        "away": sum(1 for e in employees if e.status == "away"),
-        "fired": sum(1 for e in employees if e.status == "fired")
+        "vacation": sum(1 for e in employees if (e.status or "").strip().lower() == "vacation"),
+        "away": sum(1 for e in employees if (e.status or "").strip().lower() == "away"),
+        "fired": sum(1 for e in all_employees_for_status if _is_fired(e))
     }
     
     # Vagas totais = target - headcount_efetivo
     # Isso inclui automaticamente os afastados como vagas temporárias
     total_vacancies = max(0, total_target - total_effective_headcount)
     
-    distinct_roles = sorted(list({(e.role or "").strip().upper() for e in employees if (e.role or "").strip()}))
+    distinct_roles = sorted(list({(e.role or "").strip().upper() for e in employees_for_display if (e.role or "").strip()}))
     cargos = session.exec(select(models.CargoMaster).where(models.CargoMaster.status == "ATIVO").order_by(models.CargoMaster.nome)).all()
     return templates.TemplateResponse("employees.html", {
         "request": request,
         "user": user,
-        "employees": employees,
+        "employees": employees_for_display,
         "cargos": cargos,
         "distinct_roles": distinct_roles,
         "stats": {
@@ -18511,7 +19999,7 @@ async def _employees_page_impl(request: Request, session: Session):
             "total_target": total_target,
             "vacancies": total_vacancies,  # Inclui afastados como vagas
             "total_away": total_away,  # Afastados separados (para referência)
-            "shifts": shift_stats,
+            "centers": center_stats,
             "statuses": status_stats,
             "targets_map": target_map
         },
@@ -18520,7 +20008,7 @@ async def _employees_page_impl(request: Request, session: Session):
     })
 
 class HeadcountTargetUpdate(BaseModel):
-    targets: dict[str, int] # e.g. {"Manhã": 50, "Tarde": 40}
+    targets: dict[str, int]  # e.g. {"Souza Pinto": 50, "Exemplar": 40}
 
 @app.post("/api/employees/targets")
 async def update_headcount_targets(data: HeadcountTargetUpdate, session: Session = Depends(get_session)):
@@ -20399,7 +21887,7 @@ async def auth_exception_handler(request: Request, exc: HTTPException):
     )
 
 # --- People Intelligence Helper ---
-def get_people_intelligence_metrics(session: Session, shift: str, start_date: Optional[str], end_date: Optional[str], status_filter: Optional[List[str]] = None):
+def get_people_intelligence_metrics(session: Session, cost_center: Optional[str], start_date: Optional[str], end_date: Optional[str], status_filter: Optional[List[str]] = None):
     # 1. Overview Data
     # Se status_filter não for fornecido, usa comportamento padrão (excluindo demitidos)
     if status_filter and len(status_filter) > 0:
@@ -20416,10 +21904,21 @@ def get_people_intelligence_metrics(session: Session, shift: str, start_date: Op
             .where(models.Employee.status != "fired")
             .where(models.Employee.replaced_by.is_(None))
         ).all()
-    
-    # Filter by Shift
-    if shift != "Todos":
-        employees = [e for e in employees if e.work_shift == shift]
+
+    # Cost center options (empresa) - antes do filtro
+    cost_center_options = ["Todos"]
+    cost_center_options.extend(sorted({
+        cost_center_display_label(e.cost_center)
+        for e in employees
+        if cost_center_display_label(e.cost_center) and cost_center_display_label(e.cost_center) != "Sem Centro"
+    }))
+    if any(cost_center_display_label(e.cost_center) == "Sem Centro" for e in employees):
+        cost_center_options.append("Sem Centro")
+
+    # Filter by Empresa (cost_center)
+    selected_cc = parse_cost_center_filter(cost_center)
+    if selected_cc:
+        employees = [e for e in employees if employee_matches_cost_center(e, selected_cc)]
     
     total_headcount = len(employees)
     employee_ids = {e.id for e in employees}
@@ -20636,25 +22135,27 @@ def get_people_intelligence_metrics(session: Session, shift: str, start_date: Op
         "chronic_offenders": chronic_offenders,
         "emp_map": emp_map,
         "start_date": start_dt.strftime("%Y-%m-%d"),
-        "end_date": end_dt.strftime("%Y-%m-%d")
+        "end_date": end_dt.strftime("%Y-%m-%d"),
+        "cost_center_options": cost_center_options,
     }
 
 # --- People Intelligence Route ---
 @app.get("/people-intelligence", response_class=HTMLResponse)
 async def people_intelligence_page(
     request: Request, 
-    shift: str = "Todos",
+    cost_center: Optional[str] = "Todos",
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     session: Session = Depends(get_session)
 ):
     user = require_login(request)
-    data = get_people_intelligence_metrics(session, shift, start_date, end_date)
+    data = get_people_intelligence_metrics(session, cost_center, start_date, end_date)
     
     return templates.TemplateResponse("people_intelligence.html", {
         "request": request,
         "user": user,
-        "current_shift": shift,
+        "current_cost_center": cost_center or "Todos",
+        "cost_center_options": data.get("cost_center_options", ["Todos"]),
         "start_date": data['start_date'],
         "end_date": data['end_date'],
         "overview": data['overview'],
@@ -20671,20 +22172,20 @@ async def people_intelligence_page(
 @app.get("/api/people-intelligence/offenders")
 async def api_get_offenders(
     request: Request,
-    shift: str = "Todos",
+    cost_center: Optional[str] = "Todos",
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     session: Session = Depends(get_session)
 ):
     require_login(request)
-    data = get_people_intelligence_metrics(session, shift, start_date, end_date)
+    data = get_people_intelligence_metrics(session, cost_center, start_date, end_date)
     return JSONResponse(content={"offenders": data['chronic_offenders']})
 
 # --- People Intelligence Report (Print Preview) ---
 @app.get("/people-intelligence/report", response_class=HTMLResponse)
 async def people_intelligence_report(
     request: Request,
-    shift: str = "Todos",
+    cost_center: Optional[str] = "Todos",
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     status: Optional[str] = None,
@@ -20698,7 +22199,7 @@ async def people_intelligence_report(
     if status:
         status_filter = [s.strip() for s in status.split(",") if s.strip()]
     
-    data = get_people_intelligence_metrics(session, shift, start_date, end_date, status_filter)
+    data = get_people_intelligence_metrics(session, cost_center, start_date, end_date, status_filter)
     
     # Generate status labels for display
     status_labels = {
@@ -20711,7 +22212,8 @@ async def people_intelligence_report(
     
     return templates.TemplateResponse("people_intelligence_report.html", {
         "request": request,
-        "current_shift": shift,
+        "current_cost_center": cost_center or "Todos",
+        "cost_center_options": data.get("cost_center_options", ["Todos"]),
         "start_date": data['start_date'],
         "end_date": data['end_date'],
         "overview": data['overview'],
@@ -23638,3 +25140,525 @@ async def api_delete_admin_route(
     except Exception as e:
         logger.exception("Error deleting route")
         return JSONResponse({"error": f"Erro interno: {str(e)}"}, status_code=500)
+
+
+# =============================================================================
+# ROTAS: /admin/turnover-analysis — Análise de Turnover e Rotatividade
+# =============================================================================
+
+def _compute_turnover_metrics(session: Session, start_date_dt, end_date_dt, shift_filter: str = "all"):
+    """
+    Calcula todas as métricas de turnover para o período informado.
+    Retorna um dict com: metrics, by_shift, by_role, by_age, by_sector, by_tenure,
+    monthly_trend, recent_exits, insights.
+    """
+    from collections import defaultdict
+
+    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+
+    # ---- 1) Buscar colaboradores que saíram (fired ou away) no período ----
+    all_fired_away = session.exec(
+        select(models.Employee).where(
+            models.Employee.status.in_(["fired", "away"])
+        )
+    ).all()
+
+    # Filtrar pelo período usando termination_date ou, se não existir, admission_date como fallback
+    exits_in_period = []
+    for emp in all_fired_away:
+        exit_dt = emp.termination_date
+        if exit_dt is None:
+            # Sem data de saída: consideramos pendente mas inclui no período "all" por segurança
+            exits_in_period.append(emp)
+            continue
+        if start_date_dt <= exit_dt <= end_date_dt:
+            exits_in_period.append(emp)
+
+    # Filtro por turno
+    if shift_filter and shift_filter != "all":
+        exits_in_period = [e for e in exits_in_period if e.work_shift == shift_filter]
+
+    # ---- 2) Total de colaboradores (headcount médio) ----
+    all_employees = session.exec(select(models.Employee)).all()
+    total_ever = len([e for e in all_employees if e.status not in ["day_off"]])
+    active_count = len([e for e in all_employees if e.status == "active"])
+    avg_headcount = max(active_count + len(exits_in_period), 1)
+
+    total_exits = len(exits_in_period)
+    fired_count = len([e for e in exits_in_period if e.status == "fired"])
+    away_count = len([e for e in exits_in_period if e.status == "away"])
+
+    # Taxa de Turnover = (saídas / média do quadro) * 100
+    turnover_rate = (total_exits / avg_headcount) * 100 if avg_headcount > 0 else 0.0
+
+    # ---- 3) Tempo médio de permanência (meses) ----
+    tenure_months_list = []
+    for emp in exits_in_period:
+        if emp.admission_date and emp.termination_date:
+            delta = emp.termination_date - emp.admission_date
+            months = delta.days / 30.44
+            tenure_months_list.append(months)
+    avg_tenure_months = sum(tenure_months_list) / len(tenure_months_list) if tenure_months_list else 0.0
+
+    # ---- 4) Tempo médio de substituição (dias) ----
+    sub_histories = session.exec(
+        select(models.SubstitutionHistory)
+        .where(models.SubstitutionHistory.substitution_date >= start_date_dt)
+        .where(models.SubstitutionHistory.substitution_date <= end_date_dt)
+    ).all()
+
+    replacement_days_list = []
+    for sh in sub_histories:
+        original_emp = session.get(models.Employee, sh.original_employee_id)
+        if original_emp and original_emp.termination_date and sh.substitution_date:
+            delta = sh.substitution_date - original_emp.termination_date
+            if delta.days >= 0:
+                replacement_days_list.append(delta.days)
+    avg_replacement_days = sum(replacement_days_list) / len(replacement_days_list) if replacement_days_list else 0.0
+
+    # ---- 5) Agrupamentos ----
+
+    def safe_rate(exits, total):
+        if total == 0:
+            return 0.0
+        return (exits / total) * 100
+
+    # Por turno
+    by_shift: dict = defaultdict(lambda: {"exits": 0, "total": 0, "rate": 0.0})
+    for sh_name in ["Manhã", "Tarde", "Noite"]:
+        shift_total = len([e for e in all_employees if e.work_shift == sh_name and e.status != "day_off"])
+        shift_exits = len([e for e in exits_in_period if e.work_shift == sh_name])
+        by_shift[sh_name] = {"exits": shift_exits, "total": shift_total, "rate": safe_rate(shift_exits, shift_total)}
+
+    # Por função
+    by_role: dict = defaultdict(lambda: {"exits": 0, "total": 0, "rate": 0.0})
+    for emp in all_employees:
+        role = (emp.role or "Não Informado").strip()
+        by_role[role]["total"] = by_role[role].get("total", 0) + 1
+    for emp in exits_in_period:
+        role = (emp.role or "Não Informado").strip()
+        by_role[role]["exits"] = by_role[role].get("exits", 0) + 1
+    for role in by_role:
+        by_role[role]["rate"] = safe_rate(by_role[role].get("exits", 0), by_role[role].get("total", 0))
+
+    # Por faixa etária
+    def age_range(birthday):
+        if not birthday:
+            return "Não informado"
+        age = (now_br.replace(tzinfo=None) - birthday).days // 365
+        if age < 25:
+            return "Menos de 25"
+        elif age < 35:
+            return "25-34"
+        elif age < 45:
+            return "35-44"
+        elif age < 55:
+            return "45-54"
+        else:
+            return "55+"
+
+    by_age: dict = defaultdict(lambda: {"exits": 0, "total": 0, "rate": 0.0})
+    for emp in all_employees:
+        ar = age_range(emp.birthday)
+        by_age[ar]["total"] = by_age[ar].get("total", 0) + 1
+    for emp in exits_in_period:
+        ar = age_range(emp.birthday)
+        by_age[ar]["exits"] = by_age[ar].get("exits", 0) + 1
+    for ar in by_age:
+        by_age[ar]["rate"] = safe_rate(by_age[ar].get("exits", 0), by_age[ar].get("total", 0))
+
+    # Por setor/centro de custo
+    by_sector: dict = defaultdict(lambda: {"exits": 0, "total": 0, "rate": 0.0})
+    for emp in all_employees:
+        sector = (emp.cost_center or "Não Informado").strip()
+        by_sector[sector]["total"] = by_sector[sector].get("total", 0) + 1
+    for emp in exits_in_period:
+        sector = (emp.cost_center or "Não Informado").strip()
+        by_sector[sector]["exits"] = by_sector[sector].get("exits", 0) + 1
+    for sector in by_sector:
+        by_sector[sector]["rate"] = safe_rate(by_sector[sector].get("exits", 0), by_sector[sector].get("total", 0))
+
+    # Por tempo de casa
+    def tenure_bucket(admission_date, termination_date):
+        if not admission_date:
+            return "Não informado"
+        end = termination_date or now_br.replace(tzinfo=None)
+        months = (end - admission_date).days / 30.44
+        if months < 6:
+            return "0-6 meses"
+        elif months < 12:
+            return "6-12 meses"
+        elif months < 24:
+            return "1-2 anos"
+        elif months < 60:
+            return "2-5 anos"
+        elif months < 120:
+            return "5-10 anos"
+        else:
+            return "10+ anos"
+
+    by_tenure: dict = defaultdict(lambda: {"exits": 0, "total": 0, "rate": 0.0})
+    for emp in all_employees:
+        bucket = tenure_bucket(emp.admission_date, emp.termination_date)
+        by_tenure[bucket]["total"] = by_tenure[bucket].get("total", 0) + 1
+    for emp in exits_in_period:
+        bucket = tenure_bucket(emp.admission_date, emp.termination_date)
+        by_tenure[bucket]["exits"] = by_tenure[bucket].get("exits", 0) + 1
+    for bucket in by_tenure:
+        by_tenure[bucket]["rate"] = safe_rate(by_tenure[bucket].get("exits", 0), by_tenure[bucket].get("total", 0))
+
+    # ---- 6) Evolução mensal ----
+    monthly_trend: dict = {}
+    # Iterar mês a mês no período
+    cur = start_date_dt.replace(day=1)
+    while cur <= end_date_dt:
+        month_end = (cur.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+        month_end = min(month_end, end_date_dt)
+        label = cur.strftime("%b/%y")
+        month_exits = [e for e in exits_in_period if e.termination_date and cur <= e.termination_date <= month_end]
+        month_fired = len([e for e in month_exits if e.status == "fired"])
+        month_away = len([e for e in month_exits if e.status == "away"])
+        month_total_exits = len(month_exits)
+        monthly_trend[label] = {
+            "exits": month_total_exits,
+            "fired": month_fired,
+            "away": month_away,
+            "rate": safe_rate(month_total_exits, avg_headcount),
+        }
+        # Avançar para próximo mês
+        cur = (cur.replace(day=28) + timedelta(days=4)).replace(day=1)
+
+    # ---- 7) Últimas saídas (enriquecidas para tabela) ----
+    recent_exits_data = []
+    exits_sorted = sorted(
+        exits_in_period,
+        key=lambda e: e.termination_date or datetime(2000, 1, 1),
+        reverse=True
+    )
+    for emp in exits_sorted:
+        # Tempo de permanência em meses
+        tenure_m = 0
+        if emp.admission_date:
+            end_ref = emp.termination_date or now_br.replace(tzinfo=None)
+            tenure_m = int((end_ref - emp.admission_date).days / 30.44)
+
+        # Calcular idade
+        age_val = None
+        if emp.birthday:
+            age_val = (now_br.replace(tzinfo=None) - emp.birthday).days // 365
+
+        # Data de saída formatada
+        if emp.termination_date:
+            exit_date_str = emp.termination_date.strftime("%d/%m/%Y")
+            exit_date_pending = False
+        else:
+            exit_date_str = "—"
+            exit_date_pending = True
+
+        recent_exits_data.append({
+            "id": emp.id,
+            "name": emp.name,
+            "registration_id": emp.registration_id,
+            "role": emp.role or "—",
+            "work_shift": emp.work_shift or "—",
+            "status": emp.status,
+            "age": age_val,
+            "tenure_months": tenure_m,
+            "exit_date": exit_date_str,
+            "exit_date_pending": exit_date_pending,
+            "cost_center": emp.cost_center or "—",
+        })
+
+    # ---- 8) Insights automáticos ----
+    insights = []
+    if turnover_rate > 20:
+        insights.append({"type": "danger", "message": f"Taxa de turnover de {turnover_rate:.1f}% está muito acima do ideal (< 10%). Ação imediata recomendada."})
+    elif turnover_rate > 10:
+        insights.append({"type": "warning", "message": f"Taxa de turnover de {turnover_rate:.1f}% está acima do ideal. Monitore de perto."})
+    else:
+        insights.append({"type": "info", "message": f"Taxa de turnover de {turnover_rate:.1f}% dentro do esperado (< 10%)."})
+
+    if avg_replacement_days > 30:
+        insights.append({"type": "warning", "message": f"Tempo médio de substituição de {avg_replacement_days:.0f} dias é alto. Revise o processo de recrutamento."})
+
+    # Turno com maior turnover
+    worst_shift = max(by_shift.items(), key=lambda x: x[1]["rate"], default=(None, None))
+    if worst_shift[0] and worst_shift[1]["rate"] > 10:
+        insights.append({"type": "warning", "message": f"Turno {worst_shift[0]} tem o maior turnover: {worst_shift[1]['rate']:.1f}%."})
+
+    metrics = {
+        "turnover_rate": turnover_rate,
+        "total_exits": total_exits,
+        "fired_count": fired_count,
+        "away_count": away_count,
+        "avg_headcount": avg_headcount,
+        "avg_replacement_days": avg_replacement_days,
+        "avg_tenure_months": avg_tenure_months,
+    }
+
+    return {
+        "metrics": metrics,
+        "by_shift": dict(by_shift),
+        "by_role": dict(by_role),
+        "by_age": dict(by_age),
+        "by_sector": dict(by_sector),
+        "by_tenure": dict(by_tenure),
+        "monthly_trend": monthly_trend,
+        "recent_exits": recent_exits_data,
+        "insights": insights,
+    }
+
+
+@app.get("/admin/turnover-analysis", response_class=HTMLResponse)
+async def admin_turnover_analysis_page(
+    request: Request,
+    period: str = "all",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    shift: str = "all",
+    session: Session = Depends(get_session)
+):
+    """Página de Análise de Turnover e Rotatividade."""
+    try:
+        user = require_admin(request)
+    except Exception:
+        try:
+            user = require_gm(request, session)
+        except Exception:
+            return RedirectResponse(url="/login", status_code=303)
+
+    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+
+    # ---- Resolver período ----
+    if period == "month":
+        dt_start = now_br.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        dt_end = now_br
+    elif period == "quarter":
+        dt_start = (now_br - timedelta(days=90)).replace(hour=0, minute=0, second=0, microsecond=0)
+        dt_end = now_br
+    elif period == "semester":
+        dt_start = (now_br - timedelta(days=180)).replace(hour=0, minute=0, second=0, microsecond=0)
+        dt_end = now_br
+    elif period == "year":
+        dt_start = now_br.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        dt_end = now_br
+    elif period == "custom" and start_date and end_date:
+        try:
+            dt_start = datetime.strptime(start_date, "%Y-%m-%d")
+            dt_end = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+        except ValueError:
+            dt_start = datetime(2000, 1, 1)
+            dt_end = now_br
+    else:
+        # "all" — desde o início
+        dt_start = datetime(2000, 1, 1)
+        dt_end = now_br
+        period = "all"
+
+    # Remover tzinfo para comparação com campos naive do banco
+    dt_start_naive = dt_start.replace(tzinfo=None) if hasattr(dt_start, "tzinfo") else dt_start
+    dt_end_naive = dt_end.replace(tzinfo=None) if hasattr(dt_end, "tzinfo") else dt_end
+
+    data = _compute_turnover_metrics(session, dt_start_naive, dt_end_naive, shift_filter=shift)
+
+    return templates.TemplateResponse("admin_turnover_analysis.html", {
+        "request": request,
+        "user": user,
+        "current_period": period,
+        "current_start_date": start_date or "",
+        "current_end_date": end_date or "",
+        "current_shift": shift,
+        "gemini_available": gemini_client is not None,
+        **data,
+    })
+
+
+@app.post("/admin/turnover-analysis/ai-report", response_class=JSONResponse)
+async def admin_turnover_ai_report(request: Request, session: Session = Depends(get_session)):
+    """Gera parecer executivo de turnover usando IA (Gemini)."""
+    try:
+        user = require_admin(request)
+    except Exception:
+        try:
+            user = require_gm(request, session)
+        except Exception:
+            return JSONResponse({"error": "Acesso negado"}, status_code=403)
+
+    if not gemini_client:
+        return JSONResponse({"error": "IA não configurada. Adicione GEMINI_API_KEY."}, status_code=503)
+
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    period = body.get("period", "all")
+    start_date = body.get("start_date", "")
+    end_date = body.get("end_date", "")
+
+    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+
+    if period == "custom" and start_date and end_date:
+        try:
+            dt_start = datetime.strptime(start_date, "%Y-%m-%d")
+            dt_end = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+        except ValueError:
+            dt_start = datetime(2000, 1, 1)
+            dt_end = now_br
+    elif period == "month":
+        dt_start = now_br.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        dt_end = now_br
+    elif period == "quarter":
+        dt_start = now_br - timedelta(days=90)
+        dt_end = now_br
+    elif period == "semester":
+        dt_start = now_br - timedelta(days=180)
+        dt_end = now_br
+    elif period == "year":
+        dt_start = now_br.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        dt_end = now_br
+    else:
+        dt_start = datetime(2000, 1, 1)
+        dt_end = now_br
+
+    dt_start_naive = dt_start.replace(tzinfo=None) if hasattr(dt_start, "tzinfo") else dt_start
+    dt_end_naive = dt_end.replace(tzinfo=None) if hasattr(dt_end, "tzinfo") else dt_end
+
+    data = _compute_turnover_metrics(session, dt_start_naive, dt_end_naive)
+    metrics = data["metrics"]
+
+    input_json = {
+        "periodo": period,
+        "total_saidas": metrics["total_exits"],
+        "demissoes": metrics["fired_count"],
+        "afastamentos": metrics["away_count"],
+        "taxa_turnover_pct": round(metrics["turnover_rate"], 2),
+        "media_quadro": metrics["avg_headcount"],
+        "tempo_medio_substituicao_dias": round(metrics["avg_replacement_days"], 1),
+        "permanencia_media_meses": round(metrics["avg_tenure_months"], 1),
+        "por_turno": {k: {"saidas": v["exits"], "total": v["total"], "taxa_pct": round(v["rate"], 1)} for k, v in data["by_shift"].items()},
+        "por_funcao_top5": dict(list(sorted(data["by_role"].items(), key=lambda x: x[1]["exits"], reverse=True))[:5]),
+        "insights_automaticos": [i["message"] for i in data["insights"]],
+    }
+
+    prompt = f"""Você é um especialista em RH e gestão de pessoas. 
+Analise os dados de turnover da empresa e gere um parecer executivo em português (pt-BR),
+com linguagem clara, profissional e objetiva.
+
+DADOS DE ENTRADA (JSON):
+{__import__('json').dumps(input_json, ensure_ascii=False, indent=2)}
+
+O parecer deve conter:
+1. Resumo executivo (2-3 linhas com a situação geral)
+2. Análise dos principais indicadores
+3. Pontos de atenção críticos
+4. Recomendações práticas (máximo 4 recomendações)
+5. Conclusão
+
+Use linguagem direta. Evite jargões desnecessários. Todo o texto em pt-BR."""
+
+    try:
+        response = gemini_client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+        )
+        report_text = response.text or ""
+        logger.info(f"[TurnoverAI] Parecer gerado com sucesso. Período: {period}")
+        return JSONResponse({"report": report_text, "input": input_json})
+    except Exception as e:
+        logger.exception("Erro ao gerar parecer de turnover via Gemini")
+        return JSONResponse({"error": f"Falha na IA: {str(e)}"}, status_code=500)
+
+
+@app.post("/admin/turnover-analysis/update-dates", response_class=JSONResponse)
+async def admin_turnover_update_dates(request: Request, session: Session = Depends(get_session)):
+    """Salva datas de saída (termination_date) para colaboradores pendentes."""
+    try:
+        user = require_admin(request)
+    except Exception:
+        try:
+            user = require_gm(request, session)
+        except Exception:
+            return JSONResponse({"error": "Acesso negado"}, status_code=403)
+
+    try:
+        form = await request.form()
+    except Exception:
+        return JSONResponse({"error": "Falha ao ler formulário"}, status_code=400)
+
+    updated = 0
+    errors = []
+    for key, value in form.items():
+        if not key.startswith("date_"):
+            continue
+        registration_id = key[5:]  # remove "date_"
+        date_str = str(value).strip()
+        if not date_str:
+            continue
+        try:
+            new_date = datetime.strptime(date_str, "%Y-%m-%d")
+        except ValueError:
+            errors.append(f"Data inválida para {registration_id}: {date_str}")
+            continue
+
+        emp = session.exec(
+            select(models.Employee).where(models.Employee.registration_id == registration_id)
+        ).first()
+        if not emp:
+            errors.append(f"Colaborador não encontrado: {registration_id}")
+            continue
+
+        emp.termination_date = new_date
+        session.add(emp)
+        updated += 1
+
+    if updated > 0:
+        session.commit()
+        logger.info(f"[TurnoverDates] {updated} datas de saída atualizadas por {user if isinstance(user, str) else getattr(user, 'username', 'admin')}")
+
+    if errors:
+        return JSONResponse({"success": updated > 0, "updated": updated, "errors": errors})
+    return JSONResponse({"success": True, "updated": updated})
+
+
+@app.post("/admin/turnover-analysis/fix-dates", response_class=JSONResponse)
+async def admin_turnover_fix_dates(request: Request, session: Session = Depends(get_session)):
+    """
+    Corrige automaticamente datas de saída: busca no histórico de substituições
+    a data do evento de demissão/afastamento e preenche termination_date.
+    """
+    try:
+        user = require_admin(request)
+    except Exception:
+        try:
+            user = require_gm(request, session)
+        except Exception:
+            return JSONResponse({"error": "Acesso negado"}, status_code=403)
+
+    # Buscar colaboradores sem termination_date
+    pending_emps = session.exec(
+        select(models.Employee).where(
+            models.Employee.status.in_(["fired", "away"]),
+            models.Employee.termination_date == None
+        )
+    ).all()
+
+    fixed = 0
+    for emp in pending_emps:
+        # Tentar encontrar no SubstitutionHistory
+        sub = session.exec(
+            select(models.SubstitutionHistory)
+            .where(models.SubstitutionHistory.original_employee_id == emp.id)
+            .order_by(models.SubstitutionHistory.substitution_date)
+        ).first()
+
+        if sub and sub.substitution_date:
+            emp.termination_date = sub.substitution_date
+            session.add(emp)
+            fixed += 1
+
+    if fixed > 0:
+        session.commit()
+        logger.info(f"[TurnoverFixDates] {fixed} datas corrigidas automaticamente")
+
+    return JSONResponse({"success": True, "fixed": fixed})

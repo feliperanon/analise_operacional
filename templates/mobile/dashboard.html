@@ -208,12 +208,6 @@
                 </div>
                 <p class="text-body font-semibold truncate w-full" style="color: var(--color-text);">Conquistas</p>
             </a>
-            <button type="button" @click="scrollToHistory()" class="interactive block surface p-5 rounded-xl min-h-[100px] flex flex-col items-center justify-center gap-3 text-center w-full transition-all active:scale-[0.98]">
-                <div class="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0" style="background: rgba(59,130,246,0.15); color: #3b82f6;">
-                    <i data-lucide="history" class="w-7 h-7"></i>
-                </div>
-                <p class="text-body font-semibold truncate w-full" style="color: var(--color-text);">Histórico</p>
-            </button>
         </div>
     </section>
 
@@ -260,119 +254,6 @@
         </div>
     </section>
     {% endif %}
-
-    <!-- 6. XP History -->
-    <section class="container-mobile mt-8">
-        <h2 class="text-lg font-bold text-blue-900 mb-3">Extrato de XP</h2>
-        <div class="surface overflow-hidden divide-y divide-slate-100">
-            {% for item in xp_history %}
-            <div class="p-4 flex items-center justify-between hover:bg-slate-50">
-                <div class="flex items-center gap-3 flex-1 min-w-0">
-                    <div class="w-10 h-10 rounded-lg flex items-center justify-center
-                        {% if item.category == 'producao' %}bg-blue-50 text-blue-600
-                        {% elif item.category == 'penalty' %}bg-red-50 text-red-600
-                        {% elif item.category == 'manual' %}bg-yellow-50 text-yellow-600
-                        {% else %}bg-slate-100 text-slate-600{% endif %}">
-                        {% if item.icon == 'truck' %}
-                        <i data-lucide="truck" class="w-5 h-5"></i>
-                        {% elif item.icon == 'alert-circle' %}
-                        <i data-lucide="alert-circle" class="w-5 h-5"></i>
-                        {% elif item.icon == 'edit' %}
-                        <i data-lucide="edit" class="w-5 h-5"></i>
-                        {% else %}
-                        <i data-lucide="star" class="w-5 h-5 text-yellow-600"></i>
-                        {% endif %}
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        {% if '[' in item.reason %}
-                        {# Fallback Parser in Template for when Backend raw reason leaks #}
-                        {% set parts = item.reason.split('[') %}
-                        <p class="text-sm font-semibold text-blue-900 mb-1 truncate">{{ parts[0] }}</p>
-                        <div class="flex flex-wrap gap-1">
-                            {% for badge in parts[1].replace(']', '').split('|') %}
-                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                                {{ badge.strip().replace('XP', '') }}<span class="text-yellow-600 ml-0.5">XP</span>
-                            </span>
-                            {% endfor %}
-                        </div>
-                        {% else %}
-                        <p class="text-sm font-semibold text-blue-900 mb-1 truncate">{{ item.reason }}</p>
-                        {% if item.details %}
-                        <div class="flex flex-wrap gap-1">
-                            {% for line in item.details.split('\n') %}
-                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                                {{ line.strip().replace('XP', '') }}<span class="text-yellow-600 ml-0.5">XP</span>
-                            </span>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="text-right ml-2">
-                    <span class="text-sm font-bold {{ 'text-green-600' if item.amount > 0 else 'text-red-600' }}">
-                        {{ "+" if item.amount > 0 else "" }}{{ item.amount }} XP
-                    </span>
-                </div>
-            </div>
-            {% else %}
-            <div class="p-6 text-center text-slate-500 text-sm">Nenhum registro recente</div>
-            {% endfor %}
-
-            <div class="bg-blue-50 p-3 text-center border-t border-blue-100">
-                <a href="/mobile/achievements" class="text-xs text-blue-900 font-bold hover:text-blue-700 uppercase tracking-wider">
-                    Ver Histórico Completo
-                </a>
-            </div>
-        </div>
-    </section>
-
-
-    <!-- 7. Recent History (oculto quando rota ativa ou sessão entrega aberta) -->
-    <section id="history-section" class="container-mobile mt-8 mb-24" x-show="!hasActiveRoutes && !deliverySessionOpen" x-cloak>
-        <h2 class="text-lg font-bold mb-3" style="color: var(--color-text);">Concluídos Hoje</h2>
-
-        <div class="space-y-2">
-            <template x-if="completedRoutes.length === 0">
-                <div class="empty-state surface">
-                    <i data-lucide="check-circle" class="empty-icon"></i>
-                    <p class="empty-title">Nenhuma conclusão hoje</p>
-                    <p class="text-caption">Inicie uma separação e finalize para ver aqui.</p>
-                    <a href="#modules" class="empty-cta">Começar agora →</a>
-                </div>
-            </template>
-
-            <template x-for="(route, routeIndex) in completedRoutes" :key="'completed-' + routeIndex">
-                <div class="surface p-4 flex justify-between items-center hover:border-green-500 relative"
-                    @touchstart="route._touchStartX = $event.touches[0].clientX"
-                    @touchend="if(route._touchStartX - $event.changedTouches[0].clientX > 60) route._expanded = true; else if($event.changedTouches[0].clientX - route._touchStartX > 60) route._expanded = false">
-                    <div class="flex items-center gap-3 flex-1 min-w-0">
-                        <div class="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center text-green-600">
-                            <i data-lucide="check" class="w-5 h-5"></i>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm font-semibold text-blue-900 truncate" x-text="route.client_name"></p>
-                            <p class="text-xs text-slate-600">
-                                <span>⏱️</span>
-                                <span x-text="route.start_time"></span>
-                                <span class="text-slate-400">→</span>
-                                <span x-text="route.end_time"></span>
-                                <span class="text-slate-400 mx-1">•</span>
-                                <span x-text="route.duration"></span>
-                            </p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-sm font-bold text-blue-900" x-text="route.tonnage + ' kg'"></p>
-                        <p class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 inline-block mt-1 border border-slate-200"
-                            x-text="route.performance"></p>
-                    </div>
-                    <!-- Swipe hint -->
-                    <span class="swipe-hint">← deslize</span>
-                </div>
-            </template>
-        </div>
-    </section>
 
     <!-- Modals -->
 
@@ -1128,10 +1009,6 @@
             },
 
             // Navigation
-            scrollToHistory() {
-                document.getElementById('history-section').scrollIntoView({ behavior: 'smooth' });
-            },
-
             openEvaluationModal() {
                 this.showEvaluation = true;
             },

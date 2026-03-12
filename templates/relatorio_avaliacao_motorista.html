@@ -1,0 +1,630 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  :root {
+    --ink-strong: #e5eefb;
+    --ink-soft: #c3d2ea;
+    --ink-muted: #8ba0bf;
+    --surface-card: linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(15, 23, 42, 0.9) 100%);
+    --surface-panel: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(8, 47, 73, 0.78));
+    --brand-cyan: #22d3ee;
+    --brand-blue: #60a5fa;
+    --brand-emerald: #34d399;
+    --brand-orange: #fb923c;
+    --brand-rose: #fb7185;
+  }
+  body {
+    background:
+      radial-gradient(circle at top right, rgba(34, 211, 238, 0.08), transparent 28%),
+      radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.08), transparent 24%),
+      #0f172a;
+  }
+  .report-shell {
+    position: relative;
+  }
+  .report-hero,
+  .filter-card,
+  .section-card,
+  .metric-card {
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    box-shadow: 0 22px 48px rgba(2, 6, 23, 0.24);
+  }
+  .report-hero {
+    background: linear-gradient(135deg, rgba(14, 116, 144, 0.22), rgba(30, 41, 59, 0.9), rgba(37, 99, 235, 0.22));
+  }
+  .filter-card {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(12, 74, 110, 0.28));
+  }
+  @media print {
+    @page {
+      size: A4 portrait;
+      margin: 10mm 8mm 12mm;
+    }
+    html, body {
+      background: #ffffff !important;
+      color: #0f172a !important;
+      height: auto !important;
+      overflow: visible !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    body > div.flex.h-screen.overflow-hidden {
+      display: block !important;
+      height: auto !important;
+      overflow: visible !important;
+    }
+    body > div.flex.h-screen.overflow-hidden > main {
+      display: block !important;
+      height: auto !important;
+      overflow: visible !important;
+      background: #ffffff !important;
+      padding-top: 0 !important;
+    }
+    main > div.fixed,
+    .print-hidden,
+    #modal-alertas,
+    .no-print,
+    nav,
+    aside,
+    button,
+    .btn-print {
+      display: none !important;
+    }
+    .report-shell {
+      max-width: none !important;
+      width: auto !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    .report-stack {
+      gap: 0 !important;
+    }
+    .print-section {
+      break-inside: auto !important;
+      page-break-inside: auto !important;
+      break-after: page;
+      page-break-after: always;
+      margin: 0 0 9mm 0 !important;
+      overflow: visible !important;
+    }
+    .print-section:last-child {
+      break-after: auto;
+      page-break-after: auto;
+      margin-bottom: 0 !important;
+    }
+    .report-hero,
+    .filter-card {
+      display: none !important;
+    }
+    .report-card {
+      background: #ffffff !important;
+      color: #0f172a !important;
+      border: 1.5px solid #cbd5e1 !important;
+      box-shadow: none !important;
+      border-radius: 16px !important;
+      overflow: visible !important;
+    }
+    .metric-card,
+    .section-card {
+      background: #f1f5f9 !important;
+      border: 1px solid #94a3b8 !important;
+      box-shadow: none !important;
+    }
+    .metric-card .label { color: #475569 !important; }
+    .metric-card .value { color: #0f172a !important; font-weight: 700 !important; }
+    .section-title { color: #0f172a !important; }
+    .metric-grid {
+      gap: 7px !important;
+      margin-bottom: 7px !important;
+    }
+    .metric-grid--two {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+    .metric-grid--three {
+      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+    .metric-grid--four {
+      grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    }
+    .report-card h2,
+    .report-card .text-white,
+    .report-card .text-slate-300 {
+      color: #111827 !important;
+    }
+    .report-card .text-slate-500,
+    .report-card .text-slate-400,
+    .report-card .text-slate-200 {
+      color: #1f2937 !important;
+    }
+    .report-card .text-emerald-400 {
+      color: #047857 !important;
+    }
+    .report-card .text-amber-400 {
+      color: #b45309 !important;
+    }
+    .report-card .border-slate-600,
+    .report-card .border-slate-700,
+    .report-card .border-slate-700\/50 {
+      border-color: #cbd5e1 !important;
+    }
+    .report-card .bg-slate-800\/80,
+    .report-card .bg-slate-800\/90,
+    .report-card .bg-slate-900\/50 {
+      background: #dbeafe !important;
+    }
+    .table-wrap,
+    .overflow-x-auto {
+      overflow: visible !important;
+    }
+    .report-table {
+      width: 100% !important;
+      table-layout: fixed;
+    }
+    .report-table thead {
+      display: table-header-group;
+    }
+    .report-table tfoot {
+      display: table-footer-group;
+    }
+    .report-table th,
+    .report-table td {
+      border-color: #cbd5e1 !important;
+      color: #111827 !important;
+      white-space: normal !important;
+      word-break: break-word;
+      font-size: 10px !important;
+      line-height: 1.2 !important;
+      padding: 5px 6px !important;
+    }
+    .report-table thead th {
+      background: #cfe0f5 !important;
+      color: #111827 !important;
+      font-weight: 700 !important;
+    }
+    .report-table tbody tr:nth-child(odd) {
+      background: #ffffff !important;
+    }
+    .report-table tbody tr:nth-child(even) {
+      background: #f8fafc !important;
+    }
+    .report-table tr {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+    .info-badge {
+      border: 1px solid currentColor;
+      font-weight: 700;
+    }
+    .info-badge.sim { background: #d1fae5 !important; color: #047857 !important; border-color: #10b981 !important; }
+    .info-badge.nao { background: #fee2e2 !important; color: #b91c1c !important; border-color: #ef4444 !important; }
+    .critical-row {
+      background: #fee2e2 !important;
+    }
+    .critical-text {
+      color: #991b1b !important;
+    }
+    .type-chip.type-entrega,
+    .type-chip.delivery {
+      background: #dbeafe !important;
+      color: #1d4ed8 !important;
+      border: 1px solid #93c5fd !important;
+    }
+    .type-chip.type-devolucao,
+    .type-chip.return {
+      background: #fee2e2 !important;
+      color: #b91c1b !important;
+      border: 1px solid #fca5a5 !important;
+    }
+    .type-chip.type-pendente { background: #f1f5f9 !important; color: #64748b !important; border: 1px solid #cbd5e1 !important; }
+    .type-chip.type-iniciada { background: #e0e7ff !important; color: #4338ca !important; border: 1px solid #a5b4fc !important; }
+    .type-chip.type-reaberta { background: #fffbeb !important; color: #b45309 !important; border: 1px solid #fde68a !important; }
+    .type-chip.type-cancelada { background: #f1f5f9 !important; color: #475569 !important; border: 1px solid #94a3b8 !important; }
+  }
+  .report-card {
+    background: var(--surface-card);
+    border: 1px solid rgba(59, 130, 246, 0.16);
+    border-radius: 1rem;
+    box-shadow: 0 24px 52px rgba(2, 6, 23, 0.28);
+  }
+  .action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    padding: 0.8rem 1.1rem;
+    border-radius: 1rem;
+    font-weight: 700;
+    transition: transform .18s ease, box-shadow .18s ease, background .18s ease, color .18s ease;
+    border: 1px solid transparent;
+  }
+  .action-btn:hover {
+    transform: translateY(-1px);
+  }
+  .action-btn-primary {
+    color: #ecfeff;
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.95), rgba(59, 130, 246, 0.95));
+    box-shadow: 0 14px 30px rgba(8, 145, 178, 0.28);
+  }
+  .action-btn-primary:hover {
+    background: linear-gradient(135deg, rgba(34, 211, 238, 0.98), rgba(96, 165, 250, 0.98));
+  }
+  .action-btn-secondary {
+    color: #fff7ed;
+    background: linear-gradient(135deg, rgba(249, 115, 22, 0.95), rgba(239, 68, 68, 0.95));
+    box-shadow: 0 14px 30px rgba(234, 88, 12, 0.22);
+  }
+  .action-btn-secondary:hover {
+    background: linear-gradient(135deg, rgba(251, 146, 60, 0.98), rgba(248, 113, 113, 0.98));
+  }
+  .action-btn-print {
+    color: #ecfdf5;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(6, 182, 212, 0.9));
+    box-shadow: 0 16px 34px rgba(5, 150, 105, 0.26);
+  }
+  .action-btn-print:hover {
+    background: linear-gradient(135deg, rgba(52, 211, 153, 0.98), rgba(34, 211, 238, 0.95));
+  }
+  .info-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.34rem 0.8rem;
+    border-radius: 9999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    border: 1px solid transparent;
+  }
+  .info-badge.sim { background: rgba(16, 185, 129, 0.3); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.5); }
+  .info-badge.nao { background: rgba(239, 68, 68, 0.35); color: #fca5a5; border-color: rgba(239, 68, 68, 0.6); }
+  .info-badge.neutral { background: rgba(59, 130, 246, 0.38); color: #dbeafe; border-color: rgba(147, 197, 253, 0.58); }
+  .metric-grid {
+    display: grid;
+    gap: 0.9rem;
+    margin-bottom: 0.9rem;
+  }
+  .metric-grid--two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .metric-grid--three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .metric-grid--four {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .metric-card {
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.85));
+    border: 1px solid rgba(71, 85, 105, 0.5);
+    border-radius: 1rem;
+    padding: 0.62rem 0.72rem;
+  }
+  .metric-card .label {
+    display: block;
+    color: #94a3b8;
+    font-size: 0.63rem;
+    margin-bottom: 0.14rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .metric-card .value {
+    color: #f1f5f9;
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1.18;
+  }
+  .section-card {
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.74), rgba(15, 23, 42, 0.42));
+    border-radius: 1rem;
+    padding: 1rem;
+  }
+  .section-title {
+    color: #f8fafc;
+    font-weight: 700;
+    font-size: 0.96rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .table-wrap {
+    border-radius: 1rem;
+    overflow-x: auto;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+  .report-table thead th {
+    color: #cbd5e1;
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
+  }
+  .report-table th,
+  .report-table td {
+    padding: 0.46rem 0.58rem;
+    font-size: 0.76rem;
+    line-height: 1.2;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+    vertical-align: middle;
+  }
+  .report-table tbody tr:nth-child(even) {
+    background: rgba(15, 23, 42, 0.18);
+  }
+  .report-table tbody tr:hover {
+    background: rgba(34, 211, 238, 0.08);
+  }
+  .client-col {
+    width: 31%;
+  }
+  .window-col {
+    width: 16%;
+  }
+  .weight-col,
+  .value-col,
+  .time-col,
+  .type-col,
+  .start-col,
+  .end-col {
+    width: 11%;
+  }
+  .client-name {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+  .critical-row {
+    background: rgba(127, 29, 29, 0.08) !important;
+  }
+  .critical-text {
+    color: #b91c1c !important;
+    font-weight: 700;
+  }
+  .type-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 74px;
+    padding: 0.18rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    white-space: nowrap;
+    border: 1px solid transparent;
+    text-transform: lowercase;
+  }
+  .type-chip.type-entrega {
+    background: rgba(14, 165, 233, 0.2);
+    color: #0ea5e9;
+    border-color: rgba(14, 165, 233, 0.4);
+  }
+  .type-chip.type-devolucao {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.4);
+  }
+  .type-chip.type-pendente {
+    background: rgba(148, 163, 184, 0.2);
+    color: #94a3b8;
+    border-color: rgba(148, 163, 184, 0.4);
+  }
+  .type-chip.type-iniciada {
+    background: rgba(99, 102, 241, 0.2);
+    color: #6366f1;
+    border-color: rgba(99, 102, 241, 0.4);
+  }
+  .type-chip.type-reaberta {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+    border-color: rgba(245, 158, 11, 0.4);
+  }
+  .type-chip.type-cancelada {
+    background: rgba(100, 116, 139, 0.2);
+    color: #64748b;
+    border-color: rgba(100, 116, 139, 0.4);
+  }
+  /* Fallback para compatibilidade e impressão */
+  .type-chip.delivery { background: rgba(14, 165, 233, 0.12); color: #0369a1; }
+  .type-chip.return { background: rgba(239, 68, 68, 0.12); color: #b91c1c; }
+  @media (max-width: 900px) {
+    .metric-grid--three,
+    .metric-grid--four {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 560px) {
+    .metric-grid--two,
+    .metric-grid--three,
+    .metric-grid--four {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+<div class="report-shell p-4 md:p-6 max-w-6xl xl:max-w-7xl mx-auto">
+  <!-- Header -->
+  <div class="report-hero flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 no-print rounded-[1.75rem] px-5 py-5 md:px-7 md:py-6">
+    <div class="flex items-center gap-4">
+      <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-2xl font-bold text-white">Relatório de Avaliação do Motorista</h1>
+        <p class="text-slate-400 text-sm">Avaliação diária para impressão</p>
+      </div>
+    </div>
+    <button type="button" onclick="window.print()" class="action-btn action-btn-print btn-print">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9V2h12v7M6 18H5a2 2 0 01-2-2v-5a2 2 0 012-2h14a2 2 0 012 2v5a2 2 0 01-2 2h-1M6 14h12v8H6v-8z"></path>
+      </svg>
+      Imprimir
+    </button>
+  </div>
+
+  <!-- Filtros -->
+  <form method="get" action="/relatorio-avaliacao-motorista" class="filter-card mb-8 p-5 rounded-[1.6rem] no-print">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+      <div>
+        <p class="text-xs uppercase tracking-[0.24em] text-cyan-300/80 font-bold">Filtros do Relatório</p>
+        <p class="text-sm text-slate-400">Selecione a data e um ou mais motoristas para montar a avaliação.</p>
+      </div>
+      <div class="inline-flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1.5 text-xs text-cyan-200">
+        <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+        Impressão pronta com foco nas paradas
+      </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-2">Data</label>
+        <input type="date" name="date" value="{{ date }}" class="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-2.5 text-white focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500">
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-xs font-medium text-slate-400 mb-2">Motorista(s) — deixe vazio para todos</label>
+        <select name="driver_id" multiple class="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-2.5 text-white min-h-[80px] focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500">
+          {% for m in motoristas %}
+          <option value="{{ m.id }}" {% if m.id in driver_ids %}selected{% endif %}>{{ m.name }}</option>
+          {% endfor %}
+        </select>
+        <p class="text-xs text-slate-500 mt-1.5">Segure Ctrl para selecionar vários</p>
+      </div>
+    </div>
+    <div class="mt-5 flex flex-wrap gap-3">
+      <button type="submit" class="action-btn action-btn-primary">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h18M3 12h18M3 19h18"></path>
+        </svg>
+        Gerar Relatório
+      </button>
+      <a href="/relatorio-avaliacao-motorista" class="action-btn action-btn-secondary">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+        Limpar Filtros
+      </a>
+    </div>
+  </form>
+
+  {% if not reports %}
+  <div class="p-10 text-center text-slate-500 rounded-2xl bg-slate-800/50 border border-slate-700">
+    Nenhum dado encontrado para a data {{ date_fmt }}. Verifique os filtros.
+  </div>
+  {% else %}
+  <div class="report-stack space-y-8">
+  {% for rep in reports %}
+  <article class="report-card print-section p-5 md:p-6">
+    <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4 border-b border-slate-600 pb-4 mb-6">
+      <h2 class="text-xl font-bold text-white flex items-center gap-2">
+        {{ rep.motorista }}
+        <span class="text-slate-500 font-normal text-base">— {{ date_fmt }}</span>
+      </h2>
+      <div class="flex flex-wrap gap-2">
+        <span class="info-badge neutral">{{ rep.total_clientes }} clientes</span>
+        <span class="info-badge neutral">{{ rep.total_paradas }} paradas</span>
+        <span class="info-badge {% if rep.dentro_meta %}sim{% else %}nao{% endif %}">
+          {% if rep.dentro_meta %}Meta ok{% else %}Meta em alerta{% endif %}
+        </span>
+      </div>
+    </div>
+
+    <!-- Dados principais -->
+    <!-- Linha 1: 2 cards - Ajudantes | Veículo -->
+    <div class="metric-grid metric-grid--two text-sm">
+      <div class="metric-card flex flex-col"><span class="label">Ajudantes</span><span class="value">{{ rep.ajudantes|join(", ") or "—" }}</span></div>
+      <div class="metric-card flex flex-col"><span class="label">Veículo</span><span class="value">{{ rep.placa }} — {{ rep.modelo }}</span></div>
+    </div>
+    <!-- Linha 2: 3 cards - KM Inicial | KM Final | KM Rodado -->
+    <div class="metric-grid metric-grid--three text-sm">
+      <div class="metric-card flex flex-col"><span class="label">KM inicial</span><span class="value">{{ "%.1f"|format(rep.km_inicial)|replace(".", ",") if rep.km_inicial is not none else "—" }}</span></div>
+      <div class="metric-card flex flex-col"><span class="label">KM final</span><span class="value">{{ "%.1f"|format(rep.km_final)|replace(".", ",") if rep.km_final is not none else "—" }}</span></div>
+      <div class="metric-card flex flex-col"><span class="label">KM rodado</span><span class="value">{{ "%.1f"|format(rep.km_total)|replace(".", ",") if rep.km_total is not none else "—" }}</span></div>
+    </div>
+    <!-- Linha 3: 4 cards - Início | Fim | Tempo operando | Checklist -->
+    <div class="metric-grid metric-grid--four text-sm mb-6">
+      <div class="metric-card flex flex-col"><span class="label">Início</span><span class="value">{{ rep.hora_inicio or "—" }}</span></div>
+      <div class="metric-card flex flex-col"><span class="label">Fim</span><span class="value">{{ rep.hora_fim or "—" }}</span></div>
+      <div class="metric-card flex flex-col"><span class="label">Tempo operando</span><span class="value">{{ rep.tempo_operando_fmt }}</span></div>
+      <div class="metric-card flex flex-col">
+        <span class="label">Checklist do caminhão</span>
+        <span><span class="info-badge {% if rep.fez_checklist_caminhao %}sim{% else %}nao{% endif %}">{% if rep.fez_checklist_caminhao %}Sim{% else %}Não{% endif %}</span></span>
+      </div>
+    </div>
+
+    <!-- Resumo do dia (formato BR: vírgula decimal, ponto milhar) -->
+    <div class="section-card mb-6">
+      <p class="section-title mb-3">Resumo do dia</p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+        <div><span class="text-slate-500">Expedido:</span> <span class="text-white">Peso: {{ "{:,.2f}".format(rep.saiu_kg)|replace(",", "X")|replace(".", ",")|replace("X", ".") }} kg; Valor: R$ {{ "{:,.2f}".format(rep.saiu_valor)|replace(",", "X")|replace(".", ",")|replace("X", ".") }}</span></div>
+        <div><span class="text-slate-500">Entregue:</span> <span class="text-white">Peso: {{ "{:,.2f}".format(rep.entregue_kg)|replace(",", "X")|replace(".", ",")|replace("X", ".") }} kg; Valor: R$ {{ "{:,.2f}".format(rep.entregue_valor)|replace(",", "X")|replace(".", ",")|replace("X", ".") }}</span></div>
+        <div><span class="text-slate-500">Devolvido:</span> <span class="text-white">Peso: {{ "{:,.2f}".format(rep.devolucao_kg)|replace(",", "X")|replace(".", ",")|replace("X", ".") }} kg; Valor: R$ {{ "{:,.2f}".format(rep.devolucao_valor)|replace(",", "X")|replace(".", ",")|replace("X", ".") }}</span></div>
+      </div>
+      <div class="mt-3 pt-3 border-t border-slate-700 flex flex-wrap items-center gap-2">
+        <span class="text-slate-500">% Devolução:</span>
+        <span class="font-semibold {% if rep.dentro_meta %}text-emerald-400{% else %}text-amber-400{% endif %}">{{ "%.2f"|format(rep.devolucao_pct)|replace(".", ",") }}%</span>
+        <span class="text-slate-500">(meta {{ rep.meta_pct }}%)</span>
+        {% if rep.dentro_meta %}
+        <span class="text-emerald-400 text-sm">✓ Dentro da meta</span>
+        {% else %}
+        <span class="text-amber-400 text-sm">⚠ Acima da meta</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Top 5 clientes -->
+    <section class="mb-6">
+      <p class="section-title mb-3">Top 5 clientes com maior tempo de parada</p>
+      <div class="table-wrap">
+        <table class="report-table w-full text-sm">
+          <thead><tr class="bg-slate-800/80 text-slate-400 text-left"><th class="client-col py-2.5 px-4 font-medium">Cliente</th><th class="type-col py-2.5 px-4">Tipo</th><th class="time-col py-2.5 px-4">Tempo total</th></tr></thead>
+          <tbody>
+            {% for p in rep.top5_tempo %}
+            {% set t = (p.tipo or '')|lower %}
+            {% set type_class = 'type-devolucao' if 'devol' in t else ('type-entrega' if 'entreg' in t else ('type-pendente' if 'pendente' in t else ('type-iniciada' if 'iniciada' in t else ('type-reaberta' if 'reaberta' in t else ('type-cancelada' if 'cancelada' in t else 'type-entrega'))))) %}
+            <tr class="border-t border-slate-700/50 critical-row">
+              <td class="py-2 px-4"><span class="client-name critical-text" title="{{ p.cliente }}">{{ p.cliente }}</span></td>
+              <td class="px-4">
+                <span class="type-chip {{ type_class }}">{{ t }}</span>
+              </td>
+              <td class="px-4 critical-text">{{ p.duracao_fmt }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3" class="py-3 px-4 text-slate-500">—</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Paradas -->
+    <section>
+      <p class="section-title mb-3">Paradas por tipo e horário</p>
+      <div class="table-wrap">
+        <table class="report-table w-full text-sm">
+          <thead>
+            <tr class="bg-slate-800/80 text-slate-400 text-left">
+              <th class="client-col py-2.5 px-4 font-medium">Cliente</th><th class="type-col py-2.5 px-4">Tipo</th><th class="start-col py-2.5 px-4">Início</th><th class="end-col py-2.5 px-4">Fim</th><th class="time-col py-2.5 px-4">Tempo</th><th class="weight-col py-2.5 px-4">Peso (kg)</th><th class="value-col py-2.5 px-4">Valor (R$)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in rep.paradas_ordenadas %}
+            {% set is_critical = p.cliente in rep.top5_client_names %}
+            {% set t = (p.tipo or '')|lower %}
+            {% set type_class = 'type-devolucao' if 'devol' in t else ('type-entrega' if 'entreg' in t else ('type-pendente' if 'pendente' in t else ('type-iniciada' if 'iniciada' in t else ('type-reaberta' if 'reaberta' in t else ('type-cancelada' if 'cancelada' in t else 'type-entrega'))))) %}
+            <tr class="border-t border-slate-700/50 hover:bg-slate-800/30 {{ 'critical-row' if is_critical else '' }}">
+              <td class="py-2 px-4"><span class="client-name {{ 'critical-text' if is_critical else '' }}" title="{{ p.cliente }}">{{ p.cliente }}</span></td>
+              <td class="px-4"><span class="type-chip {{ type_class }}">{{ t }}</span></td>
+              <td class="px-4">{{ p.hora_inicio }}</td>
+              <td class="px-4">{{ p.hora_fim }}</td>
+              <td class="px-4 {{ 'critical-text' if is_critical else '' }}">{{ p.duracao_fmt }}</td>
+              <td class="px-4">{{ "%.1f"|format(p.kg)|replace(".", ",") }}</td>
+              <td class="px-4">{{ "%.2f"|format(p.valor)|replace(".", ",") }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </article>
+  {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

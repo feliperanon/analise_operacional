@@ -25,18 +25,115 @@
     </div>
 
     <div class="surface p-4 mb-4">
-        <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="grid grid-cols-3 gap-3 mb-4">
             <div class="text-center p-3 rounded-lg border" style="background: var(--color-danger-bg); border-color: var(--color-danger);">
                 <p class="text-xs mb-1" style="color: var(--color-text-muted);">Total (R$)</p>
                 <p id="totalReturnValue" class="text-xl font-bold" style="color: var(--color-danger);">R$ 0,00</p>
             </div>
-            <div class="text-center p-3 rounded-lg border" style="background: var(--color-warning-bg); border-color: var(--color-warning);">
+            <div class="text-center p-3 rounded-lg border relative" style="background: var(--color-warning-bg); border-color: var(--color-warning);">
                 <p class="text-xs mb-1" style="color: var(--color-text-muted);">% Devolvido</p>
                 <p id="totalReturnPercent" class="text-xl font-bold" style="color: var(--color-warning);">0%</p>
+                <button type="button" id="btnHelpDevolucao" class="absolute top-2 right-2 touch-target-icon rounded-full p-1" style="color: var(--color-text-muted);" title="Como funciona">
+                    <i data-lucide="help-circle" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="text-center p-3 rounded-lg border" style="background: var(--color-success-bg); border-color: var(--color-success);">
+                <p class="text-xs mb-1" style="color: var(--color-text-muted);">Prêmio Devolução</p>
+                <p id="premioDevolucao" class="text-xl font-bold" style="color: var(--color-success);">R$ 0,00</p>
             </div>
         </div>
         <div class="h-64 w-full" style="color: #ffffff;">
             <canvas id="performanceChart"></canvas>
+        </div>
+
+        <div id="cargaDescargaCard" class="mt-4 p-4 rounded-lg border flex flex-col gap-3" style="background: var(--color-surface-solid); border-color: var(--color-border);">
+            <div class="flex items-center justify-between gap-4">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                        <h3 class="text-body font-semibold" style="color: var(--color-text);">Carga e Descarga</h3>
+                        <button type="button" id="btnHelpCargaDescarga" class="touch-target-icon rounded-full p-1" style="color: var(--color-text-muted);" title="Como funciona">
+                            <i data-lucide="help-circle" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <p id="cargaDescargaWeekLabel" class="text-xs font-medium" style="color: var(--color-primary);">—</p>
+                    <p id="cargaDescargaStatus" class="text-caption mt-0.5" style="color: var(--color-text-muted);"><span id="cargaDescargaCount">0</span> carga(s)</p>
+                </div>
+                <span id="cargaDescargaValor" class="text-xl font-bold shrink-0" style="color: var(--color-success);">R$ 0,00</span>
+            </div>
+            <div id="cargaDescargaByDay" class="space-y-1.5 text-caption max-h-32 overflow-y-auto"></div>
+        </div>
+
+        <div id="cestaBasicaCard" class="mt-4 p-4 rounded-lg border flex flex-col gap-3" style="background: var(--color-surface-solid); border-color: var(--color-border);">
+            <div class="flex items-center justify-between gap-4">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                        <h3 class="text-body font-semibold" style="color: var(--color-text);">Cesta Básica</h3>
+                        <button type="button" id="btnHelpCestaBasica" class="touch-target-icon rounded-full p-1" style="color: var(--color-text-muted);" title="Como funciona">
+                            <i data-lucide="help-circle" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <p id="cestaBasicaStatus" class="text-caption" style="color: var(--color-text-muted);">Carregando...</p>
+                </div>
+                <span id="cestaBasicaValor" class="text-xl font-bold shrink-0" style="color: var(--color-success);">R$ 0,00</span>
+            </div>
+            <div id="cestaBasicaParabens" class="hidden flex items-center gap-2 px-3 py-2 rounded-lg text-left" style="background: var(--color-success-bg); border: 1px solid rgba(16,185,129,0.4);">
+                <i data-lucide="trophy" class="w-5 h-5 shrink-0" style="color: var(--color-success);"></i>
+                <p class="text-caption font-medium" style="color: var(--color-success);">Parabéns por estar presente! Sua constância faz a diferença.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalHelpCestaBasica" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.6);">
+        <div class="surface p-4 rounded-xl max-w-sm w-full" style="border: 1px solid var(--color-border);">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-body font-bold" style="color: var(--color-text);">Como funciona Cesta Básica</h3>
+                <button type="button" onclick="closeModal('modalHelpCestaBasica')" class="touch-target-icon rounded-lg" style="color: var(--color-text-muted);"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3 text-caption" style="color: var(--color-text-secondary);">
+                <p><strong>R$ 100,00</strong> — pago ao colaborador que cumprir a condição.</p>
+                <p><strong>Condição:</strong> não ter falta nem advertência no período.</p>
+                <p>Os dados de falta e advertência são registrados pelo gestor no sistema (desktop).</p>
+            </div>
+            <button onclick="closeModal('modalHelpCestaBasica')" class="mt-4 w-full py-2 rounded-lg text-body font-medium" style="background: var(--color-primary); color: white;">Entendi</button>
+        </div>
+    </div>
+
+    <div id="modalHelpDevolucao" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.6);">
+        <div class="surface p-4 rounded-xl max-w-sm w-full" style="border: 1px solid var(--color-border);">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-body font-bold" style="color: var(--color-text);">Como funciona o Prêmio Devolução</h3>
+                <button type="button" onclick="closeModal('modalHelpDevolucao')" class="touch-target-icon rounded-lg" style="color: var(--color-text-muted);"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-2 text-caption" style="color: var(--color-text-secondary);">
+                <p><strong>0,0% até 1,5%</strong> = R$ 300,00</p>
+                <p><strong>1,51% até 2,0%</strong> = R$ 250,00</p>
+                <p><strong>2,01% até 2,5%</strong> = R$ 180,00</p>
+                <p><strong>Acima de 2,51%</strong> = R$ 0,00</p>
+            </div>
+            <p class="mt-3 text-xs" style="color: var(--color-text-muted);">O percentual é calculado pelo valor devolvido sobre o valor total entregue no período. No mês atual, a conta vai do dia 1 até hoje.</p>
+            <button onclick="closeModal('modalHelpDevolucao')" class="mt-4 w-full py-2 rounded-lg text-body font-medium" style="background: var(--color-primary); color: white;">Entendi</button>
+        </div>
+    </div>
+
+    <div id="modalHelpCargaDescarga" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.6);">
+        <div class="surface p-4 rounded-xl max-w-sm w-full max-h-[85vh] overflow-y-auto" style="border: 1px solid var(--color-border);">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-body font-bold" style="color: var(--color-text);">Como funciona Carga e Descarga</h3>
+                <button type="button" onclick="closeModal('modalHelpCargaDescarga')" class="touch-target-icon rounded-lg" style="color: var(--color-text-muted);"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3 text-caption" style="color: var(--color-text-secondary);">
+                <p><strong>R$ 46,00 por carga/recarga</strong></p>
+                <p><strong>Peso:</strong> acima de 2.500 kg <strong>ou</strong> <strong>Volume:</strong> acima de 250 volumes.</p>
+                <p><strong>Equipe elegível:</strong></p>
+                <ul class="list-disc list-inside space-y-1 pl-2">
+                    <li>Só motorista — recebe</li>
+                    <li>1 motorista + 1 ajudante — recebem</li>
+                    <li>1 motorista + 2 ou mais ajudantes — não recebem</li>
+                </ul>
+                <p><strong>Recarga:</strong> ao concluir a entrega e voltar para a empresa = 1 carga. Se sair de novo no mesmo dia = +1 recarga.</p>
+                <p>Semanal (segunda a domingo). Zerado toda terça-feira. Pagamento toda terça-feira.</p>
+            </div>
+            <button onclick="closeModal('modalHelpCargaDescarga')" class="mt-4 w-full py-2 rounded-lg text-body font-medium" style="background: var(--color-primary); color: white;">Entendi</button>
         </div>
     </div>
 
@@ -86,8 +183,14 @@
             .then(r => r.ok ? r.json() : Promise.reject(new Error('Erro')))
             .then(data => {
                 if (!data || typeof data.total_value !== 'number') {
-                    data = { total_value: 0, percent_valor: 0, chart_labels: [], chart_values: [], chart_percents: [], top_clients: [], total_entregas_value: 0 };
+                    data = { total_value: 0, percent_valor: 0, chart_labels: [], chart_values: [], chart_percents: [], top_clients: [], total_entregas_value: 0, carga_descarga_count: 0, carga_descarga_value: 0 };
                 }
+                data.carga_descarga_count = data.carga_descarga_count ?? 0;
+                data.carga_descarga_value = data.carga_descarga_value ?? 0;
+                data.carga_descarga_week_label = data.carga_descarga_week_label ?? '';
+                data.carga_descarga_by_day = data.carga_descarga_by_day ?? [];
+                data.cesta_basica_eligible = data.cesta_basica_eligible ?? false;
+                data.cesta_basica_value = data.cesta_basica_value ?? 0;
                 const totalVal = Number(data.total_value) || 0;
                 const percentVal = Number(data.percent_valor) || 0;
                 const labels = Array.isArray(data.chart_labels) ? data.chart_labels : [];
@@ -97,8 +200,58 @@
 
                 const totalReturnValueEl = document.getElementById('totalReturnValue');
                 const totalReturnPercentEl = document.getElementById('totalReturnPercent');
+                const premioEl = document.getElementById('premioDevolucao');
                 if (totalReturnValueEl) totalReturnValueEl.textContent = `R$ ${totalVal.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
                 if (totalReturnPercentEl) totalReturnPercentEl.textContent = percentVal.toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1}) + '%';
+
+                function premioPorDevolucao(pct) {
+                    if (pct <= 1.5) return 300;
+                    if (pct <= 2.0) return 250;
+                    if (pct <= 2.5) return 180;
+                    return 0;
+                }
+                const premio = premioPorDevolucao(percentVal);
+                if (premioEl) premioEl.textContent = `R$ ${premio.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+                const cargaCount = Number(data.carga_descarga_count) || 0;
+                const cargaValor = Number(data.carga_descarga_value) || 0;
+                const cargaWeekLabel = String(data.carga_descarga_week_label || '');
+                const cargaByDay = Array.isArray(data.carga_descarga_by_day) ? data.carga_descarga_by_day : [];
+                const cargaCountEl = document.getElementById('cargaDescargaCount');
+                const cargaValorEl = document.getElementById('cargaDescargaValor');
+                const cargaWeekEl = document.getElementById('cargaDescargaWeekLabel');
+                const cargaByDayEl = document.getElementById('cargaDescargaByDay');
+                if (cargaCountEl) cargaCountEl.textContent = cargaCount;
+                if (cargaValorEl) cargaValorEl.textContent = `R$ ${cargaValor.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                if (cargaWeekEl) cargaWeekEl.textContent = cargaWeekLabel || '—';
+                if (cargaByDayEl) {
+                    if (cargaByDay.length === 0) {
+                        cargaByDayEl.innerHTML = '';
+                    } else {
+                        cargaByDayEl.innerHTML = cargaByDay.map(d => {
+                            const vl = Number(d.value) || 0;
+                            return `<div class="flex justify-between items-center py-1 border-b border-slate-700/40 last:border-0">
+                                <span style="color: var(--color-text-muted);">${d.date_label || d.date}</span>
+                                <span style="color: var(--color-success);">${d.count} carga(s) — R$ ${vl.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                            </div>`;
+                        }).join('');
+                    }
+                }
+
+                const cestaEligible = !!data.cesta_basica_eligible;
+                const cestaValor = Number(data.cesta_basica_value) || 0;
+                const cestaStatusEl = document.getElementById('cestaBasicaStatus');
+                const cestaValorEl = document.getElementById('cestaBasicaValor');
+                const cestaParabensEl = document.getElementById('cestaBasicaParabens');
+                if (cestaStatusEl) cestaStatusEl.textContent = cestaEligible ? 'Habilitado (sem falta/advertência)' : 'Não habilitado (falta ou advertência no período)';
+                if (cestaValorEl) {
+                    cestaValorEl.textContent = `R$ ${cestaValor.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                    cestaValorEl.style.color = cestaEligible ? 'var(--color-success)' : 'var(--color-text-muted)';
+                }
+                if (cestaParabensEl) {
+                    cestaParabensEl.classList.toggle('hidden', !cestaEligible);
+                    if (cestaEligible && typeof lucide !== 'undefined') lucide.createIcons();
+                }
 
                 const meta = 2.0;
                 const barColors = values.map((_, i) => {
@@ -173,8 +326,12 @@
                 console.error('Erro ao carregar devoluções:', err);
                 const v = document.getElementById('totalReturnValue');
                 const p = document.getElementById('totalReturnPercent');
+                const cestaStatus = document.getElementById('cestaBasicaStatus');
+                const cestaValor = document.getElementById('cestaBasicaValor');
                 if (v) v.textContent = 'R$ 0,00';
                 if (p) p.textContent = (0).toLocaleString('pt-BR', {minimumFractionDigits: 1}) + '%';
+                if (cestaStatus) cestaStatus.textContent = '—';
+                if (cestaValor) cestaValor.textContent = 'R$ 0,00';
             });
     }
 
@@ -205,9 +362,24 @@
         document.getElementById('returnDetails').classList.add('hidden');
     }
 
+    function closeModal(id) {
+        document.getElementById(id)?.classList.add('hidden');
+    }
     document.addEventListener('DOMContentLoaded', () => {
         buildPeriodOptions();
         loadReturnData();
+        document.getElementById('btnHelpDevolucao')?.addEventListener('click', () => {
+            document.getElementById('modalHelpDevolucao')?.classList.remove('hidden');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        });
+        document.getElementById('btnHelpCargaDescarga')?.addEventListener('click', () => {
+            document.getElementById('modalHelpCargaDescarga')?.classList.remove('hidden');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        });
+        document.getElementById('btnHelpCestaBasica')?.addEventListener('click', () => {
+            document.getElementById('modalHelpCestaBasica')?.classList.remove('hidden');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        });
     });
 </script>
 {% endblock %}

@@ -43,143 +43,57 @@
             </div>
         </div>
 
-        <!-- SHIFT SUMMARY CARDS -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <!-- Turno Manha -->
-            <a href="?shift=Manha" class="group">
-                <div class="bg-gradient-to-br from-blue-900/40 to-slate-800/60 backdrop-blur border border-blue-500/30 rounded-2xl p-4 relative overflow-hidden transition-all hover:border-blue-400/50 hover:shadow-lg hover:shadow-blue-500/10 {{ 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900' if current_shift == 'Manha' else '' }}">
-                    <!-- Active indicator -->
-                    <div id="shift-active-manha" class="hidden absolute top-3 right-3">
-                        <span class="relative flex h-3 w-3">
-                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                            <span class="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
-                        </span>
-                    </div>
-                    
-                    <div class="flex items-center gap-3 mb-3">
-                        <div class="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="text-lg font-bold text-blue-300">MANHA</h3>
-                            <p class="text-[10px] text-slate-500 uppercase tracking-wider">05:00 - 13:20</p>
-                        </div>
-                    </div>
-                    
+        <!-- CARDS EMPRESA / CENTRO DE CUSTO -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {% for cc_name, cc_data in (dashboard.cost_centers_summary or {})|dictsort %}
+            {% set cc_mod = loop.index0 % 5 %}
+            <a href="?cost_center={{ cc_name|urlencode }}&date={{ current_date }}" class="group">
+                {% if cc_mod == 0 %}
+                <div class="bg-gradient-to-br from-blue-900/40 to-slate-800/60 backdrop-blur border border-blue-500/30 rounded-2xl p-4 relative overflow-hidden transition-all hover:border-blue-400/50 hover:shadow-lg hover:shadow-blue-500/10 {{ 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900' if current_cost_center == cc_name else '' }}">
+                    <div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center"><svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg></div><div><h3 class="text-lg font-bold text-blue-300">{{ cc_name }}</h3><p class="text-[10px] text-slate-500 uppercase tracking-wider">Empresa / Centro de Custo</p></div></div>
+                {% elif cc_mod == 1 %}
+                <div class="bg-gradient-to-br from-orange-900/40 to-slate-800/60 backdrop-blur border border-orange-500/30 rounded-2xl p-4 relative overflow-hidden transition-all hover:border-orange-400/50 hover:shadow-lg hover:shadow-orange-500/10 {{ 'ring-2 ring-orange-500 ring-offset-2 ring-offset-slate-900' if current_cost_center == cc_name else '' }}">
+                    <div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center"><svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg></div><div><h3 class="text-lg font-bold text-orange-300">{{ cc_name }}</h3><p class="text-[10px] text-slate-500 uppercase tracking-wider">Empresa / Centro de Custo</p></div></div>
+                {% elif cc_mod == 2 %}
+                <div class="bg-gradient-to-br from-purple-900/40 to-slate-800/60 backdrop-blur border border-purple-500/30 rounded-2xl p-4 relative overflow-hidden transition-all hover:border-purple-400/50 hover:shadow-lg hover:shadow-purple-500/10 {{ 'ring-2 ring-purple-500 ring-offset-2 ring-offset-slate-900' if current_cost_center == cc_name else '' }}">
+                    <div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center"><svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg></div><div><h3 class="text-lg font-bold text-purple-300">{{ cc_name }}</h3><p class="text-[10px] text-slate-500 uppercase tracking-wider">Empresa / Centro de Custo</p></div></div>
+                {% elif cc_mod == 3 %}
+                <div class="bg-gradient-to-br from-cyan-900/40 to-slate-800/60 backdrop-blur border border-cyan-500/30 rounded-2xl p-4 relative overflow-hidden transition-all hover:border-cyan-400/50 hover:shadow-lg hover:shadow-cyan-500/10 {{ 'ring-2 ring-cyan-500 ring-offset-2 ring-offset-slate-900' if current_cost_center == cc_name else '' }}">
+                    <div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center"><svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg></div><div><h3 class="text-lg font-bold text-cyan-300">{{ cc_name }}</h3><p class="text-[10px] text-slate-500 uppercase tracking-wider">Empresa / Centro de Custo</p></div></div>
+                {% else %}
+                <div class="bg-gradient-to-br from-emerald-900/40 to-slate-800/60 backdrop-blur border border-emerald-500/30 rounded-2xl p-4 relative overflow-hidden transition-all hover:border-emerald-400/50 hover:shadow-lg hover:shadow-emerald-500/10 {{ 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-slate-900' if current_cost_center == cc_name else '' }}">
+                    <div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center"><svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg></div><div><h3 class="text-lg font-bold text-emerald-300">{{ cc_name }}</h3><p class="text-[10px] text-slate-500 uppercase tracking-wider">Empresa / Centro de Custo</p></div></div>
+                {% endif %}
                     <div class="grid grid-cols-3 gap-2 text-center">
                         <div class="bg-slate-900/50 rounded-lg p-2">
-                            <p class="text-xl font-bold text-white">{{ dashboard.shifts_summary.manha.headcount if dashboard.shifts_summary else '--' }}</p>
+                            <p class="text-xl font-bold text-white">{{ cc_data.headcount or 0 }}</p>
                             <p class="text-[9px] text-slate-500 uppercase">Presentes</p>
                         </div>
                         <div class="bg-slate-900/50 rounded-lg p-2">
-                            <p class="text-xl font-bold text-emerald-400">{{ dashboard.shifts_summary.manha.target if dashboard.shifts_summary else '--' }}</p>
+                            <p class="text-xl font-bold text-emerald-400">{{ cc_data.target or 0 }}</p>
                             <p class="text-[9px] text-slate-500 uppercase">Meta</p>
                         </div>
                         <div class="bg-slate-900/50 rounded-lg p-2">
-                            {% set manha_away = dashboard.shifts_summary.manha.away if dashboard.shifts_summary else 0 %}
-                            <p class="text-xl font-bold {{ 'text-orange-400' if manha_away > 0 else 'text-slate-600' }}">{{ manha_away }}</p>
+                            <p class="text-xl font-bold {{ 'text-orange-400' if (cc_data.away or 0) > 0 else 'text-slate-600' }}">{{ cc_data.away or 0 }}</p>
                             <p class="text-[9px] text-slate-500 uppercase">Ausentes</p>
                         </div>
                     </div>
                 </div>
             </a>
-
-            <!-- Turno Tarde -->
-            <a href="?shift=Tarde" class="group">
-                <div class="bg-gradient-to-br from-orange-900/40 to-slate-800/60 backdrop-blur border border-orange-500/30 rounded-2xl p-4 relative overflow-hidden transition-all hover:border-orange-400/50 hover:shadow-lg hover:shadow-orange-500/10 {{ 'ring-2 ring-orange-500 ring-offset-2 ring-offset-slate-900' if current_shift == 'Tarde' else '' }}">
-                    <!-- Active indicator -->
-                    <div id="shift-active-tarde" class="hidden absolute top-3 right-3">
-                        <span class="relative flex h-3 w-3">
-                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                            <span class="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
-                        </span>
-                    </div>
-                    
-                    <div class="flex items-center gap-3 mb-3">
-                        <div class="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center">
-                            <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="text-lg font-bold text-orange-300">TARDE</h3>
-                            <p class="text-[10px] text-slate-500 uppercase tracking-wider">12:00 - 20:20</p>
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-3 gap-2 text-center">
-                        <div class="bg-slate-900/50 rounded-lg p-2">
-                            <p class="text-xl font-bold text-white">{{ dashboard.shifts_summary.tarde.headcount if dashboard.shifts_summary else '--' }}</p>
-                            <p class="text-[9px] text-slate-500 uppercase">Presentes</p>
-                        </div>
-                        <div class="bg-slate-900/50 rounded-lg p-2">
-                            <p class="text-xl font-bold text-emerald-400">{{ dashboard.shifts_summary.tarde.target if dashboard.shifts_summary else '--' }}</p>
-                            <p class="text-[9px] text-slate-500 uppercase">Meta</p>
-                        </div>
-                        <div class="bg-slate-900/50 rounded-lg p-2">
-                            {% set tarde_away = dashboard.shifts_summary.tarde.away if dashboard.shifts_summary else 0 %}
-                            <p class="text-xl font-bold {{ 'text-orange-400' if tarde_away > 0 else 'text-slate-600' }}">{{ tarde_away }}</p>
-                            <p class="text-[9px] text-slate-500 uppercase">Ausentes</p>
-                        </div>
-                    </div>
-                </div>
-            </a>
-
-            <!-- Turno Noite -->
-            <a href="?shift=Noite" class="group">
-                <div class="bg-gradient-to-br from-purple-900/40 to-slate-800/60 backdrop-blur border border-purple-500/30 rounded-2xl p-4 relative overflow-hidden transition-all hover:border-purple-400/50 hover:shadow-lg hover:shadow-purple-500/10 {{ 'ring-2 ring-purple-500 ring-offset-2 ring-offset-slate-900' if current_shift == 'Noite' else '' }}">
-                    <!-- Active indicator -->
-                    <div id="shift-active-noite" class="hidden absolute top-3 right-3">
-                        <span class="relative flex h-3 w-3">
-                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-                            <span class="relative inline-flex rounded-full h-3 w-3 bg-purple-500"></span>
-                        </span>
-                    </div>
-                    
-                    <div class="flex items-center gap-3 mb-3">
-                        <div class="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                            <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="text-lg font-bold text-purple-300">NOITE</h3>
-                            <p class="text-[10px] text-slate-500 uppercase tracking-wider">18:00 - 06:00</p>
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-3 gap-2 text-center">
-                        <div class="bg-slate-900/50 rounded-lg p-2">
-                            <p class="text-xl font-bold text-white">{{ dashboard.shifts_summary.noite.headcount if dashboard.shifts_summary else '--' }}</p>
-                            <p class="text-[9px] text-slate-500 uppercase">Presentes</p>
-                        </div>
-                        <div class="bg-slate-900/50 rounded-lg p-2">
-                            <p class="text-xl font-bold text-emerald-400">{{ dashboard.shifts_summary.noite.target if dashboard.shifts_summary else '--' }}</p>
-                            <p class="text-[9px] text-slate-500 uppercase">Meta</p>
-                        </div>
-                        <div class="bg-slate-900/50 rounded-lg p-2">
-                            {% set noite_away = dashboard.shifts_summary.noite.away if dashboard.shifts_summary else 0 %}
-                            <p class="text-xl font-bold {{ 'text-orange-400' if noite_away > 0 else 'text-slate-600' }}">{{ noite_away }}</p>
-                            <p class="text-[9px] text-slate-500 uppercase">Ausentes</p>
-                        </div>
-                    </div>
-                </div>
-            </a>
+            {% endfor %}
         </div>
 
-        <!-- Turno Filter (Compact) -->
+        <!-- Filtro Empresa / Centro de Custo -->
         <div class="flex items-center justify-between">
-            <div class="flex bg-slate-800/80 backdrop-blur border border-slate-700 p-1 rounded-xl">
-                {% for s in ['Todos', 'Manha', 'Tarde', 'Noite'] %}
-                <a href="?shift={{ s }}"
-                    class="px-4 py-2 rounded-lg text-sm font-bold transition-all {{ 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' if current_shift == s else 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                    {{ s }}
+            <div class="flex flex-wrap bg-slate-800/80 backdrop-blur border border-slate-700 p-1 rounded-xl gap-1">
+                {% for opt in cost_center_options or ['Todos'] %}
+                <a href="?cost_center={{ opt|urlencode }}&date={{ current_date }}"
+                    class="px-4 py-2 rounded-lg text-sm font-bold transition-all {{ 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' if current_cost_center == opt else 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                    {{ opt }}
                 </a>
                 {% endfor %}
             </div>
-            <p class="text-xs text-slate-500">Filtrar visualizacao por turno</p>
+            <p class="text-xs text-slate-500">Filtrar por Empresa / Centro de Custo</p>
         </div>
 
         <!-- 1. TOP KPI ROW -->
@@ -260,11 +174,11 @@
                     <div class="p-4 border-b border-slate-700 flex items-center justify-between gap-4">
                         <div>
                             <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Radar RH</p>
-                            <p class="text-sm font-semibold text-white">Visao completa do turno {{ dashboard.current_shift_name }}</p>
+                            <p class="text-sm font-semibold text-white">Visao completa - {{ current_cost_center }}</p>
                         </div>
                         <div class="text-right">
-                            <p class="text-[10px] text-slate-500 uppercase tracking-wider">Turno base</p>
-                            <p class="text-sm font-bold text-white">{{ dashboard.current_shift_name }}</p>
+                            <p class="text-[10px] text-slate-500 uppercase tracking-wider">Empresa / Centro</p>
+                            <p class="text-sm font-bold text-white">{{ current_cost_center }}</p>
                         </div>
                     </div>
                     <div class="p-4 space-y-4">
@@ -283,7 +197,7 @@
                                     <div class="flex items-center justify-between gap-2">
                                         <div class="flex-1 min-w-0">
                                             <p class="text-sm font-semibold text-white truncate">{{ absence.full_name }}</p>
-                                            <p class="text-[10px] text-slate-400">{{ absence.shift }}</p>
+                                            <p class="text-[10px] text-slate-400">{{ absence.cost_center or absence.shift or '-' }}</p>
                                         </div>
                                         <span class="text-[10px] font-bold text-red-400">Falta</span>
                                     </div>
@@ -308,7 +222,7 @@
                                     <div class="flex items-center justify-between gap-2">
                                         <div class="flex-1 min-w-0">
                                             <p class="text-sm font-semibold text-white truncate">{{ atestado.full_name }}</p>
-                                            <p class="text-[10px] text-slate-400">{{ atestado.shift }} - Início {{ atestado.start_date }}</p>
+                                            <p class="text-[10px] text-slate-400">{{ atestado.cost_center or atestado.shift or '-' }}{% if atestado.start_date %} - Início {{ atestado.start_date }}{% endif %}</p>
                                         </div>
                                         <span class="text-[10px] font-bold text-amber-300">Atestado · {{ atestado.days_until }}d</span>
                                     </div>
@@ -410,9 +324,9 @@
                                     <div class="flex items-center justify-between gap-2">
                                         <div class="flex-1 min-w-0">
                                             <p class="text-sm font-semibold text-white truncate">{{ v.full_name }}</p>
-                                            <p class="text-[10px] text-slate-400">{{ v.shift }} - Início {% if v.start_date and v.start_date|string|length >= 10 %}{{ v.start_date[8:10] }}/{{ v.start_date[5:7] }}/{{ v.start_date[0:4] }}{% else %}{{ v.start_date }}{% endif %}</p>
+                                            <p class="text-[10px] text-slate-400">{{ v.cost_center or v.shift or '-' }}{% if v.start_date %} - Início {% if v.start_date|string|length >= 10 %}{{ v.start_date[8:10] }}/{{ v.start_date[5:7] }}/{{ v.start_date[0:4] }}{% else %}{{ v.start_date }}{% endif %}{% endif %}</p>
                                         </div>
-                                        <span class="text-[10px] font-bold text-cyan-300">{{ v.days_until }}d</span>
+                                        <span class="text-[10px] font-bold text-cyan-300">{{ v.days_until or v.start_in or '-' }}</span>
                                     </div>
                                     {% endfor %}
                                     {% else %}
@@ -606,26 +520,7 @@
             shiftBarEl.style.width = progress + '%';
         }
         
-        // Show active indicator on current shift card
-        document.getElementById('shift-active-manha').classList.add('hidden');
-        document.getElementById('shift-active-tarde').classList.add('hidden');
-        document.getElementById('shift-active-noite').classList.add('hidden');
-        
-        var activeId = 'shift-active-' + shift.name.toLowerCase();
-        var activeEl = document.getElementById(activeId);
-        if (activeEl) activeEl.classList.remove('hidden');
-        
-        // Update team shift badge
-        var teamBadge = document.getElementById('team-shift-badge');
-        if (teamBadge) {
-            teamBadge.textContent = shift.name;
-            var badgeColors = {
-                blue: 'bg-blue-500/20 text-blue-400',
-                orange: 'bg-orange-500/20 text-orange-400',
-                purple: 'bg-purple-500/20 text-purple-400'
-            };
-            teamBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold ' + badgeColors[shift.color];
-        }
+        // Dashboard usa Empresa/Centro de Custo - indicador de turno mantido no relogio
     }
 
     // Initialize

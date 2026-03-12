@@ -6,17 +6,26 @@
         <!-- Header -->
         <div class="flex items-center justify-between mb-8">
             <div>
-                <h1 class="text-3xl font-bold text-white mb-2">Separação de Mercadorias</h1>
-                <p class="text-slate-400">Gerenciamento de produtividade e cargas por colaborador.</p>
+                <h1 class="text-3xl font-bold text-white mb-2">Entregas</h1>
+                <p class="text-slate-400">Planejamento diário de entregas com importação e gestão por rota.</p>
             </div>
 
             <!-- Filters -->
-            <div class="bg-slate-800 p-2 rounded-xl flex items-center gap-3 border border-slate-700 shadow-sm">
-                <!-- Date -->
-                <input type="date" id="route-date" value="{{ selected_date }}" onchange="applyFilters()"
-                    class="bg-transparent text-white text-sm font-bold border-none focus:ring-0 cursor-pointer outline-none font-mono">
-
-                <div class="w-px h-6 bg-slate-600"></div>
+            <div class="bg-slate-800 p-2 rounded-xl flex flex-wrap items-center gap-3 border border-slate-700 shadow-sm">
+                <!-- Período: De -->
+                <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] uppercase tracking-wider text-slate-500 font-bold">De</span>
+                    <input type="date" id="route-date-from" value="{{ selected_date_from }}" onchange="applyFilters()"
+                        class="bg-transparent text-white text-sm font-bold border-none focus:ring-0 cursor-pointer outline-none font-mono">
+                </div>
+                <div class="w-px h-6 bg-slate-600 self-stretch"></div>
+                <!-- Até -->
+                <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Até</span>
+                    <input type="date" id="route-date-to" value="{{ selected_date_to }}" onchange="applyFilters()"
+                        class="bg-transparent text-white text-sm font-bold border-none focus:ring-0 cursor-pointer outline-none font-mono">
+                </div>
+                <div class="w-px h-6 bg-slate-600 self-stretch"></div>
 
                 <!-- Shift -->
                 <select id="route-shift" onchange="applyFilters()"
@@ -46,7 +55,7 @@
                 <form action="/separacao/import-entregas" method="post" enctype="multipart/form-data"
                       class="grid grid-cols-1 lg:grid-cols-5 gap-3 items-end"
                       onsubmit="return confirmImportDeliveries(this)">
-                    <input type="hidden" name="date" value="{{ selected_date }}">
+                    <input type="hidden" name="date" value="{{ selected_date_from }}">
                     <input type="hidden" name="input_date" value="{{ suggested_input_date }}">
                     <input type="hidden" name="shift" value="{{ selected_shift }}">
 
@@ -101,327 +110,6 @@
                 </div>
                 {% endif %}
             </div>
-            <!-- Form Section (Horizontal) -->
-            <form action="/separacao/add" method="post" autocomplete="off" onsubmit="return validateForm()">
-                <input type="hidden" name="date" value="{{ selected_date }}">
-                <input type="hidden" name="shift" value="{{ selected_shift }}">
-                <input type="hidden" name="allocations" id="form-allocations">
-
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Left Card: Configuration & Search -->
-                    <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl h-full">
-                        <h2 class="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-                            <div class="p-2 rounded-lg bg-indigo-500/20 text-indigo-400">
-                                <i data-lucide="settings" class="w-5 h-5"></i>
-                            </div>
-                            Configuração da Rota
-                        </h2>
-
-                        <div class="space-y-6">
-                            <!-- Employee Searchable -->
-                            <div class="relative group">
-                                <label
-                                    class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Colaborador</label>
-                                <input type="hidden" name="employee_id" id="form-employee-id" required>
-
-                                {% if employees %}
-                                <div class="relative">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <i data-lucide="user" class="w-4 h-4 text-slate-500"></i>
-                                    </div>
-                                    <input type="text" id="employee-search" placeholder="Busque pelo nome..."
-                                        class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-600 font-bold text-sm"
-                                        onfocus="showDropdown('employee-dropdown')"
-                                        oninput="filterDropdown('employee-dropdown', this.value)">
-
-                                    <div id="employee-dropdown"
-                                        class="absolute z-20 w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl max-h-80 overflow-y-auto hidden">
-                                        {% for emp in employees %}
-                                        <div class="px-4 py-3 hover:bg-slate-700 cursor-pointer text-slate-200 text-sm transition-colors border-b border-slate-700/50 last:border-0"
-                                            onclick="selectItem('employee', '{{ emp.id }}', '{{ emp.name }}')">
-                                            {{ emp.name }}
-                                        </div>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                                {% else %}
-                                <div
-                                    class="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-yellow-400 text-sm flex items-start gap-3">
-                                    <i data-lucide="alert-triangle" class="shrink-0 mt-0.5"></i>
-                                    <span>Nenhum colaborador disponível.</span>
-                                </div>
-                                {% endif %}
-                            </div>
-
-                            <!-- Times -->
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label
-                                        class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Início</label>
-                                    <input type="time" name="start_time" required id="form-start-time"
-                                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none text-center font-mono font-bold text-sm">
-                                </div>
-                                <div>
-                                    <label
-                                        class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Fim
-                                        (Opcional)</label>
-                                    <input type="time" name="end_time"
-                                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none placeholder-slate-600 text-center font-mono font-bold text-sm">
-                                </div>
-                            </div>
-
-                            <!-- Client Search -->
-                            <div class="relative group z-10 pt-2 border-t border-slate-700/50">
-                                <label
-                                    class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Adicionar
-                                    Clientes</label>
-                                <div class="relative">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <i data-lucide="search" class="w-4 h-4 text-slate-500"></i>
-                                    </div>
-                                    <input type="text" id="client-search"
-                                        placeholder="Busque e clique para adicionar..."
-                                        class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-600 text-sm"
-                                        onfocus="showDropdown('client-dropdown')"
-                                        oninput="filterDropdown('client-dropdown', this.value)">
-
-                                    <div id="client-dropdown"
-                                        class="absolute z-20 w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl max-h-60 overflow-y-auto hidden">
-                                        {% for client in clients %}
-                                        {% set is_active = client.id in active_client_ids %}
-                                        <div class="px-4 py-2 hover:bg-slate-700 cursor-pointer text-sm transition-colors flex justify-between items-center border-b border-slate-700/50 last:border-0 {{ 'bg-indigo-900/10' if is_active else '' }}"
-                                            onclick="addClient('{{ client.id }}', '{{ client.name }}')">
-                                            <span
-                                                class="{{ 'text-indigo-300 font-semibold' if is_active else 'text-slate-300' }}">
-                                                {{ client.name }}
-                                            </span>
-                                            {% if is_active %}
-                                            <span
-                                                class="text-[10px] bg-indigo-500/20 text-indigo-400 px-1.5 py-0.5 rounded uppercase font-bold border border-indigo-500/30">Em
-                                                Rota</span>
-                                            {% endif %}
-                                        </div>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                                <p class="text-[10px] text-slate-500 mt-2">
-                                    * Selecione múltiplos clientes para criar uma rota agrupada.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Right Card: Allocation List -->
-                    <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col h-full">
-                        <h2 class="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-                            <div class="p-2 rounded-lg bg-emerald-500/20 text-emerald-400">
-                                <i data-lucide="list-checks" class="w-5 h-5"></i>
-                            </div>
-                            Lista de Separação
-                        </h2>
-
-                        <div
-                            class="bg-slate-900/50 rounded-xl border border-slate-700 overflow-hidden flex flex-col flex-1 h-full min-h-[300px]">
-                            <div
-                                class="px-4 py-2 bg-slate-800/80 border-b border-slate-700 flex justify-between items-center">
-                                <span class="text-xs font-bold text-slate-400 uppercase">Clientes Selecionados</span>
-                                <span class="text-xs font-medium text-slate-500" id="allocation-count">0
-                                    items</span>
-                            </div>
-
-                            <div class="flex-1 overflow-y-auto custom-scrollbar">
-                                <table class="w-full text-left border-collapse">
-                                    <tbody id="allocation-table-body" class="text-sm">
-                                        <!-- Rows injected by JS -->
-                                        <tr id="empty-row">
-                                            <td colspan="3" class="p-6 text-center text-slate-500 italic text-xs">
-                                                Nenhum cliente selecionado.
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <!-- Total Footer -->
-                            <div
-                                class="px-4 py-3 bg-slate-800/50 border-t border-slate-700 flex justify-between items-center mt-auto">
-                                <span class="text-xs text-slate-400">Peso Total Previsto:</span>
-                                <span class="text-sm font-bold text-emerald-400 font-mono"
-                                    id="total-weight-display">0,00 Kg</span>
-                            </div>
-                        </div>
-
-                        <!-- Submit Action -->
-                        <div class="mt-6">
-                            <button type="submit" {% if not employees %}disabled{% endif %}
-                                class="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-lg font-bold shadow-lg shadow-indigo-900/30 transition-all active:scale-[0.98] flex justify-center items-center gap-2 group text-sm">
-                                <span>Iniciar Separação</span>
-                                <i data-lucide="arrow-right"
-                                    class="w-5 h-5 group-hover:translate-x-1 transition-transform"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </form>
-
-            <!-- List Section (Full Width Grid) -->
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-hidden flex flex-col">
-                <div
-                    class="px-6 py-5 border-b border-slate-700 bg-slate-800/80 backdrop-blur-sm flex flex-col md:flex-row gap-4 justify-between items-center sticky top-0 z-10">
-                    <div>
-                        {% set ns = namespace(total_sys_tonnage=0) %}
-                        {% if routes %}
-                        {% for r in routes %}
-                        {% set ns.total_sys_tonnage = ns.total_sys_tonnage + (r.tonnage if r.tonnage else 0) %}
-                        {% endfor %}
-                        {% endif %}
-                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                            <i data-lucide="list" class="text-slate-400"></i>
-                            Registros
-                            <span
-                                class="bg-indigo-500/10 text-indigo-400 px-2.5 py-0.5 rounded-md text-xs border border-indigo-500/20">
-                                {{ selected_date_fmt }} • {{ selected_shift }}
-                            </span>
-                            <span
-                                class="bg-emerald-500/10 text-emerald-400 px-2.5 py-0.5 rounded-md text-xs border border-emerald-500/20 font-mono ml-2">
-                                Total: {{ "{:,.2f}".format(ns.total_sys_tonnage).replace(",", "X").replace(".",
-                                ",").replace("X", ".") }} Kg
-                            </span>
-                        </h3>
-                    </div>
-                    <div class="relative w-full md:w-72">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <i data-lucide="search" class="w-4 h-4 text-slate-500"></i>
-                        </div>
-                        <input type="text" id="route-list-search" placeholder="Filtrar por nome ou cliente..."
-                            oninput="filterRoutesList(this.value)"
-                            class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:ring-1 focus:ring-indigo-500 outline-none placeholder-slate-500 transition-all">
-                    </div>
-                </div>
-
-                <div class="p-6">
-                    {% if routes %}
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {% for group in grouped_routes %}
-                        <div
-                            class="bg-slate-900/30 rounded-xl border border-slate-700/60 overflow-hidden searchable-card hover:border-slate-600 transition-colors flex flex-col h-full">
-                            <!-- Group Header -->
-                            <div
-                                class="px-4 py-3 bg-gradient-to-r from-slate-800 to-slate-800/50 border-b border-slate-700 flex justify-between items-center">
-                                <div class="flex items-center gap-3">
-                                    <div
-                                        class="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-[10px] shadow-lg shadow-indigo-500/20 shrink-0">
-                                        {{ group.employee_name[:2].upper() }}
-                                    </div>
-                                    <div class="min-w-0">
-                                        <h4 class="font-bold text-white text-xs truncate"
-                                            title="{{ group.employee_name }}">{{ group.employee_name }}</h4>
-                                        <span class="text-[10px] text-slate-400">{{ group.routes|length }} rotas</span>
-                                    </div>
-                                </div>
-                                <div class="text-right shrink-0">
-                                    <span class="text-emerald-400 font-mono font-bold text-xs">{{
-                                        "%.2f"|format(group.total_tonnage)|replace(".", ",") }} Kg</span>
-                                </div>
-                            </div>
-
-                            <!-- Routes List (Scrollable if too long) -->
-                            <div class="flex-1 flex flex-col">
-                                <!-- Active -->
-                                {% if group.routes_active %}
-                                <div class="p-2 bg-indigo-900/5 border-b border-slate-700/50 space-y-2">
-                                    {% for route in group.routes_active %}
-                                    <div
-                                        class="p-2 bg-slate-800 border border-slate-700 rounded-lg relative group hover:border-indigo-500/50 transition-all">
-                                        <div class="flex justify-between items-center mb-1">
-                                            <span
-                                                class="text-[10px] font-bold text-slate-300 bg-slate-700 px-1.5 rounded">{{
-                                                route.start_time }}</span>
-                                            <span
-                                                class="text-[10px] font-mono font-bold text-indigo-400 live-timer animate-pulse"
-                                                data-start="{{ route.start_time }}">--:--</span>
-                                        </div>
-                                        <div class="flex items-center gap-1.5 mb-2">
-                                            <i data-lucide="package" class="w-3 h-3 text-indigo-400"></i>
-                                            <span class="text-xs font-semibold text-white truncate w-full"
-                                                title="{{ route.client_name }}">{{ route.client_name }}</span>
-                                        </div>
-                                        <div class="flex justify-between items-center">
-                                            <span class="text-[10px] text-slate-400">{{ route.tonnage_fmt }} Kg</span>
-                                            <button
-                                                onclick="openFinishModal({{ route.id }}, {{ route.employee_id }}, {{ route.client_id }}, '{{ route.start_time }}')"
-                                                class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] px-2 py-1 rounded transition-colors flex items-center gap-1">
-                                                <i data-lucide="check" class="w-3 h-3"></i> Encerrar
-                                            </button>
-                                        </div>
-
-                                        <!-- Hover Actions -->
-                                        <div
-                                            class="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 p-1 rounded-bl-lg">
-                                            <button
-                                                onclick="editRoute({{ route.id }}, {{ route.employee_id }}, {{ route.client_id }}, '{{ route.start_time }}', '', {{ route.tonnage }})"
-                                                class="p-1 hover:text-white text-slate-400"><i data-lucide="edit-2"
-                                                    class="w-3 h-3"></i></button>
-                                            <form action="/separacao/delete/{{ route.id }}" method="post"
-                                                onsubmit="return confirm('Excluir?')" style="display:inline;">
-                                                <button type="submit" class="p-1 hover:text-red-400 text-slate-400"><i
-                                                        data-lucide="trash" class="w-3 h-3"></i></button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                                {% endif %}
-
-                                <!-- Finished -->
-                                {% if group.routes_finished %}
-                                <div
-                                    class="bg-slate-800/20 p-2 space-y-1 overflow-y-auto max-h-[200px] custom-scrollbar">
-                                    {% for route in group.routes_finished %}
-                                    <div
-                                        class="flex justify-between items-center p-1.5 hover:bg-slate-700/30 rounded transition-colors group">
-                                        <div class="overflow-hidden">
-                                            <p class="text-[10px] text-slate-300 truncate"
-                                                title="{{ route.client_name }}">{{ route.client_name }}</p>
-                                            <p class="text-[10px] text-slate-500 font-mono">{{ route.start_time }} - {{
-                                                route.end_time }}</p>
-                                        </div>
-                                        <div class="text-right shrink-0">
-                                            <div class="text-[10px] font-bold text-slate-400">{{ route.tonnage_fmt }} Kg
-                                            </div>
-                                            {% if route.productivity > 0 %}
-                                            <div class="text-[9px] text-emerald-500 font-mono">{{ route.productivity_fmt
-                                                }} Kg/h</div>
-                                            {% endif %}
-                                        </div>
-                                        <div class="hidden group-hover:flex items-center gap-1 ml-2">
-                                            <button
-                                                onclick="editRoute({{ route.id }}, {{ route.employee_id }}, {{ route.client_id }}, '{{ route.start_time }}', '{{ route.end_time }}', {{ route.tonnage }})"
-                                                class="text-slate-500 hover:text-white"><i data-lucide="edit-2"
-                                                    class="w-3 h-3"></i></button>
-                                            <form action="/separacao/delete/{{ route.id }}" method="post"
-                                                onsubmit="return confirm('Excluir?')" style="display:inline;">
-                                                <button type="submit" class="text-slate-500 hover:text-red-400"><i
-                                                        data-lucide="trash" class="w-3 h-3"></i></button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <div class="flex flex-col items-center justify-center text-slate-600 py-12">
-                        <i data-lucide="clipboard-x" class="w-16 h-16 mb-4 opacity-50"></i>
-                        <p class="text-lg font-medium">Nenhuma separação registrada.</p>
-                        <p class="text-sm">Utilize o formulário acima para iniciar.</p>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
 
             <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-hidden">
 
@@ -440,16 +128,17 @@
                     <div class="flex flex-wrap gap-2 items-center">
                         <!-- Planning date inline -->
                         <form action="/separacao/delivery/planning-date/bulk" method="post" class="flex items-center gap-2 bg-slate-900/60 border border-slate-700 rounded-lg px-3 py-2">
-                            <input type="hidden" name="current_date" value="{{ selected_date }}">
+                            <input type="hidden" name="current_date" value="{{ selected_date_from }}">
                             <input type="hidden" name="shift" value="{{ selected_shift }}">
                             <i data-lucide="calendar-days" class="w-4 h-4 text-slate-400 shrink-0"></i>
-                            <input type="date" name="planning_date" value="{{ selected_date }}"
+                            <input type="date" name="planning_date" value="{{ selected_date_from }}"
                                    class="bg-transparent border-none text-xs text-slate-200 outline-none cursor-pointer w-32">
                             <button type="submit" class="px-2.5 py-1 rounded-md bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold whitespace-nowrap transition-colors">Aplicar para todas</button>
                         </form>
                         {% if delivery_summary.pending > 0 or delivery_summary.opened_routines > 0 %}
-                        <form action="/separacao/delivery/finish-all-routes" method="post" onsubmit="return confirm('Finalizar TODAS as rotas deste dia/turno? Paradas sem devolução serão marcadas como entregues; paradas com devolução permanecem devolução.');">
-                            <input type="hidden" name="date" value="{{ selected_date }}">
+                        <form action="/separacao/delivery/finish-all-routes" method="post" onsubmit="return confirm('Finalizar TODAS as rotas do período/turno? Paradas sem devolução serão marcadas como entregues; paradas com devolução permanecem devolução.');">
+                            <input type="hidden" name="date_from" value="{{ selected_date_from }}">
+                            <input type="hidden" name="date_to" value="{{ selected_date_to }}">
                             <input type="hidden" name="shift" value="{{ selected_shift }}">
                             <button type="submit" class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm shadow-emerald-900/30">
                                 <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
@@ -458,8 +147,9 @@
                         </form>
                         {% endif %}
                         {% if delivery_summary.delivered > 0 or delivery_summary.returned > 0 %}
-                        <form action="/separacao/delivery/reopen-all-routes" method="post" onsubmit="return confirm('Reabrir TODAS as rotas finalizadas deste dia/turno? Todas as paradas voltarão para reabertas.');">
-                            <input type="hidden" name="date" value="{{ selected_date }}">
+                        <form action="/separacao/delivery/reopen-all-routes" method="post" onsubmit="return confirm('Reabrir TODAS as rotas finalizadas do período/turno? Todas as paradas voltarão para reabertas.');">
+                            <input type="hidden" name="date_from" value="{{ selected_date_from }}">
+                            <input type="hidden" name="date_to" value="{{ selected_date_to }}">
                             <input type="hidden" name="shift" value="{{ selected_shift }}">
                             <button type="submit" class="px-3 py-2 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm shadow-teal-900/30">
                                 <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
@@ -541,6 +231,39 @@
                     </div>
                 </div>
 
+                <!-- Barra de ações em massa (seleção de motoristas) -->
+                <div id="bulk-driver-actions" class="hidden px-6 py-3 border-b border-slate-700 bg-sky-900/20 flex flex-wrap items-center gap-3">
+                    <span id="bulk-driver-count" class="text-sm font-semibold text-sky-300">0 motorista(s) selecionado(s)</span>
+                    <form id="bulk-delete-routes-form" action="/separacao/delivery/bulk-action" method="post" class="inline" onsubmit="return confirm('Apagar TODAS as rotas dos motoristas selecionados no período? As devoluções vinculadas também serão removidas. Esta ação não pode ser desfeita.');">
+                        <input type="hidden" name="date_from" value="{{ selected_date_from }}">
+                        <input type="hidden" name="date_to" value="{{ selected_date_to }}">
+                        <input type="hidden" name="shift" value="{{ selected_shift }}">
+                        <input type="hidden" name="action" value="delete_routes">
+                        <input type="hidden" name="employee_ids" id="bulk-employee-ids" value="">
+                        <button type="submit" class="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            Apagar rotas
+                        </button>
+                    </form>
+                    <form id="bulk-clear-devolucoes-form" action="/separacao/delivery/bulk-action" method="post" class="inline" onsubmit="return confirm('Limpar devoluções dos motoristas selecionados no período? Os registros de devolução serão excluídos e as paradas revertidas para reabertas.');">
+                        <input type="hidden" name="date_from" value="{{ selected_date_from }}">
+                        <input type="hidden" name="date_to" value="{{ selected_date_to }}">
+                        <input type="hidden" name="shift" value="{{ selected_shift }}">
+                        <input type="hidden" name="action" value="clear_devolucoes">
+                        <input type="hidden" name="employee_ids" id="bulk-employee-ids-clear" value="">
+                        <button type="submit" class="px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors">
+                            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                            Limpar devoluções
+                        </button>
+                    </form>
+                    <button type="button" onclick="selectAllBulkDrivers()" class="px-3 py-1.5 rounded-lg border border-sky-500/50 hover:border-sky-400 text-sky-300 hover:text-sky-200 text-xs font-semibold transition-colors">
+                        Marcar todas
+                    </button>
+                    <button type="button" onclick="clearBulkDriverSelection()" class="px-3 py-1.5 rounded-lg border border-slate-600 hover:border-slate-500 text-slate-300 hover:text-white text-xs font-semibold transition-colors">
+                        Desmarcar todos
+                    </button>
+                </div>
+
                 <!-- Barra de Pesquisa Global -->
                 <div class="px-6 py-3 border-b border-slate-700 bg-slate-900/30 flex items-center gap-3">
                     <div class="relative flex-1 max-w-xl">
@@ -557,9 +280,19 @@
                     {% if delivery_groups %}
                     <div class="space-y-5">
                         {% for group in delivery_groups %}
-                        <details class="delivery-group rounded-xl border border-slate-700 bg-slate-900/30 overflow-hidden group">
+                        {% if group.group_date and (loop.first or not loop.previtem or group.group_date != loop.previtem.group_date) %}
+                        <div class="flex items-center gap-2 py-1">
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-500">{{ group.group_date[8:10] }}/{{ group.group_date[5:7] }}/{{ group.group_date[0:4] }}</span>
+                            <div class="flex-1 h-px bg-slate-700"></div>
+                        </div>
+                        {% endif %}
+                        <details class="delivery-group rounded-xl border border-slate-700 bg-slate-900/30 overflow-hidden group" data-group-date="{{ group.group_date | default('') }}">
                             <summary class="px-4 py-3.5 bg-slate-900/70 flex flex-wrap items-center justify-between gap-3 cursor-pointer list-none hover:bg-slate-900/90 transition-colors">
                                 <div class="flex items-center gap-3">
+                                    <label class="flex items-center shrink-0 cursor-pointer" onclick="event.stopPropagation()" title="Selecionar motorista para ações em massa">
+                                        <input type="checkbox" class="bulk-driver-checkbox rounded border-slate-500 bg-slate-800 text-sky-500 focus:ring-sky-500/50" data-employee-id="{{ group.employee_id }}" data-driver-name="{{ group.driver_name }}">
+                                        <span class="sr-only">Selecionar {{ group.driver_name }}</span>
+                                    </label>
                                     <div class="h-9 w-9 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-md shadow-indigo-900/40 shrink-0">
                                         {{ group.driver_name[:2].upper() }}
                                     </div>
@@ -614,7 +347,7 @@
                                 <form action="/separacao/delivery/reassign-group" method="post" class="flex flex-wrap items-start gap-3">
                                     <input type="hidden" name="source_employee_id" value="{{ group.employee_id }}">
                                     <input type="hidden" name="source_vehicle_plate" value="{{ group.vehicle_plate }}">
-                                    <input type="hidden" name="date" value="{{ selected_date }}">
+                                    <input type="hidden" name="date" value="{{ group.group_date | default(selected_date_from) }}">
                                     <input type="hidden" name="shift" value="{{ selected_shift }}">
                                     <!-- Motorista -->
                                     <div style="min-width:180px; max-width:240px; flex:1 1 180px">
@@ -688,7 +421,7 @@
                                     <div class="flex flex-wrap gap-2 shrink-0">
                                         {% if group.pending > 0 or group.opened_routines > 0 %}
                                         <form action="/separacao/delivery/finish-route" method="post" onsubmit="return confirm('Finalizar rota inteira? Paradas sem devolução serão marcadas como entregues; paradas com devolução permanecem devolução.');">
-                                            <input type="hidden" name="date" value="{{ selected_date }}">
+                                            <input type="hidden" name="date" value="{{ group.group_date | default(selected_date_from) }}">
                                             <input type="hidden" name="shift" value="{{ selected_shift }}">
                                             <input type="hidden" name="employee_id" value="{{ group.employee_id }}">
                                             <button type="submit" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors">
@@ -699,7 +432,7 @@
                                         {% endif %}
                                         {% if group.delivered > 0 or group.returned > 0 %}
                                         <form action="/separacao/delivery/reopen-route" method="post" onsubmit="return confirm('Reabrir toda a rota? Todas as paradas finalizadas (entregues e devoluções) voltarão para reabertas.');">
-                                            <input type="hidden" name="date" value="{{ selected_date }}">
+                                            <input type="hidden" name="date" value="{{ group.group_date | default(selected_date_from) }}">
                                             <input type="hidden" name="shift" value="{{ selected_shift }}">
                                             <input type="hidden" name="employee_id" value="{{ group.employee_id }}">
                                             <button type="submit" class="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors">
@@ -802,32 +535,32 @@
                                                 <div class="grid grid-cols-2 gap-1.5">
                                                     <form action="/separacao/delivery/status" method="post">
                                                         <input type="hidden" name="route_id" value="{{ row.id }}">
-                                                        <input type="hidden" name="date" value="{{ selected_date }}">
+                                                        <input type="hidden" name="date" value="{{ group.group_date or row.planning_date or selected_date_from }}">
                                                         <input type="hidden" name="shift" value="{{ selected_shift }}">
                                                         <input type="hidden" name="action" value="iniciar">
                                                         <button {% if not row.can_start %}disabled title="Finalize a rotina iniciada deste caminhão antes de abrir outra."{% endif %} class="btn-action btn-start w-full disabled:opacity-40 disabled:cursor-not-allowed">Iniciar</button>
                                                     </form>
                                                     <form action="/separacao/delivery/status" method="post">
                                                         <input type="hidden" name="route_id" value="{{ row.id }}">
-                                                        <input type="hidden" name="date" value="{{ selected_date }}">
+                                                        <input type="hidden" name="date" value="{{ group.group_date or row.planning_date or selected_date_from }}">
                                                         <input type="hidden" name="shift" value="{{ selected_shift }}">
                                                         <input type="hidden" name="action" value="finalizar">
                                                         <button {% if row.status_raw != 'iniciada' %}disabled{% endif %} class="btn-action btn-finish w-full disabled:opacity-40 disabled:cursor-not-allowed">Finalizar</button>
                                                     </form>
                                                     <button type="button"
-                                                            onclick="openReturnModal('{{ row.id }}', '{{ selected_date }}', '{{ selected_shift }}')"
+                                                            onclick="openReturnModal('{{ row.id }}', '{{ group.group_date or row.planning_date or selected_date_from }}', '{{ selected_shift }}')"
                                                             {% if row.status_raw != 'iniciada' %}disabled{% endif %}
                                                             class="btn-action btn-return w-full disabled:opacity-40 disabled:cursor-not-allowed">
                                                         Devolução
                                                     </button>
                                                     <form action="/separacao/delivery/reopen" method="post">
                                                         <input type="hidden" name="route_id" value="{{ row.id }}">
-                                                        <input type="hidden" name="date" value="{{ selected_date }}">
+                                                        <input type="hidden" name="date" value="{{ group.group_date or row.planning_date or selected_date_from }}">
                                                         <input type="hidden" name="shift" value="{{ selected_shift }}">
                                                         <button {% if row.status_raw not in ['entregue','devolucao'] %}disabled{% endif %} class="btn-action btn-reopen w-full disabled:opacity-40 disabled:cursor-not-allowed">Reabrir</button>
                                                     </form>
                                                     <button type="button"
-                                                            onclick="openMoveModal('{{ row.id }}', '{{ selected_date }}', '{{ selected_shift }}', '{{ group.employee_id }}', '{{ group.vehicle_plate }}')"
+                                                            onclick="openMoveModal('{{ row.id }}', '{{ group.group_date or row.planning_date or selected_date_from }}', '{{ selected_shift }}', '{{ group.employee_id }}', '{{ group.vehicle_plate }}')"
                                                             class="btn-action btn-move col-span-2 w-full">
                                                         Mover Cliente
                                                     </button>
@@ -843,7 +576,12 @@
                     </div>
                     {% else %}
                     <div class="text-center py-10 text-slate-500">
-                        Nenhuma entrega importada para {{ selected_date_fmt }}.
+                        <p class="mb-3">Nenhuma entrega importada {% if selected_date_from != selected_date_to %}para o período {{ selected_date_from[8:10] }}/{{ selected_date_from[5:7] }}/{{ selected_date_from[0:4] }} - {{ selected_date_to[8:10] }}/{{ selected_date_to[5:7] }}/{{ selected_date_to[0:4] }}{% else %}para {{ selected_date_fmt }}{% endif %}.</p>
+                        <a href="/separacao?date_from={{ suggest_week_ago }}&date_to={{ selected_date_to }}&shift={{ selected_shift | urlencode }}"
+                           class="inline-flex items-center gap-2 text-emerald-400 hover:text-emerald-300 font-medium">
+                            <i data-lucide="calendar" class="w-4 h-4"></i>
+                            Ver última semana
+                        </a>
                     </div>
                     {% endif %}
                 </div>
@@ -1166,10 +904,47 @@
     }
 
     function applyFilters() {
-        const date = document.getElementById('route-date').value;
+        const dateFrom = document.getElementById('route-date-from').value;
+        const dateTo = document.getElementById('route-date-to').value;
         const shift = document.getElementById('route-shift').value;
-        window.location.href = `/separacao?date=${date}&shift=${shift}`;
+        const df = dateFrom || new Date().toISOString().slice(0, 10);
+        const dt = dateTo || df;
+        window.location.href = `/separacao?date_from=${encodeURIComponent(df)}&date_to=${encodeURIComponent(dt)}&shift=${encodeURIComponent(shift)}`;
     }
+
+    // --- Bulk driver selection (apagar rotas / limpar devoluções) ---
+    function updateBulkDriverActions() {
+        const checkboxes = document.querySelectorAll('.bulk-driver-checkbox:checked');
+        const ids = [...new Set(Array.from(checkboxes).map(cb => cb.dataset.employeeId).filter(Boolean))];
+        const bar = document.getElementById('bulk-driver-actions');
+        const countEl = document.getElementById('bulk-driver-count');
+        const inputDelete = document.getElementById('bulk-employee-ids');
+        const inputClear = document.getElementById('bulk-employee-ids-clear');
+        if (!bar || !countEl || !inputDelete || !inputClear) return;
+        if (ids.length === 0) {
+            bar.classList.add('hidden');
+        } else {
+            bar.classList.remove('hidden');
+            countEl.textContent = ids.length + ' motorista(s) selecionado(s)';
+            const jsonIds = JSON.stringify(ids);
+            inputDelete.value = jsonIds;
+            inputClear.value = jsonIds;
+            if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+        }
+    }
+    function selectAllBulkDrivers() {
+        document.querySelectorAll('.bulk-driver-checkbox').forEach(cb => { cb.checked = true; });
+        updateBulkDriverActions();
+    }
+    function clearBulkDriverSelection() {
+        document.querySelectorAll('.bulk-driver-checkbox:checked').forEach(cb => { cb.checked = false; });
+        updateBulkDriverActions();
+    }
+    document.addEventListener('change', (e) => {
+        if (e.target && e.target.classList && e.target.classList.contains('bulk-driver-checkbox')) {
+            updateBulkDriverActions();
+        }
+    });
 
     // --- Search Dropdowns ---
     function showDropdown(id) {
@@ -1517,7 +1292,7 @@
     }
 
     let deliverySyncToken = "{{ delivery_sync_token }}";
-    const deliverySyncDate = "{{ selected_date }}";
+    const deliverySyncDate = "{{ selected_date_from }}";
     const deliverySyncShift = "{{ selected_shift }}";
     let deliverySyncPendingReload = false;
 

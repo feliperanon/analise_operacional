@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Relatório - Gestão de Pessoas | {{ current_shift }}</title>
+    <title>Relatório - Gestão de Pessoas | {{ current_cost_center }}</title>
     <link rel="stylesheet" href="/static/styles.css">
     <style>
         @media print {
@@ -122,12 +122,11 @@
         <form id="filterForm" method="GET" action="/people-intelligence/report">
             <div class="flex flex-wrap items-center gap-6">
                 <div>
-                    <label class="text-xs font-bold text-slate-600 uppercase block mb-1">Turno</label>
-                    <select name="shift" class="border border-slate-300 rounded px-3 py-1.5 text-sm bg-white">
-                        <option value="Todos" {% if current_shift == 'Todos' %}selected{% endif %}>Todos</option>
-                        <option value="Manhã" {% if current_shift == 'Manhã' %}selected{% endif %}>Manhã</option>
-                        <option value="Tarde" {% if current_shift == 'Tarde' %}selected{% endif %}>Tarde</option>
-                        <option value="Noite" {% if current_shift == 'Noite' %}selected{% endif %}>Noite</option>
+                    <label class="text-xs font-bold text-slate-600 uppercase block mb-1">Empresa</label>
+                    <select name="cost_center" class="border border-slate-300 rounded px-3 py-1.5 text-sm bg-white">
+                        {% for opt in cost_center_options %}
+                        <option value="{{ opt }}" {% if current_cost_center == opt %}selected{% endif %}>{{ opt }}</option>
+                        {% endfor %}
                     </select>
                 </div>
                 
@@ -183,7 +182,7 @@
             <p class="text-sm text-slate-500">Análise de Performance e Presença</p>
         </div>
         <div class="text-right">
-            <p class="font-bold text-lg">{{ current_shift }}</p>
+            <p class="font-bold text-lg">{{ current_cost_center }}</p>
             <p class="text-xs text-slate-400">Período: {{ start_date.split('-')[2] }}/{{ start_date.split('-')[1]
                 }}/{{ start_date.split('-')[0] }} a {{ end_date.split('-')[2] }}/{{ end_date.split('-')[1] }}/{{
                 end_date.split('-')[0] }}</p>
@@ -394,7 +393,7 @@
             const formData = new FormData(form);
             
             // Get base params
-            const shift = formData.get('shift') || 'Todos';
+            const costCenter = formData.get('cost_center') || 'Todos';
             const startDate = formData.get('start_date');
             const endDate = formData.get('end_date');
             
@@ -406,7 +405,7 @@
             if (form.querySelector('[name="status_fired"]').checked) statusValues.push('fired');
             
             // Build URL
-            let url = `/people-intelligence/report?shift=${encodeURIComponent(shift)}`;
+            let url = `/people-intelligence/report?cost_center=${encodeURIComponent(costCenter)}`;
             if (startDate) url += `&start_date=${startDate}`;
             if (endDate) url += `&end_date=${endDate}`;
             if (statusValues.length > 0) url += `&status=${statusValues.join(',')}`;

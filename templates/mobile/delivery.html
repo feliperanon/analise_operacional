@@ -54,6 +54,10 @@
                         <span class="text-caption font-mono font-semibold" style="color: var(--color-text);" x-text="assignedPlate || '—'"></span>
                     </div>
                     <div class="flex items-center gap-1.5">
+                        <i data-lucide="package" class="w-4 h-4 flex-shrink-0" style="color: var(--color-primary);"></i>
+                        <span class="text-caption font-mono" style="color: var(--color-text-body);" x-text="formatNumberBR(dayStats.totalWeight) + ' kg'"></span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
                         <i data-lucide="gauge" class="w-4 h-4 flex-shrink-0" style="color: var(--color-text-muted);"></i>
                         <span class="text-caption font-mono" style="color: var(--color-text-body);" x-text="'KM ' + (sessionKmDeparture || '—')"></span>
                     </div>
@@ -982,15 +986,20 @@
                     if (!data.success) return;
                     this.deliveryRoutes = data.routes || [];
                     this.deliveryDayCards = data.day_cards || [];
+                    const sessionDate = data.session?.date || null;
                     const today = new Date().toISOString().split('T')[0];
                     const prev = this.selectedDeliveryDay;
-                    const todayCard = this.deliveryDayCards.find(c => c.date === today);
-                    if (todayCard) {
-                        this.selectedDeliveryDay = today;
-                    } else if (prev && this.deliveryDayCards.some(c => c.date === prev)) {
-                        this.selectedDeliveryDay = prev;
+                    if (data.session_open && sessionDate && this.deliveryDayCards.some(c => c.date === sessionDate)) {
+                        this.selectedDeliveryDay = sessionDate;
                     } else {
-                        this.selectedDeliveryDay = this.deliveryDayCards[0]?.date || '';
+                        const todayCard = this.deliveryDayCards.find(c => c.date === today);
+                        if (todayCard) {
+                            this.selectedDeliveryDay = today;
+                        } else if (prev && this.deliveryDayCards.some(c => c.date === prev)) {
+                            this.selectedDeliveryDay = prev;
+                        } else {
+                            this.selectedDeliveryDay = this.deliveryDayCards[0]?.date || '';
+                        }
                     }
                     this.deliverySessionOpen = !!data.session_open;
                     this.isHelperView = !!data.is_helper_view;

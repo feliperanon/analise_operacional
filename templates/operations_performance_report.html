@@ -3,14 +3,6 @@
 {% block content %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<div class="mb-4 flex items-center gap-3 print:hidden">
-    <a href="/" class="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-slate-300 bg-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-700 hover:bg-slate-200 transition">
-        <i data-lucide="arrow-left" class="w-3 h-3 text-slate-600"></i>
-        Voltar ao dashboard
-    </a>
-    <p class="text-[10px] text-slate-500">Visualização completa</p>
-</div>
-
 <!-- ========================================
      VERSÃO PARA IMPRESSÃO (PDF) - COMPLETA
      ======================================== -->
@@ -27,7 +19,7 @@
             </div>
             <div style="text-align: right; font-size: 8px; color: #666;">
                 <p style="margin: 0;"><strong>Período:</strong> {{ period_range_label }} ({{ period_label }})</p>
-                <p style="margin: 0;"><strong>Turno:</strong> {{ shift }} | <strong>Gerado:</strong> {{ generated_at }}</p>
+                <p style="margin: 0;"><strong>Empresa:</strong> {{ cost_center }} | <strong>Gerado:</strong> {{ generated_at }}</p>
             </div>
         </div>
         
@@ -172,7 +164,7 @@
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #dc2626; padding-bottom: 6px; margin-bottom: 10px;">
             <div>
                 <h1 style="font-size: 14px; font-weight: bold; color: #111; margin: 0;">RELATÓRIO DE PERFORMANCE - RANKINGS</h1>
-                <p style="font-size: 9px; color: #666; margin: 0;">{{ period_range_label }} | {{ shift }}</p>
+                    <p style="font-size: 9px; color: #666; margin: 0;">{{ period_range_label }} | {{ cost_center }}</p>
             </div>
         </div>
         
@@ -322,8 +314,8 @@
 <!-- ========================================
      VERSÃO PARA TELA (Web)
      ======================================== -->
-<div class="screen-version min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8" x-data="performanceReportController()">
-    <div class="max-w-7xl mx-auto space-y-6">
+<div class="screen-version min-h-dvh overflow-x-hidden bg-slate-900 p-4 text-slate-100 md:p-6 lg:p-8" x-data="performanceReportController()">
+    <div class="mx-auto max-w-7xl space-y-6 overflow-x-hidden">
         
         <!-- HEADER PRINCIPAL -->
         <header class="relative print:mb-4">
@@ -342,15 +334,15 @@
                     </div>
                 </div>
                 
-                <div class="flex items-center gap-3 print:hidden">
-                    <button type="button" onclick="window.location.href='/operations/performance'" class="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-700 hover:border-slate-500 text-white transition-all bg-slate-800/40 hover:bg-slate-700/40">
+                <div class="grid grid-cols-2 gap-2 print:hidden sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-3">
+                    <button type="button" onclick="window.location.href='/operations/performance'" class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800/40 px-4 py-2.5 text-white transition-all hover:border-slate-500 hover:bg-slate-700/40 sm:w-auto">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
                         </svg>
                         <span class="text-sm font-semibold">Voltar</span>
                     </button>
                     <!-- Botão Preview PDF -->
-                    <button onclick="togglePrintPreview()" id="previewBtn" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white transition-all">
+                    <button type="button" onclick="togglePrintPreview()" id="previewBtn" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-white transition-all hover:bg-violet-500 sm:w-auto">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
@@ -359,7 +351,7 @@
                     </button>
                     
                     <!-- Botão Imprimir -->
-                    <button onclick="window.print()" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-all">
+                    <button type="button" onclick="window.print()" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-white transition-all hover:bg-emerald-500 sm:w-auto">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
                         </svg>
@@ -367,7 +359,7 @@
                     </button>
                     
                     <!-- Botão Filtros -->
-                    <button @click="showFilters = !showFilters" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition-all">
+                    <button @click="showFilters = !showFilters" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-white transition-all hover:bg-blue-500 sm:w-auto">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
                         </svg>
@@ -376,25 +368,34 @@
                 </div>
             </div>
             
-            <!-- Resumo do Período -->
-            <div class="mt-4 flex flex-wrap items-center gap-2 print:mt-2">
-                <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700 print:bg-gray-100 print:border-gray-300">
+            <!-- Resumo do Período + Filtros rápidos (Empresa / Centro de Custo) -->
+            <div class="mt-4 flex flex-col gap-3 print:mt-2 xl:flex-row xl:items-center xl:justify-between">
+                <div class="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 print:border-gray-300 print:bg-gray-100">
                     <svg class="w-4 h-4 text-slate-400 print:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                     </svg>
                     <span class="text-sm text-white font-medium print:text-black">{{ period_range_label }}</span>
                     <span class="text-xs text-slate-500 print:text-gray-500">({{ period_label }})</span>
                 </div>
-                <div class="flex items-center gap-1 text-xs">
-                    <span class="px-2 py-1 rounded-md bg-slate-800/40 text-slate-300 border border-slate-700/50 print:bg-gray-100 print:text-gray-700 print:border-gray-300">{{ shift }}</span>
-                </div>
+                <!-- Filtro Empresa / Centro de Custo (sempre visível) -->
+                <form method="get" action="/operations/performance/report" class="flex flex-col gap-2 rounded-2xl border border-slate-700/80 bg-slate-800/40 p-3 print:hidden sm:flex-row sm:flex-wrap sm:items-center xl:w-auto" onchange="this.submit()">
+                    <input type="hidden" name="period" value="{{ period }}">
+                    <input type="hidden" name="date" value="{{ date }}">
+                    <input type="hidden" name="limit" value="{{ limit }}">
+                    <label class="text-xs font-medium text-slate-400">Empresa / Centro de Custo:</label>
+                    <select name="cost_center" class="min-w-0 rounded-lg border border-slate-600 bg-slate-800/80 px-3 py-2 text-sm text-white transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                        {% for opt in cost_center_options %}
+                        <option value="{{ opt }}" {{ 'selected' if cost_center == opt else '' }}>{{ opt }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
             </div>
         </header>
 
         <!-- PAINEL DE FILTROS -->
         <form x-show="showFilters" x-cloak x-transition
               class="bg-gradient-to-b from-slate-800/80 to-slate-800/40 border border-slate-700 rounded-2xl overflow-hidden print:hidden" 
-              method="get" action="/operations/performance/analysis">
+              method="get" action="/operations/performance/report">
             
             <div class="p-5">
                 <div class="flex items-center justify-between mb-4">
@@ -424,12 +425,12 @@
                                class="w-full rounded-lg bg-slate-900/80 border border-slate-600 px-3 py-2 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
                     </div>
                     
-                    <!-- Turno -->
+                    <!-- Empresa / Centro de Custo -->
                     <div>
-                        <label class="block text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-1.5">Turno</label>
-                        <select name="shift" class="w-full rounded-lg bg-slate-900/80 border border-slate-600 px-3 py-2 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
-                            {% for opt in ['Todos','Manhã','Tarde','Noite'] %}
-                            <option value="{{ opt }}" {{ 'selected' if shift == opt else '' }}>{{ opt }}</option>
+                        <label class="block text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-1.5">Empresa / Centro de Custo</label>
+                        <select name="cost_center" class="w-full rounded-lg bg-slate-900/80 border border-slate-600 px-3 py-2 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
+                            {% for opt in cost_center_options %}
+                            <option value="{{ opt }}" {{ 'selected' if cost_center == opt else '' }}>{{ opt }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -1111,7 +1112,7 @@
         <!-- RODAPÉ DO RELATÓRIO -->
         <footer class="text-center text-xs text-slate-500 pt-4 border-t border-slate-700">
             <p>Relatório gerado em {{ generated_at }} | Sistema de Análise Operacional</p>
-            <p class="mt-1">Período: {{ period_range_label }} | Turno: {{ shift }}</p>
+            <p class="mt-1">Período: {{ period_range_label }} | Empresa: {{ cost_center }}</p>
         </footer>
     </div>
 </div>

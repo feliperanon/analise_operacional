@@ -79,17 +79,13 @@
                         class="bg-transparent text-white text-xs font-medium border-none focus:ring-0 cursor-pointer outline-none">
                 </div>
 
-                <!-- Shift Tabs -->
-                <div class="flex gap-1 bg-slate-900/50 p-1 rounded-lg border border-slate-700">
-                    <button onclick="changeShift('Todos')"
-                        class="px-3 py-1.5 rounded text-xs font-bold transition {{ 'bg-indigo-600 text-white' if current_shift == 'Todos' else 'text-slate-400 hover:text-white' }}">Todos</button>
-                    <button onclick="changeShift('Manhã')"
-                        class="px-3 py-1.5 rounded text-xs font-bold transition {{ 'bg-indigo-600 text-white' if current_shift == 'Manhã' else 'text-slate-400 hover:text-white' }}">Manhã</button>
-                    <button onclick="changeShift('Tarde')"
-                        class="px-3 py-1.5 rounded text-xs font-bold transition {{ 'bg-indigo-600 text-white' if current_shift == 'Tarde' else 'text-slate-400 hover:text-white' }}">Tarde</button>
-                    <button onclick="changeShift('Noite')"
-                        class="px-3 py-1.5 rounded text-xs font-bold transition {{ 'bg-indigo-600 text-white' if current_shift == 'Noite' else 'text-slate-400 hover:text-white' }}">Noite</button>
-                </div>
+                <!-- Filtro Empresa -->
+                <select id="costCenterFilter" onchange="changeCostCenter(this.value)"
+                    class="bg-slate-900/50 text-white text-xs font-medium px-3 py-2 rounded-lg border border-slate-700 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    {% for opt in cost_center_options or ['Todos'] %}
+                    <option value="{{ opt }}" {{ 'selected' if current_cost_center == opt else '' }}>{{ opt }}</option>
+                    {% endfor %}
+                </select>
 
                 <!-- Actions -->
                 <button onclick="applyFilters()"
@@ -466,10 +462,10 @@
 
 <script>
     function applyFilters() {
-        const shift = '{{ current_shift }}';
+        const costCenter = document.getElementById('costCenterFilter')?.value || '{{ current_cost_center }}';
         const startDate = document.getElementById('startDateFilter').value;
         const endDate = document.getElementById('endDateFilter').value;
-        window.location.href = `/people-intelligence?shift=${shift}&start_date=${startDate}&end_date=${endDate}`;
+        window.location.href = `/people-intelligence?cost_center=${encodeURIComponent(costCenter)}&start_date=${startDate}&end_date=${endDate}`;
     }
 
     function resetFilters() {
@@ -477,16 +473,16 @@
     }
 
     function openPrintPreview() {
-        const shift = '{{ current_shift }}';
+        const costCenter = document.getElementById('costCenterFilter')?.value || '{{ current_cost_center }}';
         const startDate = document.getElementById('startDateFilter').value;
         const endDate = document.getElementById('endDateFilter').value;
-        window.open(`/people-intelligence/report?shift=${shift}&start_date=${startDate}&end_date=${endDate}`, '_blank');
+        window.open(`/people-intelligence/report?cost_center=${encodeURIComponent(costCenter)}&start_date=${startDate}&end_date=${endDate}`, '_blank');
     }
 
-    function changeShift(shift) {
+    function changeCostCenter(costCenter) {
         const startDate = document.getElementById('startDateFilter').value;
         const endDate = document.getElementById('endDateFilter').value;
-        window.location.href = `/people-intelligence?shift=${shift}&start_date=${startDate}&end_date=${endDate}`;
+        window.location.href = `/people-intelligence?cost_center=${encodeURIComponent(costCenter)}&start_date=${startDate}&end_date=${endDate}`;
     }
 
     async function openOffendersModal() {
@@ -500,12 +496,12 @@
         loading.classList.remove('hidden');
 
         // Fetch Params
-        const shift = '{{ current_shift }}';
+        const costCenter = document.getElementById('costCenterFilter')?.value || '{{ current_cost_center }}';
         const startDate = document.getElementById('startDateFilter').value;
         const endDate = document.getElementById('endDateFilter').value;
 
         try {
-            const response = await fetch(`/api/people-intelligence/offenders?shift=${shift}&start_date=${startDate}&end_date=${endDate}`);
+            const response = await fetch(`/api/people-intelligence/offenders?cost_center=${encodeURIComponent(costCenter)}&start_date=${startDate}&end_date=${endDate}`);
             const data = await response.json();
             const offenders = data.offenders;
 

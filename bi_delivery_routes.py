@@ -10,11 +10,12 @@ import json
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request, Depends, Query
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from sqlmodel import Session, select
 from sqlalchemy import func
+from typing import List
 
 import models
 from database import get_session
@@ -670,6 +671,340 @@ def _build_bi_delivery_dataset(
         "chart_payload_json": json.dumps(chart_payload, ensure_ascii=False),
         "detail_rows_json": json.dumps(detail_rows, ensure_ascii=False),
     }
+
+
+def _build_relatorio_avaliacao_motorista(
+    session: Session,
+    date_str: str,
+    driver_ids: Optional[List[int]] = None,
+) -> dict:
+    """Monta dados do relatório de avaliação diária do motorista."""
+    tz = ZoneInfo("America/Sao_Paulo")
+    today = datetime.now(tz).date().strftime("%Y-%m-%d")
+
+    def _parse_hhmm(v: Optional[str]) -> Optional[int]:
+        if not v:
+            return None
+        try:
+            h, m = str(v).strip().split(":")[:2]
+            return int(h) * 60 + int(m)
+        except (ValueError, IndexError):
+            return None
+
+    def _dur_m(start_v: Optional[str], end_v: Optional[str]) -> Optional[int]:
+        s, e = _parse_hhmm(start_v), _parse_hhmm(end_v)
+        if s is None or e is None:
+            return None
+        if e < s:
+            e += 24 * 60
+        return max(0, e - s)
+
+    def _fmt_hora(v: Optional[str]) -> str:
+        return (v or "--:--").strip() or "--:--"
+
+    def _fmt_min(m: Optional[int]) -> str:
+        if m is None:
+            return "--"
+        h, mn = m // 60, m % 60
+        return f"{h}h {mn}min" if h else f"{mn}min"
+
+    def _valid_operation_times(values: list[Optional[str]]) -> list[int]:
+        parsed = [_parse_hhmm(v) for v in values if v]
+        valid = [v for v in parsed if v is not None and v > 0]
+        return valid
+
+    def _tipo_priority(tipo: Optional[str]) -> int:
+        raw = (tipo or "").strip().lower()
+        if "devol" in raw:
+            return 0
+        if "entrega" in raw:
+            return 1
+        return 2
+
+    q = (
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date == date_str)
+    )
+    if driver_ids:
+        q = q.where(models.Route.employee_id.in_(driver_ids))
+    routes = session.exec(q.order_by(models.Route.start_time, models.Route.id)).all()
+
+    emp_ids = list({r.employee_id for r in routes if r.employee_id})
+    cli_ids = list({r.client_id for r in routes if r.client_id})
+    emp_map = {
+        e.id: e
+        for e in (
+            session.exec(select(models.Employee).where(models.Employee.id.in_(emp_ids))).all()
+            if emp_ids
+            else []
+        )
+    }
+    cli_map = {
+        c.id: c
+        for c in (
+            session.exec(select(models.Client).where(models.Client.id.in_(cli_ids))).all()
+            if cli_ids
+            else []
+        )
+    }
+    vehicles = {v.placa.upper(): v for v in session.exec(select(models.Vehicle)).all()}
+
+    by_driver: dict[int, dict] = {}
+    for r in routes:
+        drv_id = r.employee_id
+        if drv_id not in by_driver:
+            ds = session.exec(
+                select(models.DeliverySession)
+                .where(models.DeliverySession.employee_id == drv_id)
+                .where(models.DeliverySession.date == date_str)
+                .order_by(models.DeliverySession.id.desc())
+            ).first()
+            helpers = []
+            if ds and ds.helpers_json:
+                try:
+                    hl = json.loads(ds.helpers_json) if isinstance(ds.helpers_json, str) else (ds.helpers_json or [])
+                    seen = set()
+                    for h in (hl if isinstance(hl, list) else []):
+                        if h is None:
+                            continue
+                        if isinstance(h, (int, str)) and str(h).strip().isdigit():
+                            he = emp_map.get(int(h))
+                            if he and he.name:
+                                key = he.name.strip().lower()
+                                if key not in seen:
+                                    seen.add(key)
+                                    helpers.append(he.name)
+                        elif isinstance(h, str) and (h or "").strip():
+                            # Mobile envia nomes diretamente em helpers_json
+                            name = (h or "").strip()
+                            key = name.lower()
+                            if key not in seen:
+                                seen.add(key)
+                                helpers.append(name)
+                except Exception:
+                    pass
+            placa = (r.delivery_vehicle_plate or (ds.vehicle_plate if ds else "") or "").strip().upper()
+            veic = vehicles.get(placa)
+            modelo = f"{veic.marca} {veic.modelo}" if veic else (placa or "-")
+
+            emp = emp_map.get(drv_id)
+            by_driver[drv_id] = {
+                "motorista": emp.name if emp else f"Motorista #{drv_id}",
+                "ajudantes": helpers,
+                "km_inicial": ds.km_departure if ds else None,
+                "km_final": ds.km_return if ds else None,
+                "km_total": (float(ds.km_return or 0) - float(ds.km_departure or 0)) if ds and ds.km_return and ds.km_departure else None,
+                "placa": placa or "-",
+                "modelo": modelo,
+                "hora_inicio": None,
+                "hora_fim": None,
+                "tempo_operando_min": None,
+                "paradas": [],
+                "saiu_kg": 0.0,
+                "saiu_valor": 0.0,
+                "entregue_kg": 0.0,
+                "entregue_valor": 0.0,
+                "devolucao_kg": 0.0,
+                "devolucao_valor": 0.0,
+            }
+
+        d = by_driver[drv_id]
+        st = (r.delivery_status or "pendente").strip().lower()
+        planned_kg = float(r.tonnage or 0.0)
+        planned_val = float(r.valor_financeiro or 0.0)
+        ret_kg = float(r.devolucao_volume if r.devolucao_volume is not None else (planned_kg if st == "devolucao" else 0.0))
+        ret_val = float(r.valor_devolucao if r.valor_devolucao is not None else (planned_val if st == "devolucao" else 0.0))
+        del_kg = max(0.0, planned_kg - ret_kg) if st == "devolucao" else (planned_kg if st == "entregue" else 0.0)
+        del_val = max(0.0, planned_val - ret_val) if st == "devolucao" else (planned_val if st == "entregue" else 0.0)
+
+        d["saiu_kg"] += planned_kg
+        d["saiu_valor"] += planned_val
+        d["entregue_kg"] += del_kg
+        d["entregue_valor"] += del_val
+        d["devolucao_kg"] += ret_kg
+        d["devolucao_valor"] += ret_val
+
+        cli = cli_map.get(r.client_id)
+        cli_name = cli.name if cli else f"Cliente #{r.client_id}"
+        start_t = r.delivery_started_at or r.start_time
+        end_t = r.delivery_finished_at or r.end_time or r.delivery_returned_at
+        dur = _dur_m(start_t, end_t)
+        tipo = "Devolução" if st == "devolucao" else "Entrega" if st == "entregue" else st
+
+        d["paradas"].append({
+            "cliente": cli_name,
+            "tipo": tipo,
+            "hora_inicio": _fmt_hora(start_t),
+            "hora_fim": _fmt_hora(end_t),
+            "duracao_min": dur,
+            "duracao_fmt": _fmt_min(dur),
+            "kg": planned_kg,
+            "valor": planned_val,
+            "entregue_kg": del_kg,
+            "entregue_valor": del_val,
+            "devolvido_kg": ret_kg,
+            "devolvido_valor": ret_val,
+        })
+
+    reports = []
+    for drv_id, d in by_driver.items():
+        paradas = d["paradas"]
+        paradas_ord = sorted(
+            paradas,
+            key=lambda x: (_tipo_priority(x.get("tipo")), x["hora_inicio"], x["cliente"])
+        )
+        top5_base = sorted(
+            [p for p in paradas_ord if p["duracao_min"] is not None],
+            key=lambda x: (-(x["duracao_min"] or 0), x["cliente"])
+        )[:5]
+        top5 = sorted(
+            top5_base,
+            key=lambda x: (_tipo_priority(x.get("tipo")), -(x["duracao_min"] or 0), x["cliente"])
+        )
+
+        clientes_resumo_map: dict[str, dict] = {}
+        for parada in paradas_ord:
+            cliente_key = (parada.get("cliente") or "Sem Cliente").strip() or "Sem Cliente"
+            item = clientes_resumo_map.setdefault(cliente_key, {
+                "cliente": cliente_key,
+                "tipos": [],
+                "paradas": 0,
+                "duracao_total_min": 0,
+                "hora_primeira_min": None,
+                "hora_ultima_min": None,
+                "kg_total": 0.0,
+                "valor_total": 0.0,
+            })
+            item["paradas"] += 1
+            item["kg_total"] += float(parada.get("kg") or 0.0)
+            item["valor_total"] += float(parada.get("valor") or 0.0)
+            if parada.get("tipo") and parada["tipo"] not in item["tipos"]:
+                item["tipos"].append(parada["tipo"])
+
+            duracao_min = parada.get("duracao_min")
+            if duracao_min is not None:
+                item["duracao_total_min"] += int(duracao_min)
+
+            hora_inicio_min = _parse_hhmm(parada.get("hora_inicio"))
+            if hora_inicio_min is not None and (
+                item["hora_primeira_min"] is None or hora_inicio_min < item["hora_primeira_min"]
+            ):
+                item["hora_primeira_min"] = hora_inicio_min
+
+            hora_fim_min = _parse_hhmm(parada.get("hora_fim"))
+            if hora_fim_min is not None and (
+                item["hora_ultima_min"] is None or hora_fim_min > item["hora_ultima_min"]
+            ):
+                item["hora_ultima_min"] = hora_fim_min
+
+        clientes_resumo = []
+        for item in clientes_resumo_map.values():
+            hora_primeira_min = item["hora_primeira_min"]
+            hora_ultima_min = item["hora_ultima_min"]
+            tipo_principal = min((_tipo_priority(tipo) for tipo in item["tipos"]), default=2)
+            clientes_resumo.append({
+                "cliente": item["cliente"],
+                "tipos": " / ".join(item["tipos"]) if item["tipos"] else "—",
+                "tipo_principal": tipo_principal,
+                "paradas": item["paradas"],
+                "duracao_total_min": item["duracao_total_min"],
+                "duracao_total_fmt": _fmt_min(item["duracao_total_min"]) if item["duracao_total_min"] else "--",
+                "hora_primeira": f"{hora_primeira_min // 60:02d}:{hora_primeira_min % 60:02d}" if hora_primeira_min is not None else "--:--",
+                "hora_ultima": f"{hora_ultima_min // 60:02d}:{hora_ultima_min % 60:02d}" if hora_ultima_min is not None else "--:--",
+                "kg_total": round(item["kg_total"], 1),
+                "valor_total": round(item["valor_total"], 2),
+            })
+        clientes_resumo.sort(
+            key=lambda x: (x["tipo_principal"], x["hora_primeira"] == "--:--", x["hora_primeira"], x["cliente"].lower())
+        )
+
+        start_times = _valid_operation_times([p.get("hora_inicio") for p in paradas])
+        end_times = _valid_operation_times([p.get("hora_fim") for p in paradas])
+
+        hora_inicio = min(start_times) if start_times else None
+        hora_fim = max(end_times) if end_times else (max(start_times) if start_times else None)
+
+        d["hora_inicio"] = f"{hora_inicio // 60:02d}:{hora_inicio % 60:02d}" if hora_inicio is not None else "--:--"
+        d["hora_fim"] = f"{hora_fim // 60:02d}:{hora_fim % 60:02d}" if hora_fim is not None else "--:--"
+
+        if hora_inicio is not None and hora_fim is not None:
+            d["tempo_operando_min"] = hora_fim - hora_inicio if hora_fim >= hora_inicio else ((24 * 60) - hora_inicio + hora_fim)
+        else:
+            d["tempo_operando_min"] = None
+
+        base_valor = d["saiu_valor"] or 0.0
+        devolucao_pct = (d["devolucao_valor"] / base_valor * 100.0) if base_valor > 0 else 0.0
+        meta_pct = 2.0
+        dentro_meta = devolucao_pct <= meta_pct
+
+        # Verificar se fez checklist do caminhão (employee_id + placa + date)
+        placa_raw = (d.get("placa") or "").strip()
+        fez_checklist = False
+        if placa_raw and placa_raw != "-":
+            checklists = session.exec(
+                select(models.TranspalletChecklist)
+                .where(models.TranspalletChecklist.employee_id == drv_id)
+                .where(models.TranspalletChecklist.date == date_str)
+            ).all()
+            placa_norm = placa_raw.upper().replace(" ", "").replace("-", "")
+            for chk in checklists:
+                eq = (chk.equipment_code or "").upper().replace(" ", "").replace("-", "")
+                if eq == placa_norm:
+                    fez_checklist = True
+                    break
+
+        reports.append({
+            **d,
+            "paradas_ordenadas": paradas_ord,
+            "clientes_resumo": clientes_resumo,
+            "total_clientes": len(clientes_resumo),
+            "total_paradas": len(paradas_ord),
+            "top5_tempo": top5,
+            "top5_client_names": [p["cliente"] for p in top5],
+            "tempo_operando_fmt": _fmt_min(d["tempo_operando_min"]),
+            "devolucao_pct": round(devolucao_pct, 2),
+            "meta_pct": meta_pct,
+            "dentro_meta": dentro_meta,
+            "fez_checklist_caminhao": fez_checklist,
+        })
+
+    # Motoristas que tiveram rotas na data (não a lista completa)
+    motoristas = [emp_map[eid] for eid in sorted(emp_map.keys(), key=lambda x: (emp_map[x].name or "").lower())]
+    return {
+        "date": date_str,
+        "date_fmt": _fmt_br_data(date_str),
+        "reports": reports,
+        "motoristas": motoristas,
+        "driver_ids": driver_ids or [],
+    }
+
+
+@router.get("/relatorio-avaliacao-motorista", response_class=HTMLResponse)
+async def relatorio_avaliacao_motorista_page(
+    request: Request,
+    date: Optional[str] = None,
+    driver_id: Optional[List[str]] = Query(None, alias="driver_id"),
+    session: Session = Depends(get_session),
+):
+    """Página do relatório de avaliação diária do motorista (imprimível)."""
+    tz = ZoneInfo("America/Sao_Paulo")
+    today_str = datetime.now(tz).date().strftime("%Y-%m-%d")
+    date_str = (date or "").strip() or today_str
+    try:
+        datetime.strptime(date_str, "%Y-%m-%d")
+    except ValueError:
+        date_str = today_str
+
+    parsed_ids: Optional[List[int]] = None
+    if driver_id:
+        raw = driver_id if isinstance(driver_id, list) else [driver_id]
+        parsed_ids = [int(x) for x in raw if str(x).strip().isdigit()]
+        if not parsed_ids:
+            parsed_ids = None
+
+    data = _build_relatorio_avaliacao_motorista(session, date_str, parsed_ids)
+    return templates.TemplateResponse("relatorio_avaliacao_motorista.html", {"request": request, **data})
 
 
 @router.get("/bi/delivery", response_class=HTMLResponse)

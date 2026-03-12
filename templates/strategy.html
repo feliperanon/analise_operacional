@@ -272,9 +272,67 @@
             </div>
         </div>
 
-        <!-- 4. SLA Ranking -->
+        <!-- 4. Helper Productivity -->
         <h2 class="text-xl font-bold text-white mb-4 mt-8 flex items-center gap-2">
-            <span>4. SLA de Atendimento (Gargalos)</span>
+            <span>4. Produtividade dos Ajudantes</span>
+            <span class="text-xs font-normal text-slate-500 bg-slate-800 px-2 py-1 rounded border border-slate-700">👥 apoio em rota</span>
+        </h2>
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden mb-8">
+            <div class="px-6 py-4 border-b border-slate-700 bg-slate-900/30">
+                <p class="text-sm text-slate-300">Avaliação dos ajudantes vinculados às rotas no dia. A produtividade considera as rotas em que cada ajudante participou.</p>
+            </div>
+            <div class="overflow-x-auto max-h-[500px] custom-scrollbar">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-900/80 text-xs uppercase text-slate-400 font-bold sticky top-0 backdrop-blur-sm z-10">
+                        <tr>
+                            <th class="px-6 py-4">#</th>
+                            <th class="px-6 py-4">Colaborador</th>
+                            <th class="px-6 py-4">Produtividade</th>
+                            <th class="px-6 py-4">Progresso</th>
+                            <th class="px-6 py-4">Tempo Ativo</th>
+                            <th class="px-6 py-4">Tempo Ocioso</th>
+                            <th class="px-6 py-4">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="helper-productivity-table-body" class="divide-y divide-slate-700 text-sm">
+                        <tr><td colspan="7" class="p-8 text-center text-slate-500">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 5. Team Productivity -->
+        <h2 class="text-xl font-bold text-white mb-4 mt-8 flex items-center gap-2">
+            <span>5. Visão Geral da Equipe</span>
+            <span class="text-xs font-normal text-slate-500 bg-slate-800 px-2 py-1 rounded border border-slate-700">motoristas + ajudantes</span>
+        </h2>
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden mb-8">
+            <div class="px-6 py-4 border-b border-slate-700 bg-slate-900/30">
+                <p class="text-sm text-slate-300">Consolidação de todos os participantes das rotas no dia, incluindo motoristas, ajudantes e quem atuou nos dois papéis.</p>
+            </div>
+            <div class="overflow-x-auto max-h-[500px] custom-scrollbar">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-900/80 text-xs uppercase text-slate-400 font-bold sticky top-0 backdrop-blur-sm z-10">
+                        <tr>
+                            <th class="px-6 py-4">#</th>
+                            <th class="px-6 py-4">Colaborador</th>
+                            <th class="px-6 py-4">Produtividade</th>
+                            <th class="px-6 py-4">Progresso</th>
+                            <th class="px-6 py-4">Tempo Ativo</th>
+                            <th class="px-6 py-4">Tempo Ocioso</th>
+                            <th class="px-6 py-4">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="team-productivity-table-body" class="divide-y divide-slate-700 text-sm">
+                        <tr><td colspan="7" class="p-8 text-center text-slate-500">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 6. SLA Ranking -->
+        <h2 class="text-xl font-bold text-white mb-4 mt-8 flex items-center gap-2">
+            <span>6. SLA de Atendimento (Gargalos)</span>
             <span class="text-xs font-normal text-slate-500 bg-slate-800 px-2 py-1 rounded border border-slate-700">⏱️</span>
         </h2>
         <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
@@ -307,6 +365,8 @@
     let prodChartInstance = null;
     let currentData = null;
     let productivityData = [];
+    let helperProductivityData = [];
+    let teamProductivityData = [];
     let currentSort = { field: 'kgh', dir: 'desc' };
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -339,7 +399,9 @@
 
             const data = await response.json();
             currentData = data;
-            productivityData = data.productivity || [];
+            productivityData = [...(data.productivity || [])];
+            helperProductivityData = [...(data.helper_productivity || [])];
+            teamProductivityData = [...(data.team_productivity || [])];
             renderAll(data);
         } catch (error) {
             console.error(error);
@@ -356,7 +418,18 @@
         renderAlerts(data.alerts);
         renderABC(data.abc_data);
         renderChart(data.prod_chart_labels, data.prod_chart_data, data.prod_chart_target);
-        renderProductivity(data.productivity, data.kpi.target_kgh);
+        renderProductivityTable('productivity-table-body', productivityData, data.kpi.target_kgh, {
+            emptyMessage: 'Sem dados de movimentação.',
+            rowClass: 'driver-productivity-row'
+        });
+        renderProductivityTable('helper-productivity-table-body', helperProductivityData, data.kpi.target_kgh, {
+            emptyMessage: 'Nenhum ajudante vinculado às rotas deste período.',
+            rowClass: 'helper-productivity-row'
+        });
+        renderProductivityTable('team-productivity-table-body', teamProductivityData, data.kpi.target_kgh, {
+            emptyMessage: 'Sem dados consolidados da equipe.',
+            rowClass: 'team-productivity-row'
+        });
         renderSLA(data.sla_ranking);
     }
 
@@ -535,14 +608,15 @@
         });
     }
 
-    function renderProductivity(prodList, targetKgh) {
-        const tbody = document.getElementById('productivity-table-body');
+    function renderProductivityTable(tbodyId, prodList, targetKgh, options = {}) {
+        const tbody = document.getElementById(tbodyId);
         if (!prodList || prodList.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-500">Sem dados de movimentação.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-500">${options.emptyMessage || 'Sem dados de movimentação.'}</td></tr>`;
             return;
         }
 
         const target = targetKgh || 200;
+        const rowClass = options.rowClass || 'productivity-row';
 
         tbody.innerHTML = prodList.map((row, index) => {
             const kgh = row.kgh;
@@ -559,6 +633,12 @@
             const progress = Math.min((kgh / target) * 100, 100);
             let progressColor = progress >= 100 ? 'bg-green-500' : progress >= 70 ? 'bg-yellow-500' : 'bg-red-500';
 
+            const roleLabel = row.role_label || 'Motorista';
+            let roleClass = 'bg-slate-700/50 text-slate-300 border border-slate-600/30';
+            if (roleLabel === 'Ajudante') roleClass = 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/20';
+            else if (roleLabel === 'Misto') roleClass = 'bg-violet-500/10 text-violet-300 border border-violet-500/20';
+            else if (roleLabel === 'Motorista') roleClass = 'bg-blue-500/10 text-blue-300 border border-blue-500/20';
+
             let statusBadge = `<span class="bg-slate-700/50 text-slate-400 px-2 py-1 rounded text-xs">Normal</span>`;
             if (kgh > 300) statusBadge = `<span class="bg-green-500/10 text-green-400 px-2 py-1 rounded text-xs border border-green-500/20">🚀 Elite</span>`;
             else if (row.idle_hours > 2.0) statusBadge = `<span class="bg-red-500/10 text-red-400 px-2 py-1 rounded text-xs border border-red-500/20">⚠️ Ocioso</span>`;
@@ -571,9 +651,17 @@
             else rankBadge = `<span class="text-slate-500">${index + 1}</span>`;
 
             return `
-                <tr class="hover:bg-slate-700/30 transition-colors productivity-row" data-name="${row.name.toLowerCase()}">
+                <tr class="hover:bg-slate-700/30 transition-colors ${rowClass}" data-name="${row.name.toLowerCase()}">
                     <td class="px-6 py-4 font-bold">${rankBadge}</td>
-                    <td class="px-6 py-4 font-medium text-white">${row.name}</td>
+                    <td class="px-6 py-4">
+                        <div class="space-y-1">
+                            <div class="font-medium text-white">${row.name}</div>
+                            <div class="flex flex-wrap items-center gap-2 text-[10px]">
+                                <span class="px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${roleClass}">${roleLabel}</span>
+                                <span class="text-slate-500">${row.route_count || 0} rota(s)</span>
+                            </div>
+                        </div>
+                    </td>
                     <td class="px-6 py-4">
                         <span class="font-mono ${kghClass} font-bold text-lg">${Math.round(kgh)} Kg/h</span>
                     </td>
@@ -597,7 +685,7 @@
 
     function filterProductivityTable() {
         const search = document.getElementById('productivity-search').value.toLowerCase();
-        document.querySelectorAll('.productivity-row').forEach(row => {
+        document.querySelectorAll('.driver-productivity-row').forEach(row => {
             const name = row.dataset.name;
             row.style.display = name.includes(search) ? '' : 'none';
         });
@@ -635,7 +723,10 @@
             return dir === 'asc' ? valA - valB : valB - valA;
         });
         
-        renderProductivity(productivityData, currentData?.kpi?.target_kgh);
+        renderProductivityTable('productivity-table-body', productivityData, currentData?.kpi?.target_kgh, {
+            emptyMessage: 'Sem dados de movimentação.',
+            rowClass: 'driver-productivity-row'
+        });
     }
 
     function renderSLA(slaList) {
@@ -736,11 +827,11 @@
         doc.text(`Colaboradores Ativos: ${kpi.employees_count}`, 14, 72);
         doc.text(`Volume Total: ${kpi.total_vol} kg`, 14, 78);
         
-        // Productivity Table
+        // Productivity Table - Motoristas
         if (currentData.productivity && currentData.productivity.length > 0) {
             doc.setFontSize(14);
             doc.setTextColor(30, 41, 59);
-            doc.text("Produtividade Individual", 14, 92);
+            doc.text("Produtividade dos Motoristas", 14, 92);
             
             const prodTableData = currentData.productivity.slice(0, 15).map((p, i) => [
                 i + 1,
@@ -756,6 +847,58 @@
                 body: prodTableData,
                 theme: 'striped',
                 headStyles: { fillColor: [30, 41, 59] },
+                styles: { fontSize: 8 }
+            });
+        }
+
+        // Productivity Table - Ajudantes
+        if (currentData.helper_productivity && currentData.helper_productivity.length > 0) {
+            const startY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 15 : 150;
+
+            doc.setFontSize(14);
+            doc.setTextColor(30, 41, 59);
+            doc.text("Produtividade dos Ajudantes", 14, startY);
+
+            const helperTableData = currentData.helper_productivity.slice(0, 15).map((p, i) => [
+                i + 1,
+                p.name,
+                `${Math.round(p.kgh)} Kg/h`,
+                `${Math.floor(p.active_hours)}h ${Math.floor((p.active_hours % 1) * 60)}m`,
+                `${Math.floor(p.idle_hours)}h ${Math.floor((p.idle_hours % 1) * 60)}m`
+            ]);
+
+            doc.autoTable({
+                startY: startY + 6,
+                head: [['#', 'Ajudante', 'Produtividade', 'Tempo Ativo', 'Ociosidade']],
+                body: helperTableData,
+                theme: 'striped',
+                headStyles: { fillColor: [8, 145, 178] },
+                styles: { fontSize: 8 }
+            });
+        }
+
+        // Productivity Table - Equipe
+        if (currentData.team_productivity && currentData.team_productivity.length > 0) {
+            const startY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 15 : 190;
+
+            doc.setFontSize(14);
+            doc.setTextColor(30, 41, 59);
+            doc.text("Visao Geral da Equipe", 14, startY);
+
+            const teamTableData = currentData.team_productivity.slice(0, 15).map((p, i) => [
+                i + 1,
+                p.name,
+                p.role_label || '-',
+                `${Math.round(p.kgh)} Kg/h`,
+                `${Math.floor(p.active_hours)}h ${Math.floor((p.active_hours % 1) * 60)}m`,
+            ]);
+
+            doc.autoTable({
+                startY: startY + 6,
+                head: [['#', 'Colaborador', 'Papel', 'Produtividade', 'Tempo Ativo']],
+                body: teamTableData,
+                theme: 'striped',
+                headStyles: { fillColor: [79, 70, 229] },
                 styles: { fontSize: 8 }
             });
         }

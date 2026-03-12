@@ -228,6 +228,31 @@
     </div>
 </div>
 
+<!-- Modal Reconciliar rotas (filtro obrigatório) -->
+<div id="reconcileModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm overflow-y-auto py-8">
+    <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md mx-4">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold text-white">Reconciliar rotas</h2>
+            <button type="button" onclick="closeReconcileModal()" class="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700 transition">×</button>
+        </div>
+        <p class="text-sm text-slate-400 mb-4">Informe o período para atualizar rotas de entrega conforme devoluções cadastradas. Não inclua o dia atual para evitar afetar rotas em andamento.</p>
+        <div class="space-y-3">
+            <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Data início *</label>
+                <input type="date" id="reconcile-start-date" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-amber-500" required>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Data fim *</label>
+                <input type="date" id="reconcile-end-date" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-amber-500" required>
+            </div>
+        </div>
+        <div class="flex justify-end gap-2 pt-4 mt-4 border-t border-slate-700">
+            <button type="button" onclick="closeReconcileModal()" class="px-4 py-2 text-slate-400 hover:text-white transition">Cancelar</button>
+            <button type="button" id="reconcile-confirm-btn" class="px-6 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-semibold transition-colors">Reconciliar</button>
+        </div>
+    </div>
+</div>
+
 <script>
 let _importValidRows = [];
 let _importFilename = '';
@@ -297,19 +322,41 @@ document.getElementById('import-commit-btn')?.addEventListener('click', async fu
     }
 });
 
-document.getElementById('reconcile-routes-btn')?.addEventListener('click', async function() {
+function openReconcileModal() {
+    const modal = document.getElementById('reconcileModal');
+    const params = new URLSearchParams(window.location.search);
+    const month = params.get('month') || (new Date().getMonth() + 1);
+    const year = params.get('year') || new Date().getFullYear();
+    const lastDay = new Date(year, parseInt(month, 10), 0).getDate();
+    document.getElementById('reconcile-start-date').value = year + '-' + String(month).padStart(2, '0') + '-01';
+    document.getElementById('reconcile-end-date').value = year + '-' + String(month).padStart(2, '0') + '-' + String(lastDay).padStart(2, '0');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+function closeReconcileModal() {
+    document.getElementById('reconcileModal').classList.add('hidden');
+    document.getElementById('reconcileModal').classList.remove('flex');
+}
+document.getElementById('reconcile-routes-btn')?.addEventListener('click', function() {
+    openReconcileModal();
+});
+document.getElementById('reconcile-confirm-btn')?.addEventListener('click', async function() {
+    const start = document.getElementById('reconcile-start-date').value;
+    const end = document.getElementById('reconcile-end-date').value;
+    if (!start || !end) {
+        alert('Informe as datas início e fim.');
+        return;
+    }
+    if (start > end) {
+        alert('Data início deve ser anterior à data fim.');
+        return;
+    }
     const btn = this;
     const origText = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Reconciliando...';
     if (typeof lucide !== 'undefined') lucide.createIcons();
     try {
-        const params = new URLSearchParams(window.location.search);
-        const month = params.get('month') || new Date().getMonth() + 1;
-        const year = params.get('year') || new Date().getFullYear();
-        const lastDay = new Date(year, month, 0).getDate();
-        const start = year + '-' + String(month).padStart(2, '0') + '-01';
-        const end = year + '-' + String(month).padStart(2, '0') + '-' + String(lastDay).padStart(2, '0');
         const r = await fetch('/api/devolucoes/reconcile-routes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -317,6 +364,7 @@ document.getElementById('reconcile-routes-btn')?.addEventListener('click', async
         });
         const j = await r.json();
         if (j.ok) {
+            closeReconcileModal();
             alert('Reconciliação concluída: ' + j.updated_routes + ' rota(s) atualizada(s) para devolução.');
             window.location.reload();
         } else {
