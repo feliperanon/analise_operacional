@@ -814,7 +814,7 @@ def is_google_enabled() -> bool:
 
 PAGE_OPTIONS = [
     {"key": "admin_game", "label": "Game Master", "path": "/admin/game", "prefixes": ["/admin/game", "/api/game"]},
-    {"key": "smart_flow", "label": "Smart Flow", "path": "/smart-flow", "prefixes": ["/smart-flow", "/api/smart-flow", "/smart-flow/load", "/api/employees", "/settings", "/employees", "/lider", "/api/lider"]},
+    {"key": "smart_flow", "label": "Smart Flow", "path": "/smart-flow", "prefixes": ["/smart-flow", "/api/smart-flow", "/smart-flow/load", "/api/employees", "/settings", "/employees", "/funcoes", "/lider", "/api/lider"]},
     {"key": "checklist_admin", "label": "Checklists Operacionais", "path": "/admin/routine/checklists", "prefixes": ["/admin/routine/checklists", "/api/routine/checklists"]},
     {"key": "ops_performance", "label": "Avaliacao Operacional", "path": "/operations/performance", "prefixes": ["/operations/performance", "/operations/performance/analysis", "/rankings", "/api/rankings"]}
 ]
@@ -18278,6 +18278,72 @@ async def routine_report(
         return HTMLResponse(content=f"<h1>Erro ao Gerar Relatório</h1><pre>{traceback.format_exc()}</pre>", status_code=500)
 
 from sqlmodel import select
+
+
+@app.get("/funcoes", response_class=HTMLResponse)
+async def funcoes_page(request: Request, session: Session = Depends(get_session)):
+    require_login(request)
+    cargos = session.exec(select(models.CargoMaster).order_by(models.CargoMaster.nome)).all()
+    return templates.TemplateResponse("funcoes.html", {"request": request, "cargos": cargos})
+
+
+@app.post("/funcoes/add", response_class=RedirectResponse)
+async def funcoes_add(
+    request: Request,
+    nome: str = Form(...),
+    salario_base: Optional[float] = Form(None),
+    descricao: Optional[str] = Form(None),
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    nome_val = (nome or "").strip().upper()
+    if not nome_val:
+        return RedirectResponse(url="/funcoes?error=Nome obrigatório", status_code=303)
+    try:
+        sal = float(salario_base) if salario_base is not None and str(salario_base).strip() else None
+    except (ValueError, TypeError):
+        sal = None
+    cargo = models.CargoMaster(nome=nome_val, salario_base=sal, descricao=(descricao or "").strip() or None)
+    session.add(cargo)
+    session.commit()
+    return RedirectResponse(url="/funcoes?success=Função cadastrada com sucesso", status_code=303)
+
+
+@app.post("/funcoes/{cargo_id}/update", response_class=RedirectResponse)
+async def funcoes_update(
+    cargo_id: int,
+    request: Request,
+    nome: str = Form(...),
+    salario_base: Optional[float] = Form(None),
+    descricao: Optional[str] = Form(None),
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    cargo = session.get(models.CargoMaster, cargo_id)
+    if not cargo:
+        return RedirectResponse(url="/funcoes?error=Função não encontrada", status_code=303)
+    cargo.nome = (nome or "").strip().upper()
+    try:
+        cargo.salario_base = float(salario_base) if salario_base is not None and str(salario_base).strip() else None
+    except (ValueError, TypeError):
+        cargo.salario_base = None
+    cargo.descricao = (descricao or "").strip() or None
+    cargo.updated_at = datetime.now()
+    session.add(cargo)
+    session.commit()
+    return RedirectResponse(url="/funcoes?success=Função atualizada", status_code=303)
+
+
+@app.post("/funcoes/{cargo_id}/delete", response_class=RedirectResponse)
+async def funcoes_delete(cargo_id: int, request: Request, session: Session = Depends(get_session)):
+    require_login(request)
+    cargo = session.get(models.CargoMaster, cargo_id)
+    if cargo:
+        session.delete(cargo)
+        session.commit()
+    return RedirectResponse(url="/funcoes?success=Função excluída", status_code=303)
+
+
 @app.get("/employees", response_class=HTMLResponse)
 async def employees_page(request: Request, session: Session = Depends(get_session)):
     import traceback
@@ -18432,10 +18498,14 @@ async def _employees_page_impl(request: Request, session: Session):
     # Isso inclui automaticamente os afastados como vagas temporárias
     total_vacancies = max(0, total_target - total_effective_headcount)
     
+    distinct_roles = sorted(list({(e.role or "").strip().upper() for e in employees if (e.role or "").strip()}))
+    cargos = session.exec(select(models.CargoMaster).where(models.CargoMaster.status == "ATIVO").order_by(models.CargoMaster.nome)).all()
     return templates.TemplateResponse("employees.html", {
         "request": request,
         "user": user,
         "employees": employees,
+        "cargos": cargos,
+        "distinct_roles": distinct_roles,
         "stats": {
             "total_active": total_effective_headcount,  # Efetivo (exclui afastados)
             "total_target": total_target,
@@ -18533,11 +18603,12 @@ async def add_employee(
     elif "noite" in s_lower:
         default_schedule = "18:00 - 06:00"
 
+    role_val = (role or "").strip().upper()
     new_employee = models.Employee(
         name=name,
         registration_id=registration_id,
         seller_code=seller_code.strip() if seller_code else None,
-        role=role,
+        role=role_val,
         work_shift=work_shift,
         cost_center=cost_center,
         admission_date=admission_dt,
@@ -19506,9 +19577,10 @@ async def update_employee(
                 employee_id=emp.id
             ))
                     # Log Role Change
-        if emp.role != role:
+        role_norm = (role or "").strip().upper()
+        if emp.role != role_norm:
             session.add(models.Event(
-                text=f"Alteração de Cargo: {emp.role} para {role}",
+                text=f"Alteração de Cargo: {emp.role} para {role_norm}",
                 type="alteracao_cadastro",
                 category="pessoas",
                 employee_id=emp.id
@@ -19525,7 +19597,7 @@ async def update_employee(
         emp.name = name
         emp.registration_id = registration_id
         emp.seller_code = seller_code.strip() if seller_code else None
-        emp.role = role
+        emp.role = (role or "").strip().upper()
         emp.work_shift = work_shift
         emp.cost_center = cost_center
         emp.cost_center = cost_center
@@ -19679,6 +19751,60 @@ import pandas as pd
 from fastapi import UploadFile, File
 import io
 
+from services.fechamento_ponto_parser import parse_fechamento_ponto_excel
+
+
+def _normalize_name_for_match(s: str) -> str:
+    s = unicodedata.normalize("NFKD", (s or ""))
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    s = " ".join((s or "").split()).strip().upper()
+    return s
+
+
+def _apply_occurrence_entries(session: Session, pending_entries: list) -> dict:
+    """Aplica pending_entries (rotinas + eventos). Retorna stats {total, success, errors}."""
+    stats = {"total": 0, "success": 0, "errors": []}
+    if not pending_entries:
+        return stats
+    involved_ids = {e["employee"].id for e in pending_entries}
+    dates = [e["date_obj"] for e in pending_entries]
+    min_date = min(dates).strftime("%Y-%m-%d")
+    max_date = max(dates).strftime("%Y-%m-%d")
+    existing_routines = session.exec(
+        select(models.EmployeeRoutine)
+        .where(models.EmployeeRoutine.employee_id.in_(involved_ids))
+        .where(models.EmployeeRoutine.date >= min_date)
+        .where(models.EmployeeRoutine.date <= max_date)
+    ).all()
+    routine_map = {(r.employee_id, r.date): r for r in existing_routines}
+    for entry in pending_entries:
+        stats["total"] += 1
+        emp = entry["employee"]
+        iso_date = entry["iso_date"]
+        if entry.get("routine_type"):
+            key = (emp.id, iso_date)
+            if key in routine_map:
+                routine_map[key].routine = entry["routine_type"]
+                session.add(routine_map[key])
+            else:
+                r = models.EmployeeRoutine(
+                    date=iso_date, shift=emp.work_shift, employee_id=emp.id, routine=entry["routine_type"]
+                )
+                session.add(r)
+                routine_map[key] = r
+        new_event = models.Event(
+            timestamp=entry["date_obj"].replace(hour=8, minute=0),
+            text=f"Importação em Massa: {entry.get('raw_occ', '')}",
+            type=entry.get("event_type", "outros"),
+            category="import",
+            employee_id=emp.id,
+        )
+        session.add(new_event)
+        stats["success"] += 1
+    session.commit()
+    return stats
+
+
 class BulkImportData(pydantic.BaseModel):
     raw_text: str
 
@@ -19792,59 +19918,258 @@ async def import_occurrences(
     if not pending_entries:
         return stats
 
-    # 2. Bulk Fetch Existing Routines
-    # To optimize, we fetch routines for involved employees within the date range
-    involved_ids = {e["employee"].id for e in pending_entries}
-    dates = [e["date_obj"] for e in pending_entries]
-    min_date = min(dates).strftime("%Y-%m-%d")
-    max_date = max(dates).strftime("%Y-%m-%d")
-    
-    existing_routines = session.exec(
-        select(models.EmployeeRoutine)
-        .where(models.EmployeeRoutine.employee_id.in_(involved_ids))
-        .where(models.EmployeeRoutine.date >= min_date)
-        .where(models.EmployeeRoutine.date <= max_date)
-    ).all()
-    
-    # Map (emp_id, date) -> RoutineObject
-    routine_map = {(r.employee_id, r.date): r for r in existing_routines}
-    
-    for entry in pending_entries:
-        stats['total'] += 1
-        emp = entry["employee"]
-        iso_date = entry["iso_date"]
-        
-        # Routine Upsert
-        # Routine Upsert (Only if routine_type matches a change, e.g. Absent/Sick)
-        if entry["routine_type"]:
-            key = (emp.id, iso_date)
-            if key in routine_map:
-                routine = routine_map[key]
-                routine.routine = entry["routine_type"]
-                session.add(routine)
-            else:
-                routine = models.EmployeeRoutine(
-                    date=iso_date,
-                    shift=emp.work_shift,
-                    employee_id=emp.id,
-                    routine=entry["routine_type"]
-                )
-                session.add(routine)
-                routine_map[key] = routine # Update map for potential duplicate lines in same batch
-            
-        # Event Creation (Blind Insert for history)
-        new_event = models.Event(
-            timestamp=entry["date_obj"].replace(hour=8, minute=0),
-            text=f"Importação em Massa: {entry['raw_occ']}",
-            type=entry["event_type"],
-            category="import",
-            employee_id=emp.id
-        )
-        session.add(new_event)
-        stats['success'] += 1
-
-    session.commit()
+    apply_stats = _apply_occurrence_entries(session, pending_entries)
+    stats["total"] = apply_stats["total"]
+    stats["success"] = apply_stats["success"]
     return stats
+
+
+class BulkCostCenterPayload(pydantic.BaseModel):
+    selected_roles: List[str] = []
+    selected_center: str = "Exemplar"  # Centro para as funções selecionadas
+    others_center: str = "Souza Pinto"  # Centro para os demais
+    exemplar_roles: List[str] = []  # Retrocompatível, mapeia para selected_roles
+
+
+@app.post("/api/employees/bulk-cost-center-all", response_class=JSONResponse)
+async def api_bulk_cost_center_all(
+    request: Request,
+    center: str = Form("Souza Pinto"),
+    session: Session = Depends(get_session),
+):
+    """Coloca todos os colaboradores (incluindo sem preenchimento) no centro informado."""
+    require_login(request)
+    val = (center or "Souza Pinto").strip()
+    employees = session.exec(select(models.Employee).where(models.Employee.replaced_by.is_(None))).all()
+    count = 0
+    for e in employees:
+        if (e.cost_center or "").strip() != val:
+            e.cost_center = val
+            session.add(e)
+            count += 1
+    session.commit()
+    return JSONResponse({
+        "success": True,
+        "message": f"Todos os colaboradores atualizados para {val}. {count} alterados.",
+        "count": count,
+    })
+
+
+@app.post("/api/employees/bulk-cost-center", response_class=JSONResponse)
+async def api_bulk_cost_center(
+    request: Request,
+    payload: BulkCostCenterPayload,
+    session: Session = Depends(get_session),
+):
+    """
+    Atualiza centro de custo em massa por funções.
+    - selected_roles: funções selecionadas
+    - selected_center: centro para os selecionados (Exemplar ou Souza Pinto)
+    - others_center: centro para os demais
+    """
+    require_login(request)
+    roles = payload.selected_roles or payload.exemplar_roles
+    selected_set = {(r or "").strip().upper() for r in roles if (r or "").strip()}
+    selected_center = (payload.selected_center or "Exemplar").strip()
+    others = (payload.others_center or ("Souza Pinto" if selected_center == "Exemplar" else "Exemplar")).strip()
+    employees = session.exec(select(models.Employee).where(models.Employee.replaced_by.is_(None))).all()
+    count_selected, count_others = 0, 0
+    for e in employees:
+        role_norm = (e.role or "").strip().upper()
+        if role_norm in selected_set:
+            if (e.cost_center or "").strip() != selected_center:
+                e.cost_center = selected_center
+                session.add(e)
+                count_selected += 1
+        else:
+            if (e.cost_center or "").strip() != others:
+                e.cost_center = others
+                session.add(e)
+                count_others += 1
+    session.commit()
+    return JSONResponse({
+        "success": True,
+        "message": f"Atualizado: {count_selected} para {selected_center}, {count_others} para {others}.",
+        "count_selected": count_selected,
+        "count_others": count_others,
+    })
+
+
+class BulkCostCenterFromFilePayload(pydantic.BaseModel):
+    others_center: str = "Souza Pinto"
+
+
+@app.post("/api/employees/bulk-cost-center-from-file", response_class=JSONResponse)
+async def api_bulk_cost_center_from_file(
+    request: Request,
+    file: UploadFile = File(...),
+    file_center: str = Form("Exemplar"),  # Centro para nomes da planilha
+    others_center: str = Form("Souza Pinto"),  # Centro para os demais
+    session: Session = Depends(get_session),
+):
+    """
+    Colaboradores da planilha (Fechamento de Ponto ou similar) recebem file_center.
+    Os demais recebem others_center.
+    """
+    require_login(request)
+    contents = await file.read()
+    if len(contents) > 10 * 1024 * 1024:
+        return JSONResponse({"success": False, "error": "Arquivo muito grande."}, status_code=400)
+    try:
+        parsed = parse_fechamento_ponto_excel(contents, file.filename or "")
+    except Exception:
+        import pandas as pd
+        try:
+            df = pd.read_excel(io.BytesIO(contents), header=None, nrows=500)
+            names_from_sheet = set()
+            for _, row in df.iterrows():
+                for v in row.values:
+                    s = (str(v) or "").strip()
+                    if s and len(s) > 5 and not s.replace(".", "").replace(",", "").replace(" ", "").isdigit():
+                        names_from_sheet.add(s)
+            parsed = [{"nome": n} for n in names_from_sheet]
+        except Exception as e:
+            return JSONResponse({"success": False, "error": f"Erro ao ler arquivo: {str(e)}"}, status_code=400)
+    file_names = {_normalize_name_for_match(item.get("nome", "")) for item in parsed if (item.get("nome") or "").strip()}
+    file_names_compact = {"".join(c for c in n if c.isalnum()) for n in file_names}
+    employees = session.exec(select(models.Employee).where(models.Employee.replaced_by.is_(None))).all()
+    count_file, count_others = 0, 0
+    file_center_val = (file_center or "Exemplar").strip()
+    others_val = (others_center or "Souza Pinto").strip()
+    if file_center_val == others_val:
+        others_val = "Exemplar" if file_center_val == "Souza Pinto" else "Souza Pinto"
+    for e in employees:
+        n = _normalize_name_for_match(e.name)
+        compact = "".join(c for c in n if c.isalnum())
+        if n in file_names or compact in file_names_compact:
+            if (e.cost_center or "").strip() != file_center_val:
+                e.cost_center = file_center_val
+                session.add(e)
+                count_file += 1
+        else:
+            if (e.cost_center or "").strip() != others_val:
+                e.cost_center = others_val
+                session.add(e)
+                count_others += 1
+    session.commit()
+    return JSONResponse({
+        "success": True,
+        "message": f"Da planilha → {file_center_val}: {count_file}. Demais → {others_val}: {count_others}.",
+        "count_file": count_file,
+        "count_others": count_others,
+    })
+
+
+@app.post("/api/import/occurrences-from-fechamento")
+async def import_occurrences_from_fechamento(
+    request: Request,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+):
+    """
+    Importa ocorrências (Faltas/Atestados) a partir do arquivo Excel "Fechamento de Ponto".
+    Lê todas as abas mensais, identifica colunas por cabeçalho, parseia formatos de data
+    e gera um lançamento por dia. Cruza FUNCIONÁRIO com colaboradores cadastrados.
+    """
+    require_login(request)
+    MAX_SIZE = 10 * 1024 * 1024
+    contents = await file.read()
+    if len(contents) > MAX_SIZE:
+        return JSONResponse({"success": False, "error": "Arquivo muito grande (máx 10MB)."}, status_code=400)
+    ext = (file.filename or "").lower()
+    if ext and not (ext.endswith(".xls") or ext.endswith(".xlsx")):
+        return JSONResponse({"success": False, "error": "Envie um arquivo Excel (.xls ou .xlsx)."}, status_code=400)
+
+    try:
+        parsed = parse_fechamento_ponto_excel(contents, file.filename or "")
+    except Exception as e:
+        return JSONResponse({"success": False, "error": f"Erro ao ler o arquivo: {str(e)}"}, status_code=400)
+
+    employees = session.exec(select(models.Employee)).all()
+    emp_by_name = {}
+    for e in employees:
+        if not (e.name or "").strip():
+            continue
+        n = _normalize_name_for_match(e.name)
+        emp_by_name[n] = e
+        compact = "".join(c for c in n if c.isalnum())
+        if compact and compact not in emp_by_name:
+            emp_by_name[compact] = e
+        parts = [p for p in n.split() if len(p) > 1]
+        if len(parts) >= 2:
+            first_last = f"{parts[0]}_{parts[-1]}"
+            if first_last not in emp_by_name:
+                emp_by_name[first_last] = e
+
+    def find_employee(nome: str):
+        n = _normalize_name_for_match(nome)
+        if n in emp_by_name:
+            return emp_by_name[n]
+        compact = "".join(c for c in n if c.isalnum())
+        if compact in emp_by_name:
+            return emp_by_name[compact]
+        parts = [p for p in n.split() if len(p) > 1]
+        if len(parts) >= 2:
+            first_last = f"{parts[0]}_{parts[-1]}"
+            if first_last in emp_by_name:
+                return emp_by_name[first_last]
+        return None
+
+    pending_entries = []
+    stats = {"total": 0, "success": 0, "errors": [], "skipped_unknown": 0, "sample_unknown": set()}
+
+    for item in parsed:
+        nome = (item.get("nome") or "").strip()
+        if not nome:
+            continue
+        emp = find_employee(nome)
+        if not emp:
+            stats["skipped_unknown"] += 1
+            if len(stats["sample_unknown"]) < 10:
+                stats["sample_unknown"].add(nome)
+            continue
+        d = item.get("data")
+        if not d:
+            continue
+        occ = (item.get("ocorrencia") or "").strip()
+        routine_type = "absent" if "falta" in occ.lower() else "sick"
+        event_type = "falta" if "falta" in occ.lower() else "atestado"
+        if hasattr(d, "replace") and hasattr(d, "hour"):
+            date_obj = d.replace(hour=8, minute=0)
+        else:
+            date_obj = datetime(d.year, d.month, d.day, 8, 0)
+        iso_date = date_obj.strftime("%Y-%m-%d")
+        pending_entries.append({
+            "employee": emp,
+            "iso_date": iso_date,
+            "date_obj": date_obj,
+            "routine_type": routine_type,
+            "event_type": event_type,
+            "raw_occ": occ,
+        })
+
+    if not pending_entries:
+        hint = ""
+        if stats["sample_unknown"]:
+            hint = f" Exemplos não encontrados: {', '.join(list(stats['sample_unknown'])[:5])}. Cadastre esses colaboradores antes de importar."
+        return JSONResponse({
+            "success": True,
+            "message": f"Nenhuma ocorrência para importar. {stats['skipped_unknown']} registros ignorados (colaborador não cadastrado).{hint}",
+            "total": 0,
+            "success": 0,
+        })
+
+    apply_stats = _apply_occurrence_entries(session, pending_entries)
+    hint = ""
+    if stats["skipped_unknown"] > 0 and stats["sample_unknown"]:
+        hint = f" Exemplos ignorados: {', '.join(list(stats['sample_unknown'])[:5])}. Cadastre-os em Colaboradores se necessário."
+    return JSONResponse({
+        "success": True,
+        "message": f"Importadas {apply_stats['success']} ocorrências. {stats['skipped_unknown']} ignorados (não cadastrados).{hint}",
+        "total": apply_stats["total"],
+        "success": apply_stats["success"],
+    })
+
 
 @app.post("/employees/import")
 
@@ -19869,6 +20194,23 @@ async def import_employees(
             key = normalize_text(candidate)
             if key in normalized:
                 return normalized[key]
+        # Fallback: match parcial (ex.: "registration id", "matrícula colaborador")
+        candidate_keys = [normalize_text(c) for c in candidates]
+        for norm_col, original_col in normalized.items():
+            compact_col = norm_col.replace(" ", "").replace(".", "")
+            for ck in candidate_keys:
+                compact_ck = ck.replace(" ", "").replace(".", "")
+                if compact_ck and (compact_ck in compact_col or compact_col in compact_ck):
+                    return original_col
+        return None
+
+    def pick_column_contains(columns, *substrings):
+        """Retorna primeira coluna cujo nome contém um dos substrings."""
+        for col in columns:
+            n = normalize_text(str(col))
+            for s in substrings:
+                if normalize_text(s) in n:
+                    return col
         return None
 
     content = await file.read()
@@ -19888,7 +20230,11 @@ async def import_employees(
         # Detecta cabeçalho nos primeiros registros.
         df_temp = pd.read_excel(io.BytesIO(content), sheet_name=target_sheet, header=None, nrows=10)
         header_row = 0
-        expected_headers = {"matricula", "colaborador", "nome funcionario", "nome cargo", "turno", "cargo"}
+        expected_headers = {
+            "matricula", "matrícula", "registration", "registration id", "registro",
+            "colaborador", "nome funcionario", "nome", "nome cargo", "turno", "cargo", "funcao", "função",
+            "id empregado", "id. empregado", "codigo", "código"
+        }
         for idx, row in df_temp.iterrows():
             row_values = {normalize_text(v) for v in row.values if pd.notna(v)}
             if row_values & expected_headers:
@@ -19898,7 +20244,28 @@ async def import_employees(
         df = pd.read_excel(io.BytesIO(content), sheet_name=target_sheet, header=header_row)
         df.columns = df.columns.astype(str).str.strip()
 
-        col_registration = pick_column(df.columns, "Matrícula", "Matricula")
+        # Se as colunas parecem genéricas (Unnamed ou 0,1,2), tentar achar linha de cabeçalho
+        col_names_str = [str(c).lower() for c in df.columns]
+        if all(c in ("unnamed: 0", "0", "1", "2", "unnamed") or c.startswith("unnamed") or c.isdigit() for c in col_names_str):
+            df_temp2 = pd.read_excel(io.BytesIO(content), sheet_name=target_sheet, header=None, nrows=15)
+            for idx in range(min(10, len(df_temp2))):
+                row_strs = [normalize_text(str(v)) for v in df_temp2.iloc[idx].values]
+                if any("matricula" in r or "matrícula" in r or "empregado" in r or "nome completo" in r or "colaborador" in r for r in row_strs):
+                    df = pd.read_excel(io.BytesIO(content), sheet_name=target_sheet, header=idx)
+                    df.columns = df.columns.astype(str).str.strip()
+                    break
+
+        col_registration = pick_column(
+            df.columns,
+            "Matrícula", "Matricula", "Registration", "Registration ID",
+            "Registro", "Registro ID", "ID", "ID Empregado", "ID. Empregado",
+            "Código", "Codigo", "Código do Funcionário", "Codigo do Funcionario",
+            "Nº Funcionário", "Nº Funcionario", "Numero Funcionario"
+        )
+        if not col_registration:
+            col_registration = pick_column_contains(
+                df.columns, "empregado", "matricula", "matrícula", "codigo", "código", "registro", "id"
+            )
         col_name = pick_column(df.columns, "Colaborador", "Nome Funcionário", "Nome Funcionario", "Nome")
         col_role = pick_column(df.columns, "Cargo", "Nome Cargo", "Função", "Funcao")
         col_cost_center = pick_column(df.columns, "Centro de Custo")
@@ -19907,7 +20274,33 @@ async def import_employees(
         col_birthday = pick_column(df.columns, "Data Nascimento", "Nascimento", "Data de Nascimento")
 
         if not col_registration:
-            raise ValueError("Coluna de matrícula não encontrada no arquivo.")
+            # Fallback adicional: usar primeira coluna que pareça ser matrícula (alto % numérico)
+            for c in df.columns:
+                sample = df[c].dropna().astype(str).head(50).tolist()
+                if not sample:
+                    continue
+                numeric_like = 0
+                for v in sample:
+                    compact = "".join(ch for ch in v if ch.isdigit())
+                    if compact and len(compact) >= 3:
+                        numeric_like += 1
+                if numeric_like >= max(3, int(len(sample) * 0.6)):
+                    col_registration = c
+                    break
+        if not col_registration:
+            # Último recurso: qualquer coluna com pelo menos 2 valores numéricos (ex.: IDs)
+            for c in df.columns:
+                sample = df[c].dropna().astype(str).head(100).tolist()
+                numeric_like = sum(1 for v in sample if len("".join(ch for ch in v if ch.isdigit())) >= 2)
+                if numeric_like >= max(2, int(len(sample) * 0.3)):
+                    col_registration = c
+                    break
+
+        if not col_registration:
+            raise ValueError(
+                "Coluna de matrícula não encontrada no arquivo. "
+                f"Colunas detectadas: {', '.join([str(c) for c in df.columns])}"
+            )
 
         count = 0 
         seen_registration = set()
@@ -19976,7 +20369,7 @@ async def import_employees(
                 emp = models.Employee(
                     name=str(row.get(col_name, "Sem Nome")).strip() if col_name else "Sem Nome",
                     registration_id=reg_id.strip(),
-                    role=str(row.get(col_role, "Operador")).strip() if col_role else "Operador",
+                    role=(str(row.get(col_role, "Operador")).strip() or "Operador").upper(),
                     work_shift=str(shift_val).strip(),
                     cost_center=str(row.get(col_cost_center, target_sheet)).strip() if col_cost_center else str(target_sheet),
                     admission_date=admission,

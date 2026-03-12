@@ -76,6 +76,12 @@
                         </svg>
                         Férias
                     </button>
+                    <button onclick="document.getElementById('bulk-cost-center-modal').classList.remove('hidden'); bccSetScope('all'); bccSetDest('Exemplar');" class="w-full px-4 py-3 text-left text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition flex items-center gap-3">
+                        <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                        </svg>
+                        Centro de Custo (Exemplar/Souza Pinto)
+                    </button>
                 </div>
             </div>
             <button onclick="document.getElementById('addModal').classList.remove('hidden')" class="h-10 px-5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-sm font-semibold transition shadow-lg shadow-blue-500/25 flex items-center gap-2">
@@ -740,8 +746,13 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-slate-400 mb-1">Cargo</label>
-                    <input type="text" name="role" required
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+                    <select name="role" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+                        <option value="">Selecione...</option>
+                        {% for c in cargos %}
+                        <option value="{{ c.nome }}">{{ c.nome }}{% if c.salario_base %} — R$ {{ "%.2f"|format(c.salario_base)|replace(".", ",") }}{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                    <p class="text-xs text-slate-500 mt-0.5"><a href="/funcoes" class="text-indigo-400 hover:underline">Cadastrar funções</a></p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-400 mb-1">Turno</label>
@@ -858,8 +869,11 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-medium text-slate-400 mb-1">Cargo</label>
-                        <input type="text" name="role" id="editRole" required
-                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                        <select name="role" id="editRole" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                            {% for c in cargos %}
+                            <option value="{{ c.nome }}">{{ c.nome }}{% if c.salario_base %} — R$ {{ "%.2f"|format(c.salario_base)|replace(".", ",") }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-slate-400 mb-1">Turno</label>
@@ -994,27 +1008,25 @@
                         </div>
                         <div>
                             <h3 class="text-lg font-bold text-slate-100">Importar Ocorrências (Faltas/Atestados)</h3>
-                            <p class="text-xs text-slate-400">Cole os dados do Excel abaixo (Matrícula | Nome | Data |
-                                Ocorrência)</p>
+                            <p class="text-xs text-slate-400">Arquivo Excel "Fechamento de Ponto" (.xls ou .xlsx) com abas mensais</p>
                         </div>
                     </div>
 
                     <div class="mb-4">
-                        <textarea id="bulk-occurrences-text"
-                            class="w-full h-64 bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs font-mono text-slate-300 focus:ring-2 focus:ring-red-500/50 outline-none leading-relaxed whitespace-pre"
-                            placeholder="Exemplo (Copie e cole do Excel):
-1092	GIOVANNI BARBOSA	16/03/2025	Falta
-1446	JOAO BATISTA	16/03/2025	Falta
-1092	GIOVANNI BARBOSA	18/03/2025	Atestado"></textarea>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase mb-2">Arquivo</label>
+                        <input type="file" id="bulk-occurrences-file" accept=".xls,.xlsx"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-slate-700 file:text-slate-200 file:cursor-pointer focus:ring-2 focus:ring-red-500/50 outline-none">
+                        <p class="text-xs text-slate-500 mt-1.5" id="bulk-occurrences-file-name"></p>
                     </div>
 
                     <div class="text-xs text-slate-500 mb-6 bg-slate-900/50 p-2 rounded border border-slate-700/50">
-                        <p class="font-bold mb-1">Regras de Importação:</p>
+                        <p class="font-bold mb-1">Formato esperado (Fechamento de Ponto):</p>
                         <ul class="list-disc pl-4 space-y-1">
-                            <li>Ordem das colunas: Matrícula, Nome(Ignorado), Data, Ocorrência.</li>
-                            <li>Apenas <strong>Colaboradores Cadastrados</strong> serão processados.</li>
-                            <li>Tipos aceitos: "Falta", "Atestado", "Suspensão", "Advertência".</li>
-                            <li>Ocorrências anteriores serão sobrescritas para o mesmo dia.</li>
+                            <li>Abas mensais: Janeiro 2025, Fevereiro 2025, etc.</li>
+                            <li>Colunas por cabeçalho: <strong>NOME COMPLETO</strong>, <strong>ATESTADOS</strong>, <strong>FALTAS S/J</strong>.</li>
+                            <li>Formatos aceitos: "1 dia (05/01)", "2 dias (05 e 07/01)", "5 dias (02 a 06/01)", "Tudo Falta", etc.</li>
+                            <li>INSS, AFASTADO, JUSTIÇA, LICENÇA: classificados como afastamento (sem datas).</li>
+                            <li>Apenas colaboradores cadastrados serão processados. Um lançamento por dia.</li>
                         </ul>
                     </div>
 
@@ -1025,6 +1037,72 @@
                         <button type="button" onclick="saveBulkOccurrences()"
                             class="px-6 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-semibold transition shadow-lg shadow-red-900/20">Processar
                             Ocorrências</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Cost Center Modal -->
+<div id="bulk-cost-center-modal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="absolute inset-0 bg-slate-900/90 backdrop-blur-sm"></div>
+    <div class="fixed inset-0 overflow-y-auto">
+        <div class="flex min-h-full items-center justify-center p-4">
+            <div class="relative rounded-2xl bg-slate-800 border border-slate-700 shadow-2xl w-full max-w-lg">
+                <div class="px-6 py-6">
+                    <div class="flex gap-4 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-400 border border-cyan-500/20">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-100">Atualizar Centro de Custo em Massa</h3>
+                            <p class="text-xs text-slate-400">Exemplar vs Souza Pinto</p>
+                        </div>
+                    </div>
+                    <p class="text-sm text-slate-300 mb-4">Defina o escopo e o destino:</p>
+                    <div class="space-y-4">
+                        <div class="rounded-lg border border-slate-700 bg-slate-900/50 p-4">
+                            <p class="text-xs font-semibold text-slate-400 uppercase mb-2">1. Escopo</p>
+                            <div class="flex flex-wrap gap-2">
+                                <button type="button" id="bcc-scope-all" onclick="bccSetScope('all')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-cyan-600 text-white">Todos</button>
+                                <button type="button" id="bcc-scope-roles" onclick="bccSetScope('roles')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-slate-700 text-slate-300 hover:bg-slate-600">Por funções</button>
+                                <button type="button" id="bcc-scope-file" onclick="bccSetScope('file')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-slate-700 text-slate-300 hover:bg-slate-600">Por planilha</button>
+                            </div>
+                        </div>
+
+                        <div id="bcc-roles-block" class="rounded-lg border border-slate-700 bg-slate-900/50 p-4 hidden">
+                            <p class="text-xs font-semibold text-slate-400 uppercase mb-2">Funções selecionadas → destino</p>
+                            <div class="max-h-40 overflow-y-auto border border-slate-700 rounded-lg p-2 bg-slate-900 mb-2">
+                                {% for c in cargos or [] %}
+                                <label class="flex items-center gap-2 py-1 text-sm text-slate-200 cursor-pointer hover:bg-slate-800/50 px-2 rounded">
+                                    <input type="checkbox" name="cost_center_role" value="{{ c.nome }}" class="rounded text-cyan-600 border-slate-600">
+                                    <span>{{ c.nome }}{% if c.salario_base %} — R$ {{ "%.2f"|format(c.salario_base)|replace(".", ",") }}{% endif %}</span>
+                                </label>
+                                {% endfor %}
+                                {% if not cargos %}
+                                <p class="text-xs text-slate-500">Nenhum cargo cadastrado. <a href="/funcoes" class="text-indigo-400 hover:underline">Cadastrar</a></p>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div id="bcc-file-block" class="rounded-lg border border-slate-700 bg-slate-900/50 p-4 hidden">
+                            <p class="text-xs font-semibold text-slate-400 uppercase mb-2">Colaboradores da planilha → destino</p>
+                            <input type="file" id="bulk-cost-center-file" accept=".xls,.xlsx" class="w-full text-xs text-slate-300 file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:bg-slate-700 file:text-slate-200 mb-2">
+                        </div>
+
+                        <div class="rounded-lg border border-slate-700 bg-slate-900/50 p-4">
+                            <p class="text-xs font-semibold text-slate-400 uppercase mb-2">2. Destino (para onde encaminhar)</p>
+                            <div class="flex gap-2">
+                                <button type="button" id="bcc-dest-souza" onclick="bccSetDest('Souza Pinto')" class="flex-1 px-4 py-2 rounded-lg text-sm font-semibold bg-slate-700 text-slate-300 hover:bg-slate-600">Souza Pinto</button>
+                                <button type="button" id="bcc-dest-exemplar" onclick="bccSetDest('Exemplar')" class="flex-1 px-4 py-2 rounded-lg text-sm font-semibold bg-slate-700 text-slate-300 hover:bg-slate-600">Exemplar</button>
+                            </div>
+                        </div>
+
+                        <button type="button" onclick="runBulkCostCenterApply()" class="w-full px-4 py-3 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-semibold rounded-lg">Aplicar</button>
+                    </div>
+                    <div class="mt-4 flex justify-end">
+                        <button type="button" onclick="document.getElementById('bulk-cost-center-modal').classList.add('hidden')" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm font-semibold">Fechar</button>
                     </div>
                 </div>
             </div>
@@ -1212,7 +1290,17 @@
         document.getElementById('editName').value = emp.name;
         document.getElementById('editReg').value = emp.registration_id;
         document.getElementById('editSellerCode').value = emp.seller_code || '';
-        document.getElementById('editRole').value = emp.role;
+        const editRole = document.getElementById('editRole');
+        if (editRole.tagName === 'SELECT' && emp.role) {
+            const hasOpt = Array.from(editRole.options).some(o => o.value === emp.role);
+            if (!hasOpt) {
+                const opt = document.createElement('option');
+                opt.value = emp.role;
+                opt.textContent = emp.role + ' (atual)';
+                editRole.appendChild(opt);
+            }
+        }
+        editRole.value = emp.role || '';
         document.getElementById('editCost').value = emp.cost_center;
         document.getElementById('editShift').value = emp.work_shift;
         
@@ -1778,36 +1866,114 @@
         }
     }
 
+    document.getElementById('bulk-occurrences-file')?.addEventListener('change', function() {
+        const name = document.getElementById('bulk-occurrences-file-name');
+        if (name) name.textContent = this.files?.[0]?.name ? 'Arquivo: ' + this.files[0].name : '';
+    });
+
     async function saveBulkOccurrences() {
-        const text = document.getElementById('bulk-occurrences-text').value;
-        if (!text.trim()) {
-            alert('Cole os dados do Excel primeiro.');
+        const fileInput = document.getElementById('bulk-occurrences-file');
+        const file = fileInput?.files?.[0];
+        if (!file) {
+            alert('Selecione o arquivo Excel "Fechamento de Ponto" (.xls ou .xlsx).');
             return;
         }
 
+        const btn = document.querySelector('button[onclick="saveBulkOccurrences()"]');
+        if (btn) { btn.disabled = true; btn.textContent = 'Processando...'; }
+
         try {
-            const response = await fetch('/api/import/occurrences', {
+            const formData = new FormData();
+            formData.append('file', file);
+            const response = await fetch('/api/import/occurrences-from-fechamento', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ raw_text: text })
+                body: formData
             });
 
-            if (response.ok) {
-                const result = await response.json();
-                alert(`Importação concluída!\n\nProcessados: ${result.total}\nSucesso: ${result.success}\nErros/Ignorados: ${result.errors.length}`);
-                if (result.errors.length > 0) {
-                    console.warn("Erros na importação:", result.errors);
-                }
+            const result = await response.json().catch(() => ({}));
+            if (response.ok && result.success) {
+                alert(result.message || `Importadas ${result.success} ocorrências.`);
+                document.getElementById('bulk-occurrences-modal').classList.add('hidden');
+                fileInput.value = '';
+                document.getElementById('bulk-occurrences-file-name').textContent = '';
                 location.reload();
             } else {
-                const err = await response.json();
-                alert('Erro ao importar: ' + (err.detail || 'Erro desconhecido'));
+                alert('Erro ao importar: ' + (result.error || result.detail || 'Erro desconhecido'));
             }
         } catch (e) {
             console.error(e);
             alert('Erro de conexão ao tentar importar.');
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = 'Processar Ocorrências'; }
+        }
+    }
+
+    let bccScope = 'all';
+    let bccDest = 'Exemplar';
+
+    function bccSetScope(s) {
+        bccScope = s;
+        document.querySelectorAll('[id^="bcc-scope-"]').forEach(btn => {
+            btn.classList.remove('bg-cyan-600', 'text-white');
+            btn.classList.add('bg-slate-700', 'text-slate-300');
+        });
+        const sel = document.getElementById('bcc-scope-' + s);
+        if (sel) { sel.classList.remove('bg-slate-700'); sel.classList.add('bg-cyan-600', 'text-white'); }
+        document.getElementById('bcc-roles-block').classList.toggle('hidden', s !== 'roles');
+        document.getElementById('bcc-file-block').classList.toggle('hidden', s !== 'file');
+    }
+
+    function bccSetDest(d) {
+        bccDest = d;
+        document.getElementById('bcc-dest-souza').classList.toggle('bg-cyan-600', d === 'Souza Pinto');
+        document.getElementById('bcc-dest-souza').classList.toggle('text-white', d === 'Souza Pinto');
+        document.getElementById('bcc-dest-souza').classList.toggle('bg-slate-700', d !== 'Souza Pinto');
+        document.getElementById('bcc-dest-exemplar').classList.toggle('bg-cyan-600', d === 'Exemplar');
+        document.getElementById('bcc-dest-exemplar').classList.toggle('text-white', d === 'Exemplar');
+        document.getElementById('bcc-dest-exemplar').classList.toggle('bg-slate-700', d !== 'Exemplar');
+    }
+
+    async function runBulkCostCenterApply() {
+        const other = bccDest === 'Souza Pinto' ? 'Exemplar' : 'Souza Pinto';
+        if (bccScope === 'all') {
+            if (!confirm('Colocar TODOS os colaboradores em ' + bccDest + '?')) return;
+            try {
+                const formData = new FormData();
+                formData.append('center', bccDest);
+                const res = await fetch('/api/employees/bulk-cost-center-all', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (res.ok && data.success) { alert(data.message); document.getElementById('bulk-cost-center-modal').classList.add('hidden'); location.reload(); }
+                else { alert('Erro: ' + (data.error || 'Desconhecido')); }
+            } catch (e) { console.error(e); alert('Erro de conexão.'); }
+        } else if (bccScope === 'roles') {
+            const checkboxes = document.querySelectorAll('input[name="cost_center_role"]:checked');
+            const roles = Array.from(checkboxes).map(cb => cb.value);
+            if (roles.length === 0) { alert('Selecione pelo menos uma função.'); return; }
+            if (!confirm('Funções selecionadas → ' + bccDest + '. Demais → ' + other + '. Continuar?')) return;
+            try {
+                const res = await fetch('/api/employees/bulk-cost-center', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ selected_roles: roles, selected_center: bccDest, others_center: other })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) { alert(data.message); document.getElementById('bulk-cost-center-modal').classList.add('hidden'); location.reload(); }
+                else { alert('Erro: ' + (data.error || 'Desconhecido')); }
+            } catch (e) { console.error(e); alert('Erro de conexão.'); }
+        } else {
+            const fileInput = document.getElementById('bulk-cost-center-file');
+            const file = fileInput?.files?.[0];
+            if (!file) { alert('Selecione o arquivo Excel (Fechamento de Ponto).'); return; }
+            if (!confirm('Colaboradores da planilha → ' + bccDest + '. Demais → ' + other + '. Continuar?')) return;
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('file_center', bccDest);
+                formData.append('others_center', other);
+                const res = await fetch('/api/employees/bulk-cost-center-from-file', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (res.ok && data.success) { alert(data.message); document.getElementById('bulk-cost-center-modal').classList.add('hidden'); fileInput.value = ''; location.reload(); }
+                else { alert('Erro: ' + (data.error || 'Desconhecido')); }
+            } catch (e) { console.error(e); alert('Erro de conexão.'); }
         }
     }
 

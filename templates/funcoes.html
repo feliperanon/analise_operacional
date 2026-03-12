@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-4 md:p-6 space-y-5">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-white">Cadastro de Funções (Cargos)</h1>
+                <p class="text-sm text-slate-400">Função, salário base e descrição do cargo</p>
+            </div>
+        </div>
+        <button type="button" onclick="document.getElementById('addCargoModal').classList.remove('hidden')"
+            class="h-10 px-5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-sm font-semibold transition shadow-lg flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            Nova Função
+        </button>
+    </div>
+
+    {% if request.query_params.get("success") %}
+    <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-center gap-3 text-emerald-200" role="alert">
+        <svg class="w-5 h-5 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+        <span>{{ request.query_params.get("success") }}</span>
+        <button onclick="this.parentElement.remove()" class="text-emerald-400 hover:text-white p-1 ml-auto"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+    </div>
+    {% endif %}
+    {% if request.query_params.get("error") %}
+    <div class="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center gap-3 text-red-200" role="alert">
+        <svg class="w-5 h-5 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <span>{{ request.query_params.get("error") }}</span>
+    </div>
+    {% endif %}
+
+    <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
+        <table class="w-full text-left text-sm text-slate-400">
+            <thead class="bg-slate-900/50 text-slate-200 font-medium border-b border-slate-700">
+                <tr>
+                    <th class="p-4 pl-6">Função</th>
+                    <th class="p-4">Salário Base</th>
+                    <th class="p-4">Descrição</th>
+                    <th class="p-4">Status</th>
+                    <th class="p-4 text-right">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-700">
+                {% for c in cargos %}
+                <tr class="hover:bg-white/5 transition-colors">
+                    <td class="p-4 pl-6 font-medium text-white">{{ c.nome }}</td>
+                    <td class="p-4">{% if c.salario_base is not none %}R$ {{ "%.2f"|format(c.salario_base)|replace(".", ",") }}{% else %}<span class="text-slate-500">—</span>{% endif %}</td>
+                    <td class="p-4 text-slate-300 max-w-xs truncate" title="{{ c.descricao or '' }}">{{ c.descricao or '—' }}</td>
+                    <td class="p-4"><span class="px-2 py-0.5 rounded-full text-xs {% if c.status == 'ATIVO' %}bg-emerald-500/10 text-emerald-400{% else %}bg-slate-600/50 text-slate-400{% endif %}">{{ c.status }}</span></td>
+                    <td class="p-4 text-right">
+                        <button type="button" onclick='openEditCargo({{ c.model_dump_json()|safe }})' class="p-1.5 hover:bg-slate-700 rounded text-yellow-400 transition-colors" title="Editar">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        </button>
+                        <form action="/funcoes/{{ c.id }}/delete" method="post" class="inline" onsubmit="return confirm('Excluir esta função?');">
+                            <button type="submit" class="p-1.5 hover:bg-slate-700 rounded text-red-400 transition-colors" title="Excluir">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="p-8 text-center text-slate-500">Nenhuma função cadastrada. <a href="#" onclick="document.getElementById('addCargoModal').classList.remove('hidden'); return false;" class="text-indigo-400 hover:underline">Cadastrar</a></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Adicionar -->
+<div id="addCargoModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div class="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 shadow-2xl">
+        <form action="/funcoes/add" method="post" class="p-6">
+            <h3 class="text-lg font-bold text-white mb-4">Nova Função</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Nome (padrão, maiúsculas)</label>
+                    <input type="text" name="nome" required placeholder="Ex: OPERADOR DE EMPILHADEIRA"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Salário Base (R$)</label>
+                    <input type="number" name="salario_base" step="0.01" min="0" placeholder="Ex: 1957.08"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Descrição da função</label>
+                    <textarea name="descricao" rows="3" placeholder="Responsabilidades principais..."
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500 resize-none"></textarea>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-2">
+                <button type="button" onclick="document.getElementById('addCargoModal').classList.add('hidden')" class="px-4 py-2 text-slate-300 hover:text-white">Cancelar</button>
+                <button type="submit" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium">Salvar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Editar -->
+<div id="editCargoModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div class="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 shadow-2xl">
+        <form id="editCargoForm" method="post" class="p-6">
+            <h3 class="text-lg font-bold text-white mb-4">Editar Função</h3>
+            <input type="hidden" name="id" id="editCargoId">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Nome</label>
+                    <input type="text" name="nome" id="editCargoNome" required
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Salário Base (R$)</label>
+                    <input type="number" name="salario_base" id="editCargoSalario" step="0.01" min="0"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Descrição</label>
+                    <textarea name="descricao" id="editCargoDescricao" rows="3"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500 resize-none"></textarea>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-2">
+                <button type="button" onclick="document.getElementById('editCargoModal').classList.add('hidden')" class="px-4 py-2 text-slate-300 hover:text-white">Cancelar</button>
+                <button type="submit" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium">Salvar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openEditCargo(c) {
+    document.getElementById('editCargoId').value = c.id;
+    document.getElementById('editCargoNome').value = c.nome || '';
+    document.getElementById('editCargoSalario').value = c.salario_base ?? '';
+    document.getElementById('editCargoDescricao').value = c.descricao || '';
+    document.getElementById('editCargoForm').action = '/funcoes/' + c.id + '/update';
+    document.getElementById('editCargoModal').classList.remove('hidden');
+}
+</script>
+{% endblock %}

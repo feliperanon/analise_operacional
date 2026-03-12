@@ -110,7 +110,7 @@ def import_souza_pinto(file_path: Path) -> dict:
             emp = models.Employee(
                 registration_id=reg,
                 name=(str(row.get(col_name, "Sem Nome")).strip() or "Sem Nome"),
-                role=(str(row.get(col_role, "Operador")).strip() or "Operador"),
+                role=((str(row.get(col_role, "Operador")).strip() or "Operador").upper()),
                 admission_date=admission,
                 birthday=birthday,
                 cost_center="Souza Pinto",

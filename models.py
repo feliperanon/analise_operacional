@@ -130,6 +130,17 @@ class SectorConfiguration(SQLModel, table=True):
     config_json: dict = Field(default={}, sa_column=Column(JSON))
     updated_at: datetime = Field(default_factory=datetime.now)
 
+class CargoMaster(SQLModel, table=True):
+    """Cadastro mestre de funções/cargos com salário e descrição."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    nome: str = Field(index=True)  # Nome padrão do cargo (maiúsculas, completo)
+    salario_base: Optional[float] = Field(default=None)  # Salário base
+    descricao: Optional[str] = Field(default=None)  # Descrição da função
+    status: str = Field(default="ATIVO", index=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+
 class Client(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True, unique=True)  # Nome principal (Razão Social ou Nome Fantasia)
