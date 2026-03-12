@@ -4946,7 +4946,9 @@ async def api_mobile_delivery_route_action(
             route.delivery_returned_at = now
         if not route.delivery_finished_at:
             route.delivery_finished_at = now
-        route.delivery_return_category = "MOBILE"
+        route.delivery_return_category = DELIVERY_RETURN_REASON_TO_CATEGORY.get(
+            payload.return_reason, "COMERCIAL"
+        )
         route.delivery_return_reason = payload.return_reason
         if payload.return_is_partial:
             w = float(payload.return_partial_weight or 0.0)
@@ -9219,6 +9221,9 @@ DELIVERY_RETURN_REASONS = {
     ],
 }
 DELIVERY_RETURN_REASONS_FLAT = [reason for reasons in DELIVERY_RETURN_REASONS.values() for reason in reasons]
+DELIVERY_RETURN_REASON_TO_CATEGORY = {
+    reason: category for category, reasons in DELIVERY_RETURN_REASONS.items() for reason in reasons
+}
 
 
 def _validate_delivery_assignment(
