@@ -25,21 +25,21 @@
     </div>
 
     <div class="surface p-4 mb-4">
-        <div class="grid grid-cols-3 gap-3 mb-4">
-            <div class="text-center p-3 rounded-lg border" style="background: var(--color-danger-bg); border-color: var(--color-danger);">
-                <p class="text-xs mb-1" style="color: var(--color-text-muted);">Total (R$)</p>
-                <p id="totalReturnValue" class="text-xl font-bold" style="color: var(--color-danger);">R$ 0,00</p>
+        <div class="grid grid-cols-3 gap-2 mb-4">
+            <div class="text-center p-2 rounded-lg border min-w-0" style="background: var(--color-danger-bg); border-color: var(--color-danger);">
+                <p class="text-[10px] mb-0.5 truncate" style="color: var(--color-text-muted);">Total (R$)</p>
+                <p id="totalReturnValue" class="text-sm font-bold leading-tight" style="color: var(--color-danger);">R$ 0,00</p>
             </div>
-            <div class="text-center p-3 rounded-lg border relative" style="background: var(--color-warning-bg); border-color: var(--color-warning);">
-                <p class="text-xs mb-1" style="color: var(--color-text-muted);">% Devolvido</p>
-                <p id="totalReturnPercent" class="text-xl font-bold" style="color: var(--color-warning);">0%</p>
-                <button type="button" id="btnHelpDevolucao" class="absolute top-2 right-2 touch-target-icon rounded-full p-1" style="color: var(--color-text-muted);" title="Como funciona">
-                    <i data-lucide="help-circle" class="w-4 h-4"></i>
+            <div class="text-center p-2 rounded-lg border relative min-w-0" style="background: var(--color-warning-bg); border-color: var(--color-warning);">
+                <p class="text-[10px] mb-0.5 truncate" style="color: var(--color-text-muted);">% Devolvido</p>
+                <p id="totalReturnPercent" class="text-sm font-bold leading-tight" style="color: var(--color-warning);">0%</p>
+                <button type="button" id="btnHelpDevolucao" class="absolute top-1 right-1 touch-target-icon rounded-full p-0.5" style="color: var(--color-text-muted);" title="Como funciona">
+                    <i data-lucide="help-circle" class="w-3.5 h-3.5"></i>
                 </button>
             </div>
-            <div class="text-center p-3 rounded-lg border" style="background: var(--color-success-bg); border-color: var(--color-success);">
-                <p class="text-xs mb-1" style="color: var(--color-text-muted);">Prêmio Devolução</p>
-                <p id="premioDevolucao" class="text-xl font-bold" style="color: var(--color-success);">R$ 0,00</p>
+            <div class="text-center p-2 rounded-lg border min-w-0" style="background: var(--color-success-bg); border-color: var(--color-success);">
+                <p class="text-[10px] mb-0.5 truncate" style="color: var(--color-text-muted);">Prêmio Dev.</p>
+                <p id="premioDevolucao" class="text-sm font-bold leading-tight" style="color: var(--color-success);">R$ 0,00</p>
             </div>
         </div>
         <div class="h-64 w-full" style="color: #ffffff;">
@@ -56,7 +56,8 @@
                         </button>
                     </div>
                     <p id="cargaDescargaWeekLabel" class="text-xs font-medium" style="color: var(--color-primary);">—</p>
-                    <p id="cargaDescargaStatus" class="text-caption mt-0.5" style="color: var(--color-text-muted);"><span id="cargaDescargaCount">0</span> carga(s)</p>
+                    <p id="cargaDescargaStatus" class="text-caption mt-0.5" style="color: var(--color-text-muted);"><span id="cargaDescargaCount">0</span> recarga(s)</p>
+                    <p class="text-[10px] mt-0.5" style="color: var(--color-text-muted);">peso &gt;2.500 kg ou vol. &gt;250</p>
                 </div>
                 <span id="cargaDescargaValor" class="text-xl font-bold shrink-0" style="color: var(--color-success);">R$ 0,00</span>
             </div>
@@ -232,7 +233,7 @@
                             const vl = Number(d.value) || 0;
                             return `<div class="flex justify-between items-center py-1 border-b border-slate-700/40 last:border-0">
                                 <span style="color: var(--color-text-muted);">${d.date_label || d.date}</span>
-                                <span style="color: var(--color-success);">${d.count} carga(s) — R$ ${vl.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                <span style="color: var(--color-success);">${d.count} recarga(s) — R$ ${vl.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                             </div>`;
                         }).join('');
                     }
