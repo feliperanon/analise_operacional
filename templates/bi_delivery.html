@@ -475,6 +475,7 @@
   const trendMa30 = (trend.ma30 || []).map(toChartNum);
   const trendMeta2Pct = (trend.meta_2pct || []).map(toChartNum);
   const trendLastMonth = (trend.last_month_valor || []).map(toChartNum);
+  const trendTotalValor = trendValor.reduce((s, v) => s + (Number(v) || 0), 0) || 1;
   safeChart('trendChart', {
     type: 'line',
     data: {
@@ -490,7 +491,21 @@
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { labels: { color: cMuted } } },
+      plugins: {
+        legend: { labels: { color: cMuted } },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              if (ctx.dataset.yAxisID === 'y1') {
+                const v = Number(ctx.raw || 0);
+                const pct = trendTotalValor > 0 ? ((v / trendTotalValor) * 100).toFixed(1).replace('.', ',') : '0';
+                return `${ctx.dataset.label}: ${Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} (${pct}% do período)`;
+              }
+              return ctx.dataset.label + ': ' + (Number(ctx.raw || 0)).toLocaleString('pt-BR');
+            }
+          }
+        }
+      },
       scales: {
         x: { type: 'category', display: true, ticks: { color: cMuted }, grid: { color: cBorder } },
         y: { type: 'linear', display: true, position: 'left', beginAtZero: true, ticks: { color: cMuted }, grid: { color: cBorder } },
@@ -634,6 +649,9 @@
 
   const dr = (chartData && chartData.driver_resp_valor) ? chartData.driver_resp_valor : {};
   const respColors = [cPrimary, cWarn, cDanger, cSuccess];
+  const drTotalValor = (dr.datasets || []).reduce((s, ds) => {
+    return s + (Array.isArray(ds.data) ? ds.data.reduce((a, v) => a + (Number(v) || 0), 0) : 0);
+  }, 0) || 1;
   safeChart('driverRespChart', {
     type: 'bar',
     data: {
@@ -652,6 +670,12 @@
         legend: { labels: { color: cMuted } },
         tooltip: {
           callbacks: {
+            label: (ctx) => {
+              const v = Number(ctx.raw || 0);
+              if (v === 0) return ctx.dataset.label + ': R$ 0,00';
+              const pct = ((v / drTotalValor) * 100).toFixed(1).replace('.', ',');
+              return ctx.dataset.label + ': ' + Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) + ' (' + pct + '% do total)';
+            },
             afterBody: (items) => {
               const idx = items[0]?.dataIndex;
               if (idx == null || !dr.pct_devolucao_valor) return '';

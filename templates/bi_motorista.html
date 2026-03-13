@@ -461,7 +461,12 @@
         tooltip: {
           callbacks: {
             label: (ctx) => {
-              if (ctx.dataset.yAxisID === 'y1') return ctx.dataset.label + ': ' + moedaBR(ctx.raw);
+              if (ctx.dataset.yAxisID === 'y1') {
+                const v = Number(ctx.raw || 0);
+                const totalValor = diaValor.reduce((s, x) => s + (Number(x) || 0), 0) || 1;
+                const pct = ((v / totalValor) * 100).toFixed(1).replace('.', ',');
+                return ctx.dataset.label + ': ' + moedaBR(v) + ' (' + pct + '% do total)';
+              }
               return ctx.dataset.label + ': ' + (Number(ctx.raw) || 0);
             }
           }
@@ -503,7 +508,14 @@
             label: (ctx) => {
               const v = Number(ctx.raw) || 0;
               if (v === 0) return null;
-              return ctx.dataset.label + ': ' + moedaBR(v);
+              const motivoIdx = ctx.dataIndex;
+              const m = md[motivoIdx];
+              let totalMotivo = 0;
+              if (m && m.por_motorista) {
+                for (const d of Object.values(m.por_motorista)) totalMotivo += Number(d?.valor || 0) || 0;
+              }
+              const pct = totalMotivo > 0 ? ((v / totalMotivo) * 100).toFixed(1).replace('.', ',') : '0';
+              return ctx.dataset.label + ': ' + moedaBR(v) + ' (' + pct + '% do motivo)';
             }
           }
         }
