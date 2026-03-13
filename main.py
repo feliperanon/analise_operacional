@@ -11687,12 +11687,11 @@ async def update_separacao(
         if employee_id is not None: route.employee_id = employee_id
         if client_id is not None: route.client_id = client_id
         if start_time is not None: route.start_time = start_time
-        if end_time is not None: route.end_time = end_time
+        # end_time só vem do mobile; edição via web não cria horário
         if tonnage is not None: route.tonnage = tonnage
         
-        # Check for completion (XP Gain)
-        # Assuming pending -> completed when end_time is present
-        if end_time and route.start_time and tonnage and tonnage > 0:
+        # Check for completion (XP Gain) - usa end_time já existente (do mobile), não do form
+        if route.end_time and route.start_time and tonnage and tonnage > 0:
              route.status = "completed"
              
              # Determine XP Gain (Only if it wasn't already credited? Simplistic: just add)
