@@ -337,6 +337,11 @@ class Route(SQLModel, table=True):
     delivery_time_log: Optional[str] = None  # JSON array com histórico de status/horários
     delivery_reopen_count: Optional[int] = 0
     delivery_helpers_json: Optional[str] = None  # JSON list de employee_id (ajudantes)
+    # Coordenadas GPS do motorista no momento da ação (capturadas pelo app mobile)
+    driver_lat_start: Optional[float] = None   # ao iniciar entrega
+    driver_lon_start: Optional[float] = None
+    driver_lat_end: Optional[float] = None    # ao finalizar (entregue) ou devolver
+    driver_lon_end: Optional[float] = None
     status: str = "pending" # pending, completed
     created_at: datetime = Field(default_factory=datetime.now)
 

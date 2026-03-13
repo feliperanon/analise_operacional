@@ -632,6 +632,24 @@
         </div>
     </div>
     </template>
+
+    <!-- Modal: Comunicado de devolução -->
+    <template x-teleport="body">
+    <div x-show="showReturnNoticeModal" class="delivery-modal-overlay" x-cloak @click.self="closeReturnNotice()">
+        <div @click.stop class="delivery-modal-card w-full max-w-sm rounded-2xl p-5" style="background: linear-gradient(180deg, rgba(127, 29, 29, 0.98) 0%, rgba(69, 10, 10, 0.98) 100%); box-shadow: var(--shadow-modal); border: 1px solid rgba(248, 113, 113, 0.45);">
+            <div class="flex flex-col items-center text-center">
+                <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style="background: rgba(255,255,255,0.12); color: #fecaca;">
+                    <i data-lucide="triangle-alert" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-title mb-2 text-white" x-text="returnNotice.title || 'Devolução registrada'"></h3>
+                <p class="text-body leading-relaxed mb-5" style="color: rgba(254, 226, 226, 0.96);" x-text="returnNotice.message || ''"></p>
+                <button @click="closeReturnNotice()" class="w-full py-3 rounded-xl font-semibold text-body interactive" style="background: #fecaca; color: #7f1d1d;">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+    </template>
 </div>
 {% endblock %}
 
@@ -716,8 +734,10 @@
             showDeliverySetupModal: false,
             showDeliveryEndModal: false,
             showMobileReturnModal: false,
+            showReturnNoticeModal: false,
             deliverySetupError: '',
             deliveryEndKm: '',
+            returnNotice: { title: '', message: '' },
             mobileReturnRoute: null,
             mobileReturnReasons: [],
             mobileReturn: {
@@ -1131,7 +1151,12 @@
             deliveryAction(route, action) {
                 if (this.actionLoading) return;
                 this.actionLoading = true;
-                fetch(`/api/mobile/delivery/route/${route.id}/action`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) })
+                const payload = { action };
+                if (this.currentLatitude != null && this.currentLongitude != null) {
+                    payload.latitude = this.currentLatitude;
+                    payload.longitude = this.currentLongitude;
+                }
+                fetch(`/api/mobile/delivery/route/${route.id}/action`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
                     .then(r => r.json()).then(data => {
                         this.actionLoading = false;
                         if (!data.success) return alert(data.error || 'Erro.');
@@ -1176,6 +1201,8 @@
                 this.actionLoading = true;
                 const payload = {
                     action: 'devolucao',
+                    latitude: this.currentLatitude != null ? this.currentLatitude : undefined,
+                    longitude: this.currentLongitude != null ? this.currentLongitude : undefined,
                     return_reason: this.mobileReturn.reason,
                     return_is_partial: !!this.mobileReturn.is_partial,
                     return_partial_weight: this.mobileReturn.is_partial ? Number(this.mobileReturn.weight || 0) : null,
@@ -1194,9 +1221,19 @@
                     this.showMobileReturnModal = false; this.mobileReturnRoute = null;
                     this.loadDeliveryData();
                     this.haptic('medium');
-                    this.showDeliveryFeedback('😢 Que pena que essa devolução aconteceu. Já tentou falar com o comercial?', 'sad');
-                    this.$nextTick(() => lucide.createIcons());
+                    this.openReturnNotice('Que pena que essa devolução aconteceu. Já tentou falar com o comercial?');
                 }).catch(() => { this.actionLoading = false; });
+            },
+            openReturnNotice(message, title = 'Devolução registrada') {
+                this.returnNotice = {
+                    title: title || 'Devolução registrada',
+                    message: message || '',
+                };
+                this.showReturnNoticeModal = true;
+                this.$nextTick(() => lucide.createIcons && lucide.createIcons());
+            },
+            closeReturnNotice() {
+                this.showReturnNoticeModal = false;
             },
             playSuccessSound() {
                 try {

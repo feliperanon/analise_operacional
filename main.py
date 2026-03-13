@@ -4196,6 +4196,8 @@ class MobileDeliverySessionUpdatePayload(BaseModel):
 
 class MobileDeliveryActionPayload(BaseModel):
     action: str
+    latitude: Optional[float] = None   # GPS do motorista no momento da ação
+    longitude: Optional[float] = None
     return_reason: Optional[str] = None
     return_is_partial: bool = False
     return_partial_weight: Optional[float] = None
@@ -4363,6 +4365,10 @@ def ensure_route_schema():
             "delivery_time_log": "TEXT",
             "delivery_reopen_count": "INTEGER DEFAULT 0",
             "delivery_helpers_json": "TEXT",
+            "driver_lat_start": "REAL",
+            "driver_lon_start": "REAL",
+            "driver_lat_end": "REAL",
+            "driver_lon_end": "REAL",
         }
         with engine.connect() as conn:
             for col_name, col_type in missing.items():
@@ -4916,6 +4922,9 @@ async def api_mobile_delivery_route_action(
         route.start_time = now
         if not route.delivery_started_at:
             route.delivery_started_at = now
+        if payload.latitude is not None and payload.longitude is not None:
+            route.driver_lat_start = payload.latitude
+            route.driver_lon_start = payload.longitude
         _append_delivery_event(route, "iniciar", now)
 
     elif action == "finalizar":
@@ -4926,6 +4935,9 @@ async def api_mobile_delivery_route_action(
         route.end_time = now
         if not route.delivery_finished_at:
             route.delivery_finished_at = now
+        if payload.latitude is not None and payload.longitude is not None:
+            route.driver_lat_end = payload.latitude
+            route.driver_lon_end = payload.longitude
         route.delivery_return_category = None
         route.delivery_return_reason = None
         route.delivery_notified_commercial = None
@@ -4980,6 +4992,9 @@ async def api_mobile_delivery_route_action(
             payload.return_reason, "COMERCIAL"
         )
         route.delivery_return_reason = payload.return_reason
+        if payload.latitude is not None and payload.longitude is not None:
+            route.driver_lat_end = payload.latitude
+            route.driver_lon_end = payload.longitude
         route.delivery_notified_commercial = bool(payload.return_notified_commercial)
         route.delivery_notified_commercial_name = commercial_name if payload.return_notified_commercial else None
         route.delivery_notified_logistics = bool(payload.return_notified_logistics)
@@ -9194,6 +9209,18 @@ def _maps_link(address: Optional[str], bairro: Optional[str], cidade: Optional[s
     return "https://www.google.com/maps/search/?api=1&query=" + urlencode({"": " ".join(parts)})[1:]
 
 
+def _maps_link_coords(lat: Optional[float], lon: Optional[float]) -> Optional[str]:
+    """Retorna link Google Maps para coordenadas, ou None se inválidas."""
+    if lat is None or lon is None:
+        return None
+    try:
+        if -90 <= float(lat) <= 90 and -180 <= float(lon) <= 180:
+            return f"https://www.google.com/maps?q={lat},{lon}"
+    except (TypeError, ValueError):
+        pass
+    return None
+
+
 def _parse_session_helpers(helpers_json: Optional[str]) -> List[str]:
     """Parse helpers_json da sessão para lista de nomes."""
     if not helpers_json:
@@ -10005,6 +10032,14 @@ async def separacao_page(
                 route.delivery_city,
                 route.delivery_state,
                 route.delivery_cep,
+            ),
+            "maps_url_start": _maps_link_coords(
+                getattr(route, "driver_lat_start", None),
+                getattr(route, "driver_lon_start", None),
+            ),
+            "maps_url_end": _maps_link_coords(
+                getattr(route, "driver_lat_end", None),
+                getattr(route, "driver_lon_end", None),
             ),
             "helper_ids": helper_ids,
             "helper_names": helper_names,
