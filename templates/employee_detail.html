@@ -6,10 +6,10 @@
     <div class="flex items-center gap-6 bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg">
         <div
             class="w-24 h-24 rounded-full bg-slate-700 flex items-center justify-center text-3xl font-bold text-white uppercase border-4 border-slate-600">
-            {{ emp.name[:2] }}
+            {{ (emp.name or '')[:2]|upper }}
         </div>
         <div>
-            <h1 class="text-3xl font-bold text-white mb-2">{{ emp.name }}</h1>
+            <h1 class="text-3xl font-bold text-white mb-2">{{ emp.name|emp_name }}</h1>
             <div class="flex flex-wrap gap-3 text-sm text-slate-400">
                 <span class="flex items-center gap-1 bg-slate-900/50 px-3 py-1 rounded-full border border-slate-700">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -715,7 +715,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-xs font-medium text-slate-400 mb-1">Nome</label>
-                                <input type="text" name="name" value="{{ emp.name }}" required
+                                <input type="text" name="name" value="{{ emp.name|emp_name }}" required
                                     class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 outline-none">
                             </div>
                             <div>
@@ -1238,7 +1238,7 @@
         const employeeData = {
             id: {{ emp.id }},
         registration_id: "{{ emp.registration_id }}",
-            name: "{{ emp.name|replace('"', '\\"') }}",
+            name: "{{ (emp.name|emp_name)|replace('"', '\\"') }}",
                 role: "{{ emp.role|replace('"', '\\"') }}",
                     shift: "{{ emp.work_shift or 'Manhã' }}",
                         status: "{{ emp.status }}"

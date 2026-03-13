@@ -31,7 +31,7 @@
                         class="w-full rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
                         <option value="">Colaborador...</option>
                         {% for e in employees %}
-                        <option value="{{ e.id }}">{{ e.name }} ({{ e.registration_id }})</option>
+                        <option value="{{ e.id }}">{{ e.name|emp_name }} ({{ e.registration_id }})</option>
                         {% endfor %}
                     </select>
                     <select name="role"
@@ -82,7 +82,7 @@
                                     <span class="text-white font-medium" title="{{ u.username }}">{{ u.username }}</span>
                                     {% if u.google_sub %}<span class="ml-2 text-[10px] text-emerald-400">Google</span>{% endif %}
                                 </td>
-                                <td class="py-3 px-4 text-slate-300" title="{{ emp.name if emp else '-' }}">{{ emp.name if emp else '—' }}</td>
+                                <td class="py-3 px-4 text-slate-300" title="{{ emp.name|emp_name if emp else '-' }}">{{ emp.name|emp_name if emp else '—' }}</td>
                                 <td class="py-3 px-4">
                                     <span class="text-xs px-2 py-0.5 rounded whitespace-nowrap {{ 'bg-amber-500/20 text-amber-300' if u.role == 'admin' else 'bg-slate-600/60 text-slate-300' }}">{{ 'Admin' if u.role == 'admin' else 'Líder' }}</span>
                                 </td>

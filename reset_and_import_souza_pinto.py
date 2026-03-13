@@ -107,9 +107,10 @@ def import_souza_pinto(file_path: Path) -> dict:
                 if pd.notna(dt):
                     birthday = dt.to_pydatetime()
 
+            name_raw = (str(row.get(col_name, "Sem Nome")).strip() or "Sem Nome")
             emp = models.Employee(
                 registration_id=reg,
-                name=(str(row.get(col_name, "Sem Nome")).strip() or "Sem Nome"),
+                name=name_raw.upper(),
                 role=((str(row.get(col_role, "Operador")).strip() or "Operador").upper()),
                 admission_date=admission,
                 birthday=birthday,

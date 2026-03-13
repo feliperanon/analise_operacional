@@ -83,7 +83,7 @@
                         {% for e in employees %}
                         <label class="flex items-center gap-2 cursor-pointer hover:bg-slate-700/30 rounded px-2 py-1">
                             <input type="checkbox" name="recipient" value="{{ e.id }}" class="rounded border-slate-600 text-blue-600 focus:ring-blue-500">
-                            <span class="text-sm text-white">{{ e.name }}</span>
+                            <span class="text-sm text-white">{{ e.name|emp_name }}</span>
                         </label>
                         {% endfor %}
                     </div>

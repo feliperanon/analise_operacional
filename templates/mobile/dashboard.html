@@ -57,14 +57,14 @@
                         <div class="relative flex-shrink-0">
                             <div class="w-12 h-12 rounded-xl overflow-hidden ring-2 ring-white/30 shadow-lg" style="background: var(--color-primary);">
                                 <img src="{{ url_for('static', path='badges/' + gamification.level.badge_image) }}"
-                                    onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name }}&background=1e3a8a&color=fff'"
+                                    onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name|emp_name }}&background=1e3a8a&color=fff'"
                                     class="w-full h-full object-cover" alt="">
                             </div>
                             <span class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-semibold text-white border-2 border-white shadow" style="background: var(--color-primary);">{{ gamification.level.level }}</span>
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2">
-                                <h1 class="text-title truncate text-white">{{ employee.name }}</h1>
+                                <h1 class="text-title truncate text-white">{{ employee.name|emp_name }}</h1>
                                 {% if streak_days and streak_days > 0 %}
                                 <span class="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/90 text-amber-900" title="{{ streak_days }} dias seguidos">
                                     <i data-lucide="flame" class="w-3 h-3"></i>{{ streak_days }}
@@ -388,7 +388,7 @@
                                 class="w-full text-left p-3 rounded-lg flex items-center justify-between transition-colors"
                                 :style="adminStartForm.registrationId === emp.registration_id ? 'background: var(--color-primary-bg); border: 2px solid var(--color-primary);' : ''">
                                 <div>
-                                    <p class="text-body font-medium" x-text="emp.name" :style="adminStartForm.registrationId === emp.registration_id ? 'color: var(--color-primary);' : 'color: var(--color-text);'"></p>
+                                    <p class="text-body font-medium" x-text="(emp.name || '').toUpperCase()" :style="adminStartForm.registrationId === emp.registration_id ? 'color: var(--color-primary);' : 'color: var(--color-text);'"></p>
                                     <p class="text-caption" x-text="emp.registration_id"></p>
                                 </div>
                                 <i data-lucide="check" class="w-4 h-4" x-show="adminStartForm.registrationId === emp.registration_id" style="color: var(--color-primary);"></i>
@@ -569,7 +569,7 @@
                 <div x-show="filteredHelperOptions.length > 0" class="mt-2 max-h-36 overflow-y-auto rounded-lg z-10" style="border: 1px solid var(--color-border); background: var(--color-surface-solid);">
                     <template x-for="emp in filteredHelperOptions" :key="`helper-suggest-${emp.id}`">
                         <button type="button" @click="selectDeliveryHelperName(emp.name)" class="w-full text-left px-3 py-2.5 text-body min-h-[48px] transition-colors" style="color: var(--color-text-body);">
-                            <span x-text="emp.name"></span>
+                            <span x-text="(emp.name || '').toUpperCase()"></span>
                         </button>
                     </template>
                 </div>

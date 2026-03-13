@@ -784,7 +784,7 @@ const Render = {
 
                 <div class="flex-1 min-w-0">
 
-                    <p class="text-sm font-bold text-white truncate leading-tight">${employee.name}</p>
+                    <p class="text-sm font-bold text-white truncate leading-tight">${(employee.name || '').toUpperCase()}</p>
 
                     <p class="text-[11px] text-${statusColor}-400 font-medium truncate mt-0.5 flex items-center gap-1">
 
@@ -934,7 +934,7 @@ const Render = {
 
                     <div>
 
-                        <h3 id="sheet-title" class="text-base font-bold text-white leading-tight">${employee.name}</h3>
+                        <h3 id="sheet-title" class="text-base font-bold text-white leading-tight">${(employee.name || '').toUpperCase()}</h3>
 
                         <p class="text-xs text-slate-400">${employee.role || 'Colaborador'}</p>
 
@@ -1193,7 +1193,7 @@ const Render = {
 
                         <h3 id="sheet-title" class="text-base font-bold text-white leading-tight">Registrar ${label}</h3>
 
-                        <p class="text-xs text-slate-400">Para: ${employee ? employee.name : 'Colaborador'}</p>
+                        <p class="text-xs text-slate-400">Para: ${employee ? (employee.name || '').toUpperCase() : 'Colaborador'}</p>
 
                     </div>
 

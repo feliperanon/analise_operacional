@@ -298,7 +298,7 @@
                 {% for item in report_data %}
                 <tr class="employee-row">
                     <td>
-                        <strong>{{ item.employee.name }}</strong><br>
+                        <strong>{{ item.employee.name|emp_name }}</strong><br>
                         <span style="font-size: 9px; color: #64748b;">#{{ item.employee.registration_id }} - {{ item.employee.role or '-' }}</span>
                     </td>
                     <td class="text-center">

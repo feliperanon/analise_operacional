@@ -295,7 +295,7 @@ const SectorManagement = {
 
                 <!--Info -->
                 <div class="flex-1 min-w-0">
-                    <p class="text-sm font-bold text-white truncate leading-tight">${emp.name}</p>
+                    <p class="text-sm font-bold text-white truncate leading-tight">${(emp.name || '').toUpperCase()}</p>
                     <p class="text-[11px] text-${statusColor}-400 font-medium truncate mt-0.5 flex items-center gap-1">
                         <span class="w-1.5 h-1.5 rounded-full bg-${statusColor}-500 animate-pulse"></span>
                         ${statusText}
@@ -657,7 +657,7 @@ const SectorManagement = {
                 <div class="absolute inset-0 bg-black/50" onclick="document.getElementById('vacation-modal').remove()"></div>
                 <div class="relative bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-md">
                     <h3 class="text-lg font-bold text-white mb-4">🏖️ Definir Férias</h3>
-                    <p class="text-sm text-slate-300 mb-4">${employee.name}</p>
+                    <p class="text-sm text-slate-300 mb-4">${(employee.name || '').toUpperCase()}</p>
                     
                     <div class="space-y-4">
                         <div>

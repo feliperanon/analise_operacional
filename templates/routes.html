@@ -356,7 +356,7 @@
                                         </label>
                                         <select name="new_employee_id" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-2 text-xs text-slate-200 focus:ring-1 focus:ring-sky-500/50 focus:border-sky-500/50 outline-none">
                                             {% for emp in delivery_employees %}
-                                            <option value="{{ emp.id }}" {% if emp.id == group.employee_id %}selected{% endif %}>{{ emp.name }}</option>
+                                            <option value="{{ emp.id }}" {% if emp.id == group.employee_id %}selected{% endif %}>{{ emp.name|emp_name }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -639,7 +639,7 @@
                 <select name="employee_id" id="edit-employee-id" required
                     class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none">
                     {% for emp in employees %}
-                    <option value="{{ emp.id }}">{{ emp.name }}</option>
+                    <option value="{{ emp.id }}">{{ emp.name|emp_name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -763,7 +763,7 @@
                     <select name="new_employee_id" id="move-employee-id" required
                         class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-1 focus:ring-violet-500 outline-none">
                         {% for emp in delivery_employees %}
-                        <option value="{{ emp.id }}">{{ emp.name }}</option>
+                        <option value="{{ emp.id }}">{{ emp.name|emp_name }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -1098,7 +1098,7 @@
 
     const deliveryHelperEmployees = [
         {% for emp in delivery_employees %}
-        { id: {{ emp.id }}, name: {{ emp.name|tojson }} }{% if not loop.last %},{% endif %}
+        { id: {{ emp.id }}, name: {{ (emp.name|emp_name)|tojson }} }{% if not loop.last %},{% endif %}
         {% endfor %}
     ];
 

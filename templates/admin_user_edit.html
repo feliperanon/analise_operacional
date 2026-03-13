@@ -12,7 +12,7 @@
         <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
             <div class="px-6 py-4 border-b border-slate-700">
                 <h1 class="text-lg font-bold text-white">{{ u.username }}</h1>
-                <p class="text-sm text-slate-400">{{ emp.name if emp else 'Sem colaborador' }}{% if emp %} ({{ emp.registration_id }}){% endif %}</p>
+                <p class="text-sm text-slate-400">{{ emp.name|emp_name if emp else 'Sem colaborador' }}{% if emp %} ({{ emp.registration_id }}){% endif %}</p>
             </div>
 
             <div class="p-6 space-y-6">
@@ -23,7 +23,7 @@
                         <select name="employee_id" class="flex-1 rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
                             <option value="">Selecione...</option>
                             {% for e in employees %}
-                            <option value="{{ e.id }}" {{ "selected" if u.employee_id == e.id else "" }}>{{ e.name }} ({{ e.registration_id }})</option>
+                            <option value="{{ e.id }}" {{ "selected" if u.employee_id == e.id else "" }}>{{ e.name|emp_name }} ({{ e.registration_id }})</option>
                             {% endfor %}
                         </select>
                         <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">Salvar</button>

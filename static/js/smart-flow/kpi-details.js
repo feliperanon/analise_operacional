@@ -139,7 +139,7 @@ const KPIDetails = {
                                 <div class="bg-slate-900 rounded-lg p-4 border border-slate-700 hover:border-${color}-500 transition">
                                     <div class="flex items-center justify-between">
                                         <div class="flex-1">
-                                            <p class="text-sm font-bold text-white">${emp.name}</p>
+                                            <p class="text-sm font-bold text-white">${(emp.name || '').toUpperCase()}</p>
                                             <p class="text-xs text-slate-400">${emp.role || 'Sem cargo'} • ID: ${emp.id}</p>
                                         </div>
                                         <div class="text-right">
@@ -288,7 +288,7 @@ const KPIDetails = {
                         <div class="bg-slate-800 rounded-lg p-3 border border-slate-700 hover:border-${color}-500 transition">
                             <div class="flex items-center justify-between">
                                 <div class="flex-1">
-                                    <p class="text-xs font-bold text-white">${emp.name}</p>
+                                    <p class="text-xs font-bold text-white">${(emp.name || '').toUpperCase()}</p>
                                     <p class="text-[10px] text-slate-400">${emp.role || 'Sem cargo'} • ID: ${emp.id}</p>
                                 </div>
                             </div>

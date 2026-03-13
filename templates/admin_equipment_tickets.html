@@ -119,7 +119,7 @@
                 <tr class="hover:bg-slate-700/30 transition-colors">
                     <td class="py-3 pr-4 text-xs font-mono text-slate-400">{{ row.created_at_br }}</td>
                     <td class="py-3 pr-4 font-bold text-white">{{ row.ticket.equipment_code }}</td>
-                    <td class="py-3 pr-4 text-xs text-slate-300">{{ row.employee.name if row.employee else '-' }}</td>
+                    <td class="py-3 pr-4 text-xs text-slate-300">{{ row.employee.name|emp_name if row.employee else '-' }}</td>
                     <td class="py-3 pr-4 text-xs">{{ row.ticket.shift or '-' }}</td>
                     <td class="py-3 pr-4">
                         <span

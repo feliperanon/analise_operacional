@@ -1,5 +1,6 @@
 from datetime import datetime, time
 from typing import Optional, List
+from pydantic import field_validator
 from sqlmodel import Field, SQLModel, Relationship
 
 class Shift(SQLModel, table=True):
@@ -24,6 +25,14 @@ class Employee(SQLModel, table=True):
     registration_id: str = Field(index=True, unique=True) # Matrícula
     seller_code: Optional[str] = Field(default=None, index=True) # Código do vendedor
     name: str
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def name_uppercase(cls, v: str) -> str:
+        if isinstance(v, str):
+            return (v or "").strip().upper()
+        return v
+
     admission_date: Optional[datetime] = None
     cost_center: Optional[str] = None
     role: str # Cargo

@@ -70,7 +70,7 @@
                 class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none transition-colors">
                 <option value="">Todos</option>
                 {% for e in employees %}
-                <option value="{{ e.id }}" {{ "selected" if filters.employee_id==e.id else "" }}>{{ e.name }}</option>
+                <option value="{{ e.id }}" {{ "selected" if filters.employee_id==e.id else "" }}>{{ e.name|emp_name }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -174,7 +174,7 @@
                                     row.checklist.shift }}</span>
                             </td>
                             <td class="py-3 pr-4">
-                                <div class="font-medium text-white">{{ row.employee.name }}</div>
+                                <div class="font-medium text-white">{{ row.employee.name|emp_name }}</div>
                             </td>
                             <td class="py-3 pr-4 text-center">
                                 <div class="flex flex-col items-center">

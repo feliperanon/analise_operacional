@@ -63,7 +63,7 @@
                         </span>
                         <span class="text-sm font-semibold text-white">{{ item.date_br }}</span>
                     </div>
-                    <span class="text-xs text-slate-400">{{ item.employee.name }}</span>
+                    <span class="text-xs text-slate-400">{{ item.employee.name|emp_name }}</span>
                 </div>
 
                 {% if item.type == 'checklist' %}

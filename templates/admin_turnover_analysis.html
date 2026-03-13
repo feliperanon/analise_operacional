@@ -461,7 +461,7 @@
                                         <span class="text-xs font-bold text-red-400">{{ emp.name[:2].upper() }}</span>
                                     </div>
                                     <div>
-                                        <div class="text-white font-medium">{{ emp.name }}</div>
+                                        <div class="text-white font-medium">{{ emp.name|emp_name }}</div>
                                         <div class="text-xs text-slate-500">{{ emp.registration_id }}</div>
                                     </div>
                                 </div>
@@ -569,7 +569,7 @@
                                     <span class="text-xs font-bold text-orange-400">{{ emp.name[:2].upper() }}</span>
                                 </div>
                                 <div class="min-w-0">
-                                    <p class="text-sm text-white font-medium truncate">{{ emp.name }}</p>
+                                    <p class="text-sm text-white font-medium truncate">{{ emp.name|emp_name }}</p>
                                     <p class="text-[10px] text-slate-500">{{ emp.registration_id }} • {{ emp.role }}</p>
                                 </div>
                             </div>

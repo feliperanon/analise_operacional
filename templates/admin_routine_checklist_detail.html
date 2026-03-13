@@ -55,7 +55,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <p class="text-xs text-slate-400">Colaborador</p>
-                        <p class="text-sm font-semibold text-white">{{ employee_name or (employee.name if employee else 'Desconhecido') }}</p>
+                        <p class="text-sm font-semibold text-white">{{ employee_name or (employee.name|emp_name if employee else 'Desconhecido') }}</p>
                         <p class="text-xs text-slate-500">{{ employee_registration_id or (employee.registration_id if employee else '-') }}</p>
                     </div>
                     <div>

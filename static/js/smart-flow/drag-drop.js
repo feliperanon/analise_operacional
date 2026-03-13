@@ -106,7 +106,7 @@ function renderPool(filter = 'all') {
                     ${emp.name.charAt(0)}
                 </div>
                 <div class="overflow-hidden">
-                    <p class="text-xs font-medium text-slate-200 truncate leading-tight" title="${emp.name}">${emp.name}</p>
+                    <p class="text-xs font-medium text-slate-200 truncate leading-tight" title="${(emp.name || '').toUpperCase()}">${(emp.name || '').toUpperCase()}</p>
                     <p class="text-[9px] text-slate-500 truncate">${emp.role || 'Operador'}</p>
                 </div>
             </div>

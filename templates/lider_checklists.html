@@ -65,7 +65,7 @@
             {% for e in missing_veiculos %}
             <li class="px-4 py-3 flex items-center justify-between hover:bg-slate-700/30">
                 <div class="flex items-center gap-3">
-                    <span class="text-white font-medium">{{ e.name }}</span>
+                    <span class="text-white font-medium">{{ e.name|emp_name }}</span>
                     <span class="text-xs text-slate-500">{{ e.registration_id }}</span>
                 </div>
                 <a href="/employees/{{ e.id }}" class="text-xs text-blue-400 hover:underline">Ver ficha</a>

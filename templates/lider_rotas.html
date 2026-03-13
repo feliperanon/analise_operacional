@@ -73,7 +73,7 @@
         <ul class="divide-y divide-slate-700">
             {% for e in missing_route_drivers %}
             <li class="px-4 py-3 flex items-center justify-between hover:bg-slate-700/30">
-                <span class="text-white font-medium">{{ e.name }}</span>
+                <span class="text-white font-medium">{{ e.name|emp_name }}</span>
                 <a href="/employees/{{ e.id }}" class="text-xs text-blue-400 hover:underline">Ver ficha</a>
             </li>
             {% endfor %}
@@ -101,7 +101,7 @@
                 <tbody>
                     {% for v in driver_velocity %}
                     <tr class="border-b border-slate-700/50 hover:bg-slate-700/20">
-                        <td class="px-4 py-3 font-medium text-white">{{ v.employee.name }}</td>
+                        <td class="px-4 py-3 font-medium text-white">{{ v.employee.name|emp_name }}</td>
                         <td class="px-4 py-3 text-right text-slate-300">{{ "%.0f"|format(v.tonnage) }}</td>
                         <td class="px-4 py-3 text-right text-purple-300 font-bold">{{ v.kgh }}</td>
                     </tr>
@@ -129,7 +129,7 @@
                 <tbody>
                     {% for h in helper_activity %}
                     <tr class="border-b border-slate-700/50 hover:bg-slate-700/20">
-                        <td class="px-4 py-3 font-medium text-white">{{ h.employee.name }}</td>
+                        <td class="px-4 py-3 font-medium text-white">{{ h.employee.name|emp_name }}</td>
                         <td class="px-4 py-3 text-right text-slate-300">{{ h.sessions_count }}</td>
                         <td class="px-4 py-3 text-right">
                             {% if h.is_active %}

@@ -815,6 +815,12 @@ templates.env.filters["fmt_br_int"] = fmt_br_int
 templates.env.filters["fmt_br_pct"] = fmt_br_pct
 templates.env.filters["fmt_br_2"] = fmt_br_2
 
+def _emp_name_upper(val):
+    """Padroniza nome de colaborador em MAIÚSCULAS para exibição."""
+    return (val or "").strip().upper()
+
+templates.env.filters["emp_name"] = _emp_name_upper
+
 # --- Auth Helpers (Local + Google) ---
 PASSWORD_ITERATIONS = 120_000
 
@@ -3180,7 +3186,7 @@ async def mobile_delivery_page(request: Request, session: Session = Depends(get_
     ).all()
     helpers_eligible = [e for e in employees if bool(getattr(e, "mobile_access_helper", False)) and e.id != employee.id]
     employees_json = json.dumps(
-        [{"id": e.id, "name": e.name} for e in helpers_eligible],
+        [{"id": e.id, "name": _emp_name_upper(e.name)} for e in helpers_eligible],
         ensure_ascii=False
     )
     now_sp_delivery = datetime.now(ZoneInfo("America/Sao_Paulo"))
@@ -4631,6 +4637,8 @@ async def api_mobile_delivery_my_routes(
 
         day_cards = []
         for d, items in grouped.items():
+            if d < today_str:
+                continue  # Não mostrar dias passados (entregas concluídas) para o motorista
             try:
                 d_fmt = datetime.strptime(d, "%Y-%m-%d").strftime("%d/%m")
             except Exception:
@@ -16979,7 +16987,7 @@ async def smart_flow_page(request: Request, shift: str = "Manhã", date: Optiona
             "config_json": json.dumps(sector_config),
             "all_employees_json": json.dumps([{
                 "id": e.registration_id,
-                "name": e.name,
+                "name": _emp_name_upper(e.name),
                 "role": e.role,
                 "shift": e.work_shift,
                 "cost_center": e.cost_center,
@@ -20097,8 +20105,9 @@ async def add_employee(
         default_schedule = "18:00 - 06:00"
 
     role_val = (role or "").strip().upper()
+    name_val = (name or "").strip().upper()
     new_employee = models.Employee(
-        name=name,
+        name=name_val,
         registration_id=registration_id,
         seller_code=seller_code.strip() if seller_code else None,
         role=role_val,
@@ -21087,7 +21096,7 @@ async def update_employee(
                 employee_id=emp.id
             ))
             
-        emp.name = name
+        emp.name = (name or "").strip().upper()
         emp.registration_id = registration_id
         emp.seller_code = seller_code.strip() if seller_code else None
         emp.role = (role or "").strip().upper()
@@ -21859,8 +21868,9 @@ async def import_employees(
                 elif "noite" in s_lower:
                     default_schedule = "18:00 - 06:00"
 
+                name_raw = (str(row.get(col_name, "Sem Nome")).strip() if col_name else "Sem Nome") or "Sem Nome"
                 emp = models.Employee(
-                    name=str(row.get(col_name, "Sem Nome")).strip() if col_name else "Sem Nome",
+                    name=name_raw.upper(),
                     registration_id=reg_id.strip(),
                     role=(str(row.get(col_role, "Operador")).strip() or "Operador").upper(),
                     work_shift=str(shift_val).strip(),

@@ -186,11 +186,11 @@
     </div>
 
     <!-- Sem sessão: formulário para iniciar (quando há rotas) - oculto para ajudantes -->
-    <div class="container-mobile mt-6" x-show="!deliverySessionOpen && deliveryDayCards.length > 0 && !isHelperView" x-cloak>
+    <div class="container-mobile mt-6" x-show="!deliverySessionOpen && visibleDayCards.length > 0 && !isHelperView" x-cloak>
         <div class="surface-shadow p-4 rounded-xl">
             <h3 class="text-section font-semibold mb-3" style="color: var(--color-text);">Minhas rotas do dia</h3>
             <div class="space-y-2 mb-4">
-                <template x-for="card in deliveryDayCards" :key="'day-'+card.date">
+                <template x-for="card in visibleDayCards" :key="'day-'+card.date">
                     <button @click="selectedDeliveryDay = card.date" class="w-full text-left px-3 py-2.5 rounded-lg border-2 transition-colors interactive"
                         :style="selectedDeliveryDay===card.date ? 'background: var(--color-primary-bg); border-color: var(--color-primary); color: var(--color-primary);' : 'background: var(--color-surface-solid); border-color: var(--color-border); color: var(--color-text);'">
                         <div class="flex items-center justify-between">
@@ -229,7 +229,7 @@
                             <template x-for="emp in filteredHelperOptions" :key="emp.id">
                                 <button type="button" @click="selectDeliveryHelperName(emp.name)"
                                     class="w-full text-left px-3 py-2.5 text-body hover:bg-opacity-80 block" style="color: var(--color-text); background: var(--color-surface);">
-                                    <span x-text="emp.name"></span>
+                                    <span x-text="(emp.name || '').toUpperCase()"></span>
                                 </button>
                             </template>
                         </div>
@@ -252,7 +252,7 @@
     </div>
 
     <!-- Sem sessão e sem rotas -->
-    <div class="container-mobile mt-6" x-show="!deliverySessionOpen && deliveryDayCards.length === 0" x-cloak>
+    <div class="container-mobile mt-6" x-show="!deliverySessionOpen && visibleDayCards.length === 0" x-cloak>
         <div class="surface-shadow p-6 rounded-xl text-center">
             <i data-lucide="truck" class="w-12 h-12 mx-auto mb-3" style="color: var(--color-text-muted);"></i>
             <p class="text-body-lg font-semibold mb-1" style="color: var(--color-text);" x-text="isHelperView ? 'Nenhuma rota ativa' : 'Nenhuma rota planejada'"></p>
@@ -557,7 +557,7 @@
                             <template x-for="emp in filteredSessionEditHelpers" :key="emp.id">
                                 <button type="button" @click="selectSessionEditHelper(emp.name)"
                                     class="w-full text-left px-3 py-2.5 text-body hover:bg-opacity-80 block" style="color: var(--color-text); background: var(--color-surface);">
-                                    <span x-text="emp.name"></span>
+                                    <span x-text="(emp.name || '').toUpperCase()"></span>
                                 </button>
                             </template>
                         </div>
@@ -988,17 +988,18 @@
                     this.deliveryDayCards = data.day_cards || [];
                     const sessionDate = data.session?.date || null;
                     const today = new Date().toISOString().split('T')[0];
+                    const visible = (this.deliveryDayCards || []).filter(c => c.date >= today);
                     const prev = this.selectedDeliveryDay;
-                    if (data.session_open && sessionDate && this.deliveryDayCards.some(c => c.date === sessionDate)) {
+                    if (data.session_open && sessionDate && visible.some(c => c.date === sessionDate)) {
                         this.selectedDeliveryDay = sessionDate;
                     } else {
-                        const todayCard = this.deliveryDayCards.find(c => c.date === today);
+                        const todayCard = visible.find(c => c.date === today);
                         if (todayCard) {
                             this.selectedDeliveryDay = today;
-                        } else if (prev && this.deliveryDayCards.some(c => c.date === prev)) {
+                        } else if (prev && visible.some(c => c.date === prev)) {
                             this.selectedDeliveryDay = prev;
                         } else {
-                            this.selectedDeliveryDay = this.deliveryDayCards[0]?.date || '';
+                            this.selectedDeliveryDay = visible[0]?.date || '';
                         }
                     }
                     this.deliverySessionOpen = !!data.session_open;

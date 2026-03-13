@@ -742,18 +742,18 @@
                 {% endif %}
 
                 <tr class="group employee-row transition-colors hover:bg-white/5" id="employee-row-{{ emp.id }}" data-name="{{ emp.name|lower }}"
-                    data-display-name="{{ emp.name }}" data-reg="{{ emp.registration_id }}" data-status="{{ emp.status }}"
+                    data-display-name="{{ emp.name|emp_name }}" data-reg="{{ emp.registration_id }}" data-status="{{ emp.status }}"
                     data-role="{{ emp.role }}" data-role-norm="{{ (emp.role or '')|lower }}" data-id="{{ emp.id }}"
                     data-photo="{{ emp.photo_url or '' }}" data-center-label="{{ center_label }}" data-emp="{{ emp.model_dump_json() | forceescape }}">
                     <td class="employee-cell-primary px-4 py-4 pl-6 align-top" data-label="Colaborador">
                         <div class="employee-primary-content flex min-w-0 items-center gap-3">
                             <div
                                 class="employee-avatar h-10 w-10 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white uppercase shadow-inner shadow-black/20">
-                                {{ emp.name[:2] }}
+                                {{ (emp.name or '')[:2]|upper }}
                             </div>
                             <div class="min-w-0 font-medium text-white">
                                 <a href="/employees/{{ emp.id }}"
-                                    class="employee-name block truncate transition-colors hover:text-blue-400 hover:underline md:whitespace-normal">{{ emp.name }}</a>
+                                    class="employee-name block truncate transition-colors hover:text-blue-400 hover:underline md:whitespace-normal">{{ emp.name|emp_name }}</a>
                             </div>
                         </div>
                     </td>
@@ -804,7 +804,7 @@
 
                             <!-- Programar Férias -->
                             <button type="button"
-                                onclick="openVacationModal('{{ emp.id }}', '{{ emp.name }}', '{{ emp.registration_id }}')"
+                                onclick="openVacationModal('{{ emp.id }}', '{{ emp.name|emp_name }}', '{{ emp.registration_id }}')"
                                 class="employee-action-btn employee-action-btn--vacation"
                                 title="Programar Férias">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -816,7 +816,7 @@
                             {% if emp.status != 'active' %}
                             <!-- Reativar / Retornar -->
                             <button type="button"
-                                onclick="openReturnModal('{{ emp.id }}', '{{ emp.name }}', '{{ emp.status }}')"
+                                onclick="openReturnModal('{{ emp.id }}', '{{ emp.name|emp_name }}', '{{ emp.status }}')"
                                 class="employee-action-btn employee-action-btn--return"
                                 title="Reativar / Retornar">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -844,7 +844,7 @@
                             </form>
 
                             <!-- Demitir -->
-                            <button type="button" onclick="openFireModal('{{ emp.id }}', '{{ emp.name }}')"
+                            <button type="button" onclick="openFireModal('{{ emp.id }}', '{{ emp.name|emp_name }}')"
                                 class="employee-action-btn employee-action-btn--fire" title="Demitir">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -855,7 +855,7 @@
 
                             <!-- Excluir -->
                             <form action="/employees/{{ emp.id }}/status" method="POST" class="inline"
-                                onsubmit="return confirm('ATENÇÃO: Isso excluirá permanentemente {{ emp.name }}. Continuar?');">
+                                onsubmit="return confirm('ATENÇÃO: Isso excluirá permanentemente {{ emp.name|emp_name }}. Continuar?');">
                                 <input type="hidden" name="status_action" value="delete">
                                 <button type="submit"
                                     class="employee-action-btn employee-action-btn--delete"

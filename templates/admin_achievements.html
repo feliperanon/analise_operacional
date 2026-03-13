@@ -204,7 +204,7 @@
                             class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-orange-500">
                             <option value="">Selecione...</option>
                             <template x-for="emp in employees" :key="emp.id">
-                                <option :value="emp.id" x-text="emp.name"></option>
+                                <option :value="emp.id" x-text="(emp.name || '').toUpperCase()"></option>
                             </template>
                         </select>
                     </div>

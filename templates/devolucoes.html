@@ -171,7 +171,7 @@
                     <select name="vendedor_id" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
                         <option value="">Selecione</option>
                         {% for e in employees %}
-                        <option value="{{ e.id }}">{{ e.name }}{% if e.seller_code %} ({{ e.seller_code }}){% endif %}</option>
+                        <option value="{{ e.id }}">{{ e.name|emp_name }}{% if e.seller_code %} ({{ e.seller_code }}){% endif %}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -180,7 +180,7 @@
                     <select name="motorista_id" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
                         <option value="">Selecione</option>
                         {% for e in employees %}
-                        <option value="{{ e.id }}">{{ e.name }}</option>
+                        <option value="{{ e.id }}">{{ e.name|emp_name }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -211,7 +211,7 @@
                     <select name="ajudante_id" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
                         <option value="">—</option>
                         {% for e in employees %}
-                        <option value="{{ e.id }}">{{ e.name }}</option>
+                        <option value="{{ e.id }}">{{ e.name|emp_name }}</option>
                         {% endfor %}
                     </select>
                 </div>
