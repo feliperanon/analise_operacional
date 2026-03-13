@@ -264,26 +264,24 @@
         </div>
     </div>
 
-    <!-- Modal Reabrir Rota -->
-    <template x-teleport="body">
-        <div x-show="showReopenModal" x-cloak class="fixed inset-0 z-[100001] flex items-end sm:items-center justify-center p-0 sm:p-4"
-            @keydown.escape.window="showReopenModal = false">
-            <div class="absolute inset-0 bg-black/50" @click="showReopenModal = false"></div>
-            <div class="relative w-full max-w-md rounded-t-2xl sm:rounded-2xl p-6 max-h-[85vh] overflow-y-auto surface-shadow" style="background: var(--color-surface);">
-                <h3 class="text-section font-bold mb-3" style="color: var(--color-text);">Reabrir rota</h3>
-                <p class="text-caption mb-4" style="color: var(--color-text-muted);">Informe o motivo da reabertura (obrigatório):</p>
-                <textarea x-model="reopenReason" rows="4" placeholder="Ex.: Esqueci uma entrega, cliente solicitou ajuste..."
-                    class="w-full rounded-lg px-3 py-2.5 text-body mb-4"
-                    style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text); resize: vertical;"></textarea>
-                <div class="flex gap-3">
-                    <button type="button" @click="showReopenModal = false" class="flex-1 py-3 rounded-lg font-semibold interactive"
-                        style="background: var(--color-border-light); color: var(--color-text);">Cancelar</button>
-                    <button type="button" @click="reopenDeliverySession()" class="flex-1 py-3 rounded-lg font-semibold text-white interactive"
-                        style="background: var(--color-primary);">Reabrir</button>
-                </div>
+    <!-- Modal Reabrir Rota (sem x-teleport para evitar erro cloneNode no Alpine) -->
+    <div x-show="showReopenModal" x-cloak x-transition class="fixed inset-0 z-[100001] flex items-end sm:items-center justify-center p-0 sm:p-4"
+        @keydown.escape.window="showReopenModal = false">
+        <div class="absolute inset-0 bg-black/50" @click="showReopenModal = false"></div>
+        <div class="relative w-full max-w-md rounded-t-2xl sm:rounded-2xl p-6 max-h-[85vh] overflow-y-auto surface-shadow" style="background: var(--color-surface);">
+            <h3 class="text-section font-bold mb-3" style="color: var(--color-text);">Reabrir rota</h3>
+            <p class="text-caption mb-4" style="color: var(--color-text-muted);">Informe o motivo da reabertura (obrigatório):</p>
+            <textarea x-model="reopenReason" rows="4" placeholder="Ex.: Esqueci uma entrega, cliente solicitou ajuste..."
+                class="w-full rounded-lg px-3 py-2.5 text-body mb-4"
+                style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text); resize: vertical;"></textarea>
+            <div class="flex gap-3">
+                <button type="button" @click="showReopenModal = false" class="flex-1 py-3 rounded-lg font-semibold interactive"
+                    style="background: var(--color-border-light); color: var(--color-text);">Cancelar</button>
+                <button type="button" @click="reopenDeliverySession()" class="flex-1 py-3 rounded-lg font-semibold text-white interactive"
+                    style="background: var(--color-primary);">Reabrir</button>
             </div>
         </div>
-    </template>
+    </div>
 
     <!-- Sem sessão e sem rotas -->
     <div class="container-mobile mt-6" x-show="!deliverySessionOpen && visibleDayCards.length === 0" x-cloak>
