@@ -487,8 +487,8 @@
                     <p class="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Tempo/Viagem</p>
                     <button @mouseenter="showTip = true" @mouseleave="showTip = false" class="w-4 h-4 rounded-full bg-slate-700 text-slate-400 text-[9px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">?</button>
                 </div>
-                <p class="text-2xl font-bold text-blue-400">{{ team_stats.avg_trip_minutes|fmt_br }}</p>
-                <p class="text-[10px] text-slate-500">minutos</p>
+                <p class="text-2xl font-bold text-blue-400">{{ team_stats.avg_trip_minutes|fmt_br_duracao }}</p>
+                <p class="text-[10px] text-slate-500">média/rota</p>
                 <div x-show="showTip" x-transition class="absolute z-50 mt-2 p-2 bg-slate-900 border border-slate-600 rounded-lg text-[10px] text-slate-300 w-48 shadow-xl">
                     Tempo médio para completar uma viagem/rota. Meta: ≤25 min. Menor é melhor.
                 </div>
@@ -668,8 +668,7 @@
                                     class="transition-all duration-1000"/>
                             </svg>
                             <div class="absolute inset-0 flex flex-col items-center justify-center">
-                                <span class="text-xl lg:text-2xl font-bold text-white">{{ team_stats.avg_trip_minutes|fmt_br }}</span>
-                                <span class="text-[10px] text-slate-400">min</span>
+                                <span class="text-xl lg:text-2xl font-bold text-white">{{ team_stats.avg_trip_minutes|fmt_br_duracao }}</span>
                             </div>
                         </div>
                         <div class="mt-3 text-center">

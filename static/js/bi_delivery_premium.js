@@ -7,9 +7,10 @@
 
   if (!state || !renderDrill || typeof Chart === 'undefined') return;
 
-  const chartIds = ["trendChart", "motivosChart", "respChart", "clusterChart", "driverChart", "driverRespChart", "driverClientCorrChart"];
+  const chartIds = ["trendChart", "motivosChart", "respChart", "clusterChart", "driverChart", "driverRespChart", "driverClientCorrChart", "diaSemanaChart"];
   const chartTitles = {
     trendChart: "Tendência diária",
+    diaSemanaChart: "Dia da semana × Devoluções",
     motivosChart: "Motivos de devolução",
     respChart: "Responsabilidade",
     clusterChart: "Cluster x Valor",
@@ -19,6 +20,7 @@
   };
   const chartAllowedTypes = {
     trendChart: ["line", "bar"],
+    diaSemanaChart: ["bar", "line"],
     motivosChart: ["bar", "doughnut"],
     respChart: ["doughnut", "bar"],
     clusterChart: ["bar", "doughnut"],
@@ -322,44 +324,87 @@
     const out = [];
     const labels = data?.labels || [];
     const ds = data?.datasets || [];
-    if (!ds.length) return ["Sem dados suficientes para storytelling."];
-    if (chartId === "trendChart") {
+    const fmtMoeda = (v) => (v != null && Number.isFinite(Number(v))) ? Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—";
+    const fmtPct = (v) => (v != null && Number.isFinite(Number(v))) ? `${Number(v).toFixed(1).replace(".", ",")}%` : "—";
+    if (!ds.length) return ["Sem dados suficientes para gerar insights."];
+    if (chartId === "diaSemanaChart") {
+      const qtd = (ds[0]?.data || []).map(Number);
+      const valor = (ds[1]?.data || []).map(Number);
+      const sumQtd = qtd.reduce((a, b) => a + b, 0);
+      const sumValor = valor.reduce((a, b) => a + b, 0);
+      if (labels.length && (sumQtd > 0 || sumValor > 0)) {
+        const iMax = qtd.reduce((best, v, i, arr) => v > (arr[best] || 0) ? i : best, 0);
+        out.push(`Total: ${sumQtd} devoluções e ${fmtMoeda(sumValor)} no período.`);
+        out.push(`Dia com mais devoluções: ${labels[iMax] || "-"} (${qtd[iMax] || 0} un).`);
+      } else {
+        out.push("Sem devoluções no período.");
+      }
+    } else if (chartId === "trendChart") {
       const values = ds[1]?.data || ds[0]?.data || [];
       const recent = values.slice(-7).reduce((a, b) => a + Number(b || 0), 0);
       const prev = values.slice(-14, -7).reduce((a, b) => a + Number(b || 0), 0);
       if (Math.abs(prev) < 0.0001) {
-        out.push("Últimos 7 dias sem base anterior consistente para comparação percentual.");
+        out.push("Últimos 7 dias sem base anterior para comparação.");
       } else {
         const delta = ((recent - prev) / Math.abs(prev)) * 100;
-        out.push(`Últimos 7 dias mostram ${delta >= 0 ? "alta" : "queda"} de ${Math.abs(delta).toFixed(1)}%.`);
+        out.push(`Últimos 7 dias: ${delta >= 0 ? "alta" : "queda"} de ${Math.abs(delta).toFixed(1)}% em relação à semana anterior.`);
       }
       const p = values.reduce((best, v, i, arr) => Number(v || 0) > Number(arr[best] || 0) ? i : best, 0);
-      const labelP = labels[p] != null ? String(labels[p]) : '';
+      const labelP = labels[p] != null ? String(labels[p]) : "";
       out.push(`Pico no período em ${labelP}: ${Number(values[p] || 0).toLocaleString("pt-BR")}.`);
     } else if (chartId === "motivosChart") {
       const md = (window.__biChartData?.motivos_detailed || []);
-      if (!md.length) return ["Sem dados suficientes para storytelling."];
+      if (!md.length) return ["Sem dados suficientes para gerar insights."];
       const totalQtd = md.reduce((a, m) => a + (m.qtd || 0), 0) || 1;
       const totalValor = md.reduce((a, m) => a + (m.valor || 0), 0) || 1;
       const topQtd = md.reduce((best, m, i, arr) => (m.qtd || 0) > (arr[best]?.qtd || 0) ? i : best, 0);
       const topValor = md.reduce((best, m, i, arr) => (m.valor || 0) > (arr[best]?.valor || 0) ? i : best, 0);
-      out.push(`${md[topQtd]?.motivo || "Motivo"} lidera em volume com ${(((md[topQtd]?.qtd || 0) / totalQtd) * 100).toFixed(1)}% das ocorrencias.`);
-      out.push(`${md[topValor]?.motivo || "Motivo"} concentra ${(((md[topValor]?.valor || 0) / totalValor) * 100).toFixed(1)}% do valor devolvido.`);
+      out.push(`${md[topQtd]?.motivo || "Motivo"} lidera em quantidade com ${(((md[topQtd]?.qtd || 0) / totalQtd) * 100).toFixed(1).replace(".", ",")}% das ocorrências.`);
+      out.push(`${md[topValor]?.motivo || "Motivo"} concentra ${(((md[topValor]?.valor || 0) / totalValor) * 100).toFixed(1).replace(".", ",")}% do valor devolvido.`);
     } else if (chartId === "driverClientCorrChart") {
       const points = (ds[0]?.data || []).filter((p) => p && typeof p === "object");
-      if (!points.length) return ["Sem dados suficientes para storytelling."];
+      if (!points.length) return ["Sem dados suficientes para gerar insights."];
       const topValor = points.reduce((best, p, i, arr) => Number(p.valor || 0) > Number(arr[best]?.valor || 0) ? i : best, 0);
       const topPct = points.reduce((best, p, i, arr) => Number(p.pct_valor_real || 0) > Number(arr[best]?.pct_valor_real || 0) ? i : best, 0);
       const a = points[topValor];
       const b = points[topPct];
-      out.push(`Maior impacto financeiro: ${a.driver || "-"} x ${a.client || "-"} com ${Number(a.valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}.`);
-      out.push(`Maior % sobre valor real: ${b.driver || "-"} x ${b.client || "-"} em ${Number(b.pct_valor_real || 0).toFixed(1).replace(".", ",")}%.`);
+      out.push(`Maior impacto financeiro: ${a.driver || "-"} x ${a.client || "-"} com ${fmtMoeda(a.valor)}.`);
+      out.push(`Maior risco (% valor): ${b.driver || "-"} x ${b.client || "-"} com ${fmtPct(b.pct_valor_real)}.`);
+    } else if (chartId === "driverChart") {
+      const eff = (ds[0]?.data || []).map(Number);
+      const devValor = (ds[2]?.data || ds[1]?.data || []).map(Number);
+      if (!labels.length) return ["Sem dados suficientes para gerar insights."];
+      const iBestEff = eff.reduce((best, v, i, arr) => v > (arr[best] || 0) ? i : best, 0);
+      const iWorstDev = devValor.length ? devValor.reduce((best, v, i, arr) => v > (arr[best] || 0) ? i : best, 0) : -1;
+      out.push(`Maior eficiência: ${labels[iBestEff] || "-"} com ${fmtPct(eff[iBestEff])}.`);
+      if (iWorstDev >= 0 && devValor[iWorstDev] > 0) {
+        out.push(`Maior taxa de devolução em valor: ${labels[iWorstDev] || "-"} com ${fmtPct(devValor[iWorstDev])} (meta ≤ 2%).`);
+      }
+    } else if (chartId === "respChart" || chartId === "clusterChart") {
+      const values = (ds[0]?.data || []).map(Number);
+      const sum = values.reduce((a, b) => a + b, 0) || 1;
+      const top = values.reduce((best, v, i, arr) => v > (arr[best] || 0) ? i : best, 0);
+      const labelStr = labels[top] != null ? String(labels[top]) : "";
+      const pct = ((values[top] / sum) * 100).toFixed(1).replace(".", ",");
+      out.push(`${labelStr} concentra ${pct}% do valor total devolvido.`);
+    } else if (chartId === "driverRespChart") {
+      const dr = (window.__biChartData?.driver_resp_valor || {});
+      const drivers = dr.drivers || labels || [];
+      const datasets = dr.datasets || ds;
+      if (!datasets.length || !drivers.length) return ["Sem dados suficientes para gerar insights."];
+      const totalPorDriver = drivers.map((_, i) =>
+        datasets.reduce((s, d) => s + Number((d.data || [])[i] || 0), 0)
+      );
+      const topIdx = totalPorDriver.reduce((best, v, i, arr) => v > (arr[best] || 0) ? i : best, 0);
+      out.push(`Maior valor devolvido: ${drivers[topIdx] || "-"} com ${fmtMoeda(totalPorDriver[topIdx])}.`);
     } else {
       const values = (ds[0]?.data || []).map(Number);
       const sum = values.reduce((a, b) => a + b, 0) || 1;
-      const top = values.reduce((best, v, i, arr) => v > arr[best] ? i : best, 0);
-      const labelStr = labels[top] != null ? String(labels[top]) : '';
-      out.push(`${labelStr} concentra ${((values[top] / sum) * 100).toFixed(1)}% do total.`);
+      if (sum <= 0) return ["Sem dados numéricos para gerar insights."];
+      const top = values.reduce((best, v, i, arr) => v > (arr[best] || 0) ? i : best, 0);
+      const labelStr = labels[top] != null ? String(labels[top]) : "";
+      const pct = ((values[top] / sum) * 100).toFixed(1).replace(".", ",");
+      out.push(`${labelStr} concentra ${pct}% do valor total.`);
     }
     return out;
   }

@@ -1,66 +1,120 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="p-8">
+<div class="p-4 sm:p-6 md:p-8 min-h-screen">
     <div class="max-w-5xl mx-auto">
-        <!-- Header -->
-        <div class="flex items-center gap-4 mb-8">
-            <a href="/vehicles/{{ vehicle.id }}"
-                class="p-2 bg-slate-800 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition">
+        <!-- Header: voltar para lista de veículos -->
+        <div class="flex items-center gap-3 sm:gap-4 mb-6 md:mb-8">
+            <a href="/vehicles"
+                class="p-2 bg-slate-800 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition flex-shrink-0"
+                title="Voltar à frota">
                 <i data-lucide="arrow-left" class="w-5 h-5"></i>
             </a>
-            <div>
-                <h1 class="text-3xl font-bold text-white mb-1">{{ vehicle.placa }} — Histórico</h1>
-                <p class="text-slate-400 text-sm">{{ vehicle.marca }} {{ vehicle.modelo }} — Checklists realizados</p>
+            <div class="min-w-0 flex-1">
+                <h1 class="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-1 truncate">{{ vehicle.placa }} — Histórico</h1>
+                <p class="text-slate-400 text-xs sm:text-sm truncate">{{ vehicle.marca }} {{ vehicle.modelo }} — Checklists e histórico operacional</p>
             </div>
         </div>
 
         <!-- Vehicle Info Card -->
-        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6 mb-8 flex flex-wrap items-center gap-4">
-            <div class="flex items-center gap-3">
-                <div class="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
-                    <i data-lucide="truck" class="w-6 h-6 text-amber-400"></i>
+        <div class="bg-slate-800/80 rounded-xl sm:rounded-2xl border border-slate-700 p-4 sm:p-6 mb-6 md:mb-8 flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-4">
+            <div class="flex items-center gap-3 flex-1 min-w-0">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="truck" class="w-5 h-5 sm:w-6 sm:h-6 text-amber-400"></i>
                 </div>
-                <div>
-                    <p class="text-white font-bold">{{ vehicle.placa }}</p>
-                    <p class="text-slate-400 text-sm">{{ vehicle.marca }} — {{ vehicle.modelo }} ({{ vehicle.ano or '-' }})</p>
+                <div class="min-w-0">
+                    <p class="text-white font-bold truncate">{{ vehicle.placa }}</p>
+                    <p class="text-slate-400 text-sm truncate">{{ vehicle.marca }} — {{ vehicle.modelo }} ({{ vehicle.ano or '-' }})</p>
                     {% if last_km_fmt %}
                     <p class="text-slate-500 text-xs mt-1">Último KM: <span class="font-mono text-slate-300">{{ last_km_fmt }}</span></p>
                     {% endif %}
                 </div>
             </div>
-            <a href="/vehicles/{{ vehicle.id }}" class="ml-auto px-4 py-2 rounded-lg bg-slate-700 hover:bg-blue-600 text-slate-300 hover:text-white transition text-sm font-medium">
-                Editar veículo
-            </a>
+            <div class="flex flex-wrap gap-2">
+                <a href="/vehicles/{{ vehicle.id }}" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-blue-600 text-slate-300 hover:text-white transition text-sm font-medium inline-flex items-center gap-2">
+                    <i data-lucide="pencil" class="w-4 h-4"></i>
+                    Editar veículo
+                </a>
+            </div>
+        </div>
+
+        <!-- Delivery History Table -->
+        <div class="bg-slate-800/80 rounded-xl sm:rounded-2xl border border-slate-700 overflow-hidden mb-6 md:mb-8">
+            <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-700 bg-slate-800/50 flex items-center justify-between">
+                <h3 class="text-slate-300 font-medium flex items-center gap-2 text-sm sm:text-base">
+                    <i data-lucide="truck" class="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 flex-shrink-0"></i>
+                    Histórico de Entregas
+                </h3>
+            </div>
+
+            {% if delivery_history %}
+            <div class="overflow-x-auto -mx-px">
+                <table class="w-full text-left border-collapse min-w-[640px] text-xs sm:text-sm">
+                    <thead>
+                        <tr class="bg-slate-900/50 text-slate-400 text-[10px] sm:text-xs uppercase font-bold">
+                            <th class="px-3 sm:px-6 py-3 sm:py-4">Data</th>
+                            <th class="px-3 sm:px-6 py-3 sm:py-4">Motorista</th>
+                            <th class="px-3 sm:px-6 py-3 sm:py-4 hidden md:table-cell">Ajudante</th>
+                            <th class="px-3 sm:px-6 py-3 sm:py-4">Hora saída</th>
+                            <th class="px-3 sm:px-6 py-3 sm:py-4 hidden lg:table-cell">Hora retorno</th>
+                            <th class="px-3 sm:px-6 py-3 sm:py-4">KM saída</th>
+                            <th class="px-3 sm:px-6 py-3 sm:py-4">KM retorno</th>
+                            <th class="px-3 sm:px-6 py-3 sm:py-4 hidden xl:table-cell">KM do dia</th>
+                            <th class="px-3 sm:px-6 py-3 sm:py-4">Kg</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-700 text-sm">
+                        {% for item in delivery_history %}
+                        <tr class="hover:bg-slate-700/30 transition-colors">
+                            <td class="px-3 sm:px-6 py-3 sm:py-4 text-white font-mono">{{ item.date_fmt }}</td>
+                            <td class="px-3 sm:px-6 py-3 sm:py-4 text-slate-300">{{ item.driver_name|emp_name }}</td>
+                            <td class="px-3 sm:px-6 py-3 sm:py-4 text-slate-300 hidden md:table-cell">{{ item.helper_display|emp_name if item.helper_display != '-' else '-' }}</td>
+                            <td class="px-3 sm:px-6 py-3 sm:py-4 text-slate-300 font-mono">{{ item.started_at_fmt }}</td>
+                            <td class="px-3 sm:px-6 py-3 sm:py-4 text-slate-300 font-mono hidden lg:table-cell">{{ item.ended_at_fmt }}</td>
+                            <td class="px-3 sm:px-6 py-3 sm:py-4 text-slate-300 font-mono">{{ item.km_departure_fmt }}</td>
+                            <td class="px-3 sm:px-6 py-3 sm:py-4 text-slate-300 font-mono">{{ item.km_return_fmt }}</td>
+                            <td class="px-3 sm:px-6 py-3 sm:py-4 text-slate-300 font-mono hidden xl:table-cell">{{ item.km_day_fmt }}</td>
+                            <td class="px-3 sm:px-6 py-3 sm:py-4 text-slate-300 font-mono">{{ item.total_weight_fmt }} kg</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-12 text-center text-slate-500">
+                <i data-lucide="truck" class="w-12 h-12 mx-auto mb-4 opacity-50"></i>
+                <p>Nenhuma entrega registrada para este caminhão.</p>
+            </div>
+            {% endif %}
         </div>
 
         <!-- Checklists Table -->
-        <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-700 bg-slate-800/50 flex items-center justify-between">
-                <h3 class="text-slate-300 font-medium flex items-center gap-2">
-                    <i data-lucide="clipboard-check" class="w-5 h-5 text-blue-400"></i>
+        <div class="bg-slate-800/80 rounded-xl sm:rounded-2xl border border-slate-700 overflow-hidden">
+            <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-700 bg-slate-800/50 flex items-center justify-between">
+                <h3 class="text-slate-300 font-medium flex items-center gap-2 text-sm sm:text-base">
+                    <i data-lucide="clipboard-check" class="w-4 h-4 sm:w-5 sm:h-5 text-blue-400 flex-shrink-0"></i>
                     Checklists realizados
                 </h3>
             </div>
 
             {% if checklists %}
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
+            <div class="overflow-x-auto -mx-px">
+                <table class="w-full text-left border-collapse min-w-[480px] text-xs sm:text-sm">
                     <thead>
-                        <tr class="bg-slate-900/50 text-slate-400 text-xs uppercase font-bold">
-                            <th class="px-6 py-4">Data</th>
-                            <th class="px-6 py-4">Turno</th>
-                            <th class="px-6 py-4">Motorista</th>
-                            <th class="px-6 py-4">KM</th>
-                            <th class="px-6 py-4">Status</th>
-                            <th class="px-6 py-4 text-right">Ações</th>
+                        <tr class="bg-slate-900/50 text-slate-400 text-[10px] sm:text-xs uppercase font-bold">
+                            <th class="px-3 sm:px-6 py-3 sm:py-4">Data</th>
+                            <th class="px-3 sm:px-6 py-3 sm:py-4">Turno</th>
+                            <th class="px-3 sm:px-6 py-3 sm:py-4">Motorista</th>
+                            <th class="px-3 sm:px-6 py-3 sm:py-4">KM</th>
+                            <th class="px-3 sm:px-6 py-3 sm:py-4">Status</th>
+                            <th class="px-3 sm:px-6 py-3 sm:py-4 text-right">Ações</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-700 text-sm">
                         {% for c in checklists %}
                         <tr class="hover:bg-slate-700/30 transition-colors">
-                            <td class="px-6 py-4 text-white font-mono">{{ c.date_fmt }}</td>
-                            <td class="px-6 py-4">
+                            <td class="px-3 sm:px-6 py-3 sm:py-4 text-white font-mono">{{ c.date_fmt }}</td>
+                            <td class="px-3 sm:px-6 py-3 sm:py-4">
                                 <span class="px-2 py-0.5 rounded text-[10px] font-bold
                                     {% if c.shift_display == 'Manhã' %}bg-blue-500/20 text-blue-300
                                     {% elif c.shift_display == 'Tarde' %}bg-orange-500/20 text-orange-300
@@ -68,9 +122,9 @@
                                     {{ c.shift_display }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 text-slate-300">{{ c.employee_name }}</td>
-                            <td class="px-6 py-4 text-slate-300 font-mono">{{ c.odometer_fmt }}</td>
-                            <td class="px-6 py-4">
+                            <td class="px-3 sm:px-6 py-3 sm:py-4 text-slate-300">{{ c.employee_name }}</td>
+                            <td class="px-3 sm:px-6 py-3 sm:py-4 text-slate-300 font-mono">{{ c.odometer_fmt }}</td>
+                            <td class="px-3 sm:px-6 py-3 sm:py-4">
                                 {% if c.critical %}
                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-red-500/20 text-red-400 text-xs">Crítico</span>
                                 {% elif c.nonconforming %}
@@ -79,8 +133,8 @@
                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs">OK</span>
                                 {% endif %}
                             </td>
-                            <td class="px-6 py-4 text-right">
-                                <a href="/admin/routine/checklists/{{ c.id }}" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-700 hover:bg-blue-600 text-slate-300 hover:text-white transition-colors text-xs font-medium">
+                            <td class="px-3 sm:px-6 py-3 sm:py-4 text-right">
+                                <a href="/admin/routine/checklists/{{ c.id }}" class="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-slate-700 hover:bg-blue-600 text-slate-300 hover:text-white transition-colors text-xs font-medium touch-target">
                                     <i data-lucide="eye" class="w-4 h-4"></i>
                                     Ver
                                 </a>

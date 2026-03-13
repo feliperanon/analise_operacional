@@ -20,6 +20,7 @@ from bi_delivery_routes import (
     _fmt_br_int,
     _fmt_br_data,
     _fmt_br_moeda,
+    _fmt_br_duracao,
 )
 from database import get_session
 
@@ -30,6 +31,7 @@ templates.env.filters["fmt_br_2"] = _fmt_br_2
 templates.env.filters["fmt_br_int"] = _fmt_br_int
 templates.env.filters["fmt_br_data"] = _fmt_br_data
 templates.env.filters["fmt_br_moeda"] = _fmt_br_moeda
+templates.env.filters["fmt_br_duracao"] = _fmt_br_duracao
 
 META_PREMIACAO_PCT = 2.0
 DIAS_SEMANA = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
@@ -85,8 +87,13 @@ def _build_bi_motorista_dataset(delivery_dataset: dict) -> dict:
     dia_semana_rows.sort(key=lambda x: -x["valor"])
     dia_mais_devolucoes = dia_semana_rows[0]["dia"] if dia_semana_rows else "-"
 
-    # 4. Performance por placa (caminhão)
+    # 4. Performance por placa (caminhão) — inclui frota inteira + placas das rotas
+    fleet_plates = delivery_dataset.get("fleet_plates") or []
     por_placa: dict[str, dict] = {}
+    for pl in fleet_plates:
+        placa = (pl or "").strip().upper()
+        if placa and placa not in por_placa:
+            por_placa[placa] = {"placa": placa, "paradas": 0, "devolucoes": 0, "valor_entregue": 0.0, "valor_devolvido": 0.0, "durations": []}
     for r in all_rows:
         placa = (r.get("plate") or "-").strip().upper()
         if placa in ("-", ""):
@@ -113,14 +120,14 @@ def _build_bi_motorista_dataset(delivery_dataset: dict) -> dict:
         tempo_med = round(statistics.mean(data["durations"]), 1) if data["durations"] else 0
         plate_rows.append({
             "placa": p,
-            "paradas": paradas,
+            "paradas": data["paradas"],
             "devolucoes": data["devolucoes"],
             "taxa_devolucao": tax_dev,
             "valor_devolvido": round(data["valor_devolvido"], 2),
             "pct_valor": pct_val,
             "tempo_medio": tempo_med,
         })
-    plate_rows.sort(key=lambda x: (-x["devolucoes"], -x["valor_devolvido"]))
+    plate_rows.sort(key=lambda x: (-x["paradas"], -x["devolucoes"], -x["valor_devolvido"]))
 
     # 5. Relativização qtd × peso × devolução
     rel_rows = []

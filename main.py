@@ -324,6 +324,28 @@ def employee_matches_cost_center(employee: Optional[models.Employee], selected_c
     return cost_center_display_label(getattr(employee, "cost_center", None)) == selected_cost_center
 
 
+def _load_employee_name_maps(
+    session: Session,
+    include_fired: bool = True,
+) -> tuple[Dict[int, str], Dict[str, int]]:
+    """Retorna mapas leves de colaboradores para evitar carregar modelos completos quando só id/nome bastam."""
+    query = select(models.Employee.id, models.Employee.name)
+    if not include_fired:
+        query = query.where(models.Employee.status != "fired")
+
+    id_to_name: Dict[int, str] = {}
+    name_to_id: Dict[str, int] = {}
+    for employee_id, employee_name in session.exec(query).all():
+        if employee_id is None:
+            continue
+        emp_id = int(employee_id)
+        clean_name = str(employee_name or "").strip()
+        id_to_name[emp_id] = clean_name
+        if clean_name:
+            name_to_id[clean_name.lower()] = emp_id
+    return id_to_name, name_to_id
+
+
 # API Models
 from pydantic import BaseModel
 from typing import Optional, List
@@ -361,7 +383,20 @@ def update_vacation_statuses(session: Session, target_date: datetime):
     check_end = target_date.replace(hour=23, minute=59, second=59, microsecond=999)
     today_str = target_date.strftime("%Y-%m-%d")
     
-    employees = session.exec(select(models.Employee).where(models.Employee.status != "fired")).all()
+    employees = session.exec(
+        select(models.Employee)
+        .where(models.Employee.status != "fired")
+        .where(
+            or_(
+                and_(
+                    models.Employee.vacation_start.isnot(None),
+                    models.Employee.vacation_end.isnot(None),
+                ),
+                models.Employee.status == "vacation",
+            )
+        )
+    ).all()
+    changed = False
     
     for emp in employees:
         if emp.vacation_start and emp.vacation_end:
@@ -382,6 +417,7 @@ def update_vacation_statuses(session: Session, target_date: datetime):
                 if emp.status == 'vacation':
                     emp.status = 'active'
                 session.add(emp)
+                changed = True
                 continue
             
             # Check if currently on vacation
@@ -391,6 +427,7 @@ def update_vacation_statuses(session: Session, target_date: datetime):
                 if emp.status != 'vacation':
                     emp.status = 'vacation'
                     session.add(emp)
+                    changed = True
                 
                 # Create vacation routine for today if doesn't exist
                 # Check for each shift
@@ -414,11 +451,13 @@ def update_vacation_statuses(session: Session, target_date: datetime):
                             routine="vacation"
                         )
                         session.add(new_routine)
+                        changed = True
                         print(f"Criada rotina de ferias para {emp.name} - {today_str} ({shift})")
                     elif existing_routine.routine != "vacation":
                         # Update existing routine to vacation
                         existing_routine.routine = "vacation"
                         session.add(existing_routine)
+                        changed = True
             else:
                 # Not yet on vacation or vacation hasn't started
                 # If currently marked as vacation but NOT in vacation period anymore (or yet)
@@ -426,8 +465,10 @@ def update_vacation_statuses(session: Session, target_date: datetime):
                 if emp.status == 'vacation':
                     emp.status = 'active'
                     session.add(emp)
-    
-    session.commit()
+                    changed = True
+
+    if changed:
+        session.commit()
 def sync_sectors_on_startup():
     """Sincroniza automaticamente Sector -> SectorConfiguration ao iniciar"""
     try:
@@ -488,6 +529,7 @@ async def lifespan(app: FastAPI):
         ensure_column(engine, "employee", "mobile_access_returns", "BOOLEAN DEFAULT FALSE")
         ensure_column(engine, "employee", "mobile_access_helper", "BOOLEAN DEFAULT FALSE")
         ensure_column(engine, "employee", "seller_code", "VARCHAR(64)")
+        ensure_column(engine, "deliverysession", "reopen_reason", "VARCHAR(512)")
     except Exception as e:
         logger.error(f"Erro ao migrar vehicle/checklist/client/route: {e}")
     try:
@@ -810,10 +852,26 @@ def fmt_br_2(val):
     except Exception:
         return str(val)
 
+def fmt_br_duracao(val):
+    """Duração em minutos (padrão BR): 0-60 → 'X min'; >60 → 'H:MM hr'."""
+    if val is None:
+        return "--"
+    try:
+        m = int(round(float(val)))
+        if m < 0:
+            m = 0
+        if m <= 60:
+            return f"{m} min"
+        h, mn = m // 60, m % 60
+        return f"{h}:{mn:02d} hr"
+    except Exception:
+        return "--"
+
 templates.env.filters["fmt_br"] = fmt_br
 templates.env.filters["fmt_br_int"] = fmt_br_int
 templates.env.filters["fmt_br_pct"] = fmt_br_pct
 templates.env.filters["fmt_br_2"] = fmt_br_2
+templates.env.filters["fmt_br_duracao"] = fmt_br_duracao
 
 def _emp_name_upper(val):
     """Padroniza nome de colaborador em MAIÚSCULAS para exibição."""
@@ -1827,6 +1885,33 @@ def maintenance_emails_settings_redirect(message: str, level: str = "success") -
     query = urlencode({"message": message, "level": level})
     return RedirectResponse(url=f"/admin/absence-alerts/settings?{query}", status_code=status.HTTP_303_SEE_OTHER)
 
+
+def _load_active_employee_user_options(session: Session) -> tuple[List[Dict[str, Any]], Dict[int, Dict[str, Any]]]:
+    """Carrega somente os campos usados nas telas de gestão de usuários."""
+    rows = session.exec(
+        select(
+            models.Employee.id,
+            models.Employee.name,
+            models.Employee.registration_id,
+        )
+        .where(models.Employee.status != "fired")
+        .order_by(models.Employee.name)
+    ).all()
+
+    employees: List[Dict[str, Any]] = []
+    employee_map: Dict[int, Dict[str, Any]] = {}
+    for employee_id, employee_name, registration_id in rows:
+        if employee_id is None:
+            continue
+        item = {
+            "id": int(employee_id),
+            "name": str(employee_name or ""),
+            "registration_id": str(registration_id or ""),
+        }
+        employees.append(item)
+        employee_map[item["id"]] = item
+    return employees, employee_map
+
 # --- Auth Helper Functions ---
 def get_current_user(request: Request):
     auth_user_id = request.session.get("auth_user_id")
@@ -2006,13 +2091,15 @@ async def dashboard_entry(
     employee_by_id = {e.id: e for e in employees if e.id is not None}
     employee_ids = set(employee_by_id.keys())
 
-    clients = session.exec(select(models.Client)).all()
-    client_by_id = {c.id: c for c in clients if c.id is not None}
-
-    routines = session.exec(
-        select(models.EmployeeRoutine).where(models.EmployeeRoutine.date == selected_date_str)
-    ).all()
-    routines = [r for r in routines if r.employee_id in employee_ids]
+    employee_id_list = list(employee_ids)
+    if employee_id_list:
+        routines = session.exec(
+            select(models.EmployeeRoutine)
+            .where(models.EmployeeRoutine.date == selected_date_str)
+            .where(models.EmployeeRoutine.employee_id.in_(employee_id_list))
+        ).all()
+    else:
+        routines = []
     routine_by_employee = {r.employee_id: r for r in routines}
 
     # Cost centers summary (Empresa / Centro de Custo)
@@ -2031,12 +2118,18 @@ async def dashboard_entry(
         cost_center_options.append("Sem Centro")
 
     # Delivery routes for selected day (filter by employee cost_center)
-    routes = session.exec(
-        select(models.Route)
-        .where(models.Route.type == "delivery")
-        .where(models.Route.date == selected_date_str)
-    ).all()
-    routes = [r for r in routes if r.employee_id in employee_ids]
+    if employee_id_list:
+        routes = session.exec(
+            select(models.Route)
+            .where(models.Route.type == "delivery")
+            .where(models.Route.date == selected_date_str)
+            .where(models.Route.employee_id.in_(employee_id_list))
+        ).all()
+    else:
+        routes = []
+    client_ids = list({r.client_id for r in routes if r.client_id is not None})
+    clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
+    client_by_id = {c.id: c for c in clients if c.id is not None}
 
     def _parse_hhmm(v: Optional[str]) -> Optional[int]:
         if not v:
@@ -2259,12 +2352,7 @@ async def users_legacy_redirect():
 async def admin_users_page(request: Request, session: Session = Depends(get_session)):
     require_admin(request)
     users = session.exec(select(models.User).order_by(models.User.username)).all()
-    employees = session.exec(
-        select(models.Employee)
-        .where(models.Employee.status != "fired")
-        .order_by(models.Employee.name)
-    ).all()
-    employee_map = {e.id: e for e in employees}
+    employees, employee_map = _load_active_employee_user_options(session)
     return templates.TemplateResponse(
         "admin_users.html",
         {
@@ -2345,12 +2433,7 @@ async def admin_user_edit_page(
     user = session.get(models.User, user_id)
     if not user:
         return admin_users_redirect("Usuário não encontrado.", "error")
-    employees = session.exec(
-        select(models.Employee)
-        .where(models.Employee.status != "fired")
-        .order_by(models.Employee.name)
-    ).all()
-    employee_map = {e.id: e for e in employees}
+    employees, employee_map = _load_active_employee_user_options(session)
     return templates.TemplateResponse(
         "admin_user_edit.html",
         {
@@ -2712,8 +2795,7 @@ def _compute_carga_descarga_metrics(
     count = 0
     by_day: List[Dict[str, Any]] = []
     try:
-        employees = session.exec(select(models.Employee)).all()
-        emp_by_name = {(e.name or "").strip().lower(): e for e in employees if e and (e.name or "").strip()}
+        _, emp_by_name = _load_employee_name_maps(session, include_fired=True)
 
         routes = list(session.exec(
             select(models.Route)
@@ -2754,11 +2836,11 @@ def _compute_carga_descarga_metrics(
                         helper_ids_by_date_driver[key].add(hid)
                 if not helper_ids_by_date_driver.get(key):
                     for name in _parse_session_helpers(ds.helpers_json):
-                        emp = emp_by_name.get((name or "").strip().lower())
-                        if emp and emp.id and emp.id != (ds.employee_id or 0):
+                        emp_id = emp_by_name.get((name or "").strip().lower())
+                        if emp_id and emp_id != (ds.employee_id or 0):
                             if key not in helper_ids_by_date_driver:
                                 helper_ids_by_date_driver[key] = set()
-                            helper_ids_by_date_driver[key].add(emp.id)
+                            helper_ids_by_date_driver[key].add(emp_id)
 
         cargas_count: Dict[tuple[str, int, Optional[int]], int] = {}
         for ds in sessions_closed:
@@ -2851,16 +2933,7 @@ def _compute_employee_returns_metrics(
             since = since_dt.strftime("%Y-%m-%d")
             until = until_dt.strftime("%Y-%m-%d")
 
-        employees_all = session.exec(
-            select(models.Employee)
-            .where(models.Employee.status != "fired")
-            .order_by(models.Employee.name)
-        ).all()
-        emp_by_name = {
-            (emp.name or "").strip().lower(): emp
-            for emp in employees_all
-            if emp and emp.id and (emp.name or "").strip()
-        }
+        _, emp_by_name = _load_employee_name_maps(session, include_fired=False)
 
         sessions_for_period = session.exec(
             select(models.DeliverySession)
@@ -2959,19 +3032,20 @@ def _compute_employee_returns_metrics(
         client_ids = list({x.get("client_id") for x in combined if x.get("client_id")})
         clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
         client_map = {c.id: c for c in clients}
+        top_clients_map: Dict[str, Dict[str, Any]] = {}
         for item in combined:
             c = client_map.get(item.get("client_id"))
             name = (c.razao_social or c.name or "Cliente") if c else "Cliente"
             val = float(item.get("value") or 0.0)
             vol = float(item.get("volume") or 0.0)
-            existing = next((x for x in top_clients if x.get("name") == name), None)
+            existing = top_clients_map.get(name)
             if existing:
                 existing["value"] = existing.get("value", 0) + val
                 existing["volume"] = existing.get("volume", 0) + vol
                 existing["count"] = existing.get("count", 0) + 1
             else:
-                top_clients.append({"name": name, "value": val, "volume": vol, "count": 1})
-        top_clients.sort(key=lambda x: x.get("value", 0), reverse=True)
+                top_clients_map[name] = {"name": name, "value": val, "volume": vol, "count": 1}
+        top_clients = sorted(top_clients_map.values(), key=lambda x: x.get("value", 0), reverse=True)
     except Exception as e:
         logger.exception(f"Error computing returns metrics: {e}")
         if since is None:
@@ -3181,12 +3255,15 @@ async def mobile_delivery_page(request: Request, session: Session = Depends(get_
     if not employee:
         request.session.pop("user_id", None)
         return RedirectResponse(url="/mobile/login", status_code=303)
-    employees = session.exec(
-        select(models.Employee).where(models.Employee.status == "active")
+    helpers_eligible_rows = session.exec(
+        select(models.Employee.id, models.Employee.name)
+        .where(models.Employee.status == "active")
+        .where(models.Employee.mobile_access_helper == True)
+        .where(models.Employee.id != employee.id)
+        .order_by(models.Employee.name)
     ).all()
-    helpers_eligible = [e for e in employees if bool(getattr(e, "mobile_access_helper", False)) and e.id != employee.id]
     employees_json = json.dumps(
-        [{"id": e.id, "name": _emp_name_upper(e.name)} for e in helpers_eligible],
+        [{"id": helper_id, "name": _emp_name_upper(helper_name)} for helper_id, helper_name in helpers_eligible_rows],
         ensure_ascii=False
     )
     now_sp_delivery = datetime.now(ZoneInfo("America/Sao_Paulo"))
@@ -3391,13 +3468,7 @@ async def api_mobile_delivery_history(
     if date_from > date_to:
         date_from, date_to = date_to, date_from
 
-    employees_all = session.exec(select(models.Employee).order_by(models.Employee.name)).all()
-    emp_map = {e.id: e.name for e in employees_all if e and e.id}
-    emp_by_name = {
-        (e.name or "").strip().lower(): e
-        for e in employees_all
-        if e and e.id and (e.name or "").strip()
-    }
+    emp_map, emp_by_name = _load_employee_name_maps(session, include_fired=True)
 
     sessions_for_period = session.exec(
         select(models.DeliverySession)
@@ -3563,23 +3634,32 @@ app.include_router(init_admin_geocoding_router(require_leader=require_leader))
 @app.post("/api/admin/sync-xp-totals")
 async def api_sync_xp_totals(request: Request, session: Session = Depends(get_session)):
     try:
-        require_login(request) # Safety
+        require_login(request)  # Safety
+        totals_by_employee: Dict[int, int] = {}
+        totals_rows = session.exec(
+            select(
+                models.GameXPTransaction.employee_id,
+                func.coalesce(func.sum(models.GameXPTransaction.amount), 0),
+            )
+            .where(models.GameXPTransaction.status != "rejected")
+            .group_by(models.GameXPTransaction.employee_id)
+        ).all()
+        for employee_id, total in totals_rows:
+            if employee_id is None:
+                continue
+            totals_by_employee[int(employee_id)] = int(total or 0)
+
         employees = session.exec(select(models.Employee)).all()
         count = 0
         for emp in employees:
-            # Sum all non-rejected transactions
-            total = session.exec(
-                select(func.sum(models.GameXPTransaction.amount))
-                .where(models.GameXPTransaction.employee_id == emp.id)
-                .where(models.GameXPTransaction.status != "rejected")
-            ).one() or 0
-            
+            total = totals_by_employee.get(int(emp.id), 0) if emp.id is not None else 0
             if emp.total_xp != int(total):
                 emp.total_xp = int(total)
                 session.add(emp)
                 count += 1
-        
-        session.commit()
+
+        if count:
+            session.commit()
         return {"success": True, "updated": count}
     except Exception as e:
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)
@@ -3719,44 +3799,29 @@ async def api_manual_xp(payload: ManualXPRequest, request: Request, session: Ses
 @app.get("/admin/game", response_class=HTMLResponse)
 async def admin_game_dashboard(request: Request, session: Session = Depends(get_session), user=Depends(require_leader)):
     """Manager Dashboard for Gamification Control"""
-    # 1. Fetch Provisional Transactions
-    pending_txs = session.exec(
-        select(models.GameXPTransaction, models.Employee)
+    pending_rows = session.exec(
+        select(
+            models.GameXPTransaction.id,
+            models.GameXPTransaction.amount,
+            models.GameXPTransaction.reason,
+            models.GameXPTransaction.created_at,
+            models.Employee.name,
+        )
         .join(models.Employee)
         .where(models.GameXPTransaction.status == "provisional")
         .order_by(desc(models.GameXPTransaction.created_at))
     ).all()
-    
-    # Format for template
+
     pending_list = []
-    for tx, emp in pending_txs:
+    for tx_id, tx_amount, tx_reason, tx_created_at, employee_name in pending_rows:
         pending_list.append({
-            "id": tx.id,
-            "employee_name": emp.name,
-            "amount": tx.amount,
-            "reason": tx.reason,
-            "date": tx.created_at.strftime("%d/%m %H:%M")
+            "id": tx_id,
+            "employee_name": employee_name or "",
+            "amount": tx_amount,
+            "reason": tx_reason,
+            "date": tx_created_at.strftime("%d/%m %H:%M") if tx_created_at else "-",
         })
 
-    # 2. Fetch Recent Ledger (Audit)
-    history_txs = session.exec(
-        select(models.GameXPTransaction, models.Employee)
-        .join(models.Employee)
-        .order_by(desc(models.GameXPTransaction.created_at))
-        .limit(50)
-    ).all()
-    
-    formatted_history = []
-    for tx, emp in history_txs:
-        formatted_history.append({
-             "id": tx.id,
-             "employee_name": emp.name,
-             "amount": tx.amount,
-             "status": tx.status,
-             "reason": tx.reason,
-             "date": tx.created_at.strftime("%d/%m %H:%M")
-        })
-        
     return templates.TemplateResponse("admin_game.html", {
         "request": request,
         "pending_txs": pending_list
@@ -3764,30 +3829,10 @@ async def admin_game_dashboard(request: Request, session: Session = Depends(get_
     })
 
 @app.get("/admin/game/audit", response_class=HTMLResponse)
-async def admin_game_audit(request: Request, session: Session = Depends(get_session), user=Depends(require_leader)):
+async def admin_game_audit(request: Request, user=Depends(require_leader)):
     """Exclusive Audit Log Page"""
-    history_txs = session.exec(
-        select(models.GameXPTransaction, models.Employee)
-        .join(models.Employee)
-        .order_by(desc(models.GameXPTransaction.created_at))
-        .limit(200) # Load more history
-    ).all()
-    
-    formatted_history = []
-    for tx, emp in history_txs:
-        formatted_history.append({
-             "id": tx.id,
-             "employee_id": emp.id,
-             "employee_name": emp.name,
-             "amount": tx.amount,
-             "status": tx.status,
-             "reason": tx.reason,
-             "date": tx.created_at.strftime("%d/%m/%Y %H:%M")
-        })
-        
     return templates.TemplateResponse("admin_game_audit.html", {
         "request": request,
-        "history_txs": formatted_history
     })
 
 @app.get("/admin/game/audit/employee/{employee_id}", response_class=HTMLResponse)
@@ -4194,6 +4239,10 @@ class MobileDeliverySessionUpdatePayload(BaseModel):
     km_departure: Optional[float] = None
 
 
+class MobileDeliverySessionReopenPayload(BaseModel):
+    reason: str
+
+
 class MobileDeliveryActionPayload(BaseModel):
     action: str
     latitude: Optional[float] = None   # GPS do motorista no momento da ação
@@ -4393,20 +4442,6 @@ def ensure_devolucao_route_id():
                 conn.commit()
     except Exception as e:
         logger.error(f"ensure_devolucao_route_id: {e}")
-
-
-@app.on_event("startup")
-def on_startup():
-    create_db_and_tables()
-    ensure_default_admin()
-    ensure_pallet_count_schema()
-    ensure_vehicle_schema()
-    ensure_checklist_odometer_schema()
-    # Migration for new column
-    ensure_column(engine, "employee", "mobile_access_admin_start", "BOOLEAN DEFAULT FALSE")
-    ensure_column(engine, "employee", "mobile_access_returns", "BOOLEAN DEFAULT FALSE")
-    ensure_column(engine, "employee", "mobile_access_helper", "BOOLEAN DEFAULT FALSE")
-    ensure_column(engine, "employee", "seller_code", "VARCHAR(64)")
 
 @app.get("/api/admin/clients", dependencies=[Depends(require_leader)])
 async def api_get_admin_clients(session: Session = Depends(get_session)):
@@ -4670,6 +4705,22 @@ async def api_mobile_delivery_my_routes(
             drv = session.get(models.Employee, session_open.employee_id)
             driver_name = (drv.name or "") if drv else ""
 
+        closed_session_today = None
+        if not session_open and not is_helper_view and user_id:
+            ds_closed = session.exec(
+                select(models.DeliverySession)
+                .where(models.DeliverySession.employee_id == user_id)
+                .where(models.DeliverySession.date == today_str)
+                .where(models.DeliverySession.status == "closed")
+                .order_by(desc(models.DeliverySession.id))
+            ).first()
+            if ds_closed:
+                closed_session_today = {
+                    "id": ds_closed.id,
+                    "vehicle_plate": ds_closed.vehicle_plate or "",
+                    "ended_at": _format_hhmm_sao_paulo(ds_closed.ended_at, ds_closed.date),
+                }
+
         return JSONResponse({
             "success": True,
             "date": today_str,
@@ -4691,6 +4742,7 @@ async def api_mobile_delivery_my_routes(
             "routes": payload,
             "day_cards": day_cards,
             "return_reasons": DELIVERY_RETURN_REASONS_FLAT,
+            "closed_session_today": closed_session_today,
         })
     except Exception as e:
         logger.exception("api_mobile_delivery_my_routes error: %s", e)
@@ -4815,6 +4867,43 @@ async def api_mobile_delivery_session_end(
             truck.odometer_km = float(km)
             truck.updated_at = ds.ended_at
             session.add(truck)
+    session.commit()
+    return JSONResponse({"success": True})
+
+
+@app.post("/api/mobile/delivery/session/reopen", response_class=JSONResponse)
+async def api_mobile_delivery_session_reopen(
+    request: Request,
+    payload: MobileDeliverySessionReopenPayload,
+    session: Session = Depends(get_session)
+):
+    """Reabre rota fechada no mesmo dia, informando o motivo."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse({"success": False, "error": "Não autorizado"}, status_code=401)
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        return JSONResponse({"success": False, "error": "Sessão inválida"}, status_code=401)
+    today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    reason = (payload.reason or "").strip()
+    if not reason:
+        return JSONResponse({"success": False, "error": "Informe o motivo da reabertura."}, status_code=400)
+
+    ds = session.exec(
+        select(models.DeliverySession)
+        .where(models.DeliverySession.employee_id == user_id)
+        .where(models.DeliverySession.date == today_str)
+        .where(models.DeliverySession.status == "closed")
+        .order_by(desc(models.DeliverySession.id))
+    ).first()
+    if not ds:
+        return JSONResponse({"success": False, "error": "Nenhuma rota encerrada hoje para reabrir."}, status_code=400)
+
+    ds.status = "open"
+    ds.ended_at = None
+    ds.reopen_reason = reason[:512] if reason else None
+    session.add(ds)
     session.commit()
     return JSONResponse({"success": True})
 
@@ -6891,6 +6980,12 @@ async def admin_checklist_edit(
     return RedirectResponse(url=f"/admin/routine/checklists/{checklist_id}", status_code=status.HTTP_303_SEE_OTHER)
 
 
+@app.get("/admin/tools/cleanup/checklists", response_class=RedirectResponse)
+async def admin_cleanup_checklists_get():
+    """GET redireciona para a página de configurações (formulário de confirmação)."""
+    return RedirectResponse(url="/admin/routine/checklists/settings", status_code=status.HTTP_303_SEE_OTHER)
+
+
 @app.post("/admin/tools/cleanup/checklists", response_class=RedirectResponse)
 async def admin_cleanup_all_checklists(
     request: Request,
@@ -6913,66 +7008,77 @@ async def admin_cleanup_all_checklists(
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
-    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    try:
+        now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+        actor_label = format_user_label(user)
 
-    # Buscar todos os checklists
-    checklists = session.exec(select(models.TranspalletChecklist)).all()
+        # Buscar todos os checklists
+        checklists = session.exec(select(models.TranspalletChecklist)).all()
 
-    for checklist in checklists:
-        # Liberar equipamento se bloqueado por este checklist
-        if checklist.equipment_code:
-            eq = session.exec(
-                select(models.TranspalletEquipment).where(
-                    models.TranspalletEquipment.code == checklist.equipment_code
+        for checklist in checklists:
+            # Liberar equipamento se bloqueado por este checklist
+            if checklist.equipment_code:
+                eq = session.exec(
+                    select(models.TranspalletEquipment).where(
+                        models.TranspalletEquipment.code == checklist.equipment_code
+                    )
+                ).first()
+                if eq and eq.status == "blocked" and eq.last_checklist_id == checklist.id:
+                    eq.status = "available"
+                    eq.blocked_reason = None
+                    eq.last_checklist_id = None
+                    session.add(eq)
+
+            # Remover XP se houve transação
+            if checklist.xp_transaction_id:
+                tx = session.get(models.GameXPTransaction, checklist.xp_transaction_id)
+                if tx:
+                    if tx.status in ["approved", "confirmed"]:
+                        emp = session.get(models.Employee, checklist.employee_id)
+                        if emp and tx.amount is not None:
+                            current_xp = getattr(emp, "total_xp", 0) or 0
+                            emp.total_xp = max(0.0, float(current_xp) - abs(float(tx.amount)))
+                            session.add(emp)
+
+                    tx.status = "rejected"
+                    note = f"Revogado: Checklist #{checklist.id} excluído no cleanup global."
+                    if tx.reason:
+                        if "Revogado: Checklist" not in tx.reason:
+                            tx.reason = f"{tx.reason} | {note}"
+                    else:
+                        tx.reason = note
+                    session.add(tx)
+
+            # Evento de auditoria
+            session.add(
+                models.Event(
+                    timestamp=now_br,
+                    text=f"Checklist #{checklist.id} excluído em limpeza global por {actor_label}.",
+                    type="checklist_delete",
+                    category="processo",
+                    sector=checklist.equipment_code,
+                    impact="high",
+                    reference_type="checklist",
+                    reference_id=checklist.id,
+                    employee_id=checklist.employee_id,
                 )
-            ).first()
-            if eq and eq.status == "blocked" and eq.last_checklist_id == checklist.id:
-                eq.status = "available"
-                eq.blocked_reason = None
-                eq.last_checklist_id = None
-                session.add(eq)
-
-        # Remover XP se houve transação
-        if checklist.xp_transaction_id:
-            tx = session.get(models.GameXPTransaction, checklist.xp_transaction_id)
-            if tx:
-                if tx.status in ["approved", "confirmed"]:
-                    emp = session.get(models.Employee, checklist.employee_id)
-                    if emp and tx.amount:
-                        emp.total_xp = max(0, emp.total_xp - abs(tx.amount))
-                        session.add(emp)
-
-                tx.status = "rejected"
-                note = f"Revogado: Checklist #{checklist.id} exclu%C3%ADdo+no+cleanup+global."
-                if tx.reason:
-                    if "Revogado: Checklist" not in tx.reason:
-                        tx.reason = f"{tx.reason} | {note}"
-                else:
-                    tx.reason = note
-                session.add(tx)
-
-        # Evento de auditoria
-        session.add(
-            models.Event(
-                timestamp=now_br,
-                text=f"Checklist #{checklist.id} excluído em limpeza global por {actor_label}.",
-                type="checklist_delete",
-                category="processo",
-                sector=checklist.equipment_code,
-                impact="high",
-                reference_type="checklist",
-                reference_id=checklist.id,
-                employee_id=checklist.employee_id,
             )
+
+            session.delete(checklist)
+
+        session.commit()
+        return RedirectResponse(
+            url="/admin/routine/checklists/settings?message=Todos+os+checklists+foram+apagados+com+sucesso.&level=success",
+            status_code=status.HTTP_303_SEE_OTHER,
         )
-
-        session.delete(checklist)
-
-    session.commit()
-    return RedirectResponse(
-        url="/admin/routine/checklists/settings?message=Todos+os+checklists+foram+apagados+com+sucesso.&level=success",
-        status_code=status.HTTP_303_SEE_OTHER,
-    )
+    except Exception as e:
+        logger.exception("admin_cleanup_all_checklists error: %s", e)
+        from urllib.parse import quote
+        msg = quote(str(e)[:200] if str(e) else "Erro ao processar")
+        return RedirectResponse(
+            url=f"/admin/routine/checklists/settings?message=Erro+no+cleanup:+{msg}&level=error",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
 
 
 @app.post("/admin/tools/cleanup/tickets", response_class=RedirectResponse)
@@ -8984,16 +9090,54 @@ async def vehicle_history_page(request: Request, vehicle_id: int, session: Sessi
     if not vehicle:
         return RedirectResponse(url="/vehicles")
     placa_norm = (vehicle.placa or "").strip().upper()
+    plate_key = _norm_plate(placa_norm)
+
+    def _plate_match_expr(column):
+        return (
+            func.replace(
+                func.replace(
+                    func.replace(func.upper(column), "-", ""),
+                    " ",
+                    "",
+                ),
+                ".",
+                "",
+            ) == plate_key
+        )
+
+    def _fmt_km(value: Optional[float]) -> str:
+        if value is None:
+            return "-"
+        numeric = float(value)
+        if numeric.is_integer():
+            return f"{numeric:,.0f}".replace(",", ".")
+        return f"{numeric:,.1f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+    def _fmt_kg(value: float) -> str:
+        return f"{float(value or 0.0):,.0f}".replace(",", ".")
+
+    def _set_min_time(row: Dict[str, Any], field: str, candidate: Optional[str]) -> None:
+        if candidate and (not row.get(field) or candidate < row[field]):
+            row[field] = candidate
+
+    def _set_max_time(row: Dict[str, Any], field: str, candidate: Optional[str]) -> None:
+        if candidate and (not row.get(field) or candidate > row[field]):
+            row[field] = candidate
+
+    def _append_helper_names(row: Dict[str, Any], names: List[str]) -> None:
+        for raw_name in names:
+            clean_name = str(raw_name or "").strip()
+            if not clean_name:
+                continue
+            if clean_name not in row["helper_names"]:
+                row["helper_names"].append(clean_name)
+
+    id_to_name, _ = _load_employee_name_maps(session, include_fired=True)
     checklists = session.exec(
         select(models.TranspalletChecklist)
-        .where(func.upper(models.TranspalletChecklist.equipment_code) == placa_norm)
+        .where(_plate_match_expr(models.TranspalletChecklist.equipment_code))
         .order_by(desc(models.TranspalletChecklist.date), desc(models.TranspalletChecklist.submitted_at))
     ).all()
-    emp_ids = {c.employee_id for c in checklists}
-    emp_map = {}
-    if emp_ids:
-        emps = session.exec(select(models.Employee).where(col(models.Employee.id).in_(list(emp_ids)))).all()
-        emp_map = {e.id: e.name for e in emps}
     rows = []
     for c in checklists:
         odom = getattr(c, "odometer_km", None)
@@ -9005,7 +9149,7 @@ async def vehicle_history_page(request: Request, vehicle_id: int, session: Sessi
             "date_fmt": datetime.strptime(c.date, "%Y-%m-%d").strftime("%d/%m/%Y") if c.date else "-",
             "shift": c.shift,
             "shift_display": shift_disp,
-            "employee_name": emp_map.get(c.employee_id, "Desconhecido"),
+            "employee_name": id_to_name.get(c.employee_id, "Desconhecido"),
             "odometer_km": odom,
             "odometer_fmt": f"{odom:,.0f}".replace(",", ".") if odom is not None else "-",
             "status": c.status,
@@ -9013,6 +9157,105 @@ async def vehicle_history_page(request: Request, vehicle_id: int, session: Sessi
             "nonconforming": bool(c.nonconforming_keys),
             "submitted_at": c.submitted_at.strftime("%d/%m %H:%M") if c.submitted_at else "-",
         })
+
+    delivery_sessions = session.exec(
+        select(models.DeliverySession)
+        .where(_plate_match_expr(models.DeliverySession.vehicle_plate))
+        .order_by(desc(models.DeliverySession.date), desc(models.DeliverySession.started_at))
+    ).all()
+    delivery_routes = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(_plate_match_expr(models.Route.delivery_vehicle_plate))
+        .order_by(desc(models.Route.date), desc(models.Route.id))
+    ).all()
+
+    delivery_history_map: Dict[tuple[str, int], Dict[str, Any]] = {}
+
+    def _ensure_delivery_row(date_str: Optional[str], driver_id: Optional[int]) -> Dict[str, Any]:
+        key = (date_str or "", int(driver_id or 0))
+        if key not in delivery_history_map:
+            delivery_history_map[key] = {
+                "date": date_str or "",
+                "date_fmt": _fmt_br_date(date_str or ""),
+                "driver_id": int(driver_id or 0),
+                "driver_name": id_to_name.get(int(driver_id or 0), "Desconhecido" if driver_id else "-"),
+                "helper_names": [],
+                "km_departure": None,
+                "km_return": None,
+                "started_at": "",
+                "ended_at": "",
+                "total_weight": 0.0,
+                "route_count": 0,
+            }
+        return delivery_history_map[key]
+
+    for ds in delivery_sessions:
+        row = _ensure_delivery_row(ds.date, ds.employee_id)
+        if ds.km_departure is not None:
+            current_departure = row.get("km_departure")
+            row["km_departure"] = float(ds.km_departure) if current_departure is None else min(float(current_departure), float(ds.km_departure))
+        if ds.km_return is not None:
+            current_return = row.get("km_return")
+            row["km_return"] = float(ds.km_return) if current_return is None else max(float(current_return), float(ds.km_return))
+        _set_min_time(row, "started_at", _format_hhmm_sao_paulo(ds.started_at, ds.date))
+        _set_max_time(row, "ended_at", _format_hhmm_sao_paulo(ds.ended_at, ds.date))
+
+        session_helper_names: List[str] = []
+        for helper_ref in _parse_session_helpers(ds.helpers_json):
+            clean_ref = str(helper_ref or "").strip()
+            if not clean_ref:
+                continue
+            if clean_ref.isdigit():
+                resolved_name = id_to_name.get(int(clean_ref), clean_ref)
+            else:
+                resolved_name = clean_ref
+            if resolved_name and resolved_name != row["driver_name"]:
+                session_helper_names.append(resolved_name)
+        _append_helper_names(row, session_helper_names)
+
+    for route in delivery_routes:
+        row = _ensure_delivery_row(route.date, route.employee_id)
+        row["total_weight"] += _safe_float(route.tonnage)
+        row["route_count"] += 1
+
+        _set_min_time(row, "started_at", route.delivery_started_at or route.start_time)
+        for end_candidate in [
+            route.delivery_finished_at,
+            route.end_time,
+            route.delivery_returned_at,
+            route.delivery_canceled_at,
+        ]:
+            _set_max_time(row, "ended_at", end_candidate)
+
+        route_helper_names = [
+            id_to_name.get(helper_id, str(helper_id))
+            for helper_id in _parse_route_helper_ids(getattr(route, "delivery_helpers_json", None))
+            if helper_id and helper_id != (route.employee_id or 0)
+        ]
+        _append_helper_names(row, route_helper_names)
+
+    delivery_history = []
+    for row in delivery_history_map.values():
+        km_departure = row.get("km_departure")
+        km_return = row.get("km_return")
+        km_day = None
+        if km_departure is not None and km_return is not None and km_return >= km_departure:
+            km_day = km_return - km_departure
+
+        delivery_history.append({
+            **row,
+            "helper_display": ", ".join(row["helper_names"]) if row["helper_names"] else "-",
+            "km_departure_fmt": _fmt_km(km_departure),
+            "km_return_fmt": _fmt_km(km_return),
+            "km_day": km_day,
+            "km_day_fmt": _fmt_km(km_day),
+            "started_at_fmt": row.get("started_at") or "-",
+            "ended_at_fmt": row.get("ended_at") or "-",
+            "total_weight_fmt": _fmt_kg(row.get("total_weight") or 0.0),
+        })
+    delivery_history.sort(key=lambda item: (item.get("date") or "", item.get("started_at") or ""), reverse=True)
+
     # Último KM: do veículo (atualizado por checklist/edição) ou do último checklist
     last_km = getattr(vehicle, "odometer_km", None)
     if last_km is None and rows:
@@ -9020,7 +9263,15 @@ async def vehicle_history_page(request: Request, vehicle_id: int, session: Sessi
     last_km_fmt = f"{last_km:,.0f}".replace(",", ".") if last_km is not None else None
     return templates.TemplateResponse(
         "vehicle_history.html",
-        {"request": request, "user": user, "vehicle": vehicle, "checklists": rows, "last_km": last_km, "last_km_fmt": last_km_fmt}
+        {
+            "request": request,
+            "user": user,
+            "vehicle": vehicle,
+            "checklists": rows,
+            "delivery_history": delivery_history,
+            "last_km": last_km,
+            "last_km_fmt": last_km_fmt,
+        }
     )
 
 
@@ -11259,7 +11510,7 @@ async def delivery_bulk_action(
     date_to: Optional[str] = Form(None),
     shift: str = Form("Manhã"),
     employee_ids: str = Form(...),  # JSON array [1,2,3] ou comma-separated
-    action: str = Form(...),  # delete_routes | clear_devolucoes
+    action: str = Form(...),  # delete_routes | clear_devolucoes | finalize_routes
     session: Session = Depends(get_session),
 ):
     """Ações em massa para motoristas selecionados: apagar rotas ou limpar devoluções."""
@@ -11290,7 +11541,7 @@ async def delivery_bulk_action(
         return RedirectResponse(url=redirect_base + f"&{feedback_encoded}", status_code=303)
 
     action_norm = (action or "").strip().lower()
-    if action_norm not in ("delete_routes", "clear_devolucoes"):
+    if action_norm not in ("delete_routes", "clear_devolucoes", "finalize_routes"):
         feedback_encoded = urlencode({"delivery_feedback": "Ação inválida.", "delivery_feedback_level": "error"})
         return RedirectResponse(url=redirect_base + f"&{feedback_encoded}", status_code=303)
 
@@ -11332,6 +11583,65 @@ async def delivery_bulk_action(
             "delivery_feedback": f"Rotas apagadas para {len(ids_list)} motorista(s): {len(routes)} parada(s) removida(s).",
             "delivery_feedback_level": "success",
         })
+        return RedirectResponse(url=redirect_base + f"&{feedback_encoded}", status_code=303)
+
+    if action_norm == "finalize_routes":
+        # Finalizar entregas dos motoristas selecionados: paradas pendentes/iniciadas/reabertas -> entregue ou devolucao
+        now = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
+        devolucao_by_route: dict[int, list] = {}
+        if route_ids:
+            devolucoes = session.exec(
+                select(models.Devolucao).where(models.Devolucao.route_id.in_(route_ids))
+            ).all()
+            for d in devolucoes:
+                if d.route_id:
+                    devolucao_by_route.setdefault(d.route_id, []).append(d)
+        delivered_count = 0
+        returned_count = 0
+        return_value_total = 0.0
+        total_planned = 0.0
+        for route in routes:
+            st = (route.delivery_status or "").lower()
+            if st in ("entregue", "devolucao"):
+                continue
+            if st in ("cancelada",):
+                continue
+            has_devolucao = (
+                st == "devolucao"
+                or route.valor_devolucao
+                or (route.id and route.id in devolucao_by_route)
+            )
+            total_planned += float(route.valor_financeiro or 0.0)
+            if has_devolucao:
+                route.delivery_status = "devolucao"
+                route.status = "completed"
+                returned_count += 1
+                val = float(route.valor_devolucao or route.valor_financeiro or 0.0)
+                if not route.valor_devolucao and route.id and route.id in devolucao_by_route:
+                    val = sum(float(d.valor or 0) for d in devolucao_by_route[route.id])
+                route.valor_devolucao = val
+                return_value_total += val
+            else:
+                route.delivery_status = "entregue"
+                route.status = "completed"
+                delivered_count += 1
+            route.end_time = now
+            if not route.delivery_finished_at:
+                route.delivery_finished_at = now
+            if has_devolucao and not route.delivery_returned_at:
+                route.delivery_returned_at = now
+            _append_delivery_event(
+                route,
+                "finalizar" if not has_devolucao else "devolucao",
+                now,
+                note="Fechamento em massa (seleção)" if not has_devolucao else "Devolução (fechamento em massa)",
+            )
+            session.add(route)
+        session.commit()
+        total = delivered_count + returned_count
+        rate = (return_value_total / total_planned * 100) if total_planned else 0.0
+        feedback = f"Rotas finalizadas: {delivered_count} entregues, {returned_count} devoluções (R$ {return_value_total:,.2f}, {rate:.1f}% dev.)"
+        feedback_encoded = urlencode({"delivery_feedback": feedback, "delivery_feedback_level": "success"})
         return RedirectResponse(url=redirect_base + f"&{feedback_encoded}", status_code=303)
 
     # clear_devolucoes - Devolucao por data no período
@@ -12057,7 +12367,7 @@ def _delivery_route_interval(route: models.Route) -> Optional[Any]:
 def _resolve_delivery_route_helper_ids(
     route: models.Route,
     session_helpers_by_driver: Dict[Any, List[str]],
-    emp_by_name: Dict[str, models.Employee],
+    emp_by_name: Dict[str, Any],
 ) -> List[int]:
     helper_ids = [
         helper_id
@@ -12067,9 +12377,10 @@ def _resolve_delivery_route_helper_ids(
     if not helper_ids:
         fallback_names = session_helpers_by_driver.get((route.employee_id or 0, route.date), [])
         for helper_name in fallback_names:
-            helper_emp = emp_by_name.get((helper_name or "").strip().lower())
-            if helper_emp and helper_emp.id and helper_emp.id != route.employee_id:
-                helper_ids.append(helper_emp.id)
+            helper_ref = emp_by_name.get((helper_name or "").strip().lower())
+            helper_id = getattr(helper_ref, "id", helper_ref)
+            if helper_id and int(helper_id) != int(route.employee_id or 0):
+                helper_ids.append(int(helper_id))
 
     normalized: List[int] = []
     seen: set[int] = set()

@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="p-8">
-    <div class="max-w-6xl mx-auto">
+<div class="p-6 md:p-8">
+    <div class="max-w-6xl mx-auto" x-data="{ vehicleSearch: '' }">
         <!-- Header -->
-        <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
             <div>
                 <h1 class="text-3xl font-bold text-white mb-2">Frota de Veículos</h1>
                 <p class="text-slate-400">Cadastre caminhões, motos e carros. Base para checklist do motorista, histórico de manutenção e alocação.</p>
@@ -91,14 +91,24 @@
         {% endif %}
 
         <!-- Vehicles List -->
-        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-700 bg-slate-800/50 flex items-center justify-between">
-                <h3 class="text-slate-300 font-medium">Veículos Cadastrados</h3>
+        <div class="bg-slate-800/80 rounded-2xl border border-slate-700 shadow-xl overflow-hidden backdrop-blur-sm">
+            <div class="px-6 py-4 border-b border-slate-700 bg-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="flex items-center gap-3 min-w-0">
+                    <h3 class="text-slate-200 font-semibold truncate">Veículos Cadastrados</h3>
+                </div>
+                <div class="relative flex-1 sm:max-w-xs">
+                    <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"></i>
+                    <input type="text" x-model="vehicleSearch" placeholder="Pesquisar por placa, marca, modelo..."
+                        class="w-full pl-10 pr-4 py-2.5 rounded-lg bg-slate-900/80 border border-slate-600 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-sm">
+                    <button x-show="vehicleSearch" @click="vehicleSearch = ''" type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors" title="Limpar">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
             </div>
 
             {% if vehicles %}
             <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
+                <table id="vehicles-table" class="w-full text-left border-collapse">
                     <thead>
                         <tr class="bg-slate-900/50 text-slate-400 text-xs uppercase font-bold">
                             <th class="px-6 py-4">Tipo</th>
@@ -111,7 +121,12 @@
                     </thead>
                     <tbody class="divide-y divide-slate-700 text-sm">
                         {% for v in vehicles %}
-                        <tr class="hover:bg-slate-700/30 transition-colors">
+                        <tr class="hover:bg-slate-700/30 transition-colors cursor-pointer"
+                            data-search="{{ (v.placa ~ ' ' ~ (v.vehicle_type or '') ~ ' ' ~ (v.marca or '') ~ ' ' ~ (v.modelo or '') ~ ' ' ~ (v.ano or '') | lower) | e }}"
+                            x-show="!vehicleSearch || ($el.dataset.search || '').toLowerCase().includes(vehicleSearch.toLowerCase())"
+                            @click="window.location.href='/vehicles/{{ v.id }}/history'"
+                            role="button" tabindex="0"
+                            @keydown.enter="window.location.href='/vehicles/{{ v.id }}/history'">
                             <td class="px-6 py-4">
                                 {% if v.vehicle_type == "caminhao" %}
                                 <span class="inline-flex items-center gap-2 px-2 py-1 rounded-lg bg-amber-500/10 text-amber-400">
@@ -142,7 +157,7 @@
                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs">Ativo</span>
                                 {% endif %}
                             </td>
-                            <td class="px-6 py-4 text-right">
+                            <td class="px-6 py-4 text-right" @click.stop>
                                 <div class="flex items-center justify-end gap-1 flex-wrap">
                                     <a href="/vehicles/{{ v.id }}/history" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-700 hover:bg-emerald-600 text-slate-300 hover:text-white transition-colors text-xs font-medium" title="Histórico">
                                         <i data-lucide="history" class="w-4 h-4"></i>
@@ -164,6 +179,13 @@
                             </td>
                         </tr>
                         {% endfor %}
+                        <tr x-show="vehicleSearch && Array.from($el.parentElement.querySelectorAll('tr[data-search]')).every(r => r.offsetParent === null)"
+                            class="bg-slate-800/50">
+                            <td colspan="6" class="px-6 py-10 text-center text-slate-500">
+                                <i data-lucide="search-x" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
+                                <p>Nenhum veículo encontrado para "<span x-text="vehicleSearch" class="font-medium text-slate-400"></span>"</p>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>

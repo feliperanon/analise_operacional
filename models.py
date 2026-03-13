@@ -357,6 +357,7 @@ class DeliverySession(SQLModel, table=True):
     km_return: Optional[float] = None
     started_at: datetime = Field(default_factory=datetime.now)
     ended_at: Optional[datetime] = None
+    reopen_reason: Optional[str] = None  # Motivo ao reabrir rota fechada no mesmo dia
 
 # --- Checklist Operacional (Transpaleteira) ---
 

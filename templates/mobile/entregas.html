@@ -133,9 +133,10 @@
             },
             formatTravelTime(min) {
                 if (!min || min <= 0) return '--';
-                const h = Math.floor(min / 60);
-                const m = min % 60;
-                return h ? `${h}h ${m}min` : `${m} min`;
+                const n = Math.round(Number(min));
+                if (n <= 60) return n + ' min';
+                const h = Math.floor(n / 60), m = n % 60;
+                return h + ':' + String(m).padStart(2, '0') + ' hr';
             }
         };
     }

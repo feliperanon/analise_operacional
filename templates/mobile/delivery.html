@@ -185,9 +185,20 @@
         </a>
     </div>
 
-    <!-- Sem sessão: formulário para iniciar (quando há rotas) - oculto para ajudantes -->
+    <!-- Sem sessão: formulário para iniciar ou reabrir (quando há rotas) - oculto para ajudantes -->
     <div class="container-mobile mt-6" x-show="!deliverySessionOpen && visibleDayCards.length > 0 && !isHelperView" x-cloak>
         <div class="surface-shadow p-4 rounded-xl">
+            <!-- Rota encerrada hoje: opção de reabrir -->
+            <div x-show="closedSessionToday" class="mb-6 p-4 rounded-xl border-2" style="background: var(--color-surface-solid); border-color: var(--color-primary);">
+                <p class="text-body font-semibold mb-2" style="color: var(--color-text);">Rota encerrada hoje</p>
+                <p class="text-caption mb-3" style="color: var(--color-text-muted);">Você pode reabrir a rota no mesmo dia informando o motivo.</p>
+                <button type="button" @click="showReopenModal = true; reopenReason = ''" class="w-full py-3 rounded-lg font-semibold text-body text-white interactive flex items-center justify-center gap-2" style="background: var(--color-primary);">
+                    <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+                    Reabrir Rota
+                </button>
+            </div>
+            <template x-if="!closedSessionToday">
+                <div>
             <h3 class="text-section font-semibold mb-3" style="color: var(--color-text);">Minhas rotas do dia</h3>
             <div class="space-y-2 mb-4">
                 <template x-for="card in visibleDayCards" :key="'day-'+card.date">
@@ -247,6 +258,27 @@
                 <button type="button" @click="startDeliverySession()" class="w-full py-3 rounded-lg font-semibold text-body text-white interactive" style="background: var(--color-primary);">
                     Iniciar Rota
                 </button>
+            </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Modal Reabrir Rota -->
+    <div x-show="showReopenModal" x-cloak x-teleport="body" class="fixed inset-0 z-[100001] flex items-end sm:items-center justify-center p-0 sm:p-4"
+        @keydown.escape.window="showReopenModal = false">
+        <div class="absolute inset-0 bg-black/50" @click="showReopenModal = false"></div>
+        <div class="relative w-full max-w-md rounded-t-2xl sm:rounded-2xl p-6 max-h-[85vh] overflow-y-auto surface-shadow" style="background: var(--color-surface);">
+            <h3 class="text-section font-bold mb-3" style="color: var(--color-text);">Reabrir rota</h3>
+            <p class="text-caption mb-4" style="color: var(--color-text-muted);">Informe o motivo da reabertura (obrigatório):</p>
+            <textarea x-model="reopenReason" rows="4" placeholder="Ex.: Esqueci uma entrega, cliente solicitou ajuste..."
+                class="w-full rounded-lg px-3 py-2.5 text-body mb-4"
+                style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text); resize: vertical;"></textarea>
+            <div class="flex gap-3">
+                <button type="button" @click="showReopenModal = false" class="flex-1 py-3 rounded-lg font-semibold interactive"
+                    style="background: var(--color-border-light); color: var(--color-text);">Cancelar</button>
+                <button type="button" @click="reopenDeliverySession()" class="flex-1 py-3 rounded-lg font-semibold text-white interactive"
+                    style="background: var(--color-primary);">Reabrir</button>
             </div>
         </div>
     </div>
@@ -733,6 +765,9 @@
             sessionEdit: { km_departure: '', helpers: [], helperInput: '' },
             showDeliverySetupModal: false,
             showDeliveryEndModal: false,
+            showReopenModal: false,
+            reopenReason: '',
+            closedSessionToday: null,
             showMobileReturnModal: false,
             showReturnNoticeModal: false,
             deliverySetupError: '',
@@ -1110,6 +1145,7 @@
                     this.sessionStartedAt = s.started_at || '';
                     this.mobileReturnReasons = data.return_reasons || [];
                     if (!this.mobileReturn.reason && this.mobileReturnReasons.length) this.mobileReturn.reason = this.mobileReturnReasons[0];
+                    this.closedSessionToday = data.closed_session_today || null;
                     this.$nextTick(() => lucide.createIcons());
                 });
             },
@@ -1147,6 +1183,25 @@
                     this.haptic('success');
                     setTimeout(() => { window.location.href = '/mobile/delivery'; }, 1400);
                 }).catch((e) => { this.actionLoading = false; alert('Erro de conexão. Verifique o KM e tente novamente.'); });
+            },
+            reopenDeliverySession() {
+                const reason = (this.reopenReason || '').trim();
+                if (!reason) { alert('Informe o motivo da reabertura.'); return; }
+                this.actionLoading = true;
+                fetch('/api/mobile/delivery/session/reopen', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason })
+                }).then(r => r.json()).then(data => {
+                    this.actionLoading = false;
+                    if (!data.success) {
+                        alert(data.error || 'Erro ao reabrir.');
+                        return;
+                    }
+                    this.showReopenModal = false;
+                    this.reopenReason = '';
+                    this.haptic('success');
+                    this.loadDeliveryData();
+                }).catch(() => { this.actionLoading = false; alert('Erro de conexão.'); });
             },
             deliveryAction(route, action) {
                 if (this.actionLoading) return;

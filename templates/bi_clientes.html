@@ -1,0 +1,474 @@
+{% extends "base.html" %}
+
+{% macro kpi_card(title, value, subtitle="", tip="", icon="users") -%}
+<article class="bi-cliente-kpi">
+  <div class="bi-cliente-kpi-head">
+    <div class="bi-cliente-kpi-icon"><i data-lucide="{{ icon }}" class="w-4 h-4"></i></div>
+    <span class="bi-cliente-kpi-title">{{ title }}</span>
+  </div>
+  <p class="bi-cliente-kpi-value">{{ value }}</p>
+  {% if subtitle %}<p class="bi-cliente-kpi-sub">{{ subtitle }}</p>{% endif %}
+  {% if tip %}<p class="bi-cliente-kpi-tip" title="{{ tip }}">{{ tip }}</p>{% endif %}
+</article>
+{%- endmacro %}
+
+{% block content %}
+{% include "mobile/_design_tokens.html" %}
+<link rel="stylesheet" href="/static/css/bi_delivery_premium.css">
+
+<div class="bi-clientes-page">
+  <div class="bi-clientes-container">
+    <!-- Header -->
+    <header class="bi-clientes-header">
+      <div class="bi-clientes-header-main">
+        <div>
+          <h1 class="bi-clientes-title">BI Clientes</h1>
+          <p class="bi-clientes-subtitle">Contexto operacional: tempo, recorrência, devolução e concentração de visitas por cliente.</p>
+        </div>
+        <div class="bi-clientes-actions">
+          <a href="/bi/delivery" class="bi-btn bi-btn-ghost">BI Entregas</a>
+          <a href="/bi/motorista" class="bi-btn bi-btn-ghost">BI Motorista</a>
+        </div>
+      </div>
+
+      <form method="get" action="/bi/clientes" class="bi-clientes-filters">
+        <div class="bi-filter-row">
+          <div class="bi-filter-field"><label>Data inicial</label><input type="date" name="date_from" value="{{ filters.date_from }}"></div>
+          <div class="bi-filter-field"><label>Data final</label><input type="date" name="date_to" value="{{ filters.date_to }}"></div>
+          <div class="bi-filter-field"><label>Turno</label><select name="shift">{% for sh in ["Todos", "Manhã", "Tarde", "Noite"] %}<option value="{{ sh }}" {% if filters.shift == sh %}selected{% endif %}>{{ sh }}</option>{% endfor %}</select></div>
+          <div class="bi-filter-field"><label>Motorista</label><select name="driver_id"><option value="">Todos</option>{% for d in drivers_filter %}<option value="{{ d.id }}" {% if filters.driver_id == d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}</select></div>
+          <div class="bi-filter-field"><label>Placa</label><select name="plate"><option value="Todos">Todas</option>{% for p in plates_filter %}<option value="{{ p }}" {% if filters.plate == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></div>
+          <div class="bi-filter-field"><label>Status</label><select name="status">{% for s in statuses_filter %}<option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+        </div>
+        <div class="bi-filter-row">
+          <div class="bi-filter-field"><label>Cliente</label><select name="client_id"><option value="">Todos</option>{% for item in clients_filter %}<option value="{{ item.id }}" {% if filters.client_id == item.id %}selected{% endif %}>{{ item.name }}</option>{% endfor %}</select></div>
+          <div class="bi-filter-field"><label>Cidade</label><select name="city"><option value="Todos">Todas</option>{% for item in cities_filter %}<option value="{{ item }}" {% if filters.city == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></div>
+          <div class="bi-filter-field"><label>Prioridade</label><select name="priority"><option value="Todos">Todas</option>{% for item in priorities_filter %}<option value="{{ item }}" {% if filters.priority == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></div>
+          <div class="bi-filter-field"><label>Status cliente</label><select name="client_status"><option value="Todos">Todos</option>{% for item in client_statuses_filter %}<option value="{{ item }}" {% if filters.client_status == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></div>
+        </div>
+        <div class="bi-filter-actions">
+          <button class="bi-btn bi-btn-primary" type="submit">Aplicar</button>
+          <a href="/bi/clientes" class="bi-btn bi-btn-ghost">Limpar</a>
+          <a href="/bi/clientes/export?format=csv&{{ filters_query }}" class="bi-btn bi-btn-ghost">CSV</a>
+          <a href="/bi/clientes/export?format=xlsx&{{ filters_query }}" class="bi-btn bi-btn-ghost">XLSX</a>
+        </div>
+      </form>
+    </header>
+
+    <!-- KPIs com explicação -->
+    <section class="bi-clientes-section">
+      <div class="bi-section-head">
+        <h2 class="bi-section-title"><i data-lucide="layout-dashboard" class="w-4 h-4"></i> Indicadores principais</h2>
+        <p class="bi-section-desc">Números-chave do recorte filtrado. Use para priorizar clientes e cidades.</p>
+      </div>
+      <div class="bi-kpi-grid">
+        {{ kpi_card("Clientes monitorados", kpis.monitored_clients, kpis.total_visits ~ " visitas", "Quantidade de clientes únicos visitados no período e total de entregas realizadas.", "users") }}
+        {{ kpi_card("Com devolução", kpis.clients_with_returns, kpis.critical_clients ~ " em faixa crítica", "Clientes com pelo menos 1 devolução; críticos são aqueles com % de valor acima da meta.", "undo-2") }}
+        {{ kpi_card("Maior tempo", kpis.top_time_client, kpis.top_time_minutes|fmt_br_duracao, "Cliente que consumiu mais tempo total de entrega no período.", "timer-reset") }}
+        {{ kpi_card("Pico semanal", kpis.top_freq_client, kpis.top_freq_peak ~ " visita(s)/semana", "Cliente com maior número de visitas em uma mesma semana.", "calendar-range") }}
+        {{ kpi_card("Maior valor devolvido", kpis.top_return_client, kpis.top_return_value|fmt_br_moeda, "Cliente com maior R$ em devoluções no período.", "wallet") }}
+        {{ kpi_card("Maior % valor", kpis.top_pct_client, (kpis.top_pct_value|fmt_br_1) ~ "%", "Cliente com maior percentual de valor devolvido em relação ao planejado. Meta ≤ 2%.", "badge-percent") }}
+        {{ kpi_card("Maior recorrência", kpis.top_recurrence_client, kpis.top_recurrence_count ~ " devolução(ões)", "Cliente com mais ocorrências de devolução (mesmo que valor baixo).", "refresh-ccw") }}
+        {{ kpi_card("Cidade concentrada", kpis.top_city, (kpis.top_city_share|fmt_br_1) ~ "% visitas", "Cidade com maior concentração de visitas. Útil para escala e roteirização.", "map-pinned") }}
+      </div>
+    </section>
+
+    <!-- Gráficos com explicação -->
+    <section class="bi-clientes-section">
+      <div class="bi-section-head">
+        <h2 class="bi-section-title"><i data-lucide="bar-chart-3" class="w-4 h-4"></i> Gráficos de análise</h2>
+        <p class="bi-section-desc">Clique nos gráficos para detalhes. Compare tempo, frequência, devoluções e concentração geográfica.</p>
+      </div>
+      <div class="bi-charts-grid">
+        <div class="bi-chart-card">
+          <div class="bi-chart-head">
+            <h3 class="bi-chart-title">Clientes que mais tomam tempo</h3>
+            <p class="bi-chart-desc">Tempo total e tempo médio por visita, em minutos.</p>
+            <div class="bi-chart-tip">
+              <strong>O que significa:</strong> Tempo total = soma de todas as durações. Tempo médio = média por entrega. Use para identificar pontos de gargalo.
+            </div>
+          </div>
+          <div class="bi-chart-wrap"><canvas id="clientTimeChart"></canvas></div>
+        </div>
+
+        <div class="bi-chart-card">
+          <div class="bi-chart-head">
+            <h3 class="bi-chart-title">Clientes com mais entregas na semana</h3>
+            <p class="bi-chart-desc">Visitas no período vs. pico em uma única semana.</p>
+            <div class="bi-chart-tip">
+              <strong>O que significa:</strong> Pico semanal = máxima de visitas em uma semana. Identifica clientes com frequência concentrada.
+            </div>
+          </div>
+          <div class="bi-chart-wrap"><canvas id="clientFrequencyChart"></canvas></div>
+        </div>
+
+        <div class="bi-chart-card">
+          <div class="bi-chart-head">
+            <h3 class="bi-chart-title">Maior impacto de devolução</h3>
+            <p class="bi-chart-desc">Valor devolvido (R$) e % do valor planejado por cliente.</p>
+            <div class="bi-chart-tip">
+              <strong>O que significa:</strong> % valor = devolução / valor planejado. Meta ≤ 2%. Clientes acima exigem ação imediata.
+            </div>
+          </div>
+          <div class="bi-chart-wrap"><canvas id="clientReturnChart"></canvas></div>
+        </div>
+
+        <div class="bi-chart-card">
+          <div class="bi-chart-head">
+            <h3 class="bi-chart-title">Concentração por cidade</h3>
+            <p class="bi-chart-desc">Proporção de visitas por cidade.</p>
+            <div class="bi-chart-tip">
+              <strong>O que significa:</strong> Mostra onde está o volume. Ajuda a planejar escala, frota e roteirização regional.
+            </div>
+          </div>
+          <div class="bi-chart-wrap"><canvas id="cityConcentrationChart"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Anomalias e Recomendações -->
+    <section class="bi-two-col">
+      <div class="bi-clientes-section">
+        <div class="bi-section-head">
+          <h3 class="bi-section-title"><i data-lucide="siren" class="w-4 h-4"></i> Anomalias detectadas</h3>
+          <p class="bi-section-desc">Alertas automáticos: pontos fora do padrão no período filtrado.</p>
+        </div>
+        <div class="bi-insight-list">
+          {% for item in anomaly_flags %}
+          <div class="bi-insight-row bi-insight-warn">{{ item }}</div>
+          {% else %}
+          <div class="bi-insight-row">Nenhuma anomalia detectada no período.</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="bi-clientes-section">
+        <div class="bi-section-head">
+          <h3 class="bi-section-title"><i data-lucide="bot" class="w-4 h-4"></i> Recomendações</h3>
+          <p class="bi-section-desc">Ações sugeridas com base nos dados do período.</p>
+        </div>
+        <ol class="bi-rec-list">
+          {% for item in recommendations %}
+          <li>{{ item }}</li>
+          {% else %}
+          <li>Operação estável no período; manter monitoramento.</li>
+          {% endfor %}
+        </ol>
+      </div>
+    </section>
+
+    <!-- Ranking de clientes -->
+    <section class="bi-clientes-section">
+      <div class="bi-section-head bi-section-head-between">
+        <div>
+          <h3 class="bi-section-title"><i data-lucide="list-ordered" class="w-4 h-4"></i> Ranking de clientes</h3>
+          <p class="bi-section-desc">{{ ranking_total }} cliente(s) no recorte. Clique no nome para ver o drill-through com histórico de entregas.</p>
+        </div>
+        <details class="bi-legend-toggle">
+          <summary>Ver significado das colunas</summary>
+          <ul class="bi-legend-list">
+            <li><strong>Visitas</strong> — total de entregas no período</li>
+            <li><strong>Pico sem.</strong> — máximo de visitas em uma semana</li>
+            <li><strong>Tempo total / médio</strong> — duração acumulada e média por entrega</li>
+            <li><strong>Devoluções</strong> — quantidade de devoluções</li>
+            <li><strong>% qtd</strong> — devoluções / visitas (por quantidade)</li>
+            <li><strong>% valor</strong> — valor devolvido / valor planejado (meta ≤ 2%)</li>
+            <li><strong>Reab.</strong> — reaberturas de romaneio</li>
+            <li><strong>Risco</strong> — score combinado (Crítico / Atenção / Controlado)</li>
+          </ul>
+        </details>
+      </div>
+      <div class="bi-table-wrap overflow-auto">
+        <table class="bi-table min-w-[1500px] text-body">
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Cidade</th>
+              <th>Segmento</th>
+              <th>Prior.</th>
+              <th>Visitas</th>
+              <th>Pico sem.</th>
+              <th>Tempo total</th>
+              <th>Tempo médio</th>
+              <th>Devoluções</th>
+              <th>% qtd</th>
+              <th>R$ devolvido</th>
+              <th>% valor</th>
+              <th>Reab.</th>
+              <th>Motorista principal</th>
+              <th>Motivo principal</th>
+              <th>Risco</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in ranking_rows %}
+            <tr>
+              <td>
+                {% if row.client_id %}
+                <a class="table-link" href="/bi/clientes?{{ filters_query }}&detail_client_id={{ row.client_id }}#client-drill">{{ row.client_name }}</a>
+                {% else %}
+                {{ row.client_name }}
+                {% endif %}
+                <div class="text-caption mt-1">{{ row.status_operacional }} | {{ row.bairro }}</div>
+              </td>
+              <td>{{ row.city }}</td>
+              <td>{{ row.segmento }}</td>
+              <td>{{ row.prioridade }}</td>
+              <td>{{ row.visits }}</td>
+              <td>{{ row.weekly_peak_visits }}</td>
+              <td>{{ row.total_duration_m|fmt_br_duracao }}</td>
+              <td>{{ row.avg_duration_m|fmt_br_duracao }}</td>
+              <td>{{ row.returned_occurrences }}</td>
+              <td class="{{ 'tone-warning' if row.return_rate_qtd >= 10 else '' }}">{{ row.return_rate_qtd|fmt_br_1 }}%</td>
+              <td>{{ row.returned_value|fmt_br_moeda }}</td>
+              <td class="{{ 'tone-danger' if row.return_rate_value >= 2 else 'tone-success' if row.return_rate_value == 0 else '' }}">{{ row.return_rate_value|fmt_br_1 }}%</td>
+              <td>{{ row.reopen_count }}</td>
+              <td>{{ row.top_driver_name }}</td>
+              <td>{{ row.top_motivo_name }}</td>
+              <td><span class="risk-pill risk-pill-{{ row.risk_tone }}">{{ row.risk_label }} ({{ row.risk_score }})</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Drill-through do cliente -->
+    <section id="client-drill" class="bi-clientes-section">
+      <div class="bi-section-head">
+        <h3 class="bi-section-title"><i data-lucide="zoom-in" class="w-4 h-4"></i> Drill-through do cliente</h3>
+        <p class="bi-section-desc">{{ detail_title }}. Clique em um cliente na tabela acima para ver o histórico de entregas.</p>
+      </div>
+
+      {% if detail_client %}
+      <div class="bi-drill-grid">
+        <div class="bi-drill-card">
+          <h4 class="bi-drill-name">{{ detail_client.client_name }}</h4>
+          <p class="bi-drill-address">{{ detail_client.address }}</p>
+          <span class="risk-pill risk-pill-{{ detail_client.risk_tone }}">{{ detail_client.risk_label }} ({{ detail_client.risk_score }})</span>
+          <div class="bi-drill-grid-inner">
+            <div class="bi-drill-item"><span class="bi-drill-label">Cidade</span><strong>{{ detail_client.city }}</strong></div>
+            <div class="bi-drill-item"><span class="bi-drill-label">Bairro</span><strong>{{ detail_client.bairro }}</strong></div>
+            <div class="bi-drill-item"><span class="bi-drill-label">Segmento</span><strong>{{ detail_client.segmento }}</strong></div>
+            <div class="bi-drill-item"><span class="bi-drill-label">Prioridade</span><strong>{{ detail_client.prioridade }}</strong></div>
+            <div class="bi-drill-item"><span class="bi-drill-label">Janela</span><strong>{{ detail_client.window }}</strong></div>
+            <div class="bi-drill-item"><span class="bi-drill-label">Status</span><strong>{{ detail_client.status_operacional }}</strong></div>
+          </div>
+        </div>
+
+        <div class="bi-drill-card">
+          <div class="bi-drill-grid-inner">
+            <div class="bi-drill-item"><span class="bi-drill-label">Visitas</span><strong>{{ detail_client.visits }}</strong></div>
+            <div class="bi-drill-item"><span class="bi-drill-label">Pico semanal</span><strong>{{ detail_client.weekly_peak_visits }}</strong></div>
+            <div class="bi-drill-item"><span class="bi-drill-label">Tempo total</span><strong>{{ detail_client.total_duration_m|fmt_br_duracao }}</strong></div>
+            <div class="bi-drill-item"><span class="bi-drill-label">Tempo médio</span><strong>{{ detail_client.avg_duration_m|fmt_br_duracao }}</strong></div>
+            <div class="bi-drill-item"><span class="bi-drill-label">Devoluções</span><strong>{{ detail_client.returned_occurrences }}</strong></div>
+            <div class="bi-drill-item"><span class="bi-drill-label">R$ devolvido</span><strong>{{ detail_client.returned_value|fmt_br_moeda }}</strong></div>
+            <div class="bi-drill-item"><span class="bi-drill-label">% devolução valor</span><strong>{{ detail_client.return_rate_value|fmt_br_1 }}%</strong></div>
+            <div class="bi-drill-item"><span class="bi-drill-label">Motorista principal</span><strong>{{ detail_client.top_driver_name }}</strong></div>
+            <div class="bi-drill-item"><span class="bi-drill-label">Motivo principal</span><strong>{{ detail_client.top_motivo_name }}</strong></div>
+            <div class="bi-drill-item"><span class="bi-drill-label">Responsabilidade</span><strong>{{ detail_client.top_responsabilidade_name }}</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bi-table-wrap overflow-auto mt-4">
+        <table class="bi-table min-w-[1300px] text-body">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Motorista</th>
+              <th>Status</th>
+              <th>Origem</th>
+              <th>Tempo</th>
+              <th>R$ planejado</th>
+              <th>R$ devolvido</th>
+              <th>Reab.</th>
+              <th>Pedido</th>
+              <th>Placa</th>
+              <th>Motivo</th>
+              <th>Responsabilidade</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in detail_rows %}
+            <tr class="{{ 'bi-row-possible-dup' if row.get('possible_duplicate') else '' }}" title="{{ 'Possível duplicata: mesma devolução já registrada em ROTA' if row.get('possible_duplicate') else '' }}">
+              <td>{{ row.date|fmt_br_data }}</td>
+              <td>{{ row.driver_name }}</td>
+              <td>{{ row.status }}</td>
+              <td>{{ row.source }}{% if row.get('possible_duplicate') %} <span class="bi-dup-badge" title="Mesma devolução já na ROTA">?</span>{% endif %}</td>
+              <td>{% if row.duration_m is not none %}{{ row.duration_m|fmt_br_duracao }}{% else %}-{% endif %}</td>
+              <td>{{ row.planned_value|fmt_br_moeda }}</td>
+              <td>{{ row.returned_value|fmt_br_moeda }}</td>
+              <td>{{ row.reopen_count }}</td>
+              <td>{{ row.order_number }}</td>
+              <td>{{ row.plate }}</td>
+              <td>{{ row.motivo }}</td>
+              <td>{{ row.responsabilidade }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="bi-insight-row">Clique em um cliente na tabela acima para abrir o detalhe operacional.</div>
+      {% endif %}
+    </section>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const chartPayload = {{ chart_payload_json | safe }} || {};
+  function byId(id) { return document.getElementById(id); }
+  function currencyBr(v) { return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+  function percentBr(v) { return `${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1 })}%`; }
+  function buildBarChart(id, labels, datasets, options = {}) {
+    const canvas = byId(id);
+    if (!canvas || typeof Chart === 'undefined') return;
+    new Chart(canvas, {
+      type: options.type || 'bar',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: options.indexAxis || 'x',
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { display: options.legend !== false } },
+        scales: {
+          x: { grid: { color: 'rgba(148,163,184,0.14)' } },
+          y: { beginAtZero: true, grid: { color: 'rgba(148,163,184,0.14)' } },
+          y1: options.secondaryAxis ? { type: 'linear', display: true, beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } } : undefined
+        }
+      }
+    });
+  }
+
+  const timeRank = chartPayload.time_rank || {};
+  buildBarChart('clientTimeChart', timeRank.labels || [], [
+    { label: 'Tempo total (min)', data: timeRank.minutes || [], backgroundColor: 'rgba(14,165,233,0.82)', borderRadius: 8 },
+    { label: 'Tempo médio (min)', data: timeRank.avg_minutes || [], backgroundColor: 'rgba(34,197,94,0.78)', borderRadius: 8 }
+  ], { indexAxis: 'y' });
+
+  const frequencyRank = chartPayload.frequency_rank || {};
+  buildBarChart('clientFrequencyChart', frequencyRank.labels || [], [
+    { label: 'Visitas no período', data: frequencyRank.visits || [], backgroundColor: 'rgba(59,130,246,0.82)', borderRadius: 8 },
+    { label: 'Pico semanal', data: frequencyRank.weekly_peak || [], backgroundColor: 'rgba(249,115,22,0.78)', borderRadius: 8 }
+  ]);
+
+  const returnsRank = chartPayload.returns_rank || {};
+  buildBarChart('clientReturnChart', returnsRank.labels || [], [
+    { label: 'Valor devolvido', data: returnsRank.returned_value || [], backgroundColor: 'rgba(239,68,68,0.82)', borderRadius: 8 },
+    { type: 'line', label: '% devolução valor', data: returnsRank.return_rate_value || [], borderColor: 'rgba(168,85,247,0.95)', backgroundColor: 'rgba(168,85,247,0.18)', yAxisID: 'y1', tension: 0.32, pointRadius: 4 }
+  ], { secondaryAxis: true });
+
+  const cityConcentration = chartPayload.city_concentration || {};
+  const cityCanvas = byId('cityConcentrationChart');
+  if (cityCanvas && typeof Chart !== 'undefined') {
+    new Chart(cityCanvas, {
+      type: 'doughnut',
+      data: {
+        labels: cityConcentration.labels || [],
+        datasets: [{
+          data: cityConcentration.visits || [],
+          backgroundColor: ['#0ea5e9','#2563eb','#22c55e','#f97316','#eab308','#ef4444','#8b5cf6','#14b8a6','#f43f5e','#64748b'],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' } }
+      }
+    });
+  }
+
+  if (window.lucide?.createIcons) window.lucide.createIcons();
+</script>
+
+<style>
+  .bi-clientes-page { background: var(--color-bg); color: var(--color-text); min-height: 100vh; padding: 1.5rem 1rem 3rem; }
+  .bi-clientes-container { max-width: 1600px; margin: 0 auto; display: flex; flex-direction: column; gap: 2rem; }
+  @media (min-width: 1024px) { .bi-clientes-page { padding: 2rem; } .bi-clientes-container { gap: 2.5rem; } }
+
+  .bi-clientes-header { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 1.25rem 1.5rem; }
+  .bi-clientes-header-main { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+  .bi-clientes-title { font-size: 1.25rem; font-weight: 700; margin: 0; letter-spacing: -0.02em; }
+  .bi-clientes-subtitle { font-size: 0.8125rem; color: var(--color-text-muted); margin: 0.25rem 0 0; }
+  .bi-clientes-actions { display: flex; gap: 0.5rem; }
+  .bi-clientes-filters { display: flex; flex-direction: column; gap: 0.75rem; }
+  .bi-filter-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+  @media (min-width: 640px) { .bi-filter-row { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 1024px) { .bi-filter-row { grid-template-columns: repeat(6, 1fr); } }
+  .bi-filter-field label { display: block; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); margin-bottom: 0.35rem; }
+  .bi-filter-field input, .bi-filter-field select { width: 100%; height: 38px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text); padding: 0 0.75rem; font-size: 0.875rem; }
+  .bi-filter-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .bi-btn { height: 38px; padding: 0 1rem; border-radius: 8px; font-size: 0.8125rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; cursor: pointer; border: 1px solid transparent; }
+  .bi-btn-primary { background: var(--color-primary); color: white; }
+  .bi-btn-ghost { background: transparent; color: var(--color-text-secondary); border-color: var(--color-border); }
+  .bi-btn-ghost:hover { background: var(--color-border); color: var(--color-text); }
+
+  .bi-clientes-section { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 1.25rem 1.5rem; }
+  .bi-section-head { margin-bottom: 1rem; }
+  .bi-section-head-between { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+  .bi-section-title { font-size: 0.9375rem; font-weight: 600; margin: 0 0 0.25rem; display: flex; align-items: center; gap: 0.5rem; }
+  .bi-section-desc { font-size: 0.75rem; color: var(--color-text-muted); margin: 0; }
+
+  .bi-kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+  @media (min-width: 640px) { .bi-kpi-grid { grid-template-columns: repeat(4, 1fr); } }
+  @media (min-width: 1280px) { .bi-kpi-grid { grid-template-columns: repeat(4, 1fr); } }
+  .bi-cliente-kpi { border: 1px solid var(--color-border); border-radius: 10px; padding: 1rem; background: rgba(255,255,255,0.02); }
+  .bi-cliente-kpi-head { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+  .bi-cliente-kpi-icon { width: 2rem; height: 2rem; border-radius: 8px; background: var(--color-border); display: flex; align-items: center; justify-content: center; color: var(--color-text-secondary); }
+  .bi-cliente-kpi-title { font-size: 0.75rem; font-weight: 600; color: var(--color-text-muted); }
+  .bi-cliente-kpi-value { font-size: 1.125rem; font-weight: 700; margin: 0; line-height: 1.3; }
+  .bi-cliente-kpi-sub { font-size: 0.75rem; color: var(--color-text-secondary); margin: 0.25rem 0 0; }
+  .bi-cliente-kpi-tip { font-size: 0.68rem; color: var(--color-text-muted); margin: 0.35rem 0 0; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+  .bi-charts-grid { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
+  @media (min-width: 1024px) { .bi-charts-grid { grid-template-columns: repeat(2, 1fr); } }
+  .bi-chart-card { border: 1px solid var(--color-border); border-radius: 10px; padding: 1rem; background: rgba(255,255,255,0.02); display: flex; flex-direction: column; }
+  .bi-chart-head { margin-bottom: 1rem; }
+  .bi-chart-title { font-size: 0.9375rem; font-weight: 600; margin: 0 0 0.25rem; }
+  .bi-chart-desc { font-size: 0.75rem; color: var(--color-text-muted); margin: 0; }
+  .bi-chart-tip { font-size: 0.7rem; color: var(--color-text-muted); margin-top: 0.5rem; padding: 0.5rem; background: rgba(0,0,0,0.15); border-radius: 8px; line-height: 1.4; }
+  .bi-chart-wrap { height: 280px; min-height: 220px; }
+  .bi-chart-wrap canvas { width: 100% !important; height: 100% !important; }
+
+  .bi-two-col { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
+  @media (min-width: 1024px) { .bi-two-col { grid-template-columns: 1fr 1fr; } }
+  .bi-insight-list, .bi-rec-list { display: flex; flex-direction: column; gap: 0.5rem; }
+  .bi-insight-row { padding: 0.6rem 0.75rem; border-radius: 8px; font-size: 0.8125rem; background: rgba(255,255,255,0.03); border: 1px solid var(--color-border); }
+  .bi-insight-warn { border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.06); }
+  .bi-rec-list { list-style: decimal; padding-left: 1.25rem; font-size: 0.8125rem; line-height: 1.5; }
+  .bi-rec-list li { margin-bottom: 0.35rem; }
+
+  .bi-legend-toggle { font-size: 0.75rem; color: var(--color-text-muted); }
+  .bi-legend-toggle summary { cursor: pointer; font-weight: 600; }
+  .bi-legend-list { margin: 0.5rem 0 0; padding-left: 1.25rem; line-height: 1.6; }
+  .bi-table-wrap { border-radius: 8px; overflow: hidden; border: 1px solid var(--color-border); }
+  .bi-table { width: 100%; border-collapse: collapse; }
+  .bi-table thead th { background: var(--color-surface); border-bottom: 1px solid var(--color-border); text-align: left; font-size: 0.7rem; color: var(--color-text-muted); padding: 0.65rem; }
+  .bi-table tbody td { border-bottom: 1px solid rgba(148,163,184,0.12); padding: 0.6rem; }
+  .table-link { color: var(--color-primary); text-decoration: underline dotted; font-weight: 600; }
+  .tone-success { color: var(--color-success) !important; font-weight: 600; }
+  .tone-warning { color: var(--color-warning) !important; font-weight: 600; }
+  .tone-danger { color: var(--color-danger) !important; font-weight: 600; }
+
+  .risk-pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 0.25rem 0.7rem; font-size: 0.74rem; font-weight: 700; border: 1px solid rgba(148,163,184,0.24); white-space: nowrap; }
+  .risk-pill-danger { color: #fecaca; background: rgba(127,29,29,0.35); }
+  .risk-pill-warning { color: #fde68a; background: rgba(120,53,15,0.3); }
+  .risk-pill-success { color: #bbf7d0; background: rgba(20,83,45,0.3); }
+
+  .bi-drill-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+  @media (min-width: 1024px) { .bi-drill-grid { grid-template-columns: 1.4fr 1fr; } }
+  .bi-drill-card { border: 1px solid var(--color-border); border-radius: 10px; padding: 1rem; background: rgba(255,255,255,0.02); }
+  .bi-drill-name { font-size: 1rem; font-weight: 700; margin: 0 0 0.25rem; }
+  .bi-drill-address { font-size: 0.75rem; color: var(--color-text-muted); margin: 0 0 0.75rem; }
+  .bi-drill-grid-inner { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem 1rem; }
+  .bi-drill-item .bi-drill-label { display: block; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-muted); margin-bottom: 0.15rem; }
+  .mt-4 { margin-top: 1rem; }
+  .bi-row-possible-dup { background: rgba(245,158,11,0.06); }
+  .bi-dup-badge { display: inline-flex; align-items: center; justify-content: center; width: 1rem; height: 1rem; border-radius: 50%; background: rgba(245,158,11,0.5); color: #1e293b; font-size: 0.65rem; font-weight: 700; cursor: help; margin-left: 0.25rem; }
+</style>
+{% endblock %}

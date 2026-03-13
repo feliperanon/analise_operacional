@@ -4,33 +4,31 @@
 {% block content %}
 {% include "mobile/_design_tokens.html" %}
 <link rel="stylesheet" href="/static/css/bi_delivery_premium.css">
-<div class="bi-page p-4 lg:p-8">
-  <div class="max-w-[1800px] mx-auto space-y-5">
-    <header class="surface-shadow bi-card">
-      <div class="bi-card-head bi-card-head-between">
-        <div class="flex items-center gap-3">
-          <div class="icon-wrap"><i data-lucide="users" class="w-5 h-5"></i></div>
-          <div>
-            <h1 class="text-title-lg">BI Motorista - Avaliação de Motoristas</h1>
-            <p class="text-caption mt-1">Dashboard de performance, elegibilidade à premiação e relativização por motorista e caminhão.</p>
-          </div>
+<div class="bi-motorista-page">
+  <div class="bi-motorista-container">
+    <!-- Header compacto -->
+    <header class="bi-motorista-header">
+      <div class="bi-motorista-header-main">
+        <div>
+          <h1 class="bi-motorista-title">BI Motorista</h1>
+          <p class="bi-motorista-subtitle">Performance, elegibilidade e relativização por motorista e caminhão</p>
         </div>
-        <div class="flex items-center gap-2">
-          <button type="button" id="execModeToggle" class="btn-secondary" aria-pressed="false">Executivo</button>
-          <a href="/bi/delivery" class="btn-secondary">BI Entregas</a>
+        <div class="bi-motorista-header-actions">
+          <button type="button" id="execModeToggle" class="bi-btn bi-btn-ghost">Executivo</button>
+          <a href="/bi/delivery" class="bi-btn bi-btn-ghost">BI Entregas</a>
+          <a href="/bi/clientes" class="bi-btn bi-btn-ghost">BI Clientes</a>
         </div>
       </div>
-
-      <form method="get" action="/bi/motorista" class="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
-        <div class="form-field">
+      <form method="get" action="/bi/motorista" class="bi-motorista-filters">
+        <div class="bi-filter-field">
           <label>Data inicial</label>
           <input type="date" name="date_from" value="{{ filters.date_from }}">
         </div>
-        <div class="form-field">
+        <div class="bi-filter-field">
           <label>Data final</label>
           <input type="date" name="date_to" value="{{ filters.date_to }}">
         </div>
-        <div class="form-field">
+        <div class="bi-filter-field">
           <label>Turno</label>
           <select name="shift">
             {% for sh in ["Todos", "Manhã", "Tarde", "Noite"] %}
@@ -38,7 +36,7 @@
             {% endfor %}
           </select>
         </div>
-        <div class="form-field">
+        <div class="bi-filter-field">
           <label>Motorista</label>
           <select name="driver_id">
             <option value="">Todos</option>
@@ -47,7 +45,7 @@
             {% endfor %}
           </select>
         </div>
-        <div class="form-field">
+        <div class="bi-filter-field">
           <label>Placa</label>
           <select name="plate">
             <option value="Todos">Todas</option>
@@ -56,7 +54,7 @@
             {% endfor %}
           </select>
         </div>
-        <div class="form-field">
+        <div class="bi-filter-field">
           <label>Status</label>
           <select name="status">
             {% for s in statuses_filter %}
@@ -64,108 +62,127 @@
             {% endfor %}
           </select>
         </div>
-        <div class="xl:col-span-6 flex flex-wrap gap-2 pt-1">
-          <button class="btn-primary" type="submit">Aplicar filtros</button>
-          <a href="/bi/motorista" class="btn-secondary">Limpar</a>
-          <a href="/bi/delivery/export?format=csv&{{ filters_query }}" class="btn-secondary">CSV</a>
-          <a href="/bi/delivery/export?format=xlsx&{{ filters_query }}" class="btn-secondary">XLSX</a>
-          <a href="/bi/delivery/export?format=pdf&{{ filters_query }}" class="btn-secondary">PDF</a>
+        <div class="bi-filter-actions">
+          <button class="bi-btn bi-btn-primary" type="submit">Aplicar</button>
+          <a href="/bi/motorista" class="bi-btn bi-btn-ghost">Limpar</a>
+          <a href="/bi/delivery/export?format=csv&{{ filters_query }}" class="bi-btn bi-btn-ghost">CSV</a>
+          <a href="/bi/delivery/export?format=xlsx&{{ filters_query }}" class="bi-btn bi-btn-ghost">XLSX</a>
         </div>
       </form>
     </header>
 
-    <!-- Bloco elegibilidade premiação -->
-    <section class="surface-shadow bi-card">
-      <div class="bi-card-head">
-        <div class="icon-wrap"><i data-lucide="award" class="w-4 h-4"></i></div>
-          <h3 class="text-section">Elegibilidade à Premiação (meta &lt; {{ meta_premiacao|fmt_br_1 }}% devolução em valor)</h3>
-      </div>
-      <div class="mt-4 grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <div class="surface p-4 rounded-lg border border-green-500/30 bg-green-500/5">
-          <p class="text-caption text-green-400">Elegíveis ({{ elegiveis|length }})</p>
-          <ul class="mt-2 space-y-1">
+    <!-- Elegibilidade -->
+    <section class="bi-section bi-elegibilidade">
+      <h3 class="bi-section-title"><i data-lucide="award" class="w-4 h-4"></i> Elegibilidade à premiação (meta &lt; {{ meta_premiacao|fmt_br_1 }}%)</h3>
+      <div class="bi-elegibilidade-grid">
+        <div class="bi-elegivel-card">
+          <span class="bi-elegivel-label">Elegíveis <strong>{{ elegiveis|length }}</strong></span>
+          <ul class="bi-elegivel-list">
             {% for r in elegiveis %}
-            <li class="flex justify-between text-body"><span>{{ r.driver_name }}</span><span class="tone-success">{{ (r.returned_value_pct if r.returned_value_pct is not none else r.return_rate)|fmt_br_1 }}%</span></li>
+            <li><span>{{ r.driver_name }}</span><span class="bi-pct bi-pct-ok">{{ (r.returned_value_pct if r.returned_value_pct is not none else r.return_rate)|fmt_br_1 }}%</span></li>
             {% else %}
-            <li class="text-body text-slate-500">Nenhum motorista elegível no período.</li>
+            <li class="bi-empty">Nenhum no período</li>
             {% endfor %}
           </ul>
         </div>
-        <div class="surface p-4 rounded-lg border border-amber-500/30 bg-amber-500/5">
-          <p class="text-caption text-amber-400">Fora da meta ({{ nao_elegiveis|length }})</p>
-          <ul class="mt-2 space-y-1">
+        <div class="bi-elegivel-card bi-elegivel-warn">
+          <span class="bi-elegivel-label">Fora da meta <strong>{{ nao_elegiveis|length }}</strong></span>
+          <ul class="bi-elegivel-list">
             {% for r in nao_elegiveis %}
-            <li class="flex justify-between text-body"><span>{{ r.driver_name }}</span><span class="tone-warning">{{ (r.returned_value_pct if r.returned_value_pct is not none else r.return_rate)|fmt_br_1 }}%</span></li>
+            <li><span>{{ r.driver_name }}</span><span class="bi-pct bi-pct-warn">{{ (r.returned_value_pct if r.returned_value_pct is not none else r.return_rate)|fmt_br_1 }}%</span></li>
             {% else %}
-            <li class="text-body text-slate-500">Todos dentro da meta.</li>
+            <li class="bi-empty">Todos dentro da meta</li>
             {% endfor %}
           </ul>
         </div>
       </div>
     </section>
 
-    <section class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2">
+    <section class="bi-kpi-grid">
       {{ kpi_card("Paradas Planejadas", kpis.planned_stops, "Base do período", "route", "neutral") }}
       {{ kpi_card("Taxa Devolução", (kpis.return_rate_qtd|fmt_br_1) ~ "%", kpis.total_devolucoes ~ " ocorrências", "undo-2", "success" if kpis.return_rate_qtd < 2 else "warning") }}
       {{ kpi_card("Devolução % Valor", (kpis.return_rate_value|fmt_br_1) ~ "%", "Meta financeira ≤ 2,0%", "percent", "danger" if kpis.return_rate_value >= 4 else "warning" if kpis.return_rate_value >= 2 else "success") }}
       {{ kpi_card("Valor Devolvido", kpis.valor_total_devolvido|fmt_br_moeda, "Total acumulado", "wallet", "neutral") }}
-      {{ kpi_card("Tempo Médio", (kpis.avg_duration_m|fmt_br_int) ~ " min", "Rotas finalizadas", "timer", "success") }}
-      {{ kpi_card("Mais Rápido", (mais_rapido.avg_duration|fmt_br_int) ~ " min" if mais_rapido else "-", mais_rapido.driver_name if mais_rapido else "-", "zap", "success") }}
-      {{ kpi_card("Mais Lento", (mais_lento.avg_duration|fmt_br_int) ~ " min" if mais_lento else "-", mais_lento.driver_name if mais_lento else "-", "clock", "warning") }}
+      {{ kpi_card("Tempo Médio", kpis.avg_duration_m|fmt_br_duracao, "Rotas finalizadas", "timer", "success") }}
+      {{ kpi_card("Mais Rápido", (mais_rapido.avg_duration|fmt_br_duracao) if mais_rapido else "-", mais_rapido.driver_name if mais_rapido else "-", "zap", "success") }}
+      {{ kpi_card("Mais Lento", (mais_lento.avg_duration|fmt_br_duracao) if mais_lento else "-", mais_lento.driver_name if mais_lento else "-", "clock", "warning") }}
       {{ kpi_card("Dia + Devoluções", dia_mais_devolucoes, "Padrão temporal", "calendar", "neutral") }}
     </section>
 
-    <section class="grid grid-cols-1 xl:grid-cols-3 gap-4">
-      {{ chart_card("Dia da semana × Devoluções", "Qtd e valor por dia da semana", "diaSemanaChart") }}
-      {{ chart_card("Motivos de devolução", "Valor por motivo e motorista", "motivosChart") }}
-      {{ chart_card("Eficiência por motorista", "Comparativo tático com % devolução por valor", "driverChart") }}
-    </section>
-
-    <section class="grid grid-cols-1 gap-4">
-      <section class="surface-shadow bi-card chart-card" data-chart-card="1" data-chart-id="driverClientCorrChart" data-chart-title="Correlacao motorista x cliente x devolucoes" data-chart-subtitle="Mapa de risco por par motorista-cliente com foco financeiro.">
-        <div class="bi-card-head bi-card-head-between">
-          <div>
-            <h3 class="text-section">Painel de Correlacao Motorista x Cliente</h3>
-            <p class="text-caption mt-1">Semaforo por % do valor real. Clique em um par para abrir no drill-through.</p>
-          </div>
-          <div class="flex items-center gap-2">
-            <button class="icon-wrap-sm" type="button" title="Ajuda">
-              <i data-lucide="info" class="w-4 h-4"></i>
-            </button>
-          </div>
+    <section class="bi-charts-grid bi-charts-grid-motorista">
+      <section class="bi-chart-card-full" data-chart-card="1" data-chart-id="diaSemanaChart" data-chart-title="Dia da semana × Devoluções" data-chart-subtitle="Qtd e valor por dia da semana.">
+        <div class="bi-chart-card-head">
+          <h3 class="bi-chart-card-title">Dia da semana × Devoluções</h3>
+          <p class="bi-chart-card-desc">Quantidade e valor (R$) por dia da semana. Barras = qtd, linha = valor.</p>
         </div>
-        <section class="surface p-3 mt-4">
-          <h4 class="text-section">Resumo Executivo (60s)</h4>
-          <p class="text-caption mt-1">Leitura direta para reunião: exposição, foco de ataque e risco concentrado.</p>
-          <div id="corrExecSummary" class="mt-3 corr-exec-grid"></div>
-          <div id="corrActionList" class="mt-3 space-y-2"></div>
-        </section>
-        <div class="mt-4 grid grid-cols-1 xl:grid-cols-2 gap-4">
-          <section class="surface p-3">
-            <h4 class="text-section">Top Pares Criticos</h4>
-            <p class="text-caption mt-1">Ranking por valor devolvido e % valor real</p>
-            <div id="corrTopPairs" class="mt-3 space-y-2"></div>
-          </section>
+        <div class="bi-chart-canvas-wrap"><canvas id="diaSemanaChart"></canvas></div>
+        <div class="bi-chart-card-actions flex gap-2">
+          <button class="icon-wrap-sm" type="button" title="Ajuda" aria-label="Ajuda"><i data-lucide="info" class="w-3 h-3"></i></button>
+          <button class="bi-btn bi-btn-ghost bi-btn-sm" type="button" title="Expandir" data-chart-expand="diaSemanaChart"><i data-lucide="maximize-2" class="w-3 h-3"></i> Expandir</button>
         </div>
-        <section class="surface p-4 mt-4 w-full">
-          <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-            <div>
-              <h4 class="text-section">Matriz Compacta de Correlacao</h4>
-              <p class="text-caption mt-1">Cliente + top motoristas de risco (leitura rápida para reunião)</p>
-            </div>
-            <div class="corr-legend flex flex-wrap gap-2">
-              <span class="corr-tag corr-ok">&lt; 2,0%</span>
-              <span class="corr-tag corr-warn">2,0% a 4,0%</span>
-              <span class="corr-tag corr-danger">&gt;= 4,0%</span>
-            </div>
-          </div>
-          <div id="corrMatrix" class="corr-matrix-container"></div>
-        </section>
+      </section>
+      <section class="bi-chart-card-full" data-chart-card="1" data-chart-id="motivosChart" data-chart-title="Motivos de devolução" data-chart-subtitle="Valor por motivo e motorista.">
+        <div class="bi-chart-card-head">
+          <h3 class="bi-chart-card-title">Motivos de devolução</h3>
+          <p class="bi-chart-card-desc">Valor (R$) por motivo, empilhado por motorista. Passe o mouse para detalhes.</p>
+        </div>
+        <div class="bi-chart-canvas-wrap"><canvas id="motivosChart"></canvas></div>
+        <div class="bi-chart-card-actions flex gap-2">
+          <button class="icon-wrap-sm" type="button" title="Ajuda" aria-label="Ajuda"><i data-lucide="info" class="w-3 h-3"></i></button>
+          <button class="bi-btn bi-btn-ghost bi-btn-sm" type="button" title="Expandir" data-chart-expand="motivosChart"><i data-lucide="maximize-2" class="w-3 h-3"></i> Expandir</button>
+        </div>
+      </section>
+      <section class="bi-chart-card-full" data-chart-card="1" data-chart-id="driverChart" data-chart-title="Eficiência por motorista" data-chart-subtitle="Comparativo tático com % devolução.">
+        <div class="bi-chart-card-head">
+          <h3 class="bi-chart-card-title">Eficiência por motorista</h3>
+          <p class="bi-chart-card-desc">Eficiência (verde), devolução qtd (amarelo) e devolução valor (vermelho). Meta devolução valor ≤ 2%.</p>
+        </div>
+        <div class="bi-chart-canvas-wrap"><canvas id="driverChart"></canvas></div>
+        <div class="bi-chart-card-actions flex gap-2">
+          <button class="icon-wrap-sm" type="button" title="Ajuda" aria-label="Ajuda"><i data-lucide="info" class="w-3 h-3"></i></button>
+          <button class="bi-btn bi-btn-ghost bi-btn-sm" type="button" title="Expandir" data-chart-expand="driverChart"><i data-lucide="maximize-2" class="w-3 h-3"></i> Expandir</button>
+        </div>
       </section>
     </section>
 
-    <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-      {% call table_section("Performance por caminhão (placa)", "Relativização: paradas, devoluções e tempo médio por veículo.", "plateTable") %}
+    <section class="bi-section bi-correlacao" data-chart-card="1" data-chart-id="driverClientCorrChart" data-chart-title="Correlacao motorista x cliente" data-chart-subtitle="Mapa de risco por par motorista-cliente.">
+      <div class="bi-correlacao-head">
+        <div>
+          <h3 class="bi-section-title">Correlação Motorista x Cliente</h3>
+          <p class="bi-section-desc">Semáforo por % do valor real. Clique em um par para drill-through.</p>
+        </div>
+        <button class="bi-btn bi-btn-icon" type="button" title="Ajuda"><i data-lucide="info" class="w-4 h-4"></i></button>
+      </div>
+      <div class="bi-correlacao-resumo">
+        <h4 class="bi-subtitle">Resumo executivo</h4>
+        <div id="corrExecSummary" class="corr-exec-grid"></div>
+        <div id="corrActionList" class="corr-action-list"></div>
+      </div>
+      <div class="bi-correlacao-content">
+        <div class="bi-correlacao-top">
+          <h4 class="bi-subtitle">Top pares críticos</h4>
+          <div id="corrTopPairs" class="corr-top-pairs"></div>
+        </div>
+        <div class="bi-correlacao-matriz">
+          <div class="bi-correlacao-matriz-head">
+            <h4 class="bi-subtitle">Matriz de risco</h4>
+            <div class="corr-legend">
+              <span class="corr-tag corr-ok">&lt;2%</span>
+              <span class="corr-tag corr-warn">2-4%</span>
+              <span class="corr-tag corr-danger">≥4%</span>
+            </div>
+          </div>
+          <div id="corrMatrix" class="corr-matrix-container"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="bi-two-col">
+      <section class="bi-section bi-table-section">
+        <h3 class="bi-section-title">Performance por placa</h3>
+        <p class="bi-section-desc">Paradas, devoluções e tempo médio por veículo</p>
+        <div class="bi-table-wrap overflow-auto">
+          <table id="plateTable" class="bi-table min-w-full text-body">
       <thead>
         <tr>
           <th>Placa</th>
@@ -184,56 +201,48 @@
           <td class="{{ 'tone-warning' if row.taxa_devolucao >= 5 else '' }}">{{ row.devolucoes }}</td>
           <td class="{{ 'tone-danger' if row.taxa_devolucao >= 10 else 'tone-warning' if row.taxa_devolucao >= 5 else '' }}">{{ row.taxa_devolucao|fmt_br_1 }}%</td>
           <td>{{ row.valor_devolvido|fmt_br_moeda }}</td>
-          <td>{{ row.tempo_medio|fmt_br_int }} min</td>
+          <td>{{ row.tempo_medio|fmt_br_duracao }}</td>
         </tr>
         {% else %}
         <tr><td colspan="6" class="text-body text-slate-500">Sem dados por placa no período.</td></tr>
         {% endfor %}
       </tbody>
-      {% endcall %}
-
-      <section class="surface-shadow bi-card">
-        <div class="bi-card-head">
-          <div class="icon-wrap"><i data-lucide="activity" class="w-4 h-4"></i></div>
-          <h3 class="text-section">Inteligência — Oscilação (σ)</h3>
+          </table>
         </div>
-        <p class="text-caption mt-1">Estabilidade da taxa de devolução. Menor σ = mais estável.</p>
-        <div class="mt-4 space-y-2 max-h-64 overflow-y-auto">
+      </section>
+      <section class="bi-section">
+        <h3 class="bi-section-title"><i data-lucide="activity" class="w-4 h-4"></i> Oscilação (σ)</h3>
+        <p class="bi-section-desc">Menor σ = mais estável</p>
+        <div class="bi-oscilacao-list">
           {% for r in oscilacao_rows %}
-          <div class="insight-row {{ 'insight-warning' if not r.estavel and r.return_rate >= 5 else '' }}">
+          <div class="bi-oscilacao-item {{ 'bi-insight-warn' if not r.estavel and r.return_rate >= 5 else '' }}">
             <span class="font-medium">{{ r.driver_name }}</span> — σ {{ r.sigma|fmt_br_1 }}% | Taxa {{ r.return_rate|fmt_br_1 }}%
           </div>
           {% else %}
-          <div class="insight-row">Dados insuficientes para calcular oscilação.</div>
+          <div class="bi-insight-row">Dados insuficientes</div>
           {% endfor %}
         </div>
       </section>
     </section>
 
-    <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-      <section class="surface-shadow bi-card">
-        <div class="bi-card-head">
-          <div class="icon-wrap"><i data-lucide="siren" class="w-4 h-4"></i></div>
-          <h3 class="text-section">Anomalias detectadas</h3>
-        </div>
-        <div class="mt-4 space-y-2">
+    <section class="bi-two-col">
+      <section class="bi-section">
+        <h3 class="bi-section-title"><i data-lucide="siren" class="w-4 h-4"></i> Anomalias</h3>
+        <div class="bi-insight-list">
           {% for item in anomaly_flags %}
-          <div class="insight-row insight-warning">{{ item }}</div>
+          <div class="bi-insight-row bi-insight-warn">{{ item }}</div>
           {% else %}
-          <div class="insight-row">Nenhuma anomalia relevante no período.</div>
+          <div class="bi-insight-row">Nenhuma anomalia no período</div>
           {% endfor %}
         </div>
       </section>
-      <section class="surface-shadow bi-card">
-        <div class="bi-card-head">
-          <div class="icon-wrap"><i data-lucide="bot" class="w-4 h-4"></i></div>
-          <h3 class="text-section">Recomendações</h3>
-        </div>
-        <div class="mt-4 space-y-2">
+      <section class="bi-section">
+        <h3 class="bi-section-title"><i data-lucide="bot" class="w-4 h-4"></i> Recomendações</h3>
+        <ol class="bi-rec-list">
           {% for rec in recommendations %}
-          <div class="insight-row">{{ loop.index }}. {{ rec }}</div>
+          <li>{{ rec }}</li>
           {% endfor %}
-        </div>
+        </ol>
       </section>
     </section>
 
@@ -262,7 +271,7 @@
           <td>{{ row.planned_kg|fmt_br_2 }}</td>
           <td>{{ row.returned_value|fmt_br_moeda }}</td>
           <td>{{ row.reopen_count }}</td>
-          <td>{{ row.avg_duration|fmt_br_int }} min</td>
+          <td>{{ row.avg_duration|fmt_br_duracao }}</td>
           <td>{% if (row.returned_value_pct if row.returned_value_pct is not none else row.return_rate) < 2 and row.planned_stops >= 5 %}<span class="tone-success">Sim</span>{% else %}<span class="tone-warning">Não</span>{% endif %}</td>
         </tr>
         {% endfor %}
@@ -346,14 +355,15 @@
         <p class="text-caption" id="fullChartTag">Análise expandida</p>
         <h3 class="text-title-lg" id="fullChartTitle">Gráfico</h3>
       </div>
-      <div class="flex items-center gap-2">
-        <button type="button" id="chartTypeToggleBtn" class="btn-secondary">Alternar tipo</button>
-        <button type="button" id="chartCompare7Btn" class="btn-secondary">D-7</button>
-        <button type="button" id="chartCompare30Btn" class="btn-secondary">D-30</button>
-        <button type="button" id="chartCompareAllBtn" class="btn-secondary">Completo</button>
-        <button type="button" id="chartResetZoomBtn" class="btn-secondary">Reset zoom</button>
-        <button type="button" id="chartExportPngBtn" class="btn-secondary">Exportar PNG</button>
-        <button type="button" class="btn-secondary" data-close-modal="chartFullscreenModal">Fechar</button>
+      <div class="flex flex-wrap items-center gap-2 bg-slate-800/50 border border-slate-600/50 rounded-lg px-3 py-2">
+        <span class="text-xs text-slate-400 font-medium mr-1 shrink-0">Ações:</span>
+        <button type="button" id="chartTypeToggleBtn" class="btn-secondary text-xs px-2.5 py-1.5">Alternar tipo</button>
+        <button type="button" id="chartCompare7Btn" class="btn-secondary text-xs px-2.5 py-1.5">D-7</button>
+        <button type="button" id="chartCompare30Btn" class="btn-secondary text-xs px-2.5 py-1.5">D-30</button>
+        <button type="button" id="chartCompareAllBtn" class="btn-secondary text-xs px-2.5 py-1.5">Completo</button>
+        <button type="button" id="chartResetZoomBtn" class="btn-secondary text-xs px-2.5 py-1.5">Reset zoom</button>
+        <button type="button" id="chartExportPngBtn" class="btn-secondary text-xs px-2.5 py-1.5">Exportar PNG</button>
+        <button type="button" class="btn-secondary text-xs px-2.5 py-1.5 ml-auto" data-close-modal="chartFullscreenModal">Fechar</button>
       </div>
     </div>
     <section id="fullscreenDevolucaoStrip" class="surface p-3 mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-sm">
@@ -381,7 +391,8 @@
       <canvas id="fullscreenChartCanvas"></canvas>
     </div>
     <section class="surface p-4 mt-4">
-      <h4 class="text-section mb-2">Storytelling automático</h4>
+      <h4 class="text-section mb-2">Insights automáticos</h4>
+      <p class="text-caption text-slate-400 mb-2">Frases geradas a partir dos dados do gráfico para facilitar a leitura em reuniões.</p>
       <div id="fullscreenInsights" class="space-y-2"></div>
     </section>
   </div>
@@ -410,7 +421,7 @@
 <script>
   const chartData = {{ chart_payload_json|safe }} || {};
   const detailRows = {{ detail_rows_json|safe }} || [];
-  window.__biChartData = chartData;
+  window.__biChartData = { ...chartData, kpis: {{ kpis|tojson|safe }} };
   window.__biDetailRows = detailRows;
 
   const cMuted = '#94a3b8', cBorder = 'rgba(148,163,184,0.3)', cWarn = '#f59e0b', cDanger = '#ef4444', cPrimary = '#3b82f6', cSuccess = '#10b981';
@@ -418,6 +429,7 @@
   function dataBR(s) { if (!s) return '-'; const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}/${m[2]}/${m[1]}` : s; }
   function numeroBR(n, dec) { const x = Number(n); return isNaN(x) ? '0,00' : x.toLocaleString('pt-BR', { minimumFractionDigits: dec ?? 2, maximumFractionDigits: dec ?? 2 }); }
   function moedaBR(n) { return isNaN(Number(n)) ? 'R$ 0,00' : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+  function duracaoBR(m) { if (m == null || isNaN(Number(m))) return '-'; const n = Math.round(Number(m)); if (n < 0) return '-'; if (n <= 60) return n + ' min'; const h = Math.floor(n / 60), mn = n % 60; return h + ':' + String(mn).padStart(2, '0') + ' hr'; }
   const safeStr = (v) => (v == null ? '' : String(v));
 
   function safeChart(id, config) {
@@ -426,42 +438,113 @@
   }
 
   const diaSemana = chartData.dia_semana || {};
+  const diaLabels = diaSemana.labels && diaSemana.labels.length ? diaSemana.labels : ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+  const diaQtd = (diaSemana.qtd || []).map(v => Number(toChartNum(v)) || 0);
+  const diaValor = (diaSemana.valor || []).map(v => Number(toChartNum(v)) || 0);
+  if (diaQtd.length < 7) while (diaQtd.length < 7) diaQtd.push(0);
+  if (diaValor.length < 7) while (diaValor.length < 7) diaValor.push(0);
   safeChart('diaSemanaChart', {
     type: 'bar',
     data: {
-      labels: diaSemana.labels || [],
+      labels: diaLabels,
       datasets: [
-        { label: 'Qtd devoluções', data: (diaSemana.qtd || []).map(toChartNum).map(v => v ?? 0), backgroundColor: cWarn },
-        { label: 'Valor (R$)', data: (diaSemana.valor || []).map(toChartNum).map(v => v ?? 0), backgroundColor: cDanger }
+        { label: 'Qtd devoluções', data: diaQtd, backgroundColor: 'rgba(245,158,11,0.85)', borderRadius: 6, yAxisID: 'y' },
+        { label: 'Valor (R$)', data: diaValor, type: 'line', borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.15)', borderWidth: 2, tension: 0.3, fill: true, pointRadius: 5, yAxisID: 'y1' }
       ]
     },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: cMuted } } }, scales: { x: { ticks: { color: cMuted }, grid: { color: cBorder } }, y: { ticks: { color: cMuted }, grid: { color: cBorder } } } }
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: cMuted, padding: 12 }, position: 'top' },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              if (ctx.dataset.yAxisID === 'y1') return ctx.dataset.label + ': ' + moedaBR(ctx.raw);
+              return ctx.dataset.label + ': ' + (Number(ctx.raw) || 0);
+            }
+          }
+        }
+      },
+      scales: {
+        x: { type: 'category', display: true, ticks: { color: cMuted, maxRotation: 0 }, grid: { display: false } },
+        y: { type: 'linear', display: true, position: 'left', beginAtZero: true, ticks: { color: cMuted }, grid: { color: cBorder }, title: { display: true, text: 'Qtd', color: cMuted } },
+        y1: { type: 'linear', display: true, position: 'right', beginAtZero: true, ticks: { color: cMuted, callback: v => 'R$ ' + (Number(v) || 0).toLocaleString('pt-BR',{maximumFractionDigits:0}) }, grid: { drawOnChartArea: false }, title: { display: true, text: 'Valor', color: cMuted } }
+      }
+    }
   });
 
-  const md = chartData.motivos_detailed || [];
-  const motDrivers = chartData.motivos_drivers || [];
-  const driverColors = ['#3b82f6', '#f59e0b', '#ef4444', '#10b981', '#8b5cf6'];
+  const md = (chartData.motivos_detailed || []).slice(0, 10);
+  const motDrivers = (chartData.motivos_drivers || []).slice(0, 6);
+  const driverColors = ['#3b82f6','#f59e0b','#ef4444','#10b981','#8b5cf6','#06b6d4','#ec4899','#84cc16'];
   safeChart('motivosChart', {
     type: 'bar',
     data: {
       labels: md.map(x => safeStr(x.motivo)),
-      datasets: motDrivers.map((drv, i) => ({ label: safeStr(drv), data: md.map(m => (m.por_motorista && m.por_motorista[drv]) ? Number(m.por_motorista[drv].valor) : 0), backgroundColor: driverColors[i % driverColors.length], stack: 'stack0' }))
+      datasets: motDrivers.map((drv, i) => ({
+        label: safeStr(drv),
+        data: md.map(m => (m.por_motorista && m.por_motorista[drv]) ? Number(m.por_motorista[drv].valor) : 0),
+        backgroundColor: driverColors[i % driverColors.length],
+        stack: 'stack0',
+        borderRadius: 4
+      }))
     },
-    options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { labels: { color: cMuted } } }, scales: { x: { ticks: { color: cMuted }, stacked: true }, y: { ticks: { color: cMuted }, stacked: true } } }
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: 'y',
+      barPercentage: 0.75,
+      categoryPercentage: 0.9,
+      plugins: {
+        legend: { labels: { color: cMuted, boxWidth: 12 }, position: 'top' },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const v = Number(ctx.raw) || 0;
+              if (v === 0) return null;
+              return ctx.dataset.label + ': ' + moedaBR(v);
+            }
+          }
+        }
+      },
+      scales: {
+        x: { stacked: true, ticks: { color: cMuted }, grid: { color: cBorder }, title: { display: true, text: 'Valor (R$)', color: cMuted } },
+        y: { stacked: true, ticks: { color: cMuted, maxRotation: 0, autoSkip: false }, grid: { display: false } }
+      }
+    }
   });
 
-  const driversData = chartData.drivers || [];
+  const driversData = (chartData.drivers || []).slice(0, 12);
   safeChart('driverChart', {
     type: 'bar',
     data: {
       labels: driversData.map(x => safeStr(x.driver)),
       datasets: [
-        { label: 'Eficiência %', data: driversData.map(x => toChartNum(x.eficiencia) ?? 0), backgroundColor: cSuccess },
-        { label: 'Devolução % (qtd)', data: driversData.map(x => toChartNum(x.devolucao_pct) ?? 0), backgroundColor: cWarn },
-        { label: 'Devolução % (valor)', data: driversData.map(x => toChartNum(x.devolucao_valor_pct) ?? 0), backgroundColor: cDanger }
+        { label: 'Eficiência %', data: driversData.map(x => toChartNum(x.eficiencia) ?? 0), backgroundColor: 'rgba(16,185,129,0.85)', borderRadius: 4 },
+        { label: 'Devolução % (qtd)', data: driversData.map(x => toChartNum(x.devolucao_pct) ?? 0), backgroundColor: 'rgba(245,158,11,0.85)', borderRadius: 4 },
+        { label: 'Devolução % (valor)', data: driversData.map(x => toChartNum(x.devolucao_valor_pct) ?? 0), backgroundColor: 'rgba(239,68,68,0.85)', borderRadius: 4 }
       ]
     },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: cMuted } } }, scales: { x: { ticks: { color: cMuted } }, y: { ticks: { color: cMuted } } } }
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: 'y',
+      barPercentage: 0.7,
+      categoryPercentage: 0.85,
+      plugins: {
+        legend: { labels: { color: cMuted, boxWidth: 12 }, position: 'top' },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => (ctx.dataset.label + ': ' + (Number(ctx.raw) || 0).toFixed(1).replace('.', ',') + '%')
+          }
+        }
+      },
+      scales: {
+        x: { max: 100, ticks: { color: cMuted, callback: v => v + '%' }, grid: { color: cBorder }, title: { display: true, text: '% (0-100)', color: cMuted } },
+        y: { ticks: { color: cMuted, maxRotation: 0, autoSkip: false, font: { size: 11 } }, grid: { display: false } }
+      }
+    }
   });
 
   const corr = (chartData && chartData.driver_client_corr) ? chartData.driver_client_corr : {};
@@ -611,8 +694,12 @@
       appState.search = '';
       const s = document.getElementById('drillSearch');
       if (s) s.value = '';
-      renderDrill();
-      document.getElementById('drilldown-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (typeof renderDrill === 'function') renderDrill();
+      const drillSection = document.getElementById('drilldown-section');
+      if (drillSection) {
+        drillSection.classList.remove('hidden');
+        drillSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     };
 
     topEl.addEventListener('click', (ev) => {
@@ -791,7 +878,7 @@
   });
 
   function ensureHelpButtons() {
-    const cards = Array.from(document.querySelectorAll('.surface-shadow.bi-card, .kpi-card, .chart-card'));
+    const cards = Array.from(document.querySelectorAll('.surface-shadow.bi-card, .kpi-card, .chart-card, .bi-chart-card-full'));
     cards.forEach((card) => {
       if (card.querySelector('button[title="Ajuda"]')) return;
       const btnWrap = document.createElement('div');
@@ -867,7 +954,7 @@
       return `<tr>
         <td>${dataBR(r.date)}</td><td>${r.shift || '-'}</td><td>${safeStr(r.driver_name)}</td><td>${safeStr(r.client_name)}</td>
         <td><span class="status-chip ${st.cls}">${st.label}</span></td><td>${moedaBR(r.planned_value)}</td>
-        <td>${moedaBR(r.returned_value)}</td><td>${r.duration_m ? numeroBR(r.duration_m, 0) + ' min' : '-'}</td><td>${safeStr(r.plate)}</td>
+        <td>${moedaBR(r.returned_value)}</td><td>${r.duration_m != null ? duracaoBR(r.duration_m) : '-'}</td><td>${safeStr(r.plate)}</td>
       </tr>`;
     }).join('');
     drillSummary.textContent = `${total} registros | página ${state.page}/${pages}`;
@@ -885,28 +972,97 @@
 <script src="/static/js/bi_delivery_premium.js"></script>
 
 <style>
-  .bi-page { background: var(--color-bg); color: var(--color-text); }
+  /* === LAYOUT CLEAN === */
+  .bi-motorista-page { background: var(--color-bg); color: var(--color-text); min-height: 100vh; padding: 1.5rem 1rem 3rem; }
+  .bi-motorista-container { max-width: 1600px; margin: 0 auto; display: flex; flex-direction: column; gap: 2rem; }
+  @media (min-width: 1024px) { .bi-motorista-page { padding: 2rem; } .bi-motorista-container { gap: 2.5rem; } }
+
+  .bi-motorista-header { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 1.25rem 1.5rem; }
+  .bi-motorista-header-main { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+  .bi-motorista-title { font-size: 1.25rem; font-weight: 700; color: var(--color-text); margin: 0; letter-spacing: -0.02em; }
+  .bi-motorista-subtitle { font-size: 0.8125rem; color: var(--color-text-muted); margin: 0.25rem 0 0; }
+  .bi-motorista-header-actions { display: flex; gap: 0.5rem; }
+  .bi-motorista-filters { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem 1rem; }
+  @media (min-width: 640px) { .bi-motorista-filters { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 1024px) { .bi-motorista-filters { grid-template-columns: repeat(6, 1fr); } }
+  .bi-filter-field label { display: block; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); margin-bottom: 0.35rem; }
+  .bi-filter-field input, .bi-filter-field select { width: 100%; height: 38px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text); padding: 0 0.75rem; font-size: 0.875rem; }
+  .bi-filter-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.5rem; padding-top: 0.25rem; }
+  .bi-btn { height: 38px; padding: 0 1rem; border-radius: 8px; font-size: 0.8125rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
+  .bi-btn-primary { background: var(--color-primary); color: white; }
+  .bi-btn-ghost { background: transparent; color: var(--color-text-secondary); border-color: var(--color-border); }
+  .bi-btn-ghost:hover { background: var(--color-border); color: var(--color-text); }
+  .bi-btn-icon { width: 36px; padding: 0; }
+
+  .bi-section { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 1.25rem 1.5rem; }
+  .bi-section-title { font-size: 0.9375rem; font-weight: 600; color: var(--color-text); margin: 0 0 0.25rem; display: flex; align-items: center; gap: 0.5rem; }
+  .bi-section-desc { font-size: 0.75rem; color: var(--color-text-muted); margin: 0; }
+  .bi-subtitle { font-size: 0.8125rem; font-weight: 600; color: var(--color-text-secondary); margin: 0 0 0.75rem; }
+
+  .bi-elegibilidade-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+  .bi-elegivel-card { padding: 1rem; border-radius: 10px; background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); }
+  .bi-elegivel-card.bi-elegivel-warn { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.25); }
+  .bi-elegivel-label { font-size: 0.75rem; color: var(--color-text-muted); }
+  .bi-elegivel-list { list-style: none; margin: 0.75rem 0 0; padding: 0; font-size: 0.8125rem; }
+  .bi-elegivel-list li { display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .bi-elegivel-list li:last-child { border-bottom: none; }
+  .bi-pct { font-weight: 600; }
+  .bi-pct-ok { color: var(--color-success); }
+  .bi-pct-warn { color: var(--color-warning); }
+  .bi-empty { color: var(--color-text-muted) !important; }
+
+  .bi-kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+  @media (min-width: 640px) { .bi-kpi-grid { grid-template-columns: repeat(4, 1fr); } }
+  @media (min-width: 1280px) { .bi-kpi-grid { grid-template-columns: repeat(4, 1fr); gap: 1.25rem; } }
+  .bi-charts-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
+  @media (min-width: 1024px) { .bi-charts-grid { grid-template-columns: repeat(3, 1fr); } }
+  .bi-charts-grid-motorista .bi-chart-card-full { min-height: 400px; }
+  .bi-chart-card-full { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 1.25rem; display: flex; flex-direction: column; overflow: hidden; }
+  .bi-chart-card-head { margin-bottom: 1rem; flex-shrink: 0; }
+  .bi-chart-card-title { font-size: 0.9375rem; font-weight: 600; margin: 0 0 0.25rem; }
+  .bi-chart-card-desc { font-size: 0.75rem; color: var(--color-text-muted); margin: 0; }
+  .bi-chart-canvas-wrap { flex: 1; height: 280px; min-height: 240px; position: relative; width: 100%; }
+  .bi-chart-canvas-wrap canvas { display: block; }
+  .bi-chart-card-actions { margin-top: 0.75rem; flex-shrink: 0; }
+  .bi-btn-sm { height: 32px; padding: 0 0.75rem; font-size: 0.75rem; }
+  .bi-two-col { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
+  @media (min-width: 1024px) { .bi-two-col { grid-template-columns: 1fr 1fr; } }
+
+  .bi-correlacao { }
+  .bi-correlacao-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
+  .bi-correlacao-resumo { margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--color-border); }
+  .bi-correlacao-content { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
+  @media (min-width: 1024px) { .bi-correlacao-content { grid-template-columns: 380px 1fr; } }
+  .bi-correlacao-top { }
+  .bi-correlacao-matriz { }
+  .bi-correlacao-matriz-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem; }
+  .corr-action-list { margin-top: 0.75rem; }
+  .corr-top-pairs { display: flex; flex-direction: column; gap: 0.5rem; }
+
+  .bi-oscilacao-list { margin-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem; max-height: 280px; overflow-y: auto; }
+  .bi-oscilacao-item { padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.8125rem; background: rgba(255,255,255,0.03); border: 1px solid var(--color-border); }
+  .bi-insight-list, .bi-rec-list { margin-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+  .bi-insight-row { padding: 0.6rem 0.75rem; border-radius: 8px; font-size: 0.8125rem; background: rgba(255,255,255,0.03); border: 1px solid var(--color-border); }
+  .bi-insight-warn { border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.06); }
+  .bi-rec-list { list-style: decimal; padding-left: 1.25rem; font-size: 0.8125rem; color: var(--color-text-body); line-height: 1.5; }
+  .bi-rec-list li { margin-bottom: 0.35rem; }
+  .bi-table-wrap { margin-top: 1rem; border-radius: 8px; overflow: hidden; border: 1px solid var(--color-border); }
+
   .bi-card { padding: var(--space-4, 1rem); }
   .bi-card-head { display: flex; align-items: center; gap: .75rem; }
   .bi-card-head-between { justify-content: space-between; }
-  .chart-card { height: 100%; display: flex; flex-direction: column; }
-  .chart-card .bi-card-head { min-height: 58px; }
-  .chart-card > div[style*="height"] { height: 320px !important; }
+  .chart-card { height: 100%; display: flex; flex-direction: column; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 1.25rem; }
+  .chart-card .bi-card-head { min-height: auto; }
+  .chart-card > div[style*="height"] { height: 260px !important; flex: 1; min-height: 220px; }
   .chart-card canvas { width: 100% !important; height: 100% !important; }
-  .surface-shadow { background: var(--color-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); border: 1px solid var(--color-border); }
-  .surface { background: var(--color-surface); border-radius: var(--radius-lg); border: 1px solid var(--color-border); }
-  .icon-wrap, .icon-wrap-sm { background: var(--color-border-light); color: var(--color-text-secondary); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; }
-  .icon-wrap { width: 2.25rem; height: 2.25rem; }
-  .icon-wrap-sm { width: 2rem; height: 2rem; }
-  .text-title-lg { font-size: var(--text-title-lg); color: var(--color-text); font-weight: 600; }
-  .text-section { font-size: var(--text-section); font-weight: 600; }
+  .surface-shadow { background: var(--color-surface); border-radius: 12px; border: 1px solid var(--color-border); }
+  .surface { background: rgba(255,255,255,0.02); border-radius: 10px; border: 1px solid var(--color-border); }
+  .icon-wrap, .icon-wrap-sm { background: var(--color-border-light); color: var(--color-text-secondary); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+  .icon-wrap { width: 2rem; height: 2rem; }
+  .icon-wrap-sm { width: 1.75rem; height: 1.75rem; }
   .text-body { font-size: var(--text-body); color: var(--color-text-secondary); }
-  .text-caption { font-size: var(--text-caption); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .06em; }
-  .form-field label { display: block; margin-bottom: .35rem; font-size: var(--text-caption); text-transform: uppercase; color: var(--color-text-muted); }
-  .form-field input, .form-field select, .input-mini { width: 100%; min-height: 42px; border-radius: var(--radius-md); border: 2px solid var(--color-border); background: var(--color-input-bg); color: var(--color-text); padding: 0 .75rem; }
-  .btn-primary, .btn-secondary { min-height: 42px; border-radius: var(--radius-md); padding: 0 1rem; display: inline-flex; align-items: center; justify-content: center; font-size: var(--text-body); font-weight: 600; }
-  .btn-primary { background: var(--color-primary); color: var(--color-text-inverse); }
-  .btn-secondary { background: var(--color-surface); color: var(--color-text); border: 2px solid var(--color-border); }
+  .form-field label { display: block; margin-bottom: .35rem; font-size: 0.7rem; text-transform: uppercase; color: var(--color-text-muted); }
+  .form-field input, .form-field select, .input-mini { width: 100%; min-height: 38px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text); padding: 0 .75rem; font-size: 0.875rem; }
   .bi-table { width: 100%; border-collapse: collapse; }
   .bi-table thead th { position: sticky; top: 0; background: var(--color-surface); border-bottom: 1px solid var(--color-border); text-align: left; font-size: var(--text-caption); color: var(--color-text-muted); padding: .65rem; cursor: pointer; }
   .bi-table tbody td { border-bottom: 1px solid color-mix(in srgb, var(--color-border-light) 78%, transparent); padding: .58rem; }
@@ -914,8 +1070,8 @@
   .tone-success { color: var(--color-success) !important; font-weight: 600; }
   .tone-warning { color: var(--color-warning) !important; font-weight: 600; }
   .tone-danger { color: var(--color-danger) !important; font-weight: 600; }
-  .insight-row { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: .6rem; background: var(--color-surface); font-size: var(--text-body); }
-  .insight-warning { border-color: var(--color-warning); }
+  .insight-row, .corr-action-list > div { border: 1px solid var(--color-border); border-radius: 8px; padding: 0.6rem 0.75rem; background: rgba(255,255,255,0.03); font-size: 0.8125rem; margin-bottom: 0.5rem; }
+  .insight-warning, .corr-action-list > div.insight-warning { border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.06); }
   .bi-help-card { border: 1px solid var(--color-border); }
   .status-chip { display: inline-flex; padding: .24rem .58rem; border-radius: 999px; font-size: .68rem; font-weight: 800; text-transform: uppercase; line-height: 1.05; letter-spacing: .04em; border: 1px solid transparent; }
   .status-success { color: #ecfdf5; background: #065f46; border-color: #10b981; }
@@ -925,9 +1081,10 @@
   .status-muted { color: #f8fafc; background: #334155; border-color: #94a3b8; }
 
   .corr-legend { display: flex; gap: .45rem; flex-wrap: wrap; }
-  .corr-exec-grid { display: grid; grid-template-columns: repeat(1, minmax(0, 1fr)); gap: .55rem; }
-  @media (min-width: 860px) { .corr-exec-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-  .corr-kpi-card { border: 1px solid var(--color-border); border-radius: .6rem; padding: .58rem .62rem; background: color-mix(in srgb, var(--color-surface) 92%, #0f172a 8%); }
+  .corr-exec-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+  @media (min-width: 640px) { .corr-exec-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 1024px) { .corr-exec-grid { grid-template-columns: repeat(6, 1fr); } }
+  .corr-kpi-card { border: 1px solid var(--color-border); border-radius: 10px; padding: 0.75rem 1rem; background: rgba(255,255,255,0.02); }
   .corr-kpi-card.is-danger { border-color: rgba(239, 68, 68, .7); background: rgba(127, 29, 29, .22); }
   .corr-kpi-card.is-warn { border-color: rgba(245, 158, 11, .7); background: rgba(120, 53, 15, .22); }
   .corr-kpi-card.is-focus { border-color: rgba(59, 130, 246, .7); background: rgba(30, 58, 138, .22); }
@@ -938,7 +1095,7 @@
   .corr-ok { background: rgba(16,185,129,.18); border-color: rgba(16,185,129,.45); color: #d1fae5; }
   .corr-warn { background: rgba(245,158,11,.2); border-color: rgba(245,158,11,.5); color: #fef3c7; }
   .corr-danger { background: rgba(239,68,68,.2); border-color: rgba(239,68,68,.55); color: #fee2e2; }
-  .corr-pair-row { width: 100%; display: grid; grid-template-columns: 2rem 1fr auto; gap: .5rem; align-items: center; border: 1px solid var(--color-border); background: var(--color-surface); border-radius: .6rem; padding: .5rem .55rem; text-align: left; }
+  .corr-pair-row { width: 100%; display: grid; grid-template-columns: 1.75rem 1fr auto; gap: 0.75rem; align-items: center; border: 1px solid var(--color-border); background: rgba(255,255,255,0.02); border-radius: 10px; padding: 0.6rem 0.75rem; text-align: left; font-size: 0.8125rem; }
   .corr-pair-row:hover { border-color: var(--color-primary); }
   .corr-rank { width: 1.55rem; height: 1.55rem; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: .68rem; font-weight: 700; background: var(--color-border-light); color: var(--color-text-secondary); }
   .corr-title { display: block; color: var(--color-text); font-size: .76rem; font-weight: 600; line-height: 1.2; }
@@ -946,7 +1103,7 @@
   .corr-pct { font-size: .74rem; font-weight: 700; }
   .corr-matrix-container { overflow: visible; overscroll-behavior: none; }
   .corr-compact-grid { display: grid; grid-template-columns: 1fr; gap: .6rem; }
-  .corr-compact-row { border: 1px solid var(--color-border); border-radius: .62rem; padding: .58rem; background: color-mix(in srgb, var(--color-surface) 92%, #0f172a 8%); }
+  .corr-compact-row { border: 1px solid var(--color-border); border-radius: 10px; padding: 0.75rem 1rem; background: rgba(255,255,255,0.02); }
   .corr-compact-client { font-size: .72rem; font-weight: 700; color: var(--color-text); margin-bottom: .45rem; }
   .corr-compact-pairs { display: grid; grid-template-columns: 1fr; gap: .42rem; }
   .corr-chip { width: 100%; text-align: left; border: 1px solid var(--color-border); border-radius: .5rem; padding: .45rem .5rem; background: var(--color-surface); }
@@ -957,7 +1114,6 @@
   .corr-cell.corr-empty { display: inline-flex; align-items: center; justify-content: center; }
 </style>
 {% endblock %}
-
 
 
 

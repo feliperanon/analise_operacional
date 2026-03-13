@@ -15,10 +15,12 @@
             <p class="text-caption mt-1">Dashboard unificado executivo, tático e operacional.</p>
           </div>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
           <button type="button" id="execModeToggle" class="btn-secondary" aria-pressed="false">
             Executivo
           </button>
+          <a href="/bi/clientes" class="btn-secondary">BI Clientes</a>
+          <a href="/bi/motorista" class="btn-secondary">BI Motorista</a>
           <a href="/separacao" class="btn-secondary">Abrir Operação</a>
         </div>
       </div>
@@ -90,7 +92,7 @@
       {{ kpi_card("% Acima de R$300", (kpis.devolucoes_acima_300_pct|fmt_br_1) ~ "%",
       kpis.devolucoes_acima_300_count ~ " linhas", "alert-triangle", "warning" if kpis.devolucoes_acima_300_pct >= 35
       else "success") }}
-      {{ kpi_card("Tempo Médio", (kpis.avg_duration_m|fmt_br_int) ~ " min", "Rotas finalizadas", "timer", "warning" if
+      {{ kpi_card("Tempo Médio", kpis.avg_duration_m|fmt_br_duracao, "Rotas finalizadas", "timer", "warning" if
       kpis.avg_duration_m >= 120 else "success") }}
       {{ kpi_card("Risco Prox. Turno", kpis.risk_label, "Prev. devolucao em valor " ~
       (kpis.forecast_next_return_rate_value|fmt_br_1) ~ "%", "shield-alert", kpis.risk_severity) }}
@@ -215,7 +217,7 @@
           <td>{{ row.returned_value|fmt_br_moeda }}</td>
           <td>{{ row.returned_value_pct|fmt_br_1 }}%</td>
           <td>{{ row.reopen_count }}</td>
-          <td>{{ row.avg_duration|fmt_br_int }} min</td>
+          <td>{{ row.avg_duration|fmt_br_duracao }}</td>
         </tr>
         {% endfor %}
         {% set total_efficiency = ((ns.delivered_stops / ns.planned_stops) * 100) if ns.planned_stops > 0 else 0 %}
@@ -232,7 +234,7 @@
           <td>{{ ns.returned_value|fmt_br_moeda }}</td>
           <td>{{ total_returned_value_pct|fmt_br_1 }}%</td>
           <td>{{ ns.reopen_count }}</td>
-          <td>{{ total_avg_duration|fmt_br_int }} min</td>
+          <td>{{ total_avg_duration|fmt_br_duracao }}</td>
         </tr>
       </tbody>
       {% endcall %}
@@ -261,7 +263,6 @@
           <thead>
             <tr>
               <th data-sort="date">Data</th>
-              <th data-sort="shift" class="operational-col">Turno</th>
               <th data-sort="driver_name">Motorista</th>
               <th data-sort="client_name">Cliente</th>
               <th data-sort="status">Status</th>
@@ -270,9 +271,9 @@
               <th data-sort="returned_kg">KG dev.</th>
               <th data-sort="planned_value">R$ pl.</th>
               <th data-sort="returned_value">R$ dev.</th>
-              <th data-sort="reopen_count" class="operational-col">Reab.</th>
-              <th data-sort="duration_m" class="operational-col">Duração</th>
-              <th data-sort="plate" class="operational-col">Placa</th>
+              <th data-sort="reopen_count">Reab.</th>
+              <th data-sort="duration_m">Duração</th>
+              <th data-sort="plate">Placa</th>
             </tr>
           </thead>
           <tbody id="drillBody"></tbody>
@@ -322,14 +323,15 @@
         <p class="text-caption" id="fullChartTag">Análise expandida</p>
         <h3 class="text-title-lg" id="fullChartTitle">Gráfico</h3>
       </div>
-      <div class="flex items-center gap-2">
-        <button type="button" id="chartTypeToggleBtn" class="btn-secondary">Alternar tipo</button>
-        <button type="button" id="chartCompare7Btn" class="btn-secondary">D-7</button>
-        <button type="button" id="chartCompare30Btn" class="btn-secondary">D-30</button>
-        <button type="button" id="chartCompareAllBtn" class="btn-secondary">Completo</button>
-        <button type="button" id="chartResetZoomBtn" class="btn-secondary">Reset zoom</button>
-        <button type="button" id="chartExportPngBtn" class="btn-secondary">Exportar PNG</button>
-        <button type="button" class="btn-secondary" data-close-modal="chartFullscreenModal">Fechar</button>
+      <div class="flex flex-wrap items-center gap-2 bg-slate-800/50 border border-slate-600/50 rounded-lg px-3 py-2">
+        <span class="text-xs text-slate-400 font-medium mr-1 shrink-0">Ações:</span>
+        <button type="button" id="chartTypeToggleBtn" class="btn-secondary text-xs px-2.5 py-1.5">Alternar tipo</button>
+        <button type="button" id="chartCompare7Btn" class="btn-secondary text-xs px-2.5 py-1.5">D-7</button>
+        <button type="button" id="chartCompare30Btn" class="btn-secondary text-xs px-2.5 py-1.5">D-30</button>
+        <button type="button" id="chartCompareAllBtn" class="btn-secondary text-xs px-2.5 py-1.5">Completo</button>
+        <button type="button" id="chartResetZoomBtn" class="btn-secondary text-xs px-2.5 py-1.5">Reset zoom</button>
+        <button type="button" id="chartExportPngBtn" class="btn-secondary text-xs px-2.5 py-1.5">Exportar PNG</button>
+        <button type="button" class="btn-secondary text-xs px-2.5 py-1.5 ml-auto" data-close-modal="chartFullscreenModal">Fechar</button>
       </div>
     </div>
     <section id="fullscreenDevolucaoStrip" class="surface p-3 mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-sm">
@@ -357,7 +359,8 @@
       <canvas id="fullscreenChartCanvas"></canvas>
     </div>
     <section class="surface p-4 mt-4">
-      <h4 class="text-section mb-2">Storytelling automático</h4>
+      <h4 class="text-section mb-2">Insights automáticos</h4>
+      <p class="text-caption text-slate-400 mb-2">Frases geradas a partir dos dados do gráfico para facilitar a leitura em reuniões.</p>
       <div id="fullscreenInsights" class="space-y-2"></div>
     </section>
   </div>
@@ -455,6 +458,14 @@
     if (n == null || isNaN(Number(n))) return 'R$ 0,00';
     return Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
+  function duracaoBR(m) {
+    if (m == null || isNaN(Number(m))) return '-';
+    const n = Math.round(Number(m));
+    if (n < 0) return '-';
+    if (n <= 60) return n + ' min';
+    const h = Math.floor(n / 60), mn = n % 60;
+    return h + ':' + String(mn).padStart(2, '0') + ' hr';
+  }
   const trend = (chartData.trend && chartData.trend) || {};
   const trendDates = trend.dates || [];
   const trendLabels = trendDates.map(d => String(dataBR(d) !== '-' ? dataBR(d) : (d != null ? String(d) : '')));
@@ -481,9 +492,9 @@
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { labels: { color: cMuted } } },
       scales: {
-        x: { ticks: { color: cMuted }, grid: { color: cBorder } },
-        y: { ticks: { color: cMuted }, grid: { color: cBorder }, position: 'left' },
-        y1: { ticks: { color: cMuted }, grid: { color: cBorder }, position: 'right' }
+        x: { type: 'category', display: true, ticks: { color: cMuted }, grid: { color: cBorder } },
+        y: { type: 'linear', display: true, position: 'left', beginAtZero: true, ticks: { color: cMuted }, grid: { color: cBorder } },
+        y1: { type: 'linear', display: true, position: 'right', beginAtZero: true, ticks: { color: cMuted }, grid: { drawOnChartArea: false, color: cBorder } }
       }
     }
   });
@@ -583,13 +594,28 @@
   });
 
   const clusterData = chartData.cluster || [];
+  const clusterTotalValor = clusterData.reduce((s, x) => s + (Number(x?.valor || 0)), 0) || 1;
   safeChart('clusterChart', {
     type: 'bar',
     data: {
       labels: clusterData.map(x => String(safeStr(x.cluster))),
       datasets: [{ label: 'Valor devolvido', data: clusterData.map(x => { const v = toChartNum(x.valor); return v !== null ? v : 0; }), backgroundColor: String(cPrimary) }]
     },
-    options: chartBaseOpt()
+    options: {
+      ...chartBaseOpt(),
+      plugins: {
+        ...chartBaseOpt().plugins,
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const v = Number(ctx.raw || 0);
+              const pct = ((v / clusterTotalValor) * 100).toFixed(1).replace('.', ',');
+              return `${Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} (${pct}% do valor total)`;
+            }
+          }
+        }
+      }
+    }
   });
 
   const driversData = chartData.drivers || [];
@@ -692,11 +718,11 @@
       const clientClass = fitTextClass(r.client_name);
       return `
       <tr>
-        <td>${dataBR(r.date)}</td><td class="operational-col">${r.shift || '-'}</td><td class="cell-autofit ${driverClass}" title="${safeStr(r.driver_name || '-')}">${r.driver_name || '-'}</td><td class="cell-autofit ${clientClass}" title="${safeStr(r.client_name || '-')}">${r.client_name || '-'}</td>
+        <td>${dataBR(r.date)}</td><td class="cell-autofit ${driverClass}" title="${safeStr(r.driver_name || '-')}">${r.driver_name || '-'}</td><td class="cell-autofit ${clientClass}" title="${safeStr(r.client_name || '-')}">${r.client_name || '-'}</td>
         <td><span class="status-chip ${st.cls}">${st.label}</span></td><td class="operational-col">${r.order_number || '-'}</td><td>${numeroBR(r.planned_kg, 1)}</td>
         <td>${numeroBR(r.returned_kg, 1)}</td><td>${moedaBR(r.planned_value)}</td>
-        <td>${moedaBR(r.returned_value)}</td><td class="operational-col">${r.reopen_count || 0}</td>
-        <td class="operational-col">${r.duration_m ? numeroBR(r.duration_m, 0) + ' min' : '-'}</td><td class="operational-col">${r.plate || '-'}</td>
+        <td>${moedaBR(r.returned_value)}</td><td>${r.reopen_count || 0}</td>
+        <td>${r.duration_m != null ? duracaoBR(r.duration_m) : '-'}</td><td>${r.plate || '-'}</td>
       </tr>
     `;
     }).join('');
