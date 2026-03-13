@@ -2,14 +2,109 @@
 
 {% block content %}
 <style>
+    .ops-panel {
+        border-radius: 1.5rem;
+        border: 1px solid rgba(51, 65, 85, 0.88);
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(15, 23, 42, 0.82));
+        box-shadow: 0 20px 50px rgba(2, 6, 23, 0.18);
+    }
+
+    .ops-card {
+        --ops-accent: rgba(100, 116, 139, 0.68);
+        position: relative;
+        display: flex;
+        min-height: 5.9rem;
+        flex-direction: column;
+        justify-content: space-between;
+        overflow: hidden;
+        border-radius: 1.25rem;
+        border: 1px solid rgba(51, 65, 85, 0.88);
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.82));
+        padding: 0.95rem 1rem;
+        box-shadow: 0 14px 32px rgba(2, 6, 23, 0.16);
+        transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .ops-card::before {
+        content: "";
+        position: absolute;
+        left: 1rem;
+        right: 40%;
+        top: 0;
+        height: 2px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--ops-accent), transparent);
+        opacity: 0.9;
+    }
+
+    .ops-card--interactive {
+        cursor: pointer;
+    }
+
+    .ops-card--interactive:hover {
+        transform: translateY(-1px);
+        border-color: rgba(100, 116, 139, 0.78);
+    }
+
+    .ops-card--section {
+        min-height: auto;
+        padding: 0.95rem;
+    }
+
+    .ops-card__header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+    }
+
+    .ops-card__eyebrow {
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgb(148 163 184);
+    }
+
+    .ops-card__value-row {
+        margin-top: 0.65rem;
+        display: flex;
+        align-items: baseline;
+        gap: 0.35rem;
+    }
+
+    .ops-card__value {
+        font-size: 1.85rem;
+        line-height: 1;
+        font-weight: 700;
+        color: white;
+    }
+
+    .ops-card__description {
+        margin-top: 0.2rem;
+        font-size: 0.78rem;
+        color: rgb(148 163 184);
+    }
+
+    .ops-card__meta {
+        margin-top: 0.85rem;
+        display: flex;
+        min-height: 1.1rem;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.45rem;
+        font-size: 0.72rem;
+        color: rgb(148 163 184);
+    }
+
     .view-toggle-btn {
         display: inline-flex;
-        min-height: 2.75rem;
+        min-height: 2.5rem;
         width: 100%;
         align-items: center;
         justify-content: center;
         gap: 0.5rem;
-        border-radius: 1rem;
+        border-radius: 0.95rem;
         border: 1px solid rgba(51, 65, 85, 0.9);
         background: rgba(2, 6, 23, 0.65);
         color: rgb(148 163 184);
@@ -333,20 +428,20 @@
     <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
         
         <!-- Quadro Efetivo -->
-        <div class="group flex min-h-[108px] flex-col justify-between rounded-2xl border border-slate-700 bg-slate-800/80 p-4 shadow-lg shadow-black/10 transition-all hover:-translate-y-0.5 hover:border-blue-500/50" onclick="openTargetModal()">
-            <div class="flex items-start justify-between gap-3">
+        <div class="ops-card ops-card--interactive group" style="--ops-accent: rgba(59, 130, 246, 0.72);" onclick="openTargetModal()">
+            <div class="ops-card__header">
                 <div>
-                    <span class="text-[10px] text-slate-500 font-bold uppercase tracking-[0.18em]">Quadro</span>
-                    <div class="mt-3 flex items-baseline gap-1.5">
-                        <span class="text-[2rem] font-bold leading-none text-white">{{ stats.total_active }}</span>
-                        <span class="text-sm text-slate-600">/{{ stats.total_target }}</span>
+                    <span class="ops-card__eyebrow text-blue-300">Quadro</span>
+                    <div class="ops-card__value-row">
+                        <span class="ops-card__value">{{ stats.total_active }}</span>
+                        <span class="text-sm text-slate-500">/{{ stats.total_target }}</span>
                     </div>
                 </div>
                 <svg class="h-4 w-4 text-blue-400 transition group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
                 </svg>
             </div>
-            <div class="mt-4 flex min-h-[1.25rem] items-center gap-2 text-[11px]">
+            <div class="ops-card__meta">
                 {% if stats.vacancies > 0 %}
                 <span class="text-emerald-400 font-semibold flex items-center gap-1">
                     <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -362,31 +457,32 @@
         
         {% for center in stats.centers %}
         <div
-            class="group flex min-h-[108px] flex-col justify-between rounded-2xl border p-4 cursor-pointer transition-all shadow-lg shadow-black/10 hover:-translate-y-0.5 {% if center.theme == 'cyan' %}bg-gradient-to-br from-cyan-900/30 to-slate-800 border-cyan-500/30 hover:border-cyan-400/50{% elif center.theme == 'emerald' %}bg-gradient-to-br from-emerald-900/30 to-slate-800 border-emerald-500/30 hover:border-emerald-400/50{% else %}bg-gradient-to-br from-slate-800 to-slate-900 border-slate-600/50 hover:border-slate-400/50{% endif %}"
+            class="ops-card ops-card--interactive group"
+            style="--ops-accent: {% if center.theme == 'cyan' %}rgba(34, 211, 238, 0.72){% elif center.theme == 'emerald' %}rgba(52, 211, 153, 0.72){% else %}rgba(148, 163, 184, 0.68){% endif %};"
             onclick="setFilter('{{ center.name }}')">
-            <div class="flex items-start justify-between gap-3">
+            <div class="ops-card__header">
                 <div class="min-w-0">
-                    <span class="block truncate text-[10px] font-bold uppercase tracking-[0.18em] {% if center.theme == 'cyan' %}text-cyan-400{% elif center.theme == 'emerald' %}text-emerald-400{% else %}text-slate-300{% endif %}">{{ center.name }}</span>
-                    <div class="mt-3 flex items-baseline gap-1.5">
-                        <span class="text-[2rem] font-bold leading-none text-white">{{ center.headcount }}</span>
-                        <span class="text-sm {% if center.theme == 'cyan' %}text-cyan-400/50{% elif center.theme == 'emerald' %}text-emerald-400/50{% else %}text-slate-500{% endif %}">/{{ center.target }}</span>
+                    <span class="ops-card__eyebrow block truncate {% if center.theme == 'cyan' %}text-cyan-300{% elif center.theme == 'emerald' %}text-emerald-300{% else %}text-slate-300{% endif %}">{{ center.name }}</span>
+                    <div class="ops-card__value-row">
+                        <span class="ops-card__value">{{ center.headcount }}</span>
+                        <span class="text-sm text-slate-500">/{{ center.target }}</span>
                     </div>
                 </div>
                 {% if center.theme == 'cyan' %}
-                <svg class="h-4 w-4 text-cyan-400/50 transition group-hover:scale-110 group-hover:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="h-4 w-4 text-cyan-400/80 transition group-hover:scale-110 group-hover:text-cyan-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0H5m14 0h2M5 21H3m6-14h1m4 0h1m-5 4h1m4 0h1m-5 4h6"/>
                 </svg>
                 {% elif center.theme == 'emerald' %}
-                <svg class="h-4 w-4 text-emerald-400/50 transition group-hover:scale-110 group-hover:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="h-4 w-4 text-emerald-400/80 transition group-hover:scale-110 group-hover:text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21h18M5 21V7l7-4 7 4v14M9 9h.01M9 13h.01M9 17h.01M15 9h.01M15 13h.01M15 17h.01"/>
                 </svg>
                 {% else %}
-                <svg class="h-4 w-4 text-slate-400/60 transition group-hover:scale-110 group-hover:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="h-4 w-4 text-slate-400/80 transition group-hover:scale-110 group-hover:text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2z"/>
                 </svg>
                 {% endif %}
             </div>
-            <div class="mt-4 flex min-h-[1.25rem] flex-wrap items-center gap-2 text-[11px]">
+            <div class="ops-card__meta">
                 {% if center.vacancies > 0 %}
                 <span class="text-emerald-400 font-semibold">+{{ center.vacancies }} vagas</span>
                 {% endif %}
@@ -404,38 +500,68 @@
         {% endfor %}
         
         <!-- Férias -->
-        <div class="flex min-h-[108px] flex-col justify-between rounded-2xl border border-slate-700 bg-slate-800/80 p-4 cursor-pointer transition-all shadow-lg shadow-black/10 hover:-translate-y-0.5 hover:border-blue-500/50" onclick="setFilter('vacation')">
-            <div>
-                <span class="text-[10px] text-blue-400 font-bold uppercase tracking-[0.18em]">Férias</span>
-                <p class="mt-3 text-[2rem] font-bold leading-none text-blue-400">{{ stats.statuses.vacation }}</p>
+        <div class="ops-card ops-card--interactive group" style="--ops-accent: rgba(96, 165, 250, 0.72);" onclick="setFilter('vacation')">
+            <div class="ops-card__header">
+                <div>
+                    <span class="ops-card__eyebrow text-blue-300">Férias</span>
+                    <div class="ops-card__value-row">
+                        <span class="ops-card__value text-blue-300">{{ stats.statuses.vacation }}</span>
+                    </div>
+                </div>
+                <svg class="h-4 w-4 text-blue-400 transition group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
             </div>
-            <p class="mt-4 text-[11px] text-slate-500">Programações ativas</p>
+            <div class="ops-card__meta">
+                <span class="text-slate-500">Programações ativas</span>
+            </div>
         </div>
         
         <!-- Afastados -->
-        <div class="relative flex min-h-[108px] flex-col justify-between rounded-2xl border border-slate-700 bg-slate-800/80 p-4 cursor-pointer transition-all shadow-lg shadow-black/10 hover:-translate-y-0.5 hover:border-orange-500/50" onclick="setFilter('away')">
-            <div>
-                <span class="text-[10px] text-orange-400 font-bold uppercase tracking-[0.18em]">Afastados</span>
-                <p class="mt-3 text-[2rem] font-bold leading-none text-orange-400">{{ stats.statuses.away }}</p>
+        <div class="ops-card ops-card--interactive group" style="--ops-accent: rgba(251, 146, 60, 0.72);" onclick="setFilter('away')">
+            <div class="ops-card__header">
+                <div>
+                    <span class="ops-card__eyebrow text-orange-300">Afastados</span>
+                    <div class="ops-card__value-row">
+                        <span class="ops-card__value text-orange-300">{{ stats.statuses.away }}</span>
+                    </div>
+                </div>
+                <svg class="h-4 w-4 text-orange-400 transition group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
             </div>
-            <p class="mt-4 text-[11px] text-slate-500">Demandam cobertura</p>
-            {% if stats.statuses.away > 0 %}
-            <div class="absolute right-4 top-4 h-2.5 w-2.5 rounded-full bg-orange-500 animate-pulse"></div>
-            {% endif %}
+            <div class="ops-card__meta">
+                <span class="text-slate-500">Demandam cobertura</span>
+                {% if stats.statuses.away > 0 %}
+                <span class="inline-flex items-center gap-1 rounded-full bg-orange-500/10 px-2 py-1 text-orange-300">
+                    <span class="h-1.5 w-1.5 rounded-full bg-orange-400 animate-pulse"></span>
+                    atenção
+                </span>
+                {% endif %}
+            </div>
         </div>
         
         <!-- Demitidos -->
-        <div class="flex min-h-[108px] flex-col justify-between rounded-2xl border border-slate-700 bg-slate-800/80 p-4 cursor-pointer transition-all shadow-lg shadow-black/10 hover:-translate-y-0.5 hover:border-red-500/50" onclick="setFilter('fired')">
-            <div>
-                <span class="text-[10px] text-red-400 font-bold uppercase tracking-[0.18em]">Demitidos</span>
-                <p class="mt-3 text-[2rem] font-bold leading-none text-red-400">{{ stats.statuses.fired }}</p>
+        <div class="ops-card ops-card--interactive group" style="--ops-accent: rgba(248, 113, 113, 0.7);" onclick="setFilter('fired')">
+            <div class="ops-card__header">
+                <div>
+                    <span class="ops-card__eyebrow text-red-300">Demitidos</span>
+                    <div class="ops-card__value-row">
+                        <span class="ops-card__value text-red-300">{{ stats.statuses.fired }}</span>
+                    </div>
+                </div>
+                <svg class="h-4 w-4 text-red-400 transition group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path>
+                </svg>
             </div>
-            <p class="mt-4 text-[11px] text-slate-500">Histórico recente</p>
+            <div class="ops-card__meta">
+                <span class="text-slate-500">Histórico recente</span>
+            </div>
         </div>
     </div>
 
     <!-- Barra de Pesquisa e Filtros -->
-    <div class="rounded-[24px] border border-slate-800 bg-slate-900/75 p-4 shadow-[0_20px_50px_rgba(2,6,23,0.18)] md:p-5">
+    <div class="ops-panel p-4 md:p-5">
         <div class="flex flex-col gap-4">
             <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <div>
@@ -488,7 +614,7 @@
                     </div>
                 </details>
 
-                <div class="rounded-2xl border border-slate-800 bg-slate-950/45 p-1.5">
+                <div class="ops-card ops-card--section p-1.5">
                     <div class="grid grid-cols-2 gap-1.5">
                         <button onclick="setViewMode('list')" id="view-list-btn" class="view-toggle-btn is-active" title="Lista">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
@@ -503,7 +629,7 @@
             </div>
 
             <div class="grid gap-3 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
-                <div class="rounded-2xl border border-slate-800 bg-slate-950/45 p-3">
+                <div class="ops-card ops-card--section">
                     <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Empresa</p>
@@ -524,7 +650,7 @@
                     </div>
                 </div>
 
-                <div class="rounded-2xl border border-slate-800 bg-slate-950/45 p-3">
+                <div class="ops-card ops-card--section">
                     <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Status</p>
@@ -552,7 +678,7 @@
     </div>
 
     <!-- Table -->
-    <div id="employees-table-panel" class="overflow-hidden rounded-[24px] border border-slate-800 bg-slate-900/80 shadow-[0_20px_50px_rgba(2,6,23,0.16)]">
+    <div id="employees-table-panel" class="ops-panel overflow-hidden">
         <div class="flex flex-col gap-2 border-b border-slate-800 px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
                 <h3 class="text-base font-semibold text-white">Lista de colaboradores</h3>
