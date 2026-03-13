@@ -193,6 +193,7 @@ def _build_bi_delivery_dataset(
             select(models.Devolucao)
             .where(models.Devolucao.data_romaneio >= date_i.strftime("%Y-%m-%d"))
             .where(models.Devolucao.data_romaneio <= date_f.strftime("%Y-%m-%d"))
+            .where(models.Devolucao.route_id.is_(None))
         )
         if driver_id:
             qm = qm.where(models.Devolucao.motorista_id == driver_id)
@@ -282,7 +283,9 @@ def _build_bi_delivery_dataset(
         ret_v = float(r.valor_devolucao if r.valor_devolucao is not None else (planned_v if status_raw == "devolucao" else 0.0))
         del_w = max(0.0, planned_w - ret_w) if status_raw == "devolucao" else (planned_w if status_raw == "entregue" else 0.0)
         del_v = max(0.0, planned_v - ret_v) if status_raw == "devolucao" else (planned_v if status_raw == "entregue" else 0.0)
-        dur = _dur(r.delivery_started_at or r.start_time, r.delivery_finished_at or r.end_time)
+        # Duração só conta quando a rota foi iniciada/finalizada via mobile (driver_lat_start indica app)
+        _has_mobile_time = r.driver_lat_start is not None
+        dur = _dur(r.delivery_started_at or r.start_time, r.delivery_finished_at or r.end_time) if _has_mobile_time else None
 
         planned_kg += planned_w
         planned_value += planned_v
@@ -292,7 +295,7 @@ def _build_bi_delivery_dataset(
             realized_stops += 1
             realized_kg += del_w
             realized_value += del_v
-            if dur is not None:
+            if dur is not None and _has_mobile_time:
                 dur_list.append(dur)
         if status_raw == "devolucao":
             returned_kg += ret_w
@@ -332,7 +335,7 @@ def _build_bi_delivery_dataset(
             b["returned_stops"] += 1
             b["returned_kg"] += ret_w
             b["returned_value"] += ret_v
-        if dur is not None:
+        if dur is not None and _has_mobile_time:
             b["durations"].append(dur)
 
         client_city = (getattr(cli, "municipio", None) or r.delivery_city or "").strip() if cli or r.delivery_city else ""
@@ -361,6 +364,9 @@ def _build_bi_delivery_dataset(
         if (r.get("status") or "").lower() == "devolucao"
     }
     for d in manual:
+        # Ignora Devolucao vinculada a rota: já está representada na linha ROTA (não é manual)
+        if d.route_id is not None:
+            continue
         driver = (emp_map.get(d.motorista_id).name if emp_map.get(d.motorista_id) else f"Motorista #{d.motorista_id}")
         client = (cli_map.get(d.client_id).name if cli_map.get(d.client_id) else f"Cliente #{d.client_id}")
         motivo = (mot_map.get(d.motivo_id).nome if mot_map.get(d.motivo_id) else "Nao informado")
@@ -676,6 +682,8 @@ def _build_bi_delivery_dataset(
         if driver_id:
             qm_prev = qm_prev.where(models.Devolucao.motorista_id == driver_id)
         for d in session.exec(qm_prev).all():
+            if d.route_id is not None:
+                continue
             prev_month_qtd += 1
             man_val = float(d.valor or 0.0)
             prev_month_manual_valor += man_val
@@ -1364,7 +1372,7 @@ def _build_relatorio_avaliacao_motorista(
         cli_name = cli.name if cli else f"Cliente #{r.client_id}"
         start_t = r.delivery_started_at or r.start_time
         end_t = r.delivery_finished_at or r.end_time or r.delivery_returned_at
-        dur = _dur_m(start_t, end_t)
+        dur = _dur_m(start_t, end_t) if r.driver_lat_start is not None else None
         tipo = "Devolução" if st == "devolucao" else "Entrega" if st == "entregue" else st
 
         d["paradas"].append({

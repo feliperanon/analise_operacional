@@ -10860,10 +10860,9 @@ async def update_delivery_status(
                 status_code=status.HTTP_303_SEE_OTHER,
             )
         route.delivery_status = "iniciada"
+        # Horários só vêm do mobile; separacao não cria timestamps
         if not route.start_time or route.start_time == "00:00":
-            route.start_time = now
-        if not route.delivery_started_at:
-            route.delivery_started_at = now
+            route.start_time = "00:00"
         _append_delivery_event(route, "iniciar", now)
         feedback = "Entrega iniciada."
     elif action_norm == "cancelar":
@@ -10921,11 +10920,7 @@ async def update_delivery_status(
             route.valor_devolucao = route.valor_financeiro or 0.0
         route.delivery_status = "devolucao"
         route.status = "completed"
-        route.end_time = now
-        if not route.delivery_returned_at:
-            route.delivery_returned_at = now
-        if not route.delivery_finished_at:
-            route.delivery_finished_at = now
+        # Horários só vêm do mobile; separacao não cria timestamps
         route.delivery_return_category = return_category
         route.delivery_return_reason = return_reason
         route.delivery_notified_commercial = None
@@ -10944,9 +10939,7 @@ async def update_delivery_status(
     elif action_norm in ["entregue", "finalizar"]:
         route.delivery_status = "entregue"
         route.status = "completed"
-        route.end_time = now
-        if not route.delivery_finished_at:
-            route.delivery_finished_at = now
+        # Horários só vêm do mobile; separacao não cria timestamps
         route.delivery_return_category = None
         route.delivery_return_reason = None
         route.delivery_notified_commercial = None
@@ -11347,11 +11340,7 @@ async def finish_all_delivery_routes(
             route.status = "completed"
             delivered_count += 1
 
-        route.end_time = now
-        if not route.delivery_finished_at:
-            route.delivery_finished_at = now
-        if has_devolucao and not route.delivery_returned_at:
-            route.delivery_returned_at = now
+        # Horários só vêm do mobile; fechamento em massa não cria timestamps
         _append_delivery_event(
             route,
             "finalizar" if not has_devolucao else "devolucao",
@@ -11481,11 +11470,7 @@ async def finish_delivery_route(
             route.status = "completed"
             delivered_count += 1
 
-        route.end_time = now
-        if not route.delivery_finished_at:
-            route.delivery_finished_at = now
-        if has_devolucao and not route.delivery_returned_at:
-            route.delivery_returned_at = now
+        # Horários só vêm do mobile; fechamento automático não cria timestamps
         _append_delivery_event(
             route,
             "finalizar" if not has_devolucao else "devolucao",
@@ -11625,11 +11610,7 @@ async def delivery_bulk_action(
                 route.delivery_status = "entregue"
                 route.status = "completed"
                 delivered_count += 1
-            route.end_time = now
-            if not route.delivery_finished_at:
-                route.delivery_finished_at = now
-            if has_devolucao and not route.delivery_returned_at:
-                route.delivery_returned_at = now
+            # Horários só vêm do mobile; fechamento em massa não cria timestamps
             _append_delivery_event(
                 route,
                 "finalizar" if not has_devolucao else "devolucao",
