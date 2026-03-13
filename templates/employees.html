@@ -3,7 +3,7 @@
 {% block content %}
 <style>
     .ops-panel {
-        border-radius: 1.5rem;
+        border-radius: 1.35rem;
         border: 1px solid rgba(51, 65, 85, 0.88);
         background: linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(15, 23, 42, 0.82));
         box-shadow: 0 20px 50px rgba(2, 6, 23, 0.18);
@@ -13,15 +13,15 @@
         --ops-accent: rgba(100, 116, 139, 0.68);
         position: relative;
         display: flex;
-        min-height: 5.9rem;
+        min-height: 5.15rem;
         flex-direction: column;
         justify-content: space-between;
         overflow: hidden;
-        border-radius: 1.25rem;
+        border-radius: 1rem;
         border: 1px solid rgba(51, 65, 85, 0.88);
         background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.82));
-        padding: 0.95rem 1rem;
-        box-shadow: 0 14px 32px rgba(2, 6, 23, 0.16);
+        padding: 0.8rem 0.9rem;
+        box-shadow: 0 12px 28px rgba(2, 6, 23, 0.14);
         transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
     }
 
@@ -48,7 +48,7 @@
 
     .ops-card--section {
         min-height: auto;
-        padding: 0.95rem;
+        padding: 0.85rem;
     }
 
     .ops-card__header {
@@ -59,22 +59,22 @@
     }
 
     .ops-card__eyebrow {
-        font-size: 0.65rem;
+        font-size: 0.62rem;
         font-weight: 700;
-        letter-spacing: 0.18em;
+        letter-spacing: 0.16em;
         text-transform: uppercase;
         color: rgb(148 163 184);
     }
 
     .ops-card__value-row {
-        margin-top: 0.65rem;
+        margin-top: 0.45rem;
         display: flex;
         align-items: baseline;
         gap: 0.35rem;
     }
 
     .ops-card__value {
-        font-size: 1.85rem;
+        font-size: 1.55rem;
         line-height: 1;
         font-weight: 700;
         color: white;
@@ -87,24 +87,67 @@
     }
 
     .ops-card__meta {
-        margin-top: 0.85rem;
+        margin-top: 0.55rem;
         display: flex;
-        min-height: 1.1rem;
+        min-height: 0.95rem;
         flex-wrap: wrap;
         align-items: center;
         gap: 0.45rem;
-        font-size: 0.72rem;
+        font-size: 0.68rem;
         color: rgb(148 163 184);
+    }
+
+    .ops-toolbar-control {
+        height: 2.35rem;
+        width: 100%;
+        border-radius: 0.95rem;
+        border: 1px solid rgba(51, 65, 85, 0.9);
+        background: rgba(2, 6, 23, 0.55);
+        color: rgb(226 232 240);
+        transition: all 0.18s ease;
+    }
+
+    .ops-toolbar-control:hover {
+        border-color: rgba(100, 116, 139, 0.78);
+        background: rgba(15, 23, 42, 0.78);
+    }
+
+    .ops-toolbar-control:focus {
+        outline: none;
+        border-color: rgba(59, 130, 246, 0.9);
+        box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2);
+    }
+
+    .ops-toolbar-label {
+        font-size: 0.64rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: rgb(148 163 184);
+    }
+
+    .ops-toolbar-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .ops-toolbar-inline-group {
+        display: flex;
+        min-height: 2.35rem;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
     }
 
     .view-toggle-btn {
         display: inline-flex;
-        min-height: 2.5rem;
+        min-height: 2.35rem;
         width: 100%;
         align-items: center;
         justify-content: center;
         gap: 0.5rem;
-        border-radius: 0.95rem;
+        border-radius: 0.8rem;
         border: 1px solid rgba(51, 65, 85, 0.9);
         background: rgba(2, 6, 23, 0.65);
         color: rgb(148 163 184);
@@ -296,7 +339,7 @@
     }
 </style>
 
-<div class="employees-shell p-4 md:p-6 lg:p-8 space-y-6">
+<div class="employees-shell space-y-5 p-4 md:p-5 lg:p-6">
 
     <!-- Alerts -->
     {% if error %}
@@ -327,13 +370,13 @@
     {% endif %}
 
     <!-- Header Principal -->
-    <div class="relative overflow-hidden rounded-[28px] border border-slate-800 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_34%),linear-gradient(135deg,_rgba(15,23,42,0.98),_rgba(2,6,23,0.98))] p-5 md:p-6">
+    <div class="ops-panel relative overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_34%),linear-gradient(135deg,_rgba(15,23,42,0.98),_rgba(2,6,23,0.98))] p-4 md:p-5">
         <div class="pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full bg-cyan-400/10 blur-3xl"></div>
         <div class="pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full bg-indigo-500/10 blur-3xl"></div>
-        <div class="relative flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-            <div class="flex min-w-0 items-start gap-4">
-                <div class="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-[0_16px_35px_rgba(37,99,235,0.28)]">
-                    <svg class="h-7 w-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="relative flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div class="flex min-w-0 items-start gap-3.5">
+                <div class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-[0_14px_28px_rgba(37,99,235,0.24)]">
+                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
                     </svg>
                 </div>
@@ -341,11 +384,11 @@
                     <span class="inline-flex items-center rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-blue-300">
                         Painel operacional
                     </span>
-                    <h1 class="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">Colaboradores</h1>
-                    <p class="mt-2 max-w-2xl text-sm text-slate-300 sm:text-base">
+                    <h1 class="mt-2.5 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Colaboradores</h1>
+                    <p class="mt-1.5 max-w-xl text-sm text-slate-300">
                         Gestão do quadro de funcionários, admissões, afastamentos e substituições em um fluxo mais claro.
                     </p>
-                    <div class="mt-4 flex flex-wrap gap-2 text-xs font-medium">
+                    <div class="mt-3 flex flex-wrap gap-2 text-xs font-medium">
                         <span class="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-emerald-300">
                             <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
                             {{ stats.total_active }} ativos
@@ -360,9 +403,9 @@
                 </div>
             </div>
 
-            <div class="flex w-full flex-col gap-3 sm:flex-row xl:w-auto xl:justify-end">
+            <div class="flex w-full flex-col gap-2.5 sm:flex-row xl:w-auto xl:justify-end">
                 <div x-data="{ open: false }" class="relative w-full sm:w-auto">
-                    <button @click="open = !open" class="flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-900/75 px-4 text-sm font-semibold text-slate-200 shadow-lg shadow-black/20 transition hover:border-slate-600 hover:bg-slate-800/80 sm:w-auto">
+                    <button @click="open = !open" class="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-900/75 px-4 text-sm font-semibold text-slate-200 shadow-lg shadow-black/20 transition hover:border-slate-600 hover:bg-slate-800/80 sm:w-auto">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
                         </svg>
@@ -399,7 +442,7 @@
                     </div>
                 </div>
 
-                <button onclick="document.getElementById('addModal').classList.remove('hidden')" class="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 text-sm font-semibold text-white shadow-[0_16px_35px_rgba(37,99,235,0.22)] transition hover:from-blue-500 hover:to-indigo-500 sm:w-auto">
+                <button onclick="document.getElementById('addModal').classList.remove('hidden')" class="flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4.5 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(37,99,235,0.2)] transition hover:from-blue-500 hover:to-indigo-500 sm:w-auto">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                     </svg>
@@ -425,7 +468,7 @@
     </div>
 
     <!-- KPIs por Empresa -->
-    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+    <div class="grid gap-2.5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         
         <!-- Quadro Efetivo -->
         <div class="ops-card ops-card--interactive group" style="--ops-accent: rgba(59, 130, 246, 0.72);" onclick="openTargetModal()">
@@ -562,17 +605,17 @@
 
     <!-- Barra de Pesquisa e Filtros -->
     <div class="ops-panel p-4 md:p-5">
-        <div class="flex flex-col gap-4">
-            <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div class="flex flex-col gap-3.5">
+            <div class="flex flex-col gap-2.5 xl:flex-row xl:items-center xl:justify-between">
                 <div>
-                    <h2 class="text-lg font-semibold text-white">Buscar e filtrar</h2>
-                    <p class="text-sm text-slate-400">Fluxo único para localizar colaboradores, mudar o escopo e alternar a visualização sem blocos soltos.</p>
+                    <h2 class="text-base font-semibold text-white">Buscar e filtrar</h2>
+                    <p class="text-xs text-slate-400">Controles compactos para localizar, segmentar e trocar a visualização.</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
                     <div id="visibleEmployeesCounter" class="inline-flex items-center rounded-full border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-xs font-medium text-slate-300">
                         {{ employees|length }} colaboradores exibidos
                     </div>
-                    <a href="/admin/substitutions" class="inline-flex h-10 items-center gap-2 rounded-2xl border border-purple-500/20 bg-purple-500/10 px-3.5 text-xs font-semibold text-purple-300 transition hover:bg-purple-500/20" title="Histórico de substituições">
+                    <a href="/admin/substitutions" class="inline-flex h-9 items-center gap-2 rounded-xl border border-purple-500/20 bg-purple-500/10 px-3 text-xs font-semibold text-purple-300 transition hover:bg-purple-500/20" title="Histórico de substituições">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
                         </svg>
@@ -581,17 +624,17 @@
                 </div>
             </div>
 
-            <div class="grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(260px,0.85fr)_220px]">
+            <div class="grid gap-2.5 xl:grid-cols-[minmax(220px,320px)_220px_170px_minmax(260px,1fr)_minmax(320px,1.1fr)] xl:items-center">
                 <div class="relative">
                     <svg class="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                     </svg>
                     <input type="text" id="searchInput" placeholder="Buscar por nome, matrícula ou função..." onkeyup="filterTable()"
-                        class="h-11 w-full rounded-2xl border border-slate-800 bg-slate-950/70 pl-11 pr-4 text-sm text-white placeholder-slate-500 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/40">
+                        class="ops-toolbar-control pl-11 pr-4 text-sm text-white placeholder-slate-500">
                 </div>
 
                 <details id="roleFilterMenu" class="relative group">
-                    <summary class="flex h-11 list-none cursor-pointer items-center justify-between gap-2 rounded-2xl border border-slate-800 bg-slate-950/70 px-4 text-sm text-slate-200 transition hover:border-slate-600">
+                    <summary class="ops-toolbar-control flex list-none cursor-pointer items-center justify-between gap-2 px-4 text-sm text-slate-200">
                         <span id="roleFilterLabel" class="truncate">Funções: Todas</span>
                         <svg class="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -614,7 +657,7 @@
                     </div>
                 </details>
 
-                <div class="ops-card ops-card--section p-1.5">
+                <div class="border border-slate-800 bg-slate-950/45 rounded-xl p-1.5">
                     <div class="grid grid-cols-2 gap-1.5">
                         <button onclick="setViewMode('list')" id="view-list-btn" class="view-toggle-btn is-active" title="Lista">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
@@ -626,52 +669,33 @@
                         </button>
                     </div>
                 </div>
-            </div>
-
-            <div class="grid gap-3 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
-                <div class="ops-card ops-card--section">
-                    <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Empresa</p>
-                            <p class="text-xs text-slate-400">Defina rapidamente o escopo principal da lista.</p>
-                        </div>
-                        <button onclick="setFilter('all')" class="text-xs font-medium text-slate-400 transition hover:text-white">Limpar filtro</button>
-                    </div>
-                    <div class="flex flex-wrap gap-2">
-                        <button onclick="setFilter('all')" class="filter-btn inline-flex min-h-[2.5rem] items-center justify-center rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm font-semibold text-slate-100 transition-all filter-btn--active" data-filter="all" aria-pressed="true">Todos</button>
-                        {% for center in stats.centers %}
-                        <button onclick="setFilter('{{ center.name }}')" class="filter-btn inline-flex min-h-[2.5rem] items-center justify-center rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm font-semibold transition-all {% if center.theme == 'cyan' %}text-cyan-300 hover:border-cyan-500/50 hover:bg-cyan-600/20 hover:text-white{% elif center.theme == 'emerald' %}text-emerald-300 hover:border-emerald-500/50 hover:bg-emerald-600/20 hover:text-white{% else %}text-slate-300 hover:border-slate-500/50 hover:bg-slate-700/70 hover:text-white{% endif %}" data-filter="{{ center.name }}" aria-pressed="false">
-                            <span class="flex items-center gap-2">
-                                <span class="h-2 w-2 rounded-full {% if center.theme == 'cyan' %}bg-cyan-400{% elif center.theme == 'emerald' %}bg-emerald-400{% else %}bg-slate-400{% endif %}"></span>
-                                {{ center.name }}
-                            </span>
-                        </button>
-                        {% endfor %}
-                    </div>
+                <div class="ops-toolbar-inline-group xl:justify-start">
+                    <span class="ops-toolbar-label">Empresa</span>
+                    <button onclick="setFilter('all')" class="filter-btn inline-flex min-h-[2.25rem] items-center justify-center rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm font-semibold text-slate-100 transition-all filter-btn--active" data-filter="all" aria-pressed="true">Todos</button>
+                    {% for center in stats.centers %}
+                    <button onclick="setFilter('{{ center.name }}')" class="filter-btn inline-flex min-h-[2.25rem] items-center justify-center rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm font-semibold transition-all {% if center.theme == 'cyan' %}text-cyan-300 hover:border-cyan-500/50 hover:bg-cyan-600/20 hover:text-white{% elif center.theme == 'emerald' %}text-emerald-300 hover:border-emerald-500/50 hover:bg-emerald-600/20 hover:text-white{% else %}text-slate-300 hover:border-slate-500/50 hover:bg-slate-700/70 hover:text-white{% endif %}" data-filter="{{ center.name }}" aria-pressed="false">
+                        <span class="flex items-center gap-2">
+                            <span class="h-2 w-2 rounded-full {% if center.theme == 'cyan' %}bg-cyan-400{% elif center.theme == 'emerald' %}bg-emerald-400{% else %}bg-slate-400{% endif %}"></span>
+                            {{ center.name }}
+                        </span>
+                    </button>
+                    {% endfor %}
                 </div>
 
-                <div class="ops-card ops-card--section">
-                    <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Status</p>
-                            <p class="text-xs text-slate-400">Isole exceções operacionais e movimentações do quadro.</p>
-                        </div>
-                        <button onclick="setFilter('all')" class="text-xs font-medium text-slate-400 transition hover:text-white">Voltar para todos</button>
-                    </div>
-                    <div class="grid gap-2 sm:grid-cols-3">
-                        <button onclick="setFilter('vacation')" class="filter-btn inline-flex min-h-[2.5rem] items-center justify-center gap-2 rounded-xl border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-sm font-semibold text-blue-300 transition-all hover:bg-blue-500/20" data-filter="vacation" title="Férias" aria-pressed="false">
-                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                            <span>Férias</span>
-                        </button>
-                        <button onclick="setFilter('away')" class="filter-btn inline-flex min-h-[2.5rem] items-center justify-center gap-2 rounded-xl border border-orange-500/20 bg-orange-500/10 px-3 py-2 text-sm font-semibold text-orange-300 transition-all hover:bg-orange-500/20" data-filter="away" title="Afastados" aria-pressed="false">
-                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                            <span>Afastados</span>
-                        </button>
-                        <button onclick="setFilter('fired')" class="filter-btn inline-flex min-h-[2.5rem] items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-300 transition-all hover:bg-red-500/20" data-filter="fired" title="Demitidos" aria-pressed="false">
-                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
-                            <span>Demitidos</span>
-                        </button>
-                    </div>
+                <div class="ops-toolbar-inline-group xl:justify-end">
+                    <span class="ops-toolbar-label">Status</span>
+                    <button onclick="setFilter('vacation')" class="filter-btn inline-flex min-h-[2.25rem] items-center justify-center gap-2 rounded-xl border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-sm font-semibold text-blue-300 transition-all hover:bg-blue-500/20" data-filter="vacation" title="Férias" aria-pressed="false">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        <span>Férias</span>
+                    </button>
+                    <button onclick="setFilter('away')" class="filter-btn inline-flex min-h-[2.25rem] items-center justify-center gap-2 rounded-xl border border-orange-500/20 bg-orange-500/10 px-3 py-2 text-sm font-semibold text-orange-300 transition-all hover:bg-orange-500/20" data-filter="away" title="Afastados" aria-pressed="false">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        <span>Afastados</span>
+                    </button>
+                    <button onclick="setFilter('fired')" class="filter-btn inline-flex min-h-[2.25rem] items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-300 transition-all hover:bg-red-500/20" data-filter="fired" title="Demitidos" aria-pressed="false">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                        <span>Demitidos</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -735,16 +759,16 @@
                     </td>
                     <td class="px-4 py-4 align-top text-slate-200" data-label="Matrícula">{{ emp.registration_id }}</td>
                     <td class="px-4 py-4 align-top text-slate-200 whitespace-normal break-words" data-label="Cargo">{{ emp.role }}</td>
-                    <td class="px-4 py-4 align-top" data-label="Empresa">
+                    <td class="px-4 py-4 align-top whitespace-nowrap" data-label="Empresa">
                         {% if center_theme == 'cyan' %}
-                        <span class="text-xs font-bold text-cyan-300 bg-cyan-500/10 px-2 py-1 rounded border border-cyan-500/20">{{ center_label }}</span>
+                        <span class="inline-flex items-center whitespace-nowrap text-xs font-bold text-cyan-300 bg-cyan-500/10 px-2 py-1 rounded border border-cyan-500/20">{{ center_label }}</span>
                         {% elif center_theme == 'emerald' %}
-                        <span class="text-xs font-bold text-emerald-300 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20">{{ center_label }}</span>
+                        <span class="inline-flex items-center whitespace-nowrap text-xs font-bold text-emerald-300 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20">{{ center_label }}</span>
                         {% else %}
-                        <span class="text-xs font-bold text-slate-300 bg-slate-500/10 px-2 py-1 rounded border border-slate-500/20">{{ center_label }}</span>
+                        <span class="inline-flex items-center whitespace-nowrap text-xs font-bold text-slate-300 bg-slate-500/10 px-2 py-1 rounded border border-slate-500/20">{{ center_label }}</span>
                         {% endif %}
                     </td>
-                    <td class="px-4 py-4 align-top text-slate-300" data-label="Horário">{{ emp.work_schedule or '-' }}</td>
+                    <td class="px-4 py-4 align-top whitespace-nowrap text-slate-300" data-label="Horário">{{ emp.work_schedule or '-' }}</td>
                     <td class="px-4 py-4 align-top" data-label="Status">
                         {% if emp.status == 'active' %}
                         <span

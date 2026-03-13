@@ -25148,6 +25148,211 @@ async def api_delete_admin_route(
 
 
 # =============================================================================
+# ROTAS: /admin/substitutions — Histórico de Substituições
+# =============================================================================
+
+def _resolve_admin_period(period: str = "all", start_date: Optional[str] = None, end_date: Optional[str] = None) -> tuple[str, datetime, datetime]:
+    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+
+    if period == "month":
+        dt_start = now_br.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        dt_end = now_br
+    elif period == "quarter":
+        dt_start = (now_br - timedelta(days=90)).replace(hour=0, minute=0, second=0, microsecond=0)
+        dt_end = now_br
+    elif period == "year":
+        dt_start = now_br.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        dt_end = now_br
+    elif period == "custom" and start_date and end_date:
+        try:
+            dt_start = datetime.strptime(start_date, "%Y-%m-%d")
+            dt_end = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+        except ValueError:
+            dt_start = datetime(2000, 1, 1)
+            dt_end = now_br
+            period = "all"
+    else:
+        dt_start = datetime(2000, 1, 1)
+        dt_end = now_br
+        period = "all"
+
+    dt_start_naive = dt_start.replace(tzinfo=None) if getattr(dt_start, "tzinfo", None) else dt_start
+    dt_end_naive = dt_end.replace(tzinfo=None) if getattr(dt_end, "tzinfo", None) else dt_end
+    return period, dt_start_naive, dt_end_naive
+
+
+def _build_substitutions_query(
+    session: Session,
+    start_dt: datetime,
+    end_dt: datetime,
+    reason: str = "all",
+    shift: str = "all",
+):
+    query = (
+        select(models.SubstitutionHistory)
+        .where(models.SubstitutionHistory.substitution_date >= start_dt)
+        .where(models.SubstitutionHistory.substitution_date <= end_dt)
+    )
+
+    if reason in {"fired", "away"}:
+        query = query.where(models.SubstitutionHistory.reason == reason)
+
+    if shift and shift != "all":
+        query = query.where(models.SubstitutionHistory.shift == shift)
+
+    return query.order_by(desc(models.SubstitutionHistory.substitution_date))
+
+
+@app.get("/admin/substitutions", response_class=HTMLResponse)
+async def admin_substitutions_page(
+    request: Request,
+    period: str = "all",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    reason: str = "all",
+    shift: str = "all",
+    session: Session = Depends(get_session),
+):
+    try:
+        user = require_admin(request)
+    except Exception:
+        try:
+            user = require_gm(request, session)
+        except Exception:
+            return RedirectResponse(url="/login", status_code=303)
+
+    period, dt_start, dt_end = _resolve_admin_period(period, start_date, end_date)
+    substitutions = session.exec(
+        _build_substitutions_query(session, dt_start, dt_end, reason=reason, shift=shift)
+    ).all()
+
+    total = len(substitutions)
+    by_fired = len([sub for sub in substitutions if sub.reason == "fired"])
+    by_away = len([sub for sub in substitutions if sub.reason == "away"])
+
+    monthly_stats: Dict[str, Dict[str, int]] = {}
+    for sub in substitutions:
+        label = sub.substitution_date.strftime("%m/%Y")
+        bucket = monthly_stats.setdefault(label, {"total": 0, "fired": 0, "away": 0})
+        bucket["total"] += 1
+        if sub.reason == "fired":
+            bucket["fired"] += 1
+        elif sub.reason == "away":
+            bucket["away"] += 1
+
+    return templates.TemplateResponse("admin_substitutions.html", {
+        "request": request,
+        "user": user,
+        "substitutions": substitutions,
+        "total": total,
+        "by_fired": by_fired,
+        "by_away": by_away,
+        "monthly_stats": monthly_stats,
+        "current_period": period,
+        "current_reason": reason,
+        "current_shift": shift,
+        "current_start_date": start_date or "",
+        "current_end_date": end_date or "",
+    })
+
+
+@app.get("/admin/substitutions/export")
+async def admin_substitutions_export(
+    request: Request,
+    period: str = "all",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    reason: str = "all",
+    shift: str = "all",
+    session: Session = Depends(get_session),
+):
+    try:
+        require_admin(request)
+    except Exception:
+        try:
+            require_gm(request, session)
+        except Exception:
+            return RedirectResponse(url="/login", status_code=303)
+
+    period, dt_start, dt_end = _resolve_admin_period(period, start_date, end_date)
+    substitutions = session.exec(
+        _build_substitutions_query(session, dt_start, dt_end, reason=reason, shift=shift)
+    ).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Data",
+        "Hora",
+        "Colaborador anterior",
+        "Matricula anterior",
+        "Novo colaborador",
+        "Matricula nova",
+        "Motivo",
+        "Turno",
+        "Setor",
+        "Observacoes",
+    ])
+    for sub in substitutions:
+        writer.writerow([
+            sub.substitution_date.strftime("%d/%m/%Y"),
+            sub.substitution_date.strftime("%H:%M"),
+            sub.original_employee_name,
+            sub.original_registration_id,
+            sub.new_employee_name,
+            sub.new_registration_id,
+            "Demissão" if sub.reason == "fired" else "Afastamento",
+            sub.shift or "",
+            sub.sector or "",
+            sub.observations or "",
+        ])
+
+    filename = f"substituicoes_{datetime.now(ZoneInfo('America/Sao_Paulo')).strftime('%Y%m%d_%H%M%S')}.csv"
+    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+    return Response(content=output.getvalue(), media_type="text/csv; charset=utf-8", headers=headers)
+
+
+@app.post("/admin/substitutions/edit")
+async def admin_substitutions_edit(
+    request: Request,
+    id: int = Form(...),
+    substitution_date: str = Form(...),
+    reason: str = Form(...),
+    shift: Optional[str] = Form(None),
+    sector: Optional[str] = Form(None),
+    observations: Optional[str] = Form(None),
+    session: Session = Depends(get_session),
+):
+    try:
+        user = require_admin(request)
+    except Exception:
+        try:
+            user = require_gm(request, session)
+        except Exception:
+            return RedirectResponse(url="/login", status_code=303)
+
+    substitution = session.get(models.SubstitutionHistory, id)
+    if not substitution:
+        raise HTTPException(status_code=404, detail="Substituição não encontrada")
+
+    try:
+        parsed_date = datetime.strptime(substitution_date, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Data inválida")
+
+    substitution.substitution_date = parsed_date
+    substitution.reason = reason if reason in {"fired", "away"} else substitution.reason
+    substitution.shift = (shift or "").strip() or None
+    substitution.sector = (sector or "").strip() or None
+    substitution.observations = (observations or "").strip() or None
+    session.add(substitution)
+    session.commit()
+
+    logger.info(f"[Substitutions] Registro {id} atualizado por {format_user_label(user)}")
+    return RedirectResponse(url="/admin/substitutions", status_code=303)
+
+
+# =============================================================================
 # ROTAS: /admin/turnover-analysis — Análise de Turnover e Rotatividade
 # =============================================================================
 
