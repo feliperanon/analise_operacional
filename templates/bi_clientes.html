@@ -357,10 +357,46 @@
   ]);
 
   const returnsRank = chartPayload.returns_rank || {};
-  buildBarChart('clientReturnChart', returnsRank.labels || [], [
-    { label: 'Valor devolvido', data: returnsRank.returned_value || [], backgroundColor: 'rgba(239,68,68,0.82)', borderRadius: 8 },
-    { type: 'line', label: '% devolução valor', data: returnsRank.return_rate_value || [], borderColor: 'rgba(168,85,247,0.95)', backgroundColor: 'rgba(168,85,247,0.18)', yAxisID: 'y1', tension: 0.32, pointRadius: 4 }
-  ], { secondaryAxis: true });
+  const retValores = returnsRank.returned_value || [];
+  const retTotalValor = retValores.reduce((s, v) => s + (Number(v) || 0), 0) || 1;
+  const clientReturnCanvas = byId('clientReturnChart');
+  if (clientReturnCanvas && typeof Chart !== 'undefined') {
+    new Chart(clientReturnCanvas, {
+      type: 'bar',
+      data: {
+        labels: returnsRank.labels || [],
+        datasets: [
+          { label: 'Valor devolvido', data: retValores, backgroundColor: 'rgba(239,68,68,0.82)', borderRadius: 8 },
+          { type: 'line', label: '% devolução valor', data: returnsRank.return_rate_value || [], borderColor: 'rgba(168,85,247,0.95)', backgroundColor: 'rgba(168,85,247,0.18)', yAxisID: 'y1', tension: 0.32, pointRadius: 4 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: true },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                if (ctx.dataset.label === 'Valor devolvido') {
+                  const v = Number(ctx.raw || 0);
+                  const pct = ((v / retTotalValor) * 100).toFixed(1).replace('.', ',');
+                  return 'Valor devolvido: ' + currencyBr(v) + ' (' + pct + '% do total)';
+                }
+                if (ctx.dataset.label === '% devolução valor') return '% devolução valor: ' + percentBr(ctx.raw);
+                return ctx.dataset.label + ': ' + ctx.raw;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { color: 'rgba(148,163,184,0.14)' } },
+          y: { beginAtZero: true, grid: { color: 'rgba(148,163,184,0.14)' } },
+          y1: { type: 'linear', display: true, beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } }
+        }
+      }
+    });
+  }
 
   const cityConcentration = chartPayload.city_concentration || {};
   const cityCanvas = byId('cityConcentrationChart');
