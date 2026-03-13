@@ -472,9 +472,10 @@
         </div>
     </div>
 
-    <!-- Modal: Encerrar -->
-    <div x-show="showDeliveryEndModal" class="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4 bg-black/40" x-cloak @click.self="showDeliveryEndModal=false">
-        <div @click.stop class="w-full max-w-md rounded-lg p-4" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
+    <!-- Modal: Encerrar (teleport para ficar acima do botão Encerrar Rota) -->
+    <template x-teleport="body">
+    <div x-show="showDeliveryEndModal" class="delivery-modal-overlay" x-cloak @click.self="showDeliveryEndModal=false">
+        <div @click.stop class="delivery-modal-card w-full max-w-md rounded-lg p-4" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
             <div class="mb-4">
                 <h3 class="text-title" style="color: var(--color-text);">Encerrar na Empresa</h3>
                 <p class="text-caption-lg mt-0.5">KM de chegada obrigatório</p>
@@ -490,10 +491,12 @@
             </div>
         </div>
     </div>
+    </template>
 
-    <!-- Modal: Devolução -->
-    <div x-show="showMobileReturnModal" class="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4 bg-black/40" x-cloak @click.self="showMobileReturnModal=false">
-        <div @click.stop class="w-full max-w-lg rounded-lg p-4 space-y-4" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
+    <!-- Modal: Devolução (teleport para ficar acima do botão Encerrar Rota) -->
+    <template x-teleport="body">
+    <div x-show="showMobileReturnModal" class="delivery-modal-overlay" x-cloak @click.self="showMobileReturnModal=false">
+        <div @click.stop class="delivery-modal-card w-full max-w-lg rounded-lg p-4 space-y-4" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
             <h3 class="text-title" style="color: var(--color-text);">Registrar Devolução</h3>
             <div>
                 <label class="text-section block mb-2" style="color: var(--color-text);">Motivo</label>
@@ -521,6 +524,52 @@
                         style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
                 </div>
             </div>
+            <div class="space-y-2">
+                <label class="text-section block" style="color: var(--color-text);">
+                    Avisou o Comercial? <span style="color: var(--color-danger);">*</span>
+                </label>
+                <div class="grid grid-cols-2 gap-2">
+                    <label class="flex items-center gap-2 rounded-lg px-3 py-2.5 border-2 text-body font-semibold cursor-pointer"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                        <input type="radio" value="sim" x-model="mobileReturn.notified_commercial">
+                        Sim
+                    </label>
+                    <label class="flex items-center gap-2 rounded-lg px-3 py-2.5 border-2 text-body font-semibold cursor-pointer"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                        <input type="radio" value="nao" x-model="mobileReturn.notified_commercial">
+                        Não
+                    </label>
+                </div>
+                <div x-show="mobileReturn.notified_commercial === 'sim'">
+                    <label class="text-section block mb-1" style="color: var(--color-text);">Nome da pessoa do Comercial</label>
+                    <input type="text" x-model="mobileReturn.notified_commercial_name" placeholder="Quem foi avisado?"
+                        class="w-full rounded-lg px-3 py-2.5 border-2 text-body"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                </div>
+            </div>
+            <div class="space-y-2">
+                <label class="text-section block" style="color: var(--color-text);">
+                    Avisou a Logística? <span style="color: var(--color-danger);">*</span>
+                </label>
+                <div class="grid grid-cols-2 gap-2">
+                    <label class="flex items-center gap-2 rounded-lg px-3 py-2.5 border-2 text-body font-semibold cursor-pointer"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                        <input type="radio" value="sim" x-model="mobileReturn.notified_logistics">
+                        Sim
+                    </label>
+                    <label class="flex items-center gap-2 rounded-lg px-3 py-2.5 border-2 text-body font-semibold cursor-pointer"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                        <input type="radio" value="nao" x-model="mobileReturn.notified_logistics">
+                        Não
+                    </label>
+                </div>
+                <div x-show="mobileReturn.notified_logistics === 'sim'">
+                    <label class="text-section block mb-1" style="color: var(--color-text);">Nome da pessoa da Logística</label>
+                    <input type="text" x-model="mobileReturn.notified_logistics_name" placeholder="Quem foi avisado?"
+                        class="w-full rounded-lg px-3 py-2.5 border-2 text-body"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                </div>
+            </div>
             <div class="flex gap-3">
                 <button @click="showMobileReturnModal=false" class="flex-1 py-3 rounded-lg font-semibold text-body min-h-[56px]" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
                 <button @click="confirmMobileReturn()" :disabled="actionLoading" class="flex-1 py-3 rounded-lg font-semibold text-body text-white min-h-[56px] interactive" style="background: var(--color-warning);">
@@ -529,11 +578,12 @@
             </div>
         </div>
     </div>
+    </template>
 
     <!-- Modal: Editar sessão (ajudantes e KM) - teleport para ficar acima do header e botão Encerrar -->
     <template x-teleport="body">
-    <div x-show="showSessionEditModal" class="fixed inset-0 z-[100001] flex items-end sm:items-center justify-center p-4 bg-black/40" x-cloak @click.self="showSessionEditModal=false">
-        <div @click.stop class="w-full max-w-md rounded-xl p-4" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
+    <div x-show="showSessionEditModal" class="delivery-modal-overlay" x-cloak @click.self="showSessionEditModal=false">
+        <div @click.stop class="delivery-modal-card w-full max-w-md rounded-xl p-4" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
             <h3 class="text-title mb-3" style="color: var(--color-text);">Editar rota</h3>
             <p class="text-caption mb-4" style="color: var(--color-text-muted);">Altere ajudantes ou KM de saída.</p>
             <div class="space-y-3 mb-4">
@@ -590,6 +640,25 @@
     .header-gradient { background: var(--gradient-header); }
     .delivery-page-layout { width: 100%; max-width: 100vw; overflow-x: hidden; }
     .delivery-content { width: 100%; }
+    .delivery-modal-overlay {
+        position: fixed !important;
+        inset: 0 !important;
+        z-index: 2147483000 !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: calc(1rem + env(safe-area-inset-top, 0px)) 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+        background: rgba(2, 6, 23, 0.72);
+        isolation: isolate;
+        overscroll-behavior: contain;
+    }
+    .delivery-modal-card {
+        position: relative;
+        z-index: 1;
+        max-height: calc(100dvh - 2rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
     .delivery-footer-bar {
         background: linear-gradient(to top, var(--color-surface-solid) 60%, transparent);
         padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0));
@@ -651,7 +720,16 @@
             deliveryEndKm: '',
             mobileReturnRoute: null,
             mobileReturnReasons: [],
-            mobileReturn: { reason: '', is_partial: false, weight: '', value: '' },
+            mobileReturn: {
+                reason: '',
+                is_partial: false,
+                weight: '',
+                value: '',
+                notified_commercial: '',
+                notified_commercial_name: '',
+                notified_logistics: '',
+                notified_logistics_name: ''
+            },
             deliverySetup: { plate: '', km_departure: '', helpers: [], helperInput: '' },
             actionLoading: false,
             timerDisplay: '--:--:--',
@@ -1070,9 +1148,30 @@
                         }
                     }).catch(() => { this.actionLoading = false; });
             },
-            openMobileReturnModal(route) { this.mobileReturnRoute = route; this.mobileReturn = { reason: this.mobileReturnReasons[0] || '', is_partial: false, weight: '', value: '' }; this.showMobileReturnModal = true; },
+            openMobileReturnModal(route) {
+                this.mobileReturnRoute = route;
+                this.mobileReturn = {
+                    reason: this.mobileReturnReasons[0] || '',
+                    is_partial: false,
+                    weight: '',
+                    value: '',
+                    notified_commercial: '',
+                    notified_commercial_name: '',
+                    notified_logistics: '',
+                    notified_logistics_name: ''
+                };
+                this.showMobileReturnModal = true;
+            },
             confirmMobileReturn() {
                 if (!this.mobileReturnRoute || this.actionLoading) return;
+                const notifiedCommercial = this.mobileReturn.notified_commercial;
+                const notifiedLogistics = this.mobileReturn.notified_logistics;
+                const commercialName = (this.mobileReturn.notified_commercial_name || '').trim();
+                const logisticsName = (this.mobileReturn.notified_logistics_name || '').trim();
+                if (!['sim', 'nao'].includes(notifiedCommercial)) return alert('Informe se avisou o Comercial.');
+                if (!['sim', 'nao'].includes(notifiedLogistics)) return alert('Informe se avisou a Logística.');
+                if (notifiedCommercial === 'sim' && !commercialName) return alert('Informe o nome da pessoa do Comercial avisada.');
+                if (notifiedLogistics === 'sim' && !logisticsName) return alert('Informe o nome da pessoa da Logística avisada.');
                 const route = this.mobileReturnRoute;
                 this.actionLoading = true;
                 const payload = {
@@ -1080,7 +1179,11 @@
                     return_reason: this.mobileReturn.reason,
                     return_is_partial: !!this.mobileReturn.is_partial,
                     return_partial_weight: this.mobileReturn.is_partial ? Number(this.mobileReturn.weight || 0) : null,
-                    return_partial_value: this.mobileReturn.is_partial ? Number(this.mobileReturn.value || 0) : null
+                    return_partial_value: this.mobileReturn.is_partial ? Number(this.mobileReturn.value || 0) : null,
+                    return_notified_commercial: notifiedCommercial === 'sim',
+                    return_notified_commercial_name: notifiedCommercial === 'sim' ? commercialName : null,
+                    return_notified_logistics: notifiedLogistics === 'sim',
+                    return_notified_logistics_name: notifiedLogistics === 'sim' ? logisticsName : null
                 };
                 fetch(`/api/mobile/delivery/route/${route.id}/action`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },

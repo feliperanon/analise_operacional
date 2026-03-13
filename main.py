@@ -4200,6 +4200,10 @@ class MobileDeliveryActionPayload(BaseModel):
     return_is_partial: bool = False
     return_partial_weight: Optional[float] = None
     return_partial_value: Optional[float] = None
+    return_notified_commercial: Optional[bool] = None
+    return_notified_commercial_name: Optional[str] = None
+    return_notified_logistics: Optional[bool] = None
+    return_notified_logistics_name: Optional[str] = None
 
 class AdminStartRoutePayload(BaseModel):
     client_id: int
@@ -4348,6 +4352,10 @@ def ensure_route_schema():
             "delivery_source_file": "VARCHAR(255)",
             "delivery_return_category": "VARCHAR(64)",
             "delivery_return_reason": "TEXT",
+            "delivery_notified_commercial": "BOOLEAN",
+            "delivery_notified_commercial_name": "TEXT",
+            "delivery_notified_logistics": "BOOLEAN",
+            "delivery_notified_logistics_name": "TEXT",
             "delivery_started_at": "VARCHAR(5)",
             "delivery_finished_at": "VARCHAR(5)",
             "delivery_canceled_at": "VARCHAR(5)",
@@ -4920,6 +4928,10 @@ async def api_mobile_delivery_route_action(
             route.delivery_finished_at = now
         route.delivery_return_category = None
         route.delivery_return_reason = None
+        route.delivery_notified_commercial = None
+        route.delivery_notified_commercial_name = None
+        route.delivery_notified_logistics = None
+        route.delivery_notified_logistics_name = None
         _append_delivery_event(route, "finalizar", now)
         # +1 XP por entrega concluída (evita duplicidade por rota)
         reference_id = f"delivery_route:{route.id}"
@@ -4947,6 +4959,16 @@ async def api_mobile_delivery_route_action(
             return JSONResponse({"error": "Informe o motivo da devolução."}, status_code=400)
         if payload.return_reason not in DELIVERY_RETURN_REASONS_FLAT:
             return JSONResponse({"error": "Motivo de devolução inválido."}, status_code=400)
+        if payload.return_notified_commercial is None:
+            return JSONResponse({"error": "Informe se avisou o Comercial."}, status_code=400)
+        if payload.return_notified_logistics is None:
+            return JSONResponse({"error": "Informe se avisou a Logística."}, status_code=400)
+        commercial_name = _clean_delivery_contact_name(payload.return_notified_commercial_name)
+        logistics_name = _clean_delivery_contact_name(payload.return_notified_logistics_name)
+        if payload.return_notified_commercial and not commercial_name:
+            return JSONResponse({"error": "Informe o nome da pessoa do Comercial avisada."}, status_code=400)
+        if payload.return_notified_logistics and not logistics_name:
+            return JSONResponse({"error": "Informe o nome da pessoa da Logística avisada."}, status_code=400)
         route.delivery_status = "devolucao"
         route.status = "completed"
         route.end_time = now
@@ -4958,6 +4980,10 @@ async def api_mobile_delivery_route_action(
             payload.return_reason, "COMERCIAL"
         )
         route.delivery_return_reason = payload.return_reason
+        route.delivery_notified_commercial = bool(payload.return_notified_commercial)
+        route.delivery_notified_commercial_name = commercial_name if payload.return_notified_commercial else None
+        route.delivery_notified_logistics = bool(payload.return_notified_logistics)
+        route.delivery_notified_logistics_name = logistics_name if payload.return_notified_logistics else None
         if payload.return_is_partial:
             w = float(payload.return_partial_weight or 0.0)
             v = float(payload.return_partial_value or 0.0)
@@ -4968,7 +4994,19 @@ async def api_mobile_delivery_route_action(
         else:
             route.devolucao_volume = route.tonnage or 0.0
             route.valor_devolucao = route.valor_financeiro or 0.0
-        _append_delivery_event(route, "devolucao", now, note=payload.return_reason)
+        note_parts = [payload.return_reason]
+        if payload.return_is_partial:
+            note_parts.append(f"Parcial | peso={route.devolucao_volume or 0.0:.2f} | valor={route.valor_devolucao or 0.0:.2f}")
+        contacts_note = _build_delivery_return_contacts_note(route)
+        note_parts.append(contacts_note)
+        _append_delivery_event(route, "devolucao", now, note=" | ".join(note_parts))
+        try:
+            devolucao = sync_route_to_devolucao(session, route, source="MOBILE")
+            if devolucao:
+                devolucao.observacao = contacts_note
+                session.add(devolucao)
+        except Exception as e:
+            logger.warning(f"sync_route_to_devolucao mobile: {e}")
         # Devolução não gera XP
         xp_earned = 0
 
@@ -4985,9 +5023,21 @@ async def api_mobile_delivery_route_action(
         ).first()
         if existing_started:
             return JSONResponse({"error": "Já existe uma entrega iniciada."}, status_code=400)
+        if (route.delivery_status or "").lower() == "devolucao":
+            session.exec(delete(models.Devolucao).where(models.Devolucao.route_id == route.id))
         route.delivery_status = "reaberta"
         route.status = "pending"
         route.end_time = None
+        route.delivery_return_category = None
+        route.delivery_return_reason = None
+        route.delivery_notified_commercial = None
+        route.delivery_notified_commercial_name = None
+        route.delivery_notified_logistics = None
+        route.delivery_notified_logistics_name = None
+        route.devolucao_volume = None
+        route.valor_devolucao = None
+        route.delivery_returned_at = None
+        route.delivery_finished_at = None
         route.delivery_reopen_count = (route.delivery_reopen_count or 0) + 1
         _append_delivery_event(route, "reabrir", now)
 
@@ -9333,6 +9383,32 @@ def _append_delivery_event(route: models.Route, event_type: str, time_str: str, 
     route.delivery_time_log = json.dumps(history, ensure_ascii=False)
 
 
+def _clean_delivery_contact_name(value: Optional[str]) -> Optional[str]:
+    text = " ".join(str(value or "").strip().split())
+    return text or None
+
+
+def _format_delivery_contact_status(notified: Optional[bool], name: Optional[str]) -> str:
+    if notified is True:
+        clean_name = _clean_delivery_contact_name(name)
+        return f"Sim ({clean_name})" if clean_name else "Sim"
+    if notified is False:
+        return "Não"
+    return "Não informado"
+
+
+def _build_delivery_return_contacts_note(route: models.Route) -> str:
+    comercial = _format_delivery_contact_status(
+        getattr(route, "delivery_notified_commercial", None),
+        getattr(route, "delivery_notified_commercial_name", None),
+    )
+    logistica = _format_delivery_contact_status(
+        getattr(route, "delivery_notified_logistics", None),
+        getattr(route, "delivery_notified_logistics_name", None),
+    )
+    return f"Avisou o Comercial: {comercial} | Avisou a Logística: {logistica}"
+
+
 def _build_delivery_sync_token(rows: List[models.Route], date: str, shift: str) -> str:
     parts = [date or "", shift or "", str(len(rows))]
     for r in sorted(rows, key=lambda x: (x.id or 0)):
@@ -10566,6 +10642,10 @@ async def update_delivery_status(
             route.delivery_finished_at = now
         route.delivery_return_category = return_category
         route.delivery_return_reason = return_reason
+        route.delivery_notified_commercial = None
+        route.delivery_notified_commercial_name = None
+        route.delivery_notified_logistics = None
+        route.delivery_notified_logistics_name = None
         note = f"{return_category}: {return_reason}"
         if is_partial:
             note += f" | parcial | peso={route.devolucao_volume:.2f} | valor={route.valor_devolucao:.2f}"
@@ -10583,6 +10663,10 @@ async def update_delivery_status(
             route.delivery_finished_at = now
         route.delivery_return_category = None
         route.delivery_return_reason = None
+        route.delivery_notified_commercial = None
+        route.delivery_notified_commercial_name = None
+        route.delivery_notified_logistics = None
+        route.delivery_notified_logistics_name = None
         _append_delivery_event(route, "finalizar", now)
         feedback = "Entrega finalizada."
 
@@ -11235,6 +11319,10 @@ async def delivery_bulk_action(
             route.delivery_returned_at = None
             route.delivery_return_category = None
             route.delivery_return_reason = None
+            route.delivery_notified_commercial = None
+            route.delivery_notified_commercial_name = None
+            route.delivery_notified_logistics = None
+            route.delivery_notified_logistics_name = None
             route.end_time = None
             route.delivery_finished_at = None
             route.delivery_reopen_count = (route.delivery_reopen_count or 0) + 1

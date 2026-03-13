@@ -326,6 +326,10 @@ class Route(SQLModel, table=True):
     delivery_source_file: Optional[str] = None
     delivery_return_category: Optional[str] = Field(default=None, index=True)
     delivery_return_reason: Optional[str] = None
+    delivery_notified_commercial: Optional[bool] = None
+    delivery_notified_commercial_name: Optional[str] = None
+    delivery_notified_logistics: Optional[bool] = None
+    delivery_notified_logistics_name: Optional[str] = None
     delivery_started_at: Optional[str] = None   # HH:MM
     delivery_finished_at: Optional[str] = None  # HH:MM
     delivery_canceled_at: Optional[str] = None  # HH:MM
@@ -877,4 +881,3 @@ class DevolucaoStaging(SQLModel, table=True):
     resolved_by: Optional[str] = None
     devolucao_id: Optional[int] = Field(default=None, foreign_key="devolucao.id", index=True)
     created_at: datetime = Field(default_factory=datetime.now, index=True)
-
