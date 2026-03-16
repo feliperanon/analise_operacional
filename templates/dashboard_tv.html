@@ -108,6 +108,9 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
         .driver-card--atencao { border-color: rgba(234, 179, 8, 0.6); background: linear-gradient(135deg, rgba(30,41,59,0.96), rgba(234,179,8,0.06)); }
         .driver-card--critico { border-color: rgba(239, 68, 68, 0.5); background: linear-gradient(135deg, rgba(30,41,59,0.96), rgba(239,68,68,0.05)); }
         .driver-card--ok { border-color: rgba(51, 65, 85, 0.9); }
+        .bar-pct--ok { background: linear-gradient(to right, rgb(59 130 246), rgb(34 211 238)); }
+        .bar-pct--atencao { background: linear-gradient(to right, rgb(234 179 8), rgb(251 191 36)); }
+        .bar-pct--critico { background: linear-gradient(to right, rgb(239 68 68), rgb(248 113 113)); }
 
         .driver-grid { display: grid; grid-template-rows: 1fr 1fr; gap: clamp(8px, 1vh, 16px); padding: clamp(8px, 1vh, 12px); min-height: 0; }
         .driver-grid .driver-cell { min-height: 0; overflow: hidden; }
@@ -265,7 +268,7 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                             <div class="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center shrink-0 text-slate-300 font-bold text-card-meta">{{ (op.employee_name or "?")[0] }}</div>
                             <div class="min-w-0 flex-1">
                                 <p class="font-bold text-white text-card-title truncate leading-tight">{{ op.employee_name }}</p>
-                                <p class="text-card-meta text-slate-500 truncate">Ajud.: {{ (op.helper_names|join(', '))[:18] if op.helper_names else '—' }}{% if op.helper_names and (op.helper_names|join(', '))|length > 18 %}…{% endif %} · Placa: {{ op.plate or '—' }} · Peso: {{ (op.total_kg|round(1)|string) ~ ' kg' if op.total_kg is defined and op.total_kg is not none else '—' }}</p>
+                                <p class="text-card-meta text-slate-500 truncate">Ajud.: {{ (op.helper_names|join(', '))[:18] if op.helper_names else '—' }}{% if op.helper_names and (op.helper_names|join(', '))|length > 18 %}…{% endif %} · Placa: {{ op.plate or '—' }} · Peso: {{ (op.total_kg|round(1)) ~ ' kg' if op.total_kg is defined and op.total_kg is not none else '—' }}</p>
                             </div>
                         </div>
                         <div class="card-core flex items-center justify-between gap-2">
@@ -559,8 +562,10 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                         var statusClass = status === 'critico' ? 'driver-card--critico' : (status === 'atencao' ? 'driver-card--atencao' : 'driver-card--ok');
                         var statusLabel = status === 'critico' ? 'Crítico' : (status === 'atencao' ? 'Atenção' : 'Normal');
                         var statusBg = status === 'critico' ? 'bg-red-500/20 text-red-300' : (status === 'atencao' ? 'bg-amber-500/25 text-amber-300' : 'bg-slate-600/50 text-slate-400');
-                        var helpers = (op.helper_names || []).slice(0, 2).join(', ');
-                        if (helpers.length > 14) helpers = helpers.substring(0, 12) + '…';
+                        var barClass = 'bar-pct bar-pct--' + status;
+                        var helpers = (op.helper_names || []).join(', ');
+                        if (helpers.length > 18) helpers = helpers.substring(0, 16) + '…';
+                        var pesoStr = (op.total_kg != null && op.total_kg !== '') ? (Number(op.total_kg).toFixed(1) + ' kg') : '—';
                         var openRoutes = (op.routes || []).filter(function(r) { return (r.delivery_status || '') === 'iniciada'; });
                         var openHtml = openRoutes.slice(0, 4).map(function(r) {
                             return '<div class="open-item flex justify-between items-center text-card-meta bg-slate-900/60 rounded px-1.5 py-0.5"><span class="text-white font-medium truncate flex-1 mr-1">' + (r.client || '').replace(/</g,'&lt;') + '</span><span class="text-slate-500 font-mono shrink-0">' + (r.start_time || '') + '</span></div>';
@@ -568,9 +573,9 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                         if (openRoutes.length === 0) openHtml = '<p class="text-card-meta text-slate-500 py-0.5">Nenhuma em aberto</p>';
                         var more = openRoutes.length > 4 ? '<p class="text-card-meta text-slate-500 shrink-0 mt-0.5">+' + (openRoutes.length - 4) + ' mais</p>' : '';
                         return '<div class="driver-cell"><article class="driver-card ' + statusClass + ' border">' +
-                            '<div class="card-head flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center shrink-0 text-slate-300 font-bold text-card-meta">' + (op.employee_name || '?').charAt(0) + '</div><div class="min-w-0 flex-1"><p class="font-bold text-white text-card-title truncate leading-tight">' + (op.employee_name || '').replace(/</g,'&lt;') + '</p><p class="text-card-meta text-slate-500 truncate">Ajud.: ' + (helpers || '—').replace(/</g,'&lt;') + ' · ' + (op.plate || '—').replace(/</g,'&lt;') + ' · Km —</p></div></div>' +
+                            '<div class="card-head flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center shrink-0 text-slate-300 font-bold text-card-meta">' + (op.employee_name || '?').charAt(0) + '</div><div class="min-w-0 flex-1"><p class="font-bold text-white text-card-title truncate leading-tight">' + (op.employee_name || '').replace(/</g,'&lt;') + '</p><p class="text-card-meta text-slate-500 truncate">Ajud.: ' + (helpers || '—').replace(/</g,'&lt;') + ' · Placa: ' + (op.plate || '—').replace(/</g,'&lt;') + ' · Peso: ' + pesoStr.replace(/</g,'&lt;') + '</p></div></div>' +
                             '<div class="card-core flex items-center justify-between gap-2"><span class="text-card-meta font-bold text-slate-300">' + completed + '/' + total + ' entregas</span><span class="text-card-title font-black text-blue-300">' + pctR + '%</span><span class="text-card-meta font-semibold px-1.5 py-0.5 rounded ' + statusBg + '">' + statusLabel + '</span></div>' +
-                            '<div class="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden shrink-0 mb-1"><div class="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all" style="width:' + pctR + '%"></div></div>' +
+                            '<div class="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden shrink-0 mb-1"><div class="h-full rounded-full transition-all ' + barClass + '" style="width:' + pctR + '%"></div></div>' +
                             '<div class="card-foot"><p class="text-card-meta text-slate-500 uppercase font-semibold shrink-0 mb-0.5">Abertas agora</p><div class="open-list">' + openHtml + '</div>' + more + '</div></article></div>';
                     }).join('');
                 }
