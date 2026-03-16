@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desktop Tamagotchi</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="tamagotchi-device">
+            <!-- Header -->
+            <div class="header">
+                <div class="logo">TAMAGOTCHI</div>
+                <div class="time" id="time"></div>
+            </div>
+
+            <!-- Screen -->
+            <div class="screen">
+                <div class="screen-border">
+                    <div class="screen-content">
+                        <!-- Pet Display -->
+                        <div class="pet-container">
+                            <canvas id="petCanvas" width="128" height="128"></canvas>
+                        </div>
+
+                        <!-- Status Bars -->
+                        <div class="status-bars">
+                            <div class="status-item">
+                                <span class="status-icon">❤️</span>
+                                <div class="status-bar">
+                                    <div class="status-fill happiness" id="happinessBar"></div>
+                                </div>
+                                <span class="status-value" id="happinessValue">100</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-icon">🍔</span>
+                                <div class="status-bar">
+                                    <div class="status-fill hunger" id="hungerBar"></div>
+                                </div>
+                                <span class="status-value" id="hungerValue">100</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-icon">⚡</span>
+                                <div class="status-bar">
+                                    <div class="status-fill energy" id="energyBar"></div>
+                                </div>
+                                <span class="status-value" id="energyValue">100</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-icon">💚</span>
+                                <div class="status-bar">
+                                    <div class="status-fill health" id="healthBar"></div>
+                                </div>
+                                <span class="status-value" id="healthValue">100</span>
+                            </div>
+                        </div>
+
+                        <!-- Pet Info -->
+                        <div class="pet-info">
+                            <div class="pet-name" id="petName">Pixie</div>
+                            <div class="pet-age">Age: <span id="petAge">0</span> days</div>
+                            <div class="pet-mood" id="petMood">😊 Happy</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="controls">
+                <button class="btn btn-feed" id="feedBtn">
+                    <span class="btn-icon">🍕</span>
+                    <span class="btn-text">Feed</span>
+                </button>
+                <button class="btn btn-play" id="playBtn">
+                    <span class="btn-icon">🎮</span>
+                    <span class="btn-text">Play</span>
+                </button>
+                <button class="btn btn-sleep" id="sleepBtn">
+                    <span class="btn-icon">😴</span>
+                    <span class="btn-text">Sleep</span>
+                </button>
+                <button class="btn btn-clean" id="cleanBtn">
+                    <span class="btn-icon">🧹</span>
+                    <span class="btn-text">Clean</span>
+                </button>
+                <button class="btn btn-heal" id="healBtn">
+                    <span class="btn-icon">💊</span>
+                    <span class="btn-text">Heal</span>
+                </button>
+            </div>
+
+            <!-- Messages -->
+            <div class="message" id="message"></div>
+        </div>
+
+        <!-- Stats Panel -->
+        <div class="stats-panel">
+            <h3>Statistics</h3>
+            <div class="stat-row">
+                <span>Total Meals:</span>
+                <span id="statMeals">0</span>
+            </div>
+            <div class="stat-row">
+                <span>Games Played:</span>
+                <span id="statGames">0</span>
+            </div>
+            <div class="stat-row">
+                <span>Times Cleaned:</span>
+                <span id="statCleans">0</span>
+            </div>
+            <div class="stat-row">
+                <span>Times Healed:</span>
+                <span id="statHeals">0</span>
+            </div>
+            <div class="stat-row">
+                <span>Birth Date:</span>
+                <span id="statBirth">-</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="pet.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>

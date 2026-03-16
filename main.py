@@ -2366,12 +2366,39 @@ async def dashboard_entry(
     # Devolução no dia (para painel TV e alertas)
     routes_devolucao = [r for r in routes if (r.delivery_status or "").lower() == "devolucao"]
     routes_entregue_ou_devolucao = [r for r in routes if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
+    devolucao_items = []
+    for r in routes_devolucao:
+        c = client_by_id.get(r.client_id)
+        emp = employee_by_id.get(r.employee_id)
+        c_name = c.name if c else f"Cliente #{r.client_id}"
+        fancy = getattr(c, "fancy_name", "") if c else ""
+        address = getattr(c, "address", "") if c else ""
+        neighborhood = getattr(c, "neighborhood", "") if c else ""
+        city = getattr(c, "city", "") if c else ""
+        cep = getattr(c, "cep", "") if c else ""
+        kg = round(float(getattr(r, "devolucao_volume", None) or r.tonnage or 0), 2)
+        valor = round(float(getattr(r, "valor_devolucao", None) or 0), 2)
+        devolucao_items.append({
+            "route_id": r.id,
+            "client_name": c_name,
+            "fancy_name": fancy,
+            "address": address,
+            "neighborhood": neighborhood,
+            "city": city,
+            "cep": cep,
+            "kg": kg,
+            "valor": valor,
+            "date": getattr(r, "date", selected_date_str),
+            "driver_name": emp.name if emp else f"Motorista #{r.employee_id}"
+        })
+
     devolucao_dia = {
         "count": len(routes_devolucao),
         "total_kg": round(sum(float(getattr(r, "devolucao_volume", None) or r.tonnage or 0) for r in routes_devolucao), 2),
         "total_valor": round(sum(float(getattr(r, "valor_devolucao", None) or 0) for r in routes_devolucao), 2),
         "total_entregas": len(routes_entregue_ou_devolucao),
         "pct": round((len(routes_devolucao) / len(routes_entregue_ou_devolucao) * 100), 1) if routes_entregue_ou_devolucao else 0,
+        "items_list": devolucao_items,
     }
 
     dashboard_payload = {
@@ -2531,12 +2558,39 @@ async def api_dashboard_tv_data(
 
     routes_devolucao = [r for r in routes if (r.delivery_status or "").lower() == "devolucao"]
     routes_entregue_ou_devolucao = [r for r in routes if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
+    devolucao_items = []
+    for r in routes_devolucao:
+        c = client_by_id.get(r.client_id)
+        emp = employee_by_id.get(r.employee_id)
+        c_name = c.name if c else f"Cliente #{r.client_id}"
+        fancy = getattr(c, "fancy_name", "") if c else ""
+        address = getattr(c, "address", "") if c else ""
+        neighborhood = getattr(c, "neighborhood", "") if c else ""
+        city = getattr(c, "city", "") if c else ""
+        cep = getattr(c, "cep", "") if c else ""
+        kg = round(float(getattr(r, "devolucao_volume", None) or r.tonnage or 0), 2)
+        valor = round(float(getattr(r, "valor_devolucao", None) or 0), 2)
+        devolucao_items.append({
+            "route_id": r.id,
+            "client_name": c_name,
+            "fancy_name": fancy,
+            "address": address,
+            "neighborhood": neighborhood,
+            "city": city,
+            "cep": cep,
+            "kg": kg,
+            "valor": valor,
+            "date": getattr(r, "date", selected_date_str),
+            "driver_name": emp.name if emp else f"Motorista #{r.employee_id}"
+        })
+
     devolucao_dia = {
         "count": len(routes_devolucao),
         "total_kg": round(sum(float(getattr(r, "devolucao_volume", None) or r.tonnage or 0) for r in routes_devolucao), 2),
         "total_valor": round(sum(float(getattr(r, "valor_devolucao", None) or 0) for r in routes_devolucao), 2),
         "total_entregas": len(routes_entregue_ou_devolucao),
         "pct": round((len(routes_devolucao) / len(routes_entregue_ou_devolucao) * 100), 1) if routes_entregue_ou_devolucao else 0,
+        "items_list": devolucao_items,
     }
 
     alerts_over_20min = []

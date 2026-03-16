@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-6 md:p-8" x-data="devolucoesAvaliar()" x-init="loadList(); loadResumo();">
+    <div class="max-w-6xl mx-auto space-y-6">
+        <!-- Cabeçalho -->
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <h1 class="text-xl md:text-2xl font-bold text-white mb-1">Avaliar devoluções</h1>
+                <p class="text-slate-400 text-sm">Edite motivos, motorista, ajudante e responsabilidades; consulte o consolidado por motorista e ajudante.</p>
+            </div>
+            <a href="/devolucoes" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-600 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                Voltar
+            </a>
+        </div>
+
+        <!-- Filtros -->
+        <div class="rounded-xl border border-slate-700 bg-slate-800/80 p-4 md:p-5">
+            <div class="flex flex-wrap items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <label class="text-sm text-slate-400">De</label>
+                    <input type="date" x-model="dateFrom" @change="loadList(); loadResumo();" class="bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="text-sm text-slate-400">Até</label>
+                    <input type="date" x-model="dateTo" @change="loadList(); loadResumo();" class="bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <button type="button" @click="loadList(); loadResumo();" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    Atualizar
+                </button>
+                <span x-show="list.length" class="text-slate-500 text-sm" x-text="list.length + ' devolução(ões)'"></span>
+            </div>
+        </div>
+
+        <!-- Abas -->
+        <div class="flex gap-1 p-1 rounded-xl border border-slate-700 bg-slate-800/50 w-fit" role="tablist">
+            <button type="button" @click="tab = 'lista'" :class="tab === 'lista' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'" class="px-4 py-2.5 rounded-lg font-medium text-sm transition-colors">Lista e edição</button>
+            <button type="button" @click="tab = 'consolidada'" :class="tab === 'consolidada' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'" class="px-4 py-2.5 rounded-lg font-medium text-sm transition-colors">Consolidado</button>
+        </div>
+
+        <!-- Tab Lista e edição -->
+        <div x-show="tab === 'lista'" class="space-y-4">
+            <template x-if="loading"><p class="text-slate-500 py-4">Carregando...</p></template>
+            <template x-if="!loading && list.length === 0"><p class="text-slate-500 py-4">Nenhuma devolução no período.</p></template>
+            <div class="space-y-3" x-show="!loading && list.length">
+                <template x-for="item in list" :key="item.id">
+                    <article class="rounded-xl border border-slate-700 bg-slate-800/80 overflow-hidden border-l-4 border-l-orange-500/50">
+                        <div class="p-4 md:p-5 grid grid-cols-1 lg:grid-cols-12 gap-4 gap-y-3">
+                            <!-- Coluna: Motorista, Ajudante, Cliente + motivo -->
+                            <div class="lg:col-span-4 space-y-2 text-sm">
+                                <div class="flex flex-wrap gap-x-3 gap-y-0.5">
+                                    <span class="text-slate-500">Motorista:</span><span class="text-white font-medium" x-text="item.motorista_name"></span>
+                                    <span class="text-slate-500">Ajudante:</span><span class="text-white" x-text="item.ajudante_name && item.ajudante_name !== '-' ? item.ajudante_name : '—'"></span>
+                                    <span x-show="item.vehicle_plate" class="text-slate-500">Caminhão:</span><span x-show="item.vehicle_plate" class="text-white font-mono text-xs" x-text="item.vehicle_plate"></span>
+                                </div>
+                                <p class="text-orange-300 font-medium" x-text="item.motivo_nome + (item.responsabilidade_nome ? ' • ' + item.responsabilidade_nome : '')"></p>
+                                <p class="font-semibold text-white" x-text="item.client_name"></p>
+                                <p class="text-slate-500 text-xs" x-text="'Cod ' + (item.client_code || '-') + ' • Pedido ' + (item.order_number || '-')"></p>
+                                <p x-show="item.observacao" class="text-slate-400 text-xs bg-slate-900/50 rounded px-2 py-1"><span class="text-slate-500">Obs. motorista:</span> <span x-text="item.observacao"></span></p>
+                                <p x-show="item.observacao_gestor" class="text-amber-200/90 text-xs bg-amber-500/10 border border-amber-500/30 rounded px-2 py-1"><span class="text-amber-400 font-medium">Obs. gestor:</span> <span x-text="item.observacao_gestor"></span><span x-show="item.observacao_gestor_edited_by" class="block mt-0.5 text-slate-500" x-text="'Editado por ' + item.observacao_gestor_edited_by + (item.observacao_gestor_edited_at ? ' em ' + item.observacao_gestor_edited_at : '')"></span></p>
+                                <div class="flex flex-wrap gap-x-3 text-slate-500 text-xs">
+                                    <span x-show="item.started_at_pt || item.started_at" x-text="'Início: ' + (item.started_at_pt || item.started_at || '')"></span>
+                                    <span x-show="item.returned_at_pt || item.finished_at_pt || item.returned_at || item.finished_at" x-text="'Fim: ' + (item.returned_at_pt || item.finished_at_pt || item.returned_at || item.finished_at || '')"></span>
+                                </div>
+                            </div>
+                            <!-- Coluna: Endereço e data -->
+                            <div class="lg:col-span-4 text-sm min-w-0 text-slate-400">
+                                <p x-text="item.address || '-'"></p>
+                                <p class="text-slate-500 text-xs mt-0.5" x-text="(item.bairro || '') + (item.city ? ' - ' + item.city + (item.state ? '/' + item.state : '') + (item.cep ? ' - ' + item.cep : '') : '')"></p>
+                                <p class="text-slate-500 text-xs mt-1" x-text="'Romaneio: ' + (item.data_romaneio_pt || item.data_romaneio || '')"></p>
+                            </div>
+                            <!-- Coluna: Valores, responsabilidade e editar -->
+                            <div class="lg:col-span-4 flex flex-col justify-between gap-2 lg:items-end lg:pl-4">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="font-mono text-white font-semibold" x-text="formatKg(item.weight_kg) + ' kg'"></span>
+                                    <span class="font-mono text-white font-semibold" x-text="'R$ ' + formatValor(item.value)"></span>
+                                    <span class="px-1.5 py-0.5 rounded border border-orange-500/30 text-orange-300 bg-orange-900/20 text-xs">Devolução</span>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-3" x-show="item.responsavel_motorista !== undefined">
+                                    <label class="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer"><input type="checkbox" :checked="item.responsavel_motorista" @change="setResponsavel(item.id, $event.target.checked, item.responsavel_ajudante)" class="rounded border-slate-600 bg-slate-800 text-blue-500"> Resp. motorista</label>
+                                    <label class="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer"><input type="checkbox" :checked="item.responsavel_ajudante" @change="setResponsavel(item.id, item.responsavel_motorista, $event.target.checked)" class="rounded border-slate-600 bg-slate-800 text-blue-500"> Resp. ajudante</label>
+                                </div>
+                                <button type="button" @click="openEdit(item)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-600 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white hover:border-slate-500 text-xs font-medium transition-colors w-fit">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                                    Editar
+                                </button>
+                            </div>
+                        </div>
+                    </article>
+                </template>
+            </div>
+        </div>
+
+        <!-- Tab Consolidado -->
+        <div x-show="tab === 'consolidada'" class="space-y-6">
+            <p class="text-slate-400 text-sm">Use os checkboxes em cada card na aba <strong class="text-white">Lista e edição</strong> para marcar responsabilidade. Nenhum dado real é alterado.</p>
+
+            <div class="rounded-xl border border-slate-700 bg-slate-800/80 p-4 md:p-5">
+                <h2 class="text-base font-semibold text-white mb-1">Resumo por motorista</h2>
+                <p class="text-slate-500 text-xs mb-3">Original vs ajustado (apenas devoluções marcadas como resp. do motorista).</p>
+                <template x-if="resumoLoading"><p class="text-slate-500 py-2">Carregando resumo...</p></template>
+                <div class="overflow-x-auto rounded-lg border border-slate-700" x-show="!resumoLoading && resumo.length">
+                    <table class="w-full text-left border-collapse min-w-[640px]">
+                        <thead class="bg-slate-800 text-slate-400 text-xs uppercase tracking-wider">
+                            <tr>
+                                <th class="px-4 py-3 font-semibold">Motorista</th>
+                                <th class="px-4 py-3 text-right">Entregues</th>
+                                <th class="px-4 py-3 text-right">Dev. total</th>
+                                <th class="px-4 py-3 text-right">% original</th>
+                                <th class="px-4 py-3 text-right">% ajustado</th>
+                                <th class="px-4 py-3 text-right">Valor original</th>
+                                <th class="px-4 py-3 text-right">Valor ajustado</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-700/80 text-sm">
+                            <template x-for="r in resumo" :key="r.motorista_id">
+                                <tr class="hover:bg-slate-700/20 transition-colors">
+                                    <td class="px-4 py-3 font-medium text-white" x-text="r.motorista_name"></td>
+                                    <td class="px-4 py-3 text-right text-slate-300" x-text="r.entregues"></td>
+                                    <td class="px-4 py-3 text-right text-slate-300" x-text="r.devolucoes_total"></td>
+                                    <td class="px-4 py-3 text-right font-mono text-amber-400" x-text="r.pct_original + '%'"></td>
+                                    <td class="px-4 py-3 text-right font-mono text-emerald-400" x-text="r.pct_ajustado + '%'"></td>
+                                    <td class="px-4 py-3 text-right font-mono text-slate-300" x-text="'R$ ' + formatValor(r.valor_original)"></td>
+                                    <td class="px-4 py-3 text-right font-mono text-white font-medium" x-text="'R$ ' + formatValor(r.valor_ajustado)"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-slate-500 text-sm mt-2" x-show="!resumoLoading && !resumo.length">Nenhum dado no período.</p>
+            </div>
+
+            <div class="rounded-xl border border-slate-700 bg-slate-800/80 p-4 md:p-5">
+                <h2 class="text-base font-semibold text-white mb-1">Resumo por ajudante</h2>
+                <p class="text-slate-500 text-xs mb-3">Original vs ajustado (apenas devoluções marcadas como resp. do ajudante).</p>
+                <template x-if="resumoLoading"><p class="text-slate-500 py-2">Carregando...</p></template>
+                <div class="overflow-x-auto rounded-lg border border-slate-700" x-show="!resumoLoading && resumoAjudantes.length">
+                    <table class="w-full text-left border-collapse min-w-[560px]">
+                        <thead class="bg-slate-800 text-slate-400 text-xs uppercase tracking-wider">
+                            <tr>
+                                <th class="px-4 py-3 font-semibold">Ajudante</th>
+                                <th class="px-4 py-3 text-right">Dev. total</th>
+                                <th class="px-4 py-3 text-right">Dev. atribuídas</th>
+                                <th class="px-4 py-3 text-right">% atribuído</th>
+                                <th class="px-4 py-3 text-right">Valor original</th>
+                                <th class="px-4 py-3 text-right">Valor ajustado</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-700/80 text-sm">
+                            <template x-for="r in resumoAjudantes" :key="r.ajudante_id">
+                                <tr class="hover:bg-slate-700/20 transition-colors">
+                                    <td class="px-4 py-3 font-medium text-white" x-text="r.ajudante_name"></td>
+                                    <td class="px-4 py-3 text-right text-slate-300" x-text="r.devolucoes_total"></td>
+                                    <td class="px-4 py-3 text-right text-slate-300" x-text="r.devolucoes_attributed"></td>
+                                    <td class="px-4 py-3 text-right font-mono text-emerald-400" x-text="r.pct_attributed + '%'"></td>
+                                    <td class="px-4 py-3 text-right font-mono text-slate-300" x-text="'R$ ' + formatValor(r.valor_original)"></td>
+                                    <td class="px-4 py-3 text-right font-mono text-white font-medium" x-text="'R$ ' + formatValor(r.valor_ajustado)"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-slate-500 text-sm mt-2" x-show="!resumoLoading && !resumoAjudantes.length">Nenhum ajudante com devoluções no período.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar -->
+    <div x-show="editOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" @keydown.escape.window="editOpen = false">
+        <div class="rounded-xl border border-slate-700 bg-slate-800 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl" @click.stop>
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center">
+                <h2 class="text-base font-semibold text-white">Editar devolução</h2>
+                <button type="button" @click="editOpen = false; editItem = null" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700 transition text-lg leading-none">×</button>
+            </div>
+            <template x-if="editItem">
+                <form @submit.prevent="saveEdit()" class="p-4">
+                <input type="hidden" x-model="editItem.id">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Motivo</label>
+                        <select x-model="editItem.motivo_id" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 text-sm">
+                            {% for m in motivos %}
+                            <option value="{{ m.id }}">{{ m.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Motorista</label>
+                        <select x-model="editItem.motorista_id" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 text-sm">
+                            {% for e in employees %}
+                            <option value="{{ e.id }}">{{ e.name|emp_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Ajudante</label>
+                        <select x-model="editItem.ajudante_id" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 text-sm">
+                            <option value="">— Nenhum</option>
+                            {% for e in employees %}
+                            <option value="{{ e.id }}">{{ e.name|emp_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Peso (kg)</label>
+                        <input type="number" step="0.01" min="0" x-model="editPeso" placeholder="Opcional" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Valor (R$)</label>
+                        <input type="text" x-model="editValor" placeholder="0,00" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+                </div>
+                <div class="mb-3" x-show="editItem.observacao">
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Obs. motorista (somente leitura)</label>
+                    <p class="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2 text-slate-300 text-sm" x-text="editItem.observacao"></p>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Obs. gestor (motivo da alteração)</label>
+                    <textarea x-model="editItem.observacao_gestor" rows="2" placeholder="O sistema registrará seu usuário e a data." class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 text-sm placeholder-slate-500 resize-y min-h-[56px]"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-700">
+                    <button type="button" @click="editOpen = false; editItem = null" class="px-3 py-2 text-sm text-slate-400 hover:text-white transition">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors">Salvar</button>
+                </div>
+                </form>
+            </template>
+        </div>
+    </div>
+</div>
+
+<script>
+function devolucoesAvaliar() {
+    return {
+        tab: 'lista',
+        list: [],
+        resumo: [],
+        resumoAjudantes: [],
+        loading: false,
+        resumoLoading: false,
+        editOpen: false,
+        editItem: null,
+        editPeso: '',
+        editValor: '',
+        dateFrom: '{{ date_from }}',
+        dateTo: '{{ date_to }}',
+        formatKg(v) {
+            if (v == null || v === '') return '0';
+            return Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        },
+        formatValor(v) {
+            if (v == null || v === '') return '0,00';
+            return Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        },
+        loadList() {
+            this.loading = true;
+            fetch('/api/devolucoes/avaliar/list?date_from=' + encodeURIComponent(this.dateFrom) + '&date_to=' + encodeURIComponent(this.dateTo), { credentials: 'same-origin' })
+                .then(r => r.json())
+                .then(j => {
+                    this.loading = false;
+                    if (j.ok) this.list = j.data || [];
+                    else this.list = [];
+                })
+                .catch(() => { this.loading = false; this.list = []; });
+        },
+        loadResumo() {
+            this.resumoLoading = true;
+            fetch('/api/devolucoes/avaliar/consolidado/resumo?date_from=' + encodeURIComponent(this.dateFrom) + '&date_to=' + encodeURIComponent(this.dateTo), { credentials: 'same-origin' })
+                .then(r => r.json())
+                .then(j => {
+                    this.resumoLoading = false;
+                    if (j.ok) {
+                        this.resumo = j.data || [];
+                        this.resumoAjudantes = j.data_ajudantes || [];
+                    } else {
+                        this.resumo = [];
+                        this.resumoAjudantes = [];
+                    }
+                })
+                .catch(() => { this.resumoLoading = false; this.resumo = []; this.resumoAjudantes = []; });
+        },
+        setResponsavel(devolucaoId, responsavelMotorista, responsavelAjudante) {
+            const ra = responsavelAjudante !== undefined ? responsavelAjudante : true;
+            fetch('/api/devolucoes/avaliar/consolidado', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    devolucao_id: devolucaoId,
+                    responsavel_motorista: !!responsavelMotorista,
+                    responsavel_ajudante: !!ra
+                }),
+                credentials: 'same-origin'
+            }).then(r => r.json()).then(j => {
+                if (j.ok) {
+                    const item = this.list.find(x => x.id === devolucaoId);
+                    if (item) {
+                        item.responsavel_motorista = !!responsavelMotorista;
+                        item.responsavel_ajudante = !!ra;
+                    }
+                    this.loadResumo();
+                }
+            }).catch(() => {});
+        },
+        openEdit(item) {
+            this.editItem = {
+                id: item.id,
+                motivo_id: item.motivo_id != null ? String(item.motivo_id) : '',
+                motorista_id: item.motorista_id != null ? String(item.motorista_id) : '',
+                ajudante_id: (item.ajudante_id != null && item.ajudante_id !== '' && item.ajudante_id !== undefined) ? String(item.ajudante_id) : '',
+                observacao: item.observacao || '',
+                observacao_gestor: item.observacao_gestor || ''
+            };
+            this.editPeso = item.weight_kg != null && item.weight_kg !== '' ? String(item.weight_kg) : '';
+            this.editValor = this.formatValor(item.valor);
+            this.editOpen = true;
+            setTimeout(() => typeof lucide !== 'undefined' && lucide.createIcons(), 50);
+        },
+        saveEdit() {
+            const id = this.editItem.id;
+            const payload = {
+                motivo_id: this.editItem.motivo_id ? parseInt(this.editItem.motivo_id, 10) : null,
+                motorista_id: this.editItem.motorista_id ? parseInt(this.editItem.motorista_id, 10) : null,
+                ajudante_id: (this.editItem.ajudante_id !== '' && this.editItem.ajudante_id != null) ? parseInt(this.editItem.ajudante_id, 10) : null,
+                observacao_gestor: (this.editItem.observacao_gestor || '').trim() || null
+            };
+            const v = this.editValor.replace(/\./g, '').replace(',', '.');
+            if (v !== '' && !isNaN(parseFloat(v))) payload.valor = parseFloat(v);
+            if (this.editPeso !== '' && !isNaN(parseFloat(this.editPeso))) payload.peso_kg = parseFloat(this.editPeso);
+            fetch('/api/devolucoes/' + id, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                credentials: 'same-origin'
+            }).then(r => r.json()).then(j => {
+                if (j.ok) {
+                    this.editOpen = false;
+                    this.editItem = null;
+                    const idx = this.list.findIndex(x => x.id === id);
+                    if (idx >= 0 && j.data) this.list[idx] = j.data;
+                    this.loadResumo();
+                } else alert(j.error || 'Erro ao salvar');
+            });
+        }
+    };
+}
+if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+</script>
+{% endblock %}

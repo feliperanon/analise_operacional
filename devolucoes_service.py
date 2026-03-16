@@ -996,6 +996,19 @@ def reconcile_all_devolucoes_with_routes(
     return updated
 
 
+def _parse_route_helper_ids(helpers_json: Optional[str]) -> List[int]:
+    """Parse delivery_helpers_json da rota para lista de employee_id (ajudantes)."""
+    if not helpers_json:
+        return []
+    try:
+        data = json.loads(helpers_json) if isinstance(helpers_json, str) else helpers_json
+        if not isinstance(data, list):
+            return []
+        return [int(x) for x in data if x is not None and str(x).strip().isdigit()]
+    except Exception:
+        return []
+
+
 def sync_route_to_devolucao(
     session: Session,
     route: "Route",
@@ -1028,12 +1041,19 @@ def sync_route_to_devolucao(
         resp = resp_list[0]
     if not motivo or not resp:
         return None
+    helper_ids = _parse_route_helper_ids(getattr(route, "delivery_helpers_json", None))
+    ajudante_id = (helper_ids[0] if helper_ids else None)
+    if ajudante_id and ajudante_id == motorista_id and len(helper_ids) > 1:
+        ajudante_id = helper_ids[1]
+    elif ajudante_id == motorista_id:
+        ajudante_id = None
     existing = session.exec(select(Devolucao).where(Devolucao.route_id == route.id)).first()
     if existing:
         existing.valor = valor
         existing.motivo_id = motivo.id
         existing.responsabilidade_id = resp.id
         existing.source = source
+        existing.ajudante_id = ajudante_id
         session.add(existing)
         return existing
     try:
@@ -1051,6 +1071,7 @@ def sync_route_to_devolucao(
         client_id=route.client_id,
         vendedor_id=motorista_id,
         motorista_id=motorista_id,
+        ajudante_id=ajudante_id,
         valor=valor,
         motivo_id=motivo.id,
         responsabilidade_id=resp.id,

@@ -94,6 +94,52 @@ engine = create_engine(
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
+    _migrate_devolucao_ajuste_responsavel_ajudante()
+    _migrate_devolucao_observacao_gestor()
+
+
+def _migrate_devolucao_observacao_gestor():
+    """Adiciona colunas observacao_gestor, observacao_gestor_edited_by, observacao_gestor_edited_at em devolucao."""
+    table = "devolucao"
+    cols = [
+        ("observacao_gestor", "TEXT"),
+        ("observacao_gestor_edited_by", "VARCHAR(255)" if "postgresql" in str(engine.url) else "TEXT"),
+        ("observacao_gestor_edited_at", "TIMESTAMP" if "postgresql" in str(engine.url) else "DATETIME"),
+    ]
+    try:
+        with engine.connect() as conn:
+            if "sqlite" in str(engine.url):
+                cur = conn.execute(text(f"PRAGMA table_info({table})"))
+                existing = [r[1] for r in list(cur) if len(r) > 1]
+                for col_name, col_type in cols:
+                    if col_name not in existing:
+                        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_type}"))
+            else:
+                for col_name, col_type in cols:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col_name} {col_type}"))
+            conn.commit()
+    except Exception:
+        pass
+
+
+def _migrate_devolucao_ajuste_responsavel_ajudante():
+    """Adiciona coluna responsavel_ajudante em devolucaoajusteresponsabilidade se não existir."""
+    table = "devolucaoajusteresponsabilidade"
+    col = "responsavel_ajudante"
+    try:
+        with engine.connect() as conn:
+            if "sqlite" in str(engine.url):
+                cur = conn.execute(text(f"PRAGMA table_info({table})"))
+                rows = list(cur) if hasattr(cur, "fetchall") else list(cur)
+                if rows and not any((getattr(r, "name", r[1] if len(r) > 1 else None) == col for r in rows)):
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} BOOLEAN DEFAULT 1"))
+            else:
+                conn.execute(text(
+                    f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} BOOLEAN DEFAULT TRUE"
+                ))
+            conn.commit()
+    except Exception:
+        pass  # coluna já existe ou tabela não existe
 
 def get_session():
     with Session(engine) as session:

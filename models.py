@@ -824,7 +824,10 @@ class Devolucao(SQLModel, table=True):
     ajudante_id: Optional[int] = Field(default=None, foreign_key="employee.id", index=True)
     valor: float = Field(default=0.0)
     motivo_id: int = Field(foreign_key="devolucaomotivo.id", index=True)
-    observacao: Optional[str] = None
+    observacao: Optional[str] = None  # Observação do motorista (somente leitura na edição pelo gestor)
+    observacao_gestor: Optional[str] = None  # Observação do gestor (por que alterou a devolução)
+    observacao_gestor_edited_by: Optional[str] = None  # Usuário do sistema que editou
+    observacao_gestor_edited_at: Optional[datetime] = None
     responsabilidade_id: int = Field(foreign_key="devolucaoresponsabilidade.id", index=True)
     # Campos calculados
     dia: int = Field(default=0, index=True)
@@ -887,3 +890,13 @@ class DevolucaoStaging(SQLModel, table=True):
     resolved_by: Optional[str] = None
     devolucao_id: Optional[int] = Field(default=None, foreign_key="devolucao.id", index=True)
     created_at: datetime = Field(default_factory=datetime.now, index=True)
+
+
+class DevolucaoAjusteResponsabilidade(SQLModel, table=True):
+    """Ajuste de responsabilidade do motorista e do ajudante na devolução (só para visão consolidada; não altera dados reais)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    devolucao_id: int = Field(foreign_key="devolucao.id", index=True, unique=True)
+    responsavel_motorista: bool = Field(default=True, index=True)  # True = conta para % do motorista; False = não conta
+    responsavel_ajudante: bool = Field(default=True, index=True)  # True = conta para % do ajudante; False = não conta
+    updated_at: datetime = Field(default_factory=datetime.now, index=True)
+    updated_by: Optional[str] = None

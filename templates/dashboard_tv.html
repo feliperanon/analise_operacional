@@ -89,9 +89,15 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
         }
         .zone-topo { flex: 0 0 8vh; min-height: 64px; max-height: 88px; }
         .zone-kpis { flex: 0 0 10vh; min-height: 72px; max-height: 100px; }
-        .zone-central { flex: 1 1 52vh; min-height: 0; display: flex; flex-direction: column; }
-        .zone-risco { flex: 0 0 12vh; min-height: 88px; max-height: 130px; }
-        .zone-dia { flex: 0 0 10vh; min-height: 72px; max-height: 95px; }
+        .zone-central { flex: 1 1 46vh; min-height: 0; display: flex; flex-direction: column; }
+        .zone-risco { flex: 0 0 18vh; min-height: 140px; max-height: 220px; }
+        .zone-dia { flex: 0 0 8vh; min-height: 56px; max-height: 80px; }
+
+        .zone-card { flex: 1; min-width: 0; min-height: 0; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; border-width: 2px; }
+        .zone-card .zone-card-header { flex-shrink: 0; padding: 10px 16px; border-bottom-width: 1px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .zone-card .zone-card-body { flex: 1; min-height: 0; padding: 12px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        .zone-card .zone-card-body .zone-card-row { padding: 10px 12px; border-radius: 8px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; font-size: clamp(0.75rem, 1.1vw, 0.9rem); }
+        .zone-card .zone-card-empty { font-size: clamp(0.75rem, 1vw, 0.85rem); padding: 8px 0; }
 
         .panel-root .text-clock { font-size: clamp(1.75rem, 4vw, 2.75rem); }
         .panel-root .text-kpi { font-size: clamp(0.875rem, 1.5vw, 1.25rem); }
@@ -133,13 +139,22 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
         .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: rgba(30,41,59,0.5); }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        @keyframes bounce-slow {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+        .animate-bounce-slow {
+            animation: bounce-slow 4s ease-in-out infinite;
+        }
     </style>
 </head>
-<body class="bg-slate-900 text-white" x-data="{ sidebarOpen: false }">
-    <button @click="sidebarOpen = true" class="fixed top-2 left-2 z-50 p-1.5 rounded-lg bg-slate-800/80 border border-slate-700/50 text-white shadow-md hover:bg-slate-700 transition-colors print-hidden" :class="sidebarOpen ? 'hidden' : ''">
+<body class="bg-slate-900 text-white" x-data="{ sidebarOpen: false, openMenus: { lider: false, gerente: false, processos: false, rotinas: false, oficina: false, cadastros: false, pessoas: false, bi: false, sistema: false } }">
+    {% include "_sidebar.html" %}
+    <button @click="sidebarOpen = true" class="fixed top-2 left-2 z-[60] flex items-center gap-2 p-2.5 rounded-xl bg-slate-800/95 border border-slate-600 text-white shadow-lg hover:bg-slate-700 transition-colors" :class="sidebarOpen ? 'hidden' : ''" title="Abrir menu e navegar">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
         </svg>
+        <span class="text-sm font-medium hidden sm:inline">Menu</span>
     </button>
 
     <div class="panel-root relative" id="tv-root">
@@ -157,7 +172,7 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             <div class="flex items-center gap-4 sm:gap-6">
                 <div class="flex items-center gap-3 sm:gap-5 bg-slate-800/90 border border-slate-600 rounded-lg sm:rounded-xl px-3 sm:px-5 py-1.5 sm:py-2">
                     <div class="text-center">
-                        <div id="dash-time" class="text-clock font-bold text-white font-mono leading-none">--:--</div>
+                        <div id="dash-time" class="text-clock font-bold text-white font-mono leading-none">--:--:--</div>
                         <div id="dash-date" class="text-label text-slate-400 uppercase tracking-wider mt-0.5">Carregando...</div>
                     </div>
                     <div class="w-px h-8 sm:h-10 bg-slate-600"></div>
@@ -168,13 +183,7 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                         </div>
                     </div>
                 </div>
-                <div class="flex items-center gap-2 sm:gap-4">
-                    <div class="text-right">
-                        <p class="text-label text-slate-500 uppercase tracking-wider">Atualizado</p>
-                        <p id="tv-last-update" class="text-card-meta font-bold text-slate-300">--:--</p>
-                    </div>
-                    <div id="tv-status-badge" class="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl border-2 font-bold text-label sm:text-sm uppercase tracking-wider status-normal">Operação normal</div>
-                </div>
+                <div id="tv-status-badge" class="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl border-2 font-bold text-label sm:text-sm uppercase tracking-wider status-normal">Operação normal</div>
             </div>
         </header>
 
@@ -315,73 +324,76 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             </div>
         </section>
 
-        <!-- D. BLOCO DE ALERTAS E EXCEÇÕES -->
-        <section class="zone-risco relative z-10 border-t border-slate-700/70 bg-slate-800/40 px-3 sm:px-5 py-2 shrink-0">
-            <div class="flex items-center gap-2 mb-1">
-                <h2 class="text-label font-bold text-slate-400 uppercase tracking-wider">Alertas e exceções</h2>
-            </div>
-            <div id="tv-risco-body" class="min-h-[60px] max-h-[90px] rounded-xl border border-slate-700/60 bg-slate-900/50 p-2 overflow-hidden flex flex-col gap-1">
-                {% if (dashboard.alerts.clients_over_20min or [])|length > 0 or (dashboard.devolucao_dia or {}).count|default(0) > 0 %}
-                {% if (dashboard.alerts.clients_over_20min or [])|length > 0 %}
-                <p class="text-label text-amber-400 font-semibold uppercase tracking-wider shrink-0">Clientes &gt;20 min na parada</p>
-                <ul id="alerts-over-20min-list" class="space-y-0.5 overflow-hidden shrink min-h-0">
-                    {% for a in (dashboard.alerts.clients_over_20min or [])[:5] %}
-                    <li class="flex items-center justify-between gap-2 text-card-meta py-0.5 px-2 rounded bg-amber-500/10 border border-amber-500/30 shrink-0">
-                        <span class="font-semibold text-white truncate">{{ a.client_name }}</span>
-                        <span class="text-amber-300 font-bold shrink-0">{{ a.minutes }} min</span>
-                        <span class="text-slate-500 truncate max-w-[120px]">{{ a.driver_name }}{% if a.plate %} · {{ a.plate }}{% endif %}</span>
-                    </li>
+        <!-- D. Dois cards proporcionais: Devoluções do dia + Alertas e exceções -->
+        <section class="zone-risco relative z-10 border-t border-slate-700/70 bg-slate-800/40 px-4 sm:px-6 py-3 shrink-0 flex gap-4 flex-col sm:flex-row min-h-0">
+            <!-- Card: Devoluções do dia -->
+            <div class="zone-card border-red-500/50 bg-slate-900/90 custom-scrollbar">
+                <div class="zone-card-header border-red-500/40 bg-red-500/15">
+                    <h2 class="text-sm font-bold text-red-300 uppercase tracking-wider">Devoluções do dia</h2>
+                    <span id="tv-devolucoes-count" class="text-lg font-black text-red-400 tabular-nums">{{ (dashboard.devolucao_dia or {}).count|default(0) }}</span>
+                </div>
+                <div id="tv-devolucoes-body" class="zone-card-body custom-scrollbar">
+                    {% if (dashboard.devolucao_dia or {}).count|default(0) > 0 %}
+                    <p class="text-slate-400 text-sm font-medium shrink-0">{{ ((dashboard.devolucao_dia or {}).total_kg|default(0))|round(1) }} kg total</p>
+                    {% for item in (dashboard.devolucao_dia.items_list or [])[:6] %}
+                    <div class="zone-card-row bg-red-500/10 border border-red-500/30">
+                        <span class="font-semibold text-white truncate flex-1 min-w-0">{{ item.client_name }}</span>
+                        <span class="text-red-300 font-bold shrink-0 tabular-nums">{% if item.valor %}R$ {{ "%.2f"|format(item.valor)|replace('.', ',') }}{% endif %}</span>
+                        <span class="text-slate-400 truncate shrink-0 max-w-[140px]">{{ item.driver_name }} · {{ "%.1f"|format(item.kg) }} kg</span>
+                    </div>
                     {% endfor %}
-                </ul>
-                {% endif %}
-                {% if (dashboard.devolucao_dia or {}).count|default(0) > 0 %}
-                <p class="text-label text-red-400 font-semibold uppercase tracking-wider shrink-0">Devoluções no dia</p>
-                <p class="text-card-meta text-slate-300 shrink-0">{{ (dashboard.devolucao_dia or {}).count|default(0) }} devolução(ões) · {{ ((dashboard.devolucao_dia or {}).total_kg|default(0))|round(1) }} kg</p>
-                {% endif %}
-                {% else %}
-                <p id="tv-risco-empty" class="text-card-meta font-semibold text-emerald-400/90 flex items-center gap-2 shrink-0">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                    Operação sem alertas críticos · Nenhuma devolução no momento
-                </p>
-                <ul id="alerts-over-20min-list" class="hidden"></ul>
-                {% endif %}
+                    {% if (dashboard.devolucao_dia.items_list or [])|length > 6 %}
+                    <p class="text-slate-500 text-sm shrink-0">+{{ (dashboard.devolucao_dia.items_list or [])|length - 6 }} mais</p>
+                    {% endif %}
+                    {% else %}
+                    <p class="zone-card-empty text-emerald-400/90 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+                        Nenhuma devolução no momento
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+            <!-- Card: Alertas e exceções -->
+            <div class="zone-card border-slate-600 bg-slate-900/80 custom-scrollbar">
+                <div class="zone-card-header border-slate-600/80 bg-slate-800/60">
+                    <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wider">Alertas e exceções</h2>
+                </div>
+                <div id="tv-risco-body" class="zone-card-body custom-scrollbar">
+                    {% if (dashboard.alerts.clients_over_20min or [])|length > 0 %}
+                    <p class="text-amber-400 text-sm font-semibold uppercase tracking-wider shrink-0">Clientes &gt;20 min na parada</p>
+                    <ul id="alerts-over-20min-list" class="space-y-0 flex flex-col gap-2">
+                        {% for a in (dashboard.alerts.clients_over_20min or [])[:5] %}
+                        <li class="zone-card-row bg-amber-500/10 border border-amber-500/30 flex justify-between items-center gap-3">
+                            <span class="font-semibold text-white truncate min-w-0">{{ a.client_name }}</span>
+                            <span class="text-amber-300 font-bold shrink-0 tabular-nums">{{ a.minutes }} min</span>
+                            <span class="text-slate-500 truncate shrink-0 max-w-[120px]">{{ a.driver_name }}{% if a.plate %} · {{ a.plate }}{% endif %}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p id="tv-risco-empty" class="zone-card-empty text-emerald-400/90 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+                        Operação sem alertas críticos
+                    </p>
+                    <ul id="alerts-over-20min-list" class="hidden"></ul>
+                    {% endif %}
+                </div>
             </div>
         </section>
 
-        <!-- E. VISÃO GERAL DO DIA -->
-        <footer class="zone-dia relative z-10 flex items-center justify-between gap-4 px-3 sm:px-5 py-2 border-t border-slate-700/70 bg-slate-900/80 shrink-0 flex-wrap">
-            {% set kpi = dashboard.kpi or {} %}
-            {% set concluidas_dia = kpi.completed_routes_count|default(0) %}
-            {% set _ns2 = namespace(open=0) %}
-            {% for op in (dashboard.live_separation or []) %}
-                {% set _ns2.open = _ns2.open + (op.total_deliveries|default(0) - op.completed_deliveries|default(0)) %}
-            {% endfor %}
-            {% set _open = _ns2.open %}
-            {% set pct_dia = (concluidas_dia / (concluidas_dia + _open) * 100) if (concluidas_dia + _open) > 0 else 0 %}
-            <div class="flex items-center gap-4 sm:gap-6 flex-wrap">
-                <div class="flex items-center gap-1.5">
-                    <span class="text-label text-slate-500 uppercase font-semibold">Dia</span>
-                    <span id="tv-dia-pct" class="text-kpi-big font-black text-blue-300">{{ "%.0f"|format(pct_dia) }}%</span>
-                    <span class="text-card-meta text-slate-500">concluído</span>
-                </div>
-                <div class="flex items-center gap-1.5">
-                    <span class="text-label text-slate-500 uppercase font-semibold">Concluídas</span>
-                    <span id="tv-dia-concluidas" class="text-kpi font-bold text-white">{{ concluidas_dia }}</span>
-                </div>
-                <div class="flex items-center gap-1.5">
-                    <span class="text-label text-slate-500 uppercase font-semibold">Em aberto</span>
-                    <span id="tv-dia-abertas" class="text-kpi font-bold text-slate-300">{{ _open }}</span>
-                </div>
-                <div class="flex items-center gap-1.5">
-                    <span class="text-label text-slate-500 uppercase font-semibold">Devoluções</span>
-                    <span id="tv-dia-devolucoes" class="text-kpi font-bold {{ 'text-red-400' if (dashboard.devolucao_dia or {}).count|default(0) > 0 else 'text-slate-500' }}">{{ (dashboard.devolucao_dia or {}).count|default(0) }}</span>
-                </div>
-                <div class="flex items-center gap-1.5">
-                    <span class="text-label text-slate-500 uppercase font-semibold">Alertas</span>
-                    <span id="tv-dia-alertas" class="text-kpi font-bold {{ 'text-amber-400' if (dashboard.alerts.clients_over_20min or [])|length > 0 else 'text-slate-500' }}">{{ (dashboard.alerts.clients_over_20min or [])|length }}</span>
-                </div>
-            </div>
-            <div class="w-32 sm:w-40 h-1.5 bg-slate-700 rounded-full overflow-hidden shrink-0">
+        <!-- E. Resumo do dia (só progresso; números detalhados já estão na faixa de KPIs) -->
+        {% set kpi = dashboard.kpi or {} %}
+        {% set concluidas_dia = kpi.completed_routes_count|default(0) %}
+        {% set _ns2 = namespace(open=0) %}
+        {% for op in (dashboard.live_separation or []) %}
+            {% set _ns2.open = _ns2.open + (op.total_deliveries|default(0) - op.completed_deliveries|default(0)) %}
+        {% endfor %}
+        {% set pct_dia = (concluidas_dia / (concluidas_dia + _ns2.open) * 100) if (concluidas_dia + _ns2.open) > 0 else 0 %}
+        <footer class="zone-dia relative z-10 flex items-center gap-4 px-3 sm:px-5 py-2 border-t border-slate-700/70 bg-slate-900/80 shrink-0">
+            <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Dia</span>
+            <span id="tv-dia-pct" class="text-kpi-big font-black text-blue-300 shrink-0">{{ "%.0f"|format(pct_dia) }}%</span>
+            <span class="text-card-meta text-slate-500 shrink-0">concluído</span>
+            <div class="flex-1 min-w-[120px] h-1.5 bg-slate-700 rounded-full overflow-hidden">
                 <div id="tv-dia-bar" class="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all duration-500" style="width: {{ pct_dia }}%"></div>
             </div>
         </footer>
@@ -416,9 +428,9 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             return Math.min(100, Math.max(0, ((cur - start) / (end - start)) * 100));
         }
         function updateClock() {
-            var now = new Date(), h = now.getHours(), m = now.getMinutes();
+            var now = new Date(), h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
             var timeEl = document.getElementById('dash-time');
-            if (timeEl) timeEl.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+            if (timeEl) timeEl.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
             var days = ['Dom','Seg','Ter','Qua','Qui','Sex','Sab'];
             var dateEl = document.getElementById('dash-date');
             if (dateEl) dateEl.textContent = days[now.getDay()] + ', ' + now.getDate() + '/' + String(now.getMonth()+1).padStart(2,'0');
@@ -431,10 +443,7 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                 shiftBarEl.style.backgroundColor = shift.color === 'blue' ? 'rgb(59 130 246)' : shift.color === 'orange' ? 'rgb(249 115 22)' : 'rgb(168 85 247)';
             }
         }
-        function setLastUpdate() {
-            var el = document.getElementById('tv-last-update');
-            if (el) el.textContent = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        }
+        function setLastUpdate() { /* Dados atualizados; relógio único no topo */ }
         function setOperationStatus(alertsCount, devCount) {
             var badge = document.getElementById('tv-status-badge');
             if (!badge) return;
@@ -478,6 +487,9 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             fetch(url, { credentials: 'same-origin' }).then(function(r) { return r.json(); }).then(function(data) {
                 var d = data.dashboard || {}, kpi = d.kpi || {}, alerts = d.alerts || {}, dev = d.devolucao_dia || {}, summary = d.cost_centers_summary || {};
                 var ccKey = data.cost_center || 'Exemplar', ccData = summary[ccKey] || (Object.values(summary)[0]) || {};
+                
+                window.dispatchEvent(new CustomEvent('tv-data-updated', { detail: { alerts: alerts.clients_over_20min || [] } }));
+                
                 setLastUpdate();
                 var hc = ccData.headcount != null ? ccData.headcount : kpi.headcount, tg = ccData.target != null ? ccData.target : kpi.target_headcount, away = ccData.away != null ? ccData.away : 0;
                 var pct = tg > 0 && hc != null ? Math.round(hc/tg*100) : 0;
@@ -514,33 +526,43 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                         subEl.textContent = 'Ordenado por prioridade';
                 }
 
+                set('tv-devolucoes-count', devCount);
+
                 var riscoBody = document.getElementById('tv-risco-body');
                 if (riscoBody) {
                     var list = alerts.clients_over_20min || [];
-                    if (list.length === 0 && devCount === 0) {
-                        riscoBody.innerHTML = '<p id="tv-risco-empty" class="text-card-meta font-semibold text-emerald-400/90 flex items-center gap-2 shrink-0"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>Operação sem alertas críticos · Nenhuma devolução no momento</p>';
+                    if (list.length === 0) {
+                        riscoBody.innerHTML = '<p id="tv-risco-empty" class="zone-card-empty text-emerald-400/90 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>Operação sem alertas críticos</p><ul id="alerts-over-20min-list" class="hidden"></ul>';
                     } else {
-                        var html = '';
-                        if (list.length > 0) {
-                            html += '<p class="text-label text-amber-400 font-semibold uppercase tracking-wider shrink-0">Clientes &gt;20 min na parada</p><ul id="alerts-over-20min-list" class="space-y-0.5 overflow-hidden">' +
-                                list.slice(0, 5).map(function(a) {
-                                    return '<li class="flex items-center justify-between gap-2 text-card-meta py-0.5 px-2 rounded bg-amber-500/10 border border-amber-500/30 shrink-0"><span class="font-semibold text-white truncate">' + (a.client_name || '').replace(/</g,'&lt;') + '</span><span class="text-amber-300 font-bold shrink-0">' + (a.minutes || 0) + ' min</span><span class="text-slate-500 truncate max-w-[120px]">' + (a.driver_name || '').replace(/</g,'&lt;') + (a.plate ? ' · ' + a.plate : '') + '</span></li>';
-                                }).join('') + '</ul>';
-                        }
-                        if (devCount > 0) {
-                            html += '<p class="text-label text-red-400 font-semibold uppercase tracking-wider shrink-0">Devoluções no dia</p><p class="text-card-meta text-slate-300 shrink-0">' + devCount + ' devolução(ões) · ' + (dev.total_kg != null ? Number(dev.total_kg).toFixed(1) : '0') + ' kg</p>';
-                        }
-                        riscoBody.innerHTML = html;
+                        riscoBody.innerHTML = '<p class="text-amber-400 text-sm font-semibold uppercase tracking-wider shrink-0">Clientes &gt;20 min na parada</p><ul id="alerts-over-20min-list" class="space-y-0 flex flex-col gap-2">' +
+                            list.slice(0, 5).map(function(a) {
+                                return '<li class="zone-card-row bg-amber-500/10 border border-amber-500/30 flex justify-between items-center gap-3"><span class="font-semibold text-white truncate min-w-0">' + (a.client_name || '').replace(/</g,'&lt;') + '</span><span class="text-amber-300 font-bold shrink-0 tabular-nums">' + (a.minutes || 0) + ' min</span><span class="text-slate-500 truncate shrink-0 max-w-[120px]">' + (a.driver_name || '').replace(/</g,'&lt;') + (a.plate ? ' · ' + a.plate : '') + '</span></li>';
+                            }).join('') + '</ul>';
+                    }
+                }
+
+                var devBody = document.getElementById('tv-devolucoes-body');
+                if (devBody) {
+                    if (devCount === 0) {
+                        devBody.innerHTML = '<p class="zone-card-empty text-emerald-400/90 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>Nenhuma devolução no momento</p>';
+                    } else {
+                        var devItems = dev.items_list || [];
+                        var totalKg = dev.total_kg != null ? Number(dev.total_kg).toFixed(1) : '0';
+                        var devHtml = '<p class="text-slate-400 text-sm font-medium shrink-0">' + totalKg + ' kg total</p>';
+                        (devItems.slice(0, 6) || []).forEach(function(item) {
+                            devHtml += '<div class="zone-card-row bg-red-500/10 border border-red-500/30">' +
+                                '<span class="font-semibold text-white truncate flex-1 min-w-0">' + (item.client_name || '').replace(/</g,'&lt;') + '</span>' +
+                                '<span class="text-red-300 font-bold shrink-0 tabular-nums">' + (item.valor ? 'R$ ' + item.valor.toFixed(2).replace('.', ',') : '') + '</span>' +
+                                '<span class="text-slate-400 truncate shrink-0 max-w-[140px]">' + (item.driver_name || '').replace(/</g,'&lt;') + ' · ' + (item.kg ? Number(item.kg).toFixed(1) + ' kg' : '') + '</span></div>';
+                        });
+                        if (devItems.length > 6) devHtml += '<p class="text-slate-500 text-sm shrink-0">+' + (devItems.length - 6) + ' mais</p>';
+                        devBody.innerHTML = devHtml;
                     }
                 }
 
                 var concluidasDia = kpi.completed_routes_count != null ? kpi.completed_routes_count : 0;
                 var pctDia = (concluidasDia + openTotal) > 0 ? Math.round(concluidasDia / (concluidasDia + openTotal) * 100) : 0;
                 set('tv-dia-pct', pctDia + '%');
-                set('tv-dia-concluidas', concluidasDia);
-                set('tv-dia-abertas', openTotal);
-                set('tv-dia-devolucoes', devCount);
-                set('tv-dia-alertas', alertsCount);
                 var diaBar = document.getElementById('tv-dia-bar');
                 if (diaBar) diaBar.style.width = pctDia + '%';
 
@@ -587,6 +609,94 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
         fetchTvData();
         setInterval(fetchTvData, 60000);
     })();
+    </script>
+
+    <div x-data="balloonAlerts()" 
+         x-init="initBalloon()"
+         x-show="hasAlerts"
+         class="fixed z-50 transition-all duration-700 ease-in-out shadow-2xl"
+         :class="isMinimized ? 'bottom-4 right-4 cursor-pointer hover:scale-105' : 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2'"
+         @click="if(isMinimized) maximize()"
+         style="display: none;">
+         
+         <div :class="!isMinimized ? 'animate-bounce-slow' : ''">
+             <div class="relative bg-amber-500 text-slate-900 p-4 sm:p-6 rounded-2xl border-4 border-amber-300 shadow-[0_0_30px_rgba(245,158,11,0.5)] max-w-sm sm:max-w-md w-[90vw]"
+                  :class="isMinimized ? 'p-3 border-2 text-center rounded-xl bg-amber-600/90 text-white backdrop-blur-md w-auto' : ''">
+                 
+                 <button x-show="!isMinimized" @click.stop="minimize()" class="absolute -top-4 -right-4 w-10 h-10 bg-slate-900 border-2 border-amber-300 text-amber-300 rounded-full flex items-center justify-center hover:bg-slate-800 transition-colors shadow-lg">
+                     <i data-lucide="x" class="w-5 h-5"></i>
+                 </button>
+
+                 <div x-show="!isMinimized" class="flex flex-col gap-3">
+                     <div class="flex items-center gap-3">
+                         <div class="p-2 bg-amber-900 text-amber-300 rounded-lg shadow-inner">
+                             <i data-lucide="alert-triangle" class="w-8 h-8 animate-pulse"></i>
+                         </div>
+                         <h3 class="text-2xl font-black uppercase tracking-tight leading-none drop-shadow-sm">Atenção!</h3>
+                     </div>
+                     <p class="font-bold text-lg leading-tight"><span x-text="alertsCount" class="text-2xl text-amber-900 font-black"></span> cliente(s) parado(s) há mais de 20 minutos!</p>
+                     <div class="bg-amber-400/30 p-2 rounded-xl max-h-40 overflow-y-auto custom-scrollbar space-y-1.5 border border-amber-400/50">
+                         <template x-for="a in topAlerts" :key="a.client_name">
+                             <div class="text-sm font-semibold flex justify-between items-center bg-amber-100/40 px-2 py-1.5 rounded shadow-sm">
+                                 <span x-text="a.client_name" class="truncate mr-2 uppercase"></span>
+                                 <span class="text-amber-900 font-black text-base shrink-0" x-text="a.minutes + ' min'"></span>
+                             </div>
+                         </template>
+                     </div>
+                     <button @click.stop="minimize()" class="mt-2 w-full py-3 bg-slate-900 text-amber-400 rounded-xl font-bold uppercase text-sm hover:bg-slate-800 transition-colors shadow-md border border-slate-700">
+                         Entendi (Lembrar em 5 min)
+                     </button>
+                 </div>
+
+                 <div x-show="isMinimized" class="flex flex-col items-center justify-center gap-1.5">
+                     <i data-lucide="alert-triangle" class="w-6 h-6 text-amber-300 animate-pulse drop-shadow"></i>
+                     <span class="text-xs font-black uppercase tracking-wider"><span x-text="alertsCount"></span> Alerta(s)</span>
+                 </div>
+             </div>
+         </div>
+    </div>
+
+    <script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('balloonAlerts', () => ({
+            hasAlerts: false,
+            isMinimized: false,
+            alertsCount: 0,
+            topAlerts: [],
+            snoozeTimer: null,
+
+            initBalloon() {
+                window.addEventListener('tv-data-updated', (e) => {
+                    const alerts = e.detail.alerts || [];
+                    if (alerts.length > 0) {
+                        this.hasAlerts = true;
+                        this.alertsCount = alerts.length;
+                        this.topAlerts = alerts.slice(0, 5);
+                        setTimeout(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); }, 50);
+                    } else {
+                        this.hasAlerts = false;
+                        this.alertsCount = 0;
+                        this.topAlerts = [];
+                        if (this.snoozeTimer) clearTimeout(this.snoozeTimer);
+                        this.isMinimized = false;
+                    }
+                });
+            },
+            minimize() {
+                this.isMinimized = true;
+                if (this.snoozeTimer) clearTimeout(this.snoozeTimer);
+                this.snoozeTimer = setTimeout(() => {
+                    if (this.hasAlerts) {
+                        this.isMinimized = false;
+                    }
+                }, 5 * 60 * 1000); // 5 minutes snooze
+            },
+            maximize() {
+                this.isMinimized = false;
+                if (this.snoozeTimer) clearTimeout(this.snoozeTimer);
+            }
+        }));
+    });
     </script>
 </body>
 </html>
