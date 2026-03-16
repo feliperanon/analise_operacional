@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-950/50">
+    <div class="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto" x-data="{ vehicleSearch: '', vehicleTypeFilter: '' }">
+        <!-- Header -->
+        <header class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <h1 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Histórico Veículos</h1>
+                <p class="text-slate-400 text-sm mt-0.5">KM atual e data de atualização. Clique na linha para abrir o histórico do veículo.</p>
+            </div>
+        </header>
+
+        <!-- Resumo e filtros -->
+        {% if stats and stats.total > 0 and pie_slices %}
+        <div class="mb-4 flex flex-wrap items-center gap-3">
+            <div class="flex items-center gap-2 rounded-xl bg-slate-800/80 border border-slate-700 px-3 py-2">
+                <svg class="w-10 h-10 flex-shrink-0" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    {% for s in pie_slices %}
+                    <path d="{{ s.d }}" fill="{{ s.fill }}"></path>
+                    {% endfor %}
+                    <circle cx="50" cy="50" r="22" fill="rgb(30 41 59)" stroke="rgb(51 65 85)" stroke-width="2"/>
+                    <text x="50" y="52" text-anchor="middle" fill="rgb(248 250 252)" font-size="12" font-weight="700">{{ stats.total }}</text>
+                </svg>
+                <div class="flex gap-3 text-xs text-slate-400">
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500"></span>{{ stats.caminhao_count or 0 }} caminhões</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>{{ stats.moto_count or 0 }} motos</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span>{{ stats.carro_count or 0 }} carros</span>
+                </div>
+            </div>
+            <div class="flex rounded-lg border border-slate-700 bg-slate-800/60 p-0.5" role="tablist">
+                <button type="button" @click="vehicleTypeFilter = ''" :class="!vehicleTypeFilter ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors">Todos</button>
+                <button type="button" @click="vehicleTypeFilter = 'caminhao'" :class="vehicleTypeFilter === 'caminhao' ? 'bg-amber-500/20 text-amber-300' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors">Caminhões</button>
+                <button type="button" @click="vehicleTypeFilter = 'moto'" :class="vehicleTypeFilter === 'moto' ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors">Motos</button>
+                <button type="button" @click="vehicleTypeFilter = 'carro'" :class="vehicleTypeFilter === 'carro' ? 'bg-blue-500/20 text-blue-300' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors">Carros</button>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Busca -->
+        <div class="rounded-2xl border border-slate-700/80 bg-slate-900/60 shadow-xl overflow-hidden">
+            <div class="flex flex-col sm:flex-row sm:items-center gap-3 p-3 sm:p-4 border-b border-slate-700/80 bg-slate-800/40">
+                <div class="relative flex-1 min-w-0">
+                    <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"></i>
+                    <input type="text" x-model="vehicleSearch" placeholder="Placa, marca ou modelo..."
+                        class="w-full pl-9 pr-9 py-2.5 rounded-xl bg-slate-950/80 border border-slate-600 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 text-sm">
+                    <button x-show="vehicleSearch" @click="vehicleSearch = ''" type="button" class="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors" title="Limpar busca" aria-label="Limpar busca">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            {% if vehicles %}
+            <div class="overflow-x-auto overflow-y-auto max-h-[calc(100vh-320px)]">
+                <table class="w-full text-left border-collapse">
+                    <thead class="sticky top-0 z-10 bg-slate-900 border-b border-slate-700 shadow-sm">
+                        <tr class="text-slate-400 text-xs uppercase font-semibold tracking-wider">
+                            <th class="px-4 py-3 text-left">Tipo</th>
+                            <th class="px-4 py-3 text-left">Placa</th>
+                            <th class="px-4 py-3 text-left">Marca / Modelo</th>
+                            <th class="px-4 py-3 text-left hidden sm:table-cell">Km atual</th>
+                            <th class="px-4 py-3 text-left hidden sm:table-cell">Atualizado em</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800 text-sm">
+                        {% for v in vehicles %}
+                        <tr class="hover:bg-slate-800/80 transition-colors cursor-pointer"
+                            data-search="{{ (v.placa ~ ' ' ~ (v.vehicle_type or '') ~ ' ' ~ (v.marca or '') ~ ' ' ~ (v.modelo or '') | lower) | e }}"
+                            data-type="{{ (v.vehicle_type or 'carro')|e }}"
+                            x-show="(!vehicleSearch || ($el.dataset.search || '').toLowerCase().includes(vehicleSearch.toLowerCase())) && (!vehicleTypeFilter || ($el.dataset.type || '') === vehicleTypeFilter)"
+                            @click="window.location.href='/vehicles/{{ v.id }}/history'"
+                            role="button" tabindex="0"
+                            @keydown.enter="window.location.href='/vehicles/{{ v.id }}/history'">
+                            <td class="px-4 py-3 align-middle">
+                                {% if v.vehicle_type == "caminhao" %}
+                                <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-500/15 text-amber-300 text-xs font-medium">
+                                    <i data-lucide="truck" class="w-4 h-4"></i>
+                                    Caminhão
+                                </span>
+                                {% elif v.vehicle_type == "moto" %}
+                                <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 text-xs font-medium">
+                                    <i data-lucide="motorbike" class="w-4 h-4"></i>
+                                    Moto
+                                </span>
+                                {% else %}
+                                <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-blue-500/15 text-blue-300 text-xs font-medium">
+                                    <i data-lucide="car" class="w-4 h-4"></i>
+                                    Carro
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 font-mono font-semibold text-white text-sm tracking-wide">{{ v.placa }}</td>
+                            <td class="px-4 py-3 text-slate-200 truncate max-w-[200px] sm:max-w-[260px]">{{ v.marca }} — {{ v.modelo }}</td>
+                            <td class="px-4 py-3 text-slate-200 hidden sm:table-cell">
+                                {% if v.odometer_km is not none %}
+                                {{ "%.0f"|format(v.odometer_km) }} km
+                                {% else %}
+                                <span class="text-slate-500 text-xs">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-slate-400 text-xs hidden sm:table-cell">
+                                {{ v.updated_at|fmt_br_datetime }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        <tr x-show="(vehicleSearch || vehicleTypeFilter) && Array.from($el.parentElement.querySelectorAll('tr[data-search]')).every(r => r.offsetParent === null)"
+                            class="bg-slate-800/50">
+                            <td colspan="5" class="px-6 py-12 text-center text-slate-400">
+                                <i data-lucide="search-x" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
+                                <p class="text-sm">Nenhum veículo corresponde aos filtros.</p>
+                                <p class="text-xs mt-1 text-slate-500">Altere a busca ou o tipo acima.</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-10 md:p-12 text-center text-slate-500">
+                <i data-lucide="truck" class="w-12 h-12 mx-auto mb-4 opacity-40"></i>
+                <p class="mb-2 text-sm md:text-base">Nenhum veículo cadastrado ainda.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+<script>
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+</script>
+{% endblock %}
+

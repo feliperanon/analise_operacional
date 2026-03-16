@@ -28,6 +28,8 @@ def test_build_bi_clientes_dataset_aggregates_time_frequency_and_returns():
             segmento="Atacado",
             prioridade_logistica="A",
             status_operacional="ATIVO",
+            janela_horario_inicio="08:00",
+            janela_horario_fim="09:30",
         )
         client_b = models.Client(
             name="Cliente Beta",
@@ -36,6 +38,8 @@ def test_build_bi_clientes_dataset_aggregates_time_frequency_and_returns():
             segmento="Varejo",
             prioridade_logistica="B",
             status_operacional="ATIVO",
+            janela_horario_inicio="08:30",
+            janela_horario_fim="09:10",
         )
         responsabilidade = models.DevolucaoResponsabilidade(nome="Logistica")
         session.add(driver)
@@ -60,6 +64,25 @@ def test_build_bi_clientes_dataset_aggregates_time_frequency_and_returns():
         session.add_all(
             [
                 models.Route(
+                    date="2026-02-20",
+                    shift="Manhã",
+                    employee_id=driver.id,
+                    client_id=client_a.id,
+                    start_time="08:30",
+                    end_time="09:00",
+                    tonnage=80.0,
+                    type="delivery",
+                    valor_financeiro=1000.0,
+                    valor_devolucao=50.0,
+                    devolucao_volume=5.0,
+                    delivery_status="devolucao",
+                    delivery_started_at="08:30",
+                    delivery_finished_at="09:00",
+                    delivery_return_reason="Cliente fechado",
+                    delivery_return_category="Logistica",
+                    status="pending",
+                ),
+                models.Route(
                     date="2026-03-03",
                     shift="Manhã",
                     employee_id=driver.id,
@@ -79,16 +102,16 @@ def test_build_bi_clientes_dataset_aggregates_time_frequency_and_returns():
                     shift="Manhã",
                     employee_id=driver.id,
                     client_id=client_a.id,
-                    start_time="08:00",
-                    end_time="10:00",
+                    start_time="10:00",
+                    end_time="12:00",
                     tonnage=50.0,
                     type="delivery",
                     valor_financeiro=500.0,
                     valor_devolucao=100.0,
                     devolucao_volume=10.0,
                     delivery_status="devolucao",
-                    delivery_started_at="08:00",
-                    delivery_finished_at="10:00",
+                    delivery_started_at="10:00",
+                    delivery_finished_at="12:00",
                     delivery_return_reason="Cliente fechado",
                     delivery_return_category="Logistica",
                     delivery_reopen_count=1,
@@ -180,10 +203,98 @@ def test_build_bi_clientes_dataset_aggregates_time_frequency_and_returns():
     assert alfa["returned_occurrences"] == 2
     assert alfa["returned_value"] == 350.0
     assert alfa["top_driver_name"] == "Motorista BI"
+    assert alfa["top_driver_return_name"] == "Motorista BI"
     assert alfa["top_motivo_name"] == "Cliente fechado"
     assert alfa["total_duration_m"] == 225.0
+    assert alfa["previous_returned_value"] == 50.0
+    assert alfa["previous_return_rate_value"] == 5.0
+    assert alfa["delta_return_rate_value"] == 10.56
+    assert alfa["window_checks"] == 3
+    assert alfa["window_hits"] == 2
+    assert alfa["window_misses"] == 1
+    assert alfa["window_adherence_pct"] == 66.67
+    assert alfa["top_driver_return_share"] == 100.0
+    assert alfa["top_responsabilidade_name"] == "Logistica"
+    assert alfa["top_responsabilidade_return_share"] == 100.0
     assert beta["returned_occurrences"] == 0
     assert dataset["kpis"]["top_time_client"] == "Cliente Alfa"
     assert dataset["kpis"]["top_return_client"] == "Cliente Alfa"
+    assert dataset["kpis"]["worsening_client"] == "Cliente Alfa"
+    assert dataset["kpis"]["worsening_delta_pct"] == 10.56
+    assert dataset["kpis"]["window_client"] == "Cliente Alfa"
+    assert dataset["kpis"]["window_adherence_pct"] == 66.67
+    assert dataset["kpis"]["driver_concentration_client"] == "Cliente Alfa"
+    assert dataset["kpis"]["driver_concentration_driver"] == "Motorista BI"
+    assert dataset["kpis"]["driver_concentration_pct"] == 100.0
+    assert dataset["kpis"]["responsibility_concentration_client"] == "Cliente Alfa"
+    assert dataset["kpis"]["responsibility_concentration_name"] == "Logistica"
+    assert dataset["kpis"]["responsibility_concentration_pct"] == 100.0
     assert dataset["detail_client"]["client_id"] == client_a.id
     assert dataset["detail_total"] == 4
+
+
+def test_build_bi_clientes_dataset_ignores_placeholder_midnight_start_for_duration():
+    engine = create_engine("sqlite://")
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        driver = models.Employee(
+            registration_id="MOT-BI-2",
+            name="Motorista Placeholder",
+            role="Motorista",
+            status="active",
+        )
+        client = models.Client(
+            name="Cliente Placeholder",
+            municipio="Betim",
+            bairro="Centro",
+            segmento="Atacado",
+            prioridade_logistica="A",
+            status_operacional="ATIVO",
+            janela_horario_inicio="08:00",
+            janela_horario_fim="12:00",
+        )
+        session.add(driver)
+        session.add(client)
+        session.commit()
+        session.refresh(driver)
+        session.refresh(client)
+
+        session.add(
+            models.Route(
+                date="2026-03-06",
+                shift="Manhã",
+                employee_id=driver.id,
+                client_id=client.id,
+                start_time="00:00",
+                end_time="16:35",
+                type="delivery",
+                valor_financeiro=2392.5,
+                delivery_status="entregue",
+                delivery_started_at=None,
+                delivery_finished_at="16:35",
+                delivery_vehicle_plate="PWJ2808",
+                delivery_order_number="147",
+                status="completed",
+            )
+        )
+        session.commit()
+
+        dataset = bi_delivery_routes._build_bi_clientes_dataset(
+            session=session,
+            date_from="2026-03-01",
+            date_to="2026-03-15",
+            shift="Todos",
+            driver_id=None,
+            plate="Todos",
+            status="Todos",
+            detail_client_id=client.id,
+        )
+
+    row = next(row for row in dataset["detail_rows"] if row["order_number"] == "147")
+    client_row = next(row for row in dataset["all_client_rows"] if row["client_id"] == client.id)
+
+    assert row["duration_m"] is None
+    assert row["visit_time"] == ""
+    assert client_row["total_duration_m"] == 0.0
+    assert client_row["window_checks"] == 0

@@ -126,6 +126,66 @@
       </div>
     </section>
 
+    <section class="bi-clientes-section">
+      <div class="bi-section-head">
+        <h2 class="bi-section-title"><i data-lucide="git-compare-arrows" class="w-4 h-4"></i> Fase 2 · Tendência, concentração e janela</h2>
+        <p class="bi-section-desc">Comparação entre <strong>{{ kpis.comparison_current_label }}</strong> e <strong>{{ kpis.comparison_previous_label }}</strong>, com foco em piora, concentração de problema e aderência à janela.</p>
+      </div>
+
+      <div class="bi-kpi-grid bi-kpi-grid-phase2">
+        {{ kpi_card("Maior piora", kpis.worsening_client, (kpis.worsening_delta_pct|fmt_br_1) ~ " p.p.", "Cliente que mais piorou em % de devolução por valor versus o período anterior equivalente.", "trending-up") }}
+        {{ kpi_card("Janela mais crítica", kpis.window_client, ((kpis.window_adherence_pct|fmt_br_1) ~ "% aderência") if kpis.window_adherence_pct is not none else "Sem base", "Usa o horário de início da entrega como proxy de visita para medir aderência à janela cadastral.", "clock-3") }}
+        {{ kpi_card("Conc. em motorista", kpis.driver_concentration_client, kpis.driver_concentration_driver ~ " · " ~ (kpis.driver_concentration_pct|fmt_br_1) ~ "%", "Mostra clientes em que um único motorista concentra a maior parte do valor devolvido.", "user-round") }}
+        {{ kpi_card("Conc. em responsabilidade", kpis.responsibility_concentration_client, kpis.responsibility_concentration_name ~ " · " ~ (kpis.responsibility_concentration_pct|fmt_br_1) ~ "%", "Mostra clientes em que uma única responsabilidade domina o prejuízo de devolução.", "shield-alert") }}
+      </div>
+
+      <div class="bi-charts-grid bi-phase2-charts mt-4">
+        <div class="bi-chart-card">
+          <div class="bi-chart-head">
+            <h3 class="bi-chart-title">Piora vs período anterior</h3>
+            <p class="bi-chart-desc">% devolução por valor no período atual vs. período anterior equivalente.</p>
+            <div class="bi-chart-tip">
+              <strong>O que significa:</strong> Se a barra atual sobe sobre a anterior, o cliente está piorando financeiramente.
+            </div>
+          </div>
+          <div class="bi-chart-wrap"><canvas id="clientPeriodCompareChart"></canvas></div>
+        </div>
+
+        <div class="bi-chart-card">
+          <div class="bi-chart-head">
+            <h3 class="bi-chart-title">Concentração por motorista</h3>
+            <p class="bi-chart-desc">% do valor devolvido concentrado no motorista dominante de cada cliente.</p>
+            <div class="bi-chart-tip">
+              <strong>O que significa:</strong> Quanto maior a concentração, maior a chance de o problema estar no modo de execução e não só no cliente.
+            </div>
+          </div>
+          <div class="bi-chart-wrap"><canvas id="clientDriverConcentrationChart"></canvas></div>
+        </div>
+
+        <div class="bi-chart-card">
+          <div class="bi-chart-head">
+            <h3 class="bi-chart-title">Concentração por responsabilidade</h3>
+            <p class="bi-chart-desc">% do valor devolvido concentrado em uma única responsabilidade.</p>
+            <div class="bi-chart-tip">
+              <strong>O que significa:</strong> Ajuda a separar se o problema dominante está em logística, comercial, mercado ou outra área.
+            </div>
+          </div>
+          <div class="bi-chart-wrap"><canvas id="clientResponsibilityConcentrationChart"></canvas></div>
+        </div>
+
+        <div class="bi-chart-card">
+          <div class="bi-chart-head">
+            <h3 class="bi-chart-title">Aderência à janela</h3>
+            <p class="bi-chart-desc">% de visitas dentro da janela cadastral por cliente.</p>
+            <div class="bi-chart-tip">
+              <strong>O que significa:</strong> Usa o horário de início da entrega como aproximação do horário de visita. Quanto menor a aderência, maior o risco operacional.
+            </div>
+          </div>
+          <div class="bi-chart-wrap"><canvas id="clientWindowAdherenceChart"></canvas></div>
+        </div>
+      </div>
+    </section>
+
     <!-- Anomalias e Recomendações -->
     <section class="bi-two-col">
       <div class="bi-clientes-section">
@@ -265,9 +325,15 @@
             <div class="bi-drill-item"><span class="bi-drill-label">Devoluções</span><strong>{{ detail_client.returned_occurrences }}</strong></div>
             <div class="bi-drill-item"><span class="bi-drill-label">R$ devolvido</span><strong>{{ detail_client.returned_value|fmt_br_moeda }}</strong></div>
             <div class="bi-drill-item"><span class="bi-drill-label">% devolução valor</span><strong>{{ detail_client.return_rate_value|fmt_br_1 }}%</strong></div>
+            <div class="bi-drill-item"><span class="bi-drill-label">% valor período ant.</span><strong>{{ detail_client.previous_return_rate_value|fmt_br_1 }}%</strong></div>
+            <div class="bi-drill-item"><span class="bi-drill-label">Δ vs período ant.</span><strong>{{ detail_client.delta_return_rate_value|fmt_br_1 }} p.p.</strong></div>
+            <div class="bi-drill-item"><span class="bi-drill-label">Aderência à janela</span><strong>{% if detail_client.window_adherence_pct is not none %}{{ detail_client.window_adherence_pct|fmt_br_1 }}%{% else %}Sem base{% endif %}</strong></div>
+            <div class="bi-drill-item"><span class="bi-drill-label">Fora da janela</span><strong>{{ detail_client.window_misses }}/{{ detail_client.window_checks }}</strong></div>
             <div class="bi-drill-item"><span class="bi-drill-label">Motorista principal</span><strong>{{ detail_client.top_driver_name }}</strong></div>
+            <div class="bi-drill-item"><span class="bi-drill-label">Conc. motorista</span><strong>{{ detail_client.top_driver_return_share|fmt_br_1 }}%</strong></div>
             <div class="bi-drill-item"><span class="bi-drill-label">Motivo principal</span><strong>{{ detail_client.top_motivo_name }}</strong></div>
             <div class="bi-drill-item"><span class="bi-drill-label">Responsabilidade</span><strong>{{ detail_client.top_responsabilidade_name }}</strong></div>
+            <div class="bi-drill-item"><span class="bi-drill-label">Conc. responsabilidade</span><strong>{{ detail_client.top_responsabilidade_return_share|fmt_br_1 }}%</strong></div>
           </div>
         </div>
       </div>
@@ -323,9 +389,38 @@
   function byId(id) { return document.getElementById(id); }
   function currencyBr(v) { return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
   function percentBr(v) { return `${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1 })}%`; }
+  function chartHasValues(datasets) {
+    return (datasets || []).some((dataset) => Array.isArray(dataset?.data) && dataset.data.some((value) => Number(value || 0) !== 0));
+  }
+  function setChartEmpty(canvas, message) {
+    const wrap = canvas?.parentElement;
+    if (!wrap) return;
+    let empty = wrap.querySelector('.bi-chart-empty');
+    if (!empty) {
+      empty = document.createElement('div');
+      empty.className = 'bi-chart-empty';
+      wrap.appendChild(empty);
+    }
+    empty.textContent = message || 'Sem dados suficientes no recorte.';
+    canvas.style.display = 'none';
+  }
+  function clearChartEmpty(canvas) {
+    const wrap = canvas?.parentElement;
+    if (!wrap) return;
+    const empty = wrap.querySelector('.bi-chart-empty');
+    if (empty) empty.remove();
+    canvas.style.display = 'block';
+  }
   function buildBarChart(id, labels, datasets, options = {}) {
     const canvas = byId(id);
     if (!canvas || typeof Chart === 'undefined') return;
+    const existing = Chart.getChart(canvas);
+    if (existing) existing.destroy();
+    if (!(labels || []).length || !chartHasValues(datasets)) {
+      setChartEmpty(canvas, options.emptyMessage || 'Sem dados suficientes no período filtrado.');
+      return;
+    }
+    clearChartEmpty(canvas);
     new Chart(canvas, {
       type: options.type || 'bar',
       data: { labels, datasets },
@@ -334,9 +429,14 @@
         maintainAspectRatio: false,
         indexAxis: options.indexAxis || 'x',
         interaction: { mode: 'index', intersect: false },
-        plugins: { legend: { display: options.legend !== false } },
+        plugins: {
+          legend: { display: options.legend !== false },
+          tooltip: options.tooltip
+            ? { callbacks: { label: options.tooltip } }
+            : undefined
+        },
         scales: {
-          x: { grid: { color: 'rgba(148,163,184,0.14)' } },
+          x: { beginAtZero: true, max: options.xMax, grid: { color: 'rgba(148,163,184,0.14)' } },
           y: { beginAtZero: true, grid: { color: 'rgba(148,163,184,0.14)' } },
           y1: options.secondaryAxis ? { type: 'linear', display: true, beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } } : undefined
         }
@@ -361,7 +461,13 @@
   const retTotalValor = retValores.reduce((s, v) => s + (Number(v) || 0), 0) || 1;
   const clientReturnCanvas = byId('clientReturnChart');
   if (clientReturnCanvas && typeof Chart !== 'undefined') {
-    new Chart(clientReturnCanvas, {
+    const existingReturnChart = Chart.getChart(clientReturnCanvas);
+    if (existingReturnChart) existingReturnChart.destroy();
+    if (!(returnsRank.labels || []).length || !(retValores || []).some((value) => Number(value || 0) !== 0)) {
+      setChartEmpty(clientReturnCanvas, 'Sem devoluções financeiras no período filtrado.');
+    } else {
+      clearChartEmpty(clientReturnCanvas);
+      new Chart(clientReturnCanvas, {
       type: 'bar',
       data: {
         labels: returnsRank.labels || [],
@@ -395,12 +501,19 @@
           y1: { type: 'linear', display: true, beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } }
         }
       }
-    });
+      });
+    }
   }
 
   const cityConcentration = chartPayload.city_concentration || {};
   const cityCanvas = byId('cityConcentrationChart');
   if (cityCanvas && typeof Chart !== 'undefined') {
+    const cityExisting = Chart.getChart(cityCanvas);
+    if (cityExisting) cityExisting.destroy();
+    if (!(cityConcentration.labels || []).length || !(cityConcentration.visits || []).some((value) => Number(value || 0) !== 0)) {
+      setChartEmpty(cityCanvas, 'Sem concentração geográfica no recorte.');
+    } else {
+      clearChartEmpty(cityCanvas);
     new Chart(cityCanvas, {
       type: 'doughnut',
       data: {
@@ -417,7 +530,76 @@
         plugins: { legend: { position: 'bottom' } }
       }
     });
+    }
   }
+
+  const comparisonMeta = chartPayload.comparison_meta || {};
+  const periodCompare = chartPayload.period_compare || {};
+  buildBarChart('clientPeriodCompareChart', periodCompare.labels || [], [
+    { label: comparisonMeta.current_label || 'Período atual', data: periodCompare.current_pct || [], backgroundColor: 'rgba(239,68,68,0.82)', borderRadius: 8 },
+    { label: comparisonMeta.previous_label || 'Período anterior', data: periodCompare.previous_pct || [], backgroundColor: 'rgba(56,189,248,0.78)', borderRadius: 8 }
+  ], {
+    indexAxis: 'y',
+    emptyMessage: 'Sem base anterior para comparação no recorte.',
+    tooltip: (ctx) => {
+      const idx = ctx.dataIndex;
+      const currentPct = Number((periodCompare.current_pct || [])[idx] || 0);
+      const previousPct = Number((periodCompare.previous_pct || [])[idx] || 0);
+      const deltaPct = Number((periodCompare.delta_pct || [])[idx] || 0);
+      const currentValue = Number((periodCompare.current_value || [])[idx] || 0);
+      const previousValue = Number((periodCompare.previous_value || [])[idx] || 0);
+      if (ctx.datasetIndex === 0) {
+        return `${ctx.dataset.label}: ${percentBr(currentPct)} | ${currencyBr(currentValue)} | Δ ${deltaPct.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} p.p.`;
+      }
+      return `${ctx.dataset.label}: ${percentBr(previousPct)} | ${currencyBr(previousValue)}`;
+    }
+  });
+
+  const driverConcentration = chartPayload.driver_concentration || {};
+  buildBarChart('clientDriverConcentrationChart', driverConcentration.labels || [], [
+    { label: 'Concentração do motorista líder (%)', data: driverConcentration.share || [], backgroundColor: 'rgba(14,165,233,0.82)', borderRadius: 8 }
+  ], {
+    indexAxis: 'y',
+    xMax: 100,
+    emptyMessage: 'Nenhum cliente com devolução suficiente para medir concentração por motorista.',
+    tooltip: (ctx) => {
+      const idx = ctx.dataIndex;
+      const driver = (driverConcentration.driver || [])[idx] || '—';
+      const value = Number((driverConcentration.returned_value || [])[idx] || 0);
+      return `${driver}: ${percentBr(ctx.raw)} | ${currencyBr(value)}`;
+    }
+  });
+
+  const responsibilityConcentration = chartPayload.responsibility_concentration || {};
+  buildBarChart('clientResponsibilityConcentrationChart', responsibilityConcentration.labels || [], [
+    { label: 'Concentração da responsabilidade líder (%)', data: responsibilityConcentration.share || [], backgroundColor: 'rgba(168,85,247,0.82)', borderRadius: 8 }
+  ], {
+    indexAxis: 'y',
+    xMax: 100,
+    emptyMessage: 'Nenhum cliente com devolução suficiente para medir concentração por responsabilidade.',
+    tooltip: (ctx) => {
+      const idx = ctx.dataIndex;
+      const responsabilidade = (responsibilityConcentration.responsabilidade || [])[idx] || '—';
+      const value = Number((responsibilityConcentration.returned_value || [])[idx] || 0);
+      return `${responsabilidade}: ${percentBr(ctx.raw)} | ${currencyBr(value)}`;
+    }
+  });
+
+  const windowAdherence = chartPayload.window_adherence || {};
+  buildBarChart('clientWindowAdherenceChart', windowAdherence.labels || [], [
+    { label: 'Aderência à janela (%)', data: windowAdherence.adherence_pct || [], backgroundColor: 'rgba(34,197,94,0.82)', borderRadius: 8 }
+  ], {
+    indexAxis: 'y',
+    xMax: 100,
+    emptyMessage: 'Nenhum cliente com janela e horário de visita suficientes para medir aderência.',
+    tooltip: (ctx) => {
+      const idx = ctx.dataIndex;
+      const hits = Number((windowAdherence.hits || [])[idx] || 0);
+      const misses = Number((windowAdherence.misses || [])[idx] || 0);
+      const checks = Number((windowAdherence.checks || [])[idx] || 0);
+      return `${percentBr(ctx.raw)} | Dentro: ${hits} | Fora: ${misses} | Base: ${checks}`;
+    }
+  });
 
   if (window.lucide?.createIcons) window.lucide.createIcons();
 </script>
@@ -468,8 +650,11 @@
   .bi-chart-title { font-size: 0.9375rem; font-weight: 600; margin: 0 0 0.25rem; }
   .bi-chart-desc { font-size: 0.75rem; color: var(--color-text-muted); margin: 0; }
   .bi-chart-tip { font-size: 0.7rem; color: var(--color-text-muted); margin-top: 0.5rem; padding: 0.5rem; background: rgba(0,0,0,0.15); border-radius: 8px; line-height: 1.4; }
-  .bi-chart-wrap { height: 280px; min-height: 220px; }
+  .bi-chart-wrap { position: relative; height: 280px; min-height: 220px; }
   .bi-chart-wrap canvas { width: 100% !important; height: 100% !important; }
+  .bi-chart-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 1rem; border: 1px dashed rgba(148,163,184,0.32); border-radius: 10px; background: rgba(15,23,42,0.18); color: var(--color-text-muted); font-size: 0.8rem; line-height: 1.45; }
+  .bi-kpi-grid-phase2 { margin-bottom: 1.25rem; }
+  .bi-phase2-charts { margin-top: 1.25rem; }
 
   .bi-two-col { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
   @media (min-width: 1024px) { .bi-two-col { grid-template-columns: 1fr 1fr; } }

@@ -867,11 +867,30 @@ def fmt_br_duracao(val):
     except Exception:
         return "--"
 
+
+def fmt_br_datetime(val):
+    """Formata datetime em fuso America/Sao_Paulo como dd/mm/yyyy HH:MM."""
+    if val is None:
+        return "—"
+    try:
+        tz_sp = ZoneInfo("America/Sao_Paulo")
+        if hasattr(val, "tzinfo") and val.tzinfo is not None:
+            local = val.astimezone(tz_sp)
+        else:
+            # Naive: assumir UTC (comum em banco)
+            utc = val.replace(tzinfo=ZoneInfo("UTC"))
+            local = utc.astimezone(tz_sp)
+        return local.strftime("%d/%m/%Y %H:%M")
+    except Exception:
+        return str(val) if val else "—"
+
+
 templates.env.filters["fmt_br"] = fmt_br
 templates.env.filters["fmt_br_int"] = fmt_br_int
 templates.env.filters["fmt_br_pct"] = fmt_br_pct
 templates.env.filters["fmt_br_2"] = fmt_br_2
 templates.env.filters["fmt_br_duracao"] = fmt_br_duracao
+templates.env.filters["fmt_br_datetime"] = fmt_br_datetime
 
 def _emp_name_upper(val):
     """Padroniza nome de colaborador em MAIÚSCULAS para exibição."""
@@ -919,10 +938,16 @@ def is_google_enabled() -> bool:
     return bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
 
 PAGE_OPTIONS = [
-    {"key": "admin_game", "label": "Game Master", "path": "/admin/game", "prefixes": ["/admin/game", "/api/game"]},
-    {"key": "smart_flow", "label": "Smart Flow", "path": "/smart-flow", "prefixes": ["/smart-flow", "/api/smart-flow", "/smart-flow/load", "/api/employees", "/settings", "/employees", "/funcoes", "/relatorio-avaliacao-motorista", "/lider", "/api/lider"]},
-    {"key": "checklist_admin", "label": "Checklists Operacionais", "path": "/admin/routine/checklists", "prefixes": ["/admin/routine/checklists", "/api/routine/checklists"]},
-    {"key": "ops_performance", "label": "Avaliacao Operacional", "path": "/operations/performance", "prefixes": ["/operations/performance", "/operations/performance/analysis", "/rankings", "/api/rankings", "/gamificacao/entregas"]}
+    {"key": "lider", "label": "Líder", "path": "/smart-flow", "prefixes": ["/smart-flow", "/api/smart-flow", "/smart-flow/load", "/lider", "/api/lider"]},
+    {"key": "gerente", "label": "Gerente", "path": "/gm/ordens-servico", "prefixes": ["/gm", "/api/gm"]},
+    {"key": "processos", "label": "Processos", "path": "/separacao", "prefixes": ["/separacao", "/devolucoes", "/operational/history"]},
+    {"key": "rotinas", "label": "Rotinas & Checklists", "path": "/admin/routine/checklists", "prefixes": ["/admin/routine/checklists", "/api/routine/checklists"]},
+    {"key": "oficina", "label": "Oficina", "path": "/vehicles", "prefixes": ["/vehicles", "/admin/equipment/tickets"]},
+    {"key": "cadastros", "label": "Cadastros", "path": "/clients", "prefixes": ["/clients", "/employees", "/funcoes", "/api/employees"]},
+    {"key": "pessoas", "label": "Pessoas & RH", "path": "/people-intelligence", "prefixes": ["/people-intelligence", "/admin/turnover-analysis"]},
+    {"key": "bi", "label": "BI & Métricas", "path": "/strategy", "prefixes": ["/strategy", "/relatorio-avaliacao-motorista", "/bi", "/operations/performance", "/operations/performance/analysis", "/rankings", "/api/rankings", "/gamificacao/entregas"]},
+    {"key": "sistema", "label": "Sistema", "path": "/admin/users", "prefixes": ["/admin/users", "/admin/substitutions", "/mobile/login", "/settings"]},
+    {"key": "admin_game", "label": "Game Master", "path": "/admin/game", "prefixes": ["/admin/game", "/api/game"]}
 ]
 PAGE_KEYS = {p["key"] for p in PAGE_OPTIONS}
 
@@ -2262,6 +2287,40 @@ async def dashboard_entry(
     live_separation = list(live_buckets.values())
     live_separation.sort(key=lambda x: len(x["routes"]), reverse=True)
 
+    # Alertas tempo real: clientes com parada iniciada há mais de 20 minutos (só rotas iniciadas via mobile)
+    alerts_clients_over_20min = []
+    for r in routes:
+        if (r.delivery_status or "").lower() != "iniciada" or r.driver_lat_start is None:
+            continue
+        started_at_str = r.delivery_started_at or r.start_time
+        if not started_at_str or started_at_str.strip() in ("", "00:00"):
+            continue
+        try:
+            parts = str(started_at_str).strip().split(":")
+            h, m = int(parts[0]), int(parts[1]) if len(parts) > 1 else 0
+            started_dt = datetime(
+                selected_date.year, selected_date.month, selected_date.day, h, m, 0,
+                tzinfo=ZoneInfo("America/Sao_Paulo"),
+            )
+            elapsed_seconds = (now_br - started_dt).total_seconds()
+            elapsed_mins = int(elapsed_seconds // 60)
+            if elapsed_mins < 20:
+                continue
+            client_name = (client_by_id.get(r.client_id).name if client_by_id.get(r.client_id) else None) or f"Cliente #{r.client_id}"
+            emp = employee_by_id.get(r.employee_id)
+            driver_name = emp.name if emp else f"Motorista #{r.employee_id}"
+            alerts_clients_over_20min.append({
+                "client_name": client_name,
+                "driver_name": driver_name,
+                "minutes": elapsed_mins,
+                "route_id": r.id,
+                "started_at": started_at_str,
+                "plate": (r.delivery_vehicle_plate or "").strip() or None,
+            })
+        except Exception:
+            continue
+    alerts_clients_over_20min.sort(key=lambda x: -x["minutes"])
+
     selected_headcount = sum(1 for e in employees if (e.status or "").lower() not in {"away", "vacation", "sick", "day_off"})
     selected_target = selected_headcount
 
@@ -2278,6 +2337,7 @@ async def dashboard_entry(
             "ausentes": ausentes,
             "atestados": atestados,
             "vacations_upcoming": upcoming_vacation,
+            "clients_over_20min": alerts_clients_over_20min,
         },
         "hr": {
             "birthdays": birthdays,
@@ -2297,6 +2357,78 @@ async def dashboard_entry(
             "current_date": selected_date_str,
         },
     )
+
+
+@app.get("/api/dashboard/alerts-over-20min", response_class=JSONResponse)
+async def api_dashboard_alerts_over_20min(
+    request: Request,
+    date_ref: Optional[str] = None,
+    cost_center: Optional[str] = None,
+    session: Session = Depends(get_session),
+):
+    """Retorna clientes com parada iniciada há mais de 20 minutos (tempo real, para polling)."""
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "Não autorizado"}, status_code=401)
+    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    selected_date = now_br.date()
+    if date_ref:
+        try:
+            selected_date = datetime.strptime(date_ref, "%Y-%m-%d").date()
+        except Exception:
+            pass
+    selected_date_str = selected_date.strftime("%Y-%m-%d")
+    selected_cc = parse_cost_center_filter(cost_center)
+    employees_all = session.exec(
+        select(models.Employee).where(models.Employee.status != "fired")
+    ).all()
+    employees = [e for e in employees_all if employee_matches_cost_center(e, selected_cc)]
+    employee_ids = {e.id for e in employees if e.id is not None}
+    if not employee_ids:
+        return JSONResponse({"items": [], "date": selected_date_str})
+    routes = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date == selected_date_str)
+        .where(models.Route.employee_id.in_(list(employee_ids)))
+    ).all()
+    client_ids = list({r.client_id for r in routes if r.client_id is not None})
+    clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
+    client_by_id = {c.id: c for c in clients if c.id is not None}
+    employee_by_id = {e.id: e for e in employees if e.id is not None}
+    out = []
+    for r in routes:
+        if (r.delivery_status or "").lower() != "iniciada" or r.driver_lat_start is None:
+            continue
+        started_at_str = r.delivery_started_at or r.start_time
+        if not started_at_str or started_at_str.strip() in ("", "00:00"):
+            continue
+        try:
+            parts = str(started_at_str).strip().split(":")
+            h, m = int(parts[0]), int(parts[1]) if len(parts) > 1 else 0
+            started_dt = datetime(
+                selected_date.year, selected_date.month, selected_date.day, h, m, 0,
+                tzinfo=ZoneInfo("America/Sao_Paulo"),
+            )
+            elapsed_seconds = (now_br - started_dt).total_seconds()
+            elapsed_mins = int(elapsed_seconds // 60)
+            if elapsed_mins < 20:
+                continue
+            client_name = (client_by_id.get(r.client_id).name if client_by_id.get(r.client_id) else None) or f"Cliente #{r.client_id}"
+            emp = employee_by_id.get(r.employee_id)
+            driver_name = emp.name if emp else f"Motorista #{r.employee_id}"
+            out.append({
+                "client_name": client_name,
+                "driver_name": driver_name,
+                "minutes": elapsed_mins,
+                "route_id": r.id,
+                "started_at": started_at_str,
+                "plate": (r.delivery_vehicle_plate or "").strip() or None,
+            })
+        except Exception:
+            continue
+    out.sort(key=lambda x: -x["minutes"])
+    return JSONResponse({"items": out, "date": selected_date_str})
 
 
 @app.get("/login", response_class=HTMLResponse)
@@ -8878,6 +9010,51 @@ async def vehicles_page(request: Request, session: Session = Depends(get_session
     )
 
 
+@app.get("/vehicles/odometer", response_class=HTMLResponse)
+async def vehicles_odometer_page(request: Request, session: Session = Depends(get_session)):
+    """Visão de frota focada em KM atual (somente leitura, acesso ao histórico)."""
+    user = require_login(request)
+    vehicles = session.exec(select(models.Vehicle).order_by(models.Vehicle.placa)).all()
+    total = len(vehicles)
+    by_type = {"caminhao": 0, "moto": 0, "carro": 0}
+    for v in vehicles:
+        t = (v.vehicle_type or "").lower()
+        if t in by_type:
+            by_type[t] += 1
+    pct_c = round(100 * by_type["caminhao"] / total, 1) if total else 0
+    pct_m = round(100 * by_type["moto"] / total, 1) if total else 0
+    pct_r = round(100 * by_type["carro"] / total, 1) if total else 0
+    stats = {
+        "total": total,
+        "caminhao_count": by_type["caminhao"],
+        "moto_count": by_type["moto"],
+        "carro_count": by_type["carro"],
+        "caminhao_pct": pct_c,
+        "moto_pct": pct_m,
+        "carro_pct": pct_r,
+    }
+    def deg2xy(deg):
+        rad = math.radians(deg - 90)
+        return (50 + 40 * math.cos(rad), 50 + 40 * math.sin(rad))
+    a0, a1 = 0, 360 * (by_type["caminhao"] / total) if total else 0
+    a2 = a1 + 360 * (by_type["moto"] / total) if total else 0
+    pie_slices = []
+    for (start, end, fill, label, count, pct) in [
+        (a0, a1, "#f59e0b", "Caminhões", by_type["caminhao"], pct_c),
+        (a1, a2, "#10b981", "Motos", by_type["moto"], pct_m),
+        (a2, 360, "#3b82f6", "Carros", by_type["carro"], pct_r),
+    ]:
+        x1, y1 = deg2xy(start)
+        x2, y2 = deg2xy(end)
+        large = 1 if (end - start) > 180 else 0
+        d = f"M 50 50 L {x1:.2f} {y1:.2f} A 40 40 0 {large} 1 {x2:.2f} {y2:.2f} Z"
+        pie_slices.append({"d": d, "fill": fill, "title": f"{label}: {count} ({pct}%)"})
+    return templates.TemplateResponse(
+        "vehicles_odometer.html",
+        {"request": request, "user": user, "vehicles": vehicles, "stats": stats, "pie_slices": pie_slices}
+    )
+
+
 @app.get("/vehicles/new", response_class=HTMLResponse)
 async def vehicle_new_page(request: Request, session: Session = Depends(get_session)):
     user = require_login(request)
@@ -11079,8 +11256,10 @@ async def reassign_delivery_stop(
         feedback_encoded = urlencode({"delivery_feedback": err, "delivery_feedback_level": "error"})
         return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
 
+    old_employee_id = route.employee_id
     route.employee_id = new_employee_id
     route.delivery_vehicle_plate = new_vehicle_plate
+    _transfer_route_xp_on_driver_change(session, route, old_employee_id, new_employee_id)
     session.add(route)
     session.commit()
 
@@ -11150,9 +11329,11 @@ async def reassign_delivery_group(
         return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
 
     for r in rows:
+        old_eid = r.employee_id
         r.employee_id = new_employee_id
         r.delivery_vehicle_plate = new_vehicle_plate
         r.delivery_helpers_json = helpers_json
+        _transfer_route_xp_on_driver_change(session, r, old_eid, new_employee_id)
         session.add(r)
     session.commit()
 
@@ -11662,6 +11843,28 @@ async def delivery_bulk_action(
     return RedirectResponse(url=redirect_base + f"&{feedback_encoded}", status_code=303)
 
 
+def _transfer_route_xp_on_driver_change(
+    session: Session,
+    route: models.Route,
+    old_employee_id: int,
+    new_employee_id: int,
+) -> None:
+    """Troca de motorista: descontar XP do antigo e creditar no novo (não acumular)."""
+    if old_employee_id == new_employee_id:
+        return
+    t = float(route.tonnage or 0)
+    if t <= 0 or not route.end_time or (route.status or "").lower() != "completed":
+        return
+    old_emp = session.get(models.Employee, old_employee_id)
+    new_emp = session.get(models.Employee, new_employee_id)
+    if old_emp and old_emp.total_xp is not None and old_emp.total_xp >= t:
+        old_emp.total_xp -= t
+        session.add(old_emp)
+    if new_emp:
+        new_emp.total_xp = (new_emp.total_xp or 0) + t
+        session.add(new_emp)
+
+
 @app.post("/separacao/update", response_class=RedirectResponse)
 async def update_separacao(
     request: Request,
@@ -11683,8 +11886,12 @@ async def update_separacao(
                  return RedirectResponse(url=f"/separacao?date={route.date}&shift={route.shift}", status_code=status.HTTP_303_SEE_OTHER)
 
         old_status = route.status
-        
-        if employee_id is not None: route.employee_id = employee_id
+        old_employee_id = route.employee_id
+
+        if employee_id is not None:
+            if old_employee_id != employee_id:
+                _transfer_route_xp_on_driver_change(session, route, old_employee_id, employee_id)
+            route.employee_id = employee_id
         if client_id is not None: route.client_id = client_id
         if start_time is not None: route.start_time = start_time
         # end_time só vem do mobile; edição via web não cria horário

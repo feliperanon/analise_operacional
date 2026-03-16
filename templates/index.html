@@ -165,6 +165,49 @@
             </div>
         </div>
 
+        <!-- Alertas tempo real: clientes há mais de 20 min na parada -->
+        <div id="alerts-over-20min-card" class="bg-amber-950/40 backdrop-blur rounded-2xl border border-amber-500/40 overflow-hidden"
+            data-date="{{ current_date }}"
+            data-cost-center="{{ current_cost_center|e }}">
+            <div class="p-4 border-b border-amber-500/30 flex items-center justify-between gap-4 flex-wrap">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="clock-alert" class="w-5 h-5 text-amber-400"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-wider text-amber-300/90">Tempo real</p>
+                        <p class="text-sm font-semibold text-white">Clientes há mais de 20 min na parada</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="alerts-over-20min-count" class="px-3 py-1 rounded-full text-sm font-bold bg-amber-500/20 text-amber-200">{{ (dashboard.alerts.clients_over_20min or [])|length }}</span>
+                    <span class="text-[10px] text-slate-500 uppercase tracking-wider">atualiza a cada 30s</span>
+                </div>
+            </div>
+            <div id="alerts-over-20min-body" class="p-4">
+                {% if dashboard.alerts.clients_over_20min %}
+                <ul class="space-y-2 max-h-52 overflow-y-auto custom-scrollbar" id="alerts-over-20min-list">
+                    {% for a in dashboard.alerts.clients_over_20min %}
+                    <li class="flex items-center justify-between gap-3 py-2.5 px-3 rounded-xl bg-slate-900/60 border border-amber-500/20">
+                        <div class="min-w-0 flex-1">
+                            <p class="text-sm font-semibold text-white truncate">{{ a.client_name }}</p>
+                            <p class="text-xs text-slate-400">Motorista: {{ a.driver_name }}{% if a.plate %} · {{ a.plate }}{% endif %}</p>
+                        </div>
+                        <div class="flex-shrink-0 text-right">
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/25 text-amber-200 font-bold text-sm">{{ a.minutes }} min</span>
+                            <p class="text-[10px] text-slate-500 mt-0.5">desde {{ a.started_at }}</p>
+                        </div>
+                        <a href="/separacao?date={{ current_date }}&shift=Manhã" class="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-700 hover:bg-amber-600 text-slate-200 hover:text-white text-xs font-medium transition-colors" title="Ver separação">Ver</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p id="alerts-over-20min-empty" class="text-sm text-slate-500 py-4 text-center">Nenhum cliente há mais de 20 min na parada no momento.</p>
+                <ul id="alerts-over-20min-list" class="space-y-2 max-h-52 overflow-y-auto custom-scrollbar hidden"></ul>
+                {% endif %}
+            </div>
+        </div>
+
         <!-- 2. DASHBOARD CARDS -->
         <div class="grid grid-cols-1 gap-6">
 
@@ -523,10 +566,50 @@
         // Dashboard usa Empresa/Centro de Custo - indicador de turno mantido no relogio
     }
 
+    // Alertas clientes >20 min: polling em tempo real
+    function fetchAlertsOver20Min() {
+        var card = document.getElementById('alerts-over-20min-card');
+        if (!card) return;
+        var date = card.getAttribute('data-date');
+        var costCenter = card.getAttribute('data-cost-center') || '';
+        var url = '/api/dashboard/alerts-over-20min?date=' + encodeURIComponent(date);
+        if (costCenter) url += '&cost_center=' + encodeURIComponent(costCenter);
+        fetch(url, { credentials: 'same-origin' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var list = document.getElementById('alerts-over-20min-list');
+                var empty = document.getElementById('alerts-over-20min-empty');
+                var countEl = document.getElementById('alerts-over-20min-count');
+                var items = (data && data.items) ? data.items : [];
+                if (countEl) countEl.textContent = items.length;
+                if (empty) {
+                    empty.classList.toggle('hidden', items.length > 0);
+                    empty.style.display = items.length > 0 ? 'none' : 'block';
+                }
+                if (list) {
+                    list.classList.toggle('hidden', items.length === 0);
+                    list.style.display = items.length > 0 ? 'block' : 'none';
+                    list.innerHTML = items.map(function(a) {
+                        var plate = a.plate ? ' · ' + a.plate : '';
+                        var verUrl = '/separacao?date=' + encodeURIComponent(data.date || date) + '&shift=Manhã';
+                        return '<li class="flex items-center justify-between gap-3 py-2.5 px-3 rounded-xl bg-slate-900/60 border border-amber-500/20">' +
+                            '<div class="min-w-0 flex-1"><p class="text-sm font-semibold text-white truncate">' + (a.client_name || '').replace(/</g, '&lt;') + '</p>' +
+                            '<p class="text-xs text-slate-400">Motorista: ' + (a.driver_name || '').replace(/</g, '&lt;') + plate + '</p></div>' +
+                            '<div class="flex-shrink-0 text-right"><span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/25 text-amber-200 font-bold text-sm">' + (a.minutes || 0) + ' min</span>' +
+                            '<p class="text-[10px] text-slate-500 mt-0.5">desde ' + (a.started_at || '') + '</p></div>' +
+                            '<a href="' + verUrl + '" class="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-700 hover:bg-amber-600 text-slate-200 hover:text-white text-xs font-medium transition-colors" title="Ver separação">Ver</a></li>';
+                    }).join('');
+                }
+            })
+            .catch(function() {});
+    }
+
     // Initialize
     document.addEventListener('DOMContentLoaded', function() {
         updateDashboardClock();
         setInterval(updateDashboardClock, 1000);
+        fetchAlertsOver20Min();
+        setInterval(fetchAlertsOver20Min, 30000);
     });
 
     // Auto-refresh every 30 seconds for live Pulse

@@ -121,6 +121,151 @@ def _week_bucket(date_str: Optional[str]) -> str:
         return "Sem semana"
 
 
+def _parse_hhmm_minutes(value: Optional[str]) -> Optional[int]:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        hh, mm = raw[:5].split(":")
+        return int(hh) * 60 + int(mm)
+    except Exception:
+        return None
+
+
+def _parse_client_window_range(window: Optional[str]) -> tuple[Optional[int], Optional[int]]:
+    raw = str(window or "").strip()
+    if not raw or raw.lower().startswith("sem janela"):
+        return (None, None)
+    parts = raw.split(" - ", 1) if " - " in raw else raw.split("-", 1)
+    if len(parts) != 2:
+        return (None, None)
+    return (_parse_hhmm_minutes(parts[0]), _parse_hhmm_minutes(parts[1]))
+
+
+def _time_is_within_window(value: Optional[str], start_m: Optional[int], end_m: Optional[int]) -> Optional[bool]:
+    visit_m = _parse_hhmm_minutes(value)
+    if visit_m is None or start_m is None or end_m is None:
+        return None
+    if end_m >= start_m:
+        return start_m <= visit_m <= end_m
+    return visit_m >= start_m or visit_m <= end_m
+
+
+def _aggregate_bi_client_rows(rows: list[dict]) -> dict[str, dict]:
+    client_agg: dict[str, dict] = {}
+
+    for row in rows:
+        row_client_id = row.get("client_id")
+        row_client_name = str(row.get("client_name") or "").strip() or "Sem Cliente"
+        key = f"id:{row_client_id}" if row_client_id is not None else f"name:{row_client_name.lower()}"
+        source = str(row.get("source") or "ROTA").strip().upper()
+        status_row = _norm_text(row.get("status"))
+        duration_m = row.get("duration_m")
+        duration_value = float(duration_m or 0.0) if duration_m is not None else 0.0
+        planned_value = float(row.get("planned_value") or 0.0)
+        delivered_value = float(row.get("delivered_value") or 0.0)
+        returned_value = float(row.get("returned_value") or 0.0)
+        returned_kg = float(row.get("returned_kg") or 0.0)
+        reopen_count = int(row.get("reopen_count") or 0)
+        driver_name = str(row.get("driver_name") or "-").strip() or "-"
+        motivo = str(row.get("motivo") or "Não informado").strip() or "Não informado"
+        responsabilidade = str(row.get("responsabilidade") or "Não informado").strip() or "Não informado"
+        week_key = _week_bucket(row.get("date"))
+        window_label = str(row.get("client_window") or "").strip() or "Sem janela"
+        visit_time = str(row.get("visit_time") or "").strip()
+
+        bucket = client_agg.setdefault(
+            key,
+            {
+                "client_id": row_client_id,
+                "client_key": key,
+                "client_name": row_client_name,
+                "city": str(row.get("client_city") or "").strip() or "Sem cidade",
+                "bairro": str(row.get("client_bairro") or "").strip() or "Sem bairro",
+                "segmento": str(row.get("client_segmento") or "").strip() or "Sem segmento",
+                "prioridade": str(row.get("client_prioridade") or "").strip().upper() or "Sem prioridade",
+                "status_operacional": str(row.get("client_status_operacional") or "").strip() or "Sem status",
+                "status_cadastro": str(row.get("client_status_cadastro") or "").strip() or "Sem cadastro",
+                "address": str(row.get("client_address") or "").strip() or "Endereço não informado",
+                "window": window_label,
+                "visits": 0,
+                "delivered_visits": 0,
+                "open_visits": 0,
+                "returned_occurrences": 0,
+                "planned_value": 0.0,
+                "delivered_value": 0.0,
+                "returned_value": 0.0,
+                "returned_kg": 0.0,
+                "manual_returned_value": 0.0,
+                "total_duration_m": 0.0,
+                "duration_count": 0,
+                "reopen_count": 0,
+                "window_checks": 0,
+                "window_hits": 0,
+                "window_misses": 0,
+                "weeks": {},
+                "drivers": {},
+                "motivos": {},
+                "responsabilidades": {},
+                "latest_date": str(row.get("date") or ""),
+            },
+        )
+
+        if str(row.get("date") or "") > bucket["latest_date"]:
+            bucket["latest_date"] = str(row.get("date") or "")
+
+        if source == "ROTA":
+            bucket["visits"] += 1
+            bucket["planned_value"] += planned_value
+            bucket["delivered_value"] += delivered_value
+            bucket["weeks"][week_key] = bucket["weeks"].get(week_key, 0) + 1
+        else:
+            bucket["manual_returned_value"] += returned_value
+
+        driver_bucket = bucket["drivers"].setdefault(
+            driver_name,
+            {"visits": 0, "duration_m": 0.0, "returned_value": 0.0, "returns": 0},
+        )
+        if source == "ROTA":
+            driver_bucket["visits"] += 1
+        if duration_m is not None:
+            bucket["total_duration_m"] += duration_value
+            bucket["duration_count"] += 1
+            driver_bucket["duration_m"] += duration_value
+        if reopen_count:
+            bucket["reopen_count"] += reopen_count
+
+        if source == "ROTA" and visit_time:
+            window_start_m, window_end_m = _parse_client_window_range(bucket["window"])
+            window_match = _time_is_within_window(visit_time, window_start_m, window_end_m)
+            if window_match is not None:
+                bucket["window_checks"] += 1
+                if window_match:
+                    bucket["window_hits"] += 1
+                else:
+                    bucket["window_misses"] += 1
+
+        if status_row == "entregue":
+            bucket["delivered_visits"] += 1
+        elif status_row in {"pendente", "iniciada", "reaberta", "cancelada"}:
+            bucket["open_visits"] += 1
+
+        if status_row == "devolucao":
+            bucket["returned_occurrences"] += 1
+            bucket["returned_value"] += returned_value
+            bucket["returned_kg"] += returned_kg
+            driver_bucket["returned_value"] += returned_value
+            driver_bucket["returns"] += 1
+            motivo_bucket = bucket["motivos"].setdefault(motivo, {"count": 0, "value": 0.0})
+            motivo_bucket["count"] += 1
+            motivo_bucket["value"] += returned_value
+            resp_bucket = bucket["responsabilidades"].setdefault(responsabilidade, {"count": 0, "value": 0.0})
+            resp_bucket["count"] += 1
+            resp_bucket["value"] += returned_value
+
+    return client_agg
+
+
 def _ma(vals: list[float], w: int) -> list[Optional[float]]:
     out: list[Optional[float]] = []
     for i in range(len(vals)):
@@ -223,6 +368,12 @@ def _build_bi_delivery_dataset(
             sb += 24 * 60
         return max(0, sb - sa)
 
+    def _fallback_route_time(value: Optional[str]) -> Optional[str]:
+        raw = str(value or "").strip()
+        if not raw or raw in {"00:00", "0:00"}:
+            return None
+        return raw
+
     def _pct(numerator: float, denominator: float) -> float:
         """Percentual seguro sem divisor artificial."""
         den = float(denominator or 0.0)
@@ -283,9 +434,11 @@ def _build_bi_delivery_dataset(
         ret_v = float(r.valor_devolucao if r.valor_devolucao is not None else (planned_v if status_raw == "devolucao" else 0.0))
         del_w = max(0.0, planned_w - ret_w) if status_raw == "devolucao" else (planned_w if status_raw == "entregue" else 0.0)
         del_v = max(0.0, planned_v - ret_v) if status_raw == "devolucao" else (planned_v if status_raw == "entregue" else 0.0)
-        # Duração só conta quando a rota foi iniciada/finalizada via mobile (driver_lat_start indica app)
-        _has_mobile_time = r.driver_lat_start is not None
-        dur = _dur(r.delivery_started_at or r.start_time, r.delivery_finished_at or r.end_time) if _has_mobile_time else None
+        # Para BI tático, usa qualquer horário operacional consistente disponível.
+        start_ref = (r.delivery_started_at or "").strip() or _fallback_route_time(r.start_time)
+        end_ref = (r.delivery_finished_at or "").strip() or _fallback_route_time(r.end_time)
+        _has_operational_time = bool(start_ref and end_ref)
+        dur = _dur(start_ref, end_ref) if _has_operational_time else None
 
         planned_kg += planned_w
         planned_value += planned_v
@@ -295,7 +448,7 @@ def _build_bi_delivery_dataset(
             realized_stops += 1
             realized_kg += del_w
             realized_value += del_v
-            if dur is not None and _has_mobile_time:
+            if dur is not None:
                 dur_list.append(dur)
         if status_raw == "devolucao":
             returned_kg += ret_w
@@ -335,7 +488,7 @@ def _build_bi_delivery_dataset(
             b["returned_stops"] += 1
             b["returned_kg"] += ret_w
             b["returned_value"] += ret_v
-        if dur is not None and _has_mobile_time:
+        if dur is not None:
             b["durations"].append(dur)
 
         client_city = (getattr(cli, "municipio", None) or r.delivery_city or "").strip() if cli or r.delivery_city else ""
@@ -352,7 +505,7 @@ def _build_bi_delivery_dataset(
         client_window = ""
         if cli and getattr(cli, "janela_horario_inicio", None) and getattr(cli, "janela_horario_fim", None):
             client_window = f"{cli.janela_horario_inicio} - {cli.janela_horario_fim}"
-        row = {"route_id": r.id, "date": r.date, "shift": r.shift, "driver_id": r.employee_id, "driver_name": driver, "client_id": r.client_id, "client_name": client, "client_city": client_city, "client_bairro": client_bairro, "client_segmento": client_segmento, "client_prioridade": client_prioridade, "client_status_operacional": client_status_operacional, "client_status_cadastro": client_status_cadastro, "client_address": client_address, "client_window": client_window, "status": status_raw, "planned_kg": round(planned_w, 2), "planned_value": round(planned_v, 2), "delivered_kg": round(del_w, 2), "delivered_value": round(del_v, 2), "returned_kg": round(ret_w if status_raw == "devolucao" else 0.0, 2), "returned_value": round(ret_v if status_raw == "devolucao" else 0.0, 2), "reopen_count": r.delivery_reopen_count or 0, "duration_m": dur, "plate": (r.delivery_vehicle_plate or "-").upper(), "order_number": r.delivery_order_number or "-", "motivo": r.delivery_return_reason or "-", "responsabilidade": r.delivery_return_category or "-", "cluster": "Sem Cluster", "acima_300": ("SIM" if ret_v >= 300 and status_raw == "devolucao" else "NAO"), "source": "ROTA", "possible_duplicate": False}
+        row = {"route_id": r.id, "date": r.date, "shift": r.shift, "driver_id": r.employee_id, "driver_name": driver, "client_id": r.client_id, "client_name": client, "client_city": client_city, "client_bairro": client_bairro, "client_segmento": client_segmento, "client_prioridade": client_prioridade, "client_status_operacional": client_status_operacional, "client_status_cadastro": client_status_cadastro, "client_address": client_address, "client_window": client_window, "visit_time": (start_ref or ""), "status": status_raw, "planned_kg": round(planned_w, 2), "planned_value": round(planned_v, 2), "delivered_kg": round(del_w, 2), "delivered_value": round(del_v, 2), "returned_kg": round(ret_w if status_raw == "devolucao" else 0.0, 2), "returned_value": round(ret_v if status_raw == "devolucao" else 0.0, 2), "reopen_count": r.delivery_reopen_count or 0, "duration_m": dur, "plate": (r.delivery_vehicle_plate or "-").upper(), "order_number": r.delivery_order_number or "-", "motivo": r.delivery_return_reason or "-", "responsabilidade": r.delivery_return_category or "-", "cluster": "Sem Cluster", "acima_300": ("SIM" if ret_v >= 300 and status_raw == "devolucao" else "NAO"), "source": "ROTA", "possible_duplicate": False}
         route_rows.append(row)
         score = (55 if status_raw == "devolucao" else 20 if status_raw == "iniciada" else 25 if status_raw in ("pendente", "reaberta") else 0) + min(20, (r.delivery_reopen_count or 0) * 6) + (10 if (dur or 0) > 120 else 0) + (8 if planned_w >= 500 else 0)
         if score >= 30:
@@ -383,7 +536,7 @@ def _build_bi_delivery_dataset(
             per_driver[driver]["returned_stops"] += 1
             per_driver[driver]["returned_value"] += ret_v
             per_driver[driver]["manual_returned_value"] += ret_v
-        route_rows.append({"route_id": -d.id, "date": d.data_romaneio, "shift": "-", "driver_id": d.motorista_id, "driver_name": driver, "client_id": d.client_id, "client_name": client, "client_city": (getattr(cli_map.get(d.client_id), "municipio", None) or "").strip() if cli_map.get(d.client_id) else "", "client_bairro": (getattr(cli_map.get(d.client_id), "bairro", None) or "").strip() if cli_map.get(d.client_id) else "", "client_segmento": (getattr(cli_map.get(d.client_id), "segmento", None) or "").strip() if cli_map.get(d.client_id) else "", "client_prioridade": (getattr(cli_map.get(d.client_id), "prioridade_logistica", None) or "").strip() if cli_map.get(d.client_id) else "", "client_status_operacional": (getattr(cli_map.get(d.client_id), "status_operacional", None) or "").strip() if cli_map.get(d.client_id) else "", "client_status_cadastro": (getattr(cli_map.get(d.client_id), "status_cliente", None) or "").strip() if cli_map.get(d.client_id) else "", "client_address": (cli_map.get(d.client_id).get_full_address() or cli_map.get(d.client_id).endereco or "").strip() if cli_map.get(d.client_id) else "", "client_window": (f"{cli_map.get(d.client_id).janela_horario_inicio} - {cli_map.get(d.client_id).janela_horario_fim}" if cli_map.get(d.client_id) and getattr(cli_map.get(d.client_id), "janela_horario_inicio", None) and getattr(cli_map.get(d.client_id), "janela_horario_fim", None) else ""), "status": "devolucao", "planned_kg": 0.0, "planned_value": 0.0, "delivered_kg": 0.0, "delivered_value": 0.0, "returned_kg": 0.0, "returned_value": round(ret_v, 2), "reopen_count": 0, "duration_m": None, "plate": "-", "order_number": f"Man. {d.id}", "motivo": motivo, "responsabilidade": resp, "cluster": cluster, "acima_300": above, "source": "MANUAL", "possible_duplicate": is_possible_dup})
+        route_rows.append({"route_id": -d.id, "date": d.data_romaneio, "shift": "-", "driver_id": d.motorista_id, "driver_name": driver, "client_id": d.client_id, "client_name": client, "client_city": (getattr(cli_map.get(d.client_id), "municipio", None) or "").strip() if cli_map.get(d.client_id) else "", "client_bairro": (getattr(cli_map.get(d.client_id), "bairro", None) or "").strip() if cli_map.get(d.client_id) else "", "client_segmento": (getattr(cli_map.get(d.client_id), "segmento", None) or "").strip() if cli_map.get(d.client_id) else "", "client_prioridade": (getattr(cli_map.get(d.client_id), "prioridade_logistica", None) or "").strip() if cli_map.get(d.client_id) else "", "client_status_operacional": (getattr(cli_map.get(d.client_id), "status_operacional", None) or "").strip() if cli_map.get(d.client_id) else "", "client_status_cadastro": (getattr(cli_map.get(d.client_id), "status_cliente", None) or "").strip() if cli_map.get(d.client_id) else "", "client_address": (cli_map.get(d.client_id).get_full_address() or cli_map.get(d.client_id).endereco or "").strip() if cli_map.get(d.client_id) else "", "client_window": (f"{cli_map.get(d.client_id).janela_horario_inicio} - {cli_map.get(d.client_id).janela_horario_fim}" if cli_map.get(d.client_id) and getattr(cli_map.get(d.client_id), "janela_horario_inicio", None) and getattr(cli_map.get(d.client_id), "janela_horario_fim", None) else ""), "visit_time": "", "status": "devolucao", "planned_kg": 0.0, "planned_value": 0.0, "delivered_kg": 0.0, "delivered_value": 0.0, "returned_kg": 0.0, "returned_value": round(ret_v, 2), "reopen_count": 0, "duration_m": None, "plate": "-", "order_number": f"Man. {d.id}", "motivo": motivo, "responsabilidade": resp, "cluster": cluster, "acima_300": above, "source": "MANUAL", "possible_duplicate": is_possible_dup})
         if not is_possible_dup:
             ex_rows.append({"score": 55, "date": d.data_romaneio, "shift": "-", "driver_name": driver, "driver_id": d.motorista_id, "client_name": client, "status": "devolucao", "planned_kg": 0.0, "planned_value": 0.0, "returned_kg": 0.0, "returned_value": round(ret_v, 2), "reopen_count": 0, "duration_m": None, "source": "MANUAL"})
 
@@ -832,27 +985,27 @@ def _build_bi_clientes_dataset(
         if row_client_status:
             client_statuses_filter.add(row_client_status)
 
-    filtered_rows = []
-    for row in base_rows:
-        row_client_id = row.get("client_id")
-        row_city = _norm_text(row.get("client_city"))
-        row_priority = str(row.get("client_prioridade") or "").strip().upper()
-        row_client_status = _norm_text(row.get("client_status_operacional"))
-        if client_id and row_client_id != client_id:
-            continue
-        if city_norm and row_city != city_norm:
-            continue
-        if priority_norm and row_priority != priority_norm:
-            continue
-        if client_status_norm and row_client_status != client_status_norm:
-            continue
-        filtered_rows.append(row)
+    def _apply_client_filters(rows: list[dict]) -> list[dict]:
+        filtered = []
+        for row in rows:
+            row_client_id = row.get("client_id")
+            row_city = _norm_text(row.get("client_city"))
+            row_priority = str(row.get("client_prioridade") or "").strip().upper()
+            row_client_status = _norm_text(row.get("client_status_operacional"))
+            if client_id and row_client_id != client_id:
+                continue
+            if city_norm and row_city != city_norm:
+                continue
+            if priority_norm and row_priority != priority_norm:
+                continue
+            if client_status_norm and row_client_status != client_status_norm:
+                continue
+            filtered.append(row)
+        return filtered
+
+    filtered_rows = _apply_client_filters(base_rows)
 
     detail_client_id = detail_client_id or client_id
-
-    def _safe_client_label(value: Optional[str]) -> str:
-        text = str(value or "").strip()
-        return text if text else "Sem Cliente"
 
     def _risk_label(score: int) -> tuple[str, str]:
         if score >= 70:
@@ -861,98 +1014,32 @@ def _build_bi_clientes_dataset(
             return ("Atenção", "warning")
         return ("Controlado", "success")
 
-    client_agg: dict[str, dict] = {}
-    for row in filtered_rows:
-        row_client_id = row.get("client_id")
-        row_client_name = _safe_client_label(row.get("client_name"))
-        key = f"id:{row_client_id}" if row_client_id is not None else f"name:{row_client_name.lower()}"
-        source = str(row.get("source") or "ROTA").strip().upper()
-        status_row = _norm_text(row.get("status"))
-        duration_m = row.get("duration_m")
-        duration_value = float(duration_m or 0.0) if duration_m is not None else 0.0
-        planned_value = float(row.get("planned_value") or 0.0)
-        delivered_value = float(row.get("delivered_value") or 0.0)
-        returned_value = float(row.get("returned_value") or 0.0)
-        returned_kg = float(row.get("returned_kg") or 0.0)
-        reopen_count = int(row.get("reopen_count") or 0)
-        driver_name = str(row.get("driver_name") or "-").strip() or "-"
-        motivo = str(row.get("motivo") or "Não informado").strip() or "Não informado"
-        responsabilidade = str(row.get("responsabilidade") or "Não informado").strip() or "Não informado"
-        week_key = _week_bucket(row.get("date"))
+    client_agg = _aggregate_bi_client_rows(filtered_rows)
 
-        bucket = client_agg.setdefault(
-            key,
-            {
-                "client_id": row_client_id,
-                "client_name": row_client_name,
-                "city": str(row.get("client_city") or "").strip() or "Sem cidade",
-                "bairro": str(row.get("client_bairro") or "").strip() or "Sem bairro",
-                "segmento": str(row.get("client_segmento") or "").strip() or "Sem segmento",
-                "prioridade": str(row.get("client_prioridade") or "").strip().upper() or "Sem prioridade",
-                "status_operacional": str(row.get("client_status_operacional") or "").strip() or "Sem status",
-                "status_cadastro": str(row.get("client_status_cadastro") or "").strip() or "Sem cadastro",
-                "address": str(row.get("client_address") or "").strip() or "Endereço não informado",
-                "window": str(row.get("client_window") or "").strip() or "Sem janela",
-                "visits": 0,
-                "delivered_visits": 0,
-                "open_visits": 0,
-                "returned_occurrences": 0,
-                "planned_value": 0.0,
-                "delivered_value": 0.0,
-                "returned_value": 0.0,
-                "returned_kg": 0.0,
-                "manual_returned_value": 0.0,
-                "total_duration_m": 0.0,
-                "duration_count": 0,
-                "reopen_count": 0,
-                "weeks": {},
-                "drivers": {},
-                "motivos": {},
-                "responsabilidades": {},
-                "latest_date": str(row.get("date") or ""),
-            },
-        )
+    filters_base = delivery_dataset.get("filters", {})
+    current_date_from = datetime.strptime(str(filters_base.get("date_from") or date_from), "%Y-%m-%d").date()
+    current_date_to = datetime.strptime(str(filters_base.get("date_to") or date_to), "%Y-%m-%d").date()
+    current_days = max(1, (current_date_to - current_date_from).days + 1)
+    previous_date_to = current_date_from - timedelta(days=1)
+    previous_date_from = previous_date_to - timedelta(days=current_days - 1)
+    previous_label = f"{_fmt_br_data(previous_date_from.strftime('%Y-%m-%d'))} a {_fmt_br_data(previous_date_to.strftime('%Y-%m-%d'))}"
+    current_label = f"{_fmt_br_data(current_date_from.strftime('%Y-%m-%d'))} a {_fmt_br_data(current_date_to.strftime('%Y-%m-%d'))}"
 
-        if str(row.get("date") or "") > bucket["latest_date"]:
-            bucket["latest_date"] = str(row.get("date") or "")
-        if source == "ROTA":
-            bucket["visits"] += 1
-            bucket["planned_value"] += planned_value
-            bucket["delivered_value"] += delivered_value
-            bucket["weeks"][week_key] = bucket["weeks"].get(week_key, 0) + 1
-        else:
-            bucket["manual_returned_value"] += returned_value
-
-        driver_bucket = bucket["drivers"].setdefault(driver_name, {"visits": 0, "duration_m": 0.0, "returned_value": 0.0, "returns": 0})
-        if source == "ROTA":
-            driver_bucket["visits"] += 1
-        if duration_m is not None:
-            bucket["total_duration_m"] += duration_value
-            bucket["duration_count"] += 1
-            driver_bucket["duration_m"] += duration_value
-        if reopen_count:
-            bucket["reopen_count"] += reopen_count
-
-        if status_row == "entregue":
-            bucket["delivered_visits"] += 1
-        elif status_row in {"pendente", "iniciada", "reaberta", "cancelada"}:
-            bucket["open_visits"] += 1
-
-        if status_row == "devolucao":
-            bucket["returned_occurrences"] += 1
-            bucket["returned_value"] += returned_value
-            bucket["returned_kg"] += returned_kg
-            driver_bucket["returned_value"] += returned_value
-            driver_bucket["returns"] += 1
-            motivo_bucket = bucket["motivos"].setdefault(motivo, {"count": 0, "value": 0.0})
-            motivo_bucket["count"] += 1
-            motivo_bucket["value"] += returned_value
-            resp_bucket = bucket["responsabilidades"].setdefault(responsabilidade, {"count": 0, "value": 0.0})
-            resp_bucket["count"] += 1
-            resp_bucket["value"] += returned_value
+    previous_delivery_dataset = _build_bi_delivery_dataset(
+        session=session,
+        date_from=previous_date_from.strftime("%Y-%m-%d"),
+        date_to=previous_date_to.strftime("%Y-%m-%d"),
+        shift=shift,
+        driver_id=driver_id,
+        plate=plate,
+        status=status,
+    )
+    previous_rows = _apply_client_filters(list(previous_delivery_dataset.get("all_route_rows", [])))
+    previous_client_agg = _aggregate_bi_client_rows(previous_rows)
 
     ranking_rows = []
     for item in client_agg.values():
+        previous_item = previous_client_agg.get(item["client_key"], {})
         weekly_peak = max(item["weeks"].values()) if item["weeks"] else 0
         weekly_avg = round(statistics.mean(item["weeks"].values()), 2) if item["weeks"] else 0.0
         avg_duration_m = round(item["total_duration_m"] / item["duration_count"], 1) if item["duration_count"] else 0.0
@@ -962,14 +1049,41 @@ def _build_bi_clientes_dataset(
         qty_den = item["visits"] if item["visits"] > 0 else item["returned_occurrences"]
         return_rate_qtd = round(_safe_pct(item["returned_occurrences"], qty_den), 2)
         return_rate_value = round(_safe_pct(item["returned_value"], financial_base if financial_base > 0 else item["returned_value"]), 2)
+
+        prev_financial_base = float(previous_item.get("planned_value", 0.0) or 0.0) + float(previous_item.get("manual_returned_value", 0.0) or 0.0)
+        if prev_financial_base <= 0:
+            prev_financial_base = float(previous_item.get("delivered_value", 0.0) or 0.0) + float(previous_item.get("returned_value", 0.0) or 0.0)
+        prev_visits = int(previous_item.get("visits", 0) or 0)
+        prev_returns = int(previous_item.get("returned_occurrences", 0) or 0)
+        prev_returned_value = round(float(previous_item.get("returned_value", 0.0) or 0.0), 2)
+        has_previous_data = bool(prev_visits or prev_returns or prev_financial_base > 0 or prev_returned_value > 0)
+        prev_qty_den = prev_visits if prev_visits > 0 else prev_returns
+        prev_return_rate_qtd = round(_safe_pct(prev_returns, prev_qty_den), 2) if has_previous_data else 0.0
+        prev_return_rate_value = round(_safe_pct(prev_returned_value, prev_financial_base if prev_financial_base > 0 else prev_returned_value), 2) if has_previous_data else 0.0
+        delta_return_rate_value = round(return_rate_value - prev_return_rate_value, 2)
+        delta_return_rate_qtd = round(return_rate_qtd - prev_return_rate_qtd, 2)
+        delta_returned_value = round(float(item["returned_value"] or 0.0) - prev_returned_value, 2)
+
         top_driver_name = "-"
         top_driver_visits = 0
+        top_driver_return_name = "-"
+        top_driver_return_value = 0.0
+        top_driver_return_share = 0.0
         if item["drivers"]:
             top_driver_name, top_driver_data = max(
                 item["drivers"].items(),
                 key=lambda kv: (kv[1].get("visits", 0), kv[1].get("returned_value", 0.0), kv[1].get("duration_m", 0.0)),
             )
             top_driver_visits = int(top_driver_data.get("visits", 0) or 0)
+            if float(item["returned_value"] or 0.0) > 0:
+                top_driver_return_name, top_driver_return_data = max(
+                    item["drivers"].items(),
+                    key=lambda kv: (kv[1].get("returned_value", 0.0), kv[1].get("returns", 0), kv[1].get("visits", 0)),
+                )
+                top_driver_return_value = round(float(top_driver_return_data.get("returned_value", 0.0) or 0.0), 2)
+                top_driver_return_share = round(_safe_pct(top_driver_return_value, item["returned_value"]), 2)
+            else:
+                top_driver_return_name = top_driver_name
         top_motivo_name = "-"
         top_motivo_count = 0
         if item["motivos"]:
@@ -979,11 +1093,21 @@ def _build_bi_clientes_dataset(
             )
             top_motivo_count = int(top_motivo_data.get("count", 0) or 0)
         top_resp_name = "-"
+        top_resp_return_value = 0.0
+        top_resp_return_share = 0.0
         if item["responsabilidades"]:
-            top_resp_name = max(
+            top_resp_name, top_resp_data = max(
                 item["responsabilidades"].items(),
                 key=lambda kv: (kv[1].get("value", 0.0), kv[1].get("count", 0)),
-            )[0]
+            )
+            if float(item["returned_value"] or 0.0) > 0:
+                top_resp_return_value = round(float(top_resp_data.get("value", 0.0) or 0.0), 2)
+                top_resp_return_share = round(_safe_pct(top_resp_return_value, item["returned_value"]), 2)
+
+        window_checks = int(item.get("window_checks", 0) or 0)
+        window_hits = int(item.get("window_hits", 0) or 0)
+        window_misses = int(item.get("window_misses", 0) or 0)
+        window_adherence_pct = round(_safe_pct(window_hits, window_checks), 2) if window_checks > 0 else None
 
         risk_score = min(
             100,
@@ -1028,6 +1152,7 @@ def _build_bi_clientes_dataset(
                 "reopen_count": item["reopen_count"],
                 "top_driver_name": top_driver_name,
                 "top_driver_visits": top_driver_visits,
+                "top_driver_return_name": top_driver_return_name,
                 "top_motivo_name": top_motivo_name,
                 "top_motivo_count": top_motivo_count,
                 "top_responsabilidade_name": top_resp_name,
@@ -1035,6 +1160,21 @@ def _build_bi_clientes_dataset(
                 "risk_score": risk_score,
                 "risk_label": risk_label,
                 "risk_tone": risk_tone,
+                "has_previous_data": has_previous_data,
+                "previous_return_rate_qtd": prev_return_rate_qtd,
+                "previous_return_rate_value": prev_return_rate_value,
+                "previous_returned_value": prev_returned_value,
+                "delta_return_rate_qtd": delta_return_rate_qtd,
+                "delta_return_rate_value": delta_return_rate_value,
+                "delta_returned_value": delta_returned_value,
+                "window_checks": window_checks,
+                "window_hits": window_hits,
+                "window_misses": window_misses,
+                "window_adherence_pct": window_adherence_pct,
+                "top_driver_return_value": top_driver_return_value,
+                "top_driver_return_share": top_driver_return_share,
+                "top_responsabilidade_return_value": top_resp_return_value,
+                "top_responsabilidade_return_share": top_resp_return_share,
             }
         )
 
@@ -1057,6 +1197,30 @@ def _build_bi_clientes_dataset(
     top_pct_row = max(ranking_rows, key=lambda row: row.get("return_rate_value", 0.0), default=None)
     top_recurrence_row = max(ranking_rows, key=lambda row: row.get("returned_occurrences", 0), default=None)
     top_risk_row = ranking_rows[0] if ranking_rows else None
+    worsening_candidates = [row for row in ranking_rows if row.get("has_previous_data")]
+    top_worsening_row = max(
+        worsening_candidates,
+        key=lambda row: (row.get("delta_return_rate_value", 0.0), row.get("delta_returned_value", 0.0)),
+        default=None,
+    )
+    window_rows = [row for row in ranking_rows if (row.get("window_checks", 0) or 0) > 0]
+    top_window_risk_row = min(
+        window_rows,
+        key=lambda row: (row.get("window_adherence_pct", 100.0), -int(row.get("window_misses", 0) or 0)),
+        default=None,
+    )
+    driver_concentration_rows = [row for row in ranking_rows if (row.get("top_driver_return_share", 0.0) or 0.0) > 0]
+    top_driver_concentration_row = max(
+        driver_concentration_rows,
+        key=lambda row: (row.get("top_driver_return_share", 0.0), row.get("returned_value", 0.0)),
+        default=None,
+    )
+    resp_concentration_rows = [row for row in ranking_rows if (row.get("top_responsabilidade_return_share", 0.0) or 0.0) > 0]
+    top_resp_concentration_row = max(
+        resp_concentration_rows,
+        key=lambda row: (row.get("top_responsabilidade_return_share", 0.0), row.get("returned_value", 0.0)),
+        default=None,
+    )
 
     city_agg: dict[str, dict] = {}
     for row in ranking_rows:
@@ -1090,6 +1254,22 @@ def _build_bi_clientes_dataset(
         anomaly_flags.append(
             f"Concentração geográfica: {top_city_row['city']} representa {_fmt_br_1(top_city_share)}% das visitas filtradas."
         )
+    if top_worsening_row and top_worsening_row.get("delta_return_rate_value", 0.0) >= 1.0:
+        anomaly_flags.append(
+            f"Piora vs período anterior: {top_worsening_row['client_name']} subiu {_fmt_br_1(top_worsening_row['delta_return_rate_value'])} p.p. em devolução por valor."
+        )
+    if top_window_risk_row and (top_window_risk_row.get("window_adherence_pct") or 0.0) < 85:
+        anomaly_flags.append(
+            f"Janela crítica: {top_window_risk_row['client_name']} aderiu a {_fmt_br_1(top_window_risk_row['window_adherence_pct'])}% da janela ({top_window_risk_row['window_misses']} fora da janela)."
+        )
+    if top_driver_concentration_row and top_driver_concentration_row.get("top_driver_return_share", 0.0) >= 75:
+        anomaly_flags.append(
+            f"Concentração em motorista: {top_driver_concentration_row['client_name']} depende de {top_driver_concentration_row['top_driver_return_name']} em {_fmt_br_1(top_driver_concentration_row['top_driver_return_share'])}% do valor devolvido."
+        )
+    if top_resp_concentration_row and top_resp_concentration_row.get("top_responsabilidade_return_share", 0.0) >= 75:
+        anomaly_flags.append(
+            f"Concentração em responsabilidade: {top_resp_concentration_row['client_name']} concentra {_fmt_br_1(top_resp_concentration_row['top_responsabilidade_return_share'])}% do valor em {top_resp_concentration_row['top_responsabilidade_name']}."
+        )
     if not anomaly_flags:
         anomaly_flags.append("Sem concentração crítica de cliente no recorte selecionado.")
 
@@ -1113,6 +1293,22 @@ def _build_bi_clientes_dataset(
     if top_city_row and top_city_share >= 40:
         recommendations.append(
             f"Separar carteira por cidade em {top_city_row['city']} para reduzir concentração de rota e gargalo operacional."
+        )
+    if top_worsening_row and top_worsening_row.get("delta_return_rate_value", 0.0) >= 1.0:
+        recommendations.append(
+            f"Revisar o cliente {top_worsening_row['client_name']} contra o período anterior: foco em causa raiz, embalagem e conferência com {top_worsening_row['top_driver_name']}."
+        )
+    if top_window_risk_row and (top_window_risk_row.get("window_adherence_pct") or 0.0) < 90:
+        recommendations.append(
+            f"Negociar janela e sequência de atendimento de {top_window_risk_row['client_name']} para reduzir {top_window_risk_row['window_misses']} visita(s) fora da janela."
+        )
+    if top_driver_concentration_row and top_driver_concentration_row.get("top_driver_return_share", 0.0) >= 70:
+        recommendations.append(
+            f"Quebrar concentração de execução em {top_driver_concentration_row['client_name']}: hoje {top_driver_concentration_row['top_driver_return_name']} representa {_fmt_br_1(top_driver_concentration_row['top_driver_return_share'])}% do valor devolvido."
+        )
+    if top_resp_concentration_row and top_resp_concentration_row.get("top_responsabilidade_return_share", 0.0) >= 70:
+        recommendations.append(
+            f"Atacar a responsabilidade dominante em {top_resp_concentration_row['client_name']}: {top_resp_concentration_row['top_responsabilidade_name']} concentra {_fmt_br_1(top_resp_concentration_row['top_responsabilidade_return_share'])}%."
         )
     if not recommendations:
         recommendations.append("Operação de clientes sem alarme relevante no período; manter acompanhamento semanal.")
@@ -1150,6 +1346,37 @@ def _build_bi_clientes_dataset(
             "visits": [int(row["visits"]) for row in city_rows[:10]],
             "clients": [int(row["clients"]) for row in city_rows[:10]],
             "returned_value": [round(row["returned_value"], 2) for row in city_rows[:10]],
+        },
+        "comparison_meta": {
+            "current_label": current_label,
+            "previous_label": previous_label,
+        },
+        "period_compare": {
+            "labels": [row["client_name"] for row in sorted(worsening_candidates, key=lambda row: (row.get("delta_return_rate_value", 0.0), row.get("returned_value", 0.0)), reverse=True)[:12]],
+            "current_pct": [round(row["return_rate_value"], 2) for row in sorted(worsening_candidates, key=lambda row: (row.get("delta_return_rate_value", 0.0), row.get("returned_value", 0.0)), reverse=True)[:12]],
+            "previous_pct": [round(row["previous_return_rate_value"], 2) for row in sorted(worsening_candidates, key=lambda row: (row.get("delta_return_rate_value", 0.0), row.get("returned_value", 0.0)), reverse=True)[:12]],
+            "delta_pct": [round(row["delta_return_rate_value"], 2) for row in sorted(worsening_candidates, key=lambda row: (row.get("delta_return_rate_value", 0.0), row.get("returned_value", 0.0)), reverse=True)[:12]],
+            "current_value": [round(row["returned_value"], 2) for row in sorted(worsening_candidates, key=lambda row: (row.get("delta_return_rate_value", 0.0), row.get("returned_value", 0.0)), reverse=True)[:12]],
+            "previous_value": [round(row["previous_returned_value"], 2) for row in sorted(worsening_candidates, key=lambda row: (row.get("delta_return_rate_value", 0.0), row.get("returned_value", 0.0)), reverse=True)[:12]],
+        },
+        "driver_concentration": {
+            "labels": [row["client_name"] for row in sorted(driver_concentration_rows, key=lambda row: (row.get("top_driver_return_share", 0.0), row.get("returned_value", 0.0)), reverse=True)[:12]],
+            "share": [round(row["top_driver_return_share"], 2) for row in sorted(driver_concentration_rows, key=lambda row: (row.get("top_driver_return_share", 0.0), row.get("returned_value", 0.0)), reverse=True)[:12]],
+            "driver": [row["top_driver_return_name"] for row in sorted(driver_concentration_rows, key=lambda row: (row.get("top_driver_return_share", 0.0), row.get("returned_value", 0.0)), reverse=True)[:12]],
+            "returned_value": [round(row["returned_value"], 2) for row in sorted(driver_concentration_rows, key=lambda row: (row.get("top_driver_return_share", 0.0), row.get("returned_value", 0.0)), reverse=True)[:12]],
+        },
+        "responsibility_concentration": {
+            "labels": [row["client_name"] for row in sorted(resp_concentration_rows, key=lambda row: (row.get("top_responsabilidade_return_share", 0.0), row.get("returned_value", 0.0)), reverse=True)[:12]],
+            "share": [round(row["top_responsabilidade_return_share"], 2) for row in sorted(resp_concentration_rows, key=lambda row: (row.get("top_responsabilidade_return_share", 0.0), row.get("returned_value", 0.0)), reverse=True)[:12]],
+            "responsabilidade": [row["top_responsabilidade_name"] for row in sorted(resp_concentration_rows, key=lambda row: (row.get("top_responsabilidade_return_share", 0.0), row.get("returned_value", 0.0)), reverse=True)[:12]],
+            "returned_value": [round(row["returned_value"], 2) for row in sorted(resp_concentration_rows, key=lambda row: (row.get("top_responsabilidade_return_share", 0.0), row.get("returned_value", 0.0)), reverse=True)[:12]],
+        },
+        "window_adherence": {
+            "labels": [row["client_name"] for row in sorted(window_rows, key=lambda row: (row.get("window_adherence_pct", 100.0), -(row.get("window_misses", 0) or 0)), reverse=False)[:12]],
+            "adherence_pct": [round(row["window_adherence_pct"], 2) for row in sorted(window_rows, key=lambda row: (row.get("window_adherence_pct", 100.0), -(row.get("window_misses", 0) or 0)), reverse=False)[:12]],
+            "hits": [int(row["window_hits"]) for row in sorted(window_rows, key=lambda row: (row.get("window_adherence_pct", 100.0), -(row.get("window_misses", 0) or 0)), reverse=False)[:12]],
+            "misses": [int(row["window_misses"]) for row in sorted(window_rows, key=lambda row: (row.get("window_adherence_pct", 100.0), -(row.get("window_misses", 0) or 0)), reverse=False)[:12]],
+            "checks": [int(row["window_checks"]) for row in sorted(window_rows, key=lambda row: (row.get("window_adherence_pct", 100.0), -(row.get("window_misses", 0) or 0)), reverse=False)[:12]],
         },
     }
 
@@ -1193,6 +1420,18 @@ def _build_bi_clientes_dataset(
         "top_recurrence_count": int(top_recurrence_row["returned_occurrences"]) if top_recurrence_row else 0,
         "top_city": top_city_row["city"] if top_city_row else "—",
         "top_city_share": top_city_share,
+        "comparison_current_label": current_label,
+        "comparison_previous_label": previous_label,
+        "worsening_client": top_worsening_row["client_name"] if top_worsening_row else "—",
+        "worsening_delta_pct": round(top_worsening_row["delta_return_rate_value"], 2) if top_worsening_row else 0.0,
+        "window_client": top_window_risk_row["client_name"] if top_window_risk_row else "—",
+        "window_adherence_pct": round(top_window_risk_row["window_adherence_pct"], 2) if top_window_risk_row and top_window_risk_row.get("window_adherence_pct") is not None else None,
+        "driver_concentration_client": top_driver_concentration_row["client_name"] if top_driver_concentration_row else "—",
+        "driver_concentration_pct": round(top_driver_concentration_row["top_driver_return_share"], 2) if top_driver_concentration_row else 0.0,
+        "driver_concentration_driver": top_driver_concentration_row["top_driver_return_name"] if top_driver_concentration_row else "—",
+        "responsibility_concentration_client": top_resp_concentration_row["client_name"] if top_resp_concentration_row else "—",
+        "responsibility_concentration_pct": round(top_resp_concentration_row["top_responsabilidade_return_share"], 2) if top_resp_concentration_row else 0.0,
+        "responsibility_concentration_name": top_resp_concentration_row["top_responsabilidade_name"] if top_resp_concentration_row else "—",
     }
 
     return {
