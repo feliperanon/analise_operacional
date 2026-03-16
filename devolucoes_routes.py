@@ -622,6 +622,7 @@ def init_devolucoes_router(
             c = session.get(models.Client, d.client_id)
             m = session.get(models.Employee, d.motorista_id)
             v = session.get(models.Employee, d.vendedor_id)
+            aj = session.get(models.Employee, d.ajudante_id) if d.ajudante_id else None
             motivo = session.get(models.DevolucaoMotivo, d.motivo_id)
             resp = session.get(models.DevolucaoResponsabilidade, d.responsabilidade_id)
             out.append(
@@ -633,13 +634,90 @@ def init_devolucoes_router(
                     "cluster": d.cluster,
                     "acima_300": d.acima_300,
                     "source": d.source,
+                    "observacao": d.observacao,
+                    "client_id": d.client_id,
+                    "motorista_id": d.motorista_id,
+                    "vendedor_id": d.vendedor_id,
+                    "ajudante_id": d.ajudante_id,
+                    "motivo_id": d.motivo_id,
+                    "responsabilidade_id": d.responsabilidade_id,
                     "client_name": c.name if c else "-",
                     "motorista_name": m.name if m else "-",
                     "vendedor_name": v.name if v else "-",
+                    "ajudante_name": aj.name if aj else None,
                     "motivo": motivo.nome if motivo else "-",
                     "responsabilidade": resp.nome if resp else "-",
                 }
             )
         return JSONResponse({"ok": True, "data": out})
+
+    @router.put("/api/devolucoes/{devolucao_id}", response_class=JSONResponse)
+    async def api_devolucoes_update(
+        request: Request,
+        devolucao_id: int,
+        payload: DevolucaoManualPayload,
+        session: Session = Depends(get_session),
+    ):
+        require_login(request)
+        try:
+            dev = session.get(models.Devolucao, devolucao_id)
+            if not dev:
+                return JSONResponse({"ok": False, "error": "Devolução não encontrada"}, status_code=404)
+            dt = datetime.strptime(payload.data_romaneio, "%Y-%m-%d")
+            dev.data_romaneio = payload.data_romaneio
+            dev.data_entrega = payload.data_entrega
+            dev.client_id = payload.client_id
+            dev.vendedor_id = payload.vendedor_id
+            dev.motorista_id = payload.motorista_id
+            dev.ajudante_id = payload.ajudante_id
+            dev.valor = payload.valor
+            dev.motivo_id = payload.motivo_id
+            dev.observacao = payload.observacao
+            dev.responsabilidade_id = payload.responsabilidade_id
+            dev.dia = compute_dia(dt)
+            dev.semana = compute_semana(dt)
+            dev.acima_300 = compute_acima_300(payload.valor)
+            dev.cluster = compute_cluster(payload.valor)
+            session.add(dev)
+            session.commit()
+            return JSONResponse({"ok": True, "id": dev.id})
+        except Exception as e:
+            logger.exception(f"Erro ao atualizar devolucao {devolucao_id}: {e}")
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+    @router.get("/devolucoes/avaliar", response_class=HTMLResponse)
+    async def devolucoes_avaliar_page(
+        request: Request,
+        month: Optional[int] = None,
+        year: Optional[int] = None,
+        session: Session = Depends(get_session),
+    ):
+        require_login(request)
+        now = datetime.now()
+        current_year = year or now.year
+        current_month = month or now.month
+        current_month = max(1, min(12, current_month))
+
+        clients = session.exec(select(models.Client).order_by(models.Client.name)).all()
+        employees = session.exec(
+            select(models.Employee).where(models.Employee.status != "fired").order_by(models.Employee.name)
+        ).all()
+        motivos = session.exec(select(models.DevolucaoMotivo).where(models.DevolucaoMotivo.is_active)).all()
+        responsabilidades = session.exec(
+            select(models.DevolucaoResponsabilidade).where(models.DevolucaoResponsabilidade.is_active)
+        ).all()
+
+        return templates.TemplateResponse(
+            "devolucoes_avaliar.html",
+            {
+                "request": request,
+                "clients": clients,
+                "employees": employees,
+                "motivos": motivos,
+                "responsabilidades": responsabilidades,
+                "current_month": current_month,
+                "current_year": current_year,
+            },
+        )
 
     return router

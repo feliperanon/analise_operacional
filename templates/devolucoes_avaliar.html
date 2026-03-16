@@ -1,0 +1,560 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-dvh bg-slate-950/50" x-data="devAvaliar()" x-init="init()">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <div class="px-6 pt-6 pb-0 max-w-7xl mx-auto">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div>
+        <h1 class="text-xl font-bold text-white tracking-tight">Avaliação de Devoluções</h1>
+        <p class="text-slate-400 text-sm mt-0.5">Revise e gerencie registros de devolução por período.</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <a href="/devolucoes"
+           class="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-slate-700 bg-slate-800/50 hover:bg-slate-700 text-slate-300 text-sm font-medium transition-colors">
+          <i data-lucide="list" class="w-4 h-4"></i>
+          Importar / Lista
+        </a>
+        <button @click="openCreateModal()"
+                class="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors shadow-lg shadow-blue-900/30">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          Nova Devolução
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Toolbar / Filtros ──────────────────────────────────────────── -->
+    <div class="flex flex-wrap items-center gap-2 mb-4 px-3 py-2.5 bg-slate-800/40 rounded-xl border border-slate-700/50">
+
+      <!-- Período -->
+      <div class="flex items-center gap-1">
+        <select x-model.number="filters.month" @change="fetchData()"
+                class="h-9 bg-slate-900 border border-slate-700 rounded-lg px-2 text-sm text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none cursor-pointer">
+          {% for m in range(1, 13) %}
+          <option value="{{ m }}" {% if m == current_month %}selected{% endif %}>{{ ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][m] }}</option>
+          {% endfor %}
+        </select>
+        <select x-model.number="filters.year" @change="fetchData()"
+                class="h-9 bg-slate-900 border border-slate-700 rounded-lg px-2 text-sm text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none cursor-pointer">
+          {% for y in range(2024, 2029) %}
+          <option value="{{ y }}" {% if y == current_year %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Busca -->
+      <div class="relative flex-1 min-w-[180px]">
+        <i data-lucide="search" class="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"></i>
+        <input type="text" x-model="filters.search" placeholder="Cliente, motorista, motivo…"
+               class="h-9 w-full bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-3 text-sm text-white placeholder-slate-500 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none">
+      </div>
+
+      <!-- Responsabilidade -->
+      <select x-model="filters.resp"
+              class="h-9 bg-slate-900 border border-slate-700 rounded-lg px-2 text-sm text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none cursor-pointer">
+        <option value="">Todas responsabilidades</option>
+        {% for r in responsabilidades %}
+        <option value="{{ r.nome }}">{{ r.nome }}</option>
+        {% endfor %}
+      </select>
+
+      <!-- ≥ 300 -->
+      <select x-model="filters.acima300"
+              class="h-9 bg-slate-900 border border-slate-700 rounded-lg px-2 text-sm text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none cursor-pointer">
+        <option value="">≥ R$ 300</option>
+        <option value="SIM">SIM</option>
+        <option value="NAO">NÃO</option>
+      </select>
+
+      <!-- Contador + refresh -->
+      <div class="ml-auto flex items-center gap-2.5">
+        <span class="text-sm text-slate-500" x-text="`${filteredRows.length} registro(s)`"></span>
+        <button @click="fetchData()" title="Atualizar"
+                class="inline-flex items-center justify-center h-9 w-9 rounded-xl border border-slate-700 bg-slate-800/50 hover:bg-slate-700 text-slate-300 transition-colors">
+          <i data-lucide="refresh-cw" class="w-4 h-4" :class="{ 'animate-spin': loading }"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Tabs ───────────────────────────────────────────────────────── -->
+    <div class="flex items-center gap-0.5 border-b border-slate-800 mb-4">
+      <button @click="activeTab = 'todas'"
+              :class="activeTab === 'todas'
+                ? 'text-white border-b-2 border-blue-500 -mb-px'
+                : 'text-slate-400 hover:text-slate-200'"
+              class="px-3 pb-2.5 text-sm font-medium transition-colors flex items-center gap-1.5">
+        Todas
+        <span class="px-1.5 py-0.5 rounded-md text-[10px] font-bold"
+              :class="activeTab === 'todas' ? 'bg-blue-500/20 text-blue-300' : 'bg-slate-700/60 text-slate-500'"
+              x-text="totalRows.length"></span>
+      </button>
+      <template x-for="tab in tabs" :key="tab.key">
+        <button @click="activeTab = tab.key"
+                :class="activeTab === tab.key
+                  ? 'text-white border-b-2 border-blue-500 -mb-px'
+                  : 'text-slate-400 hover:text-slate-200'"
+                class="px-3 pb-2.5 text-sm font-medium transition-colors flex items-center gap-1.5">
+          <span x-text="tab.label"></span>
+          <span class="px-1.5 py-0.5 rounded-md text-[10px] font-bold"
+                :class="activeTab === tab.key ? 'bg-blue-500/20 text-blue-300' : 'bg-slate-700/60 text-slate-500'"
+                x-text="rowsByResp[tab.key] || 0"></span>
+        </button>
+      </template>
+    </div>
+  </div><!-- /header+toolbar+tabs -->
+
+  <!-- ── Card list ──────────────────────────────────────────────────────── -->
+  <div class="px-6 pb-8 max-w-7xl mx-auto">
+
+    <!-- Loading -->
+    <div x-show="loading" class="flex items-center justify-center gap-2 py-16 text-slate-400 text-sm">
+      <i data-lucide="loader" class="w-5 h-5 animate-spin"></i>
+      <span>Carregando…</span>
+    </div>
+
+    <!-- Error -->
+    <div x-show="error && !loading" x-transition
+         class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-4 text-red-300 text-sm flex items-center gap-2">
+      <i data-lucide="alert-circle" class="w-4 h-4 flex-shrink-0"></i>
+      <span x-text="error"></span>
+    </div>
+
+    <!-- Cards -->
+    <div x-show="!loading" class="space-y-1.5">
+
+      <template x-for="d in filteredRows" :key="d.id">
+        <div class="group bg-slate-800/50 border border-slate-700/50 hover:border-slate-600 hover:bg-slate-800/80 rounded-xl transition-all duration-150">
+          <div class="grid grid-cols-12">
+
+            <!-- ① Dados principais (5 cols) -->
+            <div class="col-span-5 px-4 py-3 flex flex-col justify-center gap-1 min-w-0 border-r border-slate-700/30">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <!-- badge responsabilidade -->
+                <span class="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md"
+                      :class="{
+                        'bg-rose-500/15 text-rose-400':   d.responsabilidade === 'LOGÍSTICA',
+                        'bg-amber-500/15 text-amber-400': d.responsabilidade === 'COMERCIAL',
+                        'bg-sky-500/15 text-sky-400':     d.responsabilidade === 'MERCADO',
+                        'bg-slate-500/20 text-slate-400': !['LOGÍSTICA','COMERCIAL','MERCADO'].includes(d.responsabilidade)
+                      }"
+                      x-text="d.responsabilidade"></span>
+                <span class="text-white text-sm font-semibold truncate" x-text="d.client_name"></span>
+              </div>
+              <div class="flex items-center flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-400">
+                <span class="flex items-center gap-1 min-w-0">
+                  <i data-lucide="steering-wheel" class="w-3 h-3 shrink-0"></i>
+                  <span class="truncate" x-text="d.motorista_name"></span>
+                </span>
+                <template x-if="d.ajudante_name">
+                  <span class="flex items-center gap-1 min-w-0">
+                    <i data-lucide="user-plus" class="w-3 h-3 shrink-0"></i>
+                    <span class="truncate" x-text="d.ajudante_name"></span>
+                  </span>
+                </template>
+              </div>
+              <div class="text-xs text-slate-500 truncate" x-text="d.motivo"></div>
+            </div>
+
+            <!-- ② Dados contextuais (4 cols) -->
+            <div class="col-span-4 px-4 py-3 flex flex-col justify-center gap-1 min-w-0 border-r border-slate-700/30">
+              <div class="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
+                <span class="flex items-center gap-1">
+                  <i data-lucide="calendar" class="w-3 h-3 shrink-0"></i>
+                  <span x-text="d.data_romaneio"></span>
+                </span>
+                <template x-if="d.data_entrega && d.data_entrega !== d.data_romaneio">
+                  <span class="flex items-center gap-1 text-slate-500">
+                    <i data-lucide="truck" class="w-3 h-3 shrink-0"></i>
+                    <span x-text="d.data_entrega"></span>
+                  </span>
+                </template>
+              </div>
+              <div class="flex items-center gap-2 text-xs text-slate-500">
+                <template x-if="d.cluster">
+                  <span class="px-1.5 py-0.5 rounded-md bg-slate-700/50 text-slate-400 font-medium" x-text="d.cluster"></span>
+                </template>
+                <template x-if="d.vendedor_name && d.vendedor_name !== '-'">
+                  <span class="truncate" x-text="d.vendedor_name"></span>
+                </template>
+              </div>
+              <template x-if="d.observacao">
+                <div class="text-xs text-slate-500 italic truncate" x-text="d.observacao"></div>
+              </template>
+            </div>
+
+            <!-- ③ Indicadores + ações (3 cols) -->
+            <div class="col-span-3 px-4 py-3 flex items-center justify-between gap-2">
+              <div class="flex flex-col gap-1">
+                <span class="text-sm font-bold text-white"
+                      x-text="'R$ ' + (d.valor || 0).toFixed(2).replace('.', ',')"></span>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md"
+                        :class="d.acima_300 === 'SIM'
+                          ? 'bg-amber-500/20 text-amber-400'
+                          : 'bg-slate-600/30 text-slate-500'"
+                        x-text="d.acima_300 === 'SIM' ? '≥ R$300' : '< R$300'"></span>
+                  <span class="text-[10px] text-slate-600 uppercase" x-text="d.source"></span>
+                </div>
+              </div>
+              <button @click="openEditModal(d)"
+                      class="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-slate-700 bg-slate-700/40 hover:bg-blue-600 hover:border-blue-500 text-slate-400 hover:text-white transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                      title="Editar devolução">
+                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+
+          </div><!-- /grid -->
+        </div><!-- /card -->
+      </template>
+
+      <!-- Empty state -->
+      <div x-show="!loading && filteredRows.length === 0" class="py-16 text-center text-slate-500">
+        <i data-lucide="package-x" class="w-12 h-12 mx-auto mb-3 opacity-40"></i>
+        <p class="text-sm">Nenhuma devolução encontrada para o período.</p>
+        <p class="text-xs mt-1 text-slate-600">Ajuste os filtros ou selecione outro mês.</p>
+      </div>
+
+    </div><!-- /cards -->
+  </div><!-- /body -->
+
+
+  <!-- ── Modal Criar / Editar ────────────────────────────────────────────── -->
+  <div x-show="modal.open"
+       x-transition:enter="transition ease-out duration-200"
+       x-transition:enter-start="opacity-0"
+       x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0"
+       class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto py-8"
+       @keydown.escape.window="modal.open = false"
+       @click.self="modal.open = false"
+       style="display:none">
+
+    <div class="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl w-full max-w-2xl mx-4 my-auto">
+
+      <!-- Modal header -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-slate-700/60">
+        <div>
+          <h2 class="text-base font-semibold text-white"
+              x-text="modal.id ? 'Editar Devolução #' + modal.id : 'Nova Devolução'"></h2>
+          <p class="text-xs text-slate-500 mt-0.5">Preencha os campos obrigatórios (*)</p>
+        </div>
+        <button @click="modal.open = false"
+                class="h-8 w-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/80 transition-colors">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Modal body -->
+      <form @submit.prevent="saveModal()" class="p-6">
+        <div class="grid grid-cols-2 gap-x-4 gap-y-3">
+
+          <!-- Data Romaneio -->
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Data Romaneio *</label>
+            <input type="date" x-model="modal.data.data_romaneio" required
+                   class="h-9 w-full bg-slate-800 border border-slate-600 rounded-lg px-3 text-sm text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none">
+          </div>
+
+          <!-- Data Entrega -->
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Data Entrega *</label>
+            <input type="date" x-model="modal.data.data_entrega" required
+                   class="h-9 w-full bg-slate-800 border border-slate-600 rounded-lg px-3 text-sm text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none">
+          </div>
+
+          <!-- Cliente -->
+          <div class="col-span-2">
+            <label class="block text-xs font-medium text-slate-400 mb-1">Cliente *</label>
+            <select x-model.number="modal.data.client_id" required
+                    class="h-9 w-full bg-slate-800 border border-slate-600 rounded-lg px-3 text-sm text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none">
+              <option value="">Selecione</option>
+              {% for c in clients %}
+              <option value="{{ c.id }}">{{ c.name }}{% if c.nb %} ({{ c.nb }}){% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Motorista -->
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Motorista *</label>
+            <select x-model.number="modal.data.motorista_id" required
+                    class="h-9 w-full bg-slate-800 border border-slate-600 rounded-lg px-3 text-sm text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none">
+              <option value="">Selecione</option>
+              {% for e in employees %}
+              <option value="{{ e.id }}">{{ e.name|emp_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Ajudante -->
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Ajudante</label>
+            <select x-model.number="modal.data.ajudante_id"
+                    class="h-9 w-full bg-slate-800 border border-slate-600 rounded-lg px-3 text-sm text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none">
+              <option value="">—</option>
+              {% for e in employees %}
+              <option value="{{ e.id }}">{{ e.name|emp_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Vendedor -->
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Vendedor *</label>
+            <select x-model.number="modal.data.vendedor_id" required
+                    class="h-9 w-full bg-slate-800 border border-slate-600 rounded-lg px-3 text-sm text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none">
+              <option value="">Selecione</option>
+              {% for e in employees %}
+              <option value="{{ e.id }}">{{ e.name|emp_name }}{% if e.seller_code %} ({{ e.seller_code }}){% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Valor -->
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Valor (R$) *</label>
+            <input type="text" x-model="modal.data.valor" required placeholder="0,00"
+                   class="h-9 w-full bg-slate-800 border border-slate-600 rounded-lg px-3 text-sm text-white placeholder-slate-600 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none">
+          </div>
+
+          <!-- Responsabilidade -->
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Responsabilidade *</label>
+            <select x-model.number="modal.data.responsabilidade_id" required
+                    class="h-9 w-full bg-slate-800 border border-slate-600 rounded-lg px-3 text-sm text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none">
+              <option value="">Selecione</option>
+              {% for r in responsabilidades %}
+              <option value="{{ r.id }}">{{ r.nome }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Motivo -->
+          <div class="col-span-2">
+            <label class="block text-xs font-medium text-slate-400 mb-1">Motivo *</label>
+            <select x-model.number="modal.data.motivo_id" required
+                    class="h-9 w-full bg-slate-800 border border-slate-600 rounded-lg px-3 text-sm text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none">
+              <option value="">Selecione</option>
+              {% for m in motivos %}
+              <option value="{{ m.id }}" data-resp="{{ m.responsabilidade_id }}">{{ m.nome }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Observação -->
+          <div class="col-span-2">
+            <label class="block text-xs font-medium text-slate-400 mb-1">Observação</label>
+            <input type="text" x-model="modal.data.observacao" placeholder="Opcional"
+                   class="h-9 w-full bg-slate-800 border border-slate-600 rounded-lg px-3 text-sm text-white placeholder-slate-600 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none">
+          </div>
+
+        </div><!-- /grid -->
+
+        <!-- Modal footer -->
+        <div class="flex items-center justify-end gap-2 mt-5 pt-4 border-t border-slate-700/60">
+          <button type="button" @click="modal.open = false"
+                  class="h-9 px-4 rounded-xl border border-slate-600 text-slate-400 hover:text-white hover:border-slate-500 text-sm font-medium transition-colors">
+            Cancelar
+          </button>
+          <button type="submit" :disabled="modal.saving"
+                  class="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-semibold transition-colors flex items-center gap-2">
+            <i data-lucide="loader" x-show="modal.saving" class="w-4 h-4 animate-spin"></i>
+            <span x-text="modal.id ? 'Salvar alterações' : 'Criar devolução'"></span>
+          </button>
+        </div>
+
+      </form><!-- /form -->
+    </div><!-- /modal box -->
+  </div><!-- /modal overlay -->
+
+</div><!-- /x-data -->
+
+<script>
+function devAvaliar() {
+  return {
+    loading: false,
+    error: null,
+    totalRows: [],
+    activeTab: 'todas',
+
+    tabs: [
+      { key: 'COMERCIAL', label: 'Comercial' },
+      { key: 'LOGÍSTICA', label: 'Logística' },
+      { key: 'MERCADO',   label: 'Mercado'   },
+    ],
+
+    filters: {
+      month:    {{ current_month }},
+      year:     {{ current_year }},
+      search:   '',
+      resp:     '',
+      acima300: '',
+    },
+
+    modal: {
+      open:   false,
+      id:     null,
+      saving: false,
+      data:   {},
+    },
+
+    /* ── computed-like getters ────────────────────────────────────────── */
+
+    get rowsByResp() {
+      const counts = {};
+      this.tabs.forEach(t => { counts[t.key] = 0; });
+      this.totalRows.forEach(r => {
+        if (counts[r.responsabilidade] !== undefined) counts[r.responsabilidade]++;
+      });
+      return counts;
+    },
+
+    get filteredRows() {
+      let rows = this.activeTab === 'todas'
+        ? this.totalRows
+        : this.totalRows.filter(r => r.responsabilidade === this.activeTab);
+
+      if (this.filters.resp)     rows = rows.filter(r => r.responsabilidade === this.filters.resp);
+      if (this.filters.acima300) rows = rows.filter(r => r.acima_300 === this.filters.acima300);
+
+      if (this.filters.search) {
+        const q = this.filters.search.toLowerCase();
+        rows = rows.filter(r =>
+          (r.client_name     || '').toLowerCase().includes(q) ||
+          (r.motorista_name  || '').toLowerCase().includes(q) ||
+          (r.motivo          || '').toLowerCase().includes(q) ||
+          (r.vendedor_name   || '').toLowerCase().includes(q) ||
+          (r.ajudante_name   || '').toLowerCase().includes(q)
+        );
+      }
+      return rows;
+    },
+
+    /* ── icon helper ─────────────────────────────────────────────────── */
+
+    _refreshIcons() {
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    },
+
+    /* ── lifecycle ───────────────────────────────────────────────────── */
+
+    async init() {
+      await this.fetchData();
+    },
+
+    /* ── data fetching ───────────────────────────────────────────────── */
+
+    async fetchData() {
+      this.loading = true;
+      this.error   = null;
+      try {
+        const month   = String(this.filters.month).padStart(2, '0');
+        const year    = this.filters.year;
+        const lastDay = new Date(year, parseInt(month, 10), 0).getDate();
+        const startDate = `${year}-${month}-01`;
+        const endDate   = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+
+        const response = await fetch(`/api/devolucoes?start_date=${startDate}&end_date=${endDate}`, { credentials: 'same-origin' });
+        const jsonData = await response.json();
+
+        if (jsonData.ok) {
+          this.totalRows = jsonData.data;
+        } else {
+          this.error = jsonData.error || 'Erro ao carregar dados';
+        }
+      } catch (ex) {
+        this.error = ex.message;
+      } finally {
+        this.loading = false;
+        this.$nextTick(() => { this._refreshIcons(); });
+      }
+    },
+
+    /* ── modal helpers ───────────────────────────────────────────────── */
+
+    openCreateModal() {
+      const today = new Date().toISOString().slice(0, 10);
+      this.modal = {
+        open: true, id: null, saving: false,
+        data: {
+          data_romaneio:      today,
+          data_entrega:       today,
+          client_id:          '',
+          vendedor_id:        '',
+          motorista_id:       '',
+          ajudante_id:        '',
+          valor:              '',
+          motivo_id:          '',
+          responsabilidade_id:'',
+          observacao:         '',
+        },
+      };
+      this.$nextTick(() => { this._refreshIcons(); });
+    },
+
+    openEditModal(d) {
+      this.modal = {
+        open: true, id: d.id, saving: false,
+        data: {
+          data_romaneio:       d.data_romaneio  || '',
+          data_entrega:        d.data_entrega   || '',
+          client_id:           d.client_id      || '',
+          vendedor_id:         d.vendedor_id    || '',
+          motorista_id:        d.motorista_id   || '',
+          ajudante_id:         d.ajudante_id    || '',
+          valor:               d.valor != null ? String(d.valor).replace('.', ',') : '',
+          motivo_id:           d.motivo_id      || '',
+          responsabilidade_id: d.responsabilidade_id || '',
+          observacao:          d.observacao     || '',
+        },
+      };
+      this.$nextTick(() => { this._refreshIcons(); });
+    },
+
+    async saveModal() {
+      this.modal.saving = true;
+      try {
+        const valorStr = String(this.modal.data.valor).replace(/\./g, '').replace(',', '.');
+        const payload  = {
+          data_romaneio:       this.modal.data.data_romaneio,
+          data_entrega:        this.modal.data.data_entrega,
+          client_id:           parseInt(this.modal.data.client_id),
+          vendedor_id:         parseInt(this.modal.data.vendedor_id),
+          motorista_id:        parseInt(this.modal.data.motorista_id),
+          ajudante_id:         this.modal.data.ajudante_id ? parseInt(this.modal.data.ajudante_id) : null,
+          valor:               parseFloat(valorStr) || 0,
+          motivo_id:           parseInt(this.modal.data.motivo_id),
+          responsabilidade_id: parseInt(this.modal.data.responsabilidade_id),
+          observacao:          this.modal.data.observacao || null,
+        };
+
+        const url    = this.modal.id ? `/api/devolucoes/${this.modal.id}` : '/api/devolucoes';
+        const method = this.modal.id ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+          method,
+          headers:     { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body:        JSON.stringify(payload),
+        });
+        const j = await res.json();
+
+        if (j.ok) {
+          this.modal.open = false;
+          await this.fetchData();
+        } else {
+          alert(j.error || 'Erro ao salvar');
+        }
+      } catch (ex) {
+        alert(ex.message);
+      } finally {
+        this.modal.saving = false;
+      }
+    },
+  };
+}
+</script>
+{% endblock %}
