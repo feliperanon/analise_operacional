@@ -2086,6 +2086,7 @@ def _infer_shift_name(now_br: datetime) -> str:
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
+@app.get("/dashboard/tv", response_class=HTMLResponse)
 async def dashboard_entry(
     request: Request,
     cost_center: Optional[str] = None,
@@ -2097,6 +2098,10 @@ async def dashboard_entry(
         return RedirectResponse(url="/login", status_code=303)
     if isinstance(user, dict) and user.get("type") == "employee":
         return RedirectResponse(url="/mobile/dashboard", status_code=303)
+
+    is_tv = request.url.path.rstrip("/").endswith("/tv")
+    if is_tv:
+        cost_center = cost_center or "Exemplar"
 
     now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
     selected_cost_center = parse_cost_center_filter(cost_center)
@@ -2282,7 +2287,41 @@ async def dashboard_entry(
             "start_time": r.delivery_started_at or r.start_time or "--:--",
             "duration_mins": d_m,
             "tonnage": float(r.tonnage or 0.0),
+            "delivery_status": (r.delivery_status or "").lower(),
         })
+
+    employee_by_id_all = {e.id: e for e in employees_all if e.id is not None}
+    for emp_id, bucket in live_buckets.items():
+        emp_routes = [r for r in routes if r.employee_id == emp_id]
+        bucket["employee_id"] = emp_id
+        bucket["total_deliveries"] = len(emp_routes)
+        bucket["completed_deliveries"] = len(
+            [r for r in emp_routes if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
+        )
+        bucket["plate"] = next(
+            (r.delivery_vehicle_plate or "").strip() or None
+            for r in emp_routes if (r.delivery_vehicle_plate or "").strip()
+        ) if emp_routes else None
+        helper_ids = []
+        for r in emp_routes:
+            helper_ids.extend(_parse_route_helper_ids(getattr(r, "delivery_helpers_json", None)))
+        bucket["helper_names"] = list(dict.fromkeys(
+            (employee_by_id_all.get(hid).name if employee_by_id_all.get(hid) else None) or f"Ajudante #{hid}"
+            for hid in helper_ids if hid
+        ))[:3]
+        bucket["total_kg"] = round(sum(float(r.tonnage or 0.0) for r in emp_routes), 2)
+
+    # Fallback: ajudantes da sessão do dia quando rotas não têm delivery_helpers_json
+    if live_buckets:
+        sessions_today = session.exec(
+            select(models.DeliverySession)
+            .where(models.DeliverySession.date == selected_date_str)
+            .where(models.DeliverySession.employee_id.in_([eid for eid in live_buckets]))
+        ).all()
+        session_helpers_by_emp = {s.employee_id: _parse_session_helpers(s.helpers_json)[:3] for s in sessions_today if s.helpers_json}
+        for emp_id, bucket in live_buckets.items():
+            if not bucket.get("helper_names") and session_helpers_by_emp.get(emp_id):
+                bucket["helper_names"] = session_helpers_by_emp[emp_id]
 
     live_separation = list(live_buckets.values())
     live_separation.sort(key=lambda x: len(x["routes"]), reverse=True)
@@ -2324,8 +2363,20 @@ async def dashboard_entry(
     selected_headcount = sum(1 for e in employees if (e.status or "").lower() not in {"away", "vacation", "sick", "day_off"})
     selected_target = selected_headcount
 
+    # Devolução no dia (para painel TV e alertas)
+    routes_devolucao = [r for r in routes if (r.delivery_status or "").lower() == "devolucao"]
+    routes_entregue_ou_devolucao = [r for r in routes if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
+    devolucao_dia = {
+        "count": len(routes_devolucao),
+        "total_kg": round(sum(float(getattr(r, "devolucao_volume", None) or r.tonnage or 0) for r in routes_devolucao), 2),
+        "total_valor": round(sum(float(getattr(r, "valor_devolucao", None) or 0) for r in routes_devolucao), 2),
+        "total_entregas": len(routes_entregue_ou_devolucao),
+        "pct": round((len(routes_devolucao) / len(routes_entregue_ou_devolucao) * 100), 1) if routes_entregue_ou_devolucao else 0,
+    }
+
     dashboard_payload = {
         "cost_centers_summary": cost_centers_summary,
+        "devolucao_dia": devolucao_dia,
         "kpi": {
             "tonnage": round(total_tonnage, 2),
             "avg_kgh": round(avg_kgh, 1),
@@ -2347,8 +2398,9 @@ async def dashboard_entry(
         "live_separation": live_separation,
     }
 
+    template_name = "dashboard_tv.html" if is_tv else "index.html"
     return templates.TemplateResponse(
-        "index.html",
+        template_name,
         {
             "request": request,
             "dashboard": dashboard_payload,
@@ -2357,6 +2409,192 @@ async def dashboard_entry(
             "current_date": selected_date_str,
         },
     )
+
+
+@app.get("/api/dashboard/tv-data", response_class=JSONResponse)
+async def api_dashboard_tv_data(
+    request: Request,
+    date_ref: Optional[str] = None,
+    cost_center: Optional[str] = None,
+    session: Session = Depends(get_session),
+):
+    """Payload JSON do dashboard para painel TV (atualização parcial a cada 1 min)."""
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "Não autorizado"}, status_code=401)
+    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    selected_date = now_br.date()
+    if date_ref:
+        try:
+            selected_date = datetime.strptime(date_ref, "%Y-%m-%d").date()
+        except Exception:
+            pass
+    selected_date_str = selected_date.strftime("%Y-%m-%d")
+    selected_cc = parse_cost_center_filter(cost_center or "Exemplar")
+    employees_all = session.exec(
+        select(models.Employee).where(models.Employee.status != "fired")
+    ).all()
+    employees = [e for e in employees_all if employee_matches_cost_center(e, selected_cc)]
+    employee_ids = list({e.id for e in employees if e.id is not None})
+    employee_by_id = {e.id: e for e in employees if e.id is not None}
+    if not employee_ids:
+        return JSONResponse({
+            "date": selected_date_str,
+            "cost_center": selected_cc or "Todos",
+            "dashboard": {"kpi": {}, "alerts": {"clients_over_20min": []}, "live_separation": [], "devolucao_dia": {}, "cost_centers_summary": {}},
+        })
+    routes = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date == selected_date_str)
+        .where(models.Route.employee_id.in_(employee_ids))
+    ).all()
+    client_ids = list({r.client_id for r in routes if r.client_id is not None})
+    clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
+    client_by_id = {c.id: c for c in clients if c.id is not None}
+
+    def _parse_hhmm(v):
+        if not v:
+            return None
+        try:
+            h, m = str(v).strip().split(":")
+            return int(h) * 60 + int(m)
+        except Exception:
+            return None
+
+    def _duration_m(start_v, end_v):
+        s, e = _parse_hhmm(start_v), _parse_hhmm(end_v)
+        if s is None or e is None:
+            return None
+        if e < s:
+            e += 24 * 60
+        return max(0, e - s)
+
+    completed_statuses = {"entregue", "devolucao"}
+    completed_routes = [r for r in routes if (r.delivery_status or "").lower() in completed_statuses]
+    total_tonnage = float(sum(float(r.tonnage or 0.0) for r in routes))
+    durations_hours = []
+    for r in completed_routes:
+        d = _duration_m(r.delivery_started_at or r.start_time, r.delivery_finished_at or r.end_time)
+        if d and d > 0:
+            durations_hours.append(d / 60.0)
+    total_hours = sum(durations_hours)
+    avg_kgh = (total_tonnage / total_hours) if total_hours > 0 else 0.0
+
+    live_buckets = {}
+    for r in routes:
+        st = (r.delivery_status or "").lower()
+        if st not in {"iniciada", "entregue", "devolucao"}:
+            continue
+        emp = employee_by_id.get(r.employee_id)
+        if not emp:
+            continue
+        bucket = live_buckets.setdefault(emp.id, {"employee_name": emp.name, "photo_url": emp.photo_url, "routes": []})
+        d_m = _duration_m(r.delivery_started_at or r.start_time, r.delivery_finished_at or r.end_time) or 0
+        client_name = client_by_id.get(r.client_id).name if client_by_id.get(r.client_id) else f"Cliente #{r.client_id}"
+        bucket["routes"].append({
+            "client": client_name,
+            "start_time": r.delivery_started_at or r.start_time or "--:--",
+            "duration_mins": d_m,
+            "tonnage": float(r.tonnage or 0.0),
+            "delivery_status": st,
+        })
+    employee_by_id_all = {e.id: e for e in employees_all if e.id is not None}
+    for emp_id, bucket in live_buckets.items():
+        emp_routes = [r for r in routes if r.employee_id == emp_id]
+        bucket["employee_id"] = emp_id
+        bucket["total_deliveries"] = len(emp_routes)
+        bucket["completed_deliveries"] = len([r for r in emp_routes if (r.delivery_status or "").lower() in ("entregue", "devolucao")])
+        bucket["plate"] = next(((r.delivery_vehicle_plate or "").strip() or None for r in emp_routes if (r.delivery_vehicle_plate or "").strip()), None) if emp_routes else None
+        helper_ids = []
+        for r in emp_routes:
+            helper_ids.extend(_parse_route_helper_ids(getattr(r, "delivery_helpers_json", None)))
+        bucket["helper_names"] = list(dict.fromkeys(
+            (employee_by_id_all.get(hid).name if employee_by_id_all.get(hid) else None) or f"Ajud. #{hid}"
+            for hid in helper_ids if hid
+        ))[:3]
+        bucket["total_kg"] = round(sum(float(r.tonnage or 0.0) for r in emp_routes), 2)
+
+    if live_buckets:
+        sessions_today = session.exec(
+            select(models.DeliverySession)
+            .where(models.DeliverySession.date == selected_date_str)
+            .where(models.DeliverySession.employee_id.in_([eid for eid in live_buckets]))
+        ).all()
+        session_helpers_by_emp = {s.employee_id: _parse_session_helpers(s.helpers_json)[:3] for s in sessions_today if s.helpers_json}
+        for emp_id, bucket in live_buckets.items():
+            if not bucket.get("helper_names") and session_helpers_by_emp.get(emp_id):
+                bucket["helper_names"] = session_helpers_by_emp[emp_id]
+
+    live_separation = list(live_buckets.values())
+    live_separation.sort(key=lambda x: len(x["routes"]), reverse=True)
+
+    routes_devolucao = [r for r in routes if (r.delivery_status or "").lower() == "devolucao"]
+    routes_entregue_ou_devolucao = [r for r in routes if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
+    devolucao_dia = {
+        "count": len(routes_devolucao),
+        "total_kg": round(sum(float(getattr(r, "devolucao_volume", None) or r.tonnage or 0) for r in routes_devolucao), 2),
+        "total_valor": round(sum(float(getattr(r, "valor_devolucao", None) or 0) for r in routes_devolucao), 2),
+        "total_entregas": len(routes_entregue_ou_devolucao),
+        "pct": round((len(routes_devolucao) / len(routes_entregue_ou_devolucao) * 100), 1) if routes_entregue_ou_devolucao else 0,
+    }
+
+    alerts_over_20min = []
+    for r in routes:
+        if (r.delivery_status or "").lower() != "iniciada" or r.driver_lat_start is None:
+            continue
+        started_at_str = r.delivery_started_at or r.start_time
+        if not started_at_str or started_at_str.strip() in ("", "00:00"):
+            continue
+        try:
+            parts = str(started_at_str).strip().split(":")
+            h, m = int(parts[0]), int(parts[1]) if len(parts) > 1 else 0
+            started_dt = datetime(selected_date.year, selected_date.month, selected_date.day, h, m, 0, tzinfo=ZoneInfo("America/Sao_Paulo"))
+            elapsed_mins = int((now_br - started_dt).total_seconds() // 60)
+            if elapsed_mins < 20:
+                continue
+            client_name = (client_by_id.get(r.client_id).name if client_by_id.get(r.client_id) else None) or f"Cliente #{r.client_id}"
+            emp = employee_by_id.get(r.employee_id)
+            alerts_over_20min.append({
+                "client_name": client_name,
+                "driver_name": emp.name if emp else f"Motorista #{r.employee_id}",
+                "minutes": elapsed_mins,
+                "started_at": started_at_str,
+                "plate": (r.delivery_vehicle_plate or "").strip() or None,
+            })
+        except Exception:
+            continue
+    alerts_over_20min.sort(key=lambda x: -x["minutes"])
+
+    selected_headcount = sum(1 for e in employees if (e.status or "").lower() not in {"away", "vacation", "sick", "day_off"})
+    cost_centers_summary = {}
+    for emp in employees_all:
+        lbl = cost_center_display_label(emp.cost_center)
+        if lbl not in cost_centers_summary:
+            cost_centers_summary[lbl] = {"headcount": 0, "target": 0, "away": 0}
+        away = 1 if (emp.status or "").lower() in {"away", "vacation", "sick", "day_off"} else 0
+        cost_centers_summary[lbl]["headcount"] += max(0, 1 - away)
+        cost_centers_summary[lbl]["away"] += away
+        cost_centers_summary[lbl]["target"] = cost_centers_summary[lbl]["headcount"]
+
+    payload = {
+        "date": selected_date_str,
+        "cost_center": selected_cc or "Todos",
+        "dashboard": {
+            "kpi": {
+                "tonnage": round(total_tonnage, 2),
+                "avg_kgh": round(avg_kgh, 1),
+                "completed_routes_count": len(completed_routes),
+                "headcount": selected_headcount,
+                "target_headcount": selected_headcount,
+            },
+            "alerts": {"clients_over_20min": alerts_over_20min},
+            "live_separation": live_separation,
+            "devolucao_dia": devolucao_dia,
+            "cost_centers_summary": cost_centers_summary,
+        },
+    }
+    return JSONResponse(payload)
 
 
 @app.get("/api/dashboard/alerts-over-20min", response_class=JSONResponse)
@@ -2840,6 +3078,12 @@ async def mobile_auth(
 async def mobile_logout(request: Request):
     request.session.clear()
     return RedirectResponse(url="/mobile/login", status_code=303)
+
+
+@app.get("/logout", response_class=RedirectResponse)
+async def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse(url="/", status_code=303)
 
 
 CARGA_DESCARGA_PRIZE = 46.0

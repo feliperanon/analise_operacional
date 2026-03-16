@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<!--
+================================================================================
+PAINEL DE GESTÃO OPERACIONAL — CENTRAL DE COMANDO
+================================================================================
+
+1. DIAGNÓSTICO DA VERSÃO ATUAL
+-------------------------------
+- Layout fixo 1920px × 1080px em html/body/root causa corte ou scroll horizontal
+  em desktop menor que Full HD.
+- Painel central usa overflow-y-auto: scroll interno em vez de composição fixa.
+- Faixa de KPIs com min-widths em px pode transbordar em janelas estreitas.
+- Falta indicadores de negócio: total de rotas ativas, rotas em atenção/críticas,
+  motorista com maior/menor avanço.
+- Cards de motorista sem "ritmo" ou resumo de tempo; rodapé operacional mínimo.
+- Bloco de risco e visão do dia funcionais mas sem peso executivo.
+- Zero adaptação para viewport menor: não é verdadeiramente responsivo.
+- Sensação ainda de dashboard técnico, não de central de comando.
+
+2. ESTRATÉGIA DE REDESIGN
+--------------------------
+- Abandonar width/height fixos em px no root. Usar viewport (vh/vw) e proporções.
+- Cinco zonas com altura definida em vh (topo 8vh, KPIs 10vh, central 52vh,
+  risco 12vh, dia 10vh) para total ≤100vh e zero scroll vertical global.
+- Painel central: grid 2 linhas × 3 colunas (ou 2 em breakpoint), cada célula
+  com 50% da altura da zona; exibir no máximo 6 motoristas, ordenados por
+  prioridade; sem overflow-y.
+- KPIs: uma faixa única com quebra opcional em 2 linhas em viewport estreito.
+- Bloco de alertas: altura fixa, até 5 itens visíveis, sem scroll.
+- Tipografia com clamp() para escalar entre TV e desktop.
+- Leitura gerencial: "N rotas ativas", "M em atenção", "K críticas", "Maior avanço: X".
+
+3. ESTRATÉGIA DE RESPONSIVIDADE TV + WEB
+----------------------------------------
+- Modo TV (≥1920×1080): composição máxima, 3 colunas de motoristas, todas as
+  informações visíveis; escala 1:1.
+- Modo desktop amplo (1600–1919, 1366–1599): mesma estrutura; fontes e espaços
+  levemente reduzidos via clamp(); 3 colunas mantidas.
+- Modo desktop médio (1280–1365): grid de motoristas em 2 colunas; KPIs podem
+  quebrar em 2 linhas; topo mais compacto.
+- Modo desktop menor (1024–1279): 2 colunas; faixa de KPIs em 2 linhas;
+  blocos de risco e dia compactos.
+- Container principal: width 100%, max-width 1920px, min-height 100vh,
+  overflow hidden, margin 0 auto. Conteúdo nunca ultrapassa viewport.
+- Evitar scroll: alturas em vh; grid da central com 2 linhas; listas limitadas
+  (máx. 5 alertas, máx. 3–4 linhas por card de “abertas”); excesso resumido
+  em “+N mais”.
+
+4. ARQUITETURA VISUAL (5 ZONAS)
+-------------------------------
+A. Topo executivo (8vh): identidade, relógio, data, turno, barra, atualização, status.
+B. Faixa KPIs (10vh): centro, equipe/meta, ausentes, concluído, abertas, devolução,
+   alertas, rotas ativas, em atenção, críticas.
+C. Painel central (52vh): título + subtítulo (maior/menor avanço); grid 2×3 ou 2×2
+   de mini-cockpits de motorista (cabeçalho, núcleo desempenho, rodapé operacional).
+D. Alertas/exceções (12vh): título; lista prioritária ou “Operação sem alertas críticos”.
+E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, barra.
+
+5. COMO EVITAR SCROLL
+----------------------
+- Root e body: overflow: hidden; min-height: 100vh.
+- Cada zona com flex-basis em vh e flex-shrink: 0 (ou central flex-grow: 1).
+- Central: grid com 2 linhas (1fr 1fr); células com min-height: 0; conteúdo
+  interno com overflow: hidden e truncate onde necessário.
+- Listas longas: exibir até 4 entregas abertas por card; “+N abertas” se houver mais.
+- Alertas: até 5 itens; “+N alertas” se houver mais.
+================================================================================
+-->
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+    <title>Central de Comando • Painel Operacional</title>
+    <link rel="icon" type="image/png" href="/static/logo-souza-pinto.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; overflow: hidden; min-height: 100vh; background: #0f172a; color: #fff; }
+        .panel-root {
+            width: 100%;
+            max-width: 1920px;
+            min-height: 100vh;
+            margin: 0 auto;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            font-family: inherit;
+        }
+        .zone-topo { flex: 0 0 8vh; min-height: 64px; max-height: 88px; }
+        .zone-kpis { flex: 0 0 10vh; min-height: 72px; max-height: 100px; }
+        .zone-central { flex: 1 1 52vh; min-height: 0; display: flex; flex-direction: column; }
+        .zone-risco { flex: 0 0 12vh; min-height: 88px; max-height: 130px; }
+        .zone-dia { flex: 0 0 10vh; min-height: 72px; max-height: 95px; }
+
+        .panel-root .text-clock { font-size: clamp(1.75rem, 4vw, 2.75rem); }
+        .panel-root .text-kpi { font-size: clamp(0.875rem, 1.5vw, 1.25rem); }
+        .panel-root .text-kpi-big { font-size: clamp(1rem, 2vw, 1.5rem); }
+        .panel-root .text-label { font-size: clamp(0.625rem, 1vw, 0.6875rem); }
+        .panel-root .text-card-title { font-size: clamp(0.75rem, 1.2vw, 0.875rem); }
+        .panel-root .text-card-meta { font-size: clamp(0.625rem, 0.9vw, 0.6875rem); }
+
+        .kpi-cell { border-right: 1px solid rgba(51, 65, 85, 0.8); }
+        .kpi-cell:last-child { border-right: none; }
+        .status-normal { background: rgba(34, 197, 94, 0.2); border-color: rgba(34, 197, 94, 0.5); color: #86efac; }
+        .status-atencao { background: rgba(234, 179, 8, 0.2); border-color: rgba(234, 179, 8, 0.5); color: #fde047; }
+        .status-critico { background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.6); color: #fca5a5; }
+        .driver-card--atencao { border-color: rgba(234, 179, 8, 0.6); background: linear-gradient(135deg, rgba(30,41,59,0.96), rgba(234,179,8,0.06)); }
+        .driver-card--critico { border-color: rgba(239, 68, 68, 0.5); background: linear-gradient(135deg, rgba(30,41,59,0.96), rgba(239,68,68,0.05)); }
+        .driver-card--ok { border-color: rgba(51, 65, 85, 0.9); }
+
+        .driver-grid { display: grid; grid-template-rows: 1fr 1fr; gap: clamp(8px, 1vh, 16px); padding: clamp(8px, 1vh, 12px); min-height: 0; }
+        .driver-grid .driver-cell { min-height: 0; overflow: hidden; }
+        .driver-card { height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 0.75rem; border-width: 2px; padding: 0.5rem 0.75rem; }
+        .driver-card .card-head { flex-shrink: 0; border-bottom: 1px solid rgba(51,65,85,0.6); padding-bottom: 0.35rem; margin-bottom: 0.35rem; }
+        .driver-card .card-core { flex-shrink: 0; margin-bottom: 0.35rem; }
+        .driver-card .card-foot { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+        .driver-card .open-list { overflow: hidden; display: flex; flex-direction: column; gap: 2px; max-height: 100%; }
+        .driver-card .open-item { flex-shrink: 0; }
+
+        @media (min-width: 1281px) { .driver-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 1280px) { .driver-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 1024px) {
+            .zone-topo { flex: 0 0 7vh; }
+            .zone-kpis { flex: 0 0 auto; min-height: 80px; }
+            .kpi-wrap { flex-wrap: wrap; }
+            .zone-dia { flex: 0 0 9vh; }
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(30,41,59,0.5); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-slate-900 text-white" x-data="{ sidebarOpen: false }">
+    <button @click="sidebarOpen = true" class="fixed top-2 left-2 z-50 p-1.5 rounded-lg bg-slate-800/80 border border-slate-700/50 text-white shadow-md hover:bg-slate-700 transition-colors print-hidden" :class="sidebarOpen ? 'hidden' : ''">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
+    </button>
+
+    <div class="panel-root relative" id="tv-root">
+        <div class="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+            <div class="absolute top-0 left-0 w-[35%] h-[40%] bg-blue-600/6 rounded-full blur-[90px]"></div>
+            <div class="absolute bottom-0 right-0 w-[35%] h-[40%] bg-purple-600/6 rounded-full blur-[90px]"></div>
+        </div>
+
+        <!-- A. TOPO EXECUTIVO -->
+        <header class="zone-topo relative z-10 flex items-center justify-between px-4 sm:px-6 border-b border-slate-600/80 bg-slate-900/98 backdrop-blur shrink-0">
+            <div class="flex items-center gap-3">
+                <h1 class="text-base sm:text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 tracking-tight">CENTRAL DE COMANDO</h1>
+                <span class="text-slate-500 text-label font-semibold uppercase tracking-wider hidden sm:inline">NEXUS • TEMPO REAL</span>
+            </div>
+            <div class="flex items-center gap-4 sm:gap-6">
+                <div class="flex items-center gap-3 sm:gap-5 bg-slate-800/90 border border-slate-600 rounded-lg sm:rounded-xl px-3 sm:px-5 py-1.5 sm:py-2">
+                    <div class="text-center">
+                        <div id="dash-time" class="text-clock font-bold text-white font-mono leading-none">--:--</div>
+                        <div id="dash-date" class="text-label text-slate-400 uppercase tracking-wider mt-0.5">Carregando...</div>
+                    </div>
+                    <div class="w-px h-8 sm:h-10 bg-slate-600"></div>
+                    <div class="text-center min-w-[80px] sm:min-w-[100px]">
+                        <div id="dash-shift-name" class="text-card-title font-bold text-blue-400">Turno</div>
+                        <div class="w-full h-1.5 sm:h-2 bg-slate-700 rounded-full mt-0.5 sm:mt-1 overflow-hidden">
+                            <div id="dash-shift-bar" class="h-full rounded-full transition-all duration-500" style="width:0%;background:rgb(59 130 246)"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 sm:gap-4">
+                    <div class="text-right">
+                        <p class="text-label text-slate-500 uppercase tracking-wider">Atualizado</p>
+                        <p id="tv-last-update" class="text-card-meta font-bold text-slate-300">--:--</p>
+                    </div>
+                    <div id="tv-status-badge" class="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl border-2 font-bold text-label sm:text-sm uppercase tracking-wider status-normal">Operação normal</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- B. FAIXA DE KPIs DE NEGÓCIO -->
+        <section class="zone-kpis relative z-10 flex items-stretch bg-slate-800/60 border-b border-slate-700/70 px-3 sm:px-5 shrink-0 kpi-wrap" id="alerts-over-20min-card" data-date="{{ current_date }}" data-cost-center="{{ current_cost_center|e }}">
+            {% set _s = dashboard.cost_centers_summary or {} %}
+            {% set _v = _s.values()|list %}
+            {% set _cc = _s.get(current_cost_center) or (_v[0] if _v else none) %}
+            {% set _hc = (_cc.headcount|default(0)) if _cc else (dashboard.kpi.headcount|default(0)) %}
+            {% set _tg = (_cc.target|default(0)) if _cc else (dashboard.kpi.target_headcount|default(1)) %}
+            {% set _away = (_cc.away|default(0)) if _cc else 0 %}
+            {% set _pct = (_hc / _tg * 100) if _tg and _tg > 0 else 0 %}
+            {% set _dev = dashboard.devolucao_dia or {} %}
+            {% set _dev_n = _dev.count|default(0) %}
+            {% set _alerts_n = (dashboard.alerts.clients_over_20min or [])|length %}
+            {% set _ns = namespace(open_total=0, atencao=0, critico=0) %}
+            {% for op in (dashboard.live_separation or []) %}
+                {% set _o = op.total_deliveries|default(op.routes|length) - op.completed_deliveries|default(0) %}
+                {% set _ns.open_total = _ns.open_total + _o %}
+                {% set _p = (op.completed_deliveries|default(0) / op.total_deliveries * 100) if op.total_deliveries and op.total_deliveries > 0 else 0 %}
+                {% if _o >= 5 or _p < 25 %}{% set _ns.critico = _ns.critico + 1 %}
+                {% elif _o >= 3 or _p < 50 %}{% set _ns.atencao = _ns.atencao + 1 %}{% endif %}
+            {% endfor %}
+            {% set _open_total = _ns.open_total %}
+            {% set _n_ativas = (dashboard.live_separation or [])|length %}
+            <div class="kpi-cell flex items-center gap-2 px-2 sm:px-4 py-2 min-w-0 flex-1 flex-shrink-0" style="min-width: 90px;">
+                <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Centro</span>
+                <span class="font-bold text-blue-300 text-kpi truncate">{{ current_cost_center }}</span>
+            </div>
+            <div class="kpi-cell flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 100px;">
+                <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Equipe</span>
+                <span id="tv-kpi-presentes" class="font-black text-white text-kpi">{{ _hc }}</span><span class="text-slate-500">/</span><span id="tv-kpi-meta" class="font-bold text-emerald-400 text-kpi">{{ _tg }}</span>
+                <span id="tv-kpi-meta-pct" class="text-label text-slate-400 shrink-0">{% if _tg and _tg > 0 %}{{ "%.0f"|format(_pct) }}% meta{% endif %}</span>
+            </div>
+            <div class="kpi-cell flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 70px;">
+                <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Ausentes</span>
+                <span id="tv-kpi-ausentes" class="font-black text-kpi {{ 'text-orange-400' if _away > 0 else 'text-slate-500' }}">{{ _away }}</span>
+            </div>
+            <div class="kpi-cell flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 85px;">
+                <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Concluído</span>
+                <span id="tv-kpi-concluido" class="font-black text-kpi-big text-blue-300">{{ "%.0f"|format(_pct) }}%</span>
+            </div>
+            <div class="kpi-cell flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 95px;">
+                <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Abertas</span>
+                <span id="tv-kpi-abertas" class="font-black text-kpi text-white">{{ _open_total }}</span>
+            </div>
+            <div class="kpi-cell flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 90px;">
+                <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Devolução</span>
+                <span id="tv-kpi-devolucao" class="font-black text-kpi {{ 'text-red-400' if _dev_n > 0 else 'text-emerald-400' }}">{{ _dev_n }}</span>
+                <span id="tv-kpi-devolucao-ctx" class="text-label {{ 'text-amber-400' if _dev_n > 0 else 'text-slate-500' }}">{% if _dev_n > 0 %}{{ (_dev.pct|default(0)) }}% total{% endif %}</span>
+            </div>
+            <div class="kpi-cell flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 85px;">
+                <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Alertas</span>
+                <span id="tv-kpi-alertas" class="font-black text-kpi {{ 'text-amber-400' if _alerts_n > 0 else 'text-slate-500' }}">{{ _alerts_n }}</span>
+                <span class="text-label text-slate-500">&gt;20 min</span>
+            </div>
+            <div class="kpi-cell flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 85px;">
+                <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Rotas ativas</span>
+                <span id="tv-kpi-rotas-ativas" class="font-black text-kpi text-white">{{ _n_ativas }}</span>
+            </div>
+            <div class="kpi-cell flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 75px;">
+                <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Atenção</span>
+                <span id="tv-kpi-atencao" class="font-black text-kpi text-amber-400">{{ _ns.atencao }}</span>
+            </div>
+            <div class="kpi-cell flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 70px;">
+                <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Críticas</span>
+                <span id="tv-kpi-criticas" class="font-black text-kpi text-red-400">{{ _ns.critico }}</span>
+            </div>
+        </section>
+
+        <!-- C. PAINEL CENTRAL DA OPERAÇÃO -->
+        <section class="zone-central relative z-10 flex flex-col min-h-0">
+            <div class="flex items-center justify-between px-3 sm:px-5 py-1.5 shrink-0">
+                <h2 class="text-label sm:text-sm font-bold text-slate-400 uppercase tracking-wider">Operação em tempo real — Rotas ativas</h2>
+                <p id="tv-central-subtitle" class="text-label text-slate-500 truncate max-w-[50%] sm:max-w-none">Ordenado por prioridade</p>
+            </div>
+            <div id="tv-live-separation" class="driver-grid flex-1 min-h-0">
+                {% for op in (dashboard.live_separation or [])[:6] %}
+                {% set total = op.total_deliveries|default(op.routes|length) %}
+                {% set completed = op.completed_deliveries|default(0) %}
+                {% set open_count = total - completed %}
+                {% set pct_d = (completed / total * 100) if total and total > 0 else 0 %}
+                {% set ns = namespace(any_open=false) %}
+                {% for r in op.routes %}
+                    {% if (r.delivery_status or '') == 'iniciada' %}{% set ns.any_open = true %}{% endif %}
+                {% endfor %}
+                {% set card_status = 'critico' if open_count >= 5 or (total and total > 0 and pct_d < 25) else ('atencao' if open_count >= 3 or (total and total > 0 and pct_d < 50) else 'ok') %}
+                <div class="driver-cell">
+                    <article class="driver-card driver-card--{{ card_status }} border">
+                        <div class="card-head flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center shrink-0 text-slate-300 font-bold text-card-meta">{{ (op.employee_name or "?")[0] }}</div>
+                            <div class="min-w-0 flex-1">
+                                <p class="font-bold text-white text-card-title truncate leading-tight">{{ op.employee_name }}</p>
+                                <p class="text-card-meta text-slate-500 truncate">Ajud.: {{ (op.helper_names|join(', '))[:18] if op.helper_names else '—' }}{% if op.helper_names and (op.helper_names|join(', '))|length > 18 %}…{% endif %} · Placa: {{ op.plate or '—' }} · Peso: {{ (op.total_kg|round(1)|string) ~ ' kg' if op.total_kg is defined and op.total_kg is not none else '—' }}</p>
+                            </div>
+                        </div>
+                        <div class="card-core flex items-center justify-between gap-2">
+                            <span class="text-card-meta font-bold text-slate-300">{{ completed }}/{{ total }} entregas</span>
+                            <span class="text-card-title font-black text-blue-300">{{ "%.0f"|format(pct_d) }}%</span>
+                            <span class="text-card-meta font-semibold px-1.5 py-0.5 rounded {{ 'bg-amber-500/25 text-amber-300' if card_status == 'atencao' else ('bg-red-500/20 text-red-300' if card_status == 'critico' else 'bg-slate-600/50 text-slate-400') }}">{{ 'Crítico' if card_status == 'critico' else ('Atenção' if card_status == 'atencao' else 'Normal') }}</span>
+                        </div>
+                        <div class="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden shrink-0 mb-1">
+                            <div class="h-full rounded-full transition-all bar-pct bar-pct--{{ card_status }}" style="width: {{ pct_d }}%"></div>
+                        </div>
+                        <div class="card-foot">
+                            <p class="text-card-meta text-slate-500 uppercase font-semibold shrink-0 mb-0.5">Abertas agora</p>
+                            <div class="open-list">
+                                {% set count_open = 0 %}
+                                {% for r in op.routes %}
+                                {% if (r.delivery_status or '') == 'iniciada' %}
+                                {% if count_open < 4 %}
+                                <div class="open-item flex justify-between items-center text-card-meta bg-slate-900/60 rounded px-1.5 py-0.5">
+                                    <span class="text-white font-medium truncate flex-1 mr-1">{{ r.client }}</span>
+                                    <span class="text-slate-500 font-mono shrink-0">{{ r.start_time }}</span>
+                                </div>
+                                {% set count_open = count_open + 1 %}
+                                {% endif %}
+                                {% endif %}
+                                {% endfor %}
+                                {% if count_open == 0 %}
+                                <p class="text-card-meta text-slate-500 py-0.5">Nenhuma em aberto</p>
+                                {% endif %}
+                            </div>
+                            {% set total_open = 0 %}
+                            {% for r in op.routes %}
+                                {% if (r.delivery_status or '') == 'iniciada' %}{% set total_open = total_open + 1 %}{% endif %}
+                            {% endfor %}
+                            {% if total_open > 4 %}
+                            <p class="text-card-meta text-slate-500 shrink-0 mt-0.5">+{{ total_open - 4 }} mais</p>
+                            {% endif %}
+                        </div>
+                    </article>
+                </div>
+                {% endfor %}
+                {% if not dashboard.live_separation or (dashboard.live_separation|length == 0) %}
+                <div class="col-span-full flex items-center justify-center text-slate-500 text-card-title py-8">Nenhuma rota ativa no momento.</div>
+                {% endif %}
+            </div>
+        </section>
+
+        <!-- D. BLOCO DE ALERTAS E EXCEÇÕES -->
+        <section class="zone-risco relative z-10 border-t border-slate-700/70 bg-slate-800/40 px-3 sm:px-5 py-2 shrink-0">
+            <div class="flex items-center gap-2 mb-1">
+                <h2 class="text-label font-bold text-slate-400 uppercase tracking-wider">Alertas e exceções</h2>
+            </div>
+            <div id="tv-risco-body" class="min-h-[60px] max-h-[90px] rounded-xl border border-slate-700/60 bg-slate-900/50 p-2 overflow-hidden flex flex-col gap-1">
+                {% if (dashboard.alerts.clients_over_20min or [])|length > 0 or (dashboard.devolucao_dia or {}).count|default(0) > 0 %}
+                {% if (dashboard.alerts.clients_over_20min or [])|length > 0 %}
+                <p class="text-label text-amber-400 font-semibold uppercase tracking-wider shrink-0">Clientes &gt;20 min na parada</p>
+                <ul id="alerts-over-20min-list" class="space-y-0.5 overflow-hidden shrink min-h-0">
+                    {% for a in (dashboard.alerts.clients_over_20min or [])[:5] %}
+                    <li class="flex items-center justify-between gap-2 text-card-meta py-0.5 px-2 rounded bg-amber-500/10 border border-amber-500/30 shrink-0">
+                        <span class="font-semibold text-white truncate">{{ a.client_name }}</span>
+                        <span class="text-amber-300 font-bold shrink-0">{{ a.minutes }} min</span>
+                        <span class="text-slate-500 truncate max-w-[120px]">{{ a.driver_name }}{% if a.plate %} · {{ a.plate }}{% endif %}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                {% if (dashboard.devolucao_dia or {}).count|default(0) > 0 %}
+                <p class="text-label text-red-400 font-semibold uppercase tracking-wider shrink-0">Devoluções no dia</p>
+                <p class="text-card-meta text-slate-300 shrink-0">{{ (dashboard.devolucao_dia or {}).count|default(0) }} devolução(ões) · {{ ((dashboard.devolucao_dia or {}).total_kg|default(0))|round(1) }} kg</p>
+                {% endif %}
+                {% else %}
+                <p id="tv-risco-empty" class="text-card-meta font-semibold text-emerald-400/90 flex items-center gap-2 shrink-0">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                    Operação sem alertas críticos · Nenhuma devolução no momento
+                </p>
+                <ul id="alerts-over-20min-list" class="hidden"></ul>
+                {% endif %}
+            </div>
+        </section>
+
+        <!-- E. VISÃO GERAL DO DIA -->
+        <footer class="zone-dia relative z-10 flex items-center justify-between gap-4 px-3 sm:px-5 py-2 border-t border-slate-700/70 bg-slate-900/80 shrink-0 flex-wrap">
+            {% set kpi = dashboard.kpi or {} %}
+            {% set concluidas_dia = kpi.completed_routes_count|default(0) %}
+            {% set _ns2 = namespace(open=0) %}
+            {% for op in (dashboard.live_separation or []) %}
+                {% set _ns2.open = _ns2.open + (op.total_deliveries|default(0) - op.completed_deliveries|default(0)) %}
+            {% endfor %}
+            {% set _open = _ns2.open %}
+            {% set pct_dia = (concluidas_dia / (concluidas_dia + _open) * 100) if (concluidas_dia + _open) > 0 else 0 %}
+            <div class="flex items-center gap-4 sm:gap-6 flex-wrap">
+                <div class="flex items-center gap-1.5">
+                    <span class="text-label text-slate-500 uppercase font-semibold">Dia</span>
+                    <span id="tv-dia-pct" class="text-kpi-big font-black text-blue-300">{{ "%.0f"|format(pct_dia) }}%</span>
+                    <span class="text-card-meta text-slate-500">concluído</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="text-label text-slate-500 uppercase font-semibold">Concluídas</span>
+                    <span id="tv-dia-concluidas" class="text-kpi font-bold text-white">{{ concluidas_dia }}</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="text-label text-slate-500 uppercase font-semibold">Em aberto</span>
+                    <span id="tv-dia-abertas" class="text-kpi font-bold text-slate-300">{{ _open }}</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="text-label text-slate-500 uppercase font-semibold">Devoluções</span>
+                    <span id="tv-dia-devolucoes" class="text-kpi font-bold {{ 'text-red-400' if (dashboard.devolucao_dia or {}).count|default(0) > 0 else 'text-slate-500' }}">{{ (dashboard.devolucao_dia or {}).count|default(0) }}</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="text-label text-slate-500 uppercase font-semibold">Alertas</span>
+                    <span id="tv-dia-alertas" class="text-kpi font-bold {{ 'text-amber-400' if (dashboard.alerts.clients_over_20min or [])|length > 0 else 'text-slate-500' }}">{{ (dashboard.alerts.clients_over_20min or [])|length }}</span>
+                </div>
+            </div>
+            <div class="w-32 sm:w-40 h-1.5 bg-slate-700 rounded-full overflow-hidden shrink-0">
+                <div id="tv-dia-bar" class="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all duration-500" style="width: {{ pct_dia }}%"></div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.563.0/dist/umd/lucide.min.js"></script>
+    <script>
+    (function() {
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+
+        function isWithinShift(h, m, sh, sm, eh, em) {
+            var cur = h * 60 + m, s = sh * 60 + sm, e = eh * 60 + em;
+            return s < e ? (cur >= s && cur < e) : (cur >= s || cur < e);
+        }
+        function getCurrentShift(h, m) {
+            if (isWithinShift(h, m, 18, 0, 6, 0)) return { name: 'Noite', color: 'purple' };
+            if (isWithinShift(h, m, 5, 0, 13, 20)) return { name: 'Manha', color: 'blue' };
+            return { name: 'Tarde', color: 'orange' };
+        }
+        function getShiftProgress(h, m) {
+            var shift = getCurrentShift(h, m);
+            var cur = h * 60 + m;
+            if (shift.name === 'Noite') {
+                cur = h >= 18 ? (h - 18) * 60 + m : (h + 6) * 60 + m;
+                return Math.min(100, Math.max(0, (cur / (12 * 60)) * 100));
+            }
+            if (shift.name === 'Manha') {
+                var start = 5 * 60, end = 13 * 60 + 20;
+                return Math.min(100, Math.max(0, ((cur - start) / (end - start)) * 100));
+            }
+            var start = 12 * 60, end = 20 * 60 + 20;
+            return Math.min(100, Math.max(0, ((cur - start) / (end - start)) * 100));
+        }
+        function updateClock() {
+            var now = new Date(), h = now.getHours(), m = now.getMinutes();
+            var timeEl = document.getElementById('dash-time');
+            if (timeEl) timeEl.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+            var days = ['Dom','Seg','Ter','Qua','Qui','Sex','Sab'];
+            var dateEl = document.getElementById('dash-date');
+            if (dateEl) dateEl.textContent = days[now.getDay()] + ', ' + now.getDate() + '/' + String(now.getMonth()+1).padStart(2,'0');
+            var shift = getCurrentShift(h, m);
+            var shiftNameEl = document.getElementById('dash-shift-name');
+            if (shiftNameEl) shiftNameEl.textContent = 'Turno ' + shift.name;
+            var shiftBarEl = document.getElementById('dash-shift-bar');
+            if (shiftBarEl) {
+                shiftBarEl.style.width = getShiftProgress(h, m) + '%';
+                shiftBarEl.style.backgroundColor = shift.color === 'blue' ? 'rgb(59 130 246)' : shift.color === 'orange' ? 'rgb(249 115 22)' : 'rgb(168 85 247)';
+            }
+        }
+        function setLastUpdate() {
+            var el = document.getElementById('tv-last-update');
+            if (el) el.textContent = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+        function setOperationStatus(alertsCount, devCount) {
+            var badge = document.getElementById('tv-status-badge');
+            if (!badge) return;
+            badge.className = 'px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl border-2 font-bold text-label sm:text-sm uppercase tracking-wider ';
+            if (alertsCount >= 2 || devCount >= 3) { badge.classList.add('status-critico'); badge.textContent = 'Crítico'; }
+            else if (alertsCount > 0 || devCount > 0) { badge.classList.add('status-atencao'); badge.textContent = 'Atenção'; }
+            else { badge.classList.add('status-normal'); badge.textContent = 'Operação normal'; }
+        }
+        function driverCardStatus(openCount, total, pct) {
+            if (openCount >= 5 || (total > 0 && pct < 25)) return 'critico';
+            if (openCount >= 3 || (total > 0 && pct < 50)) return 'atencao';
+            return 'ok';
+        }
+        function countByStatus(live) {
+            var atencao = 0, critico = 0;
+            (live || []).forEach(function(op) {
+                var total = op.total_deliveries || (op.routes && op.routes.length) || 0;
+                var completed = op.completed_deliveries || 0;
+                var openCount = total - completed;
+                var pct = total > 0 ? (completed / total * 100) : 0;
+                if (openCount >= 5 || (total > 0 && pct < 25)) critico++;
+                else if (openCount >= 3 || (total > 0 && pct < 50)) atencao++;
+            });
+            return { atencao: atencao, critico: critico };
+        }
+        function bestWorstDrivers(live) {
+            if (!live || live.length === 0) return { best: null, worst: null };
+            var sorted = live.slice().sort(function(a, b) {
+                var pctA = (a.total_deliveries && a.total_deliveries > 0) ? (a.completed_deliveries || 0) / a.total_deliveries * 100 : 0;
+                var pctB = (b.total_deliveries && b.total_deliveries > 0) ? (b.completed_deliveries || 0) / b.total_deliveries * 100 : 0;
+                return pctB - pctA;
+            });
+            return { best: sorted[0], worst: sorted[sorted.length - 1] };
+        }
+        function fetchTvData() {
+            var card = document.getElementById('alerts-over-20min-card');
+            var date = card ? card.getAttribute('data-date') || '' : '';
+            var cc = card ? card.getAttribute('data-cost-center') || '' : '';
+            var url = '/api/dashboard/tv-data?date=' + encodeURIComponent(date);
+            if (cc) url += '&cost_center=' + encodeURIComponent(cc);
+            fetch(url, { credentials: 'same-origin' }).then(function(r) { return r.json(); }).then(function(data) {
+                var d = data.dashboard || {}, kpi = d.kpi || {}, alerts = d.alerts || {}, dev = d.devolucao_dia || {}, summary = d.cost_centers_summary || {};
+                var ccKey = data.cost_center || 'Exemplar', ccData = summary[ccKey] || (Object.values(summary)[0]) || {};
+                setLastUpdate();
+                var hc = ccData.headcount != null ? ccData.headcount : kpi.headcount, tg = ccData.target != null ? ccData.target : kpi.target_headcount, away = ccData.away != null ? ccData.away : 0;
+                var pct = tg > 0 && hc != null ? Math.round(hc/tg*100) : 0;
+                var alertsCount = (alerts.clients_over_20min || []).length, devCount = dev.count != null ? dev.count : 0;
+                setOperationStatus(alertsCount, devCount);
+
+                var live = d.live_separation || [];
+                var openTotal = 0;
+                live.forEach(function(op) { openTotal += (op.total_deliveries || 0) - (op.completed_deliveries || 0); });
+                var counts = countByStatus(live);
+                var bw = bestWorstDrivers(live);
+
+                var set = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+                set('tv-kpi-presentes', hc);
+                set('tv-kpi-meta', tg);
+                set('tv-kpi-meta-pct', tg ? pct + '% meta' : '');
+                set('tv-kpi-ausentes', away);
+                set('tv-kpi-concluido', pct + '%');
+                set('tv-kpi-abertas', openTotal);
+                set('tv-kpi-devolucao', devCount);
+                set('tv-kpi-devolucao-ctx', devCount ? (dev.pct || 0) + '% total' : '');
+                set('tv-kpi-alertas', alertsCount);
+                set('tv-kpi-rotas-ativas', live.length);
+                set('tv-kpi-atencao', counts.atencao);
+                set('tv-kpi-criticas', counts.critico);
+
+                var subEl = document.getElementById('tv-central-subtitle');
+                if (subEl) {
+                    if (bw.best && bw.worst && bw.best !== bw.worst)
+                        subEl.textContent = 'Maior avanço: ' + (bw.best.employee_name || '').replace(/</g,'&lt;') + ' · Maior atraso: ' + (bw.worst.employee_name || '').replace(/</g,'&lt;');
+                    else if (live.length > 0)
+                        subEl.textContent = live.length + ' rota(s) ativa(s) · Ordenado por prioridade';
+                    else
+                        subEl.textContent = 'Ordenado por prioridade';
+                }
+
+                var riscoBody = document.getElementById('tv-risco-body');
+                if (riscoBody) {
+                    var list = alerts.clients_over_20min || [];
+                    if (list.length === 0 && devCount === 0) {
+                        riscoBody.innerHTML = '<p id="tv-risco-empty" class="text-card-meta font-semibold text-emerald-400/90 flex items-center gap-2 shrink-0"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>Operação sem alertas críticos · Nenhuma devolução no momento</p>';
+                    } else {
+                        var html = '';
+                        if (list.length > 0) {
+                            html += '<p class="text-label text-amber-400 font-semibold uppercase tracking-wider shrink-0">Clientes &gt;20 min na parada</p><ul id="alerts-over-20min-list" class="space-y-0.5 overflow-hidden">' +
+                                list.slice(0, 5).map(function(a) {
+                                    return '<li class="flex items-center justify-between gap-2 text-card-meta py-0.5 px-2 rounded bg-amber-500/10 border border-amber-500/30 shrink-0"><span class="font-semibold text-white truncate">' + (a.client_name || '').replace(/</g,'&lt;') + '</span><span class="text-amber-300 font-bold shrink-0">' + (a.minutes || 0) + ' min</span><span class="text-slate-500 truncate max-w-[120px]">' + (a.driver_name || '').replace(/</g,'&lt;') + (a.plate ? ' · ' + a.plate : '') + '</span></li>';
+                                }).join('') + '</ul>';
+                        }
+                        if (devCount > 0) {
+                            html += '<p class="text-label text-red-400 font-semibold uppercase tracking-wider shrink-0">Devoluções no dia</p><p class="text-card-meta text-slate-300 shrink-0">' + devCount + ' devolução(ões) · ' + (dev.total_kg != null ? Number(dev.total_kg).toFixed(1) : '0') + ' kg</p>';
+                        }
+                        riscoBody.innerHTML = html;
+                    }
+                }
+
+                var concluidasDia = kpi.completed_routes_count != null ? kpi.completed_routes_count : 0;
+                var pctDia = (concluidasDia + openTotal) > 0 ? Math.round(concluidasDia / (concluidasDia + openTotal) * 100) : 0;
+                set('tv-dia-pct', pctDia + '%');
+                set('tv-dia-concluidas', concluidasDia);
+                set('tv-dia-abertas', openTotal);
+                set('tv-dia-devolucoes', devCount);
+                set('tv-dia-alertas', alertsCount);
+                var diaBar = document.getElementById('tv-dia-bar');
+                if (diaBar) diaBar.style.width = pctDia + '%';
+
+                live = live.slice(0, 6);
+                live.sort(function(a, b) {
+                    var openA = (a.total_deliveries || 0) - (a.completed_deliveries || 0);
+                    var openB = (b.total_deliveries || 0) - (b.completed_deliveries || 0);
+                    if (openB !== openA) return openB - openA;
+                    var pctA = (a.total_deliveries && a.total_deliveries > 0) ? (a.completed_deliveries || 0) / a.total_deliveries * 100 : 0;
+                    var pctB = (b.total_deliveries && b.total_deliveries > 0) ? (b.completed_deliveries || 0) / b.total_deliveries * 100 : 0;
+                    return pctA - pctB;
+                });
+                var container = document.getElementById('tv-live-separation');
+                if (container && live.length > 0) {
+                    container.innerHTML = live.map(function(op) {
+                        var total = op.total_deliveries || (op.routes && op.routes.length) || 0, completed = op.completed_deliveries || 0, openCount = total - completed;
+                        var pctR = total > 0 ? Math.round(completed / total * 100) : 0;
+                        var status = driverCardStatus(openCount, total, pctR);
+                        var statusClass = status === 'critico' ? 'driver-card--critico' : (status === 'atencao' ? 'driver-card--atencao' : 'driver-card--ok');
+                        var statusLabel = status === 'critico' ? 'Crítico' : (status === 'atencao' ? 'Atenção' : 'Normal');
+                        var statusBg = status === 'critico' ? 'bg-red-500/20 text-red-300' : (status === 'atencao' ? 'bg-amber-500/25 text-amber-300' : 'bg-slate-600/50 text-slate-400');
+                        var helpers = (op.helper_names || []).slice(0, 2).join(', ');
+                        if (helpers.length > 14) helpers = helpers.substring(0, 12) + '…';
+                        var openRoutes = (op.routes || []).filter(function(r) { return (r.delivery_status || '') === 'iniciada'; });
+                        var openHtml = openRoutes.slice(0, 4).map(function(r) {
+                            return '<div class="open-item flex justify-between items-center text-card-meta bg-slate-900/60 rounded px-1.5 py-0.5"><span class="text-white font-medium truncate flex-1 mr-1">' + (r.client || '').replace(/</g,'&lt;') + '</span><span class="text-slate-500 font-mono shrink-0">' + (r.start_time || '') + '</span></div>';
+                        }).join('');
+                        if (openRoutes.length === 0) openHtml = '<p class="text-card-meta text-slate-500 py-0.5">Nenhuma em aberto</p>';
+                        var more = openRoutes.length > 4 ? '<p class="text-card-meta text-slate-500 shrink-0 mt-0.5">+' + (openRoutes.length - 4) + ' mais</p>' : '';
+                        return '<div class="driver-cell"><article class="driver-card ' + statusClass + ' border">' +
+                            '<div class="card-head flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center shrink-0 text-slate-300 font-bold text-card-meta">' + (op.employee_name || '?').charAt(0) + '</div><div class="min-w-0 flex-1"><p class="font-bold text-white text-card-title truncate leading-tight">' + (op.employee_name || '').replace(/</g,'&lt;') + '</p><p class="text-card-meta text-slate-500 truncate">Ajud.: ' + (helpers || '—').replace(/</g,'&lt;') + ' · ' + (op.plate || '—').replace(/</g,'&lt;') + ' · Km —</p></div></div>' +
+                            '<div class="card-core flex items-center justify-between gap-2"><span class="text-card-meta font-bold text-slate-300">' + completed + '/' + total + ' entregas</span><span class="text-card-title font-black text-blue-300">' + pctR + '%</span><span class="text-card-meta font-semibold px-1.5 py-0.5 rounded ' + statusBg + '">' + statusLabel + '</span></div>' +
+                            '<div class="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden shrink-0 mb-1"><div class="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all" style="width:' + pctR + '%"></div></div>' +
+                            '<div class="card-foot"><p class="text-card-meta text-slate-500 uppercase font-semibold shrink-0 mb-0.5">Abertas agora</p><div class="open-list">' + openHtml + '</div>' + more + '</div></article></div>';
+                    }).join('');
+                }
+            }).catch(function() { setLastUpdate(); });
+        }
+        updateClock();
+        setLastUpdate();
+        setInterval(updateClock, 1000);
+        fetchTvData();
+        setInterval(fetchTvData, 60000);
+    })();
+    </script>
+</body>
+</html>
