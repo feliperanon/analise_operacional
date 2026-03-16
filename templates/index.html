@@ -43,26 +43,39 @@
             </div>
         </div>
 
-        <!-- CARDS EMPRESA / CENTRO DE CUSTO -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <!-- Filtro Empresa / Centro de Custo (acima dos cards) -->
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap bg-slate-800/80 backdrop-blur border border-slate-700 p-1 rounded-xl gap-1">
+                {% for opt in cost_center_options or ['Todos'] %}
+                <a href="?cost_center={{ opt|urlencode }}&date={{ current_date }}"
+                    class="px-4 py-2 rounded-lg text-sm font-bold transition-all {{ 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' if current_cost_center == opt else 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                    {{ opt }}
+                </a>
+                {% endfor %}
+            </div>
+            <p class="text-xs text-slate-500">Filtrar por Empresa / Centro de Custo</p>
+        </div>
+
+        <!-- Todos os cards em uma única linha (Empresas + KPIs) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6 gap-4 min-w-0">
             {% for cc_name, cc_data in (dashboard.cost_centers_summary or {})|dictsort %}
             {% set cc_mod = loop.index0 % 5 %}
-            <a href="?cost_center={{ cc_name|urlencode }}&date={{ current_date }}" class="group">
+            <a href="?cost_center={{ cc_name|urlencode }}&date={{ current_date }}" class="group min-w-0">
                 {% if cc_mod == 0 %}
-                <div class="bg-gradient-to-br from-blue-900/40 to-slate-800/60 backdrop-blur border border-blue-500/30 rounded-2xl p-4 relative overflow-hidden transition-all hover:border-blue-400/50 hover:shadow-lg hover:shadow-blue-500/10 {{ 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900' if current_cost_center == cc_name else '' }}">
-                    <div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center"><svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg></div><div><h3 class="text-lg font-bold text-blue-300">{{ cc_name }}</h3><p class="text-[10px] text-slate-500 uppercase tracking-wider">Empresa / Centro de Custo</p></div></div>
+                <div class="h-full bg-gradient-to-br from-blue-900/40 to-slate-800/60 backdrop-blur border border-blue-500/30 rounded-2xl p-4 relative overflow-hidden transition-all hover:border-blue-400/50 hover:shadow-lg hover:shadow-blue-500/10 {{ 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900' if current_cost_center == cc_name else '' }}">
+                    <div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center flex-shrink-0"><svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg></div><div class="min-w-0"><h3 class="text-lg font-bold text-blue-300 truncate">{{ cc_name }}</h3><p class="text-[10px] text-slate-500 uppercase tracking-wider">Empresa / Centro de Custo</p></div></div>
                 {% elif cc_mod == 1 %}
-                <div class="bg-gradient-to-br from-orange-900/40 to-slate-800/60 backdrop-blur border border-orange-500/30 rounded-2xl p-4 relative overflow-hidden transition-all hover:border-orange-400/50 hover:shadow-lg hover:shadow-orange-500/10 {{ 'ring-2 ring-orange-500 ring-offset-2 ring-offset-slate-900' if current_cost_center == cc_name else '' }}">
-                    <div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center"><svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg></div><div><h3 class="text-lg font-bold text-orange-300">{{ cc_name }}</h3><p class="text-[10px] text-slate-500 uppercase tracking-wider">Empresa / Centro de Custo</p></div></div>
+                <div class="h-full bg-gradient-to-br from-orange-900/40 to-slate-800/60 backdrop-blur border border-orange-500/30 rounded-2xl p-4 relative overflow-hidden transition-all hover:border-orange-400/50 hover:shadow-lg hover:shadow-orange-500/10 {{ 'ring-2 ring-orange-500 ring-offset-2 ring-offset-slate-900' if current_cost_center == cc_name else '' }}">
+                    <div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center flex-shrink-0"><svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg></div><div class="min-w-0"><h3 class="text-lg font-bold text-orange-300 truncate">{{ cc_name }}</h3><p class="text-[10px] text-slate-500 uppercase tracking-wider">Empresa / Centro de Custo</p></div></div>
                 {% elif cc_mod == 2 %}
-                <div class="bg-gradient-to-br from-purple-900/40 to-slate-800/60 backdrop-blur border border-purple-500/30 rounded-2xl p-4 relative overflow-hidden transition-all hover:border-purple-400/50 hover:shadow-lg hover:shadow-purple-500/10 {{ 'ring-2 ring-purple-500 ring-offset-2 ring-offset-slate-900' if current_cost_center == cc_name else '' }}">
-                    <div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center"><svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg></div><div><h3 class="text-lg font-bold text-purple-300">{{ cc_name }}</h3><p class="text-[10px] text-slate-500 uppercase tracking-wider">Empresa / Centro de Custo</p></div></div>
+                <div class="h-full bg-gradient-to-br from-purple-900/40 to-slate-800/60 backdrop-blur border border-purple-500/30 rounded-2xl p-4 relative overflow-hidden transition-all hover:border-purple-400/50 hover:shadow-lg hover:shadow-purple-500/10 {{ 'ring-2 ring-purple-500 ring-offset-2 ring-offset-slate-900' if current_cost_center == cc_name else '' }}">
+                    <div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center flex-shrink-0"><svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg></div><div class="min-w-0"><h3 class="text-lg font-bold text-purple-300 truncate">{{ cc_name }}</h3><p class="text-[10px] text-slate-500 uppercase tracking-wider">Empresa / Centro de Custo</p></div></div>
                 {% elif cc_mod == 3 %}
-                <div class="bg-gradient-to-br from-cyan-900/40 to-slate-800/60 backdrop-blur border border-cyan-500/30 rounded-2xl p-4 relative overflow-hidden transition-all hover:border-cyan-400/50 hover:shadow-lg hover:shadow-cyan-500/10 {{ 'ring-2 ring-cyan-500 ring-offset-2 ring-offset-slate-900' if current_cost_center == cc_name else '' }}">
-                    <div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center"><svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg></div><div><h3 class="text-lg font-bold text-cyan-300">{{ cc_name }}</h3><p class="text-[10px] text-slate-500 uppercase tracking-wider">Empresa / Centro de Custo</p></div></div>
+                <div class="h-full bg-gradient-to-br from-cyan-900/40 to-slate-800/60 backdrop-blur border border-cyan-500/30 rounded-2xl p-4 relative overflow-hidden transition-all hover:border-cyan-400/50 hover:shadow-lg hover:shadow-cyan-500/10 {{ 'ring-2 ring-cyan-500 ring-offset-2 ring-offset-slate-900' if current_cost_center == cc_name else '' }}">
+                    <div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center flex-shrink-0"><svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg></div><div class="min-w-0"><h3 class="text-lg font-bold text-cyan-300 truncate">{{ cc_name }}</h3><p class="text-[10px] text-slate-500 uppercase tracking-wider">Empresa / Centro de Custo</p></div></div>
                 {% else %}
-                <div class="bg-gradient-to-br from-emerald-900/40 to-slate-800/60 backdrop-blur border border-emerald-500/30 rounded-2xl p-4 relative overflow-hidden transition-all hover:border-emerald-400/50 hover:shadow-lg hover:shadow-emerald-500/10 {{ 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-slate-900' if current_cost_center == cc_name else '' }}">
-                    <div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center"><svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg></div><div><h3 class="text-lg font-bold text-emerald-300">{{ cc_name }}</h3><p class="text-[10px] text-slate-500 uppercase tracking-wider">Empresa / Centro de Custo</p></div></div>
+                <div class="h-full bg-gradient-to-br from-emerald-900/40 to-slate-800/60 backdrop-blur border border-emerald-500/30 rounded-2xl p-4 relative overflow-hidden transition-all hover:border-emerald-400/50 hover:shadow-lg hover:shadow-emerald-500/10 {{ 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-slate-900' if current_cost_center == cc_name else '' }}">
+                    <div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center flex-shrink-0"><svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg></div><div class="min-w-0"><h3 class="text-lg font-bold text-emerald-300 truncate">{{ cc_name }}</h3><p class="text-[10px] text-slate-500 uppercase tracking-wider">Empresa / Centro de Custo</p></div></div>
                 {% endif %}
                     <div class="grid grid-cols-3 gap-2 text-center">
                         <div class="bg-slate-900/50 rounded-lg p-2">
@@ -81,86 +94,53 @@
                 </div>
             </a>
             {% endfor %}
-        </div>
-
-        <!-- Filtro Empresa / Centro de Custo -->
-        <div class="flex items-center justify-between">
-            <div class="flex flex-wrap bg-slate-800/80 backdrop-blur border border-slate-700 p-1 rounded-xl gap-1">
-                {% for opt in cost_center_options or ['Todos'] %}
-                <a href="?cost_center={{ opt|urlencode }}&date={{ current_date }}"
-                    class="px-4 py-2 rounded-lg text-sm font-bold transition-all {{ 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' if current_cost_center == opt else 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                    {{ opt }}
-                </a>
-                {% endfor %}
-            </div>
-            <p class="text-xs text-slate-500">Filtrar por Empresa / Centro de Custo</p>
-        </div>
-
-        <!-- 1. TOP KPI ROW -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <!-- KPI 1: Volumetria -->
-            <div
-                class="bg-slate-800/60 backdrop-blur border border-slate-700/50 rounded-2xl p-6 relative group overflow-hidden">
-                <div
-                    class="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                </div>
-                <div class="flex items-start justify-between relative">
-                    <div>
+            <div class="bg-slate-800/60 backdrop-blur border border-slate-700/50 rounded-2xl p-4 relative group overflow-hidden min-w-0">
+                <div class="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div class="flex items-start justify-between relative gap-2">
+                    <div class="min-w-0">
                         <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Volume Total</p>
-                        <h3 class="text-3xl font-black text-white group-hover:scale-105 transition-transform">{{
-                            "{:,.0f}".format(dashboard.kpi.tonnage).replace(',', '.') }} <span
-                                class="text-sm font-normal text-slate-500">kg</span></h3>
+                        <h3 class="text-2xl xl:text-3xl font-black text-white group-hover:scale-105 transition-transform">{{
+                            "{:,.0f}".format(dashboard.kpi.tonnage).replace(',', '.') }} <span class="text-sm font-normal text-slate-500">kg</span></h3>
                     </div>
-                    <div class="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center">
+                    <div class="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center flex-shrink-0">
                         <i data-lucide="package" class="w-6 h-6"></i>
                     </div>
                 </div>
             </div>
-
             <!-- KPI 2: Produtividade (Kg/h) -->
-            <div
-                class="bg-slate-800/60 backdrop-blur border border-slate-700/50 rounded-2xl p-6 relative group overflow-hidden">
-                <div
-                    class="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                </div>
-                <div class="flex items-start justify-between relative">
-                    <div>
+            <div class="bg-slate-800/60 backdrop-blur border border-slate-700/50 rounded-2xl p-4 relative group overflow-hidden min-w-0">
+                <div class="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div class="flex items-start justify-between relative gap-2">
+                    <div class="min-w-0">
                         <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Velocidade Média</p>
-                        <h3 class="text-3xl font-black text-white group-hover:scale-105 transition-transform">{{
+                        <h3 class="text-2xl xl:text-3xl font-black text-white group-hover:scale-105 transition-transform">{{
                             "{:,.1f}".format(dashboard.kpi.avg_kgh).replace(",", "X").replace(".", ",").replace("X", ".") }} <span class="text-sm font-normal text-slate-500">kg/h</span></h3>
                         <p class="text-[11px] text-green-300 mt-1">Concluídas: {{ dashboard.kpi.completed_routes_count or 0 }}</p>
                     </div>
-                    <div class="w-10 h-10 rounded-xl bg-green-500/20 text-green-400 flex items-center justify-center">
+                    <div class="w-10 h-10 rounded-xl bg-green-500/20 text-green-400 flex items-center justify-center flex-shrink-0">
                         <i data-lucide="zap" class="w-6 h-6"></i>
                     </div>
                 </div>
             </div>
-
             <!-- KPI 3: Headcount -->
-            <div
-                class="bg-slate-800/60 backdrop-blur border border-slate-700/50 rounded-2xl p-6 relative group overflow-hidden">
-                <div
-                    class="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                </div>
-                <div class="flex items-start justify-between relative">
-                    <div>
+            <div class="bg-slate-800/60 backdrop-blur border border-slate-700/50 rounded-2xl p-4 relative group overflow-hidden min-w-0">
+                <div class="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div class="flex items-start justify-between relative gap-2">
+                    <div class="min-w-0">
                         <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Equipe Presente</p>
-                        <div class="flex items-baseline gap-2">
-                            <h3 class="text-3xl font-black text-white group-hover:scale-105 transition-transform">{{
-                                dashboard.kpi.headcount }}</h3>
+                        <div class="flex items-baseline gap-2 flex-wrap">
+                            <h3 class="text-2xl xl:text-3xl font-black text-white group-hover:scale-105 transition-transform">{{ dashboard.kpi.headcount }}</h3>
                             <span class="text-sm font-bold text-slate-500">/ {{ dashboard.kpi.target_headcount }}</span>
                         </div>
                     </div>
-                    <div class="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
+                    <div class="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center flex-shrink-0">
                         <i data-lucide="users" class="w-6 h-6"></i>
                     </div>
                 </div>
-                <!-- Progress Bar -->
-                <div class="w-full h-1.5 bg-slate-700 rounded-full mt-4 overflow-hidden">
-                    {% set pct = (dashboard.kpi.headcount / dashboard.kpi.target_headcount * 100) if
-                    dashboard.kpi.target_headcount > 0 else 0 %}
-                    <div class="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
-                        style="width: {{ pct }}%"></div>
+                <div class="w-full h-1.5 bg-slate-700 rounded-full mt-3 overflow-hidden">
+                    {% set pct = (dashboard.kpi.headcount / dashboard.kpi.target_headcount * 100) if dashboard.kpi.target_headcount > 0 else 0 %}
+                    <div class="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full" style="width: {{ pct }}%"></div>
                 </div>
             </div>
         </div>
