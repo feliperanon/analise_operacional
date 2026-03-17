@@ -1,0 +1,625 @@
+{% extends "base.html" %}
+{% from "bi/_components.html" import kpi_card, chart_card, table_section %}
+
+{% block content %}
+{% include "mobile/_design_tokens.html" %}
+<link rel="stylesheet" href="/static/css/bi_delivery_premium.css">
+
+<div class="bi-page p-4 lg:p-8">
+  <div class="max-w-[1900px] mx-auto space-y-5">
+
+    <!-- ===== HEADER ===== -->
+    <header class="surface-shadow bi-card">
+      <div class="bi-card-head bi-card-head-between">
+        <div class="flex items-center gap-3">
+          <div class="icon-wrap" style="color:var(--color-danger);">
+            <i data-lucide="package-x" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h1 class="text-title-lg">BI Devoluções</h1>
+            <p class="text-caption mt-1">Análise avançada de devoluções — motivos, responsabilidades, clientes, motoristas, ajudantes e mapa de calor.</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <a href="/bi/delivery" class="btn-secondary">BI Entregas</a>
+          <a href="/bi/clientes" class="btn-secondary">BI Clientes</a>
+          <a href="/bi/motorista" class="btn-secondary">BI Motorista</a>
+          <a href="/devolucoes" class="btn-secondary">Devoluções</a>
+        </div>
+      </div>
+
+      <!-- FILTROS -->
+      <form method="get" action="/bi/devolucoes" class="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+        <div class="form-field">
+          <label>Data inicial</label>
+          <input type="date" name="date_from" value="{{ filters.date_from }}">
+        </div>
+        <div class="form-field">
+          <label>Data final</label>
+          <input type="date" name="date_to" value="{{ filters.date_to }}">
+        </div>
+        <div class="form-field">
+          <label>Responsabilidade</label>
+          <select name="responsabilidade_id">
+            <option value="">Todas</option>
+            {% for r in resps_filter %}
+            <option value="{{ r.id }}" {% if filters.responsabilidade_id==r.id %}selected{% endif %}>{{ r.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Motivo</label>
+          <select name="motivo_id">
+            <option value="">Todos</option>
+            {% for m in motivos_filter %}
+            <option value="{{ m.id }}" {% if filters.motivo_id==m.id %}selected{% endif %}>{{ m.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Motorista</label>
+          <select name="motorista_id">
+            <option value="">Todos</option>
+            {% for d in drivers_filter %}
+            <option value="{{ d.id }}" {% if filters.motorista_id==d.id %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Cliente</label>
+          <select name="client_id">
+            <option value="">Todos</option>
+            {% for c in clients_filter %}
+            <option value="{{ c.id }}" {% if filters.client_id==c.id %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="xl:col-span-6 flex flex-wrap gap-2 pt-1">
+          <button class="btn-primary" type="submit">Aplicar filtros</button>
+          <a href="/bi/devolucoes" class="btn-secondary">Limpar</a>
+          <a href="/bi/devolucoes/export?format=csv&{{ filters_query }}" class="btn-secondary">⬇ CSV</a>
+          <a href="/bi/devolucoes/export?format=xlsx&{{ filters_query }}" class="btn-secondary">⬇ XLSX</a>
+        </div>
+      </form>
+    </header>
+
+    <!-- ===== KPI CARDS ===== -->
+    <section class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-7 gap-3">
+      {{ kpi_card("Total Devoluções", total_qtd|fmt_br_int, "ocorrências no período", "package-x", "danger") }}
+      {{ kpi_card("Valor Total", total_valor|fmt_br_moeda, "soma das devoluções", "dollar-sign", "danger") }}
+      {{ kpi_card("Clientes Afetados", total_clientes_afetados|fmt_br_int, "clientes únicos", "users", "warning") }}
+      {{ kpi_card("Motoristas Envolvidos", total_motoristas_envolvidos|fmt_br_int, "motoristas únicos", "truck", "warning") }}
+      {{ kpi_card("Média / Dia", media_por_dia|fmt_br_1, "devoluções por dia", "trending-up", "neutral") }}
+      {{ kpi_card("Média Valor / Dia", media_valor_dia|fmt_br_moeda, "valor médio por dia", "bar-chart-3", "neutral") }}
+      {{ kpi_card("Acima R$300", total_acima_300|string ~ " (" ~ pct_acima_300|fmt_br_1 ~ "%)", "devoluções de alto valor", "alert-triangle", "warning") }}
+    </section>
+
+    <!-- ===== RESPONSABILIDADE BREAKDOWN ===== -->
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {% for rb in resp_breakdown %}
+      {% set pct = (rb.qtd / total_qtd * 100) if total_qtd else 0 %}
+      {% set color = "var(--color-danger)" if "MERCADO" in rb.responsabilidade else ("var(--color-warning)" if "COMERCIAL" in rb.responsabilidade else "var(--color-primary)") %}
+      <article class="surface-shadow bi-card">
+        <div class="bi-card-head">
+          <div class="icon-wrap" style="color:{{ color }};"><i data-lucide="layers" class="w-4 h-4"></i></div>
+          <h3 class="text-section ml-2">{{ rb.responsabilidade }}</h3>
+        </div>
+        <div class="flex items-end gap-4 mt-3">
+          <div>
+            <p class="text-title-lg" style="color:{{ color }};">{{ rb.qtd|fmt_br_int }}</p>
+            <p class="text-caption">devoluções</p>
+          </div>
+          <div>
+            <p class="text-title-lg">{{ rb.valor|fmt_br_moeda }}</p>
+            <p class="text-caption">valor total</p>
+          </div>
+        </div>
+        <div class="mt-3 w-full bg-slate-700/50 rounded-full h-2">
+          <div class="h-2 rounded-full transition-all" style="width:{{ pct|round(1) }}%;background:{{ color }};"></div>
+        </div>
+        <p class="text-caption mt-1 text-right">{{ pct|fmt_br_1 }}% do total</p>
+      </article>
+      {% endfor %}
+    </section>
+
+    <!-- ===== GRÁFICOS LINHA 1: Evolução Diária + Evolução Semanal ===== -->
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      {{ chart_card("Evolução Diária de Devoluções", "Quantidade e valor por dia no período", "chartEvolucaoDiaria") }}
+      {{ chart_card("Evolução Semanal de Devoluções", "Tendência semanal (ISO)", "chartEvolucaoSemanal") }}
+    </div>
+
+    <!-- ===== GRÁFICOS LINHA 2: Motivos + Responsabilidade (pizza) ===== -->
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      {{ chart_card("Top Motivos de Devolução", "Quantidade por motivo", "chartTopMotivos") }}
+      {{ chart_card("Distribuição por Responsabilidade", "Participação de cada setor", "chartRespPizza") }}
+    </div>
+
+    <!-- ===== GRÁFICOS LINHA 3: Top Motoristas + Top Clientes ===== -->
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      {{ chart_card("Top Motoristas (devoluções)", "Ranking de motoristas com mais devoluções", "chartTopMotoristas") }}
+      {{ chart_card("Top Clientes (devoluções)", "Ranking de clientes com mais devoluções", "chartTopClientes") }}
+    </div>
+
+    <!-- ===== GRÁFICOS LINHA 4: Ajudantes + Vendedores ===== -->
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      {{ chart_card("Top Ajudantes (devoluções)", "Ajudantes com maior incidência", "chartTopAjudantes") }}
+      {{ chart_card("Top Vendedores (devoluções)", "Vendedores com mais devoluções associadas", "chartTopVendedores") }}
+    </div>
+
+    <!-- ===== MAPA DE CALOR: DOW × Semana ===== -->
+    <section class="surface-shadow bi-card">
+      <div class="bi-card-head bi-card-head-between">
+        <div>
+          <h3 class="text-section"><i data-lucide="flame" class="w-4 h-4 inline mr-1" style="color:var(--color-danger);"></i>Mapa de Calor — Dia da Semana × Semana</h3>
+          <p class="text-caption mt-1">Concentração de devoluções por dia da semana e semana ISO (máx. 12 semanas)</p>
+        </div>
+      </div>
+      <div class="mt-4 overflow-x-auto">
+        <div id="heatmapContainer" class="text-xs" style="min-width:500px;">
+          <!-- renderizado via JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== MAPA DE CALOR: DOW × Dia do Mês ===== -->
+    <section class="surface-shadow bi-card">
+      <div class="bi-card-head bi-card-head-between">
+        <div>
+          <h3 class="text-section"><i data-lucide="calendar-days" class="w-4 h-4 inline mr-1" style="color:var(--color-warning);"></i>Mapa de Calor — Dia da Semana × Dia do Mês</h3>
+          <p class="text-caption mt-1">Identifique padrões por dia da semana e dia do mês</p>
+        </div>
+      </div>
+      <div class="mt-4 overflow-x-auto">
+        <div id="heatmapDomContainer" class="text-xs" style="min-width:500px;"></div>
+      </div>
+    </section>
+
+    <!-- ===== TABELA TOP CLIENTES ===== -->
+    {% call table_section("Ranking de Clientes", "Clientes com maior volume de devoluções", "tableClientes") %}
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Cliente</th>
+        <th>Devoluções</th>
+        <th>Valor Total</th>
+        <th>Principal Motivo</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in top_clientes %}
+      {% set top_mot = row.motivos|dictsort(by='value',reverse=true)|first if row.motivos else ('—','') %}
+      <tr>
+        <td class="text-caption text-slate-500">{{ loop.index }}</td>
+        <td class="font-medium">{{ row.cliente }}</td>
+        <td>
+          <span class="status-badge status-danger">{{ row.qtd }}</span>
+        </td>
+        <td>{{ row.valor|fmt_br_moeda }}</td>
+        <td class="text-caption">{{ top_mot[0] if top_mot else '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="text-center text-caption text-slate-500">Nenhum dado</td></tr>
+      {% endfor %}
+    </tbody>
+    {% endcall %}
+
+    <!-- ===== TABELA TOP MOTORISTAS ===== -->
+    {% call table_section("Ranking de Motoristas", "Motoristas com maior incidência de devoluções", "tableMotoristas") %}
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Motorista</th>
+        <th>Devoluções</th>
+        <th>Valor Total</th>
+        <th>Acima R$300</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in top_motoristas %}
+      <tr>
+        <td class="text-caption text-slate-500">{{ loop.index }}</td>
+        <td class="font-medium">{{ row.motorista }}</td>
+        <td><span class="status-badge status-danger">{{ row.qtd }}</span></td>
+        <td>{{ row.valor|fmt_br_moeda }}</td>
+        <td>
+          {% if row.acima300 > 0 %}
+          <span class="status-badge status-warning">{{ row.acima300 }}</span>
+          {% else %}
+          <span class="text-caption text-slate-500">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="text-center text-caption text-slate-500">Nenhum dado</td></tr>
+      {% endfor %}
+    </tbody>
+    {% endcall %}
+
+    <!-- ===== TABELA TOP AJUDANTES ===== -->
+    {% call table_section("Ranking de Ajudantes", "Ajudantes com maior incidência de devoluções", "tableAjudantes") %}
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Ajudante</th>
+        <th>Devoluções</th>
+        <th>Valor Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in top_ajudantes %}
+      <tr>
+        <td class="text-caption text-slate-500">{{ loop.index }}</td>
+        <td class="font-medium">{{ row.ajudante }}</td>
+        <td><span class="status-badge status-warning">{{ row.qtd }}</span></td>
+        <td>{{ row.valor|fmt_br_moeda }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="text-center text-caption text-slate-500">Nenhum dado</td></tr>
+      {% endfor %}
+    </tbody>
+    {% endcall %}
+
+    <!-- ===== TABELA TOP MOTIVOS ===== -->
+    {% call table_section("Detalhamento por Motivo", "Todos os motivos com frequência e valor", "tableMotivos") %}
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Motivo</th>
+        <th>Devoluções</th>
+        <th>% do Total</th>
+        <th>Valor Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in top_motivos %}
+      {% set pct = (row.qtd / total_qtd * 100)|round(1) if total_qtd else 0 %}
+      <tr>
+        <td class="text-caption text-slate-500">{{ loop.index }}</td>
+        <td class="font-medium">{{ row.motivo }}</td>
+        <td><span class="status-badge status-danger">{{ row.qtd }}</span></td>
+        <td>
+          <div class="flex items-center gap-2">
+            <div class="flex-1 bg-slate-700/50 rounded-full h-1.5" style="min-width:60px;">
+              <div class="h-1.5 rounded-full bg-red-500" style="width:{{ pct }}%;"></div>
+            </div>
+            <span class="text-caption">{{ pct|fmt_br_1 }}%</span>
+          </div>
+        </td>
+        <td>{{ row.valor|fmt_br_moeda }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="text-center text-caption text-slate-500">Nenhum dado</td></tr>
+      {% endfor %}
+    </tbody>
+    {% endcall %}
+
+    <!-- ===== TABELA DETALHE ===== -->
+    {% call table_section("Detalhamento Completo", "Últimas 500 devoluções no período com filtros aplicados", "tableDetalhe") %}
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Cliente</th>
+        <th>Motorista</th>
+        <th>Ajudante</th>
+        <th>Motivo</th>
+        <th>Responsabilidade</th>
+        <th>Cluster</th>
+        <th>Valor</th>
+        <th>+R$300</th>
+        <th>Origem</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows_detail %}
+      <tr>
+        <td class="text-caption">{{ row.data }}</td>
+        <td class="font-medium max-w-[160px] truncate" title="{{ row.cliente }}">{{ row.cliente }}</td>
+        <td class="max-w-[120px] truncate" title="{{ row.motorista }}">{{ row.motorista }}</td>
+        <td class="text-caption text-slate-400">{{ row.ajudante }}</td>
+        <td class="text-caption max-w-[160px] truncate" title="{{ row.motivo }}">{{ row.motivo }}</td>
+        <td>
+          {% set rc = "status-danger" if "MERCADO" in row.responsabilidade else ("status-warning" if "COMERCIAL" in row.responsabilidade else "status-info") %}
+          <span class="status-badge {{ rc }}">{{ row.responsabilidade }}</span>
+        </td>
+        <td class="text-caption text-slate-400">{{ row.cluster }}</td>
+        <td class="font-mono">{{ row.valor|fmt_br_moeda }}</td>
+        <td>
+          {% if row.acima_300 == "SIM" %}
+          <span class="status-badge status-warning">SIM</span>
+          {% else %}
+          <span class="text-caption text-slate-600">—</span>
+          {% endif %}
+        </td>
+        <td class="text-caption text-slate-500">{{ row.source }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="10" class="text-center text-caption text-slate-500">Nenhum dado no período</td></tr>
+      {% endfor %}
+    </tbody>
+    {% endcall %}
+
+  </div><!-- max-w -->
+</div><!-- bi-page -->
+
+<!-- ===== SCRIPTS ===== -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+  // ---- dados do servidor ----
+  const evolucaoDiaria    = {{ evolucao_diaria_json | safe }};
+  const evolucaoSemanal   = {{ evolucao_semanal_json | safe }};
+  const topMotivos        = {{ top_motivos_json | safe }};
+  const respBreakdown     = {{ resp_breakdown_json | safe }};
+  const topMotoristas     = {{ top_motoristas_json | safe }};
+  const topClientes       = {{ top_clientes_json | safe }};
+  const topAjudantes      = {{ top_ajudantes_json | safe }};
+  const topVendedores     = {{ top_vendedores_json | safe }};
+  const heatmapMatrix     = {{ heatmap_matrix_json | safe }};
+  const heatmapWeeks      = {{ heatmap_weeks_labels_json | safe }};
+  const heatmapDomDow     = {{ heatmap_dom_dow_json | safe }};
+  const dowLabels         = {{ dow_labels_json | safe }};
+
+  // ---- paleta ----
+  const DANGER  = '#ef4444';
+  const WARNING = '#f59e0b';
+  const PRIMARY = '#3b82f6';
+  const SUCCESS = '#10b981';
+  const COLORS  = [DANGER, WARNING, '#8b5cf6', PRIMARY, SUCCESS, '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#a3e635'];
+
+  const gridColor = 'rgba(148,163,184,0.1)';
+  const tickColor = 'rgba(148,163,184,0.7)';
+  const FONT = { family: 'Inter,ui-sans-serif,system-ui', size: 11 };
+
+  function baseOpts(title) {
+    return {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { backgroundColor: '#1e293b', titleColor: '#f8fafc', bodyColor: '#cbd5e1', borderColor: '#334155', borderWidth: 1 },
+      },
+      scales: {
+        x: { ticks: { color: tickColor, font: FONT, maxRotation: 40 }, grid: { color: gridColor } },
+        y: { ticks: { color: tickColor, font: FONT }, grid: { color: gridColor } },
+      },
+    };
+  }
+
+  // --- Evolução Diária ---
+  (function() {
+    const ctx = document.getElementById('chartEvolucaoDiaria');
+    if (!ctx || !evolucaoDiaria.length) return;
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: evolucaoDiaria.map(d => d.data),
+        datasets: [
+          { label: 'Devoluções', data: evolucaoDiaria.map(d => d.qtd), backgroundColor: DANGER + 'cc', borderColor: DANGER, borderWidth: 1, yAxisID: 'y' },
+          { label: 'Valor (R$)', data: evolucaoDiaria.map(d => d.valor), type: 'line', borderColor: WARNING, backgroundColor: WARNING + '22', pointRadius: 2, tension: 0.35, yAxisID: 'y2' },
+        ]
+      },
+      options: {
+        ...baseOpts('Evolução Diária'),
+        scales: {
+          x: { ticks: { color: tickColor, font: FONT, maxRotation: 45 }, grid: { color: gridColor } },
+          y: { ticks: { color: tickColor, font: FONT }, grid: { color: gridColor }, title: { display: true, text: 'Qtd', color: tickColor, font: FONT } },
+          y2: { position: 'right', ticks: { color: WARNING, font: FONT }, grid: { drawOnChartArea: false }, title: { display: true, text: 'Valor R$', color: WARNING, font: FONT } },
+        }
+      }
+    });
+  })();
+
+  // --- Evolução Semanal ---
+  (function() {
+    const ctx = document.getElementById('chartEvolucaoSemanal');
+    if (!ctx || !evolucaoSemanal.length) return;
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: evolucaoSemanal.map(d => d.semana),
+        datasets: [
+          { label: 'Devoluções', data: evolucaoSemanal.map(d => d.qtd), borderColor: DANGER, backgroundColor: DANGER + '22', fill: true, tension: 0.35, pointRadius: 3 },
+          { label: 'Valor (R$)', data: evolucaoSemanal.map(d => d.valor), borderColor: WARNING, backgroundColor: WARNING + '11', fill: false, tension: 0.35, pointRadius: 3, yAxisID: 'y2' },
+        ]
+      },
+      options: {
+        ...baseOpts('Evolução Semanal'),
+        plugins: { legend: { display: true, labels: { color: tickColor, font: FONT } }, tooltip: baseOpts().plugins.tooltip },
+        scales: {
+          x: { ticks: { color: tickColor, font: FONT, maxRotation: 40 }, grid: { color: gridColor } },
+          y: { ticks: { color: tickColor, font: FONT }, grid: { color: gridColor } },
+          y2: { position: 'right', ticks: { color: WARNING, font: FONT }, grid: { drawOnChartArea: false } },
+        }
+      }
+    });
+  })();
+
+  // --- Top Motivos (horizontal bar) ---
+  (function() {
+    const ctx = document.getElementById('chartTopMotivos');
+    if (!ctx || !topMotivos.length) return;
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: topMotivos.map(m => m.motivo.length > 35 ? m.motivo.slice(0, 33) + '…' : m.motivo),
+        datasets: [{ label: 'Devoluções', data: topMotivos.map(m => m.qtd), backgroundColor: COLORS.map((c,i) => c + 'cc'), borderColor: COLORS, borderWidth: 1 }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: baseOpts().plugins.tooltip },
+        scales: {
+          x: { ticks: { color: tickColor, font: FONT }, grid: { color: gridColor } },
+          y: { ticks: { color: tickColor, font: { ...FONT, size: 10 } }, grid: { color: gridColor } },
+        }
+      }
+    });
+  })();
+
+  // --- Responsabilidade Pizza ---
+  (function() {
+    const ctx = document.getElementById('chartRespPizza');
+    if (!ctx || !respBreakdown.length) return;
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: respBreakdown.map(r => r.responsabilidade),
+        datasets: [{ data: respBreakdown.map(r => r.qtd), backgroundColor: [DANGER + 'dd', WARNING + 'dd', PRIMARY + 'dd', SUCCESS + 'dd', '#8b5cf6dd'], borderColor: '#1e293b', borderWidth: 2 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, position: 'bottom', labels: { color: tickColor, font: FONT, padding: 12 } },
+          tooltip: baseOpts().plugins.tooltip,
+        }
+      }
+    });
+  })();
+
+  // --- Top Motoristas ---
+  (function() {
+    const ctx = document.getElementById('chartTopMotoristas');
+    if (!ctx || !topMotoristas.length) return;
+    const slice = topMotoristas.slice(0, 12);
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: slice.map(m => m.motorista.length > 18 ? m.motorista.slice(0, 16) + '…' : m.motorista),
+        datasets: [{ label: 'Devoluções', data: slice.map(m => m.qtd), backgroundColor: DANGER + 'bb', borderColor: DANGER, borderWidth: 1 }]
+      },
+      options: { ...baseOpts(), plugins: { ...baseOpts().plugins, legend: { display: false } } }
+    });
+  })();
+
+  // --- Top Clientes ---
+  (function() {
+    const ctx = document.getElementById('chartTopClientes');
+    if (!ctx || !topClientes.length) return;
+    const slice = topClientes.slice(0, 12);
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: slice.map(c => c.cliente.length > 18 ? c.cliente.slice(0, 16) + '…' : c.cliente),
+        datasets: [{ label: 'Devoluções', data: slice.map(c => c.qtd), backgroundColor: WARNING + 'bb', borderColor: WARNING, borderWidth: 1 }]
+      },
+      options: { ...baseOpts(), plugins: { ...baseOpts().plugins, legend: { display: false } } }
+    });
+  })();
+
+  // --- Top Ajudantes ---
+  (function() {
+    const ctx = document.getElementById('chartTopAjudantes');
+    if (!ctx || !topAjudantes.length) return;
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: topAjudantes.map(a => a.ajudante.length > 18 ? a.ajudante.slice(0, 16) + '…' : a.ajudante),
+        datasets: [{ label: 'Devoluções', data: topAjudantes.map(a => a.qtd), backgroundColor: '#8b5cf6bb', borderColor: '#8b5cf6', borderWidth: 1 }]
+      },
+      options: { ...baseOpts(), plugins: { ...baseOpts().plugins, legend: { display: false } } }
+    });
+  })();
+
+  // --- Top Vendedores ---
+  (function() {
+    const ctx = document.getElementById('chartTopVendedores');
+    if (!ctx || !topVendedores.length) return;
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: topVendedores.map(v => v.vendedor.length > 18 ? v.vendedor.slice(0, 16) + '…' : v.vendedor),
+        datasets: [{ label: 'Devoluções', data: topVendedores.map(v => v.qtd), backgroundColor: PRIMARY + 'bb', borderColor: PRIMARY, borderWidth: 1 }]
+      },
+      options: { ...baseOpts(), plugins: { ...baseOpts().plugins, legend: { display: false } } }
+    });
+  })();
+
+  // --- Heatmap DOW × Semana ---
+  (function() {
+    const container = document.getElementById('heatmapContainer');
+    if (!container || !heatmapMatrix.length || !heatmapWeeks.length) {
+      if (container) container.innerHTML = '<p class="text-caption text-slate-500 py-4">Sem dados para o período.</p>';
+      return;
+    }
+    const maxVal = Math.max(1, ...heatmapMatrix.flatMap(r => r.values));
+
+    function cellBg(v) {
+      const t = v / maxVal;
+      if (t === 0) return 'rgba(30,41,59,0.4)';
+      const r = Math.round(30 + t * (239 - 30));
+      const g = Math.round(41 + t * (68 - 41));
+      const b = Math.round(59 + t * (68 - 59));
+      return `rgba(${r},${g},${b},${0.3 + t * 0.7})`;
+    }
+
+    let html = '<table style="border-collapse:separate;border-spacing:3px;width:100%;">';
+    // header
+    html += '<tr><th style="width:40px;"></th>';
+    heatmapWeeks.forEach(w => {
+      html += `<th style="text-align:center;color:rgba(148,163,184,.7);font-size:10px;white-space:nowrap;padding:2px 4px;">${w}</th>`;
+    });
+    html += '</tr>';
+    // rows
+    heatmapMatrix.forEach(row => {
+      html += `<tr><td style="color:rgba(148,163,184,.7);font-size:10px;padding:2px 4px;white-space:nowrap;">${row.dow}</td>`;
+      row.values.forEach(v => {
+        const bg = cellBg(v);
+        const txt = v > 0 ? v : '';
+        const txtColor = v / maxVal > 0.5 ? '#f8fafc' : '#94a3b8';
+        html += `<td style="text-align:center;background:${bg};border-radius:4px;padding:6px 4px;font-size:11px;font-weight:600;color:${txtColor};cursor:default;" title="${v} devoluções">${txt}</td>`;
+      });
+      html += '</tr>';
+    });
+    html += '</table>';
+    container.innerHTML = html;
+  })();
+
+  // --- Heatmap DOM × DOW ---
+  (function() {
+    const container = document.getElementById('heatmapDomContainer');
+    if (!container || !heatmapDomDow.length) {
+      if (container) container.innerHTML = '<p class="text-caption text-slate-500 py-4">Sem dados para o período.</p>';
+      return;
+    }
+    const allVals = heatmapDomDow.flatMap(r => r.values);
+    const maxVal = Math.max(1, ...allVals);
+
+    function cellBg(v) {
+      const t = v / maxVal;
+      if (t === 0) return 'rgba(30,41,59,0.4)';
+      const r2 = Math.round(245 * t + 30 * (1 - t));
+      const g2 = Math.round(158 * t * 0.4 + 41 * (1 - t));
+      const b2 = Math.round(11 * t + 59 * (1 - t));
+      return `rgba(${r2},${g2},${b2},${0.3 + t * 0.7})`;
+    }
+
+    let html = '<table style="border-collapse:separate;border-spacing:3px;">';
+    html += '<tr><th style="width:30px;"></th>';
+    dowLabels.forEach(d => {
+      html += `<th style="text-align:center;color:rgba(148,163,184,.7);font-size:10px;padding:2px 6px;">${d}</th>`;
+    });
+    html += '</tr>';
+    heatmapDomDow.forEach(row => {
+      html += `<tr><td style="color:rgba(148,163,184,.7);font-size:10px;padding:2px 4px;">dia ${row.dom}</td>`;
+      row.values.forEach(v => {
+        const bg = cellBg(v);
+        const txt = v > 0 ? v : '';
+        const txtColor = v / maxVal > 0.4 ? '#f8fafc' : '#94a3b8';
+        html += `<td style="text-align:center;background:${bg};border-radius:4px;padding:6px 8px;font-size:11px;font-weight:600;color:${txtColor};" title="${v} devoluções">${txt}</td>`;
+      });
+      html += '</tr>';
+    });
+    html += '</table>';
+    container.innerHTML = html;
+  })();
+
+})();
+</script>
+
+<style>
+  .bi-page { background: var(--color-surface-solid, #0f172a); min-height: 100vh; }
+  .status-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px; font-size: .7rem; font-weight: 600; border: 1px solid; }
+  .status-danger  { color: #fef2f2; background: #991b1b; border-color: #ef4444; }
+  .status-warning { color: #111827; background: #fbbf24; border-color: #f59e0b; }
+  .status-info    { color: #eff6ff; background: #1d4ed8; border-color: #60a5fa; }
+</style>
+{% endblock %}
