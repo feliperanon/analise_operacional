@@ -65,15 +65,29 @@ def _fmt_data_hora_pt_br(s: Optional[str]) -> str:
 
 
 def _build_devolucao_card(session: Session, d: models.Devolucao) -> dict:
-    """Monta um card completo para uma devolução (cliente, endereço, kg, valor, motorista, ajudante, caminhão, horários)."""
+    """Monta um card completo para uma devolução (cliente, endereço, kg, valor, motorista, ajudantes, caminhão, horários)."""
     route = session.get(models.Route, d.route_id) if d.route_id else None
     client = session.get(models.Client, d.client_id)
     motorista = session.get(models.Employee, d.motorista_id)
+    motorista_id = d.motorista_id or (getattr(route, "employee_id", None) if route else None)
+    motorista_name = (motorista.name if motorista else "").strip().lower()
+    # Lista de nomes de ajudantes (sem duplicata, ordem preservada)
+    ajudantes_names: List[str] = []
+    def _add_ajudante_name(name: Optional[str]) -> None:
+        if not name or not str(name).strip():
+            return
+        n = str(name).strip()
+        if n.lower() == motorista_name:
+            return
+        if n not in ajudantes_names:
+            ajudantes_names.append(n)
+
     ajudante = session.get(models.Employee, d.ajudante_id) if d.ajudante_id else None
     effective_ajudante_id = d.ajudante_id
-    # Se a devolução não tem ajudante mas a rota tem ajudantes (delivery_helpers_json ou helpers_json), usa o primeiro para exibição
-    ajudante_name_fallback = None
-    if not ajudante and route:
+    if ajudante:
+        _add_ajudante_name(ajudante.name)
+    # Ajudantes da rota (delivery_helpers_json, helpers_json)
+    if route:
         for attr in ("delivery_helpers_json", "helpers_json"):
             raw = getattr(route, attr, None)
             if not raw:
@@ -82,38 +96,40 @@ def _build_devolucao_card(session: Session, d: models.Devolucao) -> dict:
                 data = json.loads(raw) if isinstance(raw, str) else []
                 helper_ids = [int(x) for x in (data or []) if x is not None and str(x).strip().isdigit()]
                 for hid in helper_ids:
-                    if hid != (d.motorista_id or 0):
-                        ajudante = session.get(models.Employee, hid)
-                        effective_ajudante_id = hid
-                        break
-                if ajudante:
-                    break
+                    if hid != motorista_id:
+                        emp = session.get(models.Employee, hid)
+                        if emp:
+                            _add_ajudante_name(emp.name)
+                            if not ajudante:
+                                ajudante = emp
+                                effective_ajudante_id = hid
             except Exception:
                 pass
-        # Fallback: sessão do dia (mobile envia nomes em DeliverySession.helpers_json)
-        if not ajudante and getattr(route, "date", None) and (d.motorista_id or getattr(route, "employee_id", None)):
-            driver_id = d.motorista_id or getattr(route, "employee_id", None)
+        # Sessão do dia (mobile envia nomes em DeliverySession.helpers_json)
+        if getattr(route, "date", None) and motorista_id:
             day = getattr(route, "date", None) or (str(d.data_romaneio)[:10] if getattr(d, "data_romaneio", None) else None)
-            if day and driver_id:
+            if day:
                 try:
                     ds = session.exec(
                         select(models.DeliverySession)
-                        .where(models.DeliverySession.date == day, models.DeliverySession.employee_id == driver_id)
+                        .where(models.DeliverySession.date == day, models.DeliverySession.employee_id == motorista_id)
                         .limit(1)
                     ).first()
                     if ds and getattr(ds, "helpers_json", None):
                         hl = json.loads(ds.helpers_json) if isinstance(ds.helpers_json, str) else (ds.helpers_json or [])
-                        if isinstance(hl, list) and hl:
-                            first = hl[0]
-                            motorista_name = (motorista.name if motorista else "").strip()
-                            if isinstance(first, str) and first.strip() and first.strip() != motorista_name:
-                                ajudante_name_fallback = first.strip()
-                            elif isinstance(first, (int, float)):
-                                aid = int(first)
-                                if aid != driver_id:
-                                    ajudante = session.get(models.Employee, aid)
-                                    if ajudante:
-                                        effective_ajudante_id = aid
+                        if isinstance(hl, list):
+                            for h in hl:
+                                if isinstance(h, str) and h.strip():
+                                    _add_ajudante_name(h.strip())
+                                elif isinstance(h, (int, float)):
+                                    aid = int(h)
+                                    if aid != motorista_id:
+                                        emp = session.get(models.Employee, aid)
+                                        if emp:
+                                            _add_ajudante_name(emp.name)
+                                            if not ajudante:
+                                                ajudante = emp
+                                                effective_ajudante_id = aid
                 except Exception:
                     pass
     motivo = session.get(models.DevolucaoMotivo, d.motivo_id)
@@ -184,7 +200,8 @@ def _build_devolucao_card(session: Session, d: models.Devolucao) -> dict:
         "motorista_id": d.motorista_id,
         "motorista_name": motorista.name if motorista else "-",
         "ajudante_id": effective_ajudante_id,
-        "ajudante_name": (ajudante.name if ajudante else None) or ajudante_name_fallback or "-",
+        "ajudante_name": ajudantes_names[0] if ajudantes_names else "-",
+        "ajudantes_display": ", ".join(ajudantes_names) if ajudantes_names else "-",
         "vehicle_plate": vehicle_plate,
         "motivo_id": d.motivo_id,
         "motivo_nome": motivo.nome if motivo else "-",

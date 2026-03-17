@@ -61,7 +61,7 @@
                             <div class="flex flex-wrap items-center gap-x-2 text-xs text-slate-400">
                                 <span><span class="text-slate-500">Motorista:</span> <span class="text-white font-medium" x-text="item.motorista_name"></span></span>
                                 <span class="text-slate-600">·</span>
-                                <span><span class="text-slate-500">Ajudante:</span> <span class="text-white" x-text="(item.ajudante_name && item.ajudante_name !== '-') ? item.ajudante_name : '—'"></span></span>
+                                <span><span class="text-slate-500">Ajudante(s):</span> <span class="text-white" x-text="(item.ajudantes_display && item.ajudantes_display !== '-') ? item.ajudantes_display : '—'"></span></span>
                                 <template x-if="item.vehicle_plate"><span class="text-slate-500 font-mono" x-text="' · ' + item.vehicle_plate"></span></template>
                             </div>
                             <p class="text-xs font-medium text-orange-300/90" x-text="item.motivo_nome + (item.responsabilidade_nome ? ' · ' + item.responsabilidade_nome : '')"></p>
