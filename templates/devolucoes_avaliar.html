@@ -92,7 +92,10 @@
 
             <div class="rounded-xl border border-slate-700 bg-slate-800/80 p-4 md:p-5">
                 <h2 class="text-base font-semibold text-white mb-1">Resumo por motorista</h2>
-                <p class="text-slate-500 text-xs mb-3">Original vs ajustado (apenas devoluções marcadas como resp. do motorista).</p>
+                <p class="text-slate-500 text-xs mb-1">
+                    <span x-text="'Período: ' + formatPeriodo(dateFrom, dateTo)"></span>
+                </p>
+                <p class="text-slate-500 text-xs mb-3">Original vs ajustado (apenas devoluções marcadas como resp. do motorista). Clique na linha para ver as devoluções (data, motivo e observação).</p>
                 <template x-if="resumoLoading"><p class="text-slate-500 py-2">Carregando resumo...</p></template>
                 <div class="overflow-x-auto rounded-lg border border-slate-700" x-show="!resumoLoading && resumo.length">
                     <table class="w-full text-left border-collapse min-w-[640px]">
@@ -109,7 +112,9 @@
                         </thead>
                         <tbody class="divide-y divide-slate-700/80 text-sm">
                             <template x-for="r in resumo" :key="r.motorista_id">
-                                <tr class="hover:bg-slate-700/20 transition-colors">
+                                <tr class="hover:bg-slate-700/20 transition-colors"
+                                    :class="r.devolucoes_total > 0 ? 'cursor-pointer' : ''"
+                                    @click="r.devolucoes_total > 0 && (resumoDetailMotorista = r, resumoDetailOpen = true)">
                                     <td class="px-4 py-3 font-medium text-white" x-text="r.motorista_name"></td>
                                     <td class="px-4 py-3 text-right text-slate-300" x-text="r.entregues"></td>
                                     <td class="px-4 py-3 text-right text-slate-300" x-text="r.devolucoes_total"></td>
@@ -123,6 +128,39 @@
                     </table>
                 </div>
                 <p class="text-slate-500 text-sm mt-2" x-show="!resumoLoading && !resumo.length">Nenhum dado no período.</p>
+            </div>
+
+            <!-- Modal: detalhes das devoluções do motorista (data, motivo, observação) -->
+            <div x-show="resumoDetailOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" @keydown.escape.window="resumoDetailOpen = false">
+                <div class="rounded-xl border border-slate-700 bg-slate-800 w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-xl" @click.stop>
+                    <div class="p-4 border-b border-slate-700 flex justify-between items-center shrink-0">
+                        <h2 class="text-base font-semibold text-white" x-text="resumoDetailMotorista ? 'Devoluções · ' + resumoDetailMotorista.motorista_name : 'Devoluções'"></h2>
+                        <button type="button" @click="resumoDetailOpen = false; resumoDetailMotorista = null" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700 transition text-lg leading-none">×</button>
+                    </div>
+                    <div class="p-3 text-slate-500 text-xs border-b border-slate-700 shrink-0" x-text="'Período: ' + formatPeriodo(dateFrom, dateTo)"></div>
+                    <div class="overflow-y-auto flex-1 min-h-0 p-3 space-y-2">
+                        <template x-for="item in (resumoDetailMotorista ? list.filter(i => String(i.motorista_id) === String(resumoDetailMotorista.motorista_id)) : [])" :key="item.id">
+                            <div @click="resumoDetailOpen = false; openEdit(item)"
+                                class="rounded-lg border border-slate-600 bg-slate-800/80 p-3 cursor-pointer hover:bg-slate-700/50 transition-colors text-left">
+                                <div class="flex flex-wrap items-center gap-2 mb-1">
+                                    <span class="font-mono text-xs text-amber-400 font-medium" x-text="item.data_romaneio_pt || item.data_romaneio || '-'"></span>
+                                    <span class="text-slate-500">·</span>
+                                    <span class="text-white font-medium truncate flex-1" x-text="item.client_name"></span>
+                                    <span class="text-slate-400 text-xs" x-text="'R$ ' + formatValor(item.value)"></span>
+                                </div>
+                                <p class="text-orange-300/90 text-xs font-medium" x-text="item.motivo_nome + (item.responsabilidade_nome ? ' · ' + item.responsabilidade_nome : '')"></p>
+                                <p x-show="item.observacao" class="text-slate-400 text-xs mt-1" x-text="'Obs: ' + item.observacao"></p>
+                                <p x-show="item.observacao_gestor" class="text-amber-200/80 text-xs mt-0.5" x-text="'Gestor: ' + item.observacao_gestor"></p>
+                                <p class="text-slate-500 text-xs mt-1">Clique para editar</p>
+                            </div>
+                        </template>
+                        <p x-show="resumoDetailMotorista && list.filter(i => String(i.motorista_id) === String(resumoDetailMotorista.motorista_id)).length === 0" class="text-slate-500 text-sm py-4">Nenhuma devolução na lista para este motorista no período.</p>
+                    </div>
+                    <div class="p-3 border-t border-slate-700 shrink-0 flex justify-end gap-2">
+                        <button type="button" @click="tab = 'lista'; resumoDetailOpen = false; resumoDetailMotorista = null" class="px-4 py-2 rounded-lg border border-slate-600 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium transition-colors">Ver na lista</button>
+                        <button type="button" @click="resumoDetailOpen = false; resumoDetailMotorista = null" class="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-white text-sm font-medium transition-colors">Fechar</button>
+                    </div>
+                </div>
             </div>
 
             <div class="rounded-xl border border-slate-700 bg-slate-800/80 p-4 md:p-5">
@@ -236,8 +274,19 @@ function devolucoesAvaliar() {
         editItem: null,
         editPeso: '',
         editValor: '',
+        resumoDetailOpen: false,
+        resumoDetailMotorista: null,
         dateFrom: '{{ date_from }}',
         dateTo: '{{ date_to }}',
+        formatPeriodo(from, to) {
+            if (!from || !to) return '—';
+            const fmt = (s) => {
+                if (!s || s.length < 10) return s;
+                const p = String(s).substring(0, 10).split('-');
+                return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : s;
+            };
+            return fmt(from) + ' a ' + fmt(to);
+        },
         formatKg(v) {
             if (v == null || v === '') return '0';
             return Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
