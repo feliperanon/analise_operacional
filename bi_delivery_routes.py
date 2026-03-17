@@ -2078,3 +2078,456 @@ async def bi_clientes_export(
         )
 
     return JSONResponse({"error": "Formato invalido. Use csv ou xlsx."}, status_code=400)
+
+
+# ---------------------------------------------------------------------------
+# BI DEVOLUÇÕES — Mega BI Page
+# ---------------------------------------------------------------------------
+
+def _build_bi_devolucoes_dataset(
+    session: Session,
+    date_from: Optional[str],
+    date_to: Optional[str],
+    responsabilidade_id: Optional[int] = None,
+    motivo_id: Optional[int] = None,
+    motorista_id: Optional[int] = None,
+    client_id: Optional[int] = None,
+) -> dict:
+    tz = ZoneInfo("America/Sao_Paulo")
+    today = datetime.now(tz).date()
+
+    def _d(raw: Optional[str]) -> Optional[date]:
+        if not raw:
+            return None
+        try:
+            return datetime.strptime(raw, "%Y-%m-%d").date()
+        except Exception:
+            return None
+
+    date_i = _d(date_from) or today.replace(day=1)
+    date_f = _d(date_to) or today
+    if date_i > date_f:
+        date_i, date_f = date_f, date_i
+
+    # --- carregar cadastros ---
+    motivos_all = session.exec(select(models.DevolucaoMotivo)).all()
+    resps_all = session.exec(select(models.DevolucaoResponsabilidade)).all()
+    mot_map = {m.id: m for m in motivos_all}
+    rsp_map = {r.id: r for r in resps_all}
+
+    # --- query principal ---
+    q = (
+        select(models.Devolucao)
+        .where(models.Devolucao.data_romaneio >= date_i.strftime("%Y-%m-%d"))
+        .where(models.Devolucao.data_romaneio <= date_f.strftime("%Y-%m-%d"))
+    )
+    if responsabilidade_id:
+        q = q.where(models.Devolucao.responsabilidade_id == responsabilidade_id)
+    if motivo_id:
+        q = q.where(models.Devolucao.motivo_id == motivo_id)
+    if motorista_id:
+        q = q.where(models.Devolucao.motorista_id == motorista_id)
+    if client_id:
+        q = q.where(models.Devolucao.client_id == client_id)
+
+    devs = session.exec(q.order_by(models.Devolucao.data_romaneio.desc())).all()
+
+    # --- mapas de lookup ---
+    emp_ids = sorted({d.motorista_id for d in devs if d.motorista_id} |
+                     {d.ajudante_id for d in devs if d.ajudante_id} |
+                     {d.vendedor_id for d in devs if d.vendedor_id})
+    cli_ids = sorted({d.client_id for d in devs if d.client_id})
+    emp_map = {e.id: e for e in (session.exec(select(models.Employee).where(models.Employee.id.in_(emp_ids))).all() if emp_ids else [])}
+    cli_map = {c.id: c for c in (session.exec(select(models.Client).where(models.Client.id.in_(cli_ids))).all() if cli_ids else [])}
+
+    # --- filtros para a UI ---
+    drivers_filter = sorted(
+        [e for e in session.exec(select(models.Employee)).all()
+         if any(d.motorista_id == e.id for d in devs)],
+        key=lambda e: e.name,
+    )
+    clients_filter = sorted(
+        [c for c in session.exec(select(models.Client)).all()
+         if any(d.client_id == c.id for d in devs)],
+        key=lambda c: c.name,
+    )
+
+    # --- agregações ---
+    total_qtd = len(devs)
+    total_valor = sum(d.valor for d in devs)
+
+    # mapa de cores por responsabilidade (evita string matching no template)
+    _RESP_COLORS_DETAIL = {"MERCADO": "var(--color-danger)", "COMERCIAL": "var(--color-warning)"}
+    _resp_color_default = "var(--color-primary)"
+
+    def _resp_color(nome: str) -> str:
+        n = (nome or "").upper()
+        return next((v for k, v in _RESP_COLORS_DETAIL.items() if k in n), _resp_color_default)
+
+    # por dia
+    per_day: dict[str, dict] = {}
+    # por semana (ISO)
+    per_week: dict[str, dict] = {}
+    # por motivo
+    per_motivo: dict[str, dict] = {}
+    # por responsabilidade
+    per_resp: dict[str, dict] = {}
+    # por cluster
+    per_cluster: dict[str, dict] = {}
+    # por motorista
+    per_motorista: dict[str, dict] = {}
+    # por ajudante
+    per_ajudante: dict[str, dict] = {}
+    # por vendedor
+    per_vendedor: dict[str, dict] = {}
+    # por cliente
+    per_cliente: dict[str, dict] = {}
+    # heatmap dia-da-semana (0=Seg..6=Dom) x semana ISO
+    heatmap_week: dict[str, dict[int, int]] = {}  # week_label -> {weekday: count}
+    # heatmap dia-da-semana x hora_do_dia (não temos hora, então dia-da-semana x dia-do-mês para enriquecer)
+    heatmap_dow_dom: dict[int, dict[int, int]] = {i: {} for i in range(7)}  # dow -> {dom: count}
+
+    DOW_LABELS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
+
+    rows_detail: list[dict] = []
+
+    for d in devs:
+        motivo = mot_map.get(d.motivo_id)
+        resp = rsp_map.get(d.responsabilidade_id)
+        cli = cli_map.get(d.client_id)
+        motorista = emp_map.get(d.motorista_id)
+        ajudante = emp_map.get(d.ajudante_id) if d.ajudante_id else None
+        vendedor = emp_map.get(d.vendedor_id) if d.vendedor_id else None
+
+        motivo_nome = motivo.nome if motivo else "Não informado"
+        resp_nome = resp.nome if resp else "Não informado"
+        cli_nome = cli.name if cli else f"Cliente #{d.client_id}"
+        motorista_nome = motorista.name if motorista else f"Motorista #{d.motorista_id}"
+        ajudante_nome = ajudante.name if ajudante else "—"
+        vendedor_nome = vendedor.name if vendedor else "—"
+
+        val = float(d.valor or 0)
+        dt_str = str(d.data_romaneio or "")[:10]
+
+        # per_day
+        slot = per_day.setdefault(dt_str, {"data": dt_str, "qtd": 0, "valor": 0.0})
+        slot["qtd"] += 1
+        slot["valor"] = round(slot["valor"] + val, 2)
+
+        # per_week
+        try:
+            _dt = datetime.strptime(dt_str, "%Y-%m-%d").date()
+            iso = _dt.isocalendar()
+            wk = f"{iso.year}-S{iso.week:02d}"
+            dow = _dt.weekday()
+            dom = _dt.day
+        except Exception:
+            wk = "Sem semana"
+            dow = 0
+            dom = 1
+            _dt = date_i
+
+        ws = per_week.setdefault(wk, {"semana": wk, "qtd": 0, "valor": 0.0})
+        ws["qtd"] += 1
+        ws["valor"] = round(ws["valor"] + val, 2)
+
+        # per_motivo
+        ms = per_motivo.setdefault(motivo_nome, {"motivo": motivo_nome, "qtd": 0, "valor": 0.0})
+        ms["qtd"] += 1
+        ms["valor"] = round(ms["valor"] + val, 2)
+
+        # per_resp
+        rs = per_resp.setdefault(resp_nome, {"responsabilidade": resp_nome, "qtd": 0, "valor": 0.0})
+        rs["qtd"] += 1
+        rs["valor"] = round(rs["valor"] + val, 2)
+
+        # per_cluster
+        cluster = str(d.cluster or "Sem cluster")
+        cs = per_cluster.setdefault(cluster, {"cluster": cluster, "qtd": 0, "valor": 0.0})
+        cs["qtd"] += 1
+        cs["valor"] = round(cs["valor"] + val, 2)
+
+        # per_motorista
+        mts = per_motorista.setdefault(motorista_nome, {
+            "motorista": motorista_nome, "qtd": 0, "valor": 0.0,
+            "acima300": 0,
+        })
+        mts["qtd"] += 1
+        mts["valor"] = round(mts["valor"] + val, 2)
+        if (d.acima_300 or "NAO") == "SIM":
+            mts["acima300"] += 1
+
+        # per_ajudante
+        if ajudante_nome != "—":
+            ats = per_ajudante.setdefault(ajudante_nome, {"ajudante": ajudante_nome, "qtd": 0, "valor": 0.0})
+            ats["qtd"] += 1
+            ats["valor"] = round(ats["valor"] + val, 2)
+
+        # per_vendedor
+        vs = per_vendedor.setdefault(vendedor_nome, {"vendedor": vendedor_nome, "qtd": 0, "valor": 0.0})
+        vs["qtd"] += 1
+        vs["valor"] = round(vs["valor"] + val, 2)
+
+        # per_cliente
+        cls_ = per_cliente.setdefault(cli_nome, {"cliente": cli_nome, "qtd": 0, "valor": 0.0, "motivos": {}})
+        cls_["qtd"] += 1
+        cls_["valor"] = round(cls_["valor"] + val, 2)
+        cls_["motivos"][motivo_nome] = cls_["motivos"].get(motivo_nome, 0) + 1
+
+        # heatmap semanal
+        hw = heatmap_week.setdefault(wk, {i: 0 for i in range(7)})
+        hw[dow] = hw.get(dow, 0) + 1
+
+        # heatmap dia-da-semana × dia-do-mês
+        heatmap_dow_dom[dow][dom] = heatmap_dow_dom[dow].get(dom, 0) + 1
+
+        rows_detail.append({
+            "id": d.id,
+            "data": dt_str,
+            "cliente": cli_nome,
+            "vendedor": vendedor_nome,
+            "motorista": motorista_nome,
+            "ajudante": ajudante_nome,
+            "motivo": motivo_nome,
+            "responsabilidade": resp_nome,
+            "responsabilidade_color": _resp_color(resp_nome),
+            "cluster": cluster,
+            "valor": val,
+            "acima_300": d.acima_300 or "NAO",
+            "semana": d.semana or 0,
+            "dia": d.dia or 0,
+            "source": d.source or "—",
+        })
+
+    # --- top N ---
+    top_clientes = sorted(per_cliente.values(), key=lambda x: x["qtd"], reverse=True)[:20]
+    top_motoristas = sorted(per_motorista.values(), key=lambda x: x["qtd"], reverse=True)[:20]
+    top_ajudantes = sorted(per_ajudante.values(), key=lambda x: x["qtd"], reverse=True)[:15]
+    top_motivos = sorted(per_motivo.values(), key=lambda x: x["qtd"], reverse=True)[:15]
+    top_vendedores = sorted(per_vendedor.values(), key=lambda x: x["qtd"], reverse=True)[:15]
+    top_clusters = sorted(per_cluster.values(), key=lambda x: x["qtd"], reverse=True)[:15]
+
+    # Evolução diária (últimos 90 dias no período)
+    days_sorted = sorted(per_day.keys())
+    evolucao_diaria = [per_day[k] for k in days_sorted]
+
+    # Evolução semanal
+    weeks_sorted = sorted(per_week.keys())
+    evolucao_semanal = [per_week[k] for k in weeks_sorted]
+
+    # responsabilidade breakdown — adiciona cor para uso no template sem string matching
+    for _rk, _rv in per_resp.items():
+        _rv["color"] = _resp_color(_rk)
+    resp_breakdown = sorted(per_resp.values(), key=lambda x: x["qtd"], reverse=True)
+
+    # heatmap: matriz DOW (0-6) × semanas
+    weeks_label = weeks_sorted[-12:] if len(weeks_sorted) > 12 else weeks_sorted
+    heatmap_matrix = []
+    for dow in range(7):
+        row_vals = []
+        for wk in weeks_label:
+            cnt = heatmap_week.get(wk, {}).get(dow, 0)
+            row_vals.append(cnt)
+        heatmap_matrix.append({"dow": DOW_LABELS[dow], "values": row_vals})
+
+    # heatmap DOM × DOW (dia-do-mês como eixo Y, dia-da-semana como eixo X)
+    heatmap_dom_dow = []
+    for dom in range(1, 32):
+        vals = [heatmap_dow_dom[dow].get(dom, 0) for dow in range(7)]
+        if any(v > 0 for v in vals):
+            heatmap_dom_dow.append({"dom": dom, "values": vals})
+
+    # acima_300 breakdown
+    total_acima_300 = sum(1 for d in devs if (d.acima_300 or "NAO") == "SIM")
+    pct_acima_300 = round(total_acima_300 / total_qtd * 100, 1) if total_qtd else 0.0
+
+    # média por dia (dias com devolução)
+    media_por_dia = round(total_qtd / len(days_sorted), 1) if days_sorted else 0.0
+    media_valor_dia = round(total_valor / len(days_sorted), 2) if days_sorted else 0.0
+
+    filters_query = urlencode({
+        k: v for k, v in {
+            "date_from": date_from or "",
+            "date_to": date_to or "",
+            "responsabilidade_id": responsabilidade_id or "",
+            "motivo_id": motivo_id or "",
+            "motorista_id": motorista_id or "",
+            "client_id": client_id or "",
+        }.items() if v
+    })
+
+    return {
+        "filters": {
+            "date_from": date_from or date_i.strftime("%Y-%m-%d"),
+            "date_to": date_to or date_f.strftime("%Y-%m-%d"),
+            "responsabilidade_id": responsabilidade_id,
+            "motivo_id": motivo_id,
+            "motorista_id": motorista_id,
+            "client_id": client_id,
+        },
+        "filters_query": filters_query,
+        # KPIs
+        "total_qtd": total_qtd,
+        "total_valor": total_valor,
+        "total_acima_300": total_acima_300,
+        "pct_acima_300": pct_acima_300,
+        "media_por_dia": media_por_dia,
+        "media_valor_dia": media_valor_dia,
+        "total_clientes_afetados": len(per_cliente),
+        "total_motoristas_envolvidos": len(per_motorista),
+        # evolução
+        "evolucao_diaria": evolucao_diaria,
+        "evolucao_semanal": evolucao_semanal,
+        # breakdowns
+        "resp_breakdown": resp_breakdown,
+        "top_motivos": top_motivos,
+        "top_clientes": top_clientes,
+        "top_motoristas": top_motoristas,
+        "top_ajudantes": top_ajudantes,
+        "top_vendedores": top_vendedores,
+        "top_clusters": top_clusters,
+        # heatmap
+        "heatmap_matrix": heatmap_matrix,
+        "heatmap_weeks_labels": weeks_label,
+        "heatmap_dom_dow": heatmap_dom_dow,
+        "dow_labels": DOW_LABELS,
+        # tabela detalhada (últimos 500 da query)
+        "rows_detail": rows_detail[:500],
+        # select de filtros
+        "motivos_filter": sorted(motivos_all, key=lambda m: m.nome),
+        "resps_filter": sorted(resps_all, key=lambda r: r.nome),
+        "drivers_filter": drivers_filter,
+        "clients_filter": clients_filter,
+        # json para charts
+        "evolucao_diaria_json": json.dumps(evolucao_diaria, ensure_ascii=False, default=str),
+        "evolucao_semanal_json": json.dumps(evolucao_semanal, ensure_ascii=False, default=str),
+        "top_motivos_json": json.dumps(top_motivos, ensure_ascii=False, default=str),
+        "resp_breakdown_json": json.dumps(resp_breakdown, ensure_ascii=False, default=str),
+        "top_motoristas_json": json.dumps(top_motoristas, ensure_ascii=False, default=str),
+        "top_clientes_json": json.dumps(top_clientes, ensure_ascii=False, default=str),
+        "top_ajudantes_json": json.dumps(top_ajudantes, ensure_ascii=False, default=str),
+        "top_vendedores_json": json.dumps(top_vendedores, ensure_ascii=False, default=str),
+        "top_clusters_json": json.dumps(top_clusters, ensure_ascii=False, default=str),
+        "heatmap_matrix_json": json.dumps(heatmap_matrix, ensure_ascii=False, default=str),
+        "heatmap_weeks_labels_json": json.dumps(weeks_label, ensure_ascii=False, default=str),
+        "heatmap_dom_dow_json": json.dumps(heatmap_dom_dow, ensure_ascii=False, default=str),
+        "dow_labels_json": json.dumps(DOW_LABELS, ensure_ascii=False),
+    }
+
+
+@router.get("/bi/devolucoes", response_class=HTMLResponse)
+async def bi_devolucoes_page(
+    request: Request,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    responsabilidade_id: Optional[str] = None,
+    motivo_id: Optional[str] = None,
+    motorista_id: Optional[str] = None,
+    client_id: Optional[str] = None,
+    session: Session = Depends(get_session),
+):
+    parsed_resp_id: Optional[int] = int(responsabilidade_id) if (responsabilidade_id or "").strip().isdigit() else None
+    parsed_motivo_id: Optional[int] = int(motivo_id) if (motivo_id or "").strip().isdigit() else None
+    parsed_motorista_id: Optional[int] = int(motorista_id) if (motorista_id or "").strip().isdigit() else None
+    parsed_client_id: Optional[int] = int(client_id) if (client_id or "").strip().isdigit() else None
+    dataset = _build_bi_devolucoes_dataset(
+        session=session,
+        date_from=date_from,
+        date_to=date_to,
+        responsabilidade_id=parsed_resp_id,
+        motivo_id=parsed_motivo_id,
+        motorista_id=parsed_motorista_id,
+        client_id=parsed_client_id,
+    )
+    return templates.TemplateResponse("bi_devolucoes.html", {"request": request, **dataset})
+
+
+@router.get("/bi/devolucoes/export")
+async def bi_devolucoes_export(
+    format: str = "csv",
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    responsabilidade_id: Optional[str] = None,
+    motivo_id: Optional[str] = None,
+    motorista_id: Optional[str] = None,
+    client_id: Optional[str] = None,
+    session: Session = Depends(get_session),
+):
+    parsed_resp_id: Optional[int] = int(responsabilidade_id) if (responsabilidade_id or "").strip().isdigit() else None
+    parsed_motivo_id: Optional[int] = int(motivo_id) if (motivo_id or "").strip().isdigit() else None
+    parsed_motorista_id: Optional[int] = int(motorista_id) if (motorista_id or "").strip().isdigit() else None
+    parsed_client_id: Optional[int] = int(client_id) if (client_id or "").strip().isdigit() else None
+    dataset = _build_bi_devolucoes_dataset(
+        session=session,
+        date_from=date_from,
+        date_to=date_to,
+        responsabilidade_id=parsed_resp_id,
+        motivo_id=parsed_motivo_id,
+        motorista_id=parsed_motorista_id,
+        client_id=parsed_client_id,
+    )
+    rows = dataset["rows_detail"]
+    stamp = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y%m%d_%H%M")
+    fmt = (format or "csv").strip().lower()
+
+    headers_csv = ["data", "cliente", "vendedor", "motorista", "ajudante",
+                   "motivo", "responsabilidade", "cluster", "valor", "acima_300", "source"]
+
+    if fmt == "csv":
+        out = io.StringIO()
+        writer = csv.writer(out, delimiter=";")
+        writer.writerow(headers_csv)
+        for r in rows:
+            writer.writerow([
+                r.get("data") or "",
+                r.get("cliente") or "",
+                r.get("vendedor") or "",
+                r.get("motorista") or "",
+                r.get("ajudante") or "",
+                r.get("motivo") or "",
+                r.get("responsabilidade") or "",
+                r.get("cluster") or "",
+                _fmt_br_2(r.get("valor") or 0),
+                r.get("acima_300") or "NAO",
+                r.get("source") or "",
+            ])
+        out.seek(0)
+        return StreamingResponse(
+            iter([out.getvalue()]),
+            media_type="text/csv; charset=utf-8-sig",
+            headers={"Content-Disposition": f"attachment; filename=bi_devolucoes_{stamp}.csv"},
+        )
+
+    if fmt == "xlsx":
+        try:
+            import openpyxl
+            wb = openpyxl.Workbook()
+            ws_sheet = wb.active
+            ws_sheet.title = "Devoluções"
+            ws_sheet.append(headers_csv)
+            for r in rows:
+                ws_sheet.append([
+                    r.get("data") or "",
+                    r.get("cliente") or "",
+                    r.get("vendedor") or "",
+                    r.get("motorista") or "",
+                    r.get("ajudante") or "",
+                    r.get("motivo") or "",
+                    r.get("responsabilidade") or "",
+                    r.get("cluster") or "",
+                    float(r.get("valor") or 0),
+                    r.get("acima_300") or "NAO",
+                    r.get("source") or "",
+                ])
+            xbuf = io.BytesIO()
+            wb.save(xbuf)
+            xbuf.seek(0)
+            return StreamingResponse(
+                iter([xbuf.getvalue()]),
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers={"Content-Disposition": f"attachment; filename=bi_devolucoes_{stamp}.xlsx"},
+            )
+        except ImportError:
+            pass
+
+    return JSONResponse({"error": "Formato invalido. Use csv ou xlsx."}, status_code=400)
