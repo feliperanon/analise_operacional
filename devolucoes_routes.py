@@ -72,6 +72,7 @@ def _build_devolucao_card(session: Session, d: models.Devolucao) -> dict:
     ajudante = session.get(models.Employee, d.ajudante_id) if d.ajudante_id else None
     effective_ajudante_id = d.ajudante_id
     # Se a devolução não tem ajudante mas a rota tem ajudantes (delivery_helpers_json ou helpers_json), usa o primeiro para exibição
+    ajudante_name_fallback = None
     if not ajudante and route:
         for attr in ("delivery_helpers_json", "helpers_json"):
             raw = getattr(route, attr, None)
@@ -89,6 +90,32 @@ def _build_devolucao_card(session: Session, d: models.Devolucao) -> dict:
                     break
             except Exception:
                 pass
+        # Fallback: sessão do dia (mobile envia nomes em DeliverySession.helpers_json)
+        if not ajudante and getattr(route, "date", None) and (d.motorista_id or getattr(route, "employee_id", None)):
+            driver_id = d.motorista_id or getattr(route, "employee_id", None)
+            day = getattr(route, "date", None) or (str(d.data_romaneio)[:10] if getattr(d, "data_romaneio", None) else None)
+            if day and driver_id:
+                try:
+                    ds = session.exec(
+                        select(models.DeliverySession)
+                        .where(models.DeliverySession.date == day, models.DeliverySession.employee_id == driver_id)
+                        .limit(1)
+                    ).first()
+                    if ds and getattr(ds, "helpers_json", None):
+                        hl = json.loads(ds.helpers_json) if isinstance(ds.helpers_json, str) else (ds.helpers_json or [])
+                        if isinstance(hl, list) and hl:
+                            first = hl[0]
+                            motorista_name = (motorista.name if motorista else "").strip()
+                            if isinstance(first, str) and first.strip() and first.strip() != motorista_name:
+                                ajudante_name_fallback = first.strip()
+                            elif isinstance(first, (int, float)):
+                                aid = int(first)
+                                if aid != driver_id:
+                                    ajudante = session.get(models.Employee, aid)
+                                    if ajudante:
+                                        effective_ajudante_id = aid
+                except Exception:
+                    pass
     motivo = session.get(models.DevolucaoMotivo, d.motivo_id)
     resp = session.get(models.DevolucaoResponsabilidade, d.responsabilidade_id)
     client_name = (getattr(client, "razao_social", None) or getattr(client, "name", None) or "Cliente") if client else "Cliente"
@@ -157,7 +184,7 @@ def _build_devolucao_card(session: Session, d: models.Devolucao) -> dict:
         "motorista_id": d.motorista_id,
         "motorista_name": motorista.name if motorista else "-",
         "ajudante_id": effective_ajudante_id,
-        "ajudante_name": ajudante.name if ajudante else "-",
+        "ajudante_name": (ajudante.name if ajudante else None) or ajudante_name_fallback or "-",
         "vehicle_plate": vehicle_plate,
         "motivo_id": d.motivo_id,
         "motivo_nome": motivo.nome if motivo else "-",

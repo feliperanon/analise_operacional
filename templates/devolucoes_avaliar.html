@@ -44,47 +44,42 @@
         <div x-show="tab === 'lista'" class="space-y-4">
             <template x-if="loading"><p class="text-slate-500 py-4">Carregando...</p></template>
             <template x-if="!loading && list.length === 0"><p class="text-slate-500 py-4">Nenhuma devolução no período.</p></template>
-            <div class="space-y-3" x-show="!loading && list.length">
+            <div class="space-y-2" x-show="!loading && list.length">
                 <template x-for="item in list" :key="item.id">
-                    <article class="rounded-lg border border-slate-700/80 bg-slate-800/60 overflow-hidden border-l-2 border-l-orange-500/40">
-                        <div class="px-3 py-2.5 grid grid-cols-1 lg:grid-cols-12 gap-2 lg:gap-3 items-center text-sm">
-                            <!-- Coluna: Equipe + cliente + motivo -->
-                            <div class="lg:col-span-4 min-w-0 space-y-0.5">
-                                <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0 text-xs">
-                                    <span class="text-slate-500">Motorista</span><span class="text-white font-medium" x-text="item.motorista_name"></span>
-                                    <span class="text-slate-600">·</span>
-                                    <span class="text-slate-500">Ajudante</span><span class="text-white" x-text="(item.ajudante_name && item.ajudante_name !== '-') ? item.ajudante_name : '—'"></span>
-                                    <template x-if="item.vehicle_plate"><span class="text-slate-500 font-mono" x-text="item.vehicle_plate"></span></template>
+                    <article class="rounded-xl border border-slate-700/80 bg-slate-800/70 overflow-hidden shadow-sm" style="border-left-width: 3px; border-left-color: rgba(249, 115, 22, 0.5);">
+                        <div class="p-3 flex flex-col gap-2">
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-sm font-semibold text-white truncate" x-text="item.client_name"></p>
+                                    <p class="text-xs text-slate-500 mt-0.5" x-text="'Cod ' + (item.client_code || '-') + ' · Pedido ' + (item.order_number || '-') + (item.data_romaneio_pt ? ' · ' + item.data_romaneio_pt : '')"></p>
                                 </div>
-                                <p class="text-orange-300/90 text-xs font-medium" x-text="item.motivo_nome + (item.responsabilidade_nome ? ' · ' + item.responsabilidade_nome : '')"></p>
-                                <p class="font-semibold text-white truncate" x-text="item.client_name"></p>
-                                <p class="text-slate-500 text-xs" x-text="'Cod ' + (item.client_code || '-') + ' · Pedido ' + (item.order_number || '-') + (item.data_romaneio_pt ? ' · ' + item.data_romaneio_pt : '')"></p>
-                                <p x-show="item.observacao" class="text-slate-400 text-xs truncate max-w-full" x-text="'Obs: ' + item.observacao"></p>
-                                <p x-show="item.observacao_gestor" class="text-amber-200/80 text-xs truncate max-w-full" x-text="'Gestor: ' + item.observacao_gestor"></p>
-                                <div class="flex gap-x-3 text-slate-500 text-xs" x-show="item.started_at_pt || item.returned_at_pt || item.finished_at_pt">
-                                    <span x-show="item.started_at_pt || item.started_at" x-text="item.started_at_pt || item.started_at"></span>
-                                    <span x-show="(item.returned_at_pt || item.finished_at_pt || item.returned_at || item.finished_at)" x-text="'→ ' + (item.returned_at_pt || item.finished_at_pt || item.returned_at || item.finished_at || '')"></span>
-                                </div>
-                            </div>
-                            <!-- Coluna: Endereço -->
-                            <div class="lg:col-span-4 min-w-0 text-slate-400 text-xs">
-                                <p class="truncate" x-text="item.address || '-'"></p>
-                                <p class="text-slate-500 truncate" x-text="(item.bairro || '') + (item.city ? ' · ' + item.city + (item.state ? '/' + item.state : '') + (item.cep ? ' · ' + item.cep : '') : '')"></p>
-                            </div>
-                            <!-- Coluna: Valores + ações -->
-                            <div class="lg:col-span-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 lg:justify-end">
-                                <span class="font-mono text-white font-medium" x-text="formatKg(item.weight_kg) + ' kg'"></span>
-                                <span class="font-mono text-white font-medium" x-text="'R$ ' + formatValor(item.value)"></span>
-                                <span class="px-1.5 py-0.5 rounded text-orange-300/90 bg-orange-900/20 text-xs border border-orange-500/20">Devolução</span>
-                                <div class="flex items-center gap-x-2" x-show="item.responsavel_motorista !== undefined">
-                                    <label class="flex items-center gap-1 text-xs text-slate-400 cursor-pointer"><input type="checkbox" :checked="item.responsavel_motorista" @change="setResponsavel(item.id, $event.target.checked, item.responsavel_ajudante)" class="rounded border-slate-600 bg-slate-800 text-blue-500"> M</label>
-                                    <label class="flex items-center gap-1 text-xs text-slate-400 cursor-pointer"><input type="checkbox" :checked="item.responsavel_ajudante" @change="setResponsavel(item.id, item.responsavel_motorista, $event.target.checked)" class="rounded border-slate-600 bg-slate-800 text-blue-500"> A</label>
-                                </div>
-                                <button type="button" @click="openEdit(item)" class="inline-flex items-center gap-1 px-2 py-1 rounded border border-slate-600 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white text-xs transition-colors">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                                <button type="button" @click="openEdit(item)" class="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-600 bg-slate-700/80 text-slate-300 hover:bg-slate-600 hover:text-white text-xs font-medium transition-colors">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                                     Editar
                                 </button>
                             </div>
+                            <div class="flex flex-wrap items-center gap-x-2 text-xs text-slate-400">
+                                <span><span class="text-slate-500">Motorista:</span> <span class="text-white font-medium" x-text="item.motorista_name"></span></span>
+                                <span class="text-slate-600">·</span>
+                                <span><span class="text-slate-500">Ajudante:</span> <span class="text-white" x-text="(item.ajudante_name && item.ajudante_name !== '-') ? item.ajudante_name : '—'"></span></span>
+                                <template x-if="item.vehicle_plate"><span class="text-slate-500 font-mono" x-text="' · ' + item.vehicle_plate"></span></template>
+                            </div>
+                            <p class="text-xs font-medium text-orange-300/90" x-text="item.motivo_nome + (item.responsabilidade_nome ? ' · ' + item.responsabilidade_nome : '')"></p>
+                            <p class="text-xs text-slate-400 truncate" x-text="(item.address || '-') + (item.bairro || item.city ? ' · ' + (item.bairro || '') + (item.city ? ' ' + item.city + (item.state ? '/' + item.state : '') : '') : '')"></p>
+                            <div class="flex flex-wrap items-center gap-2 pt-0.5">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-slate-700/80 text-slate-200" x-text="formatKg(item.weight_kg) + ' kg'"></span>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-slate-700/80 text-white" x-text="'R$ ' + formatValor(item.value)"></span>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-orange-900/30 text-orange-300 border border-orange-500/30">Devolução</span>
+                                <template x-if="item.responsavel_motorista !== undefined">
+                                    <span class="flex items-center gap-2">
+                                        <label class="inline-flex items-center gap-1 text-xs text-slate-400 cursor-pointer"><input type="checkbox" :checked="item.responsavel_motorista" @change="setResponsavel(item.id, $event.target.checked, item.responsavel_ajudante)" class="rounded border-slate-600 bg-slate-800 text-blue-500"> M</label>
+                                        <label class="inline-flex items-center gap-1 text-xs text-slate-400 cursor-pointer"><input type="checkbox" :checked="item.responsavel_ajudante" @change="setResponsavel(item.id, item.responsavel_motorista, $event.target.checked)" class="rounded border-slate-600 bg-slate-800 text-blue-500"> A</label>
+                                    </span>
+                                </template>
+                                <span class="text-slate-500 text-xs" x-show="item.started_at_pt || item.finished_at_pt" x-text="(item.started_at_pt || item.started_at || '') + (item.returned_at_pt || item.finished_at_pt ? ' → ' + (item.returned_at_pt || item.finished_at_pt || '') : '')"></span>
+                            </div>
+                            <p x-show="item.observacao" class="text-xs text-slate-500 truncate" x-text="'Obs: ' + item.observacao"></p>
+                            <p x-show="item.observacao_gestor" class="text-xs text-amber-200/90 truncate" x-text="'Gestor: ' + item.observacao_gestor"></p>
                         </div>
                     </article>
                 </template>
