@@ -98,7 +98,7 @@
     <section class="grid grid-cols-1 md:grid-cols-3 gap-3">
       {% for rb in resp_breakdown %}
       {% set pct = (rb.qtd / total_qtd * 100) if total_qtd else 0 %}
-      {% set color = "var(--color-danger)" if "MERCADO" in rb.responsabilidade else ("var(--color-warning)" if "COMERCIAL" in rb.responsabilidade else "var(--color-primary)") %}
+      {% set color = rb.color %}
       <article class="surface-shadow bi-card">
         <div class="bi-card-head">
           <div class="icon-wrap" style="color:{{ color }};"><i data-lucide="layers" class="w-4 h-4"></i></div>
@@ -318,7 +318,7 @@
         <td class="text-caption text-slate-400">{{ row.ajudante }}</td>
         <td class="text-caption max-w-[160px] truncate" title="{{ row.motivo }}">{{ row.motivo }}</td>
         <td>
-          {% set rc = "status-danger" if "MERCADO" in row.responsabilidade else ("status-warning" if "COMERCIAL" in row.responsabilidade else "status-info") %}
+          {% set rc = "status-danger" if row.responsabilidade_color == "var(--color-danger)" else ("status-warning" if row.responsabilidade_color == "var(--color-warning)" else "status-info") %}
           <span class="status-badge {{ rc }}">{{ row.responsabilidade }}</span>
         </td>
         <td class="text-caption text-slate-400">{{ row.cluster }}</td>
@@ -342,7 +342,7 @@
 </div><!-- bi-page -->
 
 <!-- ===== SCRIPTS ===== -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 (function() {
   // ---- dados do servidor ----

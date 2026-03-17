@@ -2156,6 +2156,14 @@ def _build_bi_devolucoes_dataset(
     total_qtd = len(devs)
     total_valor = sum(d.valor for d in devs)
 
+    # mapa de cores por responsabilidade (evita string matching no template)
+    _RESP_COLORS_DETAIL = {"MERCADO": "var(--color-danger)", "COMERCIAL": "var(--color-warning)"}
+    _resp_color_default = "var(--color-primary)"
+
+    def _resp_color(nome: str) -> str:
+        n = (nome or "").upper()
+        return next((v for k, v in _RESP_COLORS_DETAIL.items() if k in n), _resp_color_default)
+
     # por dia
     per_day: dict[str, dict] = {}
     # por semana (ISO)
@@ -2282,6 +2290,7 @@ def _build_bi_devolucoes_dataset(
             "ajudante": ajudante_nome,
             "motivo": motivo_nome,
             "responsabilidade": resp_nome,
+            "responsabilidade_color": _resp_color(resp_nome),
             "cluster": cluster,
             "valor": val,
             "acima_300": d.acima_300 or "NAO",
@@ -2306,7 +2315,9 @@ def _build_bi_devolucoes_dataset(
     weeks_sorted = sorted(per_week.keys())
     evolucao_semanal = [per_week[k] for k in weeks_sorted]
 
-    # responsabilidade breakdown
+    # responsabilidade breakdown — adiciona cor para uso no template sem string matching
+    for _rk, _rv in per_resp.items():
+        _rv["color"] = _resp_color(_rk)
     resp_breakdown = sorted(per_resp.values(), key=lambda x: x["qtd"], reverse=True)
 
     # heatmap: matriz DOW (0-6) × semanas
