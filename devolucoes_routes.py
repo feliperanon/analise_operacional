@@ -71,18 +71,24 @@ def _build_devolucao_card(session: Session, d: models.Devolucao) -> dict:
     motorista = session.get(models.Employee, d.motorista_id)
     ajudante = session.get(models.Employee, d.ajudante_id) if d.ajudante_id else None
     effective_ajudante_id = d.ajudante_id
-    # Se a devolução não tem ajudante mas a rota tem delivery_helpers_json, usa o primeiro ajudante da rota para exibição
-    if not ajudante and route and getattr(route, "delivery_helpers_json", None):
-        try:
-            data = json.loads(route.delivery_helpers_json) if isinstance(route.delivery_helpers_json, str) else []
-            helper_ids = [int(x) for x in (data or []) if x is not None and str(x).strip().isdigit()]
-            for hid in helper_ids:
-                if hid != (d.motorista_id or 0):
-                    ajudante = session.get(models.Employee, hid)
-                    effective_ajudante_id = hid
+    # Se a devolução não tem ajudante mas a rota tem ajudantes (delivery_helpers_json ou helpers_json), usa o primeiro para exibição
+    if not ajudante and route:
+        for attr in ("delivery_helpers_json", "helpers_json"):
+            raw = getattr(route, attr, None)
+            if not raw:
+                continue
+            try:
+                data = json.loads(raw) if isinstance(raw, str) else []
+                helper_ids = [int(x) for x in (data or []) if x is not None and str(x).strip().isdigit()]
+                for hid in helper_ids:
+                    if hid != (d.motorista_id or 0):
+                        ajudante = session.get(models.Employee, hid)
+                        effective_ajudante_id = hid
+                        break
+                if ajudante:
                     break
-        except Exception:
-            pass
+            except Exception:
+                pass
     motivo = session.get(models.DevolucaoMotivo, d.motivo_id)
     resp = session.get(models.DevolucaoResponsabilidade, d.responsabilidade_id)
     client_name = (getattr(client, "razao_social", None) or getattr(client, "name", None) or "Cliente") if client else "Cliente"
