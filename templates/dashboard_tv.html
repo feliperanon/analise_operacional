@@ -89,15 +89,20 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
         }
         .zone-topo { flex: 0 0 8vh; min-height: 64px; max-height: 88px; }
         .zone-kpis { flex: 0 0 10vh; min-height: 72px; max-height: 100px; }
-        .zone-central { flex: 1 1 46vh; min-height: 0; display: flex; flex-direction: column; }
-        .zone-risco { flex: 0 0 18vh; min-height: 140px; max-height: 220px; }
+        .zone-central { flex: 1 1 46vh; min-height: 0; display: flex; flex-direction: row; gap: 0; }
+        .zone-central-grid { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+        .zone-sidebar { flex: 0 0 320px; min-width: 280px; max-width: 380px; display: flex; flex-direction: column; gap: 10px; padding: 10px 12px; border-left: 1px solid rgba(51,65,85,0.8); background: rgba(15,23,42,0.6); overflow-y: auto; }
         .zone-dia { flex: 0 0 8vh; min-height: 56px; max-height: 80px; }
 
-        .zone-card { flex: 1; min-width: 0; min-height: 0; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; border-width: 2px; }
-        .zone-card .zone-card-header { flex-shrink: 0; padding: 10px 16px; border-bottom-width: 1px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-        .zone-card .zone-card-body { flex: 1; min-height: 0; padding: 12px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-        .zone-card .zone-card-body .zone-card-row { padding: 10px 12px; border-radius: 8px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; font-size: clamp(0.75rem, 1.1vw, 0.9rem); }
-        .zone-card .zone-card-empty { font-size: clamp(0.75rem, 1vw, 0.85rem); padding: 8px 0; }
+        .zone-card { flex: 0 0 auto; min-width: 0; min-height: 0; max-height: 50%; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; border-width: 2px; }
+        .zone-sidebar .zone-card { flex: 1 1 auto; min-height: 80px; max-height: none; }
+        .zone-card .zone-card-header { flex-shrink: 0; padding: 6px 10px; border-bottom-width: 1px; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+        .zone-card .zone-card-body { flex: 1; min-height: 0; padding: 6px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+        .zone-card .zone-card-body .zone-card-row { padding: 5px 8px; border-radius: 6px; display: flex; align-items: center; gap: 6px; flex-shrink: 0; font-size: clamp(0.65rem, 0.9vw, 0.75rem); min-height: 0; }
+        .zone-card .zone-card-body .zone-card-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .zone-card .zone-card-empty { font-size: clamp(0.65rem, 0.9vw, 0.75rem); padding: 4px 0; }
+        .driver-card .card-alert-20min { flex-shrink: 0; margin-top: 4px; padding: 6px 8px; border-radius: 6px; background: rgba(234, 179, 8, 0.2); border: 1px solid rgba(234, 179, 8, 0.5); font-size: clamp(0.6rem, 0.85vw, 0.7rem); color: #fde047; }
+        .driver-card .card-alert-20min .alert-item { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
         .panel-root .text-clock { font-size: clamp(1.75rem, 4vw, 2.75rem); }
         .panel-root .text-kpi { font-size: clamp(0.875rem, 1.5vw, 1.25rem); }
@@ -114,6 +119,9 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
         .driver-card--atencao { border-color: rgba(234, 179, 8, 0.6); background: linear-gradient(135deg, rgba(30,41,59,0.96), rgba(234,179,8,0.06)); }
         .driver-card--critico { border-color: rgba(239, 68, 68, 0.5); background: linear-gradient(135deg, rgba(30,41,59,0.96), rgba(239,68,68,0.05)); }
         .driver-card--ok { border-color: rgba(51, 65, 85, 0.9); }
+        .driver-card--not-started { border-color: rgba(100, 116, 139, 0.8); background: linear-gradient(135deg, rgba(30,41,59,0.98), rgba(71,85,105,0.15)); }
+        .driver-card--all-delivered { border-color: rgba(34, 197, 94, 0.6); background: linear-gradient(135deg, rgba(30,41,59,0.96), rgba(34,197,94,0.08)); }
+        .driver-card--closed { border-color: rgba(148, 163, 184, 0.6); background: linear-gradient(135deg, rgba(51,65,85,0.95), rgba(148,163,184,0.12)); }
         .bar-pct--ok { background: linear-gradient(to right, rgb(59 130 246), rgb(34 211 238)); }
         .bar-pct--atencao { background: linear-gradient(to right, rgb(234 179 8), rgb(251 191 36)); }
         .bar-pct--critico { background: linear-gradient(to right, rgb(239 68 68), rgb(248 113 113)); }
@@ -254,8 +262,9 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             </div>
         </section>
 
-        <!-- C. PAINEL CENTRAL DA OPERAÇÃO -->
-        <section class="zone-central relative z-10 flex flex-col min-h-0">
+        <!-- C. PAINEL CENTRAL: grid de motoristas + sidebar com cards -->
+        <section class="zone-central relative z-10 min-h-0">
+            <div class="zone-central-grid flex flex-col min-h-0">
             <div class="flex items-center justify-between px-3 sm:px-5 py-1.5 shrink-0">
                 <h2 class="text-label sm:text-sm font-bold text-slate-400 uppercase tracking-wider">Operação em tempo real — Rotas ativas</h2>
                 <p id="tv-central-subtitle" class="text-label text-slate-500 truncate max-w-[50%] sm:max-w-none">Ordenado por prioridade</p>
@@ -288,6 +297,17 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                         <div class="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden shrink-0 mb-1">
                             <div class="h-full rounded-full transition-all bar-pct bar-pct--{{ card_status }}" style="width: {{ pct_d }}%"></div>
                         </div>
+                        {% set driver_alerts = (dashboard.alerts.clients_over_20min or [])|selectattr('driver_name', 'equalto', op.employee_name)|list %}
+                        {% if driver_alerts %}
+                        <div class="card-alert-20min">
+                            <span class="font-semibold text-amber-300">&#9888; &gt;20 min</span>
+                            {% for a in driver_alerts[:3] %}
+                            {% set mins = a.minutes|default(0) %}
+                            {% set hours_fmt = (mins // 60)|string ~ 'h ' ~ (mins % 60)|string ~ 'min' if mins >= 60 else (mins|string ~ ' min') %}
+                            <div class="alert-item mt-0.5">{{ a.client_name }} · {{ hours_fmt }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                         <div class="card-foot">
                             <p class="text-card-meta text-slate-500 uppercase font-semibold shrink-0 mb-0.5">Abertas agora</p>
                             <div class="open-list">
@@ -322,61 +342,46 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                 <div class="col-span-full flex items-center justify-center text-slate-500 text-card-title py-8">Nenhuma rota ativa no momento.</div>
                 {% endif %}
             </div>
-        </section>
-
-        <!-- D. Dois cards proporcionais: Devoluções do dia + Alertas e exceções -->
-        <section class="zone-risco relative z-10 border-t border-slate-700/70 bg-slate-800/40 px-4 sm:px-6 py-3 shrink-0 flex gap-4 flex-col sm:flex-row min-h-0">
-            <!-- Card: Devoluções do dia -->
-            <div class="zone-card border-red-500/50 bg-slate-900/90 custom-scrollbar">
-                <div class="zone-card-header border-red-500/40 bg-red-500/15">
-                    <h2 class="text-sm font-bold text-red-300 uppercase tracking-wider">Devoluções do dia</h2>
-                    <span id="tv-devolucoes-count" class="text-lg font-black text-red-400 tabular-nums">{{ (dashboard.devolucao_dia or {}).count|default(0) }}</span>
-                </div>
-                <div id="tv-devolucoes-body" class="zone-card-body custom-scrollbar">
-                    {% if (dashboard.devolucao_dia or {}).count|default(0) > 0 %}
-                    <p class="text-slate-400 text-sm font-medium shrink-0">{{ ((dashboard.devolucao_dia or {}).total_kg|default(0))|round(1) }} kg total</p>
-                    {% for item in (dashboard.devolucao_dia.items_list or [])[:6] %}
-                    <div class="zone-card-row bg-red-500/10 border border-red-500/30">
-                        <span class="font-semibold text-white truncate flex-1 min-w-0">{{ item.client_name }}</span>
-                        <span class="text-red-300 font-bold shrink-0 tabular-nums">{% if item.valor %}R$ {{ "%.2f"|format(item.valor)|replace('.', ',') }}{% endif %}</span>
-                        <span class="text-slate-400 truncate shrink-0 max-w-[140px]">{{ item.driver_name }} · {{ "%.1f"|format(item.kg) }} kg</span>
-                    </div>
-                    {% endfor %}
-                    {% if (dashboard.devolucao_dia.items_list or [])|length > 6 %}
-                    <p class="text-slate-500 text-sm shrink-0">+{{ (dashboard.devolucao_dia.items_list or [])|length - 6 }} mais</p>
-                    {% endif %}
-                    {% else %}
-                    <p class="zone-card-empty text-emerald-400/90 flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
-                        Nenhuma devolução no momento
-                    </p>
-                    {% endif %}
-                </div>
             </div>
-            <!-- Card: Alertas e exceções -->
-            <div class="zone-card border-slate-600 bg-slate-900/80 custom-scrollbar">
-                <div class="zone-card-header border-slate-600/80 bg-slate-800/60">
-                    <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wider">Alertas e exceções</h2>
-                </div>
-                <div id="tv-risco-body" class="zone-card-body custom-scrollbar">
-                    {% if (dashboard.alerts.clients_over_20min or [])|length > 0 %}
-                    <p class="text-amber-400 text-sm font-semibold uppercase tracking-wider shrink-0">Clientes &gt;20 min na parada</p>
-                    <ul id="alerts-over-20min-list" class="space-y-0 flex flex-col gap-2">
-                        {% for a in (dashboard.alerts.clients_over_20min or [])[:5] %}
-                        <li class="zone-card-row bg-amber-500/10 border border-amber-500/30 flex justify-between items-center gap-3">
-                            <span class="font-semibold text-white truncate min-w-0">{{ a.client_name }}</span>
-                            <span class="text-amber-300 font-bold shrink-0 tabular-nums">{{ a.minutes }} min</span>
-                            <span class="text-slate-500 truncate shrink-0 max-w-[120px]">{{ a.driver_name }}{% if a.plate %} · {{ a.plate }}{% endif %}</span>
-                        </li>
+            <!-- Sidebar: cards em coluna (sem scroll, texto que se ajusta) -->
+            <div class="zone-sidebar">
+                <!-- Card: Devoluções do dia (compacto: Cliente · Motorista) -->
+                <div class="zone-card border-red-500/50 bg-slate-900/90">
+                    <div class="zone-card-header border-red-500/40 bg-red-500/15">
+                        <h2 class="text-xs font-bold text-red-300 uppercase tracking-wider truncate">Devoluções do dia</h2>
+                        <span id="tv-devolucoes-count" class="text-base font-black text-red-400 tabular-nums shrink-0">{{ (dashboard.devolucao_dia or {}).count|default(0) }}</span>
+                    </div>
+                    <div id="tv-devolucoes-body" class="zone-card-body">
+                        {% if (dashboard.devolucao_dia or {}).count|default(0) > 0 %}
+                        {% for item in (dashboard.devolucao_dia.items_list or []) %}
+                        <div class="zone-card-row bg-red-500/10 border border-red-500/30 flex items-center gap-2">
+                            <span class="font-medium text-white flex-1 min-w-0 truncate" title="{{ item.client_name }}">{{ item.client_name }}</span>
+                            <span class="text-slate-400 shrink-0 max-w-[45%] truncate" title="{{ item.driver_name }}">· {{ item.driver_name }}</span>
+                        </div>
                         {% endfor %}
-                    </ul>
-                    {% else %}
-                    <p id="tv-risco-empty" class="zone-card-empty text-emerald-400/90 flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
-                        Operação sem alertas críticos
-                    </p>
-                    <ul id="alerts-over-20min-list" class="hidden"></ul>
-                    {% endif %}
+                        {% else %}
+                        <p class="zone-card-empty text-emerald-400/90 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+                            Nenhuma devolução
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+                <!-- Card: Alto índice (compacto: Cliente · Motorista, sem quantidade) -->
+                <div class="zone-card border-amber-500/50 bg-slate-900/90">
+                    <div class="zone-card-header border-amber-500/40 bg-amber-500/15">
+                        <h2 class="text-xs font-bold text-amber-300 uppercase tracking-wider truncate">Alto índice devolução</h2>
+                    </div>
+                    <div id="tv-alto-indice-body" class="zone-card-body">
+                        {% for row in (dashboard.clientes_alto_indice_devolucao or []) %}
+                        <div class="zone-card-row bg-amber-500/10 border border-amber-500/30 flex items-center gap-2">
+                            <span class="font-medium text-white flex-1 min-w-0 truncate" title="{{ row.client_name }}">{{ row.client_name }}</span>
+                            <span class="text-slate-400 shrink-0 max-w-[45%] truncate" title="{{ row.driver_name }}">· {{ row.driver_name }}</span>
+                        </div>
+                        {% else %}
+                        <p class="zone-card-empty text-slate-500 text-xs">Nenhum no período.</p>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
         </section>
@@ -394,7 +399,7 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             <span id="tv-dia-pct" class="text-kpi-big font-black text-blue-300 shrink-0">{{ "%.0f"|format(pct_dia) }}%</span>
             <span class="text-card-meta text-slate-500 shrink-0">concluído</span>
             <div class="flex-1 min-w-[120px] h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                <div id="tv-dia-bar" class="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all duration-500" style="width: {{ pct_dia }}%"></div>
+                <div id="tv-dia-bar" class="h-full rounded-full transition-all duration-500" style="width: {{ pct_dia }}%; background: linear-gradient(to right, rgb(59, 130, 246), rgb(34, 211, 238));"></div>
             </div>
         </footer>
     </div>
@@ -456,6 +461,18 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             if (openCount >= 5 || (total > 0 && pct < 25)) return 'critico';
             if (openCount >= 3 || (total > 0 && pct < 50)) return 'atencao';
             return 'ok';
+        }
+        function driverCardFromRouteState(op) {
+            var state = op.route_state || 'in_progress';
+            if (state === 'closed') return { class: 'driver-card--closed', label: 'Encerrada', barClass: 'bar-pct bar-pct--ok' };
+            if (state === 'not_started') return { class: 'driver-card--not-started', label: 'Rota parada', barClass: 'bar-pct bar-pct--ok' };
+            if (state === 'all_delivered') return { class: 'driver-card--all-delivered', label: 'Entregues', barClass: 'bar-pct bar-pct--ok' };
+            var total = op.total_deliveries || (op.routes && op.routes.length) || 0, completed = op.completed_deliveries || 0, openCount = total - completed, pct = total > 0 ? (completed / total * 100) : 0;
+            var status = driverCardStatus(openCount, total, pct);
+            var statusClass = status === 'critico' ? 'driver-card--critico' : (status === 'atencao' ? 'driver-card--atencao' : 'driver-card--ok');
+            var statusLabel = status === 'critico' ? 'Crítico' : (status === 'atencao' ? 'Atenção' : 'Normal');
+            var barClass = 'bar-pct bar-pct--' + status;
+            return { class: statusClass, label: statusLabel, barClass: barClass };
         }
         function countByStatus(live) {
             var atencao = 0, critico = 0;
@@ -528,34 +545,35 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
 
                 set('tv-devolucoes-count', devCount);
 
-                var riscoBody = document.getElementById('tv-risco-body');
-                if (riscoBody) {
-                    var list = alerts.clients_over_20min || [];
-                    if (list.length === 0) {
-                        riscoBody.innerHTML = '<p id="tv-risco-empty" class="zone-card-empty text-emerald-400/90 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>Operação sem alertas críticos</p><ul id="alerts-over-20min-list" class="hidden"></ul>';
+                function formatMinutesAsHours(m) {
+                    m = parseInt(m, 10) || 0;
+                    if (m >= 60) return Math.floor(m / 60) + 'h ' + (m % 60) + 'min';
+                    return m + ' min';
+                }
+                var altoIndice = d.clientes_alto_indice_devolucao || [];
+                var altoIndiceBody = document.getElementById('tv-alto-indice-body');
+                if (altoIndiceBody) {
+                    if (altoIndice.length === 0) {
+                        altoIndiceBody.innerHTML = '<p class="zone-card-empty text-slate-500 text-xs">Nenhum no período.</p>';
                     } else {
-                        riscoBody.innerHTML = '<p class="text-amber-400 text-sm font-semibold uppercase tracking-wider shrink-0">Clientes &gt;20 min na parada</p><ul id="alerts-over-20min-list" class="space-y-0 flex flex-col gap-2">' +
-                            list.slice(0, 5).map(function(a) {
-                                return '<li class="zone-card-row bg-amber-500/10 border border-amber-500/30 flex justify-between items-center gap-3"><span class="font-semibold text-white truncate min-w-0">' + (a.client_name || '').replace(/</g,'&lt;') + '</span><span class="text-amber-300 font-bold shrink-0 tabular-nums">' + (a.minutes || 0) + ' min</span><span class="text-slate-500 truncate shrink-0 max-w-[120px]">' + (a.driver_name || '').replace(/</g,'&lt;') + (a.plate ? ' · ' + a.plate : '') + '</span></li>';
-                            }).join('') + '</ul>';
+                        var altoHtml = '';
+                        altoIndice.forEach(function(row) {
+                            altoHtml += '<div class="zone-card-row bg-amber-500/10 border border-amber-500/30 flex items-center gap-2"><span class="font-medium text-white flex-1 min-w-0 truncate">' + (row.client_name || '').replace(/</g,'&lt;') + '</span><span class="text-slate-400 shrink-0 max-w-[45%] truncate">· ' + (row.driver_name || '').replace(/</g,'&lt;') + '</span></div>';
+                        });
+                        altoIndiceBody.innerHTML = altoHtml;
                     }
                 }
 
                 var devBody = document.getElementById('tv-devolucoes-body');
                 if (devBody) {
                     if (devCount === 0) {
-                        devBody.innerHTML = '<p class="zone-card-empty text-emerald-400/90 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>Nenhuma devolução no momento</p>';
+                        devBody.innerHTML = '<p class="zone-card-empty text-emerald-400/90 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>Nenhuma devolução</p>';
                     } else {
                         var devItems = dev.items_list || [];
-                        var totalKg = dev.total_kg != null ? Number(dev.total_kg).toFixed(1) : '0';
-                        var devHtml = '<p class="text-slate-400 text-sm font-medium shrink-0">' + totalKg + ' kg total</p>';
-                        (devItems.slice(0, 6) || []).forEach(function(item) {
-                            devHtml += '<div class="zone-card-row bg-red-500/10 border border-red-500/30">' +
-                                '<span class="font-semibold text-white truncate flex-1 min-w-0">' + (item.client_name || '').replace(/</g,'&lt;') + '</span>' +
-                                '<span class="text-red-300 font-bold shrink-0 tabular-nums">' + (item.valor ? 'R$ ' + item.valor.toFixed(2).replace('.', ',') : '') + '</span>' +
-                                '<span class="text-slate-400 truncate shrink-0 max-w-[140px]">' + (item.driver_name || '').replace(/</g,'&lt;') + ' · ' + (item.kg ? Number(item.kg).toFixed(1) + ' kg' : '') + '</span></div>';
+                        var devHtml = '';
+                        (devItems || []).forEach(function(item) {
+                            devHtml += '<div class="zone-card-row bg-red-500/10 border border-red-500/30 flex items-center gap-2"><span class="font-medium text-white flex-1 min-w-0 truncate">' + (item.client_name || '').replace(/</g,'&lt;') + '</span><span class="text-slate-400 shrink-0 max-w-[45%] truncate">· ' + (item.driver_name || '').replace(/</g,'&lt;') + '</span></div>';
                         });
-                        if (devItems.length > 6) devHtml += '<p class="text-slate-500 text-sm shrink-0">+' + (devItems.length - 6) + ' mais</p>';
                         devBody.innerHTML = devHtml;
                     }
                 }
@@ -564,27 +582,23 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                 var pctDia = (concluidasDia + openTotal) > 0 ? Math.round(concluidasDia / (concluidasDia + openTotal) * 100) : 0;
                 set('tv-dia-pct', pctDia + '%');
                 var diaBar = document.getElementById('tv-dia-bar');
-                if (diaBar) diaBar.style.width = pctDia + '%';
+                if (diaBar) {
+                    diaBar.style.width = pctDia + '%';
+                    diaBar.style.background = 'linear-gradient(to right, rgb(59, 130, 246), rgb(34, 211, 238))';
+                }
 
-                live = live.slice(0, 6);
-                live.sort(function(a, b) {
-                    var openA = (a.total_deliveries || 0) - (a.completed_deliveries || 0);
-                    var openB = (b.total_deliveries || 0) - (b.completed_deliveries || 0);
-                    if (openB !== openA) return openB - openA;
-                    var pctA = (a.total_deliveries && a.total_deliveries > 0) ? (a.completed_deliveries || 0) / a.total_deliveries * 100 : 0;
-                    var pctB = (b.total_deliveries && b.total_deliveries > 0) ? (b.completed_deliveries || 0) / b.total_deliveries * 100 : 0;
-                    return pctA - pctB;
-                });
+                live = (live || []).slice(0, 6);
                 var container = document.getElementById('tv-live-separation');
+                var alertsList = alerts.clients_over_20min || [];
                 if (container && live.length > 0) {
                     container.innerHTML = live.map(function(op) {
                         var total = op.total_deliveries || (op.routes && op.routes.length) || 0, completed = op.completed_deliveries || 0, openCount = total - completed;
                         var pctR = total > 0 ? Math.round(completed / total * 100) : 0;
-                        var status = driverCardStatus(openCount, total, pctR);
-                        var statusClass = status === 'critico' ? 'driver-card--critico' : (status === 'atencao' ? 'driver-card--atencao' : 'driver-card--ok');
-                        var statusLabel = status === 'critico' ? 'Crítico' : (status === 'atencao' ? 'Atenção' : 'Normal');
-                        var statusBg = status === 'critico' ? 'bg-red-500/20 text-red-300' : (status === 'atencao' ? 'bg-amber-500/25 text-amber-300' : 'bg-slate-600/50 text-slate-400');
-                        var barClass = 'bar-pct bar-pct--' + status;
+                        var stateUi = driverCardFromRouteState(op);
+                        var statusClass = stateUi.class;
+                        var statusLabel = stateUi.label;
+                        var statusBg = (op.route_state === 'closed') ? 'bg-slate-500/50 text-slate-300' : (op.route_state === 'not_started') ? 'bg-slate-600/50 text-slate-400' : (op.route_state === 'all_delivered') ? 'bg-emerald-500/25 text-emerald-300' : (statusClass === 'driver-card--critico') ? 'bg-red-500/20 text-red-300' : (statusClass === 'driver-card--atencao') ? 'bg-amber-500/25 text-amber-300' : 'bg-slate-600/50 text-slate-400';
+                        var barClass = stateUi.barClass;
                         var helpers = (op.helper_names || []).join(', ');
                         if (helpers.length > 18) helpers = helpers.substring(0, 16) + '…';
                         var pesoStr = (op.total_kg != null && op.total_kg !== '') ? (Number(op.total_kg).toFixed(1) + ' kg') : '—';
@@ -594,10 +608,18 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                         }).join('');
                         if (openRoutes.length === 0) openHtml = '<p class="text-card-meta text-slate-500 py-0.5">Nenhuma em aberto</p>';
                         var more = openRoutes.length > 4 ? '<p class="text-card-meta text-slate-500 shrink-0 mt-0.5">+' + (openRoutes.length - 4) + ' mais</p>' : '';
+                        var driverAlerts = alertsList.filter(function(a) { return (a.driver_name || '').trim() === (op.employee_name || '').trim(); });
+                        var alertBlock = '';
+                        if (driverAlerts.length > 0) {
+                            alertBlock = '<div class="card-alert-20min"><span class="font-semibold text-amber-300">&#9888; &gt;20 min</span>' + driverAlerts.slice(0, 3).map(function(a) {
+                                return '<div class="alert-item mt-0.5">' + (a.client_name || '').replace(/</g,'&lt;') + ' · ' + formatMinutesAsHours(a.minutes) + '</div>';
+                            }).join('') + '</div>';
+                        }
                         return '<div class="driver-cell"><article class="driver-card ' + statusClass + ' border">' +
                             '<div class="card-head flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center shrink-0 text-slate-300 font-bold text-card-meta">' + (op.employee_name || '?').charAt(0) + '</div><div class="min-w-0 flex-1"><p class="font-bold text-white text-card-title truncate leading-tight">' + (op.employee_name || '').replace(/</g,'&lt;') + '</p><p class="text-card-meta text-slate-500 truncate">Ajud.: ' + (helpers || '—').replace(/</g,'&lt;') + ' · Placa: ' + (op.plate || '—').replace(/</g,'&lt;') + ' · Peso: ' + pesoStr.replace(/</g,'&lt;') + '</p></div></div>' +
                             '<div class="card-core flex items-center justify-between gap-2"><span class="text-card-meta font-bold text-slate-300">' + completed + '/' + total + ' entregas</span><span class="text-card-title font-black text-blue-300">' + pctR + '%</span><span class="text-card-meta font-semibold px-1.5 py-0.5 rounded ' + statusBg + '">' + statusLabel + '</span></div>' +
                             '<div class="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden shrink-0 mb-1"><div class="h-full rounded-full transition-all ' + barClass + '" style="width:' + pctR + '%"></div></div>' +
+                            alertBlock +
                             '<div class="card-foot"><p class="text-card-meta text-slate-500 uppercase font-semibold shrink-0 mb-0.5">Abertas agora</p><div class="open-list">' + openHtml + '</div>' + more + '</div></article></div>';
                     }).join('');
                 }

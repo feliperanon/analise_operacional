@@ -11,6 +11,7 @@ from sqlmodel import Session, select, col, desc
 
 from database import get_session
 import models
+from route_duration import route_duration_minutes
 
 
 def parse_reason(reason: str):
@@ -166,36 +167,21 @@ def init_game_audit_router(
         kg_per_uo = 1500.0
         xp_per_uo = 100
 
-        def parse_hhmm_to_minutes(t: Optional[str]):
-            if not t:
-                return None
-            try:
-                parts = str(t).split(":")
-                if len(parts) < 2:
-                    return None
-                return int(parts[0]) * 60 + int(parts[1])
-            except Exception:
-                return None
-
         items = []
         for r, emp_name, client_name in rows:
             kg = float(r.tonnage or 0.0)
             uo = (kg / kg_per_uo) if kg > 0 else 0.0
             xp_est = int(uo * xp_per_uo)
 
-            start_m = parse_hhmm_to_minutes(r.start_time)
-            end_m = parse_hhmm_to_minutes(r.end_time)
-            dur_min = None
+            dur_min = route_duration_minutes(r)
             dur_hhmm = None
             kgh = None
-            if start_m is not None and end_m is not None and end_m > start_m:
-                dur_min = end_m - start_m
+            if dur_min is not None and dur_min > 0:
                 hh = dur_min // 60
                 mm = dur_min % 60
                 dur_hhmm = f"{hh:02d}:{mm:02d}"
                 hours = dur_min / 60.0
-                if hours > 0:
-                    kgh = kg / hours
+                kgh = kg / hours
 
             items.append(
                 {

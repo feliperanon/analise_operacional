@@ -39,6 +39,7 @@ from game_audit_routes import init_game_audit_router, parse_reason
 from routers.admin_geocoding import init_admin_geocoding_router
 from services.geocoding_service import geocoding_service
 from client_import_utils import normalize_address, normalize_phone_br, normalize_key, find_col_map as find_client_col_map
+from route_duration import route_duration_minutes
 import logging
 import pydantic
 from logging.handlers import RotatingFileHandler
@@ -2161,24 +2162,6 @@ async def dashboard_entry(
     clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
     client_by_id = {c.id: c for c in clients if c.id is not None}
 
-    def _parse_hhmm(v: Optional[str]) -> Optional[int]:
-        if not v:
-            return None
-        try:
-            h, m = str(v).strip().split(":")
-            return int(h) * 60 + int(m)
-        except Exception:
-            return None
-
-    def _duration_m(start_v: Optional[str], end_v: Optional[str]) -> Optional[int]:
-        s = _parse_hhmm(start_v)
-        e = _parse_hhmm(end_v)
-        if s is None or e is None:
-            return None
-        if e < s:
-            e += 24 * 60
-        return max(0, e - s)
-
     completed_statuses = {"entregue", "devolucao"}
     completed_routes = [r for r in routes if (r.delivery_status or "").lower() in completed_statuses]
     total_tonnage = float(sum(float(r.tonnage or 0.0) for r in routes))
@@ -2186,7 +2169,7 @@ async def dashboard_entry(
 
     durations_hours = []
     for r in completed_routes:
-        d = _duration_m(r.delivery_started_at or r.start_time, r.delivery_finished_at or r.end_time)
+        d = route_duration_minutes(r)
         if d and d > 0:
             durations_hours.append(d / 60.0)
     total_hours = sum(durations_hours)
@@ -2263,34 +2246,38 @@ async def dashboard_entry(
             })
     upcoming_vacation.sort(key=lambda x: int(str(x["start_in"]).replace("d", "")))
 
-    # Live delivery cards grouped by driver
+    # Live delivery cards grouped by driver (todos os motoristas com rota no dia)
+    employee_by_id_all = {e.id: e for e in employees_all if e.id is not None}
+    all_emp_ids_with_routes = list({r.employee_id for r in routes})
     live_buckets = {}
+    for emp_id in all_emp_ids_with_routes:
+        emp = employee_by_id.get(emp_id) or employee_by_id_all.get(emp_id)
+        if not emp:
+            continue
+        live_buckets[emp_id] = {"employee_name": emp.name, "photo_url": emp.photo_url, "routes": []}
     for r in routes:
         st = (r.delivery_status or "").lower()
         if st not in {"iniciada", "entregue", "devolucao"}:
             continue
-        emp = employee_by_id.get(r.employee_id)
-        if not emp:
+        bucket = live_buckets.get(r.employee_id)
+        if not bucket:
             continue
-        bucket = live_buckets.setdefault(
-            emp.id,
-            {
-                "employee_name": emp.name,
-                "photo_url": emp.photo_url,
-                "routes": [],
-            },
-        )
-        d_m = _duration_m(r.delivery_started_at or r.start_time, r.delivery_finished_at or r.end_time) or 0
+        d_m = route_duration_minutes(r) or 0
         client_name = client_by_id.get(r.client_id).name if client_by_id.get(r.client_id) else f"Cliente #{r.client_id}"
         bucket["routes"].append({
             "client": client_name,
             "start_time": r.delivery_started_at or r.start_time or "--:--",
             "duration_mins": d_m,
             "tonnage": float(r.tonnage or 0.0),
-            "delivery_status": (r.delivery_status or "").lower(),
+            "delivery_status": st,
         })
-
-    employee_by_id_all = {e.id: e for e in employees_all if e.id is not None}
+    sessions_today = session.exec(
+        select(models.DeliverySession)
+        .where(models.DeliverySession.date == selected_date_str)
+        .where(models.DeliverySession.employee_id.in_(all_emp_ids_with_routes))
+    ).all() if all_emp_ids_with_routes else []
+    session_closed_by_emp = {s.employee_id: (s.status or "").lower() == "closed" for s in sessions_today}
+    session_helpers_by_emp = {s.employee_id: _parse_session_helpers(s.helpers_json)[:3] for s in sessions_today if getattr(s, "helpers_json", None)}
     for emp_id, bucket in live_buckets.items():
         emp_routes = [r for r in routes if r.employee_id == emp_id]
         bucket["employee_id"] = emp_id
@@ -2309,22 +2296,36 @@ async def dashboard_entry(
             (employee_by_id_all.get(hid).name if employee_by_id_all.get(hid) else None) or f"Ajudante #{hid}"
             for hid in helper_ids if hid
         ))[:3]
+        if not bucket.get("helper_names") and session_helpers_by_emp.get(emp_id):
+            bucket["helper_names"] = session_helpers_by_emp[emp_id]
         bucket["total_kg"] = round(sum(float(r.tonnage or 0.0) for r in emp_routes), 2)
+        has_started = any((r.delivery_status or "").lower() in ("iniciada", "entregue", "devolucao") for r in emp_routes)
+        all_delivered = bucket["total_deliveries"] > 0 and bucket["completed_deliveries"] == bucket["total_deliveries"]
+        route_ended = session_closed_by_emp.get(emp_id, False)
+        if route_ended:
+            bucket["route_state"] = "closed"
+        elif not has_started:
+            bucket["route_state"] = "not_started"
+        elif all_delivered:
+            bucket["route_state"] = "all_delivered"
+        else:
+            bucket["route_state"] = "in_progress"
+        bucket["route_ended"] = route_ended
 
-    # Fallback: ajudantes da sessão do dia quando rotas não têm delivery_helpers_json
-    if live_buckets:
-        sessions_today = session.exec(
-            select(models.DeliverySession)
-            .where(models.DeliverySession.date == selected_date_str)
-            .where(models.DeliverySession.employee_id.in_([eid for eid in live_buckets]))
-        ).all()
-        session_helpers_by_emp = {s.employee_id: _parse_session_helpers(s.helpers_json)[:3] for s in sessions_today if s.helpers_json}
-        for emp_id, bucket in live_buckets.items():
-            if not bucket.get("helper_names") and session_helpers_by_emp.get(emp_id):
-                bucket["helper_names"] = session_helpers_by_emp[emp_id]
+    def _live_sort_key(x):
+        state = x.get("route_state") or "in_progress"
+        open_count = (x.get("total_deliveries") or 0) - (x.get("completed_deliveries") or 0)
+        pct = (x.get("completed_deliveries") or 0) / (x.get("total_deliveries") or 1) * 100
+        if state == "closed":
+            return (4, 0, -pct)
+        if state == "not_started":
+            return (2, -open_count, -pct)
+        if state == "all_delivered":
+            return (3, -open_count, -pct)
+        return (1, -open_count, -pct)
 
     live_separation = list(live_buckets.values())
-    live_separation.sort(key=lambda x: len(x["routes"]), reverse=True)
+    live_separation.sort(key=_live_sort_key)
 
     # Alertas tempo real: clientes com parada iniciada há mais de 20 minutos (só rotas iniciadas via mobile)
     alerts_clients_over_20min = []
@@ -2401,6 +2402,43 @@ async def dashboard_entry(
         "items_list": devolucao_items,
     }
 
+    clientes_alto_indice = []
+    if is_tv:
+        date_30d_ago = (selected_date - timedelta(days=30)).strftime("%Y-%m-%d")
+        devolucoes_30d = session.exec(
+            select(models.Devolucao)
+            .where(models.Devolucao.data_romaneio >= date_30d_ago)
+            .where(models.Devolucao.data_romaneio <= selected_date_str)
+            .order_by(desc(models.Devolucao.data_romaneio), desc(models.Devolucao.id))
+        ).all()
+        client_dev_count = {}
+        client_last_driver = {}
+        client_last_driver_id = {}
+        emp_all_ids = list({d.motorista_id for d in devolucoes_30d if d.motorista_id})
+        emp_all_map = {e.id: e for e in session.exec(select(models.Employee).where(models.Employee.id.in_(emp_all_ids))).all()} if emp_all_ids else {}
+        for d in devolucoes_30d:
+            cid = d.client_id
+            client_dev_count[cid] = client_dev_count.get(cid, 0) + 1
+            if cid not in client_last_driver:
+                client_last_driver[cid] = emp_all_map.get(d.motorista_id).name if emp_all_map.get(d.motorista_id) else f"Motorista #{d.motorista_id}"
+                client_last_driver_id[cid] = d.motorista_id
+        delivered_today = set((r.client_id, r.employee_id) for r in routes if (r.delivery_status or "").lower() == "entregue")
+        cli_ids_30 = list(client_dev_count.keys())
+        clients_30 = session.exec(select(models.Client).where(models.Client.id.in_(cli_ids_30))).all() if cli_ids_30 else []
+        client_name_by_id_30 = {c.id: (getattr(c, "name", None) or getattr(c, "razao_social", None) or f"Cliente #{c.id}") for c in clients_30}
+        for cid, cnt in sorted(client_dev_count.items(), key=lambda x: -x[1]):
+            if cnt < 2:
+                break
+            driver_id = client_last_driver_id.get(cid)
+            if driver_id is not None and (cid, driver_id) in delivered_today:
+                continue
+            clientes_alto_indice.append({
+                "client_name": client_name_by_id_30.get(cid) or f"Cliente #{cid}",
+                "driver_name": client_last_driver.get(cid) or "—",
+                "count": cnt,
+            })
+        clientes_alto_indice = clientes_alto_indice[:10]
+
     dashboard_payload = {
         "cost_centers_summary": cost_centers_summary,
         "devolucao_dia": devolucao_dia,
@@ -2424,6 +2462,8 @@ async def dashboard_entry(
         },
         "live_separation": live_separation,
     }
+    if is_tv:
+        dashboard_payload["clientes_alto_indice_devolucao"] = clientes_alto_indice
 
     template_name = "dashboard_tv.html" if is_tv else "index.html"
     return templates.TemplateResponse(
@@ -2480,44 +2520,33 @@ async def api_dashboard_tv_data(
     clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
     client_by_id = {c.id: c for c in clients if c.id is not None}
 
-    def _parse_hhmm(v):
-        if not v:
-            return None
-        try:
-            h, m = str(v).strip().split(":")
-            return int(h) * 60 + int(m)
-        except Exception:
-            return None
-
-    def _duration_m(start_v, end_v):
-        s, e = _parse_hhmm(start_v), _parse_hhmm(end_v)
-        if s is None or e is None:
-            return None
-        if e < s:
-            e += 24 * 60
-        return max(0, e - s)
-
     completed_statuses = {"entregue", "devolucao"}
     completed_routes = [r for r in routes if (r.delivery_status or "").lower() in completed_statuses]
     total_tonnage = float(sum(float(r.tonnage or 0.0) for r in routes))
     durations_hours = []
     for r in completed_routes:
-        d = _duration_m(r.delivery_started_at or r.start_time, r.delivery_finished_at or r.end_time)
+        d = route_duration_minutes(r)
         if d and d > 0:
             durations_hours.append(d / 60.0)
     total_hours = sum(durations_hours)
     avg_kgh = (total_tonnage / total_hours) if total_hours > 0 else 0.0
 
+    employee_by_id_all = {e.id: e for e in employees_all if e.id is not None}
+    all_emp_ids_with_routes = list({r.employee_id for r in routes})
     live_buckets = {}
+    for emp_id in all_emp_ids_with_routes:
+        emp = employee_by_id.get(emp_id) or employee_by_id_all.get(emp_id)
+        if not emp:
+            continue
+        live_buckets[emp_id] = {"employee_name": emp.name, "photo_url": getattr(emp, "photo_url", None), "routes": []}
     for r in routes:
         st = (r.delivery_status or "").lower()
         if st not in {"iniciada", "entregue", "devolucao"}:
             continue
-        emp = employee_by_id.get(r.employee_id)
-        if not emp:
+        bucket = live_buckets.get(r.employee_id)
+        if not bucket:
             continue
-        bucket = live_buckets.setdefault(emp.id, {"employee_name": emp.name, "photo_url": emp.photo_url, "routes": []})
-        d_m = _duration_m(r.delivery_started_at or r.start_time, r.delivery_finished_at or r.end_time) or 0
+        d_m = route_duration_minutes(r) or 0
         client_name = client_by_id.get(r.client_id).name if client_by_id.get(r.client_id) else f"Cliente #{r.client_id}"
         bucket["routes"].append({
             "client": client_name,
@@ -2526,7 +2555,14 @@ async def api_dashboard_tv_data(
             "tonnage": float(r.tonnage or 0.0),
             "delivery_status": st,
         })
-    employee_by_id_all = {e.id: e for e in employees_all if e.id is not None}
+    sessions_today = session.exec(
+        select(models.DeliverySession)
+        .where(models.DeliverySession.date == selected_date_str)
+        .where(models.DeliverySession.employee_id.in_(all_emp_ids_with_routes))
+    ).all() if all_emp_ids_with_routes else []
+    session_closed_by_emp = {s.employee_id: (s.status or "").lower() == "closed" for s in sessions_today}
+    session_helpers_by_emp = {s.employee_id: _parse_session_helpers(s.helpers_json)[:3] for s in sessions_today if getattr(s, "helpers_json", None)}
+
     for emp_id, bucket in live_buckets.items():
         emp_routes = [r for r in routes if r.employee_id == emp_id]
         bucket["employee_id"] = emp_id
@@ -2540,21 +2576,36 @@ async def api_dashboard_tv_data(
             (employee_by_id_all.get(hid).name if employee_by_id_all.get(hid) else None) or f"Ajud. #{hid}"
             for hid in helper_ids if hid
         ))[:3]
+        if not bucket.get("helper_names") and session_helpers_by_emp.get(emp_id):
+            bucket["helper_names"] = session_helpers_by_emp[emp_id]
         bucket["total_kg"] = round(sum(float(r.tonnage or 0.0) for r in emp_routes), 2)
+        has_started = any((r.delivery_status or "").lower() in ("iniciada", "entregue", "devolucao") for r in emp_routes)
+        all_delivered = bucket["total_deliveries"] > 0 and bucket["completed_deliveries"] == bucket["total_deliveries"]
+        route_ended = session_closed_by_emp.get(emp_id, False)
+        if route_ended:
+            bucket["route_state"] = "closed"
+        elif not has_started:
+            bucket["route_state"] = "not_started"
+        elif all_delivered:
+            bucket["route_state"] = "all_delivered"
+        else:
+            bucket["route_state"] = "in_progress"
+        bucket["route_ended"] = route_ended
 
-    if live_buckets:
-        sessions_today = session.exec(
-            select(models.DeliverySession)
-            .where(models.DeliverySession.date == selected_date_str)
-            .where(models.DeliverySession.employee_id.in_([eid for eid in live_buckets]))
-        ).all()
-        session_helpers_by_emp = {s.employee_id: _parse_session_helpers(s.helpers_json)[:3] for s in sessions_today if s.helpers_json}
-        for emp_id, bucket in live_buckets.items():
-            if not bucket.get("helper_names") and session_helpers_by_emp.get(emp_id):
-                bucket["helper_names"] = session_helpers_by_emp[emp_id]
+    def _live_sort_key(x):
+        state = x.get("route_state") or "in_progress"
+        open_count = (x.get("total_deliveries") or 0) - (x.get("completed_deliveries") or 0)
+        pct = (x.get("completed_deliveries") or 0) / (x.get("total_deliveries") or 1) * 100
+        if state == "closed":
+            return (4, 0, -pct)
+        if state == "not_started":
+            return (2, -open_count, -pct)
+        if state == "all_delivered":
+            return (3, -open_count, -pct)
+        return (1, -open_count, -pct)
 
     live_separation = list(live_buckets.values())
-    live_separation.sort(key=lambda x: len(x["routes"]), reverse=True)
+    live_separation.sort(key=_live_sort_key)
 
     routes_devolucao = [r for r in routes if (r.delivery_status or "").lower() == "devolucao"]
     routes_entregue_ou_devolucao = [r for r in routes if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
@@ -2620,6 +2671,43 @@ async def api_dashboard_tv_data(
             continue
     alerts_over_20min.sort(key=lambda x: -x["minutes"])
 
+    # Clientes com alto índice de devolução (últimos 30 dias): top por quantidade
+    date_30d_ago = (now_br.date() - timedelta(days=30)).strftime("%Y-%m-%d")
+    devolucoes_30d = session.exec(
+        select(models.Devolucao)
+        .where(models.Devolucao.data_romaneio >= date_30d_ago)
+        .where(models.Devolucao.data_romaneio <= selected_date_str)
+        .order_by(desc(models.Devolucao.data_romaneio), desc(models.Devolucao.id))
+    ).all()
+    client_dev_count = {}
+    client_last_driver = {}
+    emp_all_ids = list({d.motorista_id for d in devolucoes_30d if d.motorista_id})
+    emp_all_map = {e.id: e for e in session.exec(select(models.Employee).where(models.Employee.id.in_(emp_all_ids))).all()} if emp_all_ids else {}
+    client_last_driver_id = {}
+    for d in devolucoes_30d:
+        cid = d.client_id
+        client_dev_count[cid] = client_dev_count.get(cid, 0) + 1
+        if cid not in client_last_driver:
+            client_last_driver[cid] = emp_all_map.get(d.motorista_id).name if emp_all_map.get(d.motorista_id) else f"Motorista #{d.motorista_id}"
+            client_last_driver_id[cid] = d.motorista_id
+    delivered_today = set((r.client_id, r.employee_id) for r in routes if (r.delivery_status or "").lower() == "entregue")
+    cli_ids_30 = list(client_dev_count.keys())
+    clients_30 = session.exec(select(models.Client).where(models.Client.id.in_(cli_ids_30))).all() if cli_ids_30 else []
+    client_name_by_id_30 = {c.id: (getattr(c, "name", None) or getattr(c, "razao_social", None) or f"Cliente #{c.id}") for c in clients_30}
+    clientes_alto_indice = []
+    for cid, cnt in sorted(client_dev_count.items(), key=lambda x: -x[1]):
+        if cnt < 2:
+            break
+        driver_id = client_last_driver_id.get(cid)
+        if driver_id is not None and (cid, driver_id) in delivered_today:
+            continue
+        clientes_alto_indice.append({
+            "client_name": client_name_by_id_30.get(cid) or f"Cliente #{cid}",
+            "driver_name": client_last_driver.get(cid) or "—",
+            "count": cnt,
+        })
+    clientes_alto_indice = clientes_alto_indice[:10]
+
     selected_headcount = sum(1 for e in employees if (e.status or "").lower() not in {"away", "vacation", "sick", "day_off"})
     cost_centers_summary = {}
     for emp in employees_all:
@@ -2645,6 +2733,7 @@ async def api_dashboard_tv_data(
             "alerts": {"clients_over_20min": alerts_over_20min},
             "live_separation": live_separation,
             "devolucao_dia": devolucao_dia,
+            "clientes_alto_indice_devolucao": clientes_alto_indice,
             "cost_centers_summary": cost_centers_summary,
         },
     }
@@ -8515,17 +8604,100 @@ def _is_inativo(c: models.Client) -> bool:
     st_cli = ((c.status_cliente or "") or "").upper()
     return "INATIVO" in st_op or "INATIVO" in st_cli
 
+def _is_precadastro(c: models.Client) -> bool:
+    return ((c.status_cliente or "").strip().upper() == "PRE-CADASTRO" or
+            (c.status_cliente or "").strip().upper() == "PRE CADASTRO")
+
+
+def _precadastro_bucket(created_at: Optional[datetime]) -> Optional[str]:
+    """Retorna '1m', '3m', '6m', '9m', '1y', '1y_plus' conforme idade do cadastro."""
+    if not created_at:
+        return None
+    try:
+        if created_at.tzinfo:
+            today = datetime.now(created_at.tzinfo).date()
+        else:
+            today = date.today()
+        d = created_at.date() if hasattr(created_at, "date") else created_at
+        days = (today - d).days
+        if days < 0:
+            days = 0
+        if days <= 31:
+            return "1m"
+        if days <= 90:
+            return "3m"
+        if days <= 180:
+            return "6m"
+        if days <= 270:
+            return "9m"
+        if days <= 365:
+            return "1y"
+        return "1y_plus"
+    except Exception:
+        return None
+
+
+def _last_movement_bucket(last_date_str: Optional[str]) -> Optional[str]:
+    """Retorna '1m', '3m', '6m', '9m', '1y', '1y_plus' conforme dias desde a última movimentação."""
+    if not last_date_str or not last_date_str.strip():
+        return None
+    try:
+        d = datetime.strptime(last_date_str.strip()[:10], "%Y-%m-%d").date()
+        today = date.today()
+        days = (today - d).days
+        if days < 0:
+            days = 0
+        if days <= 31:
+            return "1m"
+        if days <= 90:
+            return "3m"
+        if days <= 180:
+            return "6m"
+        if days <= 270:
+            return "9m"
+        if days <= 365:
+            return "1y"
+        return "1y_plus"
+    except Exception:
+        return None
+
+
 @app.get("/clients", response_class=HTMLResponse)
-async def clients_page(request: Request, session: Session = Depends(get_session)):
+async def clients_page(
+    request: Request,
+    session: Session = Depends(get_session),
+    mov_from: Optional[str] = None,
+    mov_to: Optional[str] = None,
+    precadastro: Optional[str] = None,
+    precadastro_idade: Optional[str] = None,
+):
     user = require_login(request)
     status_filter = request.query_params.get("status", "ativos")
     search = (request.query_params.get("q") or "").strip()
+    mov_from = mov_from or request.query_params.get("mov_from") or None
+    mov_to = mov_to or request.query_params.get("mov_to") or None
+    precadastro = precadastro or request.query_params.get("precadastro") or ""
+    precadastro_idade = precadastro_idade or request.query_params.get("precadastro_idade") or ""
 
     try:
         all_clients = list(session.exec(select(models.Client)).all())
     except Exception as e:
         logger.exception(f"clients_page query error: {e}")
         all_clients = []
+
+    # Última movimentação por client_id (max Route.date)
+    last_movement_by_client: Dict[int, str] = {}
+    try:
+        q_last = (
+            select(models.Route.client_id, func.max(models.Route.date).label("last_date"))
+            .where(models.Route.client_id.is_not(None))
+            .group_by(models.Route.client_id)
+        )
+        for row in session.exec(q_last).all():
+            if row.last_date and row.client_id:
+                last_movement_by_client[row.client_id] = str(row.last_date)
+    except Exception as e:
+        logger.exception(f"clients_page last_movement query error: {e}")
 
     if status_filter == "ativos":
         clients = [c for c in all_clients if _is_ativo(c)]
@@ -8535,6 +8707,8 @@ async def clients_page(request: Request, session: Session = Depends(get_session)
         clients = [c for c in all_clients if _is_inativo(c)]
     elif status_filter == "em_validacao":
         clients = [c for c in all_clients if (c.status_operacional or "").upper() == "EM_VALIDACAO"]
+    elif status_filter == "precadastro":
+        clients = [c for c in all_clients if _is_precadastro(c)]
     else:
         clients = all_clients
 
@@ -8548,12 +8722,104 @@ async def clients_page(request: Request, session: Session = Depends(get_session)
             (c.municipio and q in (c.municipio or "").lower())
         )]
 
+    # Filtro por período de movimentação (última movimentação no intervalo)
+    if mov_from or mov_to:
+        def _in_mov_range(d: Optional[str]) -> bool:
+            if not d:
+                return False
+            if mov_from and d < mov_from:
+                return False
+            if mov_to and d > mov_to:
+                return False
+            return True
+        clients = [c for c in clients if _in_mov_range(last_movement_by_client.get(c.id))]
+
+    # Filtro só pre-cadastro
+    if (precadastro or "").strip().lower() == "sim":
+        clients = [c for c in clients if _is_precadastro(c)]
+
+    # Enriquecer cada cliente com última movimentação e bucket pre-cadastro
+    client_list_with_meta: List[tuple] = []
+    for c in clients:
+        last_mov = last_movement_by_client.get(c.id)
+        bucket = _precadastro_bucket(getattr(c, "created_at", None)) if _is_precadastro(c) else None
+        if precadastro_idade and _is_precadastro(c) and bucket != precadastro_idade:
+            continue
+        client_list_with_meta.append((c, last_mov, bucket))
+
+    # Ordenar: mais recentes primeiro (por última movimentação), depois por nome; sem movimentação por último
+    def _sort_key(item):
+        c, last_mov, _ = item
+        return (last_mov is None, -(datetime.strptime(last_mov, "%Y-%m-%d").timestamp() if last_mov else 0), (c.name or "").lower())
+    try:
+        client_list_with_meta.sort(key=_sort_key)
+    except Exception:
+        client_list_with_meta.sort(key=lambda x: ((x[1] is None), (x[1] or ""), (x[0].name or "").lower()))
+
+    clients_sorted = [x[0] for x in client_list_with_meta]
+    last_movement_by_client_final = {x[0].id: x[1] for x in client_list_with_meta}
+    precadastro_bucket_by_client = {x[0].id: x[2] for x in client_list_with_meta}
+
+    # Gráfico movimentação: por faixa (1 mês, 3 meses, ..., +1 ano, sem movimentação) na lista exibida
+    mov_buckets_labels = {"1m": "1 mês", "3m": "3 meses", "6m": "6 meses", "9m": "9 meses", "1y": "1 ano", "1y_plus": "+1 ano"}
+    mov_bucket_counts = {k: 0 for k in mov_buckets_labels}
+    sem_mov_count = 0
+    for c in clients_sorted:
+        last_mov = last_movement_by_client.get(c.id)
+        if not last_mov:
+            sem_mov_count += 1
+        else:
+            b = _last_movement_bucket(last_mov)
+            if b and b in mov_bucket_counts:
+                mov_bucket_counts[b] += 1
+    total_for_chart = len(clients_sorted)
+    chart_movimentacao = {
+        "total": total_for_chart,
+        "buckets": [{"bucket": k, "label": mov_buckets_labels[k], "count": mov_bucket_counts[k]} for k in mov_buckets_labels],
+        "sem_movimentacao": sem_mov_count,
+    }
+    # Data do cadastro para exibição: pre-cadastro já feito → 01/03/2026; com created_at → created_at; senão → 01/01/2025
+    data_cadastro_by_client: Dict[int, str] = {}
+    for c in clients_sorted:
+        if _is_precadastro(c):
+            data_cadastro_by_client[c.id] = "2026-03-01"
+        elif getattr(c, "created_at", None):
+            try:
+                dt = c.created_at
+                d = dt.date() if hasattr(dt, "date") else dt
+                data_cadastro_by_client[c.id] = d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d)[:10]
+            except Exception:
+                data_cadastro_by_client[c.id] = "2025-01-01"
+        else:
+            data_cadastro_by_client[c.id] = "2025-01-01"
+
+    # Estatísticas pre-cadastro por faixa (1m, 3m, 6m, 9m, 1y, 1y_plus) na base total de clientes
+    precadastro_buckets_labels = {"1m": "1 mês", "3m": "3 meses", "6m": "6 meses", "9m": "9 meses", "1y": "1 ano", "1y_plus": "+1 ano"}
+    bucket_counts = {k: 0 for k in precadastro_buckets_labels}
+    for c in all_clients:
+        if not _is_precadastro(c):
+            continue
+        b = _precadastro_bucket(getattr(c, "created_at", None))
+        if b and b in bucket_counts:
+            bucket_counts[b] += 1
+    chart_precadastro = [{"bucket": k, "label": precadastro_buckets_labels[k], "count": bucket_counts[k]} for k in precadastro_buckets_labels]
+
     return templates.TemplateResponse("clients.html", {
         "request": request,
         "user": user,
-        "clients": clients,
+        "clients": clients_sorted,
         "status_filter": status_filter,
         "search": search,
+        "mov_from": mov_from or "",
+        "mov_to": mov_to or "",
+        "precadastro": precadastro or "",
+        "precadastro_idade": precadastro_idade or "",
+        "last_movement_by_client": last_movement_by_client_final,
+        "data_cadastro_by_client": data_cadastro_by_client,
+        "precadastro_bucket_by_client": precadastro_bucket_by_client,
+        "precadastro_buckets_labels": precadastro_buckets_labels,
+        "chart_movimentacao": chart_movimentacao,
+        "chart_precadastro": chart_precadastro,
     })
 @app.get("/clients/list", response_class=JSONResponse)
 async def list_clients(session: Session = Depends(get_session)):
@@ -8648,23 +8914,17 @@ async def client_details(request: Request, client_id: int, session: Session = De
         emp_counter[eid]['count'] += 1
         emp_counter[eid]['tonnage'] += t
         
-        # Duration
+        # Duration (por ciclos de entrega quando há reabertura)
         dur_str = None
         prod = 0.0
-        if r.start_time and r.end_time:
-            try:
-                s = datetime.strptime(r.start_time, "%H:%M")
-                e = datetime.strptime(r.end_time, "%H:%M")
-                diff = (e - s).total_seconds()
-                if diff > 0:
-                    total_duration_secs += diff
-                    count_duration += 1
-                    dur_str = f"{int(diff//3600)}h {int((diff%3600)//60)}m"
-                    # Productivity (kg/h)
-                    hours = diff / 3600
-                    prod = round(t / hours, 2)
-            except:
-                pass
+        dur_min = route_duration_minutes(r)
+        if dur_min is not None and dur_min > 0:
+            diff = float(dur_min) * 60
+            total_duration_secs += diff
+            count_duration += 1
+            dur_str = f"{int(dur_min // 60)}h {int(dur_min % 60)}m"
+            hours = dur_min / 60.0
+            prod = round(t / hours, 2)
                 
         # History Row
         history.append({
@@ -8721,6 +8981,56 @@ async def client_details(request: Request, client_id: int, session: Session = De
     except Exception:
         audit_logs = []
 
+    # Devoluções (tabela Devolucao) vinculadas ao cliente
+    devolucoes_list: List[dict] = []
+    try:
+        devolucoes = list(session.exec(
+            select(models.Devolucao)
+            .where(models.Devolucao.client_id == client_id)
+            .order_by(models.Devolucao.data_romaneio.desc(), models.Devolucao.id.desc())
+        ).all())
+        motivos = {m.id: m.nome for m in session.exec(select(models.DevolucaoMotivo)).all()}
+        resps = {r.id: r.nome for r in session.exec(select(models.DevolucaoResponsabilidade)).all()}
+        emp_ids = set()
+        for d in devolucoes:
+            if d.motorista_id:
+                emp_ids.add(d.motorista_id)
+            if d.vendedor_id:
+                emp_ids.add(d.vendedor_id)
+            if d.ajudante_id:
+                emp_ids.add(d.ajudante_id)
+        emp_map = {}
+        if emp_ids:
+            for e in session.exec(select(models.Employee).where(models.Employee.id.in_(list(emp_ids)))).all():
+                emp_map[e.id] = e.name
+        for d in devolucoes:
+            def _fmt_date(s: Optional[str]) -> str:
+                if not s or len(s) < 10:
+                    return "-"
+                parts = str(s)[:10].split("-")
+                return f"{parts[2]}/{parts[1]}/{parts[0]}" if len(parts) == 3 else s
+
+            def _fmt_br(val: float) -> str:
+                return f"{val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+            devolucoes_list.append({
+                "id": d.id,
+                "data_romaneio": d.data_romaneio,
+                "data_romaneio_fmt": _fmt_date(d.data_romaneio),
+                "data_entrega": d.data_entrega,
+                "data_entrega_fmt": _fmt_date(d.data_entrega),
+                "valor": float(d.valor or 0),
+                "valor_fmt": _fmt_br(float(d.valor or 0)),
+                "motivo": motivos.get(d.motivo_id, "-"),
+                "responsabilidade": resps.get(d.responsabilidade_id, "-"),
+                "motorista": emp_map.get(d.motorista_id, "-") if d.motorista_id else "-",
+                "vendedor": emp_map.get(d.vendedor_id, "-") if d.vendedor_id else "-",
+                "ajudante": emp_map.get(d.ajudante_id, "-") if d.ajudante_id else "-",
+                "acima_300": (d.acima_300 or "NAO").upper() == "SIM",
+            })
+    except Exception as e:
+        logger.exception(f"client_details devoluções query error: {e}")
+
     endereco_display = normalize_address(client.endereco or "") if client.endereco else ""
     return templates.TemplateResponse("client_details.html", {
         "request": request,
@@ -8767,6 +9077,7 @@ async def client_details(request: Request, client_id: int, session: Session = De
             "pct_volume": round(100 * dev_vol_year / stats_year, 1) if stats_year > 0 else 0,
             "pct_valor": round(100 * valor_dev_year / valor_year, 1) if valor_year > 0 else 0,
         },
+        "devolucoes_list": devolucoes_list,
         "history": history
     })
 
@@ -10720,6 +11031,18 @@ async def separacao_page(
         returned_times = [h.get("time") for h in history if h.get("event") == "devolucao" and h.get("time")]
         reopened_times = [h.get("time") for h in history if h.get("event") == "reabrir" and h.get("time")]
 
+        _inserted_at = ""
+        if getattr(route, "created_at", None):
+            try:
+                _dt = route.created_at
+                if _dt.tzinfo is None:
+                    _dt = _dt.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+                else:
+                    _dt = _dt.astimezone(ZoneInfo("America/Sao_Paulo"))
+                _inserted_at = _dt.strftime("%d/%m/%Y %H:%M")
+            except Exception:
+                _inserted_at = str(route.created_at)[:16] if route.created_at else ""
+
         delivery_by_employee[key]["rows"].append({
             "id": route.id,
             "route_code": route.delivery_route_code or "-",
@@ -10734,6 +11057,7 @@ async def separacao_page(
             "cep": route.delivery_cep or "-",
             "weight": _safe_float(route.tonnage),
             "value": _safe_float(route.valor_financeiro),
+            "inserted_at": _inserted_at,
             "status_raw": status_raw,
             "status_label": status_map.get(status_raw, status_raw.title()),
             "return_category": route.delivery_return_category or "",
@@ -10876,6 +11200,9 @@ async def separacao_page(
         key=lambda x: x.placa
     )
 
+    today_br = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    import_requires_password = date_from_str != today_br
+
     return templates.TemplateResponse("routes.html", {
         "request": request, 
         "user": user,
@@ -10891,6 +11218,8 @@ async def separacao_page(
         "selected_date_fmt": selected_date_obj.strftime("%d/%m/%Y"),
         "suggested_input_date": suggested_input_date,
         "suggest_week_ago": (datetime.strptime(date_to_str, "%Y-%m-%d") - timedelta(days=7)).strftime("%Y-%m-%d"),
+        "import_requires_password": import_requires_password,
+        "today_br": today_br,
         "delivery_groups": delivery_groups,
         "delivery_summary": delivery_summary,
         "delivery_sync_token": delivery_sync_token,
@@ -10953,6 +11282,7 @@ async def add_separacao(
         return RedirectResponse(url=f"/separacao?date={date}&shift={shift}", status_code=status.HTTP_303_SEE_OTHER)
 
     # 2. Create Routes
+    routes_created_sep: List[models.Route] = []
     for item in items:
         cid = int(item.get('client_id'))
         weight = float(item.get('tonnage') or 0.0)
@@ -10968,7 +11298,23 @@ async def add_separacao(
             type="separation"
         )
         session.add(route)
+        routes_created_sep.append(route)
     
+    session.flush()
+    _username_sep = (request.session.get("username") or str(request.session.get("user_id") or "") or None)
+    _now_sep = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    for _route in routes_created_sep:
+        if _route.id:
+            log_entry = models.RouteInsertLog(
+                route_id=_route.id,
+                client_id=_route.client_id,
+                route_date=_route.date,
+                shift=_route.shift,
+                inserted_at=_route.created_at or _now_sep,
+                source="separacao_manual",
+                created_by=_username_sep,
+            )
+            session.add(log_entry)
     session.commit()
     
     return RedirectResponse(url=f"/separacao?date={date}&shift={shift}", status_code=status.HTTP_303_SEE_OTHER)
@@ -10995,12 +11341,16 @@ async def delete_separacao(
     return RedirectResponse(url="/separacao", status_code=status.HTTP_303_SEE_OTHER)
 
 
+IMPORT_AUTH_PASSWORD = os.getenv("IMPORT_AUTH_PASSWORD", "571232").strip()
+
+
 @app.post("/separacao/import-entregas", response_class=HTMLResponse)
 async def import_entregas_separacao(
     request: Request,
     date: str = Form(...),
     shift: str = Form("Manhã"),
     input_date: Optional[str] = Form(None),
+    import_auth_password: Optional[str] = Form(None),
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
 ):
@@ -11014,6 +11364,13 @@ async def import_entregas_separacao(
         "warnings": [],
         "pre_registered_clients": 0,
     }
+
+    today_br = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    if date != today_br:
+        if not import_auth_password or (import_auth_password.strip() != IMPORT_AUTH_PASSWORD):
+            import_result["message"] = "Importação para data diferente de hoje exige senha de autorização. Informe a senha correta."
+            logger.warning(f"Importação bloqueada: data {date} (hoje={today_br}) sem senha ou senha incorreta.")
+            return await separacao_page(request=request, date=date, shift=shift, session=session, delivery_import=import_result)
 
     logger.info(f"🚚 Iniciando importação de entregas: {file.filename} para data {date}, turno {shift}")
 
@@ -11192,6 +11549,7 @@ async def import_entregas_separacao(
                 session.delete(old_row)
             session.flush()
 
+        routes_created: List[models.Route] = []
         for row in parsed_rows:
             route = models.Route(
                 date=date,
@@ -11220,7 +11578,23 @@ async def import_entregas_separacao(
                 delivery_source_file=file.filename,
             )
             session.add(route)
+            routes_created.append(route)
 
+        session.flush()
+        _username = (request.session.get("username") or str(request.session.get("user_id") or "") or None)
+        _now = datetime.now(ZoneInfo("America/Sao_Paulo"))
+        for _route in routes_created:
+            if _route.id:
+                log_entry = models.RouteInsertLog(
+                    route_id=_route.id,
+                    client_id=_route.client_id,
+                    route_date=_route.date,
+                    shift=_route.shift,
+                    inserted_at=_route.created_at or _now,
+                    source="import_entregas",
+                    created_by=_username,
+                )
+                session.add(log_entry)
         session.commit()
         import_result["ok"] = True
         import_result["created"] = len(parsed_rows)
@@ -24720,6 +25094,190 @@ async def api_gm_gerar_execucoes(request: Request, session: Session = Depends(ge
         generated += len(after_count) - len(before_count)
     
     return {"success": True, "generated": generated, "date": today}
+
+
+# --- Performance Operacional (Planejado vs Realizado) ---
+
+@app.get("/gm/performance-operacional", response_class=HTMLResponse)
+async def gm_performance_operacional_page(request: Request, session: Session = Depends(get_session)):
+    """Página de KPIs da Gerência: Planejado vs Realizado."""
+    user = require_gm(request)
+    return templates.TemplateResponse("gm_performance_operacional.html", {
+        "request": request,
+        "user": user,
+    })
+
+@app.get("/api/gm/performance-operacional-data", response_class=JSONResponse)
+async def api_gm_performance_data(
+    request: Request,
+    date: Optional[str] = None,
+    session: Session = Depends(get_session)
+):
+    """API que retorna os dados consolidados de planejado vs realizado."""
+    require_gm(request)
+    if not date:
+        date = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+
+    # 1. Planejado (Todas as rotas do tipo delivery no dia)
+    routes = session.exec(
+        select(models.Route).where(models.Route.date == date, models.Route.type == "delivery")
+    ).all()
+
+    planned_weight = sum(r.tonnage or 0.0 for r in routes)
+    planned_value = sum(r.valor_financeiro or 0.0 for r in routes)
+    
+    # "Espécie" - baseado em delivery_type contendo termos relacionados
+    planned_cash = sum(
+        r.valor_financeiro or 0.0 
+        for r in routes 
+        if r.delivery_type and any(x in r.delivery_type.lower() for x in ["dinheiro", "especie"])
+    )
+
+    drivers = {r.employee_id for r in routes if r.employee_id}
+    trucks = {r.delivery_vehicle_plate for r in routes if r.delivery_vehicle_plate}
+    
+    # Ajudantes (parse do JSON)
+    helpers = set()
+    for r in routes:
+        if r.delivery_helpers_json:
+            try:
+                h_ids = json.loads(r.delivery_helpers_json)
+                if isinstance(h_ids, list):
+                    for h_id in h_ids:
+                        helpers.add(h_id)
+            except:
+                pass
+
+    # 2. Realizado (Mobile Sessions e Status de Entrega)
+    delivered_weight = sum(r.tonnage or 0.0 for r in routes if r.delivery_status == "entregue")
+    total_returned_value = sum(r.valor_devolucao or 0.0 for r in routes)
+    return_value_pct = (total_returned_value / planned_value * 100) if planned_value > 0 else 0
+
+    # 3. Dados do App (Mobile) - KM e Tempos
+    sessions = session.exec(
+        select(models.DeliverySession).where(models.DeliverySession.date == date)
+    ).all()
+    
+    total_km = sum((s.km_return or 0.0) - (s.km_departure or 0.0) for s in sessions if s.km_return and s.km_departure)
+    
+    # Tempo total de operação (soma das durações das sessões)
+    total_op_seconds = 0
+    for s in sessions:
+        if s.started_at and s.ended_at:
+            total_op_seconds += (s.ended_at - s.started_at).total_seconds()
+    
+    total_op_hours = total_op_seconds / 3600
+
+    # Média de tempo por cliente (Entregue vs Devolução)
+    # Usando delivery_started_at e delivery_finished_at no modelo Route
+    delivered_routes = [r for r in routes if r.delivery_status == "entregue" and r.delivery_started_at and r.delivery_finished_at]
+    return_routes = [r for r in routes if r.delivery_status == "devolucao" and r.delivery_started_at and r.delivery_finished_at]
+
+    def calc_avg_time(route_list):
+        if not route_list: return 0
+        total_m = 0
+        for r in route_list:
+            try:
+                # Formato HH:MM
+                s = datetime.strptime(r.delivery_started_at, "%H:%M")
+                e = datetime.strptime(r.delivery_finished_at, "%H:%M")
+                diff = (e - s).total_seconds() / 60
+                if diff < 0: diff += 1440 # overnight
+                total_m += diff
+            except:
+                pass
+        return total_m / len(route_list)
+
+    avg_time_delivered = calc_avg_time(delivered_routes)
+    avg_time_return = calc_avg_time(return_routes)
+
+    return {
+        "date": date,
+        "planned": {
+            "weight": round(planned_weight, 2),
+            "value": round(planned_value, 2),
+            "cash_value": round(planned_cash, 2),
+            "driver_count": len(drivers),
+            "helper_count": len(helpers),
+            "truck_count": len(trucks)
+        },
+        "realized": {
+            "delivered_weight": round(delivered_weight, 2),
+            "return_value_pct": round(return_value_pct, 2),
+            "total_km": round(total_km, 1),
+            "total_op_hours": round(total_op_hours, 1),
+            "avg_time_delivered_m": round(avg_time_delivered, 1),
+            "avg_time_return_m": round(avg_time_return, 1)
+        }
+    }
+
+# --- Mapa Real-time ---
+
+@app.get("/gm/mapa-realtime", response_class=HTMLResponse)
+async def gm_mapa_realtime_page(request: Request, session: Session = Depends(get_session)):
+    """Página de monitoramento geográfico da frota em tempo real."""
+    user = require_gm(request)
+    return templates.TemplateResponse("gm_mapa_realtime.html", {
+        "request": request,
+        "user": user,
+    })
+
+@app.get("/api/gm/locations-realtime", response_class=JSONResponse)
+async def api_gm_locations_realtime(request: Request, session: Session = Depends(get_session)):
+    """Retorna a última posição conhecida de todos os motoristas ativos hoje."""
+    require_gm(request)
+    today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    
+    # Pegar as últimas localizações de cada motorista/placa
+    stmt = text("""
+        SELECT vl.*, e.name as driver_name 
+        FROM vehiclelocation vl
+        JOIN employee e ON vl.employee_id = e.id
+        WHERE vl.id IN (
+            SELECT MAX(id) 
+            FROM vehiclelocation 
+            WHERE timestamp >= :today
+            GROUP BY employee_id
+        )
+    """)
+    results = session.execute(stmt, {"today": today}).all()
+    
+    out = []
+    for r in results:
+        out.append({
+            "driver_name": r.driver_name,
+            "plate": r.plate,
+            "lat": r.latitude,
+            "lng": r.longitude,
+            "timestamp": r.timestamp.isoformat() if r.timestamp else None
+        })
+    return out
+
+@app.post("/api/mobile/location", response_class=JSONResponse)
+async def api_mobile_post_location(request: Request, session: Session = Depends(get_session)):
+    """Recebe a localização de um motorista vinda do App mobile."""
+    try:
+        body = await request.json()
+        employee_id = body.get("employee_id")
+        plate = body.get("plate")
+        lat = body.get("latitude")
+        lng = body.get("longitude")
+        
+        if not all([employee_id, plate, lat, lng]):
+            return JSONResponse({"error": "Dados incompletos"}, status_code=400)
+            
+        loc = models.VehicleLocation(
+            employee_id=employee_id,
+            plate=plate,
+            latitude=float(lat),
+            longitude=float(lng)
+        )
+        session.add(loc)
+        session.commit()
+        return {"success": True}
+    except Exception as e:
+        logger.error(f"Erro ao salvar localização: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 # --- Operational History Routes ---

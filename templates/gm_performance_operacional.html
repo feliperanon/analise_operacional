@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-6 max-w-7xl mx-auto space-y-8 animate-fade-in" x-data="performanceController()">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">
+                Performance Operacional
+            </h1>
+            <p class="text-slate-400 mt-1">Visão executiva de planejado vs realizado.</p>
+        </div>
+        
+        <div class="flex items-center gap-3 bg-slate-800/50 p-2 rounded-xl border border-slate-700/50">
+            <input type="date" x-model="filters.date" @change="fetchData()" 
+                   class="bg-transparent border-none text-white focus:ring-0 text-sm">
+            <button @click="fetchData()" class="p-2 hover:bg-slate-700 rounded-lg transition-colors">
+                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Error State -->
+    <template x-if="error">
+        <div class="bg-rose-500/10 border border-rose-500/30 p-6 rounded-2xl flex items-center gap-4">
+            <div class="w-12 h-12 bg-rose-500/20 rounded-full flex items-center justify-center text-rose-500">
+                <i data-lucide="alert-circle"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-rose-500">Erro ao carregar dados</h3>
+                <p class="text-sm text-rose-400/80" x-text="error"></p>
+            </div>
+        </div>
+    </template>
+
+    <!-- Loading State -->
+    <div x-show="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-50 pointer-events-none">
+        <div class="h-32 bg-slate-800 rounded-2xl animate-pulse"></div>
+        <div class="h-32 bg-slate-800 rounded-2xl animate-pulse"></div>
+        <div class="h-32 bg-slate-800 rounded-2xl animate-pulse"></div>
+    </div>
+
+    <!-- KPI Content -->
+    <div x-show="!loading && !error" class="space-y-8">
+        
+        <!-- Sessão 1: Planejado (Input de Ordem) -->
+        <section>
+            <div class="flex items-center gap-2 mb-4">
+                <div class="w-1.5 h-6 bg-blue-500 rounded-full"></div>
+                <h3 class="text-lg font-semibold text-slate-200">Planejamento do Dia</h3>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Peso Planejado -->
+                <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl relative overflow-hidden group hover:border-blue-500/50 transition-all">
+                    <div class="relative z-10">
+                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Peso Planejado</p>
+                        <h4 class="text-2xl font-bold mt-2" x-text="formatNumber(data.planned.weight) + ' Kg'">0,00 Kg</h4>
+                    </div>
+                    <i data-lucide="package" class="absolute right-4 bottom-4 w-12 h-12 text-blue-500/10 group-hover:text-blue-500/20 transition-colors"></i>
+                </div>
+
+                <!-- Valor Total -->
+                <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl relative overflow-hidden group hover:border-emerald-500/50 transition-all">
+                    <div class="relative z-10">
+                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Valor em Notas</p>
+                        <h4 class="text-2xl font-bold mt-2" x-text="formatCurrency(data.planned.value)">R$ 0,00</h4>
+                    </div>
+                    <i data-lucide="banknote" class="absolute right-4 bottom-4 w-12 h-12 text-emerald-500/10 group-hover:text-emerald-500/20 transition-colors"></i>
+                </div>
+
+                <!-- Valor em Espécie -->
+                <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl relative overflow-hidden group hover:border-amber-500/50 transition-all">
+                    <div class="relative z-10">
+                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Valor em Espécie</p>
+                        <h4 class="text-2xl font-bold mt-2" x-text="formatCurrency(data.planned.cash_value)">R$ 0,00</h4>
+                    </div>
+                    <i data-lucide="coins" class="absolute right-4 bottom-4 w-12 h-12 text-amber-500/10 group-hover:text-amber-500/20 transition-colors"></i>
+                </div>
+            </div>
+
+            <!-- Recursos -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+                <div class="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex items-center gap-4">
+                    <div class="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center text-blue-400">
+                        <i data-lucide="truck" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase">Caminhões</p>
+                        <p class="text-lg font-bold" x-text="data.planned.truck_count">0</p>
+                    </div>
+                </div>
+                <div class="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex items-center gap-4">
+                    <div class="w-10 h-10 bg-indigo-500/20 rounded-lg flex items-center justify-center text-indigo-400">
+                        <i data-lucide="user" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase">Motoristas</p>
+                        <p class="text-lg font-bold" x-text="data.planned.driver_count">0</p>
+                    </div>
+                </div>
+                <div class="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex items-center gap-4">
+                    <div class="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400">
+                        <i data-lucide="users" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase">Ajudantes</p>
+                        <p class="text-lg font-bold" x-text="data.planned.helper_count">0</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sessão 2: Realizado e Eficiência -->
+        <section>
+            <div class="flex items-center gap-2 mb-4">
+                <div class="w-1.5 h-6 bg-emerald-500 rounded-full"></div>
+                <h3 class="text-lg font-semibold text-slate-200">Realizado e Eficiência</h3>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <!-- Peso Entregue -->
+                <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Peso Entregue</p>
+                    <div class="flex items-end gap-2">
+                        <h4 class="text-2xl font-bold" x-text="formatNumber(data.realized.delivered_weight) + ' Kg'">0,00 Kg</h4>
+                        <span class="text-xs pb-1" :class="getWeightEfficiencyClass()" x-text="getWeightEfficiency()">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-700 h-1.5 rounded-full mt-4 overflow-hidden">
+                        <div class="bg-emerald-500 h-full transition-all duration-1000" :style="'width: ' + getWeightEfficiency()"></div>
+                    </div>
+                </div>
+
+                <!-- Devolução % -->
+                <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Devolução (% Valor)</p>
+                    <h4 class="text-2xl font-bold" x-text="formatNumber(data.realized.return_value_pct) + '%'">0,00%</h4>
+                    <p class="text-[10px] mt-2" :class="data.realized.return_value_pct > 5 ? 'text-rose-400' : 'text-emerald-400'">
+                        <span x-text="data.realized.return_value_pct > 5 ? 'Acima da meta (5%)' : 'Dentro do esperado'"></span>
+                    </p>
+                </div>
+
+                <!-- KM Total -->
+                <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">KM Percorrido</p>
+                    <h4 class="text-2xl font-bold" x-text="formatNumber(data.realized.total_km) + ' KM'">0,0 KM</h4>
+                    <p class="text-[10px] text-slate-500 mt-2">Dados do App Mobile</p>
+                </div>
+
+                <!-- Tempo Operação -->
+                <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Tempo Operação</p>
+                    <h4 class="text-2xl font-bold" x-text="data.realized.total_op_hours + ' h'">0,0 h</h4>
+                    <p class="text-[10px] text-slate-500 mt-2">Duração total das sessões</p>
+                </div>
+            </div>
+
+            <!-- Médias por Cliente -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                <div class="bg-slate-800/50 border border-slate-700 p-6 rounded-2xl flex justify-between items-center">
+                    <div>
+                        <p class="text-xs font-bold text-slate-500 uppercase">Média Tempo / Entrega</p>
+                        <h4 class="text-2xl font-bold mt-1" x-text="data.realized.avg_time_delivered_m + ' min'">0 min</h4>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-500/10 rounded-full flex items-center justify-center text-blue-500">
+                        <i data-lucide="container"></i>
+                    </div>
+                </div>
+                <div class="bg-slate-800/50 border border-slate-700 p-6 rounded-2xl flex justify-between items-center">
+                    <div>
+                        <p class="text-xs font-bold text-slate-500 uppercase">Média Tempo / Devolução</p>
+                        <h4 class="text-2xl font-bold mt-1" x-text="data.realized.avg_time_return_m + ' min'">0 min</h4>
+                    </div>
+                    <div class="w-12 h-12 bg-rose-500/10 rounded-full flex items-center justify-center text-rose-500">
+                        <i data-lucide="undo-2"></i>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+</div>
+
+<script>
+function performanceController() {
+    return {
+        loading: false,
+        error: null,
+        filters: {
+            date: new Date().toISOString().split('T')[0]
+        },
+        data: {
+            planned: { weight: 0, value: 0, cash_value: 0, driver_count: 0, helper_count: 0, truck_count: 0 },
+            realized: { delivered_weight: 0, return_value_pct: 0, total_km: 0, total_op_hours: 0, avg_time_delivered_m: 0, avg_time_return_m: 0 }
+        },
+        
+        init() {
+            this.fetchData();
+        },
+
+        async fetchData() {
+            this.loading = true;
+            this.error = null;
+            try {
+                const url = `/api/gm/performance-operacional-data?date=${this.filters.date}`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('Falha na resposta do servidor');
+                this.data = await res.json();
+                
+                // Initialize Lucide icons after update
+                setTimeout(() => lucide.createIcons(), 100);
+            } catch (e) {
+                console.error(e);
+                this.error = 'Não foi possível carregar os dados desta data.';
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        formatNumber(v) {
+            return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 }).format(v || 0);
+        },
+
+        formatCurrency(v) {
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
+        },
+
+        getWeightEfficiency() {
+            if (!this.data.planned.weight) return '0%';
+            const pct = (this.data.realized.delivered_weight / this.data.planned.weight) * 100;
+            return Math.min(pct, 100).toFixed(1) + '%';
+        },
+
+        getWeightEfficiencyClass() {
+            const pct = (this.data.realized.delivered_weight / this.data.planned.weight) * 100;
+            if (pct >= 90) return 'text-emerald-400';
+            if (pct >= 70) return 'text-amber-400';
+            return 'text-rose-400';
+        }
+    }
+}
+</script>
+
+<style>
+.animate-fade-in {
+    animation: fadeIn 0.5s ease-out;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+{% endblock %}

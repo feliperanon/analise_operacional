@@ -843,12 +843,16 @@ def init_devolucoes_router(
         responsabilidades = session.exec(
             select(models.DevolucaoResponsabilidade).where(models.DevolucaoResponsabilidade.is_active == True)
         ).all()
+        avaliar_employees = [{"id": e.id, "name": getattr(e, "name", "") or ""} for e in employees]
+        avaliar_clients = [{"id": c.id, "name": getattr(c, "name", "") or "", "razao_social": getattr(c, "razao_social", "") or ""} for c in clients]
         return templates.TemplateResponse(
             "devolucoes_avaliar.html",
             {
                 "request": request,
                 "clients": clients,
                 "employees": employees,
+                "avaliar_employees": avaliar_employees,
+                "avaliar_clients": avaliar_clients,
                 "motivos": motivos,
                 "responsabilidades": responsabilidades,
                 "date_from": date_from,
@@ -861,16 +865,62 @@ def init_devolucoes_router(
         request: Request,
         date_from: Optional[str] = None,
         date_to: Optional[str] = None,
+        motorista_ids: Optional[str] = None,
+        client_ids: Optional[str] = None,
+        q: Optional[str] = None,
+        ajudante_ids: Optional[str] = None,
+        colaborador_ids: Optional[str] = None,
         session: Session = Depends(get_session),
     ):
         require_login(request)
-        q = (
+        q_devol = (
             select(models.Devolucao)
             .where(models.Devolucao.data_romaneio >= (date_from or "2020-01-01"))
             .where(models.Devolucao.data_romaneio <= (date_to or "2099-12-31"))
             .order_by(models.Devolucao.data_romaneio.desc(), models.Devolucao.id.desc())
         )
-        devolucoes = session.exec(q).all()
+        devolucoes = session.exec(q_devol).all()
+        motorista_id_list = []
+        if motorista_ids and str(motorista_ids).strip():
+            for x in str(motorista_ids).split(","):
+                try:
+                    i = int(x.strip())
+                    if i and i not in motorista_id_list:
+                        motorista_id_list.append(i)
+                except ValueError:
+                    pass
+        client_id_list = []
+        if client_ids and str(client_ids).strip():
+            for x in str(client_ids).split(","):
+                try:
+                    i = int(x.strip())
+                    if i and i not in client_id_list:
+                        client_id_list.append(i)
+                except ValueError:
+                    pass
+        if motorista_id_list:
+            devolucoes = [d for d in devolucoes if d.motorista_id in motorista_id_list]
+        if client_id_list:
+            devolucoes = [d for d in devolucoes if d.client_id in client_id_list]
+        if q and str(q).strip():
+            search = str(q).strip().lower()
+            from sqlalchemy import or_
+            clients_match = session.exec(
+                select(models.Client).where(
+                    or_(
+                        func.lower(models.Client.name).contains(search),
+                        (models.Client.razao_social.is_not(None)) & (func.lower(models.Client.razao_social).contains(search)),
+                    )
+                )
+            ).all()
+            try:
+                client_ids_from_q = [c.id for c in clients_match]
+            except Exception:
+                client_ids_from_q = []
+            if client_ids_from_q:
+                devolucoes = [d for d in devolucoes if d.client_id in client_ids_from_q]
+            else:
+                devolucoes = []
         ids = [d.id for d in devolucoes]
         ajustes = {}
         if ids:
@@ -881,10 +931,33 @@ def init_devolucoes_router(
             ).all():
                 ajustes[aj.devolucao_id] = (getattr(aj, "responsavel_motorista", True), getattr(aj, "responsavel_ajudante", True))
         cards = [_build_devolucao_card(session, d) for d in devolucoes]
+        ajudante_id_list = []
+        if ajudante_ids and str(ajudante_ids).strip():
+            for x in str(ajudante_ids).split(","):
+                try:
+                    i = int(x.strip())
+                    if i and i not in ajudante_id_list:
+                        ajudante_id_list.append(i)
+                except ValueError:
+                    pass
+        colaborador_id_list = []
+        if colaborador_ids and str(colaborador_ids).strip():
+            for x in str(colaborador_ids).split(","):
+                try:
+                    i = int(x.strip())
+                    if i and i not in colaborador_id_list:
+                        colaborador_id_list.append(i)
+                except ValueError:
+                    pass
+        if ajudante_id_list:
+            cards = [c for c in cards if (c.get("ajudante_id") or 0) in ajudante_id_list]
+        if colaborador_id_list:
+            cards = [c for c in cards if (c.get("motorista_id") in colaborador_id_list) or (c.get("ajudante_id") in colaborador_id_list)]
         for c in cards:
             pair = ajustes.get(c["id"], (True, True))
             c["responsavel_motorista"] = pair[0] if isinstance(pair, tuple) else pair
             c["responsavel_ajudante"] = pair[1] if isinstance(pair, tuple) else True
+            c["edited"] = c["id"] in ajustes
         return JSONResponse({"ok": True, "data": cards})
 
     class DevolucaoPatchPayload(BaseModel):
@@ -1003,6 +1076,69 @@ def init_devolucoes_router(
             logger.exception(f"Erro ao salvar ajuste consolidado: {e}")
             return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
 
+    def _parse_route_helper_ids(helpers_json: Optional[str]) -> List[int]:
+        if not helpers_json:
+            return []
+        try:
+            data = json.loads(helpers_json) if isinstance(helpers_json, str) else helpers_json
+            if not isinstance(data, list):
+                return []
+            return [int(x) for x in data if x is not None and str(x).strip().isdigit()]
+        except Exception:
+            return []
+
+    def _parse_helpers_to_ids(helpers_json: Optional[str], emp_by_name: dict) -> List[int]:
+        if not helpers_json or not emp_by_name:
+            return []
+        try:
+            data = json.loads(helpers_json) if isinstance(helpers_json, str) else helpers_json
+            if not isinstance(data, list):
+                return []
+            ids = []
+            for h in data:
+                if h is None:
+                    continue
+                if isinstance(h, int) and h > 0:
+                    ids.append(h)
+                elif isinstance(h, str) and str(h).strip().isdigit():
+                    ids.append(int(h.strip()))
+                elif isinstance(h, str) and (h or "").strip():
+                    eid = emp_by_name.get((h or "").strip().lower())
+                    if eid and eid not in ids:
+                        ids.append(eid)
+            return ids
+        except Exception:
+            return []
+
+    def _effective_ajudante_id(
+        d: models.Devolucao,
+        route_helpers: dict,
+        route_by_client_driver_date: dict,
+        session_helpers_by_driver_date: dict,
+    ) -> Optional[int]:
+        """Retorna o ajudante_id efetivo: Devolucao.ajudante_id ou da rota/sessão."""
+        if d.ajudante_id:
+            return d.ajudante_id
+        helper_ids = None
+        if getattr(d, "route_id", None) and route_helpers.get(d.route_id):
+            helper_ids = route_helpers[d.route_id]
+        if not helper_ids and d.client_id and d.motorista_id and d.data_romaneio:
+            dt_key = str(d.data_romaneio)[:10]
+            key = (d.client_id, d.motorista_id, dt_key)
+            helper_ids = route_by_client_driver_date.get(key)
+        if not helper_ids and d.motorista_id and d.data_romaneio:
+            dt_key = str(d.data_romaneio)[:10]
+            session_key = (dt_key, d.motorista_id)
+            helper_ids = session_helpers_by_driver_date.get(session_key)
+        if not helper_ids:
+            return None
+        aid = helper_ids[0]
+        if aid == d.motorista_id and len(helper_ids) > 1:
+            aid = helper_ids[1]
+        elif aid == d.motorista_id:
+            return None
+        return aid
+
     @router.get("/api/devolucoes/avaliar/consolidado/resumo", response_class=JSONResponse)
     async def api_devolucoes_avaliar_consolidado_resumo(
         request: Request,
@@ -1010,7 +1146,7 @@ def init_devolucoes_router(
         date_to: Optional[str] = None,
         session: Session = Depends(get_session),
     ):
-        """Resumo por motorista: % e valor originais vs ajustados (só devoluções com responsavel_motorista=True contam no ajustado)."""
+        """Resumo por motorista e por ajudante (ajudante efetivo: devolução, rota ou sessão)."""
         require_login(request)
         date_from = date_from or "2020-01-01"
         date_to = date_to or "2099-12-31"
@@ -1033,10 +1169,55 @@ def init_devolucoes_router(
             .where(models.Route.date <= date_to)
             .where(models.Route.delivery_status == "entregue")
         ).all()
+        all_employees = list(session.exec(select(models.Employee)).all())
+        emp_by_name = {e.name.strip().lower(): e.id for e in all_employees if e and getattr(e, "name", None) and getattr(e, "id", None)}
+        route_ids = sorted({d.route_id for d in devolucoes if getattr(d, "route_id", None)})
+        route_helpers = {}
+        if route_ids:
+            routes_linked = session.exec(select(models.Route).where(models.Route.id.in_(route_ids))).all()
+            for r in routes_linked:
+                raw = getattr(r, "delivery_helpers_json", None)
+                ids = _parse_route_helper_ids(raw) or _parse_helpers_to_ids(raw, emp_by_name)
+                if ids:
+                    route_helpers[r.id] = ids
+        route_by_client_driver_date = {}
+        routes_in_range = session.exec(
+            select(models.Route)
+            .where(models.Route.date >= date_from)
+            .where(models.Route.date <= date_to)
+            .where(models.Route.client_id.is_not(None))
+            .where(models.Route.employee_id.is_not(None))
+        ).all()
+        for r in routes_in_range:
+            raw = getattr(r, "delivery_helpers_json", None)
+            ids = _parse_route_helper_ids(raw) or _parse_helpers_to_ids(raw, emp_by_name)
+            if ids and r.client_id and r.employee_id:
+                key = (r.client_id, r.employee_id, str(r.date)[:10])
+                if key not in route_by_client_driver_date:
+                    route_by_client_driver_date[key] = ids
+        session_helpers_by_driver_date = {}
+        sessions_in_range = session.exec(
+            select(models.DeliverySession)
+            .where(models.DeliverySession.date >= date_from)
+            .where(models.DeliverySession.date <= date_to)
+        ).all()
+        for ds in sessions_in_range:
+            raw = getattr(ds, "helpers_json", None)
+            ids = _parse_route_helper_ids(raw) or _parse_helpers_to_ids(raw, emp_by_name)
+            if ids and ds.employee_id:
+                key = (str(getattr(ds, "date", "") or "")[:10], ds.employee_id)
+                if key not in session_helpers_by_driver_date:
+                    session_helpers_by_driver_date[key] = ids
+        effective_ajudante_ids = {
+            _effective_ajudante_id(d, route_helpers, route_by_client_driver_date, session_helpers_by_driver_date)
+            for d in devolucoes
+        }
+        effective_ajudante_ids.discard(None)
         emp_ids = list(
             {d.motorista_id for d in devolucoes}
             | {d.ajudante_id for d in devolucoes if d.ajudante_id}
             | {r.employee_id for r in routes_delivered}
+            | effective_ajudante_ids
         )
         employees = {e.id: e for e in session.exec(select(models.Employee).where(models.Employee.id.in_(emp_ids))).all()}
         by_driver = {}
@@ -1078,9 +1259,9 @@ def init_devolucoes_router(
         out.sort(key=lambda x: (-x["devolucoes_total"], x["motorista_name"]))
         by_ajudante = {}
         for d in devolucoes:
-            if not d.ajudante_id:
+            eid = _effective_ajudante_id(d, route_helpers, route_by_client_driver_date, session_helpers_by_driver_date)
+            if eid is None:
                 continue
-            eid = d.ajudante_id
             if eid not in by_ajudante:
                 by_ajudante[eid] = {"devolucoes_total": 0, "devolucoes_valor_total": 0.0, "devolucoes_attributed": 0, "devolucoes_valor_attributed": 0.0}
             by_ajudante[eid]["devolucoes_total"] += 1

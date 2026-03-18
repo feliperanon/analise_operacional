@@ -251,6 +251,61 @@
             </div>
         </div>
 
+        <!-- Lista de Devoluções (registros do módulo Devoluções) -->
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden mb-8">
+            <div class="px-6 py-4 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center">
+                <h3 class="text-white font-bold flex items-center gap-2">
+                    <svg class="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+                    </svg>
+                    Devoluções
+                </h3>
+                <span class="text-slate-400 text-sm">{{ devolucoes_list|length }} registro(s)</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-900/50 text-slate-400 text-xs uppercase font-bold">
+                            <th class="px-6 py-4">Data romaneio</th>
+                            <th class="px-6 py-4">Data entrega</th>
+                            <th class="px-6 py-4 text-right">Valor (R$)</th>
+                            <th class="px-6 py-4">Motivo</th>
+                            <th class="px-6 py-4">Responsabilidade</th>
+                            <th class="px-6 py-4">Motorista</th>
+                            <th class="px-6 py-4">Vendedor</th>
+                            <th class="px-6 py-4">Ajudante</th>
+                            <th class="px-6 py-4 text-center">R$ 300+</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-700 text-sm">
+                        {% for dev in devolucoes_list %}
+                        <tr class="hover:bg-slate-700/30 transition-colors">
+                            <td class="px-6 py-4 text-slate-300 font-mono">{{ dev.data_romaneio_fmt }}</td>
+                            <td class="px-6 py-4 text-slate-300 font-mono">{{ dev.data_entrega_fmt }}</td>
+                            <td class="px-6 py-4 text-right font-medium text-amber-400">R$ {{ dev.valor_fmt }}</td>
+                            <td class="px-6 py-4 text-slate-300">{{ dev.motivo }}</td>
+                            <td class="px-6 py-4 text-slate-300">{{ dev.responsabilidade }}</td>
+                            <td class="px-6 py-4 text-slate-300">{{ dev.motorista }}</td>
+                            <td class="px-6 py-4 text-slate-300">{{ dev.vendedor }}</td>
+                            <td class="px-6 py-4 text-slate-300">{{ dev.ajudante }}</td>
+                            <td class="px-6 py-4 text-center">
+                                {% if dev.acima_300 %}
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400">SIM</span>
+                                {% else %}
+                                <span class="text-slate-500">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="9" class="px-6 py-12 text-center text-slate-500">Nenhuma devolução registrada para este cliente.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- Quick Stats -->
         <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6 mb-8">
                 <h3 class="text-white font-bold mb-4">Raio-X</h3>

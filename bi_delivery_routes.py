@@ -19,6 +19,7 @@ from typing import List
 
 import models
 from database import get_session
+from route_duration import route_duration_minutes
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -434,11 +435,10 @@ def _build_bi_delivery_dataset(
         ret_v = float(r.valor_devolucao if r.valor_devolucao is not None else (planned_v if status_raw == "devolucao" else 0.0))
         del_w = max(0.0, planned_w - ret_w) if status_raw == "devolucao" else (planned_w if status_raw == "entregue" else 0.0)
         del_v = max(0.0, planned_v - ret_v) if status_raw == "devolucao" else (planned_v if status_raw == "entregue" else 0.0)
-        # Para BI tático, usa qualquer horário operacional consistente disponível.
+        # Duração por ciclos (cada par iniciar + finalizar/devolucao); fallback único par se sem log.
+        dur = route_duration_minutes(r)
         start_ref = (r.delivery_started_at or "").strip() or _fallback_route_time(r.start_time)
         end_ref = (r.delivery_finished_at or "").strip() or _fallback_route_time(r.end_time)
-        _has_operational_time = bool(start_ref and end_ref)
-        dur = _dur(start_ref, end_ref) if _has_operational_time else None
 
         planned_kg += planned_w
         planned_value += planned_v
@@ -1611,7 +1611,8 @@ def _build_relatorio_avaliacao_motorista(
         cli_name = cli.name if cli else f"Cliente #{r.client_id}"
         start_t = r.delivery_started_at or r.start_time
         end_t = r.delivery_finished_at or r.end_time or r.delivery_returned_at
-        dur = _dur_m(start_t, end_t) if r.driver_lat_start is not None else None
+        # Duração por ciclos (cada par iniciar + finalizar/devolucao); evita somar reaberturas como tempo contínuo.
+        dur = route_duration_minutes(r) if r.driver_lat_start is not None else None
         tipo = "Devolução" if st == "devolucao" else "Entrega" if st == "entregue" else st
 
         d["paradas"].append({
@@ -2132,10 +2133,115 @@ def _build_bi_devolucoes_dataset(
 
     devs = session.exec(q.order_by(models.Devolucao.data_romaneio.desc())).all()
 
+    def _parse_route_helper_ids(helpers_json: Optional[str]) -> List[int]:
+        """Parse delivery_helpers_json da rota para lista de employee_id."""
+        if not helpers_json:
+            return []
+        try:
+            data = json.loads(helpers_json) if isinstance(helpers_json, str) else helpers_json
+            if not isinstance(data, list):
+                return []
+            return [int(x) for x in data if x is not None and str(x).strip().isdigit()]
+        except Exception:
+            return []
+
+    def _parse_helpers_to_ids(helpers_json: Optional[str], emp_by_name: dict) -> List[int]:
+        """Parse JSON (ids ou nomes) para lista de employee_id. emp_by_name: nome_lower -> id."""
+        if not helpers_json or not emp_by_name:
+            return []
+        try:
+            data = json.loads(helpers_json) if isinstance(helpers_json, str) else helpers_json
+            if not isinstance(data, list):
+                return []
+            ids = []
+            for h in data:
+                if h is None:
+                    continue
+                if isinstance(h, int) and h > 0:
+                    ids.append(h)
+                elif isinstance(h, str) and str(h).strip().isdigit():
+                    ids.append(int(h.strip()))
+                elif isinstance(h, str) and (h or "").strip():
+                    eid = emp_by_name.get((h or "").strip().lower())
+                    if eid and eid not in ids:
+                        ids.append(eid)
+            return ids
+        except Exception:
+            return []
+
+    # Mapa nome -> id para resolver ajudantes por nome (Route/Session podem enviar nomes)
+    all_employees = list(session.exec(select(models.Employee)).all())
+    emp_by_name: dict = {e.name.strip().lower(): e.id for e in all_employees if e and getattr(e, "name", None) and getattr(e, "id", None)}
+
+    # Ajudantes das rotas vinculadas (para devoluções sem ajudante_id preenchido)
+    route_ids = sorted({d.route_id for d in devs if getattr(d, "route_id", None)})
+    route_helpers: dict = {}  # route_id -> [emp_id, ...]
+    if route_ids:
+        try:
+            routes_linked = session.exec(
+                select(models.Route).where(models.Route.id.in_(route_ids))
+            ).all()
+            for r in routes_linked:
+                raw = getattr(r, "delivery_helpers_json", None)
+                ids = _parse_route_helper_ids(raw) or _parse_helpers_to_ids(raw, emp_by_name)
+                if ids:
+                    route_helpers[r.id] = ids
+        except Exception:
+            pass
+
+    # Fallback: ajudantes por (client_id, motorista_id, data) quando devolução não tem route_id
+    # Busca rotas de entrega no período com helpers e monta lookup para casar com devoluções
+    route_by_client_driver_date: dict = {}  # (client_id, employee_id, date_str) -> [helper_ids]
+    try:
+        date_str_i = date_i.strftime("%Y-%m-%d")
+        date_str_f = date_f.strftime("%Y-%m-%d")
+        routes_in_range = session.exec(
+            select(models.Route)
+            .where(models.Route.date >= date_str_i)
+            .where(models.Route.date <= date_str_f)
+            .where(models.Route.client_id.is_not(None))
+            .where(models.Route.employee_id.is_not(None))
+        ).all()
+        for r in routes_in_range:
+            raw = getattr(r, "delivery_helpers_json", None)
+            ids = _parse_route_helper_ids(raw) or _parse_helpers_to_ids(raw, emp_by_name)
+            if ids and r.client_id and r.employee_id:
+                key = (r.client_id, r.employee_id, str(r.date)[:10])
+                if key not in route_by_client_driver_date:
+                    route_by_client_driver_date[key] = ids
+    except Exception:
+        pass
+
+    # Fallback 2: ajudantes da sessão (date, motorista_id) quando rota não tem delivery_helpers_json
+    session_helpers_by_driver_date: dict = {}  # (date_str, employee_id) -> [helper_ids]
+    try:
+        sessions_in_range = session.exec(
+            select(models.DeliverySession)
+            .where(models.DeliverySession.date >= date_str_i)
+            .where(models.DeliverySession.date <= date_str_f)
+        ).all()
+        for ds in sessions_in_range:
+            raw = getattr(ds, "helpers_json", None)
+            ids = _parse_route_helper_ids(raw) or _parse_helpers_to_ids(raw, emp_by_name)
+            if ids and ds.employee_id:
+                key = (str(getattr(ds, "date", "") or "")[:10], ds.employee_id)
+                if key not in session_helpers_by_driver_date:
+                    session_helpers_by_driver_date[key] = ids
+    except Exception:
+        pass
+
     # --- mapas de lookup ---
+    helper_ids_from_routes = set()
+    for ids in route_helpers.values():
+        helper_ids_from_routes.update(ids)
+    for ids in route_by_client_driver_date.values():
+        helper_ids_from_routes.update(ids)
+    for ids in session_helpers_by_driver_date.values():
+        helper_ids_from_routes.update(ids)
     emp_ids = sorted({d.motorista_id for d in devs if d.motorista_id} |
                      {d.ajudante_id for d in devs if d.ajudante_id} |
-                     {d.vendedor_id for d in devs if d.vendedor_id})
+                     {d.vendedor_id for d in devs if d.vendedor_id} |
+                     helper_ids_from_routes)
     cli_ids = sorted({d.client_id for d in devs if d.client_id})
     emp_map = {e.id: e for e in (session.exec(select(models.Employee).where(models.Employee.id.in_(emp_ids))).all() if emp_ids else [])}
     cli_map = {c.id: c for c in (session.exec(select(models.Client).where(models.Client.id.in_(cli_ids))).all() if cli_ids else [])}
@@ -2156,6 +2262,18 @@ def _build_bi_devolucoes_dataset(
     total_qtd = len(devs)
     total_valor = sum(d.valor for d in devs)
 
+    # Base de valor (rotas no período) para % de devolução em valor
+    date_str_i = date_i.strftime("%Y-%m-%d")
+    date_str_f = date_f.strftime("%Y-%m-%d")
+    routes_in_period = session.exec(
+        select(models.Route)
+        .where(models.Route.date >= date_str_i)
+        .where(models.Route.date <= date_str_f)
+        .where(models.Route.valor_financeiro.is_not(None))
+    ).all()
+    valor_base_rotas = sum(float(r.valor_financeiro or 0) for r in routes_in_period)
+    pct_devolucao_valor = round(total_valor / valor_base_rotas * 100, 2) if valor_base_rotas and valor_base_rotas > 0 else 0.0
+
     # mapa de cores por responsabilidade (evita string matching no template)
     _RESP_COLORS_DETAIL = {"MERCADO": "var(--color-danger)", "COMERCIAL": "var(--color-warning)"}
     _resp_color_default = "var(--color-primary)"
@@ -2172,6 +2290,8 @@ def _build_bi_devolucoes_dataset(
     per_motivo: dict[str, dict] = {}
     # por responsabilidade
     per_resp: dict[str, dict] = {}
+    # drill responsabilidade -> motivos (para modal ao clicar no card)
+    per_resp_motivo: dict[str, dict[str, dict]] = {}
     # por cluster
     per_cluster: dict[str, dict] = {}
     # por motorista
@@ -2180,6 +2300,9 @@ def _build_bi_devolucoes_dataset(
     per_ajudante: dict[str, dict] = {}
     # por vendedor
     per_vendedor: dict[str, dict] = {}
+    # drill vendedor: responsabilidade e motivos por vendedor
+    per_vendedor_resp: dict[str, dict[str, dict]] = {}  # vendedor_nome -> resp_nome -> { responsabilidade, qtd, valor }
+    per_vendedor_motivo: dict[str, dict[str, dict]] = {}  # vendedor_nome -> motivo_nome -> { motivo, qtd, valor }
     # por cliente
     per_cliente: dict[str, dict] = {}
     # heatmap dia-da-semana (0=Seg..6=Dom) x semana ISO
@@ -2203,7 +2326,28 @@ def _build_bi_devolucoes_dataset(
         resp_nome = resp.nome if resp else "Não informado"
         cli_nome = cli.name if cli else f"Cliente #{d.client_id}"
         motorista_nome = motorista.name if motorista else f"Motorista #{d.motorista_id}"
-        ajudante_nome = ajudante.name if ajudante else "—"
+        # Ajudante: Devolucao.ajudante_id, ou rota vinculada (route_id), ou rota casada por (cliente, motorista, data)
+        if ajudante:
+            ajudante_nome = ajudante.name
+        else:
+            helper_ids = None
+            if getattr(d, "route_id", None) and route_helpers.get(d.route_id):
+                helper_ids = route_helpers[d.route_id]
+            if not helper_ids and d.client_id and d.motorista_id and d.data_romaneio:
+                dt_key = str(d.data_romaneio)[:10]
+                key = (d.client_id, d.motorista_id, dt_key)
+                helper_ids = route_by_client_driver_date.get(key)
+            if not helper_ids and d.motorista_id and d.data_romaneio:
+                dt_key = str(d.data_romaneio)[:10]
+                session_key = (dt_key, d.motorista_id)
+                helper_ids = session_helpers_by_driver_date.get(session_key)
+            ajudante_id_from_route = helper_ids[0] if helper_ids else None
+            if ajudante_id_from_route and ajudante_id_from_route == d.motorista_id and len(helper_ids) > 1:
+                ajudante_id_from_route = helper_ids[1]
+            elif ajudante_id_from_route == d.motorista_id:
+                ajudante_id_from_route = None
+            emp_ajud = emp_map.get(ajudante_id_from_route) if ajudante_id_from_route else None
+            ajudante_nome = emp_ajud.name if emp_ajud else "—"
         vendedor_nome = vendedor.name if vendedor else "—"
 
         val = float(d.valor or 0)
@@ -2240,6 +2384,11 @@ def _build_bi_devolucoes_dataset(
         rs = per_resp.setdefault(resp_nome, {"responsabilidade": resp_nome, "qtd": 0, "valor": 0.0})
         rs["qtd"] += 1
         rs["valor"] = round(rs["valor"] + val, 2)
+        # per_resp_motivo (drill: motivos por responsabilidade)
+        prm = per_resp_motivo.setdefault(resp_nome, {})
+        smr = prm.setdefault(motivo_nome, {"motivo": motivo_nome, "qtd": 0, "valor": 0.0})
+        smr["qtd"] += 1
+        smr["valor"] = round(smr["valor"] + val, 2)
 
         # per_cluster
         cluster = str(d.cluster or "Sem cluster")
@@ -2257,16 +2406,27 @@ def _build_bi_devolucoes_dataset(
         if (d.acima_300 or "NAO") == "SIM":
             mts["acima300"] += 1
 
-        # per_ajudante
-        if ajudante_nome != "—":
-            ats = per_ajudante.setdefault(ajudante_nome, {"ajudante": ajudante_nome, "qtd": 0, "valor": 0.0})
-            ats["qtd"] += 1
-            ats["valor"] = round(ats["valor"] + val, 2)
+        # per_ajudante (inclui "Sem ajudante" quando ajudante_nome é —)
+        label_ajudante = ajudante_nome if ajudante_nome != "—" else "Sem ajudante"
+        ats = per_ajudante.setdefault(label_ajudante, {"ajudante": label_ajudante, "qtd": 0, "valor": 0.0})
+        ats["qtd"] += 1
+        ats["valor"] = round(ats["valor"] + val, 2)
 
         # per_vendedor
         vs = per_vendedor.setdefault(vendedor_nome, {"vendedor": vendedor_nome, "qtd": 0, "valor": 0.0})
         vs["qtd"] += 1
         vs["valor"] = round(vs["valor"] + val, 2)
+
+        # per_vendedor_resp (drill: responsabilidade por vendedor)
+        pr = per_vendedor_resp.setdefault(vendedor_nome, {})
+        sr = pr.setdefault(resp_nome, {"responsabilidade": resp_nome, "qtd": 0, "valor": 0.0})
+        sr["qtd"] += 1
+        sr["valor"] = round(sr["valor"] + val, 2)
+        # per_vendedor_motivo (drill: motivos por vendedor)
+        pm = per_vendedor_motivo.setdefault(vendedor_nome, {})
+        sm = pm.setdefault(motivo_nome, {"motivo": motivo_nome, "qtd": 0, "valor": 0.0})
+        sm["qtd"] += 1
+        sm["valor"] = round(sm["valor"] + val, 2)
 
         # per_cliente
         cls_ = per_cliente.setdefault(cli_nome, {"cliente": cli_nome, "qtd": 0, "valor": 0.0, "motivos": {}})
@@ -2307,6 +2467,24 @@ def _build_bi_devolucoes_dataset(
     top_vendedores = sorted(per_vendedor.values(), key=lambda x: x["qtd"], reverse=True)[:15]
     top_clusters = sorted(per_cluster.values(), key=lambda x: x["qtd"], reverse=True)[:15]
 
+    # Drill-down por vendedor: responsabilidade e motivos para detalhe no clique
+    vendedor_drill: dict[str, dict] = {}
+    for vendedor_nome in per_vendedor.keys():
+        resp_list = sorted(
+            per_vendedor_resp.get(vendedor_nome, {}).values(),
+            key=lambda x: x["qtd"],
+            reverse=True,
+        )
+        motivos_list = sorted(
+            per_vendedor_motivo.get(vendedor_nome, {}).values(),
+            key=lambda x: x["qtd"],
+            reverse=True,
+        )[:15]
+        vendedor_drill[vendedor_nome] = {
+            "responsabilidade": resp_list,
+            "motivos": motivos_list,
+        }
+
     # Evolução diária (últimos 90 dias no período)
     days_sorted = sorted(per_day.keys())
     evolucao_diaria = [per_day[k] for k in days_sorted]
@@ -2319,6 +2497,25 @@ def _build_bi_devolucoes_dataset(
     for _rk, _rv in per_resp.items():
         _rv["color"] = _resp_color(_rk)
     resp_breakdown = sorted(per_resp.values(), key=lambda x: x["qtd"], reverse=True)
+
+    # Drill-down por responsabilidade: motivos com qtd, valor e % (para modal ao clicar no card)
+    resp_drill: dict[str, dict] = {}
+    for resp_nome, resp_totals in per_resp.items():
+        motivos_raw = list(per_resp_motivo.get(resp_nome, {}).values())
+        total_qtd_resp = resp_totals["qtd"]
+        total_valor_resp = resp_totals["valor"]
+        motivos_list = []
+        for m in sorted(motivos_raw, key=lambda x: x["qtd"], reverse=True):
+            pct_qtd = round(100.0 * m["qtd"] / total_qtd_resp, 1) if total_qtd_resp else 0
+            pct_valor = round(100.0 * m["valor"] / total_valor_resp, 1) if total_valor_resp else 0
+            motivos_list.append({
+                "motivo": m["motivo"],
+                "qtd": m["qtd"],
+                "valor": m["valor"],
+                "pct_qtd": pct_qtd,
+                "pct_valor": pct_valor,
+            })
+        resp_drill[resp_nome] = {"responsabilidade": resp_nome, "motivos": motivos_list}
 
     # heatmap: matriz DOW (0-6) × semanas
     weeks_label = weeks_sorted[-12:] if len(weeks_sorted) > 12 else weeks_sorted
@@ -2375,11 +2572,14 @@ def _build_bi_devolucoes_dataset(
         "media_valor_dia": media_valor_dia,
         "total_clientes_afetados": len(per_cliente),
         "total_motoristas_envolvidos": len(per_motorista),
+        "valor_base_rotas": round(valor_base_rotas, 2),
+        "pct_devolucao_valor": pct_devolucao_valor,
         # evolução
         "evolucao_diaria": evolucao_diaria,
         "evolucao_semanal": evolucao_semanal,
         # breakdowns
         "resp_breakdown": resp_breakdown,
+        "resp_drill": resp_drill,
         "top_motivos": top_motivos,
         "top_clientes": top_clientes,
         "top_motoristas": top_motoristas,
@@ -2403,15 +2603,18 @@ def _build_bi_devolucoes_dataset(
         "evolucao_semanal_json": json.dumps(evolucao_semanal, ensure_ascii=False, default=str),
         "top_motivos_json": json.dumps(top_motivos, ensure_ascii=False, default=str),
         "resp_breakdown_json": json.dumps(resp_breakdown, ensure_ascii=False, default=str),
+        "resp_drill_json": json.dumps(resp_drill, ensure_ascii=False, default=str),
         "top_motoristas_json": json.dumps(top_motoristas, ensure_ascii=False, default=str),
         "top_clientes_json": json.dumps(top_clientes, ensure_ascii=False, default=str),
         "top_ajudantes_json": json.dumps(top_ajudantes, ensure_ascii=False, default=str),
         "top_vendedores_json": json.dumps(top_vendedores, ensure_ascii=False, default=str),
+        "vendedor_drill_json": json.dumps(vendedor_drill, ensure_ascii=False, default=str),
         "top_clusters_json": json.dumps(top_clusters, ensure_ascii=False, default=str),
         "heatmap_matrix_json": json.dumps(heatmap_matrix, ensure_ascii=False, default=str),
         "heatmap_weeks_labels_json": json.dumps(weeks_label, ensure_ascii=False, default=str),
         "heatmap_dom_dow_json": json.dumps(heatmap_dom_dow, ensure_ascii=False, default=str),
         "dow_labels_json": json.dumps(DOW_LABELS, ensure_ascii=False),
+        "rows_detail_json": json.dumps(rows_detail[:500], ensure_ascii=False, default=str),
     }
 
 

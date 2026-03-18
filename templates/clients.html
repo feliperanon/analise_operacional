@@ -66,22 +66,76 @@
         {% endif %}
 
         <!-- Filtros -->
-        <div class="flex flex-wrap items-center gap-4 mb-6">
+        <div class="space-y-4 mb-6">
             <form action="/clients" method="get" class="flex flex-wrap items-center gap-3">
                 <select name="status" onchange="this.form.submit()"
                     class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500">
                     <option value="ativos" {% if status_filter == 'ativos' %}selected{% endif %}>Ativos</option>
                     <option value="todos" {% if status_filter == 'todos' %}selected{% endif %}>Todos</option>
+                    <option value="precadastro" {% if status_filter == 'precadastro' %}selected{% endif %}>Pre-cadastro</option>
                     <option value="fechou" {% if status_filter == 'fechou' %}selected{% endif %}>Fechados</option>
                     <option value="inativo" {% if status_filter == 'inativo' %}selected{% endif %}>Inativos</option>
                     <option value="em_validacao" {% if status_filter == 'em_validacao' %}selected{% endif %}>Em Validação</option>
                 </select>
                 <input type="text" name="q" value="{{ search or '' }}" placeholder="Buscar nome, razão, NB, município..."
                     class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm w-64 focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
+                <span class="text-slate-500 text-sm">Período (última mov.):</span>
+                <input type="date" name="mov_from" value="{{ mov_from or '' }}" placeholder="De"
+                    class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500">
+                <input type="date" name="mov_to" value="{{ mov_to or '' }}" placeholder="Até"
+                    class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500">
+                <span class="text-slate-500 text-sm">Pre-cadastro:</span>
+                <select name="precadastro" onchange="this.form.submit()" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500">
+                    <option value="">Todos</option>
+                    <option value="sim" {% if precadastro == 'sim' %}selected{% endif %}>Só pre-cadastro</option>
+                </select>
+                <select name="precadastro_idade" onchange="this.form.submit()" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500">
+                    <option value="">Qualquer idade</option>
+                    <option value="1m" {% if precadastro_idade == '1m' %}selected{% endif %}>1 mês</option>
+                    <option value="3m" {% if precadastro_idade == '3m' %}selected{% endif %}>3 meses</option>
+                    <option value="6m" {% if precadastro_idade == '6m' %}selected{% endif %}>6 meses</option>
+                    <option value="9m" {% if precadastro_idade == '9m' %}selected{% endif %}>9 meses</option>
+                    <option value="1y" {% if precadastro_idade == '1y' %}selected{% endif %}>1 ano</option>
+                    <option value="1y_plus" {% if precadastro_idade == '1y_plus' %}selected{% endif %}>+1 ano</option>
+                </select>
                 <button type="submit" class="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium transition-colors">
-                    Buscar
+                    Filtrar
                 </button>
             </form>
+        </div>
+
+        <!-- Gráficos: Movimentação e Pre-cadastro -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
+                <h3 class="text-slate-200 font-semibold mb-2">Clientes com movimentação</h3>
+                <p class="text-slate-500 text-sm mb-4">Por tempo desde a última movimentação (lista atual). Total: <strong class="text-slate-300">{{ chart_movimentacao.total }}</strong> clientes.</p>
+                <div class="flex items-center gap-6 flex-wrap">
+                    <div class="h-52 w-64">
+                        <canvas id="chartMovimentacao"></canvas>
+                    </div>
+                    <div class="text-sm text-slate-300 space-y-1">
+                        {% for item in chart_movimentacao.buckets %}
+                        <p><span class="font-medium">{{ item.label }}</span>: {{ item.count }}</p>
+                        {% endfor %}
+                        <p><span class="font-medium text-amber-400">Sem movimentação</span>: {{ chart_movimentacao.sem_movimentacao }}</p>
+                        <p class="text-slate-500 pt-1 border-t border-slate-600 mt-1">Total: {{ chart_movimentacao.total }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
+                <h3 class="text-slate-200 font-semibold mb-2">Pre-cadastro por tempo</h3>
+                <p class="text-slate-500 text-sm mb-4">Clientes pre-cadastro por faixa de idade do cadastro</p>
+                <div class="flex items-center gap-6 flex-wrap">
+                    <div class="h-48 w-48">
+                        <canvas id="chartPrecadastro"></canvas>
+                    </div>
+                    <div class="text-sm text-slate-300 space-y-1">
+                        {% for item in chart_precadastro %}
+                        <p><span class="font-medium">{{ item.label }}</span>: {{ item.count }}</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Clients List -->
@@ -97,6 +151,8 @@
                         <tr class="bg-slate-900/50 text-slate-400 text-xs uppercase font-bold">
                             <th class="px-6 py-4">NB</th>
                             <th class="px-6 py-4">Nome</th>
+                            <th class="px-6 py-4">Data cadastro</th>
+                            <th class="px-6 py-4">Última movimentação</th>
                             <th class="px-6 py-4">Setor</th>
                             <th class="px-6 py-4">Município</th>
                             <th class="px-6 py-4">Segmento</th>
@@ -110,6 +166,26 @@
                             <td class="px-6 py-4 text-slate-400 font-mono">{{ client.nb or '-' }}</td>
                             <td class="px-6 py-4">
                                 <a href="/clients/{{ client.id }}" class="text-white font-medium hover:text-blue-400 transition-colors">{{ client.name or client.nb or '-' }}</a>
+                            </td>
+                            <td class="px-6 py-4 text-slate-300">
+                                {% set data_cad = data_cadastro_by_client.get(client.id) %}
+                                {% if data_cad %}
+                                {% set parts = data_cad.split('-') %}
+                                {{ parts[2] }}/{{ parts[1] }}/{{ parts[0] }}
+                                {% else %}
+                                —
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-slate-300">
+                                {% set last_mov = last_movement_by_client.get(client.id) %}
+                                {% if last_mov %}
+                                <span class="text-emerald-400">{{ last_mov }}</span>
+                                {% else %}
+                                <span class="text-slate-500">Sem movimentação</span>
+                                {% endif %}
+                                {% if precadastro_bucket_by_client.get(client.id) and precadastro_buckets_labels %}
+                                <span class="text-slate-500 text-xs ml-1">({{ precadastro_buckets_labels.get(precadastro_bucket_by_client.get(client.id), precadastro_bucket_by_client.get(client.id)) }})</span>
+                                {% endif %}
                             </td>
                             <td class="px-6 py-4 text-slate-300">{{ client.setor or '-' }}</td>
                             <td class="px-6 py-4 text-slate-300">{{ client.municipio or '-' }}</td>
@@ -200,6 +276,7 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 function openNovoClienteModal() {
     document.getElementById('novoClienteModal').classList.remove('hidden');
@@ -213,6 +290,37 @@ document.getElementById('clients-excel-input')?.addEventListener('change', funct
     const span = document.getElementById('clients-file-name');
     if (span) span.textContent = this.files?.length ? this.files[0].name : '';
 });
+
+// Gráfico: clientes por faixa de última movimentação (1 mês, 3 meses, ..., sem movimentação)
+(function() {
+    const ctx = document.getElementById('chartMovimentacao');
+    if (!ctx || typeof Chart === 'undefined') return;
+    const labels = [{% for item in chart_movimentacao.buckets %}'{{ item.label }}'{% if not loop.last %}, {% endif %}{% endfor %}, 'Sem movimentação'];
+    const counts = [{% for item in chart_movimentacao.buckets %}{{ item.count }}{% if not loop.last %}, {% endif %}{% endfor %}, {{ chart_movimentacao.sem_movimentacao }}];
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{ label: 'Clientes', data: counts, backgroundColor: ['#10b981aa','#22c55eaa','#84cc16aa','#eab308aa','#f59e0baa','#ef4444aa','#f59e0b'], borderColor: '#1e293b', borderWidth: 1 }]
+        },
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+    });
+})();
+// Gráfico: pre-cadastro por faixa
+(function() {
+    const ctx = document.getElementById('chartPrecadastro');
+    if (!ctx || typeof Chart === 'undefined') return;
+    const labels = [{% for item in chart_precadastro %}'{{ item.label }}'{% if not loop.last %}, {% endif %}{% endfor %}];
+    const counts = [{% for item in chart_precadastro %}{{ item.count }}{% if not loop.last %}, {% endif %}{% endfor %}];
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{ label: 'Pre-cadastro', data: counts, backgroundColor: '#8b5cf6bb', borderColor: '#8b5cf6', borderWidth: 1 }]
+        },
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+    });
+})();
 if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
 </script>
 {% endblock %}

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="p-6 md:p-8" x-data="devolucoesAvaliar()" x-init="loadList(); loadResumo();">
+<div class="p-6 md:p-8" x-data='devolucoesAvaliar({{ {"avaliar_employees": avaliar_employees, "avaliar_clients": avaliar_clients} | tojson }})' x-init="loadList(); loadResumo();">
     <div class="max-w-6xl mx-auto space-y-6">
         <!-- Cabeçalho -->
         <div class="flex flex-wrap items-center justify-between gap-4">
@@ -16,7 +16,7 @@
         </div>
 
         <!-- Filtros -->
-        <div class="rounded-xl border border-slate-700 bg-slate-800/80 p-4 md:p-5">
+        <div class="rounded-xl border border-slate-700 bg-slate-800/80 p-4 md:p-5 space-y-4">
             <div class="flex flex-wrap items-center gap-4">
                 <div class="flex items-center gap-2">
                     <label class="text-sm text-slate-400">De</label>
@@ -25,6 +25,61 @@
                 <div class="flex items-center gap-2">
                     <label class="text-sm text-slate-400">Até</label>
                     <input type="date" x-model="dateTo" @change="loadList(); loadResumo();" class="bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="text-sm text-slate-400">Nome do cliente</label>
+                    <input type="text" x-model="filterClienteNome" placeholder="Buscar por nome" class="bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white w-48 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-slate-500">
+                </div>
+                <div class="relative" x-data="{ open: false }">
+                    <button type="button" @click="open = !open" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-600 bg-slate-700/80 text-slate-200 hover:bg-slate-600 text-sm font-medium transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        Pesquisar motorista <span x-show="filterMotoristaIds.length" class="bg-blue-600 text-white text-xs px-1.5 rounded" x-text="filterMotoristaIds.length"></span>
+                    </button>
+                    <div x-show="open" @click.outside="open = false" x-cloak class="absolute left-0 top-full mt-1 z-20 w-72 max-h-80 overflow-hidden rounded-xl border border-slate-600 bg-slate-800 shadow-xl flex flex-col">
+                        <input type="text" x-model="searchMotorista" placeholder="Filtrar motorista..." class="m-2 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500">
+                        <div class="overflow-y-auto p-2 space-y-1">
+                            <template x-for="emp in (avaliar_employees.filter(e => (e.name || '').toLowerCase().includes((searchMotorista || '').toLowerCase())))" :key="emp.id">
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-slate-700/50 rounded-lg px-2 py-1.5 text-sm text-slate-200">
+                                    <input type="checkbox" :checked="filterMotoristaIds.includes(emp.id)" @change="toggleFilterMotorista(emp.id)" class="rounded border-slate-600 bg-slate-800 text-blue-500">
+                                    <span x-text="emp.name"></span>
+                                </label>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                <div class="relative" x-data="{ open: false }">
+                    <button type="button" @click="open = !open" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-600 bg-slate-700/80 text-slate-200 hover:bg-slate-600 text-sm font-medium transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        Pesquisar cliente <span x-show="filterClientIds.length" class="bg-blue-600 text-white text-xs px-1.5 rounded" x-text="filterClientIds.length"></span>
+                    </button>
+                    <div x-show="open" @click.outside="open = false" x-cloak class="absolute left-0 top-full mt-1 z-20 w-72 max-h-80 overflow-hidden rounded-xl border border-slate-600 bg-slate-800 shadow-xl flex flex-col">
+                        <input type="text" x-model="searchCliente" placeholder="Filtrar cliente..." class="m-2 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500">
+                        <div class="overflow-y-auto p-2 space-y-1">
+                            <template x-for="c in (avaliar_clients.filter(cl => (clienteLabel(cl).toLowerCase().includes((searchCliente || '').toLowerCase()))))" :key="c.id">
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-slate-700/50 rounded-lg px-2 py-1.5 text-sm text-slate-200">
+                                    <input type="checkbox" :checked="filterClientIds.includes(c.id)" @change="toggleFilterCliente(c.id)" class="rounded border-slate-600 bg-slate-800 text-blue-500">
+                                    <span x-text="clienteLabel(c)"></span>
+                                </label>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                <div class="relative" x-data="{ open: false }">
+                    <button type="button" @click="open = !open" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-600 bg-slate-700/80 text-slate-200 hover:bg-slate-600 text-sm font-medium transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        Pesquisar ajudante <span x-show="filterAjudanteIds.length" class="bg-blue-600 text-white text-xs px-1.5 rounded" x-text="filterAjudanteIds.length"></span>
+                    </button>
+                    <div x-show="open" @click.outside="open = false" x-cloak class="absolute left-0 top-full mt-1 z-20 w-72 max-h-80 overflow-hidden rounded-xl border border-slate-600 bg-slate-800 shadow-xl flex flex-col">
+                        <input type="text" x-model="searchAjudante" placeholder="Filtrar ajudante..." class="m-2 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500">
+                        <div class="overflow-y-auto p-2 space-y-1">
+                            <template x-for="emp in (avaliar_employees.filter(e => (e.name || '').toLowerCase().includes((searchAjudante || '').toLowerCase())))" :key="emp.id">
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-slate-700/50 rounded-lg px-2 py-1.5 text-sm text-slate-200">
+                                    <input type="checkbox" :checked="filterAjudanteIds.includes(emp.id)" @change="toggleFilterAjudante(emp.id)" class="rounded border-slate-600 bg-slate-800 text-blue-500">
+                                    <span x-text="emp.name"></span>
+                                </label>
+                            </template>
+                        </div>
+                    </div>
                 </div>
                 <button type="button" @click="loadList(); loadResumo();" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -46,11 +101,16 @@
             <template x-if="!loading && list.length === 0"><p class="text-slate-500 py-4">Nenhuma devolução no período.</p></template>
             <div class="space-y-2" x-show="!loading && list.length">
                 <template x-for="item in list" :key="item.id">
-                    <article class="rounded-xl border border-slate-700/80 bg-slate-800/70 overflow-hidden shadow-sm" style="border-left-width: 3px; border-left-color: rgba(249, 115, 22, 0.5);">
+                    <article class="rounded-xl overflow-hidden shadow-sm transition-colors"
+                        :class="item.edited ? 'border-2 border-amber-500/80 bg-amber-950/30' : 'border border-slate-700/80 bg-slate-800/70'"
+                        :style="item.edited ? 'border-left-width: 4px; border-left-color: rgb(245, 158, 11);' : 'border-left-width: 3px; border-left-color: rgba(249, 115, 22, 0.5);'">
                         <div class="p-3 flex flex-col gap-2">
                             <div class="flex items-start justify-between gap-2">
                                 <div class="min-w-0 flex-1">
-                                    <p class="text-sm font-semibold text-white truncate" x-text="item.client_name"></p>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <p class="text-sm font-semibold text-white truncate" x-text="item.client_name"></p>
+                                        <span x-show="item.edited" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-600/80 text-amber-100 border border-amber-500/50">Alterado</span>
+                                    </div>
                                     <p class="text-xs text-slate-500 mt-0.5" x-text="'Cod ' + (item.client_code || '-') + ' · Pedido ' + (item.order_number || '-') + (item.data_romaneio_pt ? ' · ' + item.data_romaneio_pt : '')"></p>
                                 </div>
                                 <button type="button" @click="openEdit(item)" class="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-600 bg-slate-700/80 text-slate-300 hover:bg-slate-600 hover:text-white text-xs font-medium transition-colors">
@@ -139,26 +199,43 @@
                     </div>
                     <div class="p-3 text-slate-500 text-xs border-b border-slate-700 shrink-0" x-text="'Período: ' + formatPeriodo(dateFrom, dateTo)"></div>
                     <div class="overflow-y-auto flex-1 min-h-0 p-3 space-y-2">
+                        <p class="text-slate-400 text-xs mb-2 px-1">Marque responsabilidade (M = motorista, A = ajudante). Clique na linha para abrir edição completa.</p>
                         <template x-for="item in (resumoDetailMotorista ? list.filter(i => String(i.motorista_id) === String(resumoDetailMotorista.motorista_id)) : [])" :key="item.id">
-                            <div @click="resumoDetailOpen = false; openEdit(item)"
-                                class="rounded-lg border border-slate-600 bg-slate-800/80 p-3 cursor-pointer hover:bg-slate-700/50 transition-colors text-left">
-                                <div class="flex flex-wrap items-center gap-2 mb-1">
-                                    <span class="font-mono text-xs text-amber-400 font-medium" x-text="item.data_romaneio_pt || item.data_romaneio || '-'"></span>
-                                    <span class="text-slate-500">·</span>
-                                    <span class="text-white font-medium truncate flex-1" x-text="item.client_name"></span>
-                                    <span class="text-slate-400 text-xs" x-text="'R$ ' + formatValor(item.value)"></span>
+                            <div class="rounded-lg border border-slate-600 bg-slate-800/80 p-3 transition-colors text-left flex flex-col gap-2">
+                                <div @click="resumoDetailOpen = false; openEdit(item)" class="cursor-pointer flex-1 min-w-0">
+                                    <div class="flex flex-wrap items-center gap-2 mb-1">
+                                        <span class="font-mono text-xs text-amber-400 font-medium" x-text="item.data_romaneio_pt || item.data_romaneio || '-'"></span>
+                                        <span class="text-slate-500">·</span>
+                                        <span class="text-white font-medium truncate flex-1" x-text="item.client_name"></span>
+                                        <span class="text-slate-400 text-xs" x-text="'R$ ' + formatValor(item.value)"></span>
+                                    </div>
+                                    <p class="text-orange-300/90 text-xs font-medium" x-text="item.motivo_nome + (item.responsabilidade_nome ? ' · ' + item.responsabilidade_nome : '')"></p>
+                                    <p x-show="item.observacao" class="text-slate-400 text-xs mt-1" x-text="'Obs: ' + item.observacao"></p>
+                                    <p x-show="item.observacao_gestor" class="text-amber-200/80 text-xs mt-0.5" x-text="'Gestor: ' + item.observacao_gestor"></p>
                                 </div>
-                                <p class="text-orange-300/90 text-xs font-medium" x-text="item.motivo_nome + (item.responsabilidade_nome ? ' · ' + item.responsabilidade_nome : '')"></p>
-                                <p x-show="item.observacao" class="text-slate-400 text-xs mt-1" x-text="'Obs: ' + item.observacao"></p>
-                                <p x-show="item.observacao_gestor" class="text-amber-200/80 text-xs mt-0.5" x-text="'Gestor: ' + item.observacao_gestor"></p>
-                                <p class="text-slate-500 text-xs mt-1">Clique para editar</p>
+                                <div class="flex items-center gap-4 pt-1 border-t border-slate-700/80" @click.stop>
+                                    <span class="text-slate-500 text-xs">Responsabilidade:</span>
+                                    <label class="inline-flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer">
+                                        <input type="checkbox" :checked="item.responsavel_motorista" @change="setResponsavel(item.id, $event.target.checked, item.responsavel_ajudante)" class="rounded border-slate-600 bg-slate-800 text-blue-500">
+                                        <span>Motorista (M)</span>
+                                    </label>
+                                    <label class="inline-flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer">
+                                        <input type="checkbox" :checked="item.responsavel_ajudante" @change="setResponsavel(item.id, item.responsavel_motorista, $event.target.checked)" class="rounded border-slate-600 bg-slate-800 text-blue-500">
+                                        <span>Ajudante (A)</span>
+                                    </label>
+                                    <span class="text-slate-500 text-xs">Clique na linha para editar</span>
+                                </div>
                             </div>
                         </template>
                         <p x-show="resumoDetailMotorista && list.filter(i => String(i.motorista_id) === String(resumoDetailMotorista.motorista_id)).length === 0" class="text-slate-500 text-sm py-4">Nenhuma devolução na lista para este motorista no período.</p>
                     </div>
-                    <div class="p-3 border-t border-slate-700 shrink-0 flex justify-end gap-2">
-                        <button type="button" @click="tab = 'lista'; resumoDetailOpen = false; resumoDetailMotorista = null" class="px-4 py-2 rounded-lg border border-slate-600 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium transition-colors">Ver na lista</button>
-                        <button type="button" @click="resumoDetailOpen = false; resumoDetailMotorista = null" class="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-white text-sm font-medium transition-colors">Fechar</button>
+                    <div class="p-3 border-t border-slate-700 shrink-0 flex justify-between items-center gap-2 flex-wrap">
+                        <p class="text-slate-500 text-xs">Alterações são salvas ao marcar M/A. Use Salvar para atualizar o resumo na tabela.</p>
+                        <div class="flex gap-2">
+                            <button type="button" @click="loadResumo()" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors">Salvar</button>
+                            <button type="button" @click="tab = 'lista'; resumoDetailOpen = false; resumoDetailMotorista = null" class="px-4 py-2 rounded-lg border border-slate-600 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium transition-colors">Ver na lista</button>
+                            <button type="button" @click="resumoDetailOpen = false; resumoDetailMotorista = null" class="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-white text-sm font-medium transition-colors">Fechar</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -262,7 +339,8 @@
 </div>
 
 <script>
-function devolucoesAvaliar() {
+function devolucoesAvaliar(init) {
+    init = init || {};
     return {
         tab: 'lista',
         list: [],
@@ -278,6 +356,34 @@ function devolucoesAvaliar() {
         resumoDetailMotorista: null,
         dateFrom: '{{ date_from }}',
         dateTo: '{{ date_to }}',
+        filterClienteNome: '',
+        filterMotoristaIds: [],
+        filterClientIds: [],
+        filterAjudanteIds: [],
+        searchMotorista: '',
+        searchCliente: '',
+        searchAjudante: '',
+        avaliar_employees: init.avaliar_employees || [],
+        avaliar_clients: init.avaliar_clients || [],
+        clienteLabel(c) {
+            if (!c) return '';
+            return (c.razao_social && c.razao_social.trim()) ? c.razao_social.trim() : (c.name || '').trim() || ('Cliente #' + c.id);
+        },
+        toggleFilterMotorista(id) {
+            const i = this.filterMotoristaIds.indexOf(id);
+            if (i >= 0) this.filterMotoristaIds.splice(i, 1);
+            else this.filterMotoristaIds.push(id);
+        },
+        toggleFilterCliente(id) {
+            const i = this.filterClientIds.indexOf(id);
+            if (i >= 0) this.filterClientIds.splice(i, 1);
+            else this.filterClientIds.push(id);
+        },
+        toggleFilterAjudante(id) {
+            const i = this.filterAjudanteIds.indexOf(id);
+            if (i >= 0) this.filterAjudanteIds.splice(i, 1);
+            else this.filterAjudanteIds.push(id);
+        },
         formatPeriodo(from, to) {
             if (!from || !to) return '—';
             const fmt = (s) => {
@@ -297,7 +403,12 @@ function devolucoesAvaliar() {
         },
         loadList() {
             this.loading = true;
-            fetch('/api/devolucoes/avaliar/list?date_from=' + encodeURIComponent(this.dateFrom) + '&date_to=' + encodeURIComponent(this.dateTo), { credentials: 'same-origin' })
+            let url = '/api/devolucoes/avaliar/list?date_from=' + encodeURIComponent(this.dateFrom) + '&date_to=' + encodeURIComponent(this.dateTo);
+            if (this.filterClienteNome && this.filterClienteNome.trim()) url += '&q=' + encodeURIComponent(this.filterClienteNome.trim());
+            if (this.filterMotoristaIds.length) url += '&motorista_ids=' + this.filterMotoristaIds.join(',');
+            if (this.filterClientIds.length) url += '&client_ids=' + this.filterClientIds.join(',');
+            if (this.filterAjudanteIds.length) url += '&ajudante_ids=' + this.filterAjudanteIds.join(',');
+            fetch(url, { credentials: 'same-origin' })
                 .then(r => r.json())
                 .then(j => {
                     this.loading = false;
@@ -339,6 +450,7 @@ function devolucoesAvaliar() {
                     if (item) {
                         item.responsavel_motorista = !!responsavelMotorista;
                         item.responsavel_ajudante = !!ra;
+                        item.edited = true;
                     }
                     this.loadResumo();
                 }
@@ -379,7 +491,10 @@ function devolucoesAvaliar() {
                     this.editOpen = false;
                     this.editItem = null;
                     const idx = this.list.findIndex(x => x.id === id);
-                    if (idx >= 0 && j.data) this.list[idx] = j.data;
+                    if (idx >= 0 && j.data) {
+                        this.list[idx] = j.data;
+                        this.list[idx].edited = true;
+                    }
                     this.loadResumo();
                 } else alert(j.error || 'Erro ao salvar');
             });

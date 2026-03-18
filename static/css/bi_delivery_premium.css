@@ -95,3 +95,115 @@
     transform: translateY(0) scale(1);
   }
 }
+
+/* Layout BI (devoluções, delivery, etc.) */
+.bi-card {
+  padding: var(--space-4, 1rem);
+}
+
+.bi-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.bi-card-head-between {
+  justify-content: space-between;
+}
+
+.icon-wrap-sm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(30, 41, 59, 0.8);
+  color: var(--color-icon, var(--color-text-secondary));
+  border-radius: var(--radius-sm, 0.5rem);
+}
+
+.icon-wrap-sm:hover {
+  background: rgba(51, 65, 85, 0.9);
+  color: var(--color-text);
+}
+
+.form-field label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: var(--text-caption, 0.6875rem);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.form-field input,
+.form-field select {
+  width: 100%;
+  min-height: 42px;
+  border-radius: var(--radius-md, 0.75rem);
+  border: 2px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 0 0.75rem;
+  font-size: 0.875rem;
+}
+
+.btn-primary,
+.btn-secondary {
+  min-height: 42px;
+  border-radius: var(--radius-md, 0.75rem);
+  padding: 0 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-body, 0.8125rem);
+  font-weight: 600;
+  transition: opacity 0.2s ease;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: #fff;
+  border: 1px solid var(--color-primary);
+}
+
+.btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 2px solid var(--color-border);
+}
+
+.btn-primary:hover,
+.btn-secondary:hover {
+  opacity: 0.9;
+}
+
+.bi-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.bi-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  padding: 0.6rem 0.5rem;
+  font-size: var(--text-caption, 0.6875rem);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.bi-table tbody td {
+  border-bottom: 1px solid var(--color-border);
+  padding: 0.6rem 0.5rem;
+  color: var(--color-text-body);
+  vertical-align: middle;
+}
+
+.bi-table tbody tr:nth-child(even) {
+  background: rgba(30, 41, 59, 0.3);
+}
+
+.bi-table tbody tr:hover {
+  background: rgba(51, 65, 85, 0.4);
+}

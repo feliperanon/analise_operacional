@@ -83,27 +83,33 @@
       </form>
     </header>
 
+    {% set _df = filters.date_from[:10] if filters.date_from and filters.date_from|length >= 10 else '' %}
+    {% set _dt = filters.date_to[:10] if filters.date_to and filters.date_to|length >= 10 else '' %}
+    {% set period_label = (_df[8:10] ~ '/' ~ _df[5:7] ~ '/' ~ _df[0:4] ~ ' a ' ~ _dt[8:10] ~ '/' ~ _dt[5:7] ~ '/' ~ _dt[0:4]) if (_df and _dt) else 'Todo o período' %}
+
     <!-- ===== KPI CARDS ===== -->
-    <section class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-7 gap-3">
-      {{ kpi_card("Total Devoluções", total_qtd|fmt_br_int, "ocorrências no período", "package-x", "danger") }}
-      {{ kpi_card("Valor Total", total_valor|fmt_br_moeda, "soma das devoluções", "dollar-sign", "danger") }}
-      {{ kpi_card("Clientes Afetados", total_clientes_afetados|fmt_br_int, "clientes únicos", "users", "warning") }}
-      {{ kpi_card("Motoristas Envolvidos", total_motoristas_envolvidos|fmt_br_int, "motoristas únicos", "truck", "warning") }}
-      {{ kpi_card("Média / Dia", media_por_dia|fmt_br_1, "devoluções por dia", "trending-up", "neutral") }}
-      {{ kpi_card("Média Valor / Dia", media_valor_dia|fmt_br_moeda, "valor médio por dia", "bar-chart-3", "neutral") }}
-      {{ kpi_card("Acima R$300", total_acima_300|string ~ " (" ~ pct_acima_300|fmt_br_1 ~ "%)", "devoluções de alto valor", "alert-triangle", "warning") }}
+    <section class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-8 gap-3">
+      {{ kpi_card("Total Devoluções", total_qtd|fmt_br_int, "ocorrências no período", "package-x", "danger", period_label) }}
+      {{ kpi_card("Valor Total", total_valor|fmt_br_moeda, "soma das devoluções", "dollar-sign", "danger", period_label) }}
+      {{ kpi_card("Devolução % Valor", pct_devolucao_valor|fmt_br_1 ~ "%", "sobre valor das rotas no período (meta ≤ 2%)", "percent", "danger" if pct_devolucao_valor >= 4 else ("warning" if pct_devolucao_valor >= 2 else "neutral"), period_label) }}
+      {{ kpi_card("Clientes Afetados", total_clientes_afetados|fmt_br_int, "clientes únicos", "users", "warning", period_label) }}
+      {{ kpi_card("Motoristas Envolvidos", total_motoristas_envolvidos|fmt_br_int, "motoristas únicos", "truck", "warning", period_label) }}
+      {{ kpi_card("Média / Dia", media_por_dia|fmt_br_1, "devoluções por dia", "trending-up", "neutral", period_label) }}
+      {{ kpi_card("Média Valor / Dia", media_valor_dia|fmt_br_moeda, "valor médio por dia", "bar-chart-3", "neutral", period_label) }}
+      {{ kpi_card("Acima R$300", total_acima_300|string ~ " (" ~ pct_acima_300|fmt_br_1 ~ "%)", "devoluções de alto valor", "alert-triangle", "warning", period_label) }}
     </section>
 
-    <!-- ===== RESPONSABILIDADE BREAKDOWN ===== -->
+    <!-- ===== RESPONSABILIDADE BREAKDOWN (clicável: abre motivos de devolução) ===== -->
     <section class="grid grid-cols-1 md:grid-cols-3 gap-3">
       {% for rb in resp_breakdown %}
       {% set pct = (rb.qtd / total_qtd * 100) if total_qtd else 0 %}
       {% set color = rb.color %}
-      <article class="surface-shadow bi-card">
+      <article class="surface-shadow bi-card cursor-pointer hover:ring-2 hover:ring-slate-500/50 rounded-2xl transition-all resp-drill-card" data-resp="{{ rb.responsabilidade }}" role="button" tabindex="0" title="Clique para ver motivos de devolução">
         <div class="bi-card-head">
           <div class="icon-wrap" style="color:{{ color }};"><i data-lucide="layers" class="w-4 h-4"></i></div>
           <h3 class="text-section ml-2">{{ rb.responsabilidade }}</h3>
         </div>
+        <p class="text-caption mt-0.5 text-slate-500 font-mono text-[11px]">Período: {{ period_label }}</p>
         <div class="flex items-end gap-4 mt-3">
           <div>
             <p class="text-title-lg" style="color:{{ color }};">{{ rb.qtd|fmt_br_int }}</p>
@@ -118,32 +124,33 @@
           <div class="h-2 rounded-full transition-all" style="width:{{ pct|round(1) }}%;background:{{ color }};"></div>
         </div>
         <p class="text-caption mt-1 text-right">{{ pct|fmt_br_1 }}% do total</p>
+        <p class="text-caption mt-2 text-slate-500 text-center">Clique para ver motivos</p>
       </article>
       {% endfor %}
     </section>
 
     <!-- ===== GRÁFICOS LINHA 1: Evolução Diária + Evolução Semanal ===== -->
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-      {{ chart_card("Evolução Diária de Devoluções", "Quantidade e valor por dia no período", "chartEvolucaoDiaria") }}
-      {{ chart_card("Evolução Semanal de Devoluções", "Tendência semanal (ISO)", "chartEvolucaoSemanal") }}
+      {{ chart_card("Evolução Diária de Devoluções", "Quantidade e valor por dia no período", "chartEvolucaoDiaria", period_label) }}
+      {{ chart_card("Evolução Semanal de Devoluções", "Tendência semanal (ISO)", "chartEvolucaoSemanal", period_label) }}
     </div>
 
     <!-- ===== GRÁFICOS LINHA 2: Motivos + Responsabilidade (pizza) ===== -->
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-      {{ chart_card("Top Motivos de Devolução", "Quantidade por motivo", "chartTopMotivos") }}
-      {{ chart_card("Distribuição por Responsabilidade", "Participação de cada setor", "chartRespPizza") }}
+      {{ chart_card("Top Motivos de Devolução", "Quantidade e valor por motivo — passe o mouse para ver % e valor financeiro", "chartTopMotivos", period_label) }}
+      {{ chart_card("Distribuição por Responsabilidade", "Participação de cada setor", "chartRespPizza", period_label) }}
     </div>
 
     <!-- ===== GRÁFICOS LINHA 3: Top Motoristas + Top Clientes ===== -->
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-      {{ chart_card("Top Motoristas (devoluções)", "Ranking de motoristas com mais devoluções", "chartTopMotoristas") }}
-      {{ chart_card("Top Clientes (devoluções)", "Ranking de clientes com mais devoluções", "chartTopClientes") }}
+      {{ chart_card("Top Motoristas (devoluções)", "Clique em um motorista para ver lista de devoluções (data, cliente, motivo)", "chartTopMotoristas", period_label) }}
+      {{ chart_card("Top Clientes (devoluções)", "Clique em um cliente para ver lista de devoluções (data, motorista, motivo)", "chartTopClientes", period_label) }}
     </div>
 
     <!-- ===== GRÁFICOS LINHA 4: Ajudantes + Vendedores ===== -->
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-      {{ chart_card("Top Ajudantes (devoluções)", "Ajudantes com maior incidência", "chartTopAjudantes") }}
-      {{ chart_card("Top Vendedores (devoluções)", "Vendedores com mais devoluções associadas", "chartTopVendedores") }}
+      {{ chart_card("Top Ajudantes (devoluções)", "Ajudantes com maior incidência (devoluções sem ajudante aparecem como \"Sem ajudante\")", "chartTopAjudantes", period_label) }}
+      {{ chart_card("Top Vendedores (devoluções)", "Clique em um vendedor para ver detalhe por responsabilidade e motivos", "chartTopVendedores", period_label) }}
     </div>
 
     <!-- ===== MAPA DE CALOR: DOW × Semana ===== -->
@@ -152,6 +159,7 @@
         <div>
           <h3 class="text-section"><i data-lucide="flame" class="w-4 h-4 inline mr-1" style="color:var(--color-danger);"></i>Mapa de Calor — Dia da Semana × Semana</h3>
           <p class="text-caption mt-1">Concentração de devoluções por dia da semana e semana ISO (máx. 12 semanas)</p>
+          <p class="text-caption mt-0.5 text-slate-500 font-mono text-[11px]">Período: {{ period_label }}</p>
         </div>
       </div>
       <div class="mt-4 overflow-x-auto">
@@ -166,16 +174,18 @@
       <div class="bi-card-head bi-card-head-between">
         <div>
           <h3 class="text-section"><i data-lucide="calendar-days" class="w-4 h-4 inline mr-1" style="color:var(--color-warning);"></i>Mapa de Calor — Dia da Semana × Dia do Mês</h3>
-          <p class="text-caption mt-1">Identifique padrões por dia da semana e dia do mês</p>
+          <p class="text-caption mt-1">Identifique padrões por dia da semana e dia do mês. Células mais escuras = mais devoluções.</p>
+          <p class="text-caption mt-0.5 text-slate-500 font-mono text-[11px]">Período: {{ period_label }}</p>
         </div>
       </div>
-      <div class="mt-4 overflow-x-auto">
-        <div id="heatmapDomContainer" class="text-xs" style="min-width:500px;"></div>
+      <div class="mt-4 overflow-x-auto rounded-xl border border-slate-700/50 p-4 bg-slate-800/30">
+        <div id="heatmapDomContainer" class="heatmap-dom-dow"></div>
       </div>
+      <div id="heatmapDomInsight" class="mt-4 p-4 rounded-xl border border-cyan-500/30 bg-cyan-500/5 text-body text-slate-300 space-y-2"></div>
     </section>
 
     <!-- ===== TABELA TOP CLIENTES ===== -->
-    {% call table_section("Ranking de Clientes", "Clientes com maior volume de devoluções", "tableClientes") %}
+    {% call table_section("Ranking de Clientes", "Clientes com maior volume de devoluções", "tableClientes", period_label) %}
     <thead>
       <tr>
         <th>#</th>
@@ -204,7 +214,7 @@
     {% endcall %}
 
     <!-- ===== TABELA TOP MOTORISTAS ===== -->
-    {% call table_section("Ranking de Motoristas", "Motoristas com maior incidência de devoluções", "tableMotoristas") %}
+    {% call table_section("Ranking de Motoristas", "Motoristas com maior incidência de devoluções", "tableMotoristas", period_label) %}
     <thead>
       <tr>
         <th>#</th>
@@ -236,7 +246,7 @@
     {% endcall %}
 
     <!-- ===== TABELA TOP AJUDANTES ===== -->
-    {% call table_section("Ranking de Ajudantes", "Ajudantes com maior incidência de devoluções", "tableAjudantes") %}
+    {% call table_section("Ranking de Ajudantes", "Ajudantes com maior incidência de devoluções", "tableAjudantes", period_label) %}
     <thead>
       <tr>
         <th>#</th>
@@ -260,7 +270,7 @@
     {% endcall %}
 
     <!-- ===== TABELA TOP MOTIVOS ===== -->
-    {% call table_section("Detalhamento por Motivo", "Todos os motivos com frequência e valor", "tableMotivos") %}
+    {% call table_section("Detalhamento por Motivo", "Todos os motivos com frequência e valor", "tableMotivos", period_label) %}
     <thead>
       <tr>
         <th>#</th>
@@ -294,7 +304,7 @@
     {% endcall %}
 
     <!-- ===== TABELA DETALHE ===== -->
-    {% call table_section("Detalhamento Completo", "Últimas 500 devoluções no período com filtros aplicados", "tableDetalhe") %}
+    {% call table_section("Detalhamento Completo", "Últimas 500 devoluções no período com filtros aplicados", "tableDetalhe", period_label) %}
     <thead>
       <tr>
         <th>Data</th>
@@ -341,6 +351,134 @@
   </div><!-- max-w -->
 </div><!-- bi-page -->
 
+<!-- Modal detalhe Cliente/Motorista (lista de devoluções ao clicar no gráfico) -->
+<div id="drillDetailModal" class="bi-modal hidden" aria-hidden="true">
+  <div class="bi-modal-panel bi-modal-panel-xl">
+    <div class="bi-modal-head">
+      <div>
+        <p class="text-caption" id="drillDetailSubtitle">Devoluções no período</p>
+        <h3 class="text-title-lg" id="drillDetailTitle">—</h3>
+      </div>
+      <button type="button" class="btn-secondary text-xs px-2.5 py-1.5" data-close-modal="drillDetailModal">Fechar</button>
+    </div>
+    <div class="mt-4 overflow-auto max-h-[60vh]">
+      <table class="bi-table min-w-full text-body text-sm">
+        <thead>
+          <tr id="drillDetailThead">
+            <th>Data</th><th>Cliente</th><th>Motorista</th><th>Motivo</th><th>Valor</th>
+          </tr>
+        </thead>
+        <tbody id="drillDetailTbody"></tbody>
+      </table>
+    </div>
+    <p class="text-caption mt-3 text-slate-500">Clique em uma barra no gráfico Top Clientes ou Top Motoristas para ver o detalhe. Fechar com o botão ou Esc.</p>
+  </div>
+</div>
+
+<!-- Modal detalhe do vendedor (drill-down: responsabilidade + motivos) -->
+<div id="vendedorDrillModal" class="bi-modal hidden" aria-hidden="true">
+  <div class="bi-modal-panel bi-modal-panel-xl">
+    <div class="bi-modal-head">
+      <div>
+        <p class="text-caption">Detalhe de devoluções</p>
+        <h3 class="text-title-lg" id="vendedorDrillTitle">Vendedor</h3>
+      </div>
+      <button type="button" class="btn-secondary text-xs px-2.5 py-1.5" data-close-modal="vendedorDrillModal">Fechar</button>
+    </div>
+    <div id="vendedorDrillSummary" class="mt-4 p-4 rounded-xl border border-slate-600/50 bg-slate-800/50 grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div>
+        <p class="text-caption text-slate-400">Valor total (custo)</p>
+        <p id="vendedorDrillTotalValor" class="text-title-lg font-mono mt-0.5">—</p>
+      </div>
+      <div>
+        <p class="text-caption text-slate-400">% do valor total</p>
+        <p id="vendedorDrillPctValor" class="text-title-lg mt-0.5">—</p>
+      </div>
+      <div>
+        <p class="text-caption text-slate-400">Qtd devoluções</p>
+        <p id="vendedorDrillTotalQtd" class="text-title-lg font-mono mt-0.5">—</p>
+      </div>
+      <div>
+        <p class="text-caption text-slate-400">% de devolução (qtd)</p>
+        <p id="vendedorDrillPctQtd" class="text-title-lg mt-0.5">—</p>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
+      <div class="surface-shadow rounded-xl p-4">
+        <h4 class="text-section mb-3">Distribuição por Responsabilidade</h4>
+        <div style="height: 260px;">
+          <canvas id="vendedorDrillRespChart"></canvas>
+        </div>
+      </div>
+      <div class="surface-shadow rounded-xl p-4">
+        <h4 class="text-section mb-3">Top Motivos de Devolução</h4>
+        <div style="height: 260px;">
+          <canvas id="vendedorDrillMotivosChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <p class="text-caption mt-4 text-slate-500">Clique em um vendedor no gráfico "Top Vendedores" para ver o detalhe. Fechar com o botão ou Esc.</p>
+  </div>
+</div>
+
+<!-- Modal Motivos de Devolução por Responsabilidade -->
+<div id="respDrillModal" class="bi-modal hidden" aria-hidden="true">
+  <div class="bi-modal-panel bi-modal-panel-xl">
+    <div class="bi-modal-head">
+      <div>
+        <p class="text-caption">Motivos de Devolução</p>
+        <h3 class="text-title-lg" id="respDrillTitle">Responsabilidade</h3>
+      </div>
+      <button type="button" class="btn-secondary text-xs px-2.5 py-1.5" data-close-modal="respDrillModal">Fechar</button>
+    </div>
+    <div class="mt-4 overflow-x-auto">
+      <table class="w-full text-left border-collapse text-sm">
+        <thead>
+          <tr class="bg-slate-900/50 text-slate-400 text-xs uppercase font-bold border-b border-slate-700">
+            <th class="px-4 py-3">Motivo</th>
+            <th class="px-4 py-3 text-right">Devoluções</th>
+            <th class="px-4 py-3 text-right">Valor (R$)</th>
+            <th class="px-4 py-3 text-right">% (qtd)</th>
+            <th class="px-4 py-3 text-right">% (valor)</th>
+          </tr>
+        </thead>
+        <tbody id="respDrillTableBody" class="divide-y divide-slate-700">
+        </tbody>
+      </table>
+    </div>
+    <p class="text-caption mt-4 text-slate-500">Clique em um card de responsabilidade (MERCADO, COMERCIAL, LOGÍSTICA) para ver os motivos. Fechar com o botão ou Esc.</p>
+  </div>
+</div>
+
+<!-- Modal expandir gráfico -->
+<div id="chartFullscreenModal" class="bi-modal hidden" aria-hidden="true">
+  <div class="bi-modal-panel bi-modal-panel-xl">
+    <div class="bi-modal-head">
+      <div>
+        <h3 class="text-title-lg" id="fullChartTitle">Gráfico</h3>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="button" class="btn-secondary text-xs px-2.5 py-1.5" data-close-modal="chartFullscreenModal">Fechar</button>
+      </div>
+    </div>
+    <div class="mt-3" style="height: 60vh;">
+      <canvas id="fullscreenChartCanvas"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Ajuda (KPI e gráficos) -->
+<div id="bi-help-modal" class="hidden fixed inset-0 z-[120] flex bg-black/70 backdrop-blur-sm items-center justify-center p-4" aria-hidden="true">
+  <div class="surface-shadow w-full max-w-2xl p-5 max-h-[86vh] overflow-auto rounded-xl border border-slate-700">
+    <div class="flex items-center justify-between gap-3">
+      <h3 id="bi-help-title" class="text-title-lg">Ajuda</h3>
+      <button type="button" id="bi-help-close" class="btn-secondary" style="min-height:36px;">Fechar</button>
+    </div>
+    <p id="bi-help-summary" class="text-body mt-3 text-slate-300"></p>
+    <div id="bi-help-text" class="text-body mt-3 space-y-2 text-slate-300"></div>
+  </div>
+</div>
+
 <!-- ===== SCRIPTS ===== -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
@@ -352,12 +490,18 @@
   const respBreakdown     = {{ resp_breakdown_json | safe }};
   const topMotoristas     = {{ top_motoristas_json | safe }};
   const topClientes       = {{ top_clientes_json | safe }};
-  const topAjudantes      = {{ top_ajudantes_json | safe }};
+  const topAjudantes      = {{ top_ajudantes_json | default('[]') | safe }};
   const topVendedores     = {{ top_vendedores_json | safe }};
+  const vendedorDrill     = {{ vendedor_drill_json | safe }};
+  const respDrill         = {{ resp_drill_json | default('{}') | safe }};
+  const rowsDetail        = {{ rows_detail_json | safe }};
   const heatmapMatrix     = {{ heatmap_matrix_json | safe }};
   const heatmapWeeks      = {{ heatmap_weeks_labels_json | safe }};
   const heatmapDomDow     = {{ heatmap_dom_dow_json | safe }};
   const dowLabels         = {{ dow_labels_json | safe }};
+
+  const totalQtd   = {{ total_qtd | default(0) }};
+  const totalValor = {{ total_valor | default(0) }};
 
   // ---- paleta ----
   const DANGER  = '#ef4444';
@@ -370,12 +514,107 @@
   const tickColor = 'rgba(148,163,184,0.7)';
   const FONT = { family: 'Inter,ui-sans-serif,system-ui', size: 11 };
 
+  const tooltipBase = { backgroundColor: '#1e293b', titleColor: '#f8fafc', bodyColor: '#cbd5e1', borderColor: '#334155', borderWidth: 1 };
+
+  function tooltipPctQtd(total) {
+    const t = total || totalQtd;
+    return {
+      ...tooltipBase,
+      callbacks: {
+        label: function(ctx) {
+          const v = ctx.raw;
+          const pct = t > 0 ? ((v / t) * 100).toFixed(1) : '0';
+          return (ctx.dataset.label || '') + ': ' + v + ' (' + pct + '% do total)';
+        }
+      }
+    };
+  }
+  function tooltipPctValor(total) {
+    const t = total || totalValor;
+    return {
+      ...tooltipBase,
+      callbacks: {
+        label: function(ctx) {
+          const v = ctx.raw;
+          const pct = t > 0 ? ((v / t) * 100).toFixed(1) : '0';
+          return (ctx.dataset.label || '') + ': R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + ' (' + pct + '% do valor total)';
+        }
+      }
+    };
+  }
+  function tooltipEvolucao() {
+    return {
+      ...tooltipBase,
+      callbacks: {
+        afterBody: function(items) {
+          if (items.length < 1 || !items[0].dataset) return [];
+          const idx = items[0].dataIndex;
+          const dayData = evolucaoDiaria[idx];
+          if (!dayData || totalQtd <= 0) return [];
+          const pctQtd = ((dayData.qtd / totalQtd) * 100).toFixed(1);
+          const pctVal = totalValor > 0 ? ((dayData.valor / totalValor) * 100).toFixed(1) : '0';
+          return ['', dayData.qtd + ' devoluções = ' + pctQtd + '% do total do período', 'R$ ' + Number(dayData.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + ' = ' + pctVal + '% do valor total'];
+        }
+      }
+    };
+  }
+  function tooltipSemanal() {
+    return {
+      ...tooltipBase,
+      callbacks: {
+        afterBody: function(items) {
+          if (items.length < 1 || !items[0].dataset) return [];
+          const idx = items[0].dataIndex;
+          const weekData = evolucaoSemanal[idx];
+          if (!weekData || totalQtd <= 0) return [];
+          const pctQtd = ((weekData.qtd / totalQtd) * 100).toFixed(1);
+          const pctVal = totalValor > 0 ? ((weekData.valor / totalValor) * 100).toFixed(1) : '0';
+          return ['', weekData.qtd + ' devoluções = ' + pctQtd + '% do total', 'R$ ' + Number(weekData.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + ' = ' + pctVal + '% do valor total'];
+        }
+      }
+    };
+  }
+  function tooltipDoughnutPct(dataArr) {
+    const sum = dataArr.reduce((a, b) => a + b, 0);
+    return {
+      ...tooltipBase,
+      callbacks: {
+        label: function(ctx) {
+          const v = ctx.raw;
+          const pct = sum > 0 ? ((v / sum) * 100).toFixed(1) : '0';
+          return ctx.label + ': ' + v + ' (' + pct + '% do total)';
+        }
+      }
+    };
+  }
+
+  function tooltipMotivosQtdValor(motivosArr) {
+    return {
+      ...tooltipBase,
+      callbacks: {
+        label: function(ctx) {
+          const idx = ctx.dataIndex;
+          const m = motivosArr[idx];
+          const qtd = m ? Number(m.qtd) : 0;
+          const valor = m ? Number(m.valor) : 0;
+          const pctQtd = totalQtd > 0 ? ((qtd / totalQtd) * 100).toFixed(1) : '0';
+          const pctValor = totalValor > 0 ? ((valor / totalValor) * 100).toFixed(1) : '0';
+          const valorStr = 'R$ ' + valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          return [
+            'Qtd: ' + qtd + ' (' + pctQtd + '% do total)',
+            'Valor: ' + valorStr + ' (' + pctValor + '% do valor total)'
+          ];
+        }
+      }
+    };
+  }
+
   function baseOpts(title) {
     return {
       responsive: true, maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: { backgroundColor: '#1e293b', titleColor: '#f8fafc', bodyColor: '#cbd5e1', borderColor: '#334155', borderWidth: 1 },
+        tooltip: tooltipBase,
       },
       scales: {
         x: { ticks: { color: tickColor, font: FONT, maxRotation: 40 }, grid: { color: gridColor } },
@@ -399,6 +638,7 @@
       },
       options: {
         ...baseOpts('Evolução Diária'),
+        plugins: { ...baseOpts().plugins, tooltip: tooltipEvolucao() },
         scales: {
           x: { ticks: { color: tickColor, font: FONT, maxRotation: 45 }, grid: { color: gridColor } },
           y: { ticks: { color: tickColor, font: FONT }, grid: { color: gridColor }, title: { display: true, text: 'Qtd', color: tickColor, font: FONT } },
@@ -423,7 +663,7 @@
       },
       options: {
         ...baseOpts('Evolução Semanal'),
-        plugins: { legend: { display: true, labels: { color: tickColor, font: FONT } }, tooltip: baseOpts().plugins.tooltip },
+        plugins: { legend: { display: true, labels: { color: tickColor, font: FONT } }, tooltip: tooltipSemanal() },
         scales: {
           x: { ticks: { color: tickColor, font: FONT, maxRotation: 40 }, grid: { color: gridColor } },
           y: { ticks: { color: tickColor, font: FONT }, grid: { color: gridColor } },
@@ -433,7 +673,7 @@
     });
   })();
 
-  // --- Top Motivos (horizontal bar) ---
+  // --- Top Motivos (horizontal bar): tooltip com qtd, % e valor financeiro, % valor ---
   (function() {
     const ctx = document.getElementById('chartTopMotivos');
     if (!ctx || !topMotivos.length) return;
@@ -446,7 +686,7 @@
       options: {
         indexAxis: 'y',
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: baseOpts().plugins.tooltip },
+        plugins: { legend: { display: false }, tooltip: tooltipMotivosQtdValor(topMotivos) },
         scales: {
           x: { ticks: { color: tickColor, font: FONT }, grid: { color: gridColor } },
           y: { ticks: { color: tickColor, font: { ...FONT, size: 10 } }, grid: { color: gridColor } },
@@ -469,13 +709,58 @@
         responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: { display: true, position: 'bottom', labels: { color: tickColor, font: FONT, padding: 12 } },
-          tooltip: baseOpts().plugins.tooltip,
+          tooltip: tooltipDoughnutPct(respBreakdown.map(r => r.qtd)),
         }
       }
     });
   })();
 
-  // --- Top Motoristas ---
+  // --- Drill Cliente/Motorista: modal com lista de devoluções (data, motorista/cliente, motivo, valor) ---
+  (function() {
+    const modal = document.getElementById('drillDetailModal');
+    const titleEl = document.getElementById('drillDetailTitle');
+    const subtitleEl = document.getElementById('drillDetailSubtitle');
+    const theadEl = document.getElementById('drillDetailThead');
+    const tbodyEl = document.getElementById('drillDetailTbody');
+
+    function fmtValor(v) {
+      const n = Number(v);
+      return isNaN(n) ? '—' : 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function openDrillClient(clienteNome) {
+      const rows = (rowsDetail || []).filter(r => r.cliente === clienteNome);
+      if (!titleEl || !tbodyEl) return;
+      titleEl.textContent = clienteNome;
+      if (subtitleEl) subtitleEl.textContent = rows.length + ' devolução(ões) no período — clique na barra do gráfico Top Clientes';
+      if (theadEl) theadEl.innerHTML = '<th>Data</th><th>Motorista</th><th>Motivo</th><th>Valor</th>';
+      tbodyEl.innerHTML = rows.length ? rows.map(r => '<tr><td>' + (r.data || '—') + '</td><td class="font-medium">' + (r.motorista || '—') + '</td><td class="text-caption max-w-[200px] truncate" title="' + (r.motivo || '') + '">' + (r.motivo || '—') + '</td><td class="font-mono">' + fmtValor(r.valor) + '</td></tr>').join('') : '<tr><td colspan="4" class="text-center text-caption text-slate-500">Nenhuma devolução na amostra.</td></tr>';
+      if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); modal.setAttribute('aria-hidden', 'false'); }
+    }
+
+    function openDrillMotorista(motoristaNome) {
+      const rows = (rowsDetail || []).filter(r => r.motorista === motoristaNome);
+      if (!titleEl || !tbodyEl) return;
+      titleEl.textContent = motoristaNome;
+      if (subtitleEl) subtitleEl.textContent = rows.length + ' devolução(ões) no período — clique na barra do gráfico Top Motoristas';
+      if (theadEl) theadEl.innerHTML = '<th>Data</th><th>Cliente</th><th>Motivo</th><th>Valor</th>';
+      tbodyEl.innerHTML = rows.length ? rows.map(r => '<tr><td>' + (r.data || '—') + '</td><td class="font-medium max-w-[180px] truncate" title="' + (r.cliente || '') + '">' + (r.cliente || '—') + '</td><td class="text-caption max-w-[200px] truncate" title="' + (r.motivo || '') + '">' + (r.motivo || '—') + '</td><td class="font-mono">' + fmtValor(r.valor) + '</td></tr>').join('') : '<tr><td colspan="4" class="text-center text-caption text-slate-500">Nenhuma devolução na amostra.</td></tr>';
+      if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); modal.setAttribute('aria-hidden', 'false'); }
+    }
+
+    function closeDrillDetail() {
+      if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); modal.setAttribute('aria-hidden', 'true'); }
+    }
+
+    document.querySelectorAll('[data-close-modal="drillDetailModal"]').forEach(function(btn) { btn.addEventListener('click', closeDrillDetail); });
+    modal && modal.addEventListener('click', function(e) { if (e.target.id === 'drillDetailModal') closeDrillDetail(); });
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) closeDrillDetail(); });
+
+    window.openDrillClient = openDrillClient;
+    window.openDrillMotorista = openDrillMotorista;
+  })();
+
+  // --- Top Motoristas (clicável: abre lista de devoluções do motorista) ---
   (function() {
     const ctx = document.getElementById('chartTopMotoristas');
     if (!ctx || !topMotoristas.length) return;
@@ -486,11 +771,21 @@
         labels: slice.map(m => m.motorista.length > 18 ? m.motorista.slice(0, 16) + '…' : m.motorista),
         datasets: [{ label: 'Devoluções', data: slice.map(m => m.qtd), backgroundColor: DANGER + 'bb', borderColor: DANGER, borderWidth: 1 }]
       },
-      options: { ...baseOpts(), plugins: { ...baseOpts().plugins, legend: { display: false } } }
+      options: {
+        ...baseOpts(),
+        plugins: { ...baseOpts().plugins, legend: { display: false }, tooltip: tooltipPctQtd() },
+        onClick: function(ev, elements) {
+          if (elements.length && typeof window.openDrillMotorista === 'function') {
+            const idx = elements[0].index;
+            window.openDrillMotorista(slice[idx].motorista);
+          }
+        },
+        onHover: function(ev, elements) { ev.native.target.style.cursor = elements.length ? 'pointer' : 'default'; }
+      }
     });
   })();
 
-  // --- Top Clientes ---
+  // --- Top Clientes (clicável: abre lista de devoluções do cliente) ---
   (function() {
     const ctx = document.getElementById('chartTopClientes');
     if (!ctx || !topClientes.length) return;
@@ -501,26 +796,210 @@
         labels: slice.map(c => c.cliente.length > 18 ? c.cliente.slice(0, 16) + '…' : c.cliente),
         datasets: [{ label: 'Devoluções', data: slice.map(c => c.qtd), backgroundColor: WARNING + 'bb', borderColor: WARNING, borderWidth: 1 }]
       },
-      options: { ...baseOpts(), plugins: { ...baseOpts().plugins, legend: { display: false } } }
+      options: {
+        ...baseOpts(),
+        plugins: { ...baseOpts().plugins, legend: { display: false }, tooltip: tooltipPctQtd() },
+        onClick: function(ev, elements) {
+          if (elements.length && typeof window.openDrillClient === 'function') {
+            const idx = elements[0].index;
+            window.openDrillClient(slice[idx].cliente);
+          }
+        },
+        onHover: function(ev, elements) { ev.native.target.style.cursor = elements.length ? 'pointer' : 'default'; }
+      }
     });
   })();
 
   // --- Top Ajudantes ---
   (function() {
     const ctx = document.getElementById('chartTopAjudantes');
-    if (!ctx || !topAjudantes.length) return;
+    const card = document.querySelector('[data-chart-id="chartTopAjudantes"]');
+    if (!ctx || typeof Chart === 'undefined') return;
+    const dataAjudantes = Array.isArray(topAjudantes) ? topAjudantes : [];
+    if (!dataAjudantes.length) {
+      var wrap = card && card.querySelector('.mt-4');
+      if (wrap) wrap.innerHTML = '<p class="text-body text-slate-500 py-8 text-center">Nenhuma devolução no período. Ao cadastrar devoluções com ajudante, o ranking aparecerá aqui.</p>';
+      return;
+    }
+    const labels = dataAjudantes.map(a => (a && a.ajudante != null) ? (String(a.ajudante).length > 18 ? String(a.ajudante).slice(0, 16) + '…' : String(a.ajudante)) : '—');
+    const values = dataAjudantes.map(a => Number(a && a.qtd) || 0);
     new Chart(ctx, {
       type: 'bar',
       data: {
-        labels: topAjudantes.map(a => a.ajudante.length > 18 ? a.ajudante.slice(0, 16) + '…' : a.ajudante),
-        datasets: [{ label: 'Devoluções', data: topAjudantes.map(a => a.qtd), backgroundColor: '#8b5cf6bb', borderColor: '#8b5cf6', borderWidth: 1 }]
+        labels: labels,
+        datasets: [{ label: 'Devoluções', data: values, backgroundColor: '#8b5cf6bb', borderColor: '#8b5cf6', borderWidth: 1 }]
       },
-      options: { ...baseOpts(), plugins: { ...baseOpts().plugins, legend: { display: false } } }
+      options: {
+        ...baseOpts(),
+        indexAxis: 'y',
+        plugins: { ...baseOpts().plugins, legend: { display: false }, tooltip: tooltipPctQtd() },
+        scales: {
+          x: { min: 0, ticks: { color: tickColor, font: FONT }, grid: { color: gridColor } },
+          y: { ticks: { color: tickColor, font: FONT }, grid: { color: gridColor } },
+        },
+      },
     });
   })();
 
-  // --- Top Vendedores ---
+  // --- Cards de Responsabilidade (clicável: abre modal Motivos de Devolução) ---
   (function() {
+    var modal = document.getElementById('respDrillModal');
+    var titleEl = document.getElementById('respDrillTitle');
+    var tbodyEl = document.getElementById('respDrillTableBody');
+
+    function fmtValor(v) {
+      if (v == null || v === '') return '—';
+      var n = Number(v);
+      return isNaN(n) ? '—' : 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function openRespDrillModal(respNome) {
+      var data = respDrill && respDrill[respNome];
+      if (!data || !data.motivos || !data.motivos.length) {
+        if (titleEl) titleEl.textContent = respNome;
+        if (tbodyEl) tbodyEl.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">Nenhum motivo para esta responsabilidade.</td></tr>';
+      } else {
+        if (titleEl) titleEl.textContent = 'Motivos de Devolução — ' + respNome;
+        tbodyEl.innerHTML = data.motivos.map(function(m) {
+          return '<tr class="hover:bg-slate-700/30">' +
+            '<td class="px-4 py-3 text-slate-200">' + (m.motivo || '—') + '</td>' +
+            '<td class="px-4 py-3 text-right font-mono text-white">' + (m.qtd ?? '—') + '</td>' +
+            '<td class="px-4 py-3 text-right font-mono text-amber-400">' + fmtValor(m.valor) + '</td>' +
+            '<td class="px-4 py-3 text-right text-slate-400">' + (m.pct_qtd != null ? m.pct_qtd + '%' : '—') + '</td>' +
+            '<td class="px-4 py-3 text-right text-slate-400">' + (m.pct_valor != null ? m.pct_valor + '%' : '—') + '</td>' +
+            '</tr>';
+        }).join('');
+      }
+      if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); modal.setAttribute('aria-hidden', 'false'); }
+    }
+
+    function closeRespDrillModal() {
+      if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); modal.setAttribute('aria-hidden', 'true'); }
+    }
+
+    document.querySelectorAll('.resp-drill-card').forEach(function(el) {
+      var resp = el.getAttribute('data-resp');
+      if (!resp) return;
+      el.addEventListener('click', function() { openRespDrillModal(resp); });
+      el.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openRespDrillModal(resp); } });
+    });
+    document.querySelectorAll('[data-close-modal="respDrillModal"]').forEach(function(btn) {
+      btn.addEventListener('click', closeRespDrillModal);
+    });
+    modal && modal.addEventListener('click', function(e) { if (e.target.id === 'respDrillModal') closeRespDrillModal(); });
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) closeRespDrillModal(); });
+  })();
+
+  // --- Top Vendedores (clicável: abre detalhe por responsabilidade e motivos) ---
+  (function() {
+    let drillRespChart = null;
+    let drillMotivosChart = null;
+
+    function closeVendedorDrill() {
+      if (drillRespChart) { drillRespChart.destroy(); drillRespChart = null; }
+      if (drillMotivosChart) { drillMotivosChart.destroy(); drillMotivosChart = null; }
+      var m = document.getElementById('vendedorDrillModal');
+      if (m) { m.classList.add('hidden'); m.classList.remove('flex'); m.setAttribute('aria-hidden', 'true'); }
+    }
+
+    function openVendedorDrill(vendedorNome) {
+      var data = vendedorDrill && vendedorDrill[vendedorNome];
+      if (!data) return;
+      var titleEl = document.getElementById('vendedorDrillTitle');
+      if (titleEl) titleEl.textContent = vendedorNome;
+      var modal = document.getElementById('vendedorDrillModal');
+      if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); modal.setAttribute('aria-hidden', 'false'); }
+
+      var respList = data.responsabilidade || [];
+      var motivosList = data.motivos || [];
+
+      var totalValorV = motivosList.reduce(function(a, m) { return a + (Number(m.valor) || 0); }, 0);
+      var totalQtdV = motivosList.reduce(function(a, m) { return a + (Number(m.qtd) || 0); }, 0);
+      var pctValor = (typeof totalValor !== 'undefined' && totalValor > 0) ? ((totalValorV / totalValor) * 100).toFixed(1) : '0';
+      var pctQtd = (typeof totalQtd !== 'undefined' && totalQtd > 0) ? ((totalQtdV / totalQtd) * 100).toFixed(1) : '0';
+      var valorStr = 'R$ ' + totalValorV.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      var elValor = document.getElementById('vendedorDrillTotalValor');
+      var elPctValor = document.getElementById('vendedorDrillPctValor');
+      var elQtd = document.getElementById('vendedorDrillTotalQtd');
+      var elPctQtd = document.getElementById('vendedorDrillPctQtd');
+      if (elValor) elValor.textContent = valorStr;
+      if (elPctValor) elPctValor.textContent = pctValor + '%';
+      if (elQtd) elQtd.textContent = totalQtdV;
+      if (elPctQtd) elPctQtd.textContent = pctQtd + '%';
+
+      if (drillRespChart) { drillRespChart.destroy(); drillRespChart = null; }
+      if (drillMotivosChart) { drillMotivosChart.destroy(); drillMotivosChart = null; }
+
+      var respCtx = document.getElementById('vendedorDrillRespChart');
+      if (respCtx && respList.length) {
+        var respColors = [DANGER + 'dd', WARNING + 'dd', PRIMARY + 'dd', SUCCESS + 'dd', '#8b5cf6dd'];
+        drillRespChart = new Chart(respCtx, {
+          type: 'doughnut',
+          data: {
+            labels: respList.map(r => r.responsabilidade.length > 25 ? r.responsabilidade.slice(0, 23) + '…' : r.responsabilidade),
+            datasets: [{ data: respList.map(r => r.qtd), backgroundColor: respColors.slice(0, respList.length), borderColor: '#1e293b', borderWidth: 2 }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: true, position: 'bottom', labels: { color: tickColor, font: FONT, padding: 10 } }, tooltip: baseOpts().plugins.tooltip }
+          }
+        });
+      }
+
+      var motivosCtx = document.getElementById('vendedorDrillMotivosChart');
+      if (motivosCtx && motivosList.length) {
+        var tooltipDrillMotivos = {
+          ...tooltipBase,
+          callbacks: {
+            filter: function(items) { return [items[0]]; },
+            label: function(ctx) {
+              var idx = ctx.dataIndex;
+              var m = motivosList[idx];
+              var qtd = m ? (Number(m.qtd) || 0) : 0;
+              var valor = m ? (Number(m.valor) || 0) : 0;
+              var pctQtd = totalQtdV > 0 ? ((qtd / totalQtdV) * 100).toFixed(1) : '0';
+              var pctValor = totalValorV > 0 ? ((valor / totalValorV) * 100).toFixed(1) : '0';
+              var valorStr = 'R$ ' + valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              return [
+                'Qtd: ' + qtd + ' (' + pctQtd + '% do total do vendedor)',
+                'Valor: ' + valorStr + ' (' + pctValor + '% do valor do vendedor)'
+              ];
+            }
+          }
+        };
+        drillMotivosChart = new Chart(motivosCtx, {
+          type: 'bar',
+          data: {
+            labels: motivosList.map(m => m.motivo.length > 30 ? m.motivo.slice(0, 28) + '…' : m.motivo),
+            datasets: [
+              { label: 'Qtd', data: motivosList.map(m => m.qtd), backgroundColor: COLORS.map((c, i) => c + 'cc'), borderColor: COLORS, borderWidth: 1, xAxisID: 'x' },
+              { label: 'Valor (R$)', data: motivosList.map(m => m.valor), backgroundColor: WARNING + '99', borderColor: WARNING, borderWidth: 1, xAxisID: 'x2' }
+            ]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: true, position: 'bottom', labels: { color: tickColor, font: FONT } }, tooltip: tooltipDrillMotivos },
+            scales: {
+              x: { position: 'bottom', ticks: { color: tickColor, font: FONT }, grid: { color: gridColor }, title: { display: true, text: 'Qtd', color: tickColor } },
+              x2: { position: 'top', ticks: { color: WARNING, font: FONT }, grid: { drawOnChartArea: false }, title: { display: true, text: 'Valor R$', color: WARNING } },
+              y: { ticks: { color: tickColor, font: { ...FONT, size: 10 } }, grid: { color: gridColor } }
+            }
+          }
+        });
+      }
+    }
+
+    document.querySelectorAll('[data-close-modal="vendedorDrillModal"]').forEach(function(btn) {
+      btn.addEventListener('click', closeVendedorDrill);
+    });
+    document.getElementById('vendedorDrillModal')?.addEventListener('click', function(e) {
+      if (e.target.id === 'vendedorDrillModal') closeVendedorDrill();
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeVendedorDrill();
+    });
+
     const ctx = document.getElementById('chartTopVendedores');
     if (!ctx || !topVendedores.length) return;
     new Chart(ctx, {
@@ -529,7 +1008,20 @@
         labels: topVendedores.map(v => v.vendedor.length > 18 ? v.vendedor.slice(0, 16) + '…' : v.vendedor),
         datasets: [{ label: 'Devoluções', data: topVendedores.map(v => v.qtd), backgroundColor: PRIMARY + 'bb', borderColor: PRIMARY, borderWidth: 1 }]
       },
-      options: { ...baseOpts(), plugins: { ...baseOpts().plugins, legend: { display: false } } }
+      options: {
+        ...baseOpts(),
+        plugins: { ...baseOpts().plugins, legend: { display: false }, tooltip: tooltipPctQtd() },
+        onClick: function(ev, elements) {
+          if (elements.length) {
+            var idx = elements[0].index;
+            var vendedor = topVendedores[idx].vendedor;
+            openVendedorDrill(vendedor);
+          }
+        },
+        onHover: function(ev, elements) {
+          ev.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+        }
+      }
     });
   })();
 
@@ -573,15 +1065,18 @@
     container.innerHTML = html;
   })();
 
-  // --- Heatmap DOM × DOW ---
+  // --- Heatmap DOM × DOW (layout melhorado + análise automática) ---
   (function() {
     const container = document.getElementById('heatmapDomContainer');
+    const insightEl = document.getElementById('heatmapDomInsight');
     if (!container || !heatmapDomDow.length) {
       if (container) container.innerHTML = '<p class="text-caption text-slate-500 py-4">Sem dados para o período.</p>';
+      if (insightEl) insightEl.innerHTML = '';
       return;
     }
     const allVals = heatmapDomDow.flatMap(r => r.values);
     const maxVal = Math.max(1, ...allVals);
+    const totalHeat = allVals.reduce((a, b) => a + b, 0);
 
     function cellBg(v) {
       const t = v / maxVal;
@@ -592,26 +1087,156 @@
       return `rgba(${r2},${g2},${b2},${0.3 + t * 0.7})`;
     }
 
-    let html = '<table style="border-collapse:separate;border-spacing:3px;">';
-    html += '<tr><th style="width:30px;"></th>';
+    let html = '<table class="heatmap-dom-table">';
+    html += '<thead><tr><th></th>';
     dowLabels.forEach(d => {
-      html += `<th style="text-align:center;color:rgba(148,163,184,.7);font-size:10px;padding:2px 6px;">${d}</th>`;
+      html += `<th>${d}</th>`;
     });
-    html += '</tr>';
+    html += '</tr></thead><tbody>';
     heatmapDomDow.forEach(row => {
-      html += `<tr><td style="color:rgba(148,163,184,.7);font-size:10px;padding:2px 4px;">dia ${row.dom}</td>`;
+      html += `<tr><td class="heatmap-dom-label">dia ${row.dom}</td>`;
       row.values.forEach(v => {
         const bg = cellBg(v);
         const txt = v > 0 ? v : '';
         const txtColor = v / maxVal > 0.4 ? '#f8fafc' : '#94a3b8';
-        html += `<td style="text-align:center;background:${bg};border-radius:4px;padding:6px 8px;font-size:11px;font-weight:600;color:${txtColor};" title="${v} devoluções">${txt}</td>`;
+        html += `<td class="heatmap-dom-cell" style="background:${bg};color:${txtColor};" title="${v} devoluções (dia ${row.dom})">${txt}</td>`;
       });
       html += '</tr>';
     });
-    html += '</table>';
+    html += '</tbody></table>';
     container.innerHTML = html;
+
+    // Análise automática do mapa
+    if (insightEl && totalHeat > 0) {
+      const byDow = [0,0,0,0,0,0,0];
+      heatmapDomDow.forEach(row => {
+        row.values.forEach((v, i) => { byDow[i] += v; });
+      });
+      const dowNames = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+      const maxDowIdx = byDow.indexOf(Math.max(...byDow));
+      const maxDowName = dowNames[maxDowIdx];
+      const pctDow = ((byDow[maxDowIdx] / totalHeat) * 100).toFixed(1);
+
+      let maxDom = 0, maxDomVal = 0;
+      heatmapDomDow.forEach(row => {
+        const s = row.values.reduce((a,b) => a+b, 0);
+        if (s > maxDomVal) { maxDomVal = s; maxDom = row.dom; }
+      });
+      const fimMes = heatmapDomDow.filter(r => r.dom >= 25).reduce((acc, r) => acc + r.values.reduce((a,b) => a+b, 0), 0);
+      const pctFimMes = ((fimMes / totalHeat) * 100).toFixed(1);
+
+      const tips = [];
+      tips.push('<strong>Padrão por dia da semana:</strong> ' + maxDowName + ' concentra ' + pctDow + '% das devoluções do período.');
+      if (maxDom > 0) tips.push('<strong>Dia do mês mais crítico:</strong> dia ' + maxDom + ' (' + maxDomVal + ' devoluções).');
+      if (fimMes > 0 && totalHeat > 0) tips.push('<strong>Fim de mês (dias 25–31):</strong> ' + pctFimMes + '% do total. Devoluções costumam aumentar no fim do mês por fluxo de caixa (falta de dinheiro do cliente).');
+      tips.push('<strong>Dica:</strong> Acompanhe os dias e dias da semana mais quentes para reforçar cobrança ou oferta de condições antes do pico.');
+      insightEl.innerHTML = '<p class="text-section text-cyan-200 mb-2"><i data-lucide="sparkles" class="w-4 h-4 inline mr-1"></i>Análise do mapa</p>' + tips.map(t => '<p class="text-sm">' + t + '</p>').join('');
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
   })();
 
+})();
+
+// Botão Ajuda (ícone info) + expandir gráfico + ícones Lucide
+(function() {
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+
+  // --- Modal Ajuda: clicar em qualquer botão "Ajuda" abre descrição do card ---
+  var helpModal = document.getElementById('bi-help-modal');
+  var helpTitle = document.getElementById('bi-help-title');
+  var helpSummary = document.getElementById('bi-help-summary');
+  var helpText = document.getElementById('bi-help-text');
+
+  function closeHelpModal() {
+    if (helpModal) {
+      helpModal.classList.add('hidden');
+      helpModal.classList.remove('flex');
+      helpModal.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  function openHelpFromCard(card) {
+    if (!helpModal || !helpTitle || !helpSummary || !helpText) return;
+    var title = (card.querySelector('h3') && card.querySelector('h3').textContent.trim())
+      || card.getAttribute('data-chart-title')
+      || card.getAttribute('data-kpi-title')
+      || 'Ajuda';
+    var subtitle = (card.querySelector('p.text-caption') && card.querySelector('p.text-caption').textContent.trim())
+      || card.getAttribute('data-chart-subtitle')
+      || card.getAttribute('data-kpi-subtitle')
+      || 'Sem descrição adicional para este painel.';
+    helpTitle.textContent = title;
+    helpSummary.textContent = subtitle;
+    helpText.innerHTML = '<p class="text-body">Use este painel para analisar os dados no período selecionado. Ajuste os filtros no topo da página para refinar a análise.</p>';
+    helpModal.classList.remove('hidden');
+    helpModal.classList.add('flex');
+    helpModal.setAttribute('aria-hidden', 'false');
+  }
+
+  document.addEventListener('click', function(ev) {
+    var btn = ev.target.closest('button[title="Ajuda"]');
+    if (!btn) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    var card = btn.closest('section, article');
+    if (card) openHelpFromCard(card);
+  });
+
+  if (helpModal) {
+    helpModal.addEventListener('click', function(e) { if (e.target === helpModal) closeHelpModal(); });
+    document.getElementById('bi-help-close') && document.getElementById('bi-help-close').addEventListener('click', closeHelpModal);
+  }
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && helpModal && !helpModal.classList.contains('hidden')) closeHelpModal();
+  });
+
+  var fullscreenChart = null;
+  var modal = document.getElementById('chartFullscreenModal');
+  var modalCanvas = document.getElementById('fullscreenChartCanvas');
+  var titleEl = document.getElementById('fullChartTitle');
+
+  function openChartFullscreen(chartId) {
+    var canvas = document.getElementById(chartId);
+    if (!canvas || typeof Chart === 'undefined') return;
+    var chart = Chart.getChart(canvas);
+    if (!chart) return;
+    var card = document.querySelector('[data-chart-id="' + chartId + '"]');
+    var title = (card && card.getAttribute('data-chart-title')) || chartId;
+    if (titleEl) titleEl.textContent = title;
+    if (modal) {
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+    if (fullscreenChart) fullscreenChart.destroy();
+    var config = chart.config;
+    var data = JSON.parse(JSON.stringify(config.data));
+    var opts = { responsive: true, maintainAspectRatio: false };
+    if (config.options) {
+      for (var k in config.options) { if (config.options.hasOwnProperty(k) && k !== 'responsive' && k !== 'maintainAspectRatio') opts[k] = config.options[k]; }
+    }
+    fullscreenChart = new Chart(modalCanvas, { type: config.type, data: data, options: opts });
+  }
+
+  function closeModal() {
+    if (fullscreenChart) { fullscreenChart.destroy(); fullscreenChart = null; }
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  document.querySelectorAll('[data-chart-expand]').forEach(function(btn) {
+    btn.addEventListener('click', function(e) { e.stopPropagation(); openChartFullscreen(btn.getAttribute('data-chart-expand')); });
+  });
+  document.querySelectorAll('[data-close-modal="chartFullscreenModal"]').forEach(function(btn) {
+    btn.addEventListener('click', closeModal);
+  });
+  if (modal) {
+    modal.addEventListener('click', function(e) { if (e.target.id === 'chartFullscreenModal') closeModal(); });
+  }
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModal(); });
 })();
 </script>
 
@@ -621,5 +1246,11 @@
   .status-danger  { color: #fef2f2; background: #991b1b; border-color: #ef4444; }
   .status-warning { color: #111827; background: #fbbf24; border-color: #f59e0b; }
   .status-info    { color: #eff6ff; background: #1d4ed8; border-color: #60a5fa; }
+  .heatmap-dom-dow { min-width: 420px; }
+  .heatmap-dom-table { border-collapse: separate; border-spacing: 6px; width: 100%; font-size: 0.8125rem; }
+  .heatmap-dom-table th { padding: 10px 12px; color: var(--color-text-muted); font-weight: 600; text-align: center; min-width: 44px; }
+  .heatmap-dom-table .heatmap-dom-label { padding: 8px 12px; color: var(--color-text-muted); font-weight: 500; white-space: nowrap; min-width: 52px; }
+  .heatmap-dom-cell { text-align: center; border-radius: 8px; padding: 10px 14px; min-width: 44px; font-weight: 600; transition: transform 0.15s ease; }
+  .heatmap-dom-cell:hover { transform: scale(1.05); }
 </style>
 {% endblock %}

@@ -1,4 +1,4 @@
-{% macro kpi_card(title, value, subtitle="", icon="bar-chart-3", state="neutral") -%}
+{% macro kpi_card(title, value, subtitle="", icon="bar-chart-3", state="neutral", period="") -%}
 {% set tone = {
   "success": "var(--color-success)",
   "warning": "var(--color-warning)",
@@ -30,10 +30,11 @@
   {% if subtitle %}
   <p class="text-caption mt-1">{{ subtitle }}</p>
   {% endif %}
+  {% if period %}<p class="text-caption mt-1 text-slate-500 font-mono text-[11px]">Período: {{ period }}</p>{% endif %}
 </article>
 {%- endmacro %}
 
-{% macro chart_card(title, subtitle="", chart_id="") -%}
+{% macro chart_card(title, subtitle="", chart_id="", period="") -%}
 <section
   class="surface-shadow bi-card chart-card"
   data-chart-card="1"
@@ -45,6 +46,7 @@
     <div>
       <h3 class="text-section">{{ title }}</h3>
       {% if subtitle %}<p class="text-caption mt-1">{{ subtitle }}</p>{% endif %}
+      {% if period %}<p class="text-caption mt-0.5 text-slate-500 font-mono text-[11px]">Período: {{ period }}</p>{% endif %}
     </div>
     <div class="flex items-center gap-2">
       <button class="icon-wrap-sm" type="button" title="Ajuda">
@@ -61,12 +63,13 @@
 </section>
 {%- endmacro %}
 
-{% macro table_section(title, subtitle="", table_id="") -%}
+{% macro table_section(title, subtitle="", table_id="", period="") -%}
 <section class="surface-shadow bi-card">
   <div class="bi-card-head bi-card-head-between">
     <div>
       <h3 class="text-section">{{ title }}</h3>
       {% if subtitle %}<p class="text-caption mt-1">{{ subtitle }}</p>{% endif %}
+      {% if period %}<p class="text-caption mt-0.5 text-slate-500 font-mono text-[11px]">Período: {{ period }}</p>{% endif %}
     </div>
   </div>
   <div class="mt-4 overflow-auto">

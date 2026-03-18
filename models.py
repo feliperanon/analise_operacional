@@ -346,6 +346,18 @@ class Route(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.now)
 
 
+class RouteInsertLog(SQLModel, table=True):
+    """Log de inserção de cliente na rota (entrega/separacao) para validar dia e horário."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    route_id: int = Field(foreign_key="route.id", index=True)
+    client_id: int = Field(foreign_key="client.id", index=True)
+    route_date: str = Field(index=True)  # YYYY-MM-DD da rota
+    shift: str = Field(default="Manhã", index=True)
+    inserted_at: datetime = Field(default_factory=datetime.now, index=True)  # Data/hora em que foi inserido
+    source: str = Field(default="import_entregas", index=True)  # import_entregas | separacao_manual | mobile_start | admin_manual
+    created_by: Optional[str] = Field(default=None, index=True)  # Usuário que inseriu (se disponível)
+
+
 class DeliverySession(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     date: str = Field(index=True)  # YYYY-MM-DD
@@ -358,6 +370,16 @@ class DeliverySession(SQLModel, table=True):
     started_at: datetime = Field(default_factory=datetime.now)
     ended_at: Optional[datetime] = None
     reopen_reason: Optional[str] = None  # Motivo ao reabrir rota fechada no mesmo dia
+
+
+class VehicleLocation(SQLModel, table=True):
+    """Registro de localização de veículos em tempo real."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    employee_id: int = Field(foreign_key="employee.id", index=True)
+    plate: str = Field(index=True)
+    latitude: float
+    longitude: float
+    timestamp: datetime = Field(default_factory=datetime.now, index=True)
 
 # --- Checklist Operacional (Transpaleteira) ---
 

@@ -52,10 +52,10 @@
                     </div>
                 </div>
 
-                <form action="/separacao/import-entregas" method="post" enctype="multipart/form-data"
+                <form id="form-import-entregas" action="/separacao/import-entregas" method="post" enctype="multipart/form-data"
                       class="grid grid-cols-1 lg:grid-cols-5 gap-3 items-end"
-                      onsubmit="return confirmImportDeliveries(this)">
-                    <input type="hidden" name="date" value="{{ selected_date_from }}">
+                      onsubmit="return confirmImportDeliveries(this)" data-today-br="{{ today_br }}">
+                    <input type="hidden" name="date" id="import-date-value" value="{{ selected_date_from }}">
                     <input type="hidden" name="input_date" value="{{ suggested_input_date }}">
                     <input type="hidden" name="shift" value="{{ selected_shift }}">
 
@@ -70,6 +70,15 @@
                         </div>
                         <p class="text-[11px] text-slate-500 mt-1">Se a importação redirecionar para o login, desative "Prevenção de rastreamento" para este site ou use o Chrome.</p>
                     </div>
+
+                    <div id="import-auth-password-wrap" class="lg:col-span-4 {% if not import_requires_password %}hidden{% endif %}">
+                        <label class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Senha de autorização</label>
+                        <input type="password" name="import_auth_password" id="import-auth-password" autocomplete="off"
+                               placeholder="Obrigatório para data diferente de hoje"
+                               class="w-full max-w-xs bg-slate-900 border border-amber-500/40 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:ring-1 focus:ring-amber-500 outline-none">
+                        <p class="text-[11px] text-amber-400/80 mt-1">Só é possível importar para outra data com a senha de autorização.</p>
+                    </div>
+                    <div class="lg:col-span-1 {% if not import_requires_password %}hidden{% endif %}" id="import-auth-password-spacer"></div>
 
                     <button type="submit"
                             class="bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors">
@@ -280,7 +289,7 @@
                     <div class="relative flex-1 max-w-xl">
                         <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-slate-500 pointer-events-none"></i>
                         <input type="text" id="delivery-global-search"
-                            placeholder="Pesquisar cliente, código, pedido, peso ou valor..."
+                            placeholder="Pesquisar cliente, código, pedido, peso, valor, motorista ou ajudante..."
                             oninput="filterDeliveryRows(this.value)"
                             class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all">
                     </div>
@@ -465,6 +474,7 @@
                                             <th class="text-left px-3 py-2.5 font-semibold">Peso</th>
                                             <th class="text-left px-3 py-2.5 font-semibold">Valor</th>
                                             <th class="text-left px-3 py-2.5 font-semibold">Status</th>
+                                            <th class="text-left px-3 py-2.5 font-semibold whitespace-nowrap">Inserido em</th>
                                             <th class="text-left px-3 py-2.5 font-semibold">Ações</th>
                                         </tr>
                                     </thead>
@@ -484,7 +494,7 @@
                                             {% else %}
                                                 bg-slate-900/10
                                             {% endif %}"
-                                            data-search="{{ (row.client_name ~ ' ' ~ row.client_code ~ ' ' ~ row.order_number ~ ' ' ~ row.weight ~ ' ' ~ row.value ~ ' ' ~ row.address ~ ' ' ~ row.city ~ ' ' ~ row.bairro)|lower }}">
+                                            data-search="{{ (row.client_name ~ ' ' ~ row.client_code ~ ' ' ~ row.order_number ~ ' ' ~ row.weight ~ ' ' ~ row.value ~ ' ' ~ row.address ~ ' ' ~ row.city ~ ' ' ~ row.bairro ~ ' ' ~ (row.inserted_at or '') ~ ' ' ~ (group.driver_name or '') ~ ' ' ~ (group.helper_names|join(' ') if group.helper_names else ''))|lower }}">
                                             <td class="px-3 py-2 text-slate-200">
                                                 <div class="font-bold">{{ row.client_name }}</div>
                                                 {% if row.client_secondary %}
@@ -550,6 +560,9 @@
                                                 <div class="text-[10px] text-orange-200 mt-1">Devolução parcial • {{ "{:,.2f}".format(row.return_weight).replace(",", "X").replace(".", ",").replace("X", ".") }} Kg • R$ {{ "{:,.2f}".format(row.return_value).replace(",", "X").replace(".", ",").replace("X", ".") }}</div>
                                                 {% endif %}
                                                 {% endif %}
+                                            </td>
+                                            <td class="px-3 py-2 text-slate-400 text-[11px] font-mono whitespace-nowrap" title="Dia e horário em que o cliente foi inserido na rota">
+                                                {% if row.inserted_at %}{{ row.inserted_at }}{% else %}—{% endif %}
                                             </td>
                                             <td class="px-3 py-2 min-w-[160px]">
                                                 <div class="grid grid-cols-2 gap-1.5">
@@ -1290,6 +1303,10 @@
 
     function confirmImportDeliveries(form) {
         if (!form) return false;
+        const dateFromEl = document.getElementById('route-date-from');
+        if (dateFromEl && form.querySelector('input[name="date"]')) {
+            form.querySelector('input[name="date"]').value = dateFromEl.value;
+        }
         const deliveryDate = form.querySelector('input[name="date"]')?.value;
         if (!deliveryDate) {
             alert('Informe a data da entrega.');
@@ -1299,6 +1316,15 @@
         if (fileInput && (!fileInput.files || fileInput.files.length === 0)) {
             alert('Selecione um arquivo Excel (.xls, .xlsx ou .csv) para importar.');
             return false;
+        }
+        const todayBr = form.getAttribute('data-today-br') || '';
+        const passwordWrap = document.getElementById('import-auth-password-wrap');
+        if (passwordWrap && !passwordWrap.classList.contains('hidden') && todayBr && deliveryDate !== todayBr) {
+            const pwd = form.querySelector('input[name="import_auth_password"]')?.value?.trim();
+            if (!pwd) {
+                alert('Para importar em data diferente de hoje é obrigatório informar a senha de autorização.');
+                return false;
+            }
         }
         return confirm(`Confirma a importação das entregas para a data ${deliveryDate}?`);
     }
