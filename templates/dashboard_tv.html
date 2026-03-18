@@ -276,19 +276,23 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                 <h2 class="text-label sm:text-sm font-bold text-slate-400 uppercase tracking-wider">Operação em tempo real — Rotas ativas</h2>
                 <p id="tv-central-subtitle" class="text-label text-slate-500 truncate max-w-[50%] sm:max-w-none">Ordenado por prioridade</p>
             </div>
-            <div id="tv-live-separation" class="driver-grid flex-1 min-h-0">
-                {% for op in (dashboard.live_separation or [])[:6] %}
+            {% set _nl = (dashboard.live_separation or [])|length %}
+            {% set _gcols = 3 %}{% if _nl <= 1 %}{% set _gcols = 1 %}{% elif _nl <= 2 %}{% set _gcols = 2 %}{% elif _nl <= 6 %}{% set _gcols = 3 %}{% elif _nl <= 12 %}{% set _gcols = 4 %}{% else %}{% set _gcols = 5 %}{% endif %}
+            {% set _grows = ((_nl + _gcols - 1) // _gcols) if _gcols and _nl else 1 %}
+            <div id="tv-live-separation" class="driver-grid flex-1 min-h-0" style="grid-template-columns: repeat({{ _gcols }}, minmax(0, 1fr)); grid-template-rows: repeat({{ _grows }}, minmax(0, 1fr));">
+                {% for op in (dashboard.live_separation or []) %}
                 {% set total = op.total_deliveries|default(op.routes|length) %}
                 {% set completed = op.completed_deliveries|default(0) %}
                 {% set open_count = total - completed %}
                 {% set pct_d = (completed / total * 100) if total and total > 0 else 0 %}
-                {% set ns = namespace(any_open=false) %}
-                {% for r in op.routes %}
-                    {% if (r.delivery_status or '') == 'iniciada' %}{% set ns.any_open = true %}{% endif %}
-                {% endfor %}
-                {% set card_status = 'critico' if open_count >= 5 or (total and total > 0 and pct_d < 25) else ('atencao' if open_count >= 3 or (total and total > 0 and pct_d < 50) else 'ok') %}
+                {% set rs = op.route_state|default('in_progress') %}
+                {% if rs == 'closed' %}{% set card_class = 'driver-card--closed' %}{% set status_label = 'Encerrada' %}{% set badge_cls = 'bg-slate-500/50 text-slate-300' %}{% set bar_cls = 'bar-pct--ok' %}
+                {% elif rs == 'not_started' %}{% set card_class = 'driver-card--not-started' %}{% set status_label = 'Rota parada' %}{% set badge_cls = 'bg-slate-600/50 text-slate-400' %}{% set bar_cls = 'bar-pct--ok' %}
+                {% elif rs == 'all_delivered' %}{% set card_class = 'driver-card--all-delivered' %}{% set status_label = 'Entregues' %}{% set badge_cls = 'bg-emerald-500/25 text-emerald-300' %}{% set bar_cls = 'bar-pct--ok' %}
+                {% else %}{% set card_status = 'critico' if open_count >= 5 or (total and total > 0 and pct_d < 25) else ('atencao' if open_count >= 3 or (total and total > 0 and pct_d < 50) else 'ok') %}{% set card_class = 'driver-card--' ~ card_status %}{% set status_label = 'Crítico' if card_status == 'critico' else ('Atenção' if card_status == 'atencao' else 'Normal') %}{% set badge_cls = 'bg-red-500/20 text-red-300' if card_status == 'critico' else ('bg-amber-500/25 text-amber-300' if card_status == 'atencao' else 'bg-slate-600/50 text-slate-400') %}{% set bar_cls = 'bar-pct--' ~ card_status %}{% endif %}
+                {% set dense = ' driver-card--dense' if _nl > 6 else '' %}
                 <div class="driver-cell">
-                    <article class="driver-card driver-card--{{ card_status }} border">
+                    <article class="driver-card {{ card_class }}{{ dense }} border">
                         <div class="card-head flex items-center gap-2">
                             <div class="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center shrink-0 text-slate-300 font-bold text-card-meta">{{ (op.employee_name or "?")[0] }}</div>
                             <div class="min-w-0 flex-1">
@@ -299,10 +303,10 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                         <div class="card-core flex items-center justify-between gap-2">
                             <span class="text-card-meta font-bold text-slate-300">{{ completed }}/{{ total }} entregas</span>
                             <span class="text-card-title font-black text-blue-300">{{ "%.0f"|format(pct_d) }}%</span>
-                            <span class="text-card-meta font-semibold px-1.5 py-0.5 rounded {{ 'bg-amber-500/25 text-amber-300' if card_status == 'atencao' else ('bg-red-500/20 text-red-300' if card_status == 'critico' else 'bg-slate-600/50 text-slate-400') }}">{{ 'Crítico' if card_status == 'critico' else ('Atenção' if card_status == 'atencao' else 'Normal') }}</span>
+                            <span class="text-card-meta font-semibold px-1.5 py-0.5 rounded {{ badge_cls }}">{{ status_label }}</span>
                         </div>
                         <div class="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden shrink-0 mb-1">
-                            <div class="h-full rounded-full transition-all bar-pct bar-pct--{{ card_status }}" style="width: {{ pct_d }}%"></div>
+                            <div class="h-full rounded-full transition-all {{ bar_cls }}" style="width: {{ pct_d }}%"></div>
                         </div>
                         {% set driver_alerts = (dashboard.alerts.clients_over_20min or [])|selectattr('driver_name', 'equalto', op.employee_name)|list %}
                         {% if driver_alerts %}
