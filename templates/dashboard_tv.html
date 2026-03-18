@@ -475,20 +475,6 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             var barClass = 'bar-pct bar-pct--' + status;
             return { class: statusClass, label: statusLabel, barClass: barClass };
         }
-        function countByStatus(live) {
-            var atencao = 0, critico = 0;
-            (live || []).forEach(function(op) {
-                var st = op.route_state || '';
-                if (st === 'not_started' || st === 'closed') return;
-                var total = op.total_deliveries || (op.routes && op.routes.length) || 0;
-                var completed = op.completed_deliveries || 0;
-                var openCount = total - completed;
-                var pct = total > 0 ? (completed / total * 100) : 0;
-                if (openCount >= 5 || (total > 0 && pct < 25)) critico++;
-                else if (openCount >= 3 || (total > 0 && pct < 50)) atencao++;
-            });
-            return { atencao: atencao, critico: critico };
-        }
         function computeLiveGridDims(n) {
             var cols = 3;
             if (n <= 0) return { cols: 3, rows: 1 };
@@ -548,8 +534,8 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                 set('tv-kpi-alertas', alertsCount);
                 set('tv-kpi-rotas-paradas', kpi.rotas_paradas != null ? kpi.rotas_paradas : (live.filter(function(o) { return (o.route_state || '') === 'not_started'; }).length));
                 set('tv-kpi-rotas-ativas', kpi.rotas_ativas != null ? kpi.rotas_ativas : (live.filter(function(o) { var s = o.route_state || ''; return s === 'in_progress' || s === 'all_delivered'; }).length));
-                set('tv-kpi-atencao', counts.atencao);
-                set('tv-kpi-criticas', counts.critico);
+                set('tv-kpi-atencao', tsa.atencao != null ? tsa.atencao : 0);
+                set('tv-kpi-criticas', tsa.critico != null ? tsa.critico : 0);
 
                 var subEl = document.getElementById('tv-central-subtitle');
                 if (subEl) {

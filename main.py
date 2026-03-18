@@ -2579,6 +2579,8 @@ async def api_dashboard_tv_data(
                 "live_separation": [],
                 "devolucao_dia": {},
                 "cost_centers_summary": {},
+                "tv_shift_alerts": {"atencao": 0, "critico": 0},
+                "operational_shift": operational_shift_br(datetime.now(ZoneInfo("America/Sao_Paulo"))),
             },
         })
     routes = session.exec(

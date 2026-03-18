@@ -26,48 +26,28 @@ window.SmartFlowClock = {
         this.autoSelectShift();
     },
 
-    isWithinShift(hour, minute, startH, startM, endH, endM) {
-        const current = hour * 60 + minute;
-        const start = startH * 60 + startM;
-        const end = endH * 60 + endM;
-        if (start < end) {
-            return current >= start && current < end;
-        }
-        return current >= start || current < end;
-    },
-
+    /** Manhã 07:00–17:00 | Tarde 17:01–19:00 | Noite 19:01–06:59 */
     getCurrentShift(hour, minute) {
-        if (this.isWithinShift(hour, minute, 18, 0, 6, 0)) {
-            return { name: 'Noite', id: 'Noite', color: 'purple', startH: 18, startM: 0, endH: 6, endM: 0 };
+        const c = hour * 60 + minute;
+        if (c >= 19 * 60 + 1 || c < 7 * 60) {
+            return { name: 'Noite', id: 'Noite', color: 'purple', startH: 19, startM: 1, endH: 6, endM: 59 };
         }
-        if (this.isWithinShift(hour, minute, 5, 0, 13, 20)) {
-            return { name: 'Manhã', id: 'Manhã', color: 'blue', startH: 5, startM: 0, endH: 13, endM: 20 };
+        if (c >= 17 * 60 + 1) {
+            return { name: 'Tarde', id: 'Tarde', color: 'orange', startH: 17, startM: 1, endH: 19, endM: 0 };
         }
-        return { name: 'Tarde', id: 'Tarde', color: 'orange', startH: 12, startM: 0, endH: 20, endM: 20 };
+        return { name: 'Manhã', id: 'Manhã', color: 'blue', startH: 7, startM: 0, endH: 17, endM: 0 };
     },
 
     getShiftProgress(hour, minute) {
-        const shift = this.getCurrentShift(hour, minute);
-        let currentMinutes = hour * 60 + minute;
-        let startMinutes = shift.startH * 60 + shift.startM;
-        let endMinutes = shift.endH * 60 + shift.endM;
-        
-        // Turno noite cruza meia-noite (18:00 - 06:00 = 12 horas)
-        if (shift.name === 'Noite') {
-            if (hour >= 18) {
-                currentMinutes = (hour - 18) * 60 + minute;
-            } else {
-                currentMinutes = (hour + 6) * 60 + minute; // horas apos meia-noite + 6
-            }
-            startMinutes = 0;
-            endMinutes = 12 * 60; // 12 horas de turno
+        const c = hour * 60 + minute;
+        if (c >= 19 * 60 + 1 || c < 7 * 60) {
+            const el = c >= 19 * 60 + 1 ? c - (19 * 60 + 1) : (1440 - (19 * 60 + 1)) + c;
+            return Math.min(100, Math.max(0, (el / 719) * 100));
         }
-        
-        const total = endMinutes - startMinutes;
-        let elapsed = currentMinutes - startMinutes;
-        if (elapsed < 0) elapsed = 0;
-        
-        return Math.min(100, Math.max(0, (elapsed / total) * 100));
+        if (c >= 17 * 60 + 1) {
+            return Math.min(100, Math.max(0, ((c - (17 * 60 + 1)) / 120) * 100));
+        }
+        return Math.min(100, Math.max(0, ((c - 7 * 60) / 600) * 100));
     },
 
     updateClock() {
