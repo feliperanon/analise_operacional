@@ -2155,7 +2155,7 @@ async def dashboard_entry(
 
     is_tv = request.url.path.rstrip("/").endswith("/tv")
     if is_tv:
-        cost_center = cost_center or "Exemplar"
+        cost_center = cost_center or "Todos"
 
     now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
     selected_cost_center = parse_cost_center_filter(cost_center)
@@ -2330,6 +2330,11 @@ async def dashboard_entry(
         .where(models.DeliverySession.employee_id.in_(all_emp_ids_with_routes))
     ).all() if all_emp_ids_with_routes else []
     session_closed_by_emp = {s.employee_id: (s.status or "").lower() == "closed" for s in sessions_today}
+    session_open_by_emp = {s.employee_id for s in sessions_today if (s.status or "").lower() == "open"}
+    session_plate_by_emp = {}
+    for s in sessions_today:
+        if s.employee_id and (getattr(s, "vehicle_plate", None) or "").strip():
+            session_plate_by_emp.setdefault(s.employee_id, (s.vehicle_plate or "").strip())
     session_helpers_by_emp = {s.employee_id: _parse_session_helpers(s.helpers_json)[:3] for s in sessions_today if getattr(s, "helpers_json", None)}
     for emp_id, bucket in live_buckets.items():
         emp_routes = [r for r in routes if r.employee_id == emp_id]
@@ -2342,6 +2347,8 @@ async def dashboard_entry(
             (r.delivery_vehicle_plate or "").strip() or None
             for r in emp_routes if (r.delivery_vehicle_plate or "").strip()
         ) if emp_routes else None
+        if not bucket["plate"] and session_plate_by_emp.get(emp_id):
+            bucket["plate"] = session_plate_by_emp[emp_id]
         helper_ids = []
         for r in emp_routes:
             helper_ids.extend(_parse_route_helper_ids(getattr(r, "delivery_helpers_json", None)))
@@ -2352,13 +2359,17 @@ async def dashboard_entry(
         if not bucket.get("helper_names") and session_helpers_by_emp.get(emp_id):
             bucket["helper_names"] = session_helpers_by_emp[emp_id]
         bucket["total_kg"] = round(sum(float(r.tonnage or 0.0) for r in emp_routes), 2)
-        has_started = any((r.delivery_status or "").lower() in ("iniciada", "entregue", "devolucao") for r in emp_routes)
+        has_delivery_started = any((r.delivery_status or "").lower() in ("iniciada", "entregue", "devolucao") for r in emp_routes)
+        session_started = emp_id in session_open_by_emp
+        has_started = has_delivery_started or session_started
         all_delivered = bucket["total_deliveries"] > 0 and bucket["completed_deliveries"] == bucket["total_deliveries"]
         route_ended = session_closed_by_emp.get(emp_id, False)
         if route_ended:
             bucket["route_state"] = "closed"
         elif not has_started:
             bucket["route_state"] = "not_started"
+        elif has_started and not has_delivery_started:
+            bucket["route_state"] = "route_started"
         elif all_delivered:
             bucket["route_state"] = "all_delivered"
         else:
@@ -2374,15 +2385,17 @@ async def dashboard_entry(
         if state == "closed":
             return (4, 0, -pct)
         if state == "not_started":
-            return (2, -open_count, -pct)
+            return (3, -open_count, -pct)
         if state == "all_delivered":
             return (3, -open_count, -pct)
+        if state == "route_started":
+            return (1, -open_count, -pct)
         return (1, -open_count, -pct)
 
     live_separation = list(live_buckets.values())
     live_separation.sort(key=_live_sort_key)
     rotas_paradas_count = sum(1 for b in live_separation if (b.get("route_state") or "") == "not_started")
-    rotas_ativas_count = sum(1 for b in live_separation if (b.get("route_state") or "") in ("in_progress", "all_delivered"))
+    rotas_ativas_count = sum(1 for b in live_separation if (b.get("route_state") or "") in ("in_progress", "all_delivered", "route_started"))
     _tv_shift_kv = tv_shift_alert_counts(live_separation, now_br)
 
     # Alertas tempo real: clientes com parada iniciada há mais de 20 minutos (só rotas iniciadas via mobile)
@@ -2562,7 +2575,7 @@ async def api_dashboard_tv_data(
         except Exception:
             pass
     selected_date_str = selected_date.strftime("%Y-%m-%d")
-    selected_cc = parse_cost_center_filter(cost_center or "Exemplar")
+    selected_cc = parse_cost_center_filter(cost_center or "Todos")
     employees_all = session.exec(
         select(models.Employee).where(models.Employee.status != "fired")
     ).all()
@@ -2634,6 +2647,11 @@ async def api_dashboard_tv_data(
         .where(models.DeliverySession.employee_id.in_(all_emp_ids_with_routes))
     ).all() if all_emp_ids_with_routes else []
     session_closed_by_emp = {s.employee_id: (s.status or "").lower() == "closed" for s in sessions_today}
+    session_open_by_emp = {s.employee_id for s in sessions_today if (s.status or "").lower() == "open"}
+    session_plate_by_emp = {}
+    for s in sessions_today:
+        if s.employee_id and (getattr(s, "vehicle_plate", None) or "").strip():
+            session_plate_by_emp.setdefault(s.employee_id, (s.vehicle_plate or "").strip())
     session_helpers_by_emp = {s.employee_id: _parse_session_helpers(s.helpers_json)[:3] for s in sessions_today if getattr(s, "helpers_json", None)}
 
     for emp_id, bucket in live_buckets.items():
@@ -2642,6 +2660,8 @@ async def api_dashboard_tv_data(
         bucket["total_deliveries"] = len(emp_routes)
         bucket["completed_deliveries"] = len([r for r in emp_routes if (r.delivery_status or "").lower() in ("entregue", "devolucao")])
         bucket["plate"] = next(((r.delivery_vehicle_plate or "").strip() or None for r in emp_routes if (r.delivery_vehicle_plate or "").strip()), None) if emp_routes else None
+        if not bucket["plate"] and session_plate_by_emp.get(emp_id):
+            bucket["plate"] = session_plate_by_emp[emp_id]
         helper_ids = []
         for r in emp_routes:
             helper_ids.extend(_parse_route_helper_ids(getattr(r, "delivery_helpers_json", None)))
@@ -2652,13 +2672,17 @@ async def api_dashboard_tv_data(
         if not bucket.get("helper_names") and session_helpers_by_emp.get(emp_id):
             bucket["helper_names"] = session_helpers_by_emp[emp_id]
         bucket["total_kg"] = round(sum(float(r.tonnage or 0.0) for r in emp_routes), 2)
-        has_started = any((r.delivery_status or "").lower() in ("iniciada", "entregue", "devolucao") for r in emp_routes)
+        has_delivery_started = any((r.delivery_status or "").lower() in ("iniciada", "entregue", "devolucao") for r in emp_routes)
+        session_started = emp_id in session_open_by_emp
+        has_started = has_delivery_started or session_started
         all_delivered = bucket["total_deliveries"] > 0 and bucket["completed_deliveries"] == bucket["total_deliveries"]
         route_ended = session_closed_by_emp.get(emp_id, False)
         if route_ended:
             bucket["route_state"] = "closed"
         elif not has_started:
             bucket["route_state"] = "not_started"
+        elif has_started and not has_delivery_started:
+            bucket["route_state"] = "route_started"
         elif all_delivered:
             bucket["route_state"] = "all_delivered"
         else:
@@ -2674,15 +2698,17 @@ async def api_dashboard_tv_data(
         if state == "closed":
             return (4, 0, -pct)
         if state == "not_started":
-            return (2, -open_count, -pct)
+            return (3, -open_count, -pct)
         if state == "all_delivered":
             return (3, -open_count, -pct)
+        if state == "route_started":
+            return (1, -open_count, -pct)
         return (1, -open_count, -pct)
 
     live_separation = list(live_buckets.values())
     live_separation.sort(key=_live_sort_key)
     rotas_paradas_count = sum(1 for b in live_separation if (b.get("route_state") or "") == "not_started")
-    rotas_ativas_count = sum(1 for b in live_separation if (b.get("route_state") or "") in ("in_progress", "all_delivered"))
+    rotas_ativas_count = sum(1 for b in live_separation if (b.get("route_state") or "") in ("in_progress", "all_delivered", "route_started"))
     _tsa_api = tv_shift_alert_counts(live_separation, now_br)
 
     routes_devolucao = [r for r in routes if (r.delivery_status or "").lower() == "devolucao"]

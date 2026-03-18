@@ -740,7 +740,7 @@
                 <h3 class="text-base font-semibold text-white">Lista de colaboradores</h3>
                 <p class="text-sm text-slate-400">Em telas menores, cada linha vira um card com os dados principais e ações rápidas.</p>
             </div>
-            <div class="text-xs text-slate-500">Use os filtros acima para reduzir a lista antes de editar em lote.</div>
+            <div class="text-xs text-slate-500">Demitidos não aparecem aqui por padrão — use o card <span class="text-red-400/90">Demitidos</span> para listá-los. Use os demais filtros para reduzir a lista antes de editar em lote.</div>
         </div>
         <div class="overflow-x-auto">
         <table class="w-full min-w-full text-left text-sm text-slate-300 md:min-w-[980px]" id="employeesTable">
@@ -1876,6 +1876,12 @@
             .trim();
     }
 
+    /** Demitidos só aparecem na lista ao clicar no card "Demitidos". */
+    function isFiredEmployeeStatus(status) {
+        const s = (status || '').toLowerCase();
+        return s === 'fired' || s === 'demitido';
+    }
+
     function updateRoleFilterLabel() {
         const label = document.getElementById('roleFilterLabel');
         if (!label) return;
@@ -2035,8 +2041,14 @@
                 matchesFilter = true;
             } else if (companyFilters.includes(currentFilter)) {
                 matchesFilter = centerLabel === currentFilter;
+            } else if (currentFilter === 'fired') {
+                matchesFilter = isFiredEmployeeStatus(status);
             } else {
                 matchesFilter = status === currentFilter;
+            }
+
+            if (isFiredEmployeeStatus(status) && currentFilter !== 'fired') {
+                matchesFilter = false;
             }
 
             if (matchesSearch && matchesFilter && matchesRoleFilter) {
