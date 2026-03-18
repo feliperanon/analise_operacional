@@ -2326,6 +2326,8 @@ async def dashboard_entry(
 
     live_separation = list(live_buckets.values())
     live_separation.sort(key=_live_sort_key)
+    rotas_paradas_count = sum(1 for b in live_separation if (b.get("route_state") or "") == "not_started")
+    rotas_ativas_count = sum(1 for b in live_separation if (b.get("route_state") or "") in ("in_progress", "all_delivered"))
 
     # Alertas tempo real: clientes com parada iniciada há mais de 20 minutos (só rotas iniciadas via mobile)
     alerts_clients_over_20min = []
@@ -2448,6 +2450,8 @@ async def dashboard_entry(
             "completed_routes_count": completed_count,
             "headcount": selected_headcount,
             "target_headcount": selected_target,
+            "rotas_paradas": rotas_paradas_count,
+            "rotas_ativas": rotas_ativas_count,
         },
         "alerts": {
             "ausentes": ausentes,
@@ -2606,6 +2610,8 @@ async def api_dashboard_tv_data(
 
     live_separation = list(live_buckets.values())
     live_separation.sort(key=_live_sort_key)
+    rotas_paradas_count = sum(1 for b in live_separation if (b.get("route_state") or "") == "not_started")
+    rotas_ativas_count = sum(1 for b in live_separation if (b.get("route_state") or "") in ("in_progress", "all_delivered"))
 
     routes_devolucao = [r for r in routes if (r.delivery_status or "").lower() == "devolucao"]
     routes_entregue_ou_devolucao = [r for r in routes if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
