@@ -2512,7 +2512,13 @@ async def api_dashboard_tv_data(
         return JSONResponse({
             "date": selected_date_str,
             "cost_center": selected_cc or "Todos",
-            "dashboard": {"kpi": {}, "alerts": {"clients_over_20min": []}, "live_separation": [], "devolucao_dia": {}, "cost_centers_summary": {}},
+            "dashboard": {
+                "kpi": {"rotas_paradas": 0, "rotas_ativas": 0},
+                "alerts": {"clients_over_20min": []},
+                "live_separation": [],
+                "devolucao_dia": {},
+                "cost_centers_summary": {},
+            },
         })
     routes = session.exec(
         select(models.Route)

@@ -556,16 +556,20 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                 set('tv-kpi-devolucao', devCount);
                 set('tv-kpi-devolucao-ctx', devCount ? (dev.pct || 0) + '% total' : '');
                 set('tv-kpi-alertas', alertsCount);
-                set('tv-kpi-rotas-ativas', live.length);
+                set('tv-kpi-rotas-paradas', kpi.rotas_paradas != null ? kpi.rotas_paradas : (live.filter(function(o) { return (o.route_state || '') === 'not_started'; }).length));
+                set('tv-kpi-rotas-ativas', kpi.rotas_ativas != null ? kpi.rotas_ativas : (live.filter(function(o) { var s = o.route_state || ''; return s === 'in_progress' || s === 'all_delivered'; }).length));
                 set('tv-kpi-atencao', counts.atencao);
                 set('tv-kpi-criticas', counts.critico);
 
                 var subEl = document.getElementById('tv-central-subtitle');
                 if (subEl) {
+                    var rp = kpi.rotas_paradas != null ? kpi.rotas_paradas : 0, ra = kpi.rotas_ativas != null ? kpi.rotas_ativas : 0;
+                    if (kpi.rotas_paradas == null) live.forEach(function(o) { if ((o.route_state || '') === 'not_started') rp++; });
+                    if (kpi.rotas_ativas == null) live.forEach(function(o) { var s = o.route_state || ''; if (s === 'in_progress' || s === 'all_delivered') ra++; });
                     if (bw.best && bw.worst && bw.best !== bw.worst)
-                        subEl.textContent = 'Maior avanço: ' + (bw.best.employee_name || '').replace(/</g,'&lt;') + ' · Maior atraso: ' + (bw.worst.employee_name || '').replace(/</g,'&lt;');
+                        subEl.textContent = live.length + ' no dia · ' + ra + ' ativas · ' + rp + ' paradas · Maior avanço: ' + (bw.best.employee_name || '').replace(/</g,'&lt;');
                     else if (live.length > 0)
-                        subEl.textContent = live.length + ' rota(s) ativa(s) · Ordenado por prioridade';
+                        subEl.textContent = live.length + ' rota(s) no dia · ' + ra + ' ativa(s) · ' + rp + ' parada(s) · Ordenado por prioridade';
                     else
                         subEl.textContent = 'Ordenado por prioridade';
                 }
@@ -614,10 +618,19 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                     diaBar.style.background = 'linear-gradient(to right, rgb(59, 130, 246), rgb(34, 211, 238))';
                 }
 
-                live = (live || []).slice(0, 6);
+                live = live || [];
                 var container = document.getElementById('tv-live-separation');
                 var alertsList = alerts.clients_over_20min || [];
-                if (container && live.length > 0) {
+                var nLive = live.length;
+                var gridDims = computeLiveGridDims(nLive);
+                if (container) {
+                    if (nLive > 0) {
+                        container.style.gridTemplateColumns = 'repeat(' + gridDims.cols + ', minmax(0, 1fr))';
+                        container.style.gridTemplateRows = 'repeat(' + gridDims.rows + ', minmax(0, 1fr))';
+                    }
+                    if (nLive === 0) {
+                        container.innerHTML = '<div class="col-span-full flex items-center justify-center text-slate-500 text-card-title py-8" style="grid-column: 1 / -1;">Nenhuma rota programada para o dia.</div>';
+                    } else {
                     container.innerHTML = live.map(function(op) {
                         var total = op.total_deliveries || (op.routes && op.routes.length) || 0, completed = op.completed_deliveries || 0, openCount = total - completed;
                         var pctR = total > 0 ? Math.round(completed / total * 100) : 0;
@@ -626,6 +639,7 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                         var statusLabel = stateUi.label;
                         var statusBg = (op.route_state === 'closed') ? 'bg-slate-500/50 text-slate-300' : (op.route_state === 'not_started') ? 'bg-slate-600/50 text-slate-400' : (op.route_state === 'all_delivered') ? 'bg-emerald-500/25 text-emerald-300' : (statusClass === 'driver-card--critico') ? 'bg-red-500/20 text-red-300' : (statusClass === 'driver-card--atencao') ? 'bg-amber-500/25 text-amber-300' : 'bg-slate-600/50 text-slate-400';
                         var barClass = stateUi.barClass;
+                        var denseCls = nLive > 6 ? ' driver-card--dense' : '';
                         var helpers = (op.helper_names || []).join(', ');
                         if (helpers.length > 18) helpers = helpers.substring(0, 16) + '…';
                         var pesoStr = (op.total_kg != null && op.total_kg !== '') ? (Number(op.total_kg).toFixed(1) + ' kg') : '—';
@@ -642,13 +656,14 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                                 return '<div class="alert-item mt-0.5">' + (a.client_name || '').replace(/</g,'&lt;') + ' · ' + formatMinutesAsHours(a.minutes) + '</div>';
                             }).join('') + '</div>';
                         }
-                        return '<div class="driver-cell"><article class="driver-card ' + statusClass + ' border">' +
+                        return '<div class="driver-cell"><article class="driver-card ' + statusClass + denseCls + ' border">' +
                             '<div class="card-head flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center shrink-0 text-slate-300 font-bold text-card-meta">' + (op.employee_name || '?').charAt(0) + '</div><div class="min-w-0 flex-1"><p class="font-bold text-white text-card-title truncate leading-tight">' + (op.employee_name || '').replace(/</g,'&lt;') + '</p><p class="text-card-meta text-slate-500 truncate">Ajud.: ' + (helpers || '—').replace(/</g,'&lt;') + ' · Placa: ' + (op.plate || '—').replace(/</g,'&lt;') + ' · Peso: ' + pesoStr.replace(/</g,'&lt;') + '</p></div></div>' +
                             '<div class="card-core flex items-center justify-between gap-2"><span class="text-card-meta font-bold text-slate-300">' + completed + '/' + total + ' entregas</span><span class="text-card-title font-black text-blue-300">' + pctR + '%</span><span class="text-card-meta font-semibold px-1.5 py-0.5 rounded ' + statusBg + '">' + statusLabel + '</span></div>' +
                             '<div class="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden shrink-0 mb-1"><div class="h-full rounded-full transition-all ' + barClass + '" style="width:' + pctR + '%"></div></div>' +
                             alertBlock +
                             '<div class="card-foot"><p class="text-card-meta text-slate-500 uppercase font-semibold shrink-0 mb-0.5">Abertas agora</p><div class="open-list">' + openHtml + '</div>' + more + '</div></article></div>';
                     }).join('');
+                    }
                 }
             }).catch(function() { setLastUpdate(); });
         }
