@@ -40,6 +40,59 @@ from routers.admin_geocoding import init_admin_geocoding_router
 from services.geocoding_service import geocoding_service
 from client_import_utils import normalize_address, normalize_phone_br, normalize_key, find_col_map as find_client_col_map
 from route_duration import route_duration_minutes
+
+
+def operational_shift_br(dt: datetime) -> str:
+    """Manhã 07:00–17:00, Tarde 17:01–19:00, Noite 19:01–06:59 (horário local do dt)."""
+    hm = dt.hour * 60 + dt.minute
+    if hm >= 19 * 60 + 1 or hm < 7 * 60:
+        return "Noite"
+    if hm >= 17 * 60 + 1:
+        return "Tarde"
+    return "Manhã"
+
+
+def _normalize_work_shift_key(s: Optional[str]) -> str:
+    if not s:
+        return "manha"
+    x = (
+        unicodedata.normalize("NFKD", str(s).strip())
+        .encode("ascii", "ignore")
+        .decode()
+        .lower()
+    )
+    if x.startswith("manh"):
+        return "manha"
+    if x.startswith("tard"):
+        return "tarde"
+    if x.startswith("noit"):
+        return "noite"
+    return x
+
+
+def tv_shift_alert_counts(live_separation: List[Any], now_br: datetime) -> Dict[str, Any]:
+    """Atenção/Críticas só no turno operacional atual e motoristas daquele work_shift."""
+    cur_key = _normalize_work_shift_key(operational_shift_br(now_br))
+    atencao, critico = 0, 0
+    for b in live_separation or []:
+        if _normalize_work_shift_key(b.get("work_shift")) != cur_key:
+            continue
+        st = b.get("route_state") or ""
+        if st in ("not_started", "closed"):
+            continue
+        total = int(b.get("total_deliveries") or 0)
+        completed = int(b.get("completed_deliveries") or 0)
+        open_count = total - completed
+        pct = (completed / total * 100.0) if total else 0.0
+        if open_count >= 5 or (total > 0 and pct < 25):
+            critico += 1
+        elif open_count >= 3 or (total > 0 and pct < 50):
+            atencao += 1
+    return {
+        "atencao": atencao,
+        "critico": critico,
+        "operational_shift": operational_shift_br(now_br),
+    }
 import logging
 import pydantic
 from logging.handlers import RotatingFileHandler
@@ -2311,6 +2364,8 @@ async def dashboard_entry(
         else:
             bucket["route_state"] = "in_progress"
         bucket["route_ended"] = route_ended
+        _emp_ws = employee_by_id.get(emp_id) or employee_by_id_all.get(emp_id)
+        bucket["work_shift"] = (getattr(_emp_ws, "work_shift", None) or "Manhã").strip()
 
     def _live_sort_key(x):
         state = x.get("route_state") or "in_progress"
@@ -2328,6 +2383,7 @@ async def dashboard_entry(
     live_separation.sort(key=_live_sort_key)
     rotas_paradas_count = sum(1 for b in live_separation if (b.get("route_state") or "") == "not_started")
     rotas_ativas_count = sum(1 for b in live_separation if (b.get("route_state") or "") in ("in_progress", "all_delivered"))
+    _tv_shift_kv = tv_shift_alert_counts(live_separation, now_br)
 
     # Alertas tempo real: clientes com parada iniciada há mais de 20 minutos (só rotas iniciadas via mobile)
     alerts_clients_over_20min = []
@@ -2468,6 +2524,11 @@ async def dashboard_entry(
     }
     if is_tv:
         dashboard_payload["clientes_alto_indice_devolucao"] = clientes_alto_indice
+        dashboard_payload["tv_shift_alerts"] = {
+            "atencao": _tv_shift_kv["atencao"],
+            "critico": _tv_shift_kv["critico"],
+        }
+        dashboard_payload["operational_shift"] = _tv_shift_kv["operational_shift"]
 
     template_name = "dashboard_tv.html" if is_tv else "index.html"
     return templates.TemplateResponse(
@@ -2601,6 +2662,8 @@ async def api_dashboard_tv_data(
         else:
             bucket["route_state"] = "in_progress"
         bucket["route_ended"] = route_ended
+        _emp_ws2 = employee_by_id.get(emp_id) or employee_by_id_all.get(emp_id)
+        bucket["work_shift"] = (getattr(_emp_ws2, "work_shift", None) or "Manhã").strip()
 
     def _live_sort_key(x):
         state = x.get("route_state") or "in_progress"
@@ -2618,6 +2681,7 @@ async def api_dashboard_tv_data(
     live_separation.sort(key=_live_sort_key)
     rotas_paradas_count = sum(1 for b in live_separation if (b.get("route_state") or "") == "not_started")
     rotas_ativas_count = sum(1 for b in live_separation if (b.get("route_state") or "") in ("in_progress", "all_delivered"))
+    _tsa_api = tv_shift_alert_counts(live_separation, now_br)
 
     routes_devolucao = [r for r in routes if (r.delivery_status or "").lower() == "devolucao"]
     routes_entregue_ou_devolucao = [r for r in routes if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
@@ -2749,6 +2813,8 @@ async def api_dashboard_tv_data(
             "devolucao_dia": devolucao_dia,
             "clientes_alto_indice_devolucao": clientes_alto_indice,
             "cost_centers_summary": cost_centers_summary,
+            "tv_shift_alerts": {"atencao": _tsa_api["atencao"], "critico": _tsa_api["critico"]},
+            "operational_shift": _tsa_api["operational_shift"],
         },
     }
     return JSONResponse(payload)
