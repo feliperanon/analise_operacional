@@ -126,17 +126,16 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
         .bar-pct--atencao { background: linear-gradient(to right, rgb(234 179 8), rgb(251 191 36)); }
         .bar-pct--critico { background: linear-gradient(to right, rgb(239 68 68), rgb(248 113 113)); }
 
-        .driver-grid { display: grid; grid-template-rows: 1fr 1fr; gap: clamp(8px, 1vh, 16px); padding: clamp(8px, 1vh, 12px); min-height: 0; }
-        .driver-grid .driver-cell { min-height: 0; overflow: hidden; }
+        .driver-grid { display: grid; gap: clamp(6px, 0.8vh, 12px); padding: clamp(6px, 0.8vh, 10px); min-height: 0; flex: 1 1 auto; align-content: stretch; }
+        .driver-grid .driver-cell { min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
         .driver-card { height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 0.75rem; border-width: 2px; padding: 0.5rem 0.75rem; }
-        .driver-card .card-head { flex-shrink: 0; border-bottom: 1px solid rgba(51,65,85,0.6); padding-bottom: 0.35rem; margin-bottom: 0.35rem; }
-        .driver-card .card-core { flex-shrink: 0; margin-bottom: 0.35rem; }
-        .driver-card .card-foot { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+        .driver-card .card-head { flex-shrink: 0; border-bottom: 1px solid rgba(51,65,85,0.6); padding-bottom: 0.2rem; margin-bottom: 0.2rem; }
+        .driver-card .card-core { flex-shrink: 0; margin-bottom: 0.2rem; }
+        .driver-card .card-foot { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; font-size: clamp(0.55rem, 0.75vw, 0.65rem); }
         .driver-card .open-list { overflow: hidden; display: flex; flex-direction: column; gap: 2px; max-height: 100%; }
         .driver-card .open-item { flex-shrink: 0; }
-
-        @media (min-width: 1281px) { .driver-grid { grid-template-columns: repeat(3, 1fr); } }
-        @media (max-width: 1280px) { .driver-grid { grid-template-columns: repeat(2, 1fr); } }
+        .driver-card--dense .w-8 { width: 1.5rem; height: 1.5rem; font-size: 0.65rem; }
+        .driver-card--dense { padding: 0.35rem 0.5rem; }
         @media (max-width: 1024px) {
             .zone-topo { flex: 0 0 7vh; }
             .zone-kpis { flex: 0 0 auto; min-height: 80px; }
@@ -211,12 +210,16 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             {% for op in (dashboard.live_separation or []) %}
                 {% set _o = op.total_deliveries|default(op.routes|length) - op.completed_deliveries|default(0) %}
                 {% set _ns.open_total = _ns.open_total + _o %}
+                {% set _rs = op.route_state|default('') %}
+                {% if _rs not in ['not_started', 'closed'] %}
                 {% set _p = (op.completed_deliveries|default(0) / op.total_deliveries * 100) if op.total_deliveries and op.total_deliveries > 0 else 0 %}
                 {% if _o >= 5 or _p < 25 %}{% set _ns.critico = _ns.critico + 1 %}
                 {% elif _o >= 3 or _p < 50 %}{% set _ns.atencao = _ns.atencao + 1 %}{% endif %}
+                {% endif %}
             {% endfor %}
             {% set _open_total = _ns.open_total %}
-            {% set _n_ativas = (dashboard.live_separation or [])|length %}
+            {% set _n_paradas = dashboard.kpi.rotas_paradas|default(0) if dashboard.kpi else 0 %}
+            {% set _n_ativas_real = dashboard.kpi.rotas_ativas|default(0) if dashboard.kpi else 0 %}
             <div class="kpi-cell flex items-center gap-2 px-2 sm:px-4 py-2 min-w-0 flex-1 flex-shrink-0" style="min-width: 90px;">
                 <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Centro</span>
                 <span class="font-bold text-blue-300 text-kpi truncate">{{ current_cost_center }}</span>
@@ -248,9 +251,13 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                 <span id="tv-kpi-alertas" class="font-black text-kpi {{ 'text-amber-400' if _alerts_n > 0 else 'text-slate-500' }}">{{ _alerts_n }}</span>
                 <span class="text-label text-slate-500">&gt;20 min</span>
             </div>
-            <div class="kpi-cell flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 85px;">
+            <div class="kpi-cell flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 95px;">
+                <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Rotas paradas</span>
+                <span id="tv-kpi-rotas-paradas" class="font-black text-kpi text-slate-400">{{ _n_paradas }}</span>
+            </div>
+            <div class="kpi-cell flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 95px;">
                 <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Rotas ativas</span>
-                <span id="tv-kpi-rotas-ativas" class="font-black text-kpi text-white">{{ _n_ativas }}</span>
+                <span id="tv-kpi-rotas-ativas" class="font-black text-kpi text-emerald-400">{{ _n_ativas_real }}</span>
             </div>
             <div class="kpi-cell flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 75px;">
                 <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Atenção</span>

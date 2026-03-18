@@ -2735,6 +2735,8 @@ async def api_dashboard_tv_data(
                 "completed_routes_count": len(completed_routes),
                 "headcount": selected_headcount,
                 "target_headcount": selected_headcount,
+                "rotas_paradas": rotas_paradas_count,
+                "rotas_ativas": rotas_ativas_count,
             },
             "alerts": {"clients_over_20min": alerts_over_20min},
             "live_separation": live_separation,
