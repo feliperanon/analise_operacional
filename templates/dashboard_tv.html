@@ -306,7 +306,7 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                             <span class="text-card-meta font-semibold px-1.5 py-0.5 rounded {{ badge_cls }}">{{ status_label }}</span>
                         </div>
                         <div class="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden shrink-0 mb-1">
-                            <div class="h-full rounded-full transition-all {{ bar_cls }}" style="width: {{ pct_d }}%"></div>
+                            <div class="h-full rounded-full transition-all bar-pct {{ bar_cls }}" style="width: {{ pct_d }}%"></div>
                         </div>
                         {% set driver_alerts = (dashboard.alerts.clients_over_20min or [])|selectattr('driver_name', 'equalto', op.employee_name)|list %}
                         {% if driver_alerts %}
